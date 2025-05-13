@@ -1,5 +1,4 @@
-# Simple Dart client library for Genkit
-
+# Dart client library for Genkit
 
 ## runFlow
 
@@ -11,7 +10,6 @@ void main() async {
   print('Joke: $joke');
 }
 ```
-
 
 ## streamFlow
 
