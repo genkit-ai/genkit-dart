@@ -4,152 +4,209 @@ This library provides a Dart client for interacting with Genkit flows, enabling 
 
 ## Getting Started
 
-Initialize `GenkitClient`.
+Import the library and define your remote actions.
 
 ```dart
 import 'package:genkit/genkit.dart';
-// Define your data classes for inputs and outputs if needed.
-// For example:
-// class MyInput { /* ... */ Map<String, dynamic> toJson() => { /* ... */ }; }
-// class MyOutput { factory MyOutput.fromJson(Map<String, dynamic> json) { /* ... */ } }
 ```
+
+## `RemoteAction` - Core Class
+
+The `RemoteAction` class represents a remote Genkit flow that can be invoked or streamed.
+
+### Creating a RemoteAction
 
 ```dart
-void main() async {
-  final client = GenkitClient(
-    baseUrl: 'http://localhost:3400', // Your Genkit server base URL
+// Create a RemoteAction for a flow that takes a String and returns a String
+final stringAction = RemoteAction<String, void>(
+  url: 'http://localhost:3400/my-flow',
+  fromResponse: (data) => data as String,
+);
 
-    // Optional: Provide a custom httpClient for testing or specific configurations
-    // httpClient: myCustomHttpClient,
-
-    // Optional: Set default headers for all requests (e.g., for authorization)
-    // defaultHeaders: {'Authorization': 'Bearer YOUR_TOKEN'},
-  );
-
-  client.dispose(); // Dispose the client when no longer needed
-}
+// Create a RemoteAction for custom objects
+final customAction = RemoteAction<MyOutput, void>(
+  url: 'http://localhost:3400/custom-flow',
+  fromResponse: (data) => MyOutput.fromJson(data),
+);
 ```
 
-## `runFlow` - Calling Unary Flows
-
-Use `runFlow` to call flows that take an input and return a single output.
+## Calling Unary Flows
 
 ### Example: String to String
 
-If your flow takes a `String` and returns a `String`:
-
 ```dart
-  // Assumes a flow named 'echoString' that takes a String and returns a String.
-  try {
-    final response = await client.runFlow<String, String>(
-      flowUrlOrPath: '/echoString',
-      input: 'Hello from Dart!',
-    );
-    print('Flow Response: $response');
-  } catch (e) {
-    print('Error calling runFlow: $e');
-  }
+final action = RemoteAction<String, void>(
+  url: 'http://localhost:3400/echo-string',
+  fromResponse: (data) => data as String,
+);
+
+try {
+  final response = await action(input: 'Hello from Dart!');
+  print('Flow Response: $response');
+} catch (e) {
+  print('Error calling flow: $e');
+}
 ```
 
-### Example: Custom Object to Custom Object
-
-If your flow handles custom objects, you'll need to provide a `GenkitConverter`.
+### Example: Custom Object Input and Output
 
 ```dart
-  // Assuming MyInput and MyOutput classes are defined with toJson/fromJson
-  final myInput = MyInput(message: 'Process this data', count: 10);
+class MyInput {
+  final String message;
+  final int count;
+  
+  MyInput({required this.message, required this.count});
+  
+  Map<String, dynamic> toJson() => {
+    'message': message,
+    'count': count,
+  };
+}
 
-  try {
-    final myOutput = await client.runFlow(
-      flowUrlOrPath: '/processMyObject',
-      input: myInput,
-      converter: GenkitConverter<MyInput, MyOutput, void>(
-        // Convert MyInput instance to a JSON-encodable Map
-        toRequestData: (input) => input.toJson(),
-        // Convert the JSON Map from the response back to a MyOutput instance
-        fromResponseData: (json) => MyOutput.fromJson(json),
-      ),
-    );
-    print('Flow Response (MyOutput): ${myOutput.reply}, ${myOutput.newCount}');
-  } catch (e) {
-    print('Error calling runFlow with objects: $e');
-  }
+class MyOutput {
+  final String reply;
+  final int newCount;
+  
+  MyOutput({required this.reply, required this.newCount});
+  
+  factory MyOutput.fromJson(Map<String, dynamic> json) => MyOutput(
+    reply: json['reply'] as String,
+    newCount: json['newCount'] as int,
+  );
+}
+
+final action = RemoteAction<MyOutput, void>(
+  url: 'http://localhost:3400/process-object',
+  fromResponse: (data) => MyOutput.fromJson(data),
+);
+
+final input = MyInput(message: 'Process this data', count: 10);
+
+try {
+  final output = await action(input: input);
+  print('Flow Response: ${output.reply}, ${output.newCount}');
+} catch (e) {
+  print('Error calling flow: $e');
+}
 ```
 
-## `streamFlow` - Calling Streaming Flows
+## Calling Streaming Flows
 
-Use `streamFlow` for flows that stream multiple chunks of data and then return a final response. It returns a record containing both the `stream` (an `Stream<S>`) and the `response` (a `Future<O>`).
+Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns a `FlowStreamResponse` containing both the `stream` and the `response` future.
 
 ### Example: String Input, Streaming String Chunks, String Final Response
 
 ```dart
-  // Assumes a flow 'streamStory' that takes a String prompt,
-  // streams String chunks, and returns a final String summary.
-  try {
-    final (:stream, :response) = client.streamFlow<String, String, String>(
-      flowUrlOrPath: '/streamStory',
-      input: 'Tell me a short story about a Dart developer.',
-      converter: GenkitConverter<String, String, String>(
-        toRequestData: (input) => input, // Input is already JSON-encodable
-        fromResponseData: (data) => data as String, // Final response is a String
-        // Convert the JSON Map from each stream chunk to a String.
-        // Assumes server sends chunks like: {"message": {"chunk": "once upon a time..."}}
-        // and _streamFlowInternal passes the content of "message" to this callback.
-        fromStreamChunkData: (chunkData) {
-          // Adjust access based on actual chunk structure from your flow
-          return chunkData['chunk'] as String;
-        }
-      ),
-    );
+final streamAction = RemoteAction<String, String>(
+  url: 'http://localhost:3400/stream-story',
+  fromResponse: (data) => data as String,
+  fromStreamChunk: (data) => data['chunk'] as String,
+);
 
-    print('Streaming chunks:');
-    await for (final chunk in stream) {
-      print('Chunk: $chunk');
-    }
+try {
+  final streamResponse = streamAction.stream(
+    input: 'Tell me a short story about a Dart developer.',
+  );
 
-    final finalResult = await response;
-    print('\nFinal Response from stream: $finalResult');
-  } catch (e) {
-    print('Error calling streamFlow: $e');
+  print('Streaming chunks:');
+  await for (final chunk in streamResponse.stream) {
+    print('Chunk: $chunk');
   }
+
+  final finalResult = await streamResponse.response;
+  print('\nFinal Response: $finalResult');
+} catch (e) {
+  print('Error calling streamFlow: $e');
+}
 ```
 
-### Example: Custom Object Input, Streaming Custom Object Chunks, Custom Object Final Response
+### Example: Custom Object Streaming
 
 ```dart
-  // Assuming MyStreamInput and MyStreamOutput classes are defined
-  final myStreamInput = MyStreamInput(topic: 'Genkit Streaming');
+class StreamChunk {
+  final String content;
+  
+  StreamChunk({required this.content});
+  
+  factory StreamChunk.fromJson(Map<String, dynamic> json) => StreamChunk(
+    content: json['content'] as String,
+  );
+}
 
-  try {
-    final (:stream, :response) = client.streamFlow(
-      flowUrlOrPath: '/processMyStream',
-      input: myStreamInput,
-      converter: GenkitConverter<MyStreamInput, MyStreamOutput, String>(
-        toRequestData: (input) => input.toJson(),
-        fromResponseData: (json) => MyStreamOutput.fromJson(json),
-        fromStreamChunkData: (json) => MyStreamChunk.fromJson(json).content,
-      ),
-    );
+final streamAction = RemoteAction<MyOutput, StreamChunk>(
+  url: 'http://localhost:3400/stream-process',
+  fromResponse: (data) => MyOutput.fromJson(data),
+  fromStreamChunk: (data) => StreamChunk.fromJson(data),
+);
 
-    print('Streaming object chunks:');
-    await for (final content in stream) {
-      print('Chunk (MyStreamChunk): ${content}');
-    }
+final input = MyInput(message: 'Stream this data', count: 5);
 
-    final finalResult = await response;
-    print('\nFinal Stream Response (MyStreamOutput): ${finalResult.summary}');
-  } catch (e) {
-    print('Error calling streamFlow with objects: $e');
+try {
+  final streamResponse = streamAction.stream(input: input);
+
+  print('Streaming chunks:');
+  await for (final chunk in streamResponse.stream) {
+    print('Chunk: ${chunk.content}');
   }
 
+  final finalResult = await streamResponse.response;
+  print('\nFinal Response: ${finalResult.reply}');
+} catch (e) {
+  print('Error calling streaming flow: $e');
+}
 ```
 
-## `GenkitConverter<I, O, S>`
+## Custom Headers
 
-The `GenkitConverter` is crucial when dealing with custom Dart objects for your flow's input (`I`), output (`O`), or stream chunks (`S`). It requires three functions:
+You can provide custom headers for individual requests:
 
-- `toRequestData: (I input) => dynamic`: Converts your Dart input object `I` into a JSON-encodable `dynamic` type (usually a `Map<String, dynamic>`, `String`, `int`, etc.). This payload is then wrapped in `{'data': payload}` by the client.
-- `fromResponseData: (dynamic data) => O`: Converts the `dynamic` data payload from the flow's final response into your Dart output object `O`.
-- `fromStreamChunkData: (dynamic json) => S` (Optional): Converts the `dynamic` JSON payload from each stream chunk into your Dart stream chunk object `S`. This is only required if `S` is not `void` and you are expecting typed stream chunks.
+```dart
+final response = await action(
+  input: 'test input',
+  headers: {'Authorization': 'Bearer your-token'},
+);
 
-Make sure your custom classes have appropriate `toJson()` and `fromJson(Map<String, dynamic> json)` methods (or equivalent logic within the converter functions) for seamless serialization and deserialization.
+// For streaming
+final streamResponse = action.stream(
+  input: 'test input',
+  headers: {'Authorization': 'Bearer your-token'},
+);
+```
+
+You can also set default headers when creating the RemoteAction:
+
+```dart
+final action = RemoteAction<String, void>(
+  url: 'http://localhost:3400/my-flow',
+  fromResponse: (data) => data as String,
+  defaultHeaders: {'Authorization': 'Bearer your-token'},
+);
+```
+
+## Error Handling
+
+The library throws `GenkitException` for various error conditions:
+
+```dart
+try {
+  final result = await action(input: 'test');
+} on GenkitException catch (e) {
+  print('Genkit error: ${e.message}');
+  print('Status code: ${e.statusCode}');
+  print('Details: ${e.details}');
+} catch (e) {
+  print('Other error: $e');
+}
+```
+
+## Type Parameters
+
+- `O`: The type of the output data from the flow's final response
+- `S`: The type of the data chunks streamed from the flow (use `void` for non-streaming flows)
+
+## Data Conversion Functions
+
+- `fromResponse`: Converts the JSON response data to your output type `O`
+- `fromStreamChunk`: (Optional) Converts JSON chunk data to your stream chunk type `S`
+
+Make sure your custom classes have appropriate `toJson()` and `fromJson()` methods for serialization and deserialization.
