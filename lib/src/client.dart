@@ -148,7 +148,7 @@ class RemoteAction<O, S> {
 
       streamController.onCancel = () async {
         if (subscription != null) {
-          await subscription?.cancel();
+          await subscription.cancel();
         }
         if (!responseCompleter.isCompleted) {
           responseCompleter.completeError(
@@ -257,7 +257,7 @@ class RemoteAction<O, S> {
                     if (!streamController.isClosed) {
                       streamController.addError(exception);
                       if (subscription != null) {
-                        await subscription?.cancel();
+                        await subscription.cancel();
                       }
                       buffer = '';
                       if (!streamController.isClosed) {
