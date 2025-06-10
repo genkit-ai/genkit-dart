@@ -12,7 +12,7 @@ void main() async {
     fromResponse: (json) => json as String,
   );
   final response1 = await echoStringFlow(
-    input: 'Hello Dart with revised API!',
+    input: 'Hello Genkit client for Dart!',
   );
   print('Response: $response1');
 
