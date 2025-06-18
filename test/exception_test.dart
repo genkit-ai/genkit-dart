@@ -65,14 +65,13 @@ void main() {
 
       expect(string, contains('GenkitException: Main error'));
       expect(
-          string, contains('Underlying exception: Exception: Network error'));
+        string,
+        contains('Underlying exception: Exception: Network error'),
+      );
     });
 
     test('should ignore empty details in toString()', () {
-      final exception = GenkitException(
-        'Test error',
-        details: '',
-      );
+      final exception = GenkitException('Test error', details: '');
 
       final string = exception.toString();
 
@@ -110,8 +109,10 @@ void main() {
       expect(string, contains('GenkitException: JSON parsing failed'));
       expect(string, contains('Status Code: 400'));
       expect(string, contains('Details: Response body: {"invalid": json}'));
-      expect(string,
-          contains('Underlying exception: FormatException: Invalid JSON'));
+      expect(
+        string,
+        contains('Underlying exception: FormatException: Invalid JSON'),
+      );
       expect(string, contains('StackTrace:'));
     });
   });

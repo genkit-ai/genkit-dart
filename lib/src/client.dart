@@ -33,12 +33,12 @@ class RemoteAction<O, S> {
     http.Client? httpClient,
     required O Function(dynamic jsonData) fromResponse,
     S Function(dynamic jsonData)? fromStreamChunk,
-  })  : _url = url,
-        _defaultHeaders = defaultHeaders,
-        _httpClient = httpClient ?? http.Client(),
-        _ownsHttpClient = httpClient == null,
-        _fromResponseData = fromResponse,
-        _fromStreamChunkData = fromStreamChunk;
+  }) : _url = url,
+       _defaultHeaders = defaultHeaders,
+       _httpClient = httpClient ?? http.Client(),
+       _ownsHttpClient = httpClient == null,
+       _fromResponseData = fromResponse,
+       _fromStreamChunkData = fromStreamChunk;
 
   Future<dynamic> _runInternal<I>({
     required I input,
@@ -116,10 +116,7 @@ class RemoteAction<O, S> {
             errorData['message'] is String) {
           errorMessage = errorData['message'] as String;
         }
-        throw GenkitException(
-          errorMessage,
-          details: jsonEncode(errorData),
-        );
+        throw GenkitException(errorMessage, details: jsonEncode(errorData));
       }
 
       if (decodedBody.containsKey('result')) {
@@ -210,129 +207,134 @@ class RemoteAction<O, S> {
         }
 
         var buffer = '';
-        subscription = streamedResponse.stream.transform(utf8.decoder).listen(
-          (decodedChunk) async {
-            buffer += decodedChunk;
-            while (buffer.contains(flowStreamDelimiter)) {
-              final endOfChunk = buffer.indexOf(flowStreamDelimiter);
-              final chunkData = buffer.substring(0, endOfChunk);
-              buffer = buffer.substring(
-                endOfChunk + flowStreamDelimiter.length,
-              );
+        subscription = streamedResponse.stream
+            .transform(utf8.decoder)
+            .listen(
+              (decodedChunk) async {
+                buffer += decodedChunk;
+                while (buffer.contains(flowStreamDelimiter)) {
+                  final endOfChunk = buffer.indexOf(flowStreamDelimiter);
+                  final chunkData = buffer.substring(0, endOfChunk);
+                  buffer = buffer.substring(
+                    endOfChunk + flowStreamDelimiter.length,
+                  );
 
-              if (!chunkData.startsWith(sseDataPrefix)) {
-                continue;
-              }
-              final jsonData = chunkData.substring(sseDataPrefix.length);
-              if (jsonData.isEmpty) continue;
+                  if (!chunkData.startsWith(sseDataPrefix)) {
+                    continue;
+                  }
+                  final jsonData = chunkData.substring(sseDataPrefix.length);
+                  if (jsonData.isEmpty) continue;
 
-              try {
-                final parsedJson = jsonDecode(jsonData);
-                if (parsedJson is Map<String, dynamic>) {
-                  if (parsedJson.containsKey('message')) {
-                    if (!streamController.isClosed) {
-                      streamController.add(parsedJson['message']);
-                    }
-                  } else if (parsedJson.containsKey('result')) {
-                    if (!responseCompleter.isCompleted) {
-                      responseCompleter.complete(parsedJson['result']);
-                    }
-                  } else if (parsedJson.containsKey('error')) {
-                    final errorData = parsedJson['error'];
-                    String errorMessage =
-                        'Unknown streaming error format in RemoteAction._streamInternal';
-                    if (errorData is Map<String, dynamic>) {
-                      errorMessage =
-                          errorData['message'] as String? ?? errorMessage;
-                    } else if (errorData is String) {
-                      errorMessage = errorData;
-                    }
-                    final exception = GenkitException(
-                      errorMessage,
-                      details: jsonEncode(errorData),
-                    );
-                    if (!responseCompleter.isCompleted) {
-                      responseCompleter.completeError(exception);
-                    }
-                    if (!streamController.isClosed) {
-                      streamController.addError(exception);
-                      if (subscription != null) {
-                        await subscription.cancel();
+                  try {
+                    final parsedJson = jsonDecode(jsonData);
+                    if (parsedJson is Map<String, dynamic>) {
+                      if (parsedJson.containsKey('message')) {
+                        if (!streamController.isClosed) {
+                          streamController.add(parsedJson['message']);
+                        }
+                      } else if (parsedJson.containsKey('result')) {
+                        if (!responseCompleter.isCompleted) {
+                          responseCompleter.complete(parsedJson['result']);
+                        }
+                      } else if (parsedJson.containsKey('error')) {
+                        final errorData = parsedJson['error'];
+                        String errorMessage =
+                            'Unknown streaming error format in RemoteAction._streamInternal';
+                        if (errorData is Map<String, dynamic>) {
+                          errorMessage =
+                              errorData['message'] as String? ?? errorMessage;
+                        } else if (errorData is String) {
+                          errorMessage = errorData;
+                        }
+                        final exception = GenkitException(
+                          errorMessage,
+                          details: jsonEncode(errorData),
+                        );
+                        if (!responseCompleter.isCompleted) {
+                          responseCompleter.completeError(exception);
+                        }
+                        if (!streamController.isClosed) {
+                          streamController.addError(exception);
+                          if (subscription != null) {
+                            await subscription.cancel();
+                          }
+                          buffer = '';
+                          if (!streamController.isClosed) {
+                            await streamController.close();
+                          }
+                        }
+                        return;
                       }
-                      buffer = '';
+                    } else {
                       if (!streamController.isClosed) {
-                        await streamController.close();
+                        streamController.add(parsedJson);
                       }
                     }
-                    return;
+                  } on FormatException catch (e, s) {
+                    final err = GenkitException(
+                      'Failed to decode JSON chunk from stream in RemoteAction._streamInternal',
+                      underlyingException: e,
+                      details: jsonData,
+                      stackTrace: s,
+                    );
+                    if (!streamController.isClosed) {
+                      streamController.addError(err, s);
+                    }
+                  } catch (e, s) {
+                    final err = GenkitException(
+                      'Error processing stream chunk in RemoteAction._streamInternal',
+                      underlyingException: e,
+                      details: jsonData,
+                      stackTrace: s,
+                    );
+                    if (!streamController.isClosed) {
+                      streamController.addError(err, s);
+                    }
                   }
-                } else {
+                }
+              },
+              onError: (error, stackTrace) async {
+                final err = GenkitException(
+                  'Error from HTTP stream in RemoteAction._streamInternal',
+                  underlyingException: error,
+                  stackTrace: stackTrace,
+                );
+                if (!responseCompleter.isCompleted) {
+                  responseCompleter.completeError(err, stackTrace);
+                }
+                if (!streamController.isClosed) {
+                  streamController.addError(err, stackTrace);
+                  await streamController.close();
+                }
+              },
+              onDone: () async {
+                if (buffer.isNotEmpty &&
+                    !streamController.isClosed &&
+                    !responseCompleter.isCompleted) {
+                  final err = GenkitException(
+                    'Stream ended with unprocessed data in buffer in RemoteAction._streamInternal',
+                    details: buffer,
+                  );
+                  if (!responseCompleter.isCompleted) {
+                    responseCompleter.completeError(err);
+                  }
                   if (!streamController.isClosed) {
-                    streamController.add(parsedJson);
+                    streamController.addError(err);
                   }
+                } else if (!responseCompleter.isCompleted &&
+                    !streamController.isClosed &&
+                    (streamController.hasListener ||
+                        !streamController.isPaused)) {
+                  responseCompleter.completeError(
+                    GenkitException(
+                      'Stream finished without a final result or error chunk in RemoteAction._streamInternal.',
+                    ),
+                  );
                 }
-              } on FormatException catch (e, s) {
-                final err = GenkitException(
-                  'Failed to decode JSON chunk from stream in RemoteAction._streamInternal',
-                  underlyingException: e,
-                  details: jsonData,
-                  stackTrace: s,
-                );
-                if (!streamController.isClosed) {
-                  streamController.addError(err, s);
-                }
-              } catch (e, s) {
-                final err = GenkitException(
-                  'Error processing stream chunk in RemoteAction._streamInternal',
-                  underlyingException: e,
-                  details: jsonData,
-                  stackTrace: s,
-                );
-                if (!streamController.isClosed) {
-                  streamController.addError(err, s);
-                }
-              }
-            }
-          },
-          onError: (error, stackTrace) async {
-            final err = GenkitException(
-              'Error from HTTP stream in RemoteAction._streamInternal',
-              underlyingException: error,
-              stackTrace: stackTrace,
+                if (!streamController.isClosed) await streamController.close();
+              },
+              cancelOnError: true,
             );
-            if (!responseCompleter.isCompleted) {
-              responseCompleter.completeError(err, stackTrace);
-            }
-            if (!streamController.isClosed) {
-              streamController.addError(err, stackTrace);
-              await streamController.close();
-            }
-          },
-          onDone: () async {
-            if (buffer.isNotEmpty &&
-                !streamController.isClosed &&
-                !responseCompleter.isCompleted) {
-              final err = GenkitException(
-                'Stream ended with unprocessed data in buffer in RemoteAction._streamInternal',
-                details: buffer,
-              );
-              if (!responseCompleter.isCompleted) {
-                responseCompleter.completeError(err);
-              }
-              if (!streamController.isClosed) streamController.addError(err);
-            } else if (!responseCompleter.isCompleted &&
-                !streamController.isClosed &&
-                (streamController.hasListener || !streamController.isPaused)) {
-              responseCompleter.completeError(
-                GenkitException(
-                  'Stream finished without a final result or error chunk in RemoteAction._streamInternal.',
-                ),
-              );
-            }
-            if (!streamController.isClosed) await streamController.close();
-          },
-          cancelOnError: true,
-        );
       } catch (e, s) {
         final err = GenkitException(
           'Failed to setup streaming request in RemoteAction._streamInternal (outer catch)',
@@ -357,7 +359,7 @@ class RemoteAction<O, S> {
     performStreamSetupAndListen();
     return (
       stream: streamController.stream,
-      response: responseCompleter.future
+      response: responseCompleter.future,
     );
   }
 
@@ -410,7 +412,7 @@ class RemoteAction<O, S> {
       );
       return (
         response: Future.error(error, StackTrace.current),
-        stream: Stream.error(error, StackTrace.current)
+        stream: Stream.error(error, StackTrace.current),
       );
     }
 
@@ -426,48 +428,52 @@ class RemoteAction<O, S> {
       headers: combinedHeaders,
     );
 
-    final Stream<S> convertedStream = rawStreamResponse.stream.map((rawChunk) {
-      try {
-        return _fromStreamChunkData(rawChunk);
-      } catch (e, s) {
-        throw GenkitException(
-          'Failed to convert stream chunk data using fromStreamChunk for RemoteAction',
-          underlyingException: e,
-          details:
-              'Expected chunk type: ${S.toString()}, Received data: ${rawChunk is String ? rawChunk : jsonEncode(rawChunk)}',
-          stackTrace: s,
-        );
-      }
-    }).handleError((error, stackTrace) {
-      if (error is GenkitException) throw error;
-      throw GenkitException(
-        'Error in RemoteAction stream after chunk conversion attempt',
-        underlyingException: error,
-        stackTrace: stackTrace,
-      );
-    });
+    final Stream<S> convertedStream = rawStreamResponse.stream
+        .map((rawChunk) {
+          try {
+            return _fromStreamChunkData(rawChunk);
+          } catch (e, s) {
+            throw GenkitException(
+              'Failed to convert stream chunk data using fromStreamChunk for RemoteAction',
+              underlyingException: e,
+              details:
+                  'Expected chunk type: ${S.toString()}, Received data: ${rawChunk is String ? rawChunk : jsonEncode(rawChunk)}',
+              stackTrace: s,
+            );
+          }
+        })
+        .handleError((error, stackTrace) {
+          if (error is GenkitException) throw error;
+          throw GenkitException(
+            'Error in RemoteAction stream after chunk conversion attempt',
+            underlyingException: error,
+            stackTrace: stackTrace,
+          );
+        });
 
-    final Future<O> convertedResponse =
-        rawStreamResponse.response.then((rawResult) {
-      try {
-        return _fromResponseData(rawResult);
-      } catch (e, s) {
+    final Future<O> convertedResponse = rawStreamResponse.response.then(
+      (rawResult) {
+        try {
+          return _fromResponseData(rawResult);
+        } catch (e, s) {
+          throw GenkitException(
+            'Failed to convert final response data from RemoteAction stream using fromResponse',
+            underlyingException: e,
+            details:
+                'Expected output type: ${O.toString()}, Received data: ${rawResult is String ? rawResult : jsonEncode(rawResult)}',
+            stackTrace: s,
+          );
+        }
+      },
+      onError: (error, stackTrace) {
+        if (error is GenkitException) throw error;
         throw GenkitException(
-          'Failed to convert final response data from RemoteAction stream using fromResponse',
-          underlyingException: e,
-          details:
-              'Expected output type: ${O.toString()}, Received data: ${rawResult is String ? rawResult : jsonEncode(rawResult)}',
-          stackTrace: s,
+          'Error in final response of RemoteAction stream before conversion',
+          underlyingException: error,
+          stackTrace: stackTrace,
         );
-      }
-    }, onError: (error, stackTrace) {
-      if (error is GenkitException) throw error;
-      throw GenkitException(
-        'Error in final response of RemoteAction stream before conversion',
-        underlyingException: error,
-        stackTrace: stackTrace,
-      );
-    });
+      },
+    );
 
     return (response: convertedResponse, stream: convertedStream);
   }

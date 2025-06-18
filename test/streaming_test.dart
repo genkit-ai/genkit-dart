@@ -28,8 +28,8 @@ void main() {
       url: 'http://localhost:3400/object-stream',
       httpClient: mockClient,
       fromResponse: (data) => data as Map<String, dynamic>,
-      fromStreamChunk: (data) =>
-          TestStreamChunk.fromJson(data as Map<String, dynamic>),
+      fromStreamChunk:
+          (data) => TestStreamChunk.fromJson(data as Map<String, dynamic>),
     );
   });
 
@@ -39,11 +39,10 @@ void main() {
       final expectedChunks = ['chunk1', 'chunk2', 'chunk3'];
       final expectedResponse = 'final response';
 
-      final streamData = '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
-                'message': {'chunk': chunk}
-              })}\n\n').join()}data: ${jsonEncode({
-            'result': expectedResponse
-          })}\n\n';
+      final streamData =
+          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
+            'message': {'chunk': chunk},
+          })}\n\n').join()}data: ${jsonEncode({'result': expectedResponse})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(
@@ -74,11 +73,8 @@ void main() {
       ];
       final expectedResponse = {'result': 'completed'};
 
-      final streamData = '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
-                'message': chunk.toJson()
-              })}\n\n').join()}data: ${jsonEncode({
-            'result': expectedResponse
-          })}\n\n';
+      final streamData =
+          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({'message': chunk.toJson()})}\n\n').join()}data: ${jsonEncode({'result': expectedResponse})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(
@@ -118,17 +114,12 @@ void main() {
 
       expect(
         () => streamResponse.stream.toList(),
-        throwsA(isA<GenkitException>().having(
-          (e) => e.statusCode,
-          'statusCode',
-          500,
-        )),
+        throwsA(
+          isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
+        ),
       );
 
-      expect(
-        () => streamResponse.response,
-        throwsA(isA<GenkitException>()),
-      );
+      expect(() => streamResponse.response, throwsA(isA<GenkitException>()));
     });
 
     test('should throw error on invalid SSE data', () async {
@@ -145,15 +136,14 @@ void main() {
       final streamResponse = stringStreamAction.stream(input: 'test');
 
       await expectLater(
-        Future.wait([
-          streamResponse.stream.toList(),
-          streamResponse.response,
-        ]),
-        throwsA(isA<GenkitException>().having(
-          (e) => e.message,
-          'message',
-          contains('Stream finished without a final result or error chunk'),
-        )),
+        Future.wait([streamResponse.stream.toList(), streamResponse.response]),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('Stream finished without a final result or error chunk'),
+          ),
+        ),
       );
     });
 
@@ -169,17 +159,16 @@ void main() {
 
       expect(
         () => streamResponse.stream.toList(),
-        throwsA(isA<GenkitException>().having(
-          (e) => e.message,
-          'message',
-          contains('fromStreamChunk must be provided'),
-        )),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('fromStreamChunk must be provided'),
+          ),
+        ),
       );
 
-      expect(
-        () => streamResponse.response,
-        throwsA(isA<GenkitException>()),
-      );
+      expect(() => streamResponse.response, throwsA(isA<GenkitException>()));
     });
   });
 
@@ -205,8 +194,9 @@ void main() {
 
       // Send chunks progressively
       for (final chunk in chunks) {
-        final data = 'data: ${jsonEncode({
-              'message': {'chunk': chunk}
+        final data =
+            'data: ${jsonEncode({
+              'message': {'chunk': chunk},
             })}\n\n';
         streamController.add(utf8.encode(data));
         await Future.delayed(Duration(milliseconds: 10));
@@ -227,9 +217,10 @@ void main() {
   group('Streaming - Custom Headers', () {
     test('should send custom headers', () async {
       final customHeaders = {'Authorization': 'Bearer token123'};
-      final streamData = 'data: ${jsonEncode({
-                'message': {'chunk': 'test'}
-              })}\n\n' +
+      final streamData =
+          'data: ${jsonEncode({
+            'message': {'chunk': 'test'},
+          })}\n\n' +
           'data: ${jsonEncode({'result': 'success'})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {
@@ -241,15 +232,13 @@ void main() {
       });
 
       await stringStreamAction
-          .stream(
-            input: 'test',
-            headers: customHeaders,
-          )
+          .stream(input: 'test', headers: customHeaders)
           .stream
           .toList();
 
-      final captured = verify(mockClient.send(captureAny)).captured.single
-          as http.BaseRequest;
+      final captured =
+          verify(mockClient.send(captureAny)).captured.single
+              as http.BaseRequest;
       expect(captured.headers['authorization'], 'Bearer token123');
       expect(captured.headers['accept'], 'text/event-stream');
     });
