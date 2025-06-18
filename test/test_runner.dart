@@ -13,7 +13,8 @@ void main() {
 
   print('📋 Test list:');
   print(
-      '  - client_test.dart: RemoteAction core functionality and error handling');
+    '  - client_test.dart: RemoteAction core functionality and error handling',
+  );
   print('  - exception_test.dart: GenkitException exception handling');
   print('  - streaming_test.dart: Comprehensive streaming functionality tests');
   print('');

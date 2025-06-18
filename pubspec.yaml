@@ -1,6 +1,6 @@
 name: genkit
-description: Genkit client library
-version: 0.0.2
+description: A type-safe Dart client library for calling Google Genkit flows with streaming support, authentication, and comprehensive error handling.
+version: 0.5.0
 repository: https://github.com/genkit-ai/genkit-dart
 
 environment:

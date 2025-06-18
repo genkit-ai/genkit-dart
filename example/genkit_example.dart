@@ -22,10 +22,7 @@ void main() async {
     fromResponse: (json) => MyOutput.fromJson(json),
   );
   final response2 = await processObjectFlow(
-    input: MyInput(
-      message: 'Hello Genkit!',
-      count: 20,
-    ),
+    input: MyInput(message: 'Hello Genkit!', count: 20),
   );
   print('Response: ${response2.reply}');
 
