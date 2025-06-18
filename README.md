@@ -10,32 +10,34 @@ Import the library and define your remote actions.
 import 'package:genkit/genkit.dart';
 ```
 
-## `RemoteAction` - Core Class
+## Defining remote actions
 
-The `RemoteAction` class represents a remote Genkit flow that can be invoked or streamed.
+Remote actions represent a remote Genkit action (like flows, models and prompts) that can be invoked or streamed.
 
-### Creating a RemoteAction
+### Creating a remote action
 
 ```dart
-// Create a RemoteAction for a flow that takes a String and returns a String
-final stringAction = RemoteAction<String, void>(
+// Create a remote action for a flow that takes a String and returns a String
+final stringAction = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
   fromResponse: (data) => data as String,
 );
 
-// Create a RemoteAction for custom objects
-final customAction = RemoteAction<MyOutput, void>(
+// Create a remote action for custom objects
+final customAction = defineRemoteAction(
   url: 'http://localhost:3400/custom-flow',
   fromResponse: (data) => MyOutput.fromJson(data),
 );
 ```
 
-## Calling Unary Flows
+The code assumes that you have `my-flow` and `custom-flow` deployed at those URLs. See https://genkit.dev/docs/deploy-node/ or https://genkit.dev/go/docs/deploy/ for details.
+
+## Calling actions
 
 ### Example: String to String
 
 ```dart
-final action = RemoteAction<String, void>(
+final action = defineRemoteAction(
   url: 'http://localhost:3400/echo-string',
   fromResponse: (data) => data as String,
 );
@@ -75,7 +77,7 @@ class MyOutput {
   );
 }
 
-final action = RemoteAction<MyOutput, void>(
+final action = defineRemoteAction(
   url: 'http://localhost:3400/process-object',
   fromResponse: (data) => MyOutput.fromJson(data),
 );
@@ -97,7 +99,7 @@ Use the `stream` method for flows that stream multiple chunks of data and then r
 ### Example: String Input, Streaming String Chunks, String Final Response
 
 ```dart
-final streamAction = RemoteAction<String, String>(
+final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-story',
   fromResponse: (data) => data as String,
   fromStreamChunk: (data) => data['chunk'] as String,
@@ -133,7 +135,7 @@ class StreamChunk {
   );
 }
 
-final streamAction = RemoteAction<MyOutput, StreamChunk>(
+final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-process',
   fromResponse: (data) => MyOutput.fromJson(data),
   fromStreamChunk: (data) => StreamChunk.fromJson(data),
@@ -173,10 +175,10 @@ final streamResponse = action.stream(
 );
 ```
 
-You can also set default headers when creating the RemoteAction:
+You can also set default headers when creating the remote action:
 
 ```dart
-final action = RemoteAction<String, void>(
+final action = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
   fromResponse: (data) => data as String,
   defaultHeaders: {'Authorization': 'Bearer your-token'},

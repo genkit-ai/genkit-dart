@@ -1,3 +1,7 @@
+## 0.5.1
+
+- README cleanup
+
 ## 0.5.0
 
 - **Enhanced type-safe client**: Added comprehensive generics support for type-safe operations
