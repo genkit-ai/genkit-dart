@@ -1,6 +1,7 @@
 import 'genkit_schemas.dart';
 
 extension MessageExtension on Message {
+  /// The text content of the message.
   String get text {
     if (content == null) {
       return '';
@@ -14,6 +15,7 @@ extension MessageExtension on Message {
     return buffer.toString();
   }
 
+  /// The media content of the message.
   Media? get media {
     if (content == null) {
       return null;
@@ -28,11 +30,15 @@ extension MessageExtension on Message {
 }
 
 extension GenerateResponseExtension on GenerateResponse {
+  /// The text content of the response.
   String get text => message?.text ?? '';
+
+  /// The media content of the response.
   Media? get media => message?.media;
 }
 
 extension GenerateResponseChunkExtension on GenerateResponseChunk {
+  /// The text content of the response chunk.
   String get text {
     if (content == null) {
       return '';
@@ -46,6 +52,7 @@ extension GenerateResponseChunkExtension on GenerateResponseChunk {
     return buffer.toString();
   }
 
+  /// The media content of the response chunk.
   Media? get media {
     if (content == null) {
       return null;
