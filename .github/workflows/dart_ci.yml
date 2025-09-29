@@ -22,8 +22,24 @@ jobs:
       - name: Install dependencies
         run: dart pub get
 
+      - name: Install schema_generator dependencies
+        run: dart pub get
+        working-directory: tool/schema_generator
+
+      - name: Run schema generator
+        run: dart tool/schema_generator/bin/generate.dart
+
       - name: Run build_runner
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Run tests
         run: dart test
+
+      - name: Verify clean git tree
+        run: |
+          git diff --exit-code
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Git directory is not clean. Working tree:"
+            git status
+            exit 1
+          fi

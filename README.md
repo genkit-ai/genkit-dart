@@ -212,3 +212,50 @@ try {
 - `fromStreamChunk`: (Optional) Converts JSON chunk data to your stream chunk type `S`
 
 Make sure your custom classes have appropriate `toJson()` and `fromJson()` methods for serialization and deserialization.
+
+## Working with Genkit Data Objects
+
+When interacting with Genkit models, you'll often work with a set of standardized data classes that represent the inputs and outputs of generative models. This library provides these classes to make it easy to construct requests and handle responses in a type-safe way.
+
+Key data classes include:
+- `GenerateResponse`: The final response from a model generation call.
+- `GenerateResponseChunk`: A streaming chunk from a model generation call.
+- `Message`: Represents a message in a conversation, containing a `role` (e.g., `user`, `model`) and `content`.
+- `Part`: The content of a message is made up of one or more `Part` objects. Common parts include:
+  - `TextPart`: For text content.
+  - `MediaPart`: For media content like images.
+  - `ToolRequestPart`: A request from the model to invoke a tool.
+  - `ToolResponsePart`: The response from a tool invocation.
+  - `DataPart`, `CustomPart`, `ReasoningPart`, `ResourcePart`: For other specialized data.
+
+These classes include helpful getters like `.text` to easily extract string content and `.media` to get the first media object from responses and messages.
+
+### Example: Streaming with Genkit Data Objects
+
+Here is an example of how to call a generative model and process the streaming response using the built-in data classes. See `example/genkit_example.dart` for a runnable version.
+
+```dart
+import 'package:genkit/genkit.dart';
+
+// ...
+
+final generateFlow = defineRemoteAction(
+  url: 'http://localhost:3400/generate',
+  fromResponse: (json) => GenerateResponse.fromJson(json),
+  fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
+);
+
+final (:stream, :response) = generateFlow.stream(
+  input: Message(role: Role.user, content: [TextPart(text: "hello")]),
+);
+
+print('Streaming chunks:');
+await for (final chunk in stream) {
+  // Use the .text getter to easily access the text content of the chunk
+  print('Chunk: ${chunk.text}');
+}
+
+final finalResult = await response;
+// The .text getter also works on the final response
+print('Final Response: ${finalResult.text}');
+```
