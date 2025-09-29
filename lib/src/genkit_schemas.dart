@@ -123,6 +123,7 @@ class TextPart extends Part {
 
   final dynamic resource;
 
+  @override
   Map<String, dynamic> toJson() => _$TextPartToJson(this);
 }
 
@@ -164,6 +165,7 @@ class MediaPart extends Part {
 
   final dynamic resource;
 
+  @override
   Map<String, dynamic> toJson() => _$MediaPartToJson(this);
 }
 
@@ -205,6 +207,7 @@ class ToolRequestPart extends Part {
 
   final dynamic resource;
 
+  @override
   Map<String, dynamic> toJson() => _$ToolRequestPartToJson(this);
 }
 
@@ -246,6 +249,7 @@ class ToolResponsePart extends Part {
 
   final dynamic resource;
 
+  @override
   Map<String, dynamic> toJson() => _$ToolResponsePartToJson(this);
 }
 
@@ -287,6 +291,7 @@ class DataPart extends Part {
 
   final dynamic resource;
 
+  @override
   Map<String, dynamic> toJson() => _$DataPartToJson(this);
 }
 
@@ -328,6 +333,7 @@ class CustomPart extends Part {
 
   final dynamic resource;
 
+  @override
   Map<String, dynamic> toJson() => _$CustomPartToJson(this);
 }
 
@@ -369,6 +375,7 @@ class ReasoningPart extends Part {
 
   final dynamic resource;
 
+  @override
   Map<String, dynamic> toJson() => _$ReasoningPartToJson(this);
 }
 
@@ -410,6 +417,7 @@ class ResourcePart extends Part {
 
   final Map<String, dynamic>? resource;
 
+  @override
   Map<String, dynamic> toJson() => _$ResourcePartToJson(this);
 }
 
@@ -417,14 +425,27 @@ abstract class Part {
   Part();
 
   factory Part.fromJson(Map<String, dynamic> json) {
-    if (json.containsKey('text')) return TextPart.fromJson(json);
-    if (json.containsKey('media')) return MediaPart.fromJson(json);
-    if (json.containsKey('toolRequest')) return ToolRequestPart.fromJson(json);
-    if (json.containsKey('toolResponse'))
+    if (json.containsKey('text')) {
+      return TextPart.fromJson(json);
+    }
+    if (json.containsKey('media')) {
+      return MediaPart.fromJson(json);
+    }
+    if (json.containsKey('toolRequest')) {
+      return ToolRequestPart.fromJson(json);
+    }
+    if (json.containsKey('toolResponse')) {
       return ToolResponsePart.fromJson(json);
-    if (json.containsKey('custom')) return CustomPart.fromJson(json);
-    if (json.containsKey('reasoning')) return ReasoningPart.fromJson(json);
-    if (json.containsKey('resource')) return ResourcePart.fromJson(json);
+    }
+    if (json.containsKey('custom')) {
+      return CustomPart.fromJson(json);
+    }
+    if (json.containsKey('reasoning')) {
+      return ReasoningPart.fromJson(json);
+    }
+    if (json.containsKey('resource')) {
+      return ResourcePart.fromJson(json);
+    }
     throw Exception('Unknown subtype of Part');
   }
 

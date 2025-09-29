@@ -231,10 +231,9 @@ void main() {
   group('Streaming - Custom Headers', () {
     test('should send custom headers', () async {
       final customHeaders = {'Authorization': 'Bearer token123'};
-      final streamData =
-          'data: ${jsonEncode({
+      final streamData = 'data: ${jsonEncode({
             'message': {'chunk': 'test'},
-          })}\n\n' +
+          })}\n\n'
           'data: ${jsonEncode({'result': 'success'})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {

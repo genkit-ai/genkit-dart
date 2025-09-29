@@ -35,7 +35,7 @@ class ClassGenerator {
     if (schema.containsKey('enum')) {
       _generateEnum(b, className, schema['enum']);
     } else if (schema.containsKey('anyOf')) {
-      _generateUnionClass(b, className, schema['anyOf']);
+      _generateUnionClass(b, className, schema['anyOf'], extend: extend);
     } else {
       _generateStandardClass(b, className, schema, extend: extend);
     }
@@ -71,7 +71,8 @@ class ClassGenerator {
           }));
         }));
         c.constructors.add(_createFromJsonConstructor(className));
-        c.methods.add(_createToJsonMethod(className));
+        c.methods
+            .add(_createToJsonMethod(className, isOverride: extend != null));
       }
 
       c.fields.addAll(properties.entries.map((e) {
@@ -95,7 +96,8 @@ class ClassGenerator {
   }
 
   void _generateUnionClass(
-      LibraryBuilder b, String className, List<dynamic> anyOf) {
+      LibraryBuilder b, String className, List<dynamic> anyOf,
+      {Reference? extend}) {
     final subtypes = <Map<String, String>>[];
     for (final item in anyOf) {
       final ref = item['\$ref'] as String?;
@@ -120,9 +122,11 @@ class ClassGenerator {
       c
         ..name = className
         ..abstract = true
+        ..extend = extend
         ..constructors.add(Constructor())
         ..constructors.add(_createFromJsonConstructor(className, subtypes))
-        ..methods.add(_createToJsonMethod(className, subtypes: subtypes));
+        ..methods.add(_createToJsonMethod(className,
+            subtypes: subtypes, isOverride: extend != null));
     }));
   }
 
@@ -206,17 +210,20 @@ class ClassGenerator {
           ..body = Code('_\$${className}FromJson(json)');
       } else {
         c.body = Code(
-            '${subtypes.map((s) => "if (json.containsKey('${s['key']}')) return ${s['name']}.fromJson(json);").join('\n')}\n throw Exception(\'Unknown subtype of $className\');');
+            '${subtypes.map((s) => "if (json.containsKey('${s['key']}')) { return ${s['name']}.fromJson(json); }").join('\n')}\n throw Exception(\'Unknown subtype of $className\');');
       }
     });
   }
 
   Method _createToJsonMethod(String className,
-      {List<Map<String, String>>? subtypes}) {
+      {List<Map<String, String>>? subtypes, bool isOverride = false}) {
     return Method((m) {
       m
         ..name = 'toJson'
         ..returns = refer('Map<String, dynamic>');
+      if (isOverride) {
+        m.annotations.add(refer('override'));
+      }
       if (subtypes == null) {
         m
           ..lambda = true
