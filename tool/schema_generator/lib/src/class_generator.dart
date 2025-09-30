@@ -21,7 +21,8 @@ class ClassGenerator {
     });
 
     final emitter = DartEmitter();
-    return DartFormatter().format('${library.accept(emitter)}');
+    return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
+        .format('${library.accept(emitter)}');
   }
 
   void _generateClass(

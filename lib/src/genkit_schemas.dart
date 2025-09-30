@@ -1,10 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 part 'genkit_schemas.g.dart';
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class Candidate {
   Candidate({
     required this.index,
@@ -33,16 +30,9 @@ class Candidate {
   Map<String, dynamic> toJson() => _$CandidateToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class Message {
-  Message({
-    required this.role,
-    required this.content,
-    this.metadata,
-  });
+  Message({required this.role, required this.content, this.metadata});
 
   factory Message.fromJson(Map<String, dynamic> json) =>
       _$MessageFromJson(json);
@@ -56,10 +46,7 @@ class Message {
   Map<String, dynamic> toJson() => _$MessageToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class ToolDefinition {
   ToolDefinition({
     required this.name,
@@ -85,10 +72,7 @@ class ToolDefinition {
   Map<String, dynamic> toJson() => _$ToolDefinitionToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class TextPart extends Part {
   TextPart({
     required this.text,
@@ -127,10 +111,7 @@ class TextPart extends Part {
   Map<String, dynamic> toJson() => _$TextPartToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class MediaPart extends Part {
   MediaPart({
     this.text,
@@ -169,10 +150,7 @@ class MediaPart extends Part {
   Map<String, dynamic> toJson() => _$MediaPartToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class ToolRequestPart extends Part {
   ToolRequestPart({
     this.text,
@@ -211,10 +189,7 @@ class ToolRequestPart extends Part {
   Map<String, dynamic> toJson() => _$ToolRequestPartToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class ToolResponsePart extends Part {
   ToolResponsePart({
     this.text,
@@ -253,10 +228,7 @@ class ToolResponsePart extends Part {
   Map<String, dynamic> toJson() => _$ToolResponsePartToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class DataPart extends Part {
   DataPart({
     this.text,
@@ -295,10 +267,7 @@ class DataPart extends Part {
   Map<String, dynamic> toJson() => _$DataPartToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class CustomPart extends Part {
   CustomPart({
     this.text,
@@ -337,10 +306,7 @@ class CustomPart extends Part {
   Map<String, dynamic> toJson() => _$CustomPartToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class ReasoningPart extends Part {
   ReasoningPart({
     this.text,
@@ -379,10 +345,7 @@ class ReasoningPart extends Part {
   Map<String, dynamic> toJson() => _$ReasoningPartToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class ResourcePart extends Part {
   ResourcePart({
     this.text,
@@ -461,15 +424,9 @@ abstract class Part {
   }
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class Media {
-  Media({
-    this.contentType,
-    required this.url,
-  });
+  Media({this.contentType, required this.url});
 
   factory Media.fromJson(Map<String, dynamic> json) => _$MediaFromJson(json);
 
@@ -480,16 +437,9 @@ class Media {
   Map<String, dynamic> toJson() => _$MediaToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class ToolRequest {
-  ToolRequest({
-    this.ref,
-    required this.name,
-    this.input,
-  });
+  ToolRequest({this.ref, required this.name, this.input});
 
   factory ToolRequest.fromJson(Map<String, dynamic> json) =>
       _$ToolRequestFromJson(json);
@@ -503,16 +453,9 @@ class ToolRequest {
   Map<String, dynamic> toJson() => _$ToolRequestToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class ToolResponse {
-  ToolResponse({
-    this.ref,
-    required this.name,
-    this.output,
-  });
+  ToolResponse({this.ref, required this.name, this.output});
 
   factory ToolResponse.fromJson(Map<String, dynamic> json) =>
       _$ToolResponseFromJson(json);
@@ -526,10 +469,7 @@ class ToolResponse {
   Map<String, dynamic> toJson() => _$ToolResponseToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class GenerateRequest {
   GenerateRequest({
     required this.messages,
@@ -561,10 +501,7 @@ class GenerateRequest {
   Map<String, dynamic> toJson() => _$GenerateRequestToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class GenerateResponse {
   GenerateResponse({
     this.message,
@@ -605,10 +542,7 @@ class GenerateResponse {
   Map<String, dynamic> toJson() => _$GenerateResponseToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class GenerateResponseChunk {
   GenerateResponseChunk({
     this.role,
@@ -634,10 +568,7 @@ class GenerateResponseChunk {
   Map<String, dynamic> toJson() => _$GenerateResponseChunkToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class GenerationUsage {
   GenerationUsage({
     this.inputTokens,
@@ -690,10 +621,7 @@ class GenerationUsage {
   Map<String, dynamic> toJson() => _$GenerationUsageToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class Operation {
   Operation({
     this.action,
@@ -722,17 +650,9 @@ class Operation {
   Map<String, dynamic> toJson() => _$OperationToJson(this);
 }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class OutputConfig {
-  OutputConfig({
-    this.format,
-    this.schema,
-    this.constrained,
-    this.contentType,
-  });
+  OutputConfig({this.format, this.schema, this.constrained, this.contentType});
 
   factory OutputConfig.fromJson(Map<String, dynamic> json) =>
       _$OutputConfigFromJson(json);
@@ -752,15 +672,9 @@ enum FinishReason { stop, length, blocked, interrupted, other, unknown }
 
 enum Role { system, user, model, tool }
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class DocumentData {
-  DocumentData({
-    required this.content,
-    this.metadata,
-  });
+  DocumentData({required this.content, this.metadata});
 
   factory DocumentData.fromJson(Map<String, dynamic> json) =>
       _$DocumentDataFromJson(json);
