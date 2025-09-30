@@ -1,3 +1,8 @@
+## 0.6.0
+
+- Added standard Genkit data classes for working with generative models, including `GenerateResponse`, `Message`, and `Part` types.
+- Added helper getters like `.text` and `.media` for easier data extraction.
+
 ## 0.5.1
 
 - README cleanup
