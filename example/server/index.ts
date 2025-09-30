@@ -99,13 +99,13 @@ const streamObjects = ai.defineFlow(
 const generate = ai.defineFlow(
   {
     name: "generate",
-    inputSchema: MessageSchema,
+    inputSchema: z.array(MessageSchema),
     outputSchema: GenerateResponseSchema,
     streamSchema: GenerateResponseChunkSchema,
   },
-  async (input, { sendChunk }) =>
+  async (messages, { sendChunk }) =>
     ai.generate({
-      prompt: input.content,
+      messages,
       onChunk: sendChunk,
     })
 );

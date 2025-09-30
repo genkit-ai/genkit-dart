@@ -14,9 +14,7 @@ Future<void> _runStringFlow(http.Client client) async {
     httpClient: client,
     fromResponse: (json) => json as String,
   );
-  final response = await echoStringFlow(
-    input: 'Hello Genkit client for Dart!',
-  );
+  final response = await echoStringFlow(input: 'Hello Genkit client for Dart!');
   print('Response: $response');
 }
 
@@ -65,7 +63,20 @@ Future<void> _runStreamingGenerateFlow(http.Client client) async {
     fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
   );
   final (:stream, :response) = generateFlow.stream(
-    input: Message(role: Role.user, content: [TextPart(text: "hello")]),
+    input: [
+      Message(
+        role: Role.user,
+        content: [TextPart(text: "hello")],
+      ),
+      Message(
+        role: Role.model,
+        content: [TextPart(text: "Hello, how can I help you?")],
+      ),
+      Message(
+        role: Role.user,
+        content: [TextPart(text: "Sing me a song.")],
+      ),
+    ],
   );
 
   print('Streaming chunks:');
