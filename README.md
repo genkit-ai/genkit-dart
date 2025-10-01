@@ -94,7 +94,7 @@ try {
 
 ## Calling Streaming Flows
 
-Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns a `FlowStreamResponse` containing both the `stream` and the `response` future.
+Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns a `FlowStreamResponse` containing both the `stream` and the `response` future. The final response is optional (`Future<O?>`) because the stream may be cancelled before a final response is received, in which case the future will complete with `null`.
 
 ### Example: String Input, Streaming String Chunks, String Final Response
 
@@ -116,7 +116,11 @@ try {
   }
 
   final finalResult = await streamResponse.response;
-  print('\nFinal Response: $finalResult');
+  if (finalResult != null) {
+    print('\nFinal Response: $finalResult');
+  } else {
+    print('\nStream was cancelled or finished without a final response.');
+  }
 } catch (e) {
   print('Error calling streamFlow: $e');
 }
@@ -152,7 +156,11 @@ try {
   }
 
   final finalResult = await streamResponse.response;
-  print('\nFinal Response: ${finalResult.reply}');
+  if (finalResult != null) {
+    print('\nFinal Response: ${finalResult.reply}');
+  } else {
+    print('\nStream was cancelled or finished without a final response.');
+  }
 } catch (e) {
   print('Error calling streaming flow: $e');
 }
@@ -257,5 +265,9 @@ await for (final chunk in stream) {
 
 final finalResult = await response;
 // The .text getter also works on the final response
-print('Final Response: ${finalResult.text}');
+if (finalResult != null) {
+  print('Final Response: ${finalResult.text}');
+} else {
+  print('Stream was cancelled or finished without a final response.');
+}
 ```

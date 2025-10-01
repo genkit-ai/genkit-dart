@@ -42,8 +42,8 @@ void main() {
       url: 'http://localhost:3400/object-stream',
       httpClient: mockClient,
       fromResponse: (data) => data as Map<String, dynamic>,
-      fromStreamChunk:
-          (data) => TestStreamChunk.fromJson(data as Map<String, dynamic>),
+      fromStreamChunk: (data) =>
+          TestStreamChunk.fromJson(data as Map<String, dynamic>),
     );
   });
 
@@ -126,14 +126,12 @@ void main() {
 
       final streamResponse = stringStreamAction.stream(input: 'test');
 
-      expect(
-        () => streamResponse.stream.toList(),
+      await expectLater(
+        Future.wait([streamResponse.stream.toList(), streamResponse.response]),
         throwsA(
           isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
         ),
       );
-
-      expect(() => streamResponse.response, throwsA(isA<GenkitException>()));
     });
 
     test('should throw error on invalid SSE data', () async {
@@ -155,7 +153,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.message,
             'message',
-            contains('Stream finished without a final result or error chunk'),
+            contains('Error in stream'),
           ),
         ),
       );
@@ -184,6 +182,55 @@ void main() {
 
       expect(() => streamResponse.response, throwsA(isA<GenkitException>()));
     });
+
+    test('should handle errors gracefully with await for', () async {
+      when(mockClient.send(any)).thenAnswer((_) async {
+        return http.StreamedResponse(
+          Stream.fromIterable(['Server Error'.codeUnits]),
+          500,
+        );
+      });
+
+      final (:stream, :response) = stringStreamAction.stream(input: 'test');
+
+      await expectLater(
+        () async => {
+          await for (final _ in stream)
+            {
+              // nothing
+            },
+        },
+        throwsA(
+          isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
+        ),
+      );
+      final result = await response;
+      expect(result, isNull);
+    });
+
+    test('should handle SSE error events', () async {
+      final sseError = {'status': 'INTERNAL', 'message': 'whoops'};
+      final streamData = 'error: ${jsonEncode({'error': sseError})}\n\n';
+
+      when(mockClient.send(any)).thenAnswer((_) async {
+        return http.StreamedResponse(
+          Stream.fromIterable([utf8.encode(streamData)]),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      });
+
+      final streamResponse = stringStreamAction.stream(input: 'test');
+
+      await expectLater(
+        Future.wait([streamResponse.stream.toList(), streamResponse.response]),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.message, 'message', 'whoops')
+              .having((e) => e.details, 'details', jsonEncode(sseError)),
+        ),
+      );
+    });
   });
 
   group('Streaming - Lifecycle', () {
@@ -202,7 +249,7 @@ void main() {
       final streamResponse = stringStreamAction.stream(input: 'test');
       final receivedChunks = <String>[];
 
-      final subscription = streamResponse.stream.listen((chunk) {
+      streamResponse.stream.listen((chunk) {
         receivedChunks.add(chunk);
       });
 
@@ -221,17 +268,41 @@ void main() {
       streamController.add(utf8.encode(finalData));
       await streamController.close();
 
-      await subscription.asFuture();
-
       expect(receivedChunks, chunks);
       expect(await streamResponse.response, 'done');
+    });
+
+    test('should handle stream cancellation gracefully', () async {
+      final streamController = StreamController<List<int>>();
+
+      when(mockClient.send(any)).thenAnswer((_) async {
+        return http.StreamedResponse(
+          streamController.stream,
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      });
+
+      final (:stream, :response) = stringStreamAction.stream(input: 'test');
+
+      final subscription = stream.listen(
+        (_) {},
+        onError: (e) {
+          expect(e, isA<GenkitException>());
+        },
+      );
+      await Future.delayed(Duration.zero);
+      await subscription.cancel();
+
+      expect(await response, isNull);
     });
   });
 
   group('Streaming - Custom Headers', () {
     test('should send custom headers', () async {
       final customHeaders = {'Authorization': 'Bearer token123'};
-      final streamData = 'data: ${jsonEncode({
+      final streamData =
+          'data: ${jsonEncode({
             'message': {'chunk': 'test'},
           })}\n\n'
           'data: ${jsonEncode({'result': 'success'})}\n\n';

@@ -1,4 +1,4 @@
-import { genkit, z } from "genkit";
+import { genkit, UserFacingError, z } from "genkit";
 import {
   GenerateResponseChunkSchema,
   GenerateResponseSchema,
@@ -110,6 +110,41 @@ const generate = ai.defineFlow(
     })
 );
 
+export const streamyThrowy = ai.defineFlow(
+  {
+    name: "streamyThrowy",
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: z.object({ count: z.number() }),
+  },
+  async (count, { sendChunk }) => {
+    let i = 0;
+    for (; i < count; i++) {
+      if (i == 3) {
+      throw new UserFacingError("INTERNAL", "whoops");
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+      sendChunk({ count: i });
+    }
+    return `done: ${count}, streamed: ${i} times`;
+  }
+);
+
+export const throwy = ai.defineFlow(
+  { name: "throwy", inputSchema: z.string(), outputSchema: z.string() },
+  async (subject) => {
+    const foo = await ai.run("call-llm", async () => {
+      return `subject: ${subject}`;
+    });
+    if (subject) {
+      throw new UserFacingError("INTERNAL", "whoops");
+    }
+    return await ai.run("call-llm", async () => {
+      return `foo: ${foo}`;
+    });
+  }
+);
+
 const app = express();
 app.use(express.json());
 
@@ -117,5 +152,7 @@ app.post("/echoString", expressHandler(echoString));
 app.post("/generate", expressHandler(generate));
 app.post("/processObject", expressHandler(processObject));
 app.post("/streamObjects", expressHandler(streamObjects));
+app.post("/throwy", expressHandler(throwy));
+app.post("/streamyThrowy", expressHandler(streamyThrowy));
 
 app.listen(8080);
