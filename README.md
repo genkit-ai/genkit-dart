@@ -7,7 +7,7 @@ This library provides a Dart client for interacting with Genkit flows, enabling 
 Import the library and define your remote actions.
 
 ```dart
-import 'package:genkit/genkit.dart';
+import 'package:genkit/client.dart';
 ```
 
 ## Defining remote actions
@@ -243,7 +243,7 @@ These classes include helpful getters like `.text` to easily extract string cont
 Here is an example of how to call a generative model and process the streaming response using the built-in data classes. See `example/genkit_example.dart` for a runnable version.
 
 ```dart
-import 'package:genkit/genkit.dart';
+import 'package:genkit/client.dart';
 
 // ...
 
