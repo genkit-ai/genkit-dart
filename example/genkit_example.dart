@@ -6,14 +6,19 @@ import '../test/schemas/stream_schemas.dart';
 
 const baseUrl = 'http://localhost:8080';
 
-/*
-  Before running these examples, make sure the sample server is running.
-  In a separate terminal window run:
-
-  cd example/server
-  npm i
-  npx genkit start -- npx tsx --watch index.ts
-*/
+void printServerInstructions() {
+  print(
+    '-------------------------------------------------------------------\n'
+    '| Before running these examples, make sure the server is running. |\n'
+    '| The server is using a fake model, so does not require API keys. |\n'
+    '| In a separate terminal run:                                     |\n'
+    '|                                                                 |\n'
+    '| \$ cd example/server                                             |\n'
+    '| \$ npm i                                                         |\n'
+    '| \$ npm start                                                     |\n'
+    '-------------------------------------------------------------------\n'
+  );
+}
 
 // A simple flow that takes a string and returns a string.
 Future<void> _runStringFlow() async {
@@ -59,7 +64,6 @@ Future<void> _runThrowingStreamingFlow() async {
     await for (final chunk in stream) {
       print('Chunk: $chunk');
     }
-
   } on GenkitException catch (e) {
     if (e.underlyingException is http.ClientException) {
       print('Client error: ${e.underlyingException}');
@@ -163,11 +167,16 @@ Future<void> _runPerformanceExample() async {
 }
 
 void main() async {
-  await _runStringFlow();
-  await _runThrowingFlow();
-  await _runThrowingStreamingFlow();
-  await _runObjectFlow();
-  await _runStreamingFlow();
-  await _runStreamingGenerateFlow();
-  await _runPerformanceExample();
+  try {
+    await _runStringFlow();
+    await _runObjectFlow();
+    await _runStreamingFlow();
+    await _runStreamingGenerateFlow();
+    await _runPerformanceExample();
+    await _runThrowingFlow();
+    await _runThrowingStreamingFlow();
+  } catch (e, st) {
+    print('$e\n$st\n');
+    printServerInstructions();
+  }
 }

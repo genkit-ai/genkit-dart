@@ -15,16 +15,12 @@ ai.defineModel(
     name: "echoModel",
   },
   async (request, { sendChunk }) => {
-    sendChunk({
-      content: [{ text: "chunk 1" }],
-    });
-    sendChunk({
-      content: [{ text: "chunk 2" }],
-    });
-    sendChunk({
-      content: [{ text: "chunk 3" }],
-    });
-
+    for (var i = 0; i < 3; i++) {
+      sendChunk({
+        content: [{ text: `chunk ${i}` }],
+      });
+      await new Promise((r) => setTimeout(r, 1000));
+    }
     return {
       message: {
         role: "model",
@@ -87,6 +83,7 @@ const streamObjects = ai.defineFlow(
         text: "input: " + i,
         summary: "summary " + i,
       });
+      await new Promise((r) => setTimeout(r, 1000));
     }
 
     return {
@@ -121,7 +118,7 @@ export const streamyThrowy = ai.defineFlow(
     let i = 0;
     for (; i < count; i++) {
       if (i == 3) {
-      throw new UserFacingError("INTERNAL", "whoops");
+        throw new UserFacingError("INTERNAL", "whoops");
       }
       await new Promise((r) => setTimeout(r, 1000));
       sendChunk({ count: i });
