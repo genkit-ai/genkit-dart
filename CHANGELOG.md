@@ -1,3 +1,9 @@
+## 0.7.0
+
+- **BREAKING CHANGE**: The package has been renamed from `package:genkit/genkit.dart` to `package:genkit/client.dart`. You will need to update your import statements.
+- **BREAKING CHANGE**: The `response` future returned by the `.stream()` method is now nullable (`Future<O?>`). This change supports improved error handling and cancellation.
+- **Improved Error Handling**: Errors occurring on the server during a stream are now thrown by the `stream` itself. This allows you to catch exceptions directly within a `try/catch` block surrounding an `await for` loop.
+
 ## 0.6.0
 
 - Added standard Genkit data classes for working with generative models, including `GenerateResponse`, `Message`, and `Part` types.

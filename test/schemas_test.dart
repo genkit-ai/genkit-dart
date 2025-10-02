@@ -1,4 +1,4 @@
-import 'package:genkit/genkit.dart';
+import 'package:genkit/client.dart';
 import 'package:test/test.dart';
 
 void main() {
