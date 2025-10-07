@@ -108,14 +108,14 @@ void main() {
           );
         });
 
-        final streamResponse = remoteAction.stream(input: input);
+        final stream = remoteAction.stream(input: input);
         final chunks = <String>[];
 
-        await for (final chunk in streamResponse.stream) {
+        await for (final chunk in stream) {
           chunks.add(chunk);
         }
 
-        final finalResponse = await streamResponse.response;
+        final finalResponse = stream.finalResult;
 
         expect(chunks, expectedChunks);
         expect(finalResponse, expectedResponse);

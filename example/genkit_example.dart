@@ -16,7 +16,7 @@ void printServerInstructions() {
     '| \$ cd example/server                                             |\n'
     '| \$ npm i                                                         |\n'
     '| \$ npm start                                                     |\n'
-    '-------------------------------------------------------------------\n'
+    '-------------------------------------------------------------------\n',
   );
 }
 
@@ -59,8 +59,7 @@ Future<void> _runThrowingStreamingFlow() async {
     fromStreamChunk: (json) => json,
   );
   try {
-    final (:stream, :response) = streamyThrowy.stream(input: 5);
-
+    final stream = streamyThrowy.stream(input: 5);
     await for (final chunk in stream) {
       print('Chunk: $chunk');
     }
@@ -97,7 +96,7 @@ Future<void> _runStreamingFlow() async {
     fromResponse: (json) => StreamOutput.fromJson(json),
     fromStreamChunk: (json) => StreamOutput.fromJson(json),
   );
-  final (:stream, :response) = streamObjectsFlow.stream(
+  final stream = streamObjectsFlow.stream(
     input: StreamInput(prompt: 'What is Genkit?'),
   );
 
@@ -106,7 +105,7 @@ Future<void> _runStreamingFlow() async {
     print('Chunk: ${chunk.text}');
   }
   print('\nStream finished.');
-  final finalResult = await response;
+  final finalResult = stream.finalResult;
   print('Final Response: ${finalResult?.text}');
 }
 
@@ -118,7 +117,7 @@ Future<void> _runStreamingGenerateFlow() async {
     fromResponse: (json) => GenerateResponse.fromJson(json),
     fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
   );
-  final (:stream, :response) = generateFlow.stream(
+  final stream = generateFlow.stream(
     input: [
       Message(
         role: Role.user,
@@ -140,7 +139,7 @@ Future<void> _runStreamingGenerateFlow() async {
     print('Chunk: ${chunk.text}');
   }
   print('\nStream finished.');
-  final finalResult = await response;
+  final finalResult = stream.finalResult;
   print('Final Response: ${finalResult?.text}');
 }
 

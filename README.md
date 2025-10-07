@@ -94,7 +94,7 @@ try {
 
 ## Calling Streaming Flows
 
-Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns a `FlowStreamResponse` containing both the `stream` and the `response` future. The final response is optional (`Future<O?>`) because the stream may be cancelled before a final response is received, in which case the future will complete with `null`.
+Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns a `GenkitStream` which is a `Stream` of chunks and also provides access to the `finalResult` of the flow. The `finalResult` is optional because the stream may be cancelled before a final response is received, in which case it will be `null`.
 
 ### Example: String Input, Streaming String Chunks, String Final Response
 
@@ -106,16 +106,16 @@ final streamAction = defineRemoteAction(
 );
 
 try {
-  final streamResponse = streamAction.stream(
+  final stream = streamAction.stream(
     input: 'Tell me a short story about a Dart developer.',
   );
 
   print('Streaming chunks:');
-  await for (final chunk in streamResponse.stream) {
+  await for (final chunk in stream) {
     print('Chunk: $chunk');
   }
 
-  final finalResult = await streamResponse.response;
+  final finalResult = stream.finalResult;
   if (finalResult != null) {
     print('\nFinal Response: $finalResult');
   } else {
@@ -148,14 +148,14 @@ final streamAction = defineRemoteAction(
 final input = MyInput(message: 'Stream this data', count: 5);
 
 try {
-  final streamResponse = streamAction.stream(input: input);
+  final stream = streamAction.stream(input: input);
 
   print('Streaming chunks:');
-  await for (final chunk in streamResponse.stream) {
+  await for (final chunk in stream) {
     print('Chunk: ${chunk.content}');
   }
 
-  final finalResult = await streamResponse.response;
+  final finalResult = stream.finalResult;
   if (finalResult != null) {
     print('\nFinal Response: ${finalResult.reply}');
   } else {
@@ -253,7 +253,7 @@ final generateFlow = defineRemoteAction(
   fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
 );
 
-final (:stream, :response) = generateFlow.stream(
+final stream = generateFlow.stream(
   input: Message(role: Role.user, content: [TextPart(text: "hello")]),
 );
 
@@ -263,7 +263,7 @@ await for (final chunk in stream) {
   print('Chunk: ${chunk.text}');
 }
 
-final finalResult = await response;
+final finalResult = stream.finalResult;
 // The .text getter also works on the final response
 if (finalResult != null) {
   print('Final Response: ${finalResult.text}');

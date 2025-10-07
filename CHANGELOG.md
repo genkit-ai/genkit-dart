@@ -1,3 +1,26 @@
+## 0.8.0
+
+- **BREAKING CHANGE**: The `.stream()` method now returns a `GenkitStream` instead of a `FlowStreamResponse` record. `GenkitStream` is a `Stream` that also provides a `finalResult` property to access the flow's final, non-streamed response. This simplifies the API for handling streaming responses.
+
+  **Migration**:
+  Code that previously looked like this:
+  ```dart
+  final (:stream, :response) = myAction.stream(input: ...);
+  await for (final chunk in stream) {
+    // ...
+  }
+  final finalResult = await response;
+  ```
+
+  Should be updated to:
+  ```dart
+  final stream = myAction.stream(input: ...);
+  await for (final chunk in stream) {
+    // ...
+  }
+  final finalResult = stream.finalResult;
+  ```
+
 ## 0.7.0
 
 - **BREAKING CHANGE**: The package has been renamed from `package:genkit/genkit.dart` to `package:genkit/client.dart`. You will need to update your import statements.

@@ -66,14 +66,14 @@ void main() {
         );
       });
 
-      final streamResponse = stringStreamAction.stream(input: input);
+      final stream = stringStreamAction.stream(input: input);
       final chunks = <String>[];
 
-      await for (final chunk in streamResponse.stream) {
+      await for (final chunk in stream) {
         chunks.add(chunk);
       }
 
-      final finalResponse = await streamResponse.response;
+      final finalResponse = stream.finalResult;
 
       expect(chunks, expectedChunks);
       expect(finalResponse, expectedResponse);
@@ -98,14 +98,14 @@ void main() {
         );
       });
 
-      final streamResponse = objectStreamAction.stream(input: input);
+      final stream = objectStreamAction.stream(input: input);
       final chunks = <TestStreamChunk>[];
 
-      await for (final chunk in streamResponse.stream) {
+      await for (final chunk in stream) {
         chunks.add(chunk);
       }
 
-      final finalResponse = await streamResponse.response;
+      final finalResponse = stream.finalResult;
 
       expect(chunks.length, expectedChunks.length);
       for (int i = 0; i < chunks.length; i++) {
@@ -124,10 +124,10 @@ void main() {
         );
       });
 
-      final streamResponse = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream(input: 'test');
 
       await expectLater(
-        Future.wait([streamResponse.stream.toList(), streamResponse.response]),
+        stream.toList(),
         throwsA(
           isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
         ),
@@ -145,10 +145,10 @@ void main() {
         );
       });
 
-      final streamResponse = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream(input: 'test');
 
       await expectLater(
-        Future.wait([streamResponse.stream.toList(), streamResponse.response]),
+        stream.toList(),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -167,10 +167,10 @@ void main() {
         // fromStreamChunk is not provided
       );
 
-      final streamResponse = actionWithoutStreamChunk.stream(input: 'test');
+      final stream = actionWithoutStreamChunk.stream(input: 'test');
 
       expect(
-        () => streamResponse.stream.toList(),
+        () => stream.toList(),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -180,7 +180,7 @@ void main() {
         ),
       );
 
-      expect(() => streamResponse.response, throwsA(isA<GenkitException>()));
+      expect(stream.finalResult, isNull);
     });
 
     test('should handle errors gracefully with await for', () async {
@@ -191,7 +191,7 @@ void main() {
         );
       });
 
-      final (:stream, :response) = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream(input: 'test');
 
       await expectLater(
         () async => {
@@ -204,7 +204,7 @@ void main() {
           isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
         ),
       );
-      final result = await response;
+      final result = stream.finalResult;
       expect(result, isNull);
     });
 
@@ -220,10 +220,10 @@ void main() {
         );
       });
 
-      final streamResponse = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream(input: 'test');
 
       await expectLater(
-        Future.wait([streamResponse.stream.toList(), streamResponse.response]),
+        stream.toList(),
         throwsA(
           isA<GenkitException>()
               .having((e) => e.message, 'message', 'whoops')
@@ -246,10 +246,10 @@ void main() {
         );
       });
 
-      final streamResponse = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream(input: 'test');
       final receivedChunks = <String>[];
 
-      streamResponse.stream.listen((chunk) {
+      stream.listen((chunk) {
         receivedChunks.add(chunk);
       });
 
@@ -269,7 +269,7 @@ void main() {
       await streamController.close();
 
       expect(receivedChunks, chunks);
-      expect(await streamResponse.response, 'done');
+      expect(stream.finalResult, 'done');
     });
 
     test('should handle stream cancellation gracefully', () async {
@@ -283,7 +283,7 @@ void main() {
         );
       });
 
-      final (:stream, :response) = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream(input: 'test');
 
       final subscription = stream.listen(
         (_) {},
@@ -294,7 +294,7 @@ void main() {
       await Future.delayed(Duration.zero);
       await subscription.cancel();
 
-      expect(await response, isNull);
+      expect(stream.finalResult, isNull);
     });
   });
 
@@ -317,7 +317,6 @@ void main() {
 
       await stringStreamAction
           .stream(input: 'test', headers: customHeaders)
-          .stream
           .toList();
 
       final captured =

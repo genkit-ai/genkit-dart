@@ -17,7 +17,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'exception.dart';
-import 'flow_response.dart';
 
 const _flowStreamDelimiter = '\n\n';
 
@@ -288,7 +287,7 @@ class RemoteAction<O, S> {
   }
 
   /// Invokes the remote flow and streams its response.
-  FlowStreamResponse<O?, S> stream<I>({
+  GenkitStream<S, O> stream<I>({
     required I input,
     Map<String, String>? headers,
   }) {
@@ -297,16 +296,15 @@ class RemoteAction<O, S> {
       final error = GenkitException(
         'fromStreamChunk must be provided for streaming operations.',
       );
-      return (
-        response: Future.error(error, StackTrace.current),
-        stream: Stream.error(error, StackTrace.current),
-      );
+      return GenkitStream<S, O>(Stream.error(error, StackTrace.current));
     }
 
     StreamSubscription? subscription;
     final streamController = StreamController<S>();
 
-    final responseFuture = streamFlow(
+    final genkitStream = GenkitStream<S, O>(streamController.stream);
+
+    streamFlow(
       url: _url,
       fromResponse: _fromResponse,
       fromStreamChunk: _fromStreamChunk,
@@ -327,25 +325,22 @@ class RemoteAction<O, S> {
       },
       input: input,
       httpClient: _httpClient,
+    ).then(
+      (d) {
+        genkitStream.finalResult = d;
+        if (!streamController.isClosed) {
+          streamController.close();
+        }
+      },
+      onError: (error, st) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, st);
+          streamController.close();
+        }
+      },
     );
 
-    return (
-      stream: streamController.stream,
-      response: responseFuture.then(
-        (d) {
-          if (!streamController.isClosed) {
-            streamController.close();
-          }
-          return d;
-        },
-        onError: (error, st) {
-          if (!streamController.isClosed) {
-            streamController.addError(error, st);
-            streamController.close();
-          }
-        },
-      ),
-    );
+    return genkitStream;
   }
 
   /// Disposes of the underlying HTTP client if it was created by this [RemoteAction].
@@ -356,4 +351,10 @@ class RemoteAction<O, S> {
       _httpClient.close();
     }
   }
+}
+
+class GenkitStream<S, F> extends StreamView<S> {
+  F? finalResult;
+
+  GenkitStream(super.stream);
 }
