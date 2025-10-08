@@ -1,6 +1,6 @@
 ## 0.8.0
 
-- **BREAKING CHANGE**: The `.stream()` method now returns a `GenkitStream` instead of a `FlowStreamResponse` record. `GenkitStream` is a `Stream` that also provides a `finalResult` property to access the flow's final, non-streamed response. This simplifies the API for handling streaming responses.
+- **BREAKING CHANGE**: The `.stream()` method now returns a `ActionStream` instead of a `FlowStreamResponse` record. `ActionStream` is a `Stream` that also provides a `finalResult` property to access the flow's final, non-streamed response. This simplifies the API for handling streaming responses.
 
   **Migration**:
   Code that previously looked like this:

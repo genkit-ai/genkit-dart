@@ -140,7 +140,9 @@ Future<O?> streamFlow<O, S>({
   onSubscription?.call(subscription);
   setCancelCallback?.call(() {
     if (!responseCompleter.isCompleted) {
-      responseCompleter.complete(null);
+      responseCompleter.completeError(
+        GenkitException('Stream cancelled by client.'),
+      );
     }
   });
 
@@ -287,7 +289,7 @@ class RemoteAction<O, S> {
   }
 
   /// Invokes the remote flow and streams its response.
-  GenkitStream<S, O> stream<I>({
+  ActionStream<S, O> stream<I>({
     required I input,
     Map<String, String>? headers,
   }) {
@@ -296,15 +298,18 @@ class RemoteAction<O, S> {
       final error = GenkitException(
         'fromStreamChunk must be provided for streaming operations.',
       );
-      return GenkitStream<S, O>(Stream.error(error, StackTrace.current));
+      final stream = Stream<S>.error(error);
+      final actionStream = ActionStream<S, O>(stream);
+      actionStream._setError(error, StackTrace.current);
+      return actionStream;
     }
 
     StreamSubscription? subscription;
     final streamController = StreamController<S>();
 
-    final genkitStream = GenkitStream<S, O>(streamController.stream);
+    final actionStream = ActionStream<S, O>(streamController.stream);
 
-    streamFlow(
+    streamFlow<O, S>(
       url: _url,
       fromResponse: _fromResponse,
       fromStreamChunk: _fromStreamChunk,
@@ -327,12 +332,13 @@ class RemoteAction<O, S> {
       httpClient: _httpClient,
     ).then(
       (d) {
-        genkitStream.finalResult = d;
+        actionStream._setResult(d as O);
         if (!streamController.isClosed) {
           streamController.close();
         }
       },
       onError: (error, st) {
+        actionStream._setError(error, st);
         if (!streamController.isClosed) {
           streamController.addError(error, st);
           streamController.close();
@@ -340,7 +346,7 @@ class RemoteAction<O, S> {
       },
     );
 
-    return genkitStream;
+    return actionStream;
   }
 
   /// Disposes of the underlying HTTP client if it was created by this [RemoteAction].
@@ -353,8 +359,53 @@ class RemoteAction<O, S> {
   }
 }
 
-class GenkitStream<S, F> extends StreamView<S> {
-  F? finalResult;
+class ActionStream<S, F> extends StreamView<S> {
+  bool _done = false;
+  F? _finalResult;
+  Object? _streamError;
+  StackTrace? _streamStackTrace;
+  Completer<F>? _completer;
 
-  GenkitStream(super.stream);
+  Future<F> get onFinalResult {
+    if (_completer == null) {
+      _completer = Completer<F>();
+      if (_done) {
+        if (_streamError != null) {
+          _completer!.completeError(_streamError!, _streamStackTrace);
+        } else {
+          _completer!.complete(_finalResult as F);
+        }
+      }
+    }
+    return _completer!.future;
+  }
+
+  F get finalResult {
+    if (!_done) {
+      throw GenkitException('Stream not consumed yet');
+    }
+    if (_streamError != null) {
+      throw _streamError!;
+    }
+    return _finalResult as F;
+  }
+
+  void _setResult(F result) {
+    _done = true;
+    _finalResult = result;
+    if (_completer?.isCompleted == false) {
+      _completer!.complete(result);
+    }
+  }
+
+  void _setError(Object error, StackTrace st) {
+    _done = true;
+    _streamError = error;
+    _streamStackTrace = st;
+    if (_completer?.isCompleted == false) {
+      _completer!.completeError(error, st);
+    }
+  }
+
+  ActionStream(super.stream);
 }
