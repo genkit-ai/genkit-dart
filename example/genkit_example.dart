@@ -106,7 +106,7 @@ Future<void> _runStreamingFlow() async {
   }
   print('\nStream finished.');
   final finalResult = stream.result;
-  print('Final Response: ${finalResult?.text}');
+  print('Final Response: ${finalResult.text}');
 }
 
 // --- Stream generate call ---
@@ -140,7 +140,7 @@ Future<void> _runStreamingGenerateFlow() async {
   }
   print('\nStream finished.');
   final finalResult = stream.result;
-  print('Final Response: ${finalResult?.text}');
+  print('Final Response: ${finalResult.text}');
 }
 
 // Manual client management for performance.
