@@ -96,10 +96,10 @@ try {
 
 Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns an `ActionStream`, which is a `Stream` of chunks and also provides two ways to access the final result of the flow:
 
-- `onFinalResult`: A `Future` that completes with the final result when the stream is fully consumed. This is the recommended way to get the final result, as it works naturally with `async/await`. If the stream is cancelled or encounters an error, this `Future` will complete with a `GenkitException`.
-- `finalResult`: A synchronous getter that returns the final result. This should only be accessed *after* the stream has been fully consumed. It will throw an exception if the stream is not yet done or if it terminated with an error.
+- `onResult`: A `Future` that completes with the final result when the stream is fully consumed. This is the recommended way to get the final result, as it works naturally with `async/await`. If the stream is cancelled or encounters an error, this `Future` will complete with a `GenkitException`.
+- `result`: A synchronous getter that returns the final result. This should only be accessed *after* the stream has been fully consumed. It will throw an exception if the stream is not yet done or if it terminated with an error.
 
-### Example 1: Using `onFinalResult` (Recommended)
+### Example 1: Using `onResult` (Recommended)
 
 This example shows how to asynchronously wait for the final result after consuming the stream.
 
@@ -120,23 +120,23 @@ try {
     print('Chunk: $chunk');
   }
 
-  // Use onFinalResult to asynchronously get the final response.
-  final finalResult = await stream.onFinalResult;
+  // Use onResult to asynchronously get the final response.
+  final finalResult = await stream.onResult;
   print('\nFinal Response: $finalResult');
 } catch (e) {
   print('Error calling streamFlow: $e');
 }
 ```
 
-### Example 2: Using `finalResult`
+### Example 2: Using `result`
 
-If you have already consumed the stream (e.g., with `await for`), you can use the synchronous `finalResult` getter.
+If you have already consumed the stream (e.g., with `await for`), you can use the synchronous `result` getter.
 
 ```dart
   // ... (after awaiting the stream as in the example above)
 
   // Once the stream is done, you can access the result synchronously.
-  final finalResult = stream.finalResult;
+  final finalResult = stream.result;
   print('\nFinal Response: $finalResult');
 ```
 
@@ -169,7 +169,7 @@ try {
     print('Chunk: ${chunk.content}');
   }
 
-  final finalResult = await stream.onFinalResult;
+  final finalResult = await stream.onResult;
   print('\nFinal Response: ${finalResult.reply}');
 } catch (e) {
   print('Error calling streaming flow: $e');
@@ -273,7 +273,7 @@ await for (final chunk in stream) {
   print('Chunk: ${chunk.text}');
 }
 
-final finalResult = await stream.onFinalResult;
+final finalResult = await stream.onResult;
 // The .text getter also works on the final response
 print('Final Response: ${finalResult.text}');
 ```

@@ -115,7 +115,7 @@ void main() {
           chunks.add(chunk);
         }
 
-        final finalResponse = stream.finalResult;
+        final finalResponse = stream.result;
 
         expect(chunks, expectedChunks);
         expect(finalResponse, expectedResponse);

@@ -73,11 +73,11 @@ void main() {
         chunks.add(chunk);
       }
 
-      final finalResponse = await stream.onFinalResult;
+      final finalResponse = await stream.onResult;
 
       expect(chunks, expectedChunks);
       expect(finalResponse, expectedResponse);
-      expect(stream.finalResult, expectedResponse);
+      expect(stream.result, expectedResponse);
     });
 
     test('should handle object stream chunks correctly', () async {
@@ -106,14 +106,14 @@ void main() {
         chunks.add(chunk);
       }
 
-      final finalResponse = await stream.onFinalResult;
+      final finalResponse = await stream.onResult;
 
       expect(chunks.length, expectedChunks.length);
       for (int i = 0; i < chunks.length; i++) {
         expect(chunks[i].chunk, expectedChunks[i].chunk);
       }
       expect(finalResponse, expectedResponse);
-      expect(stream.finalResult, expectedResponse);
+      expect(stream.result, expectedResponse);
     });
   });
 
@@ -136,14 +136,14 @@ void main() {
       );
 
       await expectLater(
-        stream.onFinalResult,
+        stream.onResult,
         throwsA(
           isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
         ),
       );
 
       expect(
-        () => stream.finalResult,
+        () => stream.result,
         throwsA(
           isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
         ),
@@ -175,12 +175,12 @@ void main() {
       );
 
       await expectLater(
-        stream.onFinalResult,
+        stream.onResult,
         throwsA(isA<GenkitException>()),
       );
 
       expect(
-        () => stream.finalResult,
+        () => stream.result,
         throwsA(isA<GenkitException>()),
       );
     });
@@ -207,7 +207,7 @@ void main() {
       );
 
       expect(
-          () => stream.finalResult,
+          () => stream.result,
           throwsA(isA<GenkitException>().having((e) => e.message, 'message',
               contains('fromStreamChunk must be provided'))));
     });
@@ -233,7 +233,7 @@ void main() {
           isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
         ),
       );
-      expect(() => stream.finalResult, throwsA(isA<GenkitException>()));
+      expect(() => stream.result, throwsA(isA<GenkitException>()));
     });
 
     test('should handle SSE error events', () async {
@@ -260,14 +260,14 @@ void main() {
       );
 
       await expectLater(
-        stream.onFinalResult,
+        stream.onResult,
         throwsA(
           isA<GenkitException>().having((e) => e.message, 'message', 'whoops'),
         ),
       );
 
       expect(
-        () => stream.finalResult,
+        () => stream.result,
         throwsA(
           isA<GenkitException>().having((e) => e.message, 'message', 'whoops'),
         ),
@@ -310,11 +310,11 @@ void main() {
       streamController.add(utf8.encode(finalData));
       await streamController.close();
 
-      final finalResult = await stream.onFinalResult;
+      final finalResult = await stream.onResult;
 
       expect(receivedChunks, chunks);
       expect(finalResult, 'done');
-      expect(stream.finalResult, 'done');
+      expect(stream.result, 'done');
     });
 
     test('should handle stream cancellation gracefully', () async {
@@ -340,12 +340,12 @@ void main() {
       await subscription.cancel();
 
       await expectLater(
-          stream.onFinalResult,
+          stream.onResult,
           throwsA(isA<GenkitException>().having(
               (e) => e.message, 'message', 'Stream cancelled by client.')));
 
       expect(
-          () => stream.finalResult,
+          () => stream.result,
           throwsA(isA<GenkitException>().having(
               (e) => e.message, 'message', 'Stream cancelled by client.')));
     });
@@ -380,8 +380,8 @@ void main() {
     });
   });
 
-  group('finalResult and onFinalResult', () {
-    test('finalResult throws if stream is not done', () {
+  group('result and onResult', () {
+    test('result throws if stream is not done', () {
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(
           const Stream.empty(),
@@ -391,14 +391,14 @@ void main() {
       });
       final stream = stringStreamAction.stream(input: 'test');
       expect(
-        () => stream.finalResult,
+        () => stream.result,
         throwsA(isA<GenkitException>()
             .having((e) => e.message, 'message', 'Stream not consumed yet')),
       );
     });
 
     test(
-        'onFinalResult completes after stream is consumed, even if called before',
+        'onResult completes after stream is consumed, even if called before',
         () async {
       final streamController = StreamController<List<int>>();
       when(mockClient.send(any)).thenAnswer((_) async {
@@ -411,8 +411,8 @@ void main() {
 
       final stream = stringStreamAction.stream(input: 'test');
 
-      // Call onFinalResult *before* the stream is done
-      final futureResult = stream.onFinalResult;
+      // Call onResult *before* the stream is done
+      final futureResult = stream.onResult;
 
       // Complete the stream
       streamController.add(utf8.encode('data: {"result": "done"}\n\n'));
@@ -420,10 +420,10 @@ void main() {
 
       // The future should now complete
       await expectLater(futureResult, completion('done'));
-      expect(stream.finalResult, 'done');
+      expect(stream.result, 'done');
     });
 
-    test('onFinalResult completes if called after stream is done', () async {
+    test('onResult completes if called after stream is done', () async {
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(
           Stream.value(utf8.encode('data: {"result": "done"}\n\n')),
@@ -435,9 +435,9 @@ void main() {
       final stream = stringStreamAction.stream(input: 'test');
       await stream.drain(); // Ensure stream is done
 
-      // Call onFinalResult *after* the stream is done
-      await expectLater(stream.onFinalResult, completion('done'));
-      expect(stream.finalResult, 'done');
+      // Call onResult *after* the stream is done
+      await expectLater(stream.onResult, completion('done'));
+      expect(stream.result, 'done');
     });
   });
 

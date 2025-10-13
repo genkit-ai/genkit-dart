@@ -361,38 +361,38 @@ class RemoteAction<O, S> {
 
 class ActionStream<S, F> extends StreamView<S> {
   bool _done = false;
-  F? _finalResult;
+  F? _result;
   Object? _streamError;
   StackTrace? _streamStackTrace;
   Completer<F>? _completer;
 
-  Future<F> get onFinalResult {
+  Future<F> get onResult {
     if (_completer == null) {
       _completer = Completer<F>();
       if (_done) {
         if (_streamError != null) {
           _completer!.completeError(_streamError!, _streamStackTrace);
         } else {
-          _completer!.complete(_finalResult as F);
+          _completer!.complete(_result as F);
         }
       }
     }
     return _completer!.future;
   }
 
-  F get finalResult {
+  F get result {
     if (!_done) {
       throw GenkitException('Stream not consumed yet');
     }
     if (_streamError != null) {
       throw _streamError!;
     }
-    return _finalResult as F;
+    return _result as F;
   }
 
   void _setResult(F result) {
     _done = true;
-    _finalResult = result;
+    _result = result;
     if (_completer?.isCompleted == false) {
       _completer!.complete(result);
     }

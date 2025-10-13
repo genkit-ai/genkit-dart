@@ -105,7 +105,7 @@ Future<void> _runStreamingFlow() async {
     print('Chunk: ${chunk.text}');
   }
   print('\nStream finished.');
-  final finalResult = stream.finalResult;
+  final finalResult = stream.result;
   print('Final Response: ${finalResult?.text}');
 }
 
@@ -139,7 +139,7 @@ Future<void> _runStreamingGenerateFlow() async {
     print('Chunk: ${chunk.text}');
   }
   print('\nStream finished.');
-  final finalResult = stream.finalResult;
+  final finalResult = stream.result;
   print('Final Response: ${finalResult?.text}');
 }
 
