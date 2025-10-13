@@ -18,3 +18,5 @@ dev_dependencies:
   json_serializable: ^6.11.1
   schema_generator:
     path: tool/schema_generator
+  code_builder: ^4.10.0
+  dart_style: ^3.0.0
