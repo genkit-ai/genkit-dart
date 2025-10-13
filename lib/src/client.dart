@@ -17,7 +17,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'exception.dart';
-import 'flow_response.dart';
 
 const _flowStreamDelimiter = '\n\n';
 
@@ -141,7 +140,9 @@ Future<O?> streamFlow<O, S>({
   onSubscription?.call(subscription);
   setCancelCallback?.call(() {
     if (!responseCompleter.isCompleted) {
-      responseCompleter.complete(null);
+      responseCompleter.completeError(
+        GenkitException('Stream cancelled by client.'),
+      );
     }
   });
 
@@ -288,7 +289,7 @@ class RemoteAction<O, S> {
   }
 
   /// Invokes the remote flow and streams its response.
-  FlowStreamResponse<O?, S> stream<I>({
+  ActionStream<S, O> stream<I>({
     required I input,
     Map<String, String>? headers,
   }) {
@@ -297,16 +298,18 @@ class RemoteAction<O, S> {
       final error = GenkitException(
         'fromStreamChunk must be provided for streaming operations.',
       );
-      return (
-        response: Future.error(error, StackTrace.current),
-        stream: Stream.error(error, StackTrace.current),
-      );
+      final stream = Stream<S>.error(error);
+      final actionStream = ActionStream<S, O>(stream);
+      actionStream._setError(error, StackTrace.current);
+      return actionStream;
     }
 
     StreamSubscription? subscription;
     final streamController = StreamController<S>();
 
-    final responseFuture = streamFlow(
+    final actionStream = ActionStream<S, O>(streamController.stream);
+
+    streamFlow<O, S>(
       url: _url,
       fromResponse: _fromResponse,
       fromStreamChunk: _fromStreamChunk,
@@ -327,25 +330,23 @@ class RemoteAction<O, S> {
       },
       input: input,
       httpClient: _httpClient,
+    ).then(
+      (d) {
+        actionStream._setResult(d as O);
+        if (!streamController.isClosed) {
+          streamController.close();
+        }
+      },
+      onError: (error, st) {
+        actionStream._setError(error, st);
+        if (!streamController.isClosed) {
+          streamController.addError(error, st);
+          streamController.close();
+        }
+      },
     );
 
-    return (
-      stream: streamController.stream,
-      response: responseFuture.then(
-        (d) {
-          if (!streamController.isClosed) {
-            streamController.close();
-          }
-          return d;
-        },
-        onError: (error, st) {
-          if (!streamController.isClosed) {
-            streamController.addError(error, st);
-            streamController.close();
-          }
-        },
-      ),
-    );
+    return actionStream;
   }
 
   /// Disposes of the underlying HTTP client if it was created by this [RemoteAction].
@@ -356,4 +357,55 @@ class RemoteAction<O, S> {
       _httpClient.close();
     }
   }
+}
+
+class ActionStream<S, F> extends StreamView<S> {
+  bool _done = false;
+  F? _result;
+  Object? _streamError;
+  StackTrace? _streamStackTrace;
+  Completer<F>? _completer;
+
+  Future<F> get onResult {
+    if (_completer == null) {
+      _completer = Completer<F>();
+      if (_done) {
+        if (_streamError != null) {
+          _completer!.completeError(_streamError!, _streamStackTrace);
+        } else {
+          _completer!.complete(_result as F);
+        }
+      }
+    }
+    return _completer!.future;
+  }
+
+  F get result {
+    if (!_done) {
+      throw GenkitException('Stream not consumed yet');
+    }
+    if (_streamError != null) {
+      throw _streamError!;
+    }
+    return _result as F;
+  }
+
+  void _setResult(F result) {
+    _done = true;
+    _result = result;
+    if (_completer?.isCompleted == false) {
+      _completer!.complete(result);
+    }
+  }
+
+  void _setError(Object error, StackTrace st) {
+    _done = true;
+    _streamError = error;
+    _streamStackTrace = st;
+    if (_completer?.isCompleted == false) {
+      _completer!.completeError(error, st);
+    }
+  }
+
+  ActionStream(super.stream);
 }

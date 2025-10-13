@@ -94,9 +94,14 @@ try {
 
 ## Calling Streaming Flows
 
-Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns a `FlowStreamResponse` containing both the `stream` and the `response` future. The final response is optional (`Future<O?>`) because the stream may be cancelled before a final response is received, in which case the future will complete with `null`.
+Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns an `ActionStream`, which is a `Stream` of chunks and also provides two ways to access the final result of the flow:
 
-### Example: String Input, Streaming String Chunks, String Final Response
+- `onResult`: A `Future` that completes with the final result when the stream is fully consumed. This is the recommended way to get the final result, as it works naturally with `async/await`. If the stream is cancelled or encounters an error, this `Future` will complete with a `GenkitException`.
+- `result`: A synchronous getter that returns the final result. This should only be accessed *after* the stream has been fully consumed. It will throw an exception if the stream is not yet done or if it terminated with an error.
+
+### Example 1: Using `onResult` (Recommended)
+
+This example shows how to asynchronously wait for the final result after consuming the stream.
 
 ```dart
 final streamAction = defineRemoteAction(
@@ -106,24 +111,33 @@ final streamAction = defineRemoteAction(
 );
 
 try {
-  final streamResponse = streamAction.stream(
+  final stream = streamAction.stream(
     input: 'Tell me a short story about a Dart developer.',
   );
 
   print('Streaming chunks:');
-  await for (final chunk in streamResponse.stream) {
+  await for (final chunk in stream) {
     print('Chunk: $chunk');
   }
 
-  final finalResult = await streamResponse.response;
-  if (finalResult != null) {
-    print('\nFinal Response: $finalResult');
-  } else {
-    print('\nStream was cancelled or finished without a final response.');
-  }
+  // Use onResult to asynchronously get the final response.
+  final finalResult = await stream.onResult;
+  print('\nFinal Response: $finalResult');
 } catch (e) {
   print('Error calling streamFlow: $e');
 }
+```
+
+### Example 2: Using `result`
+
+If you have already consumed the stream (e.g., with `await for`), you can use the synchronous `result` getter.
+
+```dart
+  // ... (after awaiting the stream as in the example above)
+
+  // Once the stream is done, you can access the result synchronously.
+  final finalResult = stream.result;
+  print('\nFinal Response: $finalResult');
 ```
 
 ### Example: Custom Object Streaming
@@ -148,19 +162,15 @@ final streamAction = defineRemoteAction(
 final input = MyInput(message: 'Stream this data', count: 5);
 
 try {
-  final streamResponse = streamAction.stream(input: input);
+  final stream = streamAction.stream(input: input);
 
   print('Streaming chunks:');
-  await for (final chunk in streamResponse.stream) {
+  await for (final chunk in stream) {
     print('Chunk: ${chunk.content}');
   }
 
-  final finalResult = await streamResponse.response;
-  if (finalResult != null) {
-    print('\nFinal Response: ${finalResult.reply}');
-  } else {
-    print('\nStream was cancelled or finished without a final response.');
-  }
+  final finalResult = await stream.onResult;
+  print('\nFinal Response: ${finalResult.reply}');
 } catch (e) {
   print('Error calling streaming flow: $e');
 }
@@ -253,7 +263,7 @@ final generateFlow = defineRemoteAction(
   fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
 );
 
-final (:stream, :response) = generateFlow.stream(
+final stream = generateFlow.stream(
   input: Message(role: Role.user, content: [TextPart(text: "hello")]),
 );
 
@@ -263,11 +273,7 @@ await for (final chunk in stream) {
   print('Chunk: ${chunk.text}');
 }
 
-final finalResult = await response;
+final finalResult = await stream.onResult;
 // The .text getter also works on the final response
-if (finalResult != null) {
-  print('Final Response: ${finalResult.text}');
-} else {
-  print('Stream was cancelled or finished without a final response.');
-}
+print('Final Response: ${finalResult.text}');
 ```
