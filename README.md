@@ -28,6 +28,11 @@ final customAction = defineRemoteAction(
   url: 'http://localhost:3400/custom-flow',
   fromResponse: (data) => MyOutput.fromJson(data),
 );
+
+// If fromResponse is not specified, the result is a dynamic object
+final dynamicAction = defineRemoteAction(
+  url: 'http://localhost:3400/any-flow',
+);
 ```
 
 The code assumes that you have `my-flow` and `custom-flow` deployed at those URLs. See https://genkit.dev/docs/deploy-node/ or https://genkit.dev/go/docs/deploy/ for details.
@@ -226,8 +231,8 @@ try {
 
 ## Data Conversion Functions
 
-- `fromResponse`: Converts the JSON response data to your output type `O`
-- `fromStreamChunk`: (Optional) Converts JSON chunk data to your stream chunk type `S`
+- `fromResponse`: (Optional) Converts the JSON response data to your output type `O`. If not provided, the result will be a `dynamic` object decoded from JSON.
+- `fromStreamChunk`: (Optional) Converts JSON chunk data to your stream chunk type `S`. If not provided, chunks will be `dynamic` objects decoded from JSON.
 
 Make sure your custom classes have appropriate `toJson()` and `fromJson()` methods for serialization and deserialization.
 

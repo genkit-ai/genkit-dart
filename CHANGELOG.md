@@ -1,3 +1,7 @@
+## 0.9.0
+
+- Made `fromResponse` and `fromStreamChunk` optional in `defineRemoteAction`. If not provided, the response and stream chunks will be `dynamic` objects decoded from JSON, instead of requiring a typed conversion function.
+
 ## 0.8.0
 
 - **BREAKING CHANGE**: The `.stream()` method now returns an `ActionStream` instead of a `FlowStreamResponse` record. `ActionStream` is a `Stream` that provides two ways to access the flow's final, non-streamed response:

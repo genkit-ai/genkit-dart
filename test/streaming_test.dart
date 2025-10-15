@@ -185,33 +185,6 @@ void main() {
       );
     });
 
-    test('should throw error when fromStreamChunk is undefined', () {
-      final actionWithoutStreamChunk = RemoteAction<String, String>(
-        url: 'http://localhost:3400/no-stream',
-        httpClient: mockClient,
-        fromResponse: (data) => data as String,
-        // fromStreamChunk is not provided
-      );
-
-      final stream = actionWithoutStreamChunk.stream(input: 'test');
-
-      expect(
-        () => stream.toList(),
-        throwsA(
-          isA<GenkitException>().having(
-            (e) => e.message,
-            'message',
-            contains('fromStreamChunk must be provided'),
-          ),
-        ),
-      );
-
-      expect(
-          () => stream.result,
-          throwsA(isA<GenkitException>().having((e) => e.message, 'message',
-              contains('fromStreamChunk must be provided'))));
-    });
-
     test('should handle errors gracefully with await for', () async {
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(

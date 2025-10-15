@@ -166,27 +166,28 @@ Future<O?> streamFlow<O, S>({
 ///   - `httpClient`: Optional `http.Client` instance. If not provided, a new one
 ///                   will be created and managed by the [RemoteAction]. If provided,
 ///                   the caller is responsible for its lifecycle (e.g., closing it).
-///   - `fromResponse`: A function that converts the JSON-decoded response data
+///   - `fromResponse`: An optional function that converts the JSON-decoded response data
 ///                     (typically a `Map<String, dynamic>` or primitive type from `jsonDecode`)
-///                     into the expected output type [O]. This is mandatory.
+///                     into the expected output type [O]. If not provided, the
+///                     result is a `dynamic` object from `jsonDecode`.
 ///   - `fromStreamChunk`: An optional function that converts the JSON-decoded stream
-///                        chunk data into the expected stream type [S]. This is
-///                        required if you intend to use the `.stream()` method.
+///                        chunk data into the expected stream type [S]. If not
+///                        provided, chunks are `dynamic` objects from `jsonDecode`.
 ///
 /// Returns a [RemoteAction<O, S>] instance.
 RemoteAction<O, S> defineRemoteAction<O, S>({
   required String url,
   Map<String, String>? defaultHeaders,
   http.Client? httpClient,
-  required O Function(dynamic jsonData) fromResponse,
+  O Function(dynamic jsonData)? fromResponse,
   S Function(dynamic jsonData)? fromStreamChunk,
 }) {
   return RemoteAction<O, S>(
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
-    fromResponse: fromResponse,
-    fromStreamChunk: fromStreamChunk,
+    fromResponse: fromResponse ?? (d) => d,
+    fromStreamChunk: fromStreamChunk ?? (d) => d,
   );
 }
 
@@ -216,7 +217,7 @@ class RemoteAction<O, S> {
     Map<String, String>? defaultHeaders,
     http.Client? httpClient,
     required O Function(dynamic jsonData) fromResponse,
-    S Function(dynamic jsonData)? fromStreamChunk,
+    required S Function(dynamic jsonData) fromStreamChunk,
   }) : _url = url,
        _defaultHeaders = defaultHeaders,
        _httpClient = httpClient ?? http.Client(),
