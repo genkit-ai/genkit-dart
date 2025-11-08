@@ -34,15 +34,11 @@ class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
   }
 
   @override
-  Map<String, dynamic> get jsonSchema {
-    return {
-      'type': 'object',
-      'properties': {
-        'name': {'type': 'string'},
-        'quantity': {'type': 'string'},
-      },
-      'required': ['name', 'quantity'],
-    };
+  Schema get jsonSchema {
+    return Schema.object(
+      properties: {'name': Schema.string(), 'quantity': Schema.string()},
+      required: ['name', 'quantity'],
+    );
   }
 }
 
@@ -85,17 +81,56 @@ class RecipeTypeFactory implements JsonExtensionType<Recipe> {
   }
 
   @override
-  Map<String, dynamic> get jsonSchema {
-    return {
-      'type': 'object',
-      'properties': {
-        'title': {'type': 'string'},
-        'ingredients': {'type': 'array', 'items': IngredientType.jsonSchema},
-        'servings': {'type': 'integer'},
+  Schema get jsonSchema {
+    return Schema.object(
+      properties: {
+        'title': Schema.string(),
+        'ingredients': Schema.list(items: IngredientType.jsonSchema),
+        'servings': Schema.integer(),
       },
-      'required': ['title', 'ingredients', 'servings'],
-    };
+      required: ['title', 'ingredients', 'servings'],
+    );
   }
 }
 
 const RecipeType = RecipeTypeFactory();
+
+extension type MealPlan(Map<String, dynamic> _json) {
+  String get day {
+    return _json['day'] as String;
+  }
+
+  set day(String value) {
+    _json['day'] = value;
+  }
+
+  MealType get mealType {
+    return MealType.values.byName(_json['mealType'] as String);
+  }
+
+  set mealType(MealType value) {
+    _json['mealType'] = value.name;
+  }
+}
+
+class MealPlanTypeFactory implements JsonExtensionType<MealPlan> {
+  const MealPlanTypeFactory();
+
+  @override
+  MealPlan parse(Object json) {
+    return MealPlan(json as Map<String, dynamic>);
+  }
+
+  @override
+  Schema get jsonSchema {
+    return Schema.object(
+      properties: {
+        'day': Schema.string(),
+        'mealType': Schema.string(enumValues: ['breakfast', 'lunch', 'dinner']),
+      },
+      required: ['day', 'mealType'],
+    );
+  }
+}
+
+const MealPlanType = MealPlanTypeFactory();

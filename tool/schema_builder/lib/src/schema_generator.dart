@@ -5,14 +5,15 @@ import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
 import 'package:genkit/schema.dart';
 import 'package:source_gen/source_gen.dart';
+import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
-class SchemaGenerator extends GeneratorForAnnotation<Schema> {
+class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
   @override
   String generateForAnnotatedElement(
       Element element, ConstantReader annotation, BuildStep buildStep) {
     if (element is! ClassElement || !element.isAbstract) {
       throw InvalidGenerationSourceError(
-        '`@Schema` can only be used on abstract classes.',
+        '`@GenkitSchema` can only be used on abstract classes.',
         element: element,
       );
     }
@@ -99,7 +100,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schema> {
 
     var getterBody = "return _json['$fieldName'] as $typeName;";
 
-    if (returnType.isDartCoreList) {
+    if (returnType.element is EnumElement) {
+      final enumName = returnType.getDisplayString(withNullability: false);
+      getterBody =
+          "return $enumName.values.byName(_json['$fieldName'] as String);";
+    } else if (returnType.isDartCoreList) {
       final itemType = (returnType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString(withNullability: false);
       if (itemTypeName.endsWith('Schema')) {
@@ -134,7 +139,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schema> {
 
     var setterBody = "_json['$fieldName'] = value;";
 
-    if (paramType.isDartCoreList) {
+    if (paramType.element is EnumElement) {
+      setterBody = "_json['$fieldName'] = value.name;";
+    } else if (paramType.isDartCoreList) {
       final itemType = (paramType as InterfaceType).typeArguments.first;
       if (itemType
           .getDisplayString(withNullability: false)
@@ -189,38 +196,45 @@ class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       }
     }
 
-    final schemaMap = {
-      'type': literalString('object'),
+    final schemaExpression = refer('Schema.object').call([], {
       'properties': literalMap(properties),
-      if (required.isNotEmpty)
-        'required': literalList(required.map((r) => literalString(r))),
-    };
+      'required': literalList(required.map((r) => literalString(r))),
+    });
 
     return Method((b) => b
       ..annotations.add(refer('override'))
       ..type = MethodType.getter
       ..name = 'jsonSchema'
-      ..returns = refer('Map<String, dynamic>')
-      ..body = literalMap(schemaMap).returned.statement);
+      ..returns = refer('Schema')
+      ..body = schemaExpression.returned.statement);
   }
 
   Expression _jsonSchemaForType(DartType type) {
+    if (type.element is EnumElement) {
+      final enumElement = type.element as EnumElement;
+      final enumValues = enumElement.fields
+          .where((f) => f.isEnumConstant)
+          .map((f) => f.name)
+          .toList();
+      return refer('Schema.string').call([], {
+        'enumValues': literalList(enumValues),
+      });
+    }
     if (type.isDartCoreString) {
-      return literalMap({'type': literalString('string')});
+      return refer('Schema.string').call([]);
     }
     if (type.isDartCoreInt) {
-      return literalMap({'type': literalString('integer')});
+      return refer('Schema.integer').call([]);
     }
     if (type.isDartCoreBool) {
-      return literalMap({'type': literalString('boolean')});
+      return refer('Schema.boolean').call([]);
     }
     if (type.isDartCoreDouble || type.isDartCoreNum) {
-      return literalMap({'type': literalString('number')});
+      return refer('Schema.number').call([]);
     }
     if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
-      return literalMap({
-        'type': literalString('array'),
+      return refer('Schema.list').call([], {
         'items': _jsonSchemaForType(itemType),
       });
     }
@@ -229,7 +243,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       final nestedBaseName = typeName.substring(0, typeName.length - 6);
       return refer('${nestedBaseName}Type.jsonSchema');
     }
-    return literalMap({}); // Default for unknown types
+    return refer('Schema.any').call([]);
   }
 
   Field _generateConstInstance(String baseName) {

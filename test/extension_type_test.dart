@@ -1,20 +1,30 @@
 import 'dart:convert';
 import 'package:genkit/schema.dart';
 import 'package:test/test.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 part 'extension_type_test.schema.g.dart';
 
-@Schema()
+@GenkitSchema()
 abstract class IngredientSchema {
   String get name;
   String get quantity;
 }
 
-@Schema()
+@GenkitSchema()
 abstract class RecipeSchema {
+  @JsonKey(name: 'title')
   String get title;
   List<IngredientSchema> get ingredients;
   int get servings;
+}
+
+enum MealType { breakfast, lunch, dinner }
+
+@GenkitSchema()
+abstract class MealPlanSchema {
+  String get day;
+  MealType get mealType;
 }
 
 void main() {
@@ -43,27 +53,38 @@ void main() {
     });
 
     test('Generates correct JSON schema', () {
-      final expectedSchema = {
-        'type': 'object',
-        'properties': {
-          'title': {'type': 'string'},
-          'ingredients': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'name': {'type': 'string'},
-                'quantity': {'type': 'string'},
+      final expectedSchema = Schema.object(
+        properties: {
+          'title': Schema.string(),
+          'ingredients': Schema.list(
+            items: Schema.object(
+              properties: {
+                'name': Schema.string(),
+                'quantity': Schema.string(),
               },
-              'required': ['name', 'quantity'],
-            },
-          },
-          'servings': {'type': 'integer'},
+              required: ['name', 'quantity'],
+            ),
+          ),
+          'servings': Schema.integer(),
         },
-        'required': ['title', 'ingredients', 'servings'],
-      };
+        required: ['title', 'ingredients', 'servings'],
+      );
 
-      expect(RecipeType.jsonSchema, expectedSchema);
+      expect(RecipeType.jsonSchema.toJson(), expectedSchema.toJson());
+    });
+
+    test('Generates correct JSON schema for enums', () {
+      final expectedSchema = Schema.object(
+        properties: {
+          'day': Schema.string(),
+          'mealType': Schema.string(
+            enumValues: ['breakfast', 'lunch', 'dinner'],
+          ),
+        },
+        required: ['day', 'mealType'],
+      );
+
+      expect(MealPlanType.jsonSchema.toJson(), expectedSchema.toJson());
     });
   });
 }

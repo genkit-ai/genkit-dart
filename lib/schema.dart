@@ -1,11 +1,14 @@
-class Schema {
-  const Schema();
+export 'package:json_schema_builder/json_schema_builder.dart' show Schema;
+import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
+
+class GenkitSchema {
+  const GenkitSchema();
 }
 
 abstract class JsonExtensionType<T> {
   const JsonExtensionType();
   T parse(Object json);
-  Map<String, dynamic> get jsonSchema;
+  jsb.Schema get jsonSchema;
 }
 
 class StringTypeFactory implements JsonExtensionType<String> {
@@ -15,9 +18,7 @@ class StringTypeFactory implements JsonExtensionType<String> {
   String parse(Object json) => json as String;
 
   @override
-  Map<String, dynamic> get jsonSchema => {
-        'type': 'string',
-      };
+  jsb.Schema get jsonSchema => jsb.Schema.string();
 }
 
 const StringType = StringTypeFactory();
