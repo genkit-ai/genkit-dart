@@ -14,7 +14,7 @@ The Genkit schema framework is designed to meet three core requirements for Genk
 
 ## Core Concepts
 
-### 1. Schema Definition
+### 1. Schema Definition (PREFERRED)
 
 The schema for a JSON object is defined using an abstract Dart class annotated with `@Schema()`. Each getter in the abstract class defines a field in the JSON object.
 

@@ -15,7 +15,7 @@
 /// Support for Genkit client operations in Dart.
 library;
 
-export 'src/client.dart' show RemoteAction, defineRemoteAction, ActionStream;
-export 'src/exception.dart' show GenkitException;
-export 'src/genkit_schemas.dart';
-export 'src/common.dart';
+export 'src/client/client.dart' show RemoteAction, defineRemoteAction, ActionStream;
+export 'src/client/exception.dart' show GenkitException;
+export 'src/client/genkit_schemas.dart';
+export 'src/client/common.dart';
