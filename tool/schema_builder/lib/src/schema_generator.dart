@@ -6,7 +6,6 @@ import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
 import 'package:genkit/schema.dart';
 import 'package:source_gen/source_gen.dart';
-import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
   @override
@@ -154,8 +153,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
             "return (_json['$jsonFieldName'] as List).cast<$itemTypeName>();";
       }
     } else if (nonNullableTypeName == 'DateTime') {
-      getterBody =
-          "return DateTime.parse(_json['$jsonFieldName'] as String);";
+      getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
     } else if (nonNullableTypeName.endsWith('Schema')) {
       final nestedBaseName =
           nonNullableTypeName.substring(0, nonNullableTypeName.length - 6);
@@ -245,8 +243,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
           ..requiredParameters.add(Parameter((p) => p
             ..name = 'json'
             ..type = refer('Object')))
-          ..body =
-              Code('return $baseName(json as Map<String, dynamic>);')))
+          ..body = Code('return $baseName(json as Map<String, dynamic>);')))
         ..methods.add(_generateJsonSchemaGetter(element));
     });
   }
@@ -291,7 +288,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         properties['description'] = literalString(description);
       }
     }
-    
+
     Expression schemaExpression;
     if (type.element is EnumElement) {
       final enumElement = type.element as EnumElement;
@@ -336,7 +333,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         schemaExpression = refer('Schema.any').call([], properties);
       }
     }
-    
+
     return schemaExpression;
   }
 
