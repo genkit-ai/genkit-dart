@@ -17,8 +17,6 @@ dev_dependencies:
   test: ^1.26.0
   mockito: ^5.4.4
   json_serializable: ^6.11.1
-  schema_generator:
-    path: tool/schema_generator
   schema_builder:
     path: tool/schema_builder
   code_builder: ^4.10.0
