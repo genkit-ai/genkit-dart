@@ -5,6 +5,13 @@ class GenkitSchema {
   const GenkitSchema();
 }
 
+class Key {
+  final String? name;
+  final String? description;
+
+  const Key({this.name, this.description});
+}
+
 abstract class JsonExtensionType<T> {
   const JsonExtensionType();
   T parse(Object json);
