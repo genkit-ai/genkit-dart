@@ -27,6 +27,14 @@ abstract class MealPlanSchema {
   MealType get mealType;
 }
 
+@GenkitSchema()
+abstract class NullableFieldsSchema {
+  String? get optionalString;
+  int? get optionalInt;
+  List<String>? get optionalList;
+  IngredientSchema? get optionalIngredient;
+}
+
 void main() {
   group('Extension Type Generation', () {
     test('Parses and accesses data correctly', () {
@@ -85,6 +93,58 @@ void main() {
       );
 
       expect(MealPlanType.jsonSchema.toJson(), expectedSchema.toJson());
+    });
+
+    test('Generates correct JSON schema for nullable fields', () {
+      final expectedSchema = Schema.object(
+        properties: {
+          'optionalString': Schema.string(),
+          'optionalInt': Schema.integer(),
+          'optionalList': Schema.list(items: Schema.string()),
+          'optionalIngredient': IngredientType.jsonSchema,
+        },
+        required: [],
+      );
+
+      expect(NullableFieldsType.jsonSchema.toJson(), expectedSchema.toJson());
+    });
+
+    test('Parses and accesses nullable data correctly', () {
+      // Test with all fields present
+      final fullJson = {
+        'optionalString': 'hello',
+        'optionalInt': 42,
+        'optionalList': ['a', 'b'],
+        'optionalIngredient': {'name': 'Salt', 'quantity': '1 pinch'},
+      };
+      final fullData = NullableFieldsType.parse(fullJson);
+      expect(fullData.optionalString, 'hello');
+      expect(fullData.optionalInt, 42);
+      expect(fullData.optionalList, ['a', 'b']);
+      expect(fullData.optionalIngredient?.name, 'Salt');
+
+      // Test with all fields null/missing
+      final emptyJson = <String, dynamic>{
+        'optionalString': null,
+        'optionalInt': null,
+        'optionalList': null,
+        'optionalIngredient': null,
+      };
+      final emptyData = NullableFieldsType.parse(emptyJson);
+      expect(emptyData.optionalString, isNull);
+      expect(emptyData.optionalInt, isNull);
+      expect(emptyData.optionalList, isNull);
+      expect(emptyData.optionalIngredient, isNull);
+
+      // Test setting fields to null
+      fullData.optionalString = null;
+      fullData.optionalInt = null;
+      fullData.optionalList = null;
+      fullData.optionalIngredient = null;
+      expect(fullData.optionalString, isNull);
+      expect(fullData.optionalInt, isNull);
+      expect(fullData.optionalList, isNull);
+      expect(fullData.optionalIngredient, isNull);
     });
   });
 }

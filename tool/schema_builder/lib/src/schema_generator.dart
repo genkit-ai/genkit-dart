@@ -100,7 +100,27 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
 
     var getterBody = "return _json['$fieldName'] as $typeName;";
 
-    if (returnType.element is EnumElement) {
+    if (returnType.isNullable) {
+      getterBody = "return _json['$fieldName'] as $typeName;";
+      if (returnType.isDartCoreList) {
+        final itemType = (returnType as InterfaceType).typeArguments.first;
+        final itemTypeName = itemType.getDisplayString(withNullability: false);
+        if (itemTypeName.endsWith('Schema')) {
+          final nestedBaseName =
+              itemTypeName.substring(0, itemTypeName.length - 6);
+          getterBody =
+              "return (_json['$fieldName'] as List?)?.map((e) => $nestedBaseName(e as Map<String, dynamic>)).toList();";
+        } else {
+          getterBody =
+              "return (_json['$fieldName'] as List?)?.cast<$itemTypeName>();";
+        }
+      } else if (nonNullableTypeName.endsWith('Schema')) {
+        final nestedBaseName =
+            nonNullableTypeName.substring(0, nonNullableTypeName.length - 6);
+        getterBody =
+            "return _json['$fieldName'] == null ? null : $nestedBaseName(_json['$fieldName'] as Map<String, dynamic>);";
+      }
+    } else if (returnType.element is EnumElement) {
       final enumName = returnType.getDisplayString(withNullability: false);
       getterBody =
           "return $enumName.values.byName(_json['$fieldName'] as String);";
@@ -139,7 +159,21 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
 
     var setterBody = "_json['$fieldName'] = value;";
 
-    if (paramType.element is EnumElement) {
+    if (paramType.isNullable) {
+      var valueExpression = 'value';
+      if (nonNullableTypeName.endsWith('Schema')) {
+        valueExpression = '(value as dynamic)?._json';
+      } else if (paramType.isDartCoreList) {
+        final itemType = (paramType as InterfaceType).typeArguments.first;
+        if (itemType
+            .getDisplayString(withNullability: false)
+            .endsWith('Schema')) {
+          valueExpression = 'value?.map((e) => (e as dynamic)._json).toList()';
+        }
+      }
+      setterBody =
+          "if (value == null) { _json.remove('$fieldName'); } else { _json['$fieldName'] = $valueExpression; }";
+    } else if (paramType.element is EnumElement) {
       setterBody = "_json['$fieldName'] = value.name;";
     } else if (paramType.isDartCoreList) {
       final itemType = (paramType as InterfaceType).typeArguments.first;

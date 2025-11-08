@@ -134,3 +134,79 @@ class MealPlanTypeFactory implements JsonExtensionType<MealPlan> {
 }
 
 const MealPlanType = MealPlanTypeFactory();
+
+extension type NullableFields(Map<String, dynamic> _json) {
+  String? get optionalString {
+    return _json['optionalString'] as String?;
+  }
+
+  set optionalString(String? value) {
+    if (value == null) {
+      _json.remove('optionalString');
+    } else {
+      _json['optionalString'] = value;
+    }
+  }
+
+  int? get optionalInt {
+    return _json['optionalInt'] as int?;
+  }
+
+  set optionalInt(int? value) {
+    if (value == null) {
+      _json.remove('optionalInt');
+    } else {
+      _json['optionalInt'] = value;
+    }
+  }
+
+  List<String>? get optionalList {
+    return (_json['optionalList'] as List?)?.cast<String>();
+  }
+
+  set optionalList(List<String>? value) {
+    if (value == null) {
+      _json.remove('optionalList');
+    } else {
+      _json['optionalList'] = value;
+    }
+  }
+
+  Ingredient? get optionalIngredient {
+    return _json['optionalIngredient'] == null
+        ? null
+        : Ingredient(_json['optionalIngredient'] as Map<String, dynamic>);
+  }
+
+  set optionalIngredient(Ingredient? value) {
+    if (value == null) {
+      _json.remove('optionalIngredient');
+    } else {
+      _json['optionalIngredient'] = (value as dynamic)?._json;
+    }
+  }
+}
+
+class NullableFieldsTypeFactory implements JsonExtensionType<NullableFields> {
+  const NullableFieldsTypeFactory();
+
+  @override
+  NullableFields parse(Object json) {
+    return NullableFields(json as Map<String, dynamic>);
+  }
+
+  @override
+  Schema get jsonSchema {
+    return Schema.object(
+      properties: {
+        'optionalString': Schema.string(),
+        'optionalInt': Schema.integer(),
+        'optionalList': Schema.list(items: Schema.string()),
+        'optionalIngredient': IngredientType.jsonSchema,
+      },
+      required: [],
+    );
+  }
+}
+
+const NullableFieldsType = NullableFieldsTypeFactory();
