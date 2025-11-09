@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:genkit/client.dart';
 import 'package:genkit/schema.dart';
-import 'package:opentelemetry/api.dart' as api;
-
-final _tracer = api.globalTracerProvider.getTracer('genkit-dart');
+import 'package:genkit/src/o11y/instrumentation.dart';
 
 typedef StreamingCallback<S> = void Function(S chunk);
 
@@ -29,43 +26,21 @@ class Action<I, O, S> {
   JsonExtensionType<S>? streamType;
   ActionFn<I, O, S> fn;
 
-  Future<O> run(I input, ActionRunOptions<S>? options) async {
-    final span = _tracer.startSpan('genkit-action');
-    try {
-      span.setAttribute(api.Attribute.fromString('genkit:type', actionType));
-      span.setAttribute(api.Attribute.fromString('genkit:name', name));
-      span.setAttribute(
-        api.Attribute.fromString('genkit:input', jsonEncode(input)),
-      );
-      final result = fn(input, (
-        // TODO: try to check if sentinel onChunk callback is used.
-        streamingRequested: options?.onChunk != null,
-        sendChunk: options?.onChunk ?? (chunk) {},
-        // TODO: fallback to context from Async Context
-        context: options?.context ?? {},
-      ));
-      result
-          .then((output) {
-            span.setAttribute(
-              api.Attribute.fromString('genkit:output', jsonEncode(output)),
-            );
-            return output;
-          })
-          .catchError((e, s) {
-            span
-              ..setStatus(api.StatusCode.error, e.toString())
-              ..recordException(e, stackTrace: s);
-            throw e;
-          })
-          .whenComplete(() => span.end());
-      return result;
-    } catch (e, s) {
-      span
-        ..setStatus(api.StatusCode.error, e.toString())
-        ..recordException(e, stackTrace: s)
-        ..end();
-      rethrow;
-    }
+  Future<O> run(I input, ActionRunOptions<S>? options) {
+    return runInNewSpan(
+      name,
+      (telemetryContext) {
+        return fn(input, (
+          // TODO: try to check if sentinel onChunk callback is used.
+          streamingRequested: options?.onChunk != null,
+          sendChunk: options?.onChunk ?? (chunk) {},
+          // TODO: fallback to context from Async Context
+          context: options?.context ?? {},
+        ));
+      },
+      actionType: actionType,
+      input: input,
+    );
   }
 
   ActionStream<S, O> stream(I input, ActionRunOptions<S>? options) {

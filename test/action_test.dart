@@ -72,7 +72,7 @@ void main() {
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);
-      expect(exporter.spans[0].name, 'genkit-action');
+      expect(exporter.spans[0].name, 'testAction');
     });
 
     test('should set attributes on the span', () async {
