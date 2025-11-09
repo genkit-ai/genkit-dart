@@ -16,7 +16,7 @@ abstract class RecipeSchema {
   int get servings;
 }
 
-class Flow<I, O> {
+class Action<I, O> {
   JsonExtensionType<I>? inputType;
   JsonExtensionType<O>? outputType;
   Future<O> Function(I input) fn;
@@ -25,11 +25,11 @@ class Flow<I, O> {
     throw Exception();
   }
 
-  Flow({this.inputType, this.outputType, required this.fn});
+  Action({this.inputType, this.outputType, required this.fn});
 }
 
 void main() {
-  final myFlow = Flow(inputType: RecipeType, outputType: StringType, fn:(input) async {
+  final myFlow = Action(inputType: RecipeType, outputType: StringType, fn:(input) async {
     return "Title: ${input.title}";
   });
 

@@ -2,6 +2,7 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
+// You may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
@@ -14,6 +15,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:genkit/src/core/action.dart';
 import 'package:http/http.dart' as http;
 
 import 'exception.dart';
@@ -301,7 +303,7 @@ class RemoteAction<O, S> {
       );
       final stream = Stream<S>.error(error);
       final actionStream = ActionStream<S, O>(stream);
-      actionStream._setError(error, StackTrace.current);
+      actionStream.setError(error, StackTrace.current);
       return actionStream;
     }
 
@@ -333,13 +335,13 @@ class RemoteAction<O, S> {
       httpClient: _httpClient,
     ).then(
       (d) {
-        actionStream._setResult(d as O);
+        actionStream.setResult(d as O);
         if (!streamController.isClosed) {
           streamController.close();
         }
       },
       onError: (error, st) {
-        actionStream._setError(error, st);
+        actionStream.setError(error, st);
         if (!streamController.isClosed) {
           streamController.addError(error, st);
           streamController.close();
@@ -358,55 +360,4 @@ class RemoteAction<O, S> {
       _httpClient.close();
     }
   }
-}
-
-class ActionStream<S, F> extends StreamView<S> {
-  bool _done = false;
-  F? _result;
-  Object? _streamError;
-  StackTrace? _streamStackTrace;
-  Completer<F>? _completer;
-
-  Future<F> get onResult {
-    if (_completer == null) {
-      _completer = Completer<F>();
-      if (_done) {
-        if (_streamError != null) {
-          _completer!.completeError(_streamError!, _streamStackTrace);
-        } else {
-          _completer!.complete(_result as F);
-        }
-      }
-    }
-    return _completer!.future;
-  }
-
-  F get result {
-    if (!_done) {
-      throw GenkitException('Stream not consumed yet');
-    }
-    if (_streamError != null) {
-      throw _streamError!;
-    }
-    return _result as F;
-  }
-
-  void _setResult(F result) {
-    _done = true;
-    _result = result;
-    if (_completer?.isCompleted == false) {
-      _completer!.complete(result);
-    }
-  }
-
-  void _setError(Object error, StackTrace st) {
-    _done = true;
-    _streamError = error;
-    _streamStackTrace = st;
-    if (_completer?.isCompleted == false) {
-      _completer!.completeError(error, st);
-    }
-  }
-
-  ActionStream(super.stream);
 }
