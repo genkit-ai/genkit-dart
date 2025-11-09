@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:genkit/client.dart';
 import 'package:genkit/schema.dart';
 import 'package:opentelemetry/api.dart' as api;
-import 'package:meta/meta.dart';
 
 final _tracer = api.globalTracerProvider.getTracer('genkit-dart');
 
