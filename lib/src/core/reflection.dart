@@ -3,9 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:path/path.dart' as p;
-import 'package:shelf/shelf.dart' as shelf;
-import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_router/shelf_router.dart';
 import 'registry.dart';
 
 const genkitVersion = '0.1.0';
@@ -68,141 +65,153 @@ class ReflectionServer {
   });
 
   Future<void> start() async {
-    final router = Router();
+    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+    print('Reflection server running on http://localhost:${_server!.port}');
 
-    router.get('/api/__health', (shelf.Request request) async {
-      await registry.listActions();
-      return shelf.Response.ok('OK');
-    });
-
-    router.post('/api/notify', (shelf.Request request) async {
-      return shelf.Response.ok('OK');
-    });
-
-    router.get('/api/__quitquitquit', (shelf.Request request) async {
-      final response = shelf.Response.ok('OK');
-      await stop();
-      return response;
-    });
-
-    router.get('/api/actions', (shelf.Request request) async {
-      final actions = await registry.listActions();
-      final convertedActions = <String, dynamic>{};
-      for (final action in actions) {
-        final key = getKey(action.actionType, action.name);
-        convertedActions[key] = {
-          'key': key,
-          'name': action.name,
-          'description': action.metadata['description'],
-          'metadata': action.metadata,
-          if (action.inputType != null)
-            'inputSchema':
-                jsonDecode(_jsonSchemaWithDraft(action.inputType!.jsonSchema)),
-          if (action.outputType != null)
-            'outputSchema':
-                jsonDecode(_jsonSchemaWithDraft(action.outputType!.jsonSchema)),
-        };
-      }
-      return shelf.Response.ok(
-        jsonEncode(convertedActions),
-        headers: {'Content-Type': 'application/json'},
-      );
-    });
-
-    router.post('/api/runAction', (shelf.Request request) async {
-      final body = jsonDecode(await request.readAsString());
-      final key = body['key'] as String;
-      final input = body['input'];
-      final stream = request.url.queryParameters['stream'] == 'true';
-
-      final parts = key.split('/');
-      if (parts.length != 3 || parts[0] != '') {
-        return shelf.Response(404, body: 'Invalid action key format');
-      }
-      final action = await registry.get(parts[1], parts[2]);
-
-      if (action == null) {
-        return shelf.Response(404, body: 'action $key not found');
-      }
-
-      if (stream) {
-        final controller = StreamController<List<int>>();
-        void sendChunk(dynamic chunk) {
-          controller.add(utf8.encode('${jsonEncode(chunk)}\n'));
+    _server!.listen((HttpRequest request) async {
+      request.response.headers.add('x-genkit-version', genkitVersion);
+      try {
+        if (request.method == 'GET' && request.uri.path == '/api/__health') {
+          await registry.listActions();
+          request.response
+            ..write('OK')
+            ..close();
+        } else if (request.method == 'POST' &&
+            request.uri.path == '/api/notify') {
+          request.response
+            ..write('OK')
+            ..close();
+        } else if (request.method == 'GET' &&
+            request.uri.path == '/api/__quitquitquit') {
+          request.response
+            ..write('OK')
+            ..close();
+          await stop();
+        } else if (request.method == 'GET' &&
+            request.uri.path == '/api/actions') {
+          await _handleActions(request);
+        } else if (request.method == 'POST' &&
+            request.uri.path == '/api/runAction') {
+          await _handleRunAction(request);
+        } else {
+          request.response
+            ..statusCode = HttpStatus.notFound
+            ..write('Not Found')
+            ..close();
         }
+      } catch (e, stack) {
+        print('Error handling request: $e\n$stack');
+        request.response
+          ..statusCode = HttpStatus.internalServerError
+          ..write('Internal Server Error')
+          ..close();
+      }
+    });
 
-        action
-            .run(
-              input,
-              onChunk: (chunk) {
-                sendChunk(chunk);
-              },
-            )
-            .then((result) {
-              final response = RunActionResponse(
-                result: result.result,
-                telemetry: {'traceId': result.traceId},
-              );
-              sendChunk(response.toJson());
-              controller.close();
-            })
-            .catchError((e, stack) {
-              final errorResponse = RunActionResponse(
-                error: Status(
-                  code: StatusCodes.INTERNAL,
-                  message: e.toString(),
-                  details: {'stack': stack.toString()},
-                ),
-              );
-              sendChunk(errorResponse.toJson());
-              controller.close();
-            });
+    await _writeRuntimeFile();
+  }
 
-        return shelf.Response.ok(
-          controller.stream,
-          headers: {'Content-Type': 'application/x-ndjson'},
-          context: {"shelf.io.buffer_output": false},
+  Future<void> _handleActions(HttpRequest request) async {
+    final actions = await registry.listActions();
+    final convertedActions = <String, dynamic>{};
+    for (final action in actions) {
+      final key = getKey(action.actionType, action.name);
+      convertedActions[key] = {
+        'key': key,
+        'name': action.name,
+        'description': action.metadata['description'],
+        'metadata': action.metadata,
+        if (action.inputType != null)
+          'inputSchema':
+              jsonDecode(_jsonSchemaWithDraft(action.inputType!.jsonSchema)),
+        if (action.outputType != null)
+          'outputSchema':
+              jsonDecode(_jsonSchemaWithDraft(action.outputType!.jsonSchema)),
+      };
+    }
+    request.response
+      ..headers.contentType = ContentType.json
+      ..write(jsonEncode(convertedActions))
+      ..close();
+  }
+
+  Future<void> _handleRunAction(HttpRequest request) async {
+    final body = jsonDecode(await utf8.decodeStream(request));
+    final key = body['key'] as String;
+    final input = body['input'];
+    final stream = request.uri.queryParameters['stream'] == 'true';
+
+    final parts = key.split('/');
+    if (parts.length != 3 || parts[0] != '') {
+      request.response
+        ..statusCode = HttpStatus.notFound
+        ..write('Invalid action key format')
+        ..close();
+      return;
+    }
+    final action = await registry.get(parts[1], parts[2]);
+
+    if (action == null) {
+      request.response
+        ..statusCode = HttpStatus.notFound
+        ..write('action $key not found')
+        ..close();
+      return;
+    }
+
+    if (stream) {
+      request.response.headers.contentType =
+          ContentType('application', 'x-ndjson');
+      request.response.bufferOutput = false;
+
+      try {
+        final result = await action.run(
+          input,
+          onChunk: (chunk) {
+            request.response.write('${jsonEncode(chunk)}\n');
+          },
         );
-      } else {
-        try {
-          final result = await action.run(input);
-          final response = RunActionResponse(
-            result: result.result,
-            telemetry: {'traceId': result.traceId},
-          );
-          return shelf.Response.ok(
-            jsonEncode(response.toJson()),
-            headers: {'Content-Type': 'application/json'},
-          );
-        } catch (e, stack) {
-          final errorResponse = Status(
+        final response = RunActionResponse(
+          result: result.result,
+          telemetry: {'traceId': result.traceId},
+        );
+        request.response.write(jsonEncode(response.toJson()));
+        await request.response.close();
+      } catch (e, stack) {
+        final errorResponse = RunActionResponse(
+          error: Status(
             code: StatusCodes.INTERNAL,
             message: e.toString(),
             details: {'stack': stack.toString()},
-          );
-          return shelf.Response.internalServerError(
-            body: jsonEncode(errorResponse.toJson()),
-            headers: {'Content-Type': 'application/json'},
-          );
-        }
+          ),
+        );
+        request.response.write(jsonEncode(errorResponse.toJson()));
+        await request.response.close();
       }
-    });
-
-    final handler = const shelf.Pipeline()
-        .addMiddleware(
-          (innerHandler) => (request) async {
-            final response = await innerHandler(request);
-            return response.change(
-              headers: {'x-genkit-version': genkitVersion, ...response.headers},
-            );
-          },
-        )
-        .addMiddleware(shelf.logRequests())
-        .addHandler(router);
-
-    _server = await shelf_io.serve(handler, 'localhost', port);
-    print('Reflection server running on http://localhost:${_server!.port}');
-    await _writeRuntimeFile();
+    } else {
+      try {
+        final result = await action.run(input);
+        final response = RunActionResponse(
+          result: result.result,
+          telemetry: {'traceId': result.traceId},
+        );
+        request.response
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode(response.toJson()))
+          ..close();
+      } catch (e, stack) {
+        final errorResponse = Status(
+          code: StatusCodes.INTERNAL,
+          message: e.toString(),
+          details: {'stack': stack.toString()},
+        );
+        request.response
+          ..statusCode = HttpStatus.internalServerError
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode(errorResponse.toJson()))
+          ..close();
+      }
+    }
   }
 
   Future<void> stop() async {
@@ -225,8 +234,7 @@ class ReflectionServer {
       final date = DateTime.now();
       final time = date.millisecondsSinceEpoch;
       final timestamp = date.toIso8601String();
-      _runtimeFilePath =
-          p.join(runtimesDir, '${_runtimeId}-${time}.json');
+      _runtimeFilePath = p.join(runtimesDir, '${_runtimeId}-${time}.json');
       final fileContent = jsonEncode({
         'id': Platform.environment['GENKIT_RUNTIME_ID'] ?? _runtimeId,
         'pid': pid,
