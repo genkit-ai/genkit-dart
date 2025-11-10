@@ -244,10 +244,11 @@ extension type NullableFields(Map<String, dynamic> _json) {
     Ingredient? optionalIngredient,
   }) {
     return NullableFields({
-      'optionalString': optionalString,
-      'optionalInt': optionalInt,
-      'optionalList': optionalList,
-      'optionalIngredient': optionalIngredient?.toJson(),
+      if (optionalString != null) 'optionalString': optionalString,
+      if (optionalInt != null) 'optionalInt': optionalInt,
+      if (optionalList != null) 'optionalList': optionalList,
+      if (optionalIngredient != null)
+        'optionalIngredient': optionalIngredient?.toJson(),
     });
   }
 
@@ -345,7 +346,7 @@ extension type ComplexObject(Map<String, dynamic> _json) {
       'price': price,
       'metadata': metadata,
       'ratings': ratings,
-      'nestedNullable': nestedNullable?.toJson(),
+      if (nestedNullable != null) 'nestedNullable': nestedNullable?.toJson(),
     });
   }
 
@@ -441,9 +442,10 @@ extension type Menu(Map<String, dynamic> _json) {
   }) {
     return Menu({
       'recipes': recipes.map((e) => e.toJson()).toList(),
-      'optionalIngredients': optionalIngredients
-          ?.map((e) => e.toJson())
-          .toList(),
+      if (optionalIngredients != null)
+        'optionalIngredients': optionalIngredients
+            ?.map((e) => e.toJson())
+            .toList(),
     });
   }
 

@@ -56,14 +56,15 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         c.factory = true;
         c.name = 'from';
         final params = <Parameter>[];
-        final jsonMap = <String, Expression>{};
+        final jsonMapEntries = <String>[];
         for (final field in element.fields) {
           final getter = field.getter;
           if (getter != null) {
             final paramName = getter.name;
             final paramType = refer(_convertSchemaType(getter.returnType));
-            final isExtensionType =
-                getter.returnType.getDisplayString(withNullability: false).endsWith('Schema');
+            final isExtensionType = getter.returnType
+                .getDisplayString(withNullability: false)
+                .endsWith('Schema');
             final isNullable = getter.returnType.isNullable ||
                 getter.returnType.isDartCoreObject ||
                 getter.returnType.isDynamic;
@@ -108,11 +109,19 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
             } else {
               valueExpression = refer(paramName!);
             }
-            jsonMap["${_getJsonKey(getter)}"] = valueExpression;
+            final key = _getJsonKey(getter);
+            final emitter = DartEmitter(useNullSafetySyntax: true);
+            final valueString = valueExpression.accept(emitter);
+            if (isNullable) {
+              jsonMapEntries.add("if ($paramName != null) '$key': $valueString");
+            } else {
+              jsonMapEntries.add("'$key': $valueString");
+            }
           }
         }
         c.optionalParameters.addAll(params);
-        c.body = refer(baseName).call([literalMap(jsonMap)]).returned.statement;
+        final mapLiteral = '{${jsonMapEntries.join(', ')}}';
+        c.body = refer(baseName).call([CodeExpression(Code(mapLiteral))]).returned.statement;
       }));
 
       for (final interface in element.interfaces) {

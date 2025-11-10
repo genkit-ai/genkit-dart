@@ -18,9 +18,9 @@ extension type Candidate(Map<String, dynamic> _json) {
     return Candidate({
       'index': index,
       'message': message.toJson(),
-      'usage': usage?.toJson(),
+      if (usage != null) 'usage': usage?.toJson(),
       'finishReason': finishReason,
-      'finishMessage': finishMessage,
+      if (finishMessage != null) 'finishMessage': finishMessage,
     });
   }
 
@@ -113,7 +113,7 @@ extension type Message(Map<String, dynamic> _json) {
     return Message({
       'role': role,
       'content': content.map((e) => e.toJson()).toList(),
-      'metadata': metadata,
+      if (metadata != null) 'metadata': metadata,
     });
   }
 
@@ -186,9 +186,9 @@ extension type ToolDefinition(Map<String, dynamic> _json) {
     return ToolDefinition({
       'name': name,
       'description': description,
-      'inputSchema': inputSchema,
-      'outputSchema': outputSchema,
-      'metadata': metadata,
+      if (inputSchema != null) 'inputSchema': inputSchema,
+      if (outputSchema != null) 'outputSchema': outputSchema,
+      if (metadata != null) 'metadata': metadata,
     });
   }
 
@@ -318,7 +318,11 @@ extension type TextPart(Map<String, dynamic> _json) implements Part {
     dynamic metadata,
     dynamic custom,
   }) {
-    return TextPart({'text': text, 'metadata': metadata, 'custom': custom});
+    return TextPart({
+      'text': text,
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
+    });
   }
 
   String get text {
@@ -381,8 +385,8 @@ extension type MediaPart(Map<String, dynamic> _json) implements Part {
   }) {
     return MediaPart({
       'media': media.toJson(),
-      'metadata': metadata,
-      'custom': custom,
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
     });
   }
 
@@ -446,8 +450,8 @@ extension type ToolRequestPart(Map<String, dynamic> _json) implements Part {
   }) {
     return ToolRequestPart({
       'toolRequest': toolRequest.toJson(),
-      'metadata': metadata,
-      'custom': custom,
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
     });
   }
 
@@ -511,8 +515,8 @@ extension type ToolResponsePart(Map<String, dynamic> _json) implements Part {
   }) {
     return ToolResponsePart({
       'toolResponse': toolResponse.toJson(),
-      'metadata': metadata,
-      'custom': custom,
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
     });
   }
 
@@ -571,7 +575,10 @@ const ToolResponsePartType = ToolResponsePartTypeFactory();
 
 extension type DataPart(Map<String, dynamic> _json) implements Part {
   factory DataPart.from({dynamic metadata, Map<String, dynamic>? custom}) {
-    return DataPart({'metadata': metadata, 'custom': custom});
+    return DataPart({
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
+    });
   }
 
   dynamic get metadata {
@@ -626,7 +633,10 @@ extension type CustomPart(Map<String, dynamic> _json) implements Part {
     Map<String, dynamic>? metadata,
     required Map<String, dynamic> custom,
   }) {
-    return CustomPart({'metadata': metadata, 'custom': custom});
+    return CustomPart({
+      if (metadata != null) 'metadata': metadata,
+      'custom': custom,
+    });
   }
 
   Map<String, dynamic>? get metadata {
@@ -683,8 +693,8 @@ extension type ReasoningPart(Map<String, dynamic> _json) implements Part {
     required String reasoning,
   }) {
     return ReasoningPart({
-      'metadata': metadata,
-      'custom': custom,
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
       'reasoning': reasoning,
     });
   }
@@ -748,8 +758,8 @@ extension type ResourcePart(Map<String, dynamic> _json) implements Part {
     required Map<String, dynamic> resource,
   }) {
     return ResourcePart({
-      'metadata': metadata,
-      'custom': custom,
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
       'resource': resource,
     });
   }
@@ -808,7 +818,10 @@ const ResourcePartType = ResourcePartTypeFactory();
 
 extension type Media(Map<String, dynamic> _json) {
   factory Media.from({String? contentType, required String url}) {
-    return Media({'contentType': contentType, 'url': url});
+    return Media({
+      if (contentType != null) 'contentType': contentType,
+      'url': url,
+    });
   }
 
   String? get contentType {
@@ -857,7 +870,7 @@ const MediaType = MediaTypeFactory();
 
 extension type ToolRequest(Map<String, dynamic> _json) {
   factory ToolRequest.from({String? ref, required String name}) {
-    return ToolRequest({'ref': ref, 'name': name});
+    return ToolRequest({if (ref != null) 'ref': ref, 'name': name});
   }
 
   String? get ref {
@@ -906,7 +919,7 @@ const ToolRequestType = ToolRequestTypeFactory();
 
 extension type ToolResponse(Map<String, dynamic> _json) {
   factory ToolResponse.from({String? ref, required String name}) {
-    return ToolResponse({'ref': ref, 'name': name});
+    return ToolResponse({if (ref != null) 'ref': ref, 'name': name});
   }
 
   String? get ref {
@@ -962,11 +975,11 @@ extension type ModelRequest(Map<String, dynamic> _json) {
     dynamic docs,
   }) {
     return ModelRequest({
-      'messages': messages,
-      'tools': tools,
-      'toolChoice': toolChoice,
-      'output': output,
-      'docs': docs,
+      if (messages != null) 'messages': messages,
+      if (tools != null) 'tools': tools,
+      if (toolChoice != null) 'toolChoice': toolChoice,
+      if (output != null) 'output': output,
+      if (docs != null) 'docs': docs,
     });
   }
 
@@ -1051,13 +1064,13 @@ extension type ModelResponse(Map<String, dynamic> _json) {
     dynamic operation,
   }) {
     return ModelResponse({
-      'message': message,
+      if (message != null) 'message': message,
       'finishReason': finishReason,
-      'finishMessage': finishMessage,
-      'latencyMs': latencyMs,
-      'usage': usage,
-      'request': request,
-      'operation': operation,
+      if (finishMessage != null) 'finishMessage': finishMessage,
+      if (latencyMs != null) 'latencyMs': latencyMs,
+      if (usage != null) 'usage': usage,
+      if (request != null) 'request': request,
+      if (operation != null) 'operation': operation,
     });
   }
 
@@ -1165,10 +1178,10 @@ extension type ModelResponseChunk(Map<String, dynamic> _json) {
     dynamic aggregated,
   }) {
     return ModelResponseChunk({
-      'role': role,
-      'index': index,
-      'content': content,
-      'aggregated': aggregated,
+      if (role != null) 'role': role,
+      if (index != null) 'index': index,
+      if (content != null) 'content': content,
+      if (aggregated != null) 'aggregated': aggregated,
     });
   }
 
@@ -1252,20 +1265,21 @@ extension type GenerationUsage(Map<String, dynamic> _json) {
     double? cachedContentTokens,
   }) {
     return GenerationUsage({
-      'inputTokens': inputTokens,
-      'outputTokens': outputTokens,
-      'totalTokens': totalTokens,
-      'inputCharacters': inputCharacters,
-      'outputCharacters': outputCharacters,
-      'inputImages': inputImages,
-      'outputImages': outputImages,
-      'inputVideos': inputVideos,
-      'outputVideos': outputVideos,
-      'inputAudioFiles': inputAudioFiles,
-      'outputAudioFiles': outputAudioFiles,
-      'custom': custom,
-      'thoughtsTokens': thoughtsTokens,
-      'cachedContentTokens': cachedContentTokens,
+      if (inputTokens != null) 'inputTokens': inputTokens,
+      if (outputTokens != null) 'outputTokens': outputTokens,
+      if (totalTokens != null) 'totalTokens': totalTokens,
+      if (inputCharacters != null) 'inputCharacters': inputCharacters,
+      if (outputCharacters != null) 'outputCharacters': outputCharacters,
+      if (inputImages != null) 'inputImages': inputImages,
+      if (outputImages != null) 'outputImages': outputImages,
+      if (inputVideos != null) 'inputVideos': inputVideos,
+      if (outputVideos != null) 'outputVideos': outputVideos,
+      if (inputAudioFiles != null) 'inputAudioFiles': inputAudioFiles,
+      if (outputAudioFiles != null) 'outputAudioFiles': outputAudioFiles,
+      if (custom != null) 'custom': custom,
+      if (thoughtsTokens != null) 'thoughtsTokens': thoughtsTokens,
+      if (cachedContentTokens != null)
+        'cachedContentTokens': cachedContentTokens,
     });
   }
 
@@ -1485,11 +1499,11 @@ extension type Operation(Map<String, dynamic> _json) {
     Map<String, dynamic>? metadata,
   }) {
     return Operation({
-      'action': action,
+      if (action != null) 'action': action,
       'id': id,
-      'done': done,
-      'error': error,
-      'metadata': metadata,
+      if (done != null) 'done': done,
+      if (error != null) 'error': error,
+      if (metadata != null) 'metadata': metadata,
     });
   }
 
@@ -1587,10 +1601,10 @@ extension type OutputConfig(Map<String, dynamic> _json) {
     String? contentType,
   }) {
     return OutputConfig({
-      'format': format,
-      'schema': schema,
-      'constrained': constrained,
-      'contentType': contentType,
+      if (format != null) 'format': format,
+      if (schema != null) 'schema': schema,
+      if (constrained != null) 'constrained': constrained,
+      if (contentType != null) 'contentType': contentType,
     });
   }
 
@@ -1678,7 +1692,7 @@ extension type DocumentData(Map<String, dynamic> _json) {
   }) {
     return DocumentData({
       'content': content.map((e) => e.toJson()).toList(),
-      'metadata': metadata,
+      if (metadata != null) 'metadata': metadata,
     });
   }
 
@@ -1746,15 +1760,15 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
   }) {
     return GenerateActionOptions({
       'model': model,
-      'docs': docs?.map((e) => e.toJson()).toList(),
+      if (docs != null) 'docs': docs?.map((e) => e.toJson()).toList(),
       'messages': messages.map((e) => e.toJson()).toList(),
-      'tools': tools,
-      'toolChoice': toolChoice,
-      'output': output?.toJson(),
-      'resume': resume,
-      'returnToolRequests': returnToolRequests,
-      'maxTurns': maxTurns,
-      'stepName': stepName,
+      if (tools != null) 'tools': tools,
+      if (toolChoice != null) 'toolChoice': toolChoice,
+      if (output != null) 'output': output?.toJson(),
+      if (resume != null) 'resume': resume,
+      if (returnToolRequests != null) 'returnToolRequests': returnToolRequests,
+      if (maxTurns != null) 'maxTurns': maxTurns,
+      if (stepName != null) 'stepName': stepName,
     });
   }
 
@@ -1920,10 +1934,10 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json) {
     bool? constrained,
   }) {
     return GenerateActionOutputConfig({
-      'format': format,
-      'contentType': contentType,
-      'instructions': instructions,
-      'constrained': constrained,
+      if (format != null) 'format': format,
+      if (contentType != null) 'contentType': contentType,
+      if (instructions != null) 'instructions': instructions,
+      if (constrained != null) 'constrained': constrained,
     });
   }
 
