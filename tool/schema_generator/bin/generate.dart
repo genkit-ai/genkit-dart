@@ -30,6 +30,7 @@ void main() async {
       'ModelRequest',
       'ModelResponse',
       'ModelResponseChunk',
+      'GenerateRequest',
       'GenerationUsage',
       'Operation',
       'OutputConfig',

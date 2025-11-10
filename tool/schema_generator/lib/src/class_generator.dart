@@ -209,15 +209,32 @@ class ClassGenerator {
       return refer('PartSchema');
     }
     final parts = ref.split('/');
-    if (parts.length == 4 && parts[0] == '#' && parts[1] == '\$defs') {
-      final def = definitions[parts[2]];
-      if (def != null &&
-          def is Map<String, dynamic> &&
-          def.containsKey('properties')) {
-        final prop = def['properties'][parts[3]];
-        if (prop != null && prop is Map<String, dynamic>) {
-          return _mapTypeInner(parts[2], prop);
+    if (parts.length > 2 && parts[0] == '#' && parts[1] == '\$defs') {
+      final defName = parts[2];
+      if (definitions.containsKey(defName) && parts.length == 3) {
+        final className = defName;
+        final newName =
+            '${className[0].toUpperCase()}${className.substring(1)}';
+        final def = definitions[className];
+        if (def != null &&
+            def is Map<String, dynamic> &&
+            def.containsKey('enum')) {
+          return refer(newName);
         }
+        return refer('${newName}Schema');
+      }
+      dynamic current = definitions;
+      for (var i = 2; i < parts.length; i++) {
+        final part = parts[i];
+        if (current is Map<String, dynamic> && current.containsKey(part)) {
+          current = current[part];
+        } else {
+          current = null;
+          break;
+        }
+      }
+      if (current is Map<String, dynamic>) {
+        return _mapTypeInner(parts.last, current);
       }
     }
     var className = ref.split('/').last;

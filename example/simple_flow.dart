@@ -1,12 +1,11 @@
 import 'package:genkit/genkit.dart';
-import 'package:genkit/schema.dart';
-import 'package:genkit/src/ai/model.dart';
-import 'package:genkit/src/core/action.dart';
+import 'package:genkit/plugins/google-genai.dart';
 
 void main() async {
   configureCollectorExporter();
 
   final ai = Genkit();
+  defineGoogleGenAiModels(ai);
 
   ai.defineModel(
     name: 'echo',
@@ -16,7 +15,9 @@ void main() async {
         message: Message.from(
           role: Role.model,
           content: [
-            TextPart.from(text: 'echo: ' + req.messages[0].content[0].text),
+            TextPart.from(
+              text: 'echo: ${req.messages.map((m) => m.text).join()}',
+            ),
           ],
         ),
       );
@@ -25,25 +26,14 @@ void main() async {
 
   final child = ai.defineFlow(
     name: 'child',
-    fn: (String name, context) async {
-      return 'Hello, $name!';
+    fn: (String subject, context) async {
+      final response = await ai.generate(
+        model: 'gemini-2.5-flash',
+        prompt: 'tell me joke about $subject',
+      );
+      return response.text;
     },
   );
-
-  final generateAction = Action(
-    actionType: 'util',
-    name: 'generate',
-    inputType: GenerateActionOptionsType,
-    outputType: ModelResponseType,
-    streamType: ModelResponseChunkType,
-    fn: (options, context) async {
-      final model = await ai.registry.get('model', options.model) as Model;
-    
-      return model(ModelRequest.from(messages: options.messages));
-    },
-  );
-
-  ai.registry.register(generateAction);
 
   ai.defineFlow(
     name: 'parent',

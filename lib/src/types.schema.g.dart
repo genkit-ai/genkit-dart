@@ -315,8 +315,8 @@ const PartType = PartTypeFactory();
 extension type TextPart(Map<String, dynamic> _json) implements Part {
   factory TextPart.from({
     required String text,
-    dynamic metadata,
-    dynamic custom,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
   }) {
     return TextPart({
       'text': text,
@@ -333,20 +333,28 @@ extension type TextPart(Map<String, dynamic> _json) implements Part {
     _json['text'] = value;
   }
 
-  dynamic get metadata {
-    return _json['metadata'] as dynamic;
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
   }
 
-  set metadata(dynamic value) {
-    _json['metadata'] = value;
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
   }
 
-  dynamic get custom {
-    return _json['custom'] as dynamic;
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
   }
 
-  set custom(dynamic value) {
-    _json['custom'] = value;
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -367,10 +375,10 @@ class TextPartTypeFactory implements JsonExtensionType<TextPart> {
     return Schema.object(
       properties: {
         'text': Schema.string(),
-        'metadata': Schema.any(),
-        'custom': Schema.any(),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+        'custom': Schema.object(additionalProperties: Schema.any()),
       },
-      required: ['text', 'metadata', 'custom'],
+      required: ['text'],
     );
   }
 }
@@ -380,8 +388,8 @@ const TextPartType = TextPartTypeFactory();
 extension type MediaPart(Map<String, dynamic> _json) implements Part {
   factory MediaPart.from({
     required Media media,
-    dynamic metadata,
-    dynamic custom,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
   }) {
     return MediaPart({
       'media': media.toJson(),
@@ -398,20 +406,28 @@ extension type MediaPart(Map<String, dynamic> _json) implements Part {
     _json['media'] = (value as dynamic)._json;
   }
 
-  dynamic get metadata {
-    return _json['metadata'] as dynamic;
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
   }
 
-  set metadata(dynamic value) {
-    _json['metadata'] = value;
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
   }
 
-  dynamic get custom {
-    return _json['custom'] as dynamic;
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
   }
 
-  set custom(dynamic value) {
-    _json['custom'] = value;
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -432,10 +448,10 @@ class MediaPartTypeFactory implements JsonExtensionType<MediaPart> {
     return Schema.object(
       properties: {
         'media': MediaType.jsonSchema,
-        'metadata': Schema.any(),
-        'custom': Schema.any(),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+        'custom': Schema.object(additionalProperties: Schema.any()),
       },
-      required: ['media', 'metadata', 'custom'],
+      required: ['media'],
     );
   }
 }
@@ -445,8 +461,8 @@ const MediaPartType = MediaPartTypeFactory();
 extension type ToolRequestPart(Map<String, dynamic> _json) implements Part {
   factory ToolRequestPart.from({
     required ToolRequest toolRequest,
-    dynamic metadata,
-    dynamic custom,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
   }) {
     return ToolRequestPart({
       'toolRequest': toolRequest.toJson(),
@@ -463,20 +479,28 @@ extension type ToolRequestPart(Map<String, dynamic> _json) implements Part {
     _json['toolRequest'] = (value as dynamic)._json;
   }
 
-  dynamic get metadata {
-    return _json['metadata'] as dynamic;
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
   }
 
-  set metadata(dynamic value) {
-    _json['metadata'] = value;
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
   }
 
-  dynamic get custom {
-    return _json['custom'] as dynamic;
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
   }
 
-  set custom(dynamic value) {
-    _json['custom'] = value;
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -497,10 +521,10 @@ class ToolRequestPartTypeFactory implements JsonExtensionType<ToolRequestPart> {
     return Schema.object(
       properties: {
         'toolRequest': ToolRequestType.jsonSchema,
-        'metadata': Schema.any(),
-        'custom': Schema.any(),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+        'custom': Schema.object(additionalProperties: Schema.any()),
       },
-      required: ['toolRequest', 'metadata', 'custom'],
+      required: ['toolRequest'],
     );
   }
 }
@@ -510,8 +534,8 @@ const ToolRequestPartType = ToolRequestPartTypeFactory();
 extension type ToolResponsePart(Map<String, dynamic> _json) implements Part {
   factory ToolResponsePart.from({
     required ToolResponse toolResponse,
-    dynamic metadata,
-    dynamic custom,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
   }) {
     return ToolResponsePart({
       'toolResponse': toolResponse.toJson(),
@@ -528,20 +552,28 @@ extension type ToolResponsePart(Map<String, dynamic> _json) implements Part {
     _json['toolResponse'] = (value as dynamic)._json;
   }
 
-  dynamic get metadata {
-    return _json['metadata'] as dynamic;
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
   }
 
-  set metadata(dynamic value) {
-    _json['metadata'] = value;
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
   }
 
-  dynamic get custom {
-    return _json['custom'] as dynamic;
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
   }
 
-  set custom(dynamic value) {
-    _json['custom'] = value;
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -563,10 +595,10 @@ class ToolResponsePartTypeFactory
     return Schema.object(
       properties: {
         'toolResponse': ToolResponseType.jsonSchema,
-        'metadata': Schema.any(),
-        'custom': Schema.any(),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+        'custom': Schema.object(additionalProperties: Schema.any()),
       },
-      required: ['toolResponse', 'metadata', 'custom'],
+      required: ['toolResponse'],
     );
   }
 }
@@ -574,19 +606,26 @@ class ToolResponsePartTypeFactory
 const ToolResponsePartType = ToolResponsePartTypeFactory();
 
 extension type DataPart(Map<String, dynamic> _json) implements Part {
-  factory DataPart.from({dynamic metadata, Map<String, dynamic>? custom}) {
+  factory DataPart.from({
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
+  }) {
     return DataPart({
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
     });
   }
 
-  dynamic get metadata {
-    return _json['metadata'] as dynamic;
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
   }
 
-  set metadata(dynamic value) {
-    _json['metadata'] = value;
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
   }
 
   Map<String, dynamic>? get custom {
@@ -618,10 +657,10 @@ class DataPartTypeFactory implements JsonExtensionType<DataPart> {
   Schema get jsonSchema {
     return Schema.object(
       properties: {
-        'metadata': Schema.any(),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
-      required: ['metadata'],
+      required: [],
     );
   }
 }
@@ -688,8 +727,8 @@ const CustomPartType = CustomPartTypeFactory();
 
 extension type ReasoningPart(Map<String, dynamic> _json) implements Part {
   factory ReasoningPart.from({
-    dynamic metadata,
-    dynamic custom,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
     required String reasoning,
   }) {
     return ReasoningPart({
@@ -699,20 +738,28 @@ extension type ReasoningPart(Map<String, dynamic> _json) implements Part {
     });
   }
 
-  dynamic get metadata {
-    return _json['metadata'] as dynamic;
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
   }
 
-  set metadata(dynamic value) {
-    _json['metadata'] = value;
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
   }
 
-  dynamic get custom {
-    return _json['custom'] as dynamic;
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
   }
 
-  set custom(dynamic value) {
-    _json['custom'] = value;
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
   }
 
   String get reasoning {
@@ -740,11 +787,11 @@ class ReasoningPartTypeFactory implements JsonExtensionType<ReasoningPart> {
   Schema get jsonSchema {
     return Schema.object(
       properties: {
-        'metadata': Schema.any(),
-        'custom': Schema.any(),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+        'custom': Schema.object(additionalProperties: Schema.any()),
         'reasoning': Schema.string(),
       },
-      required: ['metadata', 'custom', 'reasoning'],
+      required: ['reasoning'],
     );
   }
 }
@@ -753,8 +800,8 @@ const ReasoningPartType = ReasoningPartTypeFactory();
 
 extension type ResourcePart(Map<String, dynamic> _json) implements Part {
   factory ResourcePart.from({
-    dynamic metadata,
-    dynamic custom,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
     required Map<String, dynamic> resource,
   }) {
     return ResourcePart({
@@ -764,20 +811,28 @@ extension type ResourcePart(Map<String, dynamic> _json) implements Part {
     });
   }
 
-  dynamic get metadata {
-    return _json['metadata'] as dynamic;
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
   }
 
-  set metadata(dynamic value) {
-    _json['metadata'] = value;
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
   }
 
-  dynamic get custom {
-    return _json['custom'] as dynamic;
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
   }
 
-  set custom(dynamic value) {
-    _json['custom'] = value;
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
   }
 
   Map<String, dynamic> get resource {
@@ -805,11 +860,11 @@ class ResourcePartTypeFactory implements JsonExtensionType<ResourcePart> {
   Schema get jsonSchema {
     return Schema.object(
       properties: {
-        'metadata': Schema.any(),
-        'custom': Schema.any(),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+        'custom': Schema.object(additionalProperties: Schema.any()),
         'resource': Schema.object(additionalProperties: Schema.any()),
       },
-      required: ['metadata', 'custom', 'resource'],
+      required: ['resource'],
     );
   }
 }
@@ -968,59 +1023,83 @@ const ToolResponseType = ToolResponseTypeFactory();
 
 extension type ModelRequest(Map<String, dynamic> _json) {
   factory ModelRequest.from({
-    dynamic messages,
-    dynamic tools,
-    dynamic toolChoice,
-    dynamic output,
-    dynamic docs,
+    required List<Message> messages,
+    List<ToolDefinition>? tools,
+    String? toolChoice,
+    OutputConfig? output,
+    List<DocumentData>? docs,
   }) {
     return ModelRequest({
-      if (messages != null) 'messages': messages,
-      if (tools != null) 'tools': tools,
+      'messages': messages.map((e) => e.toJson()).toList(),
+      if (tools != null) 'tools': tools?.map((e) => e.toJson()).toList(),
       if (toolChoice != null) 'toolChoice': toolChoice,
-      if (output != null) 'output': output,
-      if (docs != null) 'docs': docs,
+      if (output != null) 'output': output?.toJson(),
+      if (docs != null) 'docs': docs?.map((e) => e.toJson()).toList(),
     });
   }
 
-  dynamic get messages {
-    return _json['messages'] as dynamic;
+  List<Message> get messages {
+    return (_json['messages'] as List)
+        .map((e) => Message(e as Map<String, dynamic>))
+        .toList();
   }
 
-  set messages(dynamic value) {
-    _json['messages'] = value;
+  set messages(List<Message> value) {
+    _json['messages'] = value.map((e) => (e as dynamic)._json).toList();
   }
 
-  dynamic get tools {
-    return _json['tools'] as dynamic;
+  List<ToolDefinition>? get tools {
+    return (_json['tools'] as List?)
+        ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
+        .toList();
   }
 
-  set tools(dynamic value) {
-    _json['tools'] = value;
+  set tools(List<ToolDefinition>? value) {
+    if (value == null) {
+      _json.remove('tools');
+    } else {
+      _json['tools'] = value?.map((e) => (e as dynamic)._json).toList();
+    }
   }
 
-  dynamic get toolChoice {
-    return _json['toolChoice'] as dynamic;
+  String? get toolChoice {
+    return _json['toolChoice'] as String?;
   }
 
-  set toolChoice(dynamic value) {
-    _json['toolChoice'] = value;
+  set toolChoice(String? value) {
+    if (value == null) {
+      _json.remove('toolChoice');
+    } else {
+      _json['toolChoice'] = value;
+    }
   }
 
-  dynamic get output {
-    return _json['output'] as dynamic;
+  OutputConfig? get output {
+    return _json['output'] == null
+        ? null
+        : OutputConfig(_json['output'] as Map<String, dynamic>);
   }
 
-  set output(dynamic value) {
-    _json['output'] = value;
+  set output(OutputConfig? value) {
+    if (value == null) {
+      _json.remove('output');
+    } else {
+      _json['output'] = (value as dynamic)?._json;
+    }
   }
 
-  dynamic get docs {
-    return _json['docs'] as dynamic;
+  List<DocumentData>? get docs {
+    return (_json['docs'] as List?)
+        ?.map((e) => DocumentData(e as Map<String, dynamic>))
+        .toList();
   }
 
-  set docs(dynamic value) {
-    _json['docs'] = value;
+  set docs(List<DocumentData>? value) {
+    if (value == null) {
+      _json.remove('docs');
+    } else {
+      _json['docs'] = value?.map((e) => (e as dynamic)._json).toList();
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -1040,13 +1119,13 @@ class ModelRequestTypeFactory implements JsonExtensionType<ModelRequest> {
   Schema get jsonSchema {
     return Schema.object(
       properties: {
-        'messages': Schema.any(),
-        'tools': Schema.any(),
-        'toolChoice': Schema.any(),
-        'output': Schema.any(),
-        'docs': Schema.any(),
+        'messages': Schema.list(items: MessageType.jsonSchema),
+        'tools': Schema.list(items: ToolDefinitionType.jsonSchema),
+        'toolChoice': Schema.string(),
+        'output': OutputConfigType.jsonSchema,
+        'docs': Schema.list(items: DocumentDataType.jsonSchema),
       },
-      required: ['messages', 'tools', 'toolChoice', 'output', 'docs'],
+      required: ['messages'],
     );
   }
 }
@@ -1055,31 +1134,37 @@ const ModelRequestType = ModelRequestTypeFactory();
 
 extension type ModelResponse(Map<String, dynamic> _json) {
   factory ModelResponse.from({
-    dynamic message,
+    Message? message,
     required FinishReason finishReason,
-    dynamic finishMessage,
-    dynamic latencyMs,
-    dynamic usage,
-    dynamic request,
-    dynamic operation,
+    String? finishMessage,
+    double? latencyMs,
+    GenerationUsage? usage,
+    GenerateRequest? request,
+    Operation? operation,
   }) {
     return ModelResponse({
-      if (message != null) 'message': message,
+      if (message != null) 'message': message?.toJson(),
       'finishReason': finishReason,
       if (finishMessage != null) 'finishMessage': finishMessage,
       if (latencyMs != null) 'latencyMs': latencyMs,
-      if (usage != null) 'usage': usage,
-      if (request != null) 'request': request,
-      if (operation != null) 'operation': operation,
+      if (usage != null) 'usage': usage?.toJson(),
+      if (request != null) 'request': request?.toJson(),
+      if (operation != null) 'operation': operation?.toJson(),
     });
   }
 
-  dynamic get message {
-    return _json['message'] as dynamic;
+  Message? get message {
+    return _json['message'] == null
+        ? null
+        : Message(_json['message'] as Map<String, dynamic>);
   }
 
-  set message(dynamic value) {
-    _json['message'] = value;
+  set message(Message? value) {
+    if (value == null) {
+      _json.remove('message');
+    } else {
+      _json['message'] = (value as dynamic)?._json;
+    }
   }
 
   FinishReason get finishReason {
@@ -1090,44 +1175,70 @@ extension type ModelResponse(Map<String, dynamic> _json) {
     _json['finishReason'] = value;
   }
 
-  dynamic get finishMessage {
-    return _json['finishMessage'] as dynamic;
+  String? get finishMessage {
+    return _json['finishMessage'] as String?;
   }
 
-  set finishMessage(dynamic value) {
-    _json['finishMessage'] = value;
+  set finishMessage(String? value) {
+    if (value == null) {
+      _json.remove('finishMessage');
+    } else {
+      _json['finishMessage'] = value;
+    }
   }
 
-  dynamic get latencyMs {
-    return _json['latencyMs'] as dynamic;
+  double? get latencyMs {
+    return _json['latencyMs'] as double?;
   }
 
-  set latencyMs(dynamic value) {
-    _json['latencyMs'] = value;
+  set latencyMs(double? value) {
+    if (value == null) {
+      _json.remove('latencyMs');
+    } else {
+      _json['latencyMs'] = value;
+    }
   }
 
-  dynamic get usage {
-    return _json['usage'] as dynamic;
+  GenerationUsage? get usage {
+    return _json['usage'] == null
+        ? null
+        : GenerationUsage(_json['usage'] as Map<String, dynamic>);
   }
 
-  set usage(dynamic value) {
-    _json['usage'] = value;
+  set usage(GenerationUsage? value) {
+    if (value == null) {
+      _json.remove('usage');
+    } else {
+      _json['usage'] = (value as dynamic)?._json;
+    }
   }
 
-  dynamic get request {
-    return _json['request'] as dynamic;
+  GenerateRequest? get request {
+    return _json['request'] == null
+        ? null
+        : GenerateRequest(_json['request'] as Map<String, dynamic>);
   }
 
-  set request(dynamic value) {
-    _json['request'] = value;
+  set request(GenerateRequest? value) {
+    if (value == null) {
+      _json.remove('request');
+    } else {
+      _json['request'] = (value as dynamic)?._json;
+    }
   }
 
-  dynamic get operation {
-    return _json['operation'] as dynamic;
+  Operation? get operation {
+    return _json['operation'] == null
+        ? null
+        : Operation(_json['operation'] as Map<String, dynamic>);
   }
 
-  set operation(dynamic value) {
-    _json['operation'] = value;
+  set operation(Operation? value) {
+    if (value == null) {
+      _json.remove('operation');
+    } else {
+      _json['operation'] = (value as dynamic)?._json;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -1147,23 +1258,15 @@ class ModelResponseTypeFactory implements JsonExtensionType<ModelResponse> {
   Schema get jsonSchema {
     return Schema.object(
       properties: {
-        'message': Schema.any(),
+        'message': MessageType.jsonSchema,
         'finishReason': Schema.any(),
-        'finishMessage': Schema.any(),
-        'latencyMs': Schema.any(),
-        'usage': Schema.any(),
-        'request': Schema.any(),
-        'operation': Schema.any(),
+        'finishMessage': Schema.string(),
+        'latencyMs': Schema.number(),
+        'usage': GenerationUsageType.jsonSchema,
+        'request': GenerateRequestType.jsonSchema,
+        'operation': OperationType.jsonSchema,
       },
-      required: [
-        'message',
-        'finishReason',
-        'finishMessage',
-        'latencyMs',
-        'usage',
-        'request',
-        'operation',
-      ],
+      required: ['finishReason'],
     );
   }
 }
@@ -1172,49 +1275,63 @@ const ModelResponseType = ModelResponseTypeFactory();
 
 extension type ModelResponseChunk(Map<String, dynamic> _json) {
   factory ModelResponseChunk.from({
-    dynamic role,
-    dynamic index,
-    dynamic content,
-    dynamic aggregated,
+    Role? role,
+    double? index,
+    required List<Part> content,
+    bool? aggregated,
   }) {
     return ModelResponseChunk({
       if (role != null) 'role': role,
       if (index != null) 'index': index,
-      if (content != null) 'content': content,
+      'content': content.map((e) => e.toJson()).toList(),
       if (aggregated != null) 'aggregated': aggregated,
     });
   }
 
-  dynamic get role {
-    return _json['role'] as dynamic;
+  Role? get role {
+    return _json['role'] as Role?;
   }
 
-  set role(dynamic value) {
-    _json['role'] = value;
+  set role(Role? value) {
+    if (value == null) {
+      _json.remove('role');
+    } else {
+      _json['role'] = value;
+    }
   }
 
-  dynamic get index {
-    return _json['index'] as dynamic;
+  double? get index {
+    return _json['index'] as double?;
   }
 
-  set index(dynamic value) {
-    _json['index'] = value;
+  set index(double? value) {
+    if (value == null) {
+      _json.remove('index');
+    } else {
+      _json['index'] = value;
+    }
   }
 
-  dynamic get content {
-    return _json['content'] as dynamic;
+  List<Part> get content {
+    return (_json['content'] as List)
+        .map((e) => PartType.parse(e as Map<String, dynamic>))
+        .toList();
   }
 
-  set content(dynamic value) {
-    _json['content'] = value;
+  set content(List<Part> value) {
+    _json['content'] = value.map((e) => (e as dynamic)._json).toList();
   }
 
-  dynamic get aggregated {
-    return _json['aggregated'] as dynamic;
+  bool? get aggregated {
+    return _json['aggregated'] as bool?;
   }
 
-  set aggregated(dynamic value) {
-    _json['aggregated'] = value;
+  set aggregated(bool? value) {
+    if (value == null) {
+      _json.remove('aggregated');
+    } else {
+      _json['aggregated'] = value;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -1236,16 +1353,142 @@ class ModelResponseChunkTypeFactory
     return Schema.object(
       properties: {
         'role': Schema.any(),
-        'index': Schema.any(),
-        'content': Schema.any(),
-        'aggregated': Schema.any(),
+        'index': Schema.number(),
+        'content': Schema.list(items: PartType.jsonSchema),
+        'aggregated': Schema.boolean(),
       },
-      required: ['role', 'index', 'content', 'aggregated'],
+      required: ['content'],
     );
   }
 }
 
 const ModelResponseChunkType = ModelResponseChunkTypeFactory();
+
+extension type GenerateRequest(Map<String, dynamic> _json) {
+  factory GenerateRequest.from({
+    required List<Message> messages,
+    List<ToolDefinition>? tools,
+    String? toolChoice,
+    OutputConfig? output,
+    List<DocumentData>? docs,
+    double? candidates,
+  }) {
+    return GenerateRequest({
+      'messages': messages.map((e) => e.toJson()).toList(),
+      if (tools != null) 'tools': tools?.map((e) => e.toJson()).toList(),
+      if (toolChoice != null) 'toolChoice': toolChoice,
+      if (output != null) 'output': output?.toJson(),
+      if (docs != null) 'docs': docs?.map((e) => e.toJson()).toList(),
+      if (candidates != null) 'candidates': candidates,
+    });
+  }
+
+  List<Message> get messages {
+    return (_json['messages'] as List)
+        .map((e) => Message(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set messages(List<Message> value) {
+    _json['messages'] = value.map((e) => (e as dynamic)._json).toList();
+  }
+
+  List<ToolDefinition>? get tools {
+    return (_json['tools'] as List?)
+        ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set tools(List<ToolDefinition>? value) {
+    if (value == null) {
+      _json.remove('tools');
+    } else {
+      _json['tools'] = value?.map((e) => (e as dynamic)._json).toList();
+    }
+  }
+
+  String? get toolChoice {
+    return _json['toolChoice'] as String?;
+  }
+
+  set toolChoice(String? value) {
+    if (value == null) {
+      _json.remove('toolChoice');
+    } else {
+      _json['toolChoice'] = value;
+    }
+  }
+
+  OutputConfig? get output {
+    return _json['output'] == null
+        ? null
+        : OutputConfig(_json['output'] as Map<String, dynamic>);
+  }
+
+  set output(OutputConfig? value) {
+    if (value == null) {
+      _json.remove('output');
+    } else {
+      _json['output'] = (value as dynamic)?._json;
+    }
+  }
+
+  List<DocumentData>? get docs {
+    return (_json['docs'] as List?)
+        ?.map((e) => DocumentData(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set docs(List<DocumentData>? value) {
+    if (value == null) {
+      _json.remove('docs');
+    } else {
+      _json['docs'] = value?.map((e) => (e as dynamic)._json).toList();
+    }
+  }
+
+  double? get candidates {
+    return _json['candidates'] as double?;
+  }
+
+  set candidates(double? value) {
+    if (value == null) {
+      _json.remove('candidates');
+    } else {
+      _json['candidates'] = value;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class GenerateRequestTypeFactory implements JsonExtensionType<GenerateRequest> {
+  const GenerateRequestTypeFactory();
+
+  @override
+  GenerateRequest parse(Object json) {
+    return GenerateRequest(json as Map<String, dynamic>);
+  }
+
+  @override
+  Schema get jsonSchema {
+    return Schema.object(
+      properties: {
+        'messages': Schema.list(items: MessageType.jsonSchema),
+        'tools': Schema.list(items: ToolDefinitionType.jsonSchema),
+        'toolChoice': Schema.string(),
+        'output': OutputConfigType.jsonSchema,
+        'docs': Schema.list(items: DocumentDataType.jsonSchema),
+        'candidates': Schema.number(),
+      },
+      required: ['messages'],
+    );
+  }
+}
+
+const GenerateRequestType = GenerateRequestTypeFactory();
 
 extension type GenerationUsage(Map<String, dynamic> _json) {
   factory GenerationUsage.from({
