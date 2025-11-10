@@ -1,4 +1,5 @@
 import 'package:genkit/client.dart';
+import 'package:genkit/src/types.dart';
 import 'package:http/http.dart' as http;
 
 import '../test/schemas/my_schemas.dart';
@@ -114,22 +115,22 @@ Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
     url: '$baseUrl/generate',
-    fromResponse: (json) => GenerateResponse.fromJson(json),
-    fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
+    fromResponse: (json) => ModelResponseType.parse(json),
+    fromStreamChunk: (json) => ModelResponseChunkType.parse(json),
   );
   final stream = generateFlow.stream(
     input: [
-      Message(
+      Message.from(
         role: Role.user,
-        content: [TextPart(text: "hello")],
+        content: [TextPart.from(text: "hello")],
       ),
-      Message(
+      Message.from(
         role: Role.model,
-        content: [TextPart(text: "Hello, how can I help you?")],
+        content: [TextPart.from(text: "Hello, how can I help you?")],
       ),
-      Message(
+      Message.from(
         role: Role.user,
-        content: [TextPart(text: "Sing me a song.")],
+        content: [TextPart.from(text: "Sing me a song.")],
       ),
     ],
   );

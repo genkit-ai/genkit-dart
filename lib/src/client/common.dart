@@ -1,14 +1,11 @@
-import 'genkit_schemas.dart';
+import 'package:genkit/src/types.dart';
 
 extension MessageExtension on Message {
   /// The text content of the message.
   String get text {
-    if (content == null) {
-      return '';
-    }
     final buffer = StringBuffer();
-    for (final part in content!) {
-      if (part is TextPart && part.text != null) {
+    for (final part in content) {
+      if (part.toJson().containsKey('text') && part is TextPart) {
         buffer.write(part.text);
       }
     }
@@ -17,11 +14,8 @@ extension MessageExtension on Message {
 
   /// The media content of the message.
   Media? get media {
-    if (content == null) {
-      return null;
-    }
-    for (final part in content!) {
-      if (part is MediaPart) {
+    for (final part in content) {
+      if (part.toJson().containsKey('media') && part is MediaPart) {
         return part.media;
       }
     }
@@ -29,24 +23,23 @@ extension MessageExtension on Message {
   }
 }
 
-extension GenerateResponseExtension on GenerateResponse {
+extension ModelResponseExtension on ModelResponse {
   /// The text content of the response.
-  String get text => message?.text ?? '';
+  String get text => (message as Message?)?.text ?? '';
 
   /// The media content of the response.
-  Media? get media => message?.media;
+  Media? get media => (message as Message?)?.media;
 }
 
-extension GenerateResponseChunkExtension on GenerateResponseChunk {
+extension ModelResponseChunkExtension on ModelResponseChunk {
   /// The text content of the response chunk.
   String get text {
-    if (content == null) {
-      return '';
-    }
     final buffer = StringBuffer();
-    for (final part in content!) {
-      if (part is TextPart && part.text != null) {
-        buffer.write(part.text);
+    if (content != null) {
+      for (final part in content as List) {
+        if (part is TextPart) {
+          buffer.write(part.text);
+        }
       }
     }
     return buffer.toString();
@@ -54,12 +47,11 @@ extension GenerateResponseChunkExtension on GenerateResponseChunk {
 
   /// The media content of the response chunk.
   Media? get media {
-    if (content == null) {
-      return null;
-    }
-    for (final part in content!) {
-      if (part is MediaPart) {
-        return part.media;
+    if (content != null) {
+      for (final part in content as List) {
+        if (part is MediaPart) {
+          return part.media;
+        }
       }
     }
     return null;

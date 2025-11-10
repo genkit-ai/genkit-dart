@@ -8,6 +8,10 @@ part of 'extension_type_test.dart';
 // **************************************************************************
 
 extension type Ingredient(Map<String, dynamic> _json) {
+  factory Ingredient.from({required String name, required String quantity}) {
+    return Ingredient({'name': name, 'quantity': quantity});
+  }
+
   String get name {
     return _json['name'] as String;
   }
@@ -22,6 +26,10 @@ extension type Ingredient(Map<String, dynamic> _json) {
 
   set quantity(String value) {
     _json['quantity'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
   }
 }
 
@@ -45,6 +53,18 @@ class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
 const IngredientType = IngredientTypeFactory();
 
 extension type Recipe(Map<String, dynamic> _json) {
+  factory Recipe.from({
+    required String title,
+    required List<Ingredient> ingredients,
+    required int servings,
+  }) {
+    return Recipe({
+      'title': title,
+      'ingredients': ingredients.map((e) => e.toJson()).toList(),
+      'servings': servings,
+    });
+  }
+
   String get title {
     return _json['title'] as String;
   }
@@ -69,6 +89,10 @@ extension type Recipe(Map<String, dynamic> _json) {
 
   set servings(int value) {
     _json['servings'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
   }
 }
 
@@ -96,6 +120,18 @@ class RecipeTypeFactory implements JsonExtensionType<Recipe> {
 const RecipeType = RecipeTypeFactory();
 
 extension type AnnotatedRecipe(Map<String, dynamic> _json) {
+  factory AnnotatedRecipe.from({
+    required String title,
+    required List<Ingredient> ingredients,
+    required int servings,
+  }) {
+    return AnnotatedRecipe({
+      'title_key_in_json': title,
+      'ingredients': ingredients.map((e) => e.toJson()).toList(),
+      'servings': servings,
+    });
+  }
+
   String get title {
     return _json['title_key_in_json'] as String;
   }
@@ -120,6 +156,10 @@ extension type AnnotatedRecipe(Map<String, dynamic> _json) {
 
   set servings(int value) {
     _json['servings'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
   }
 }
 
@@ -149,6 +189,10 @@ class AnnotatedRecipeTypeFactory implements JsonExtensionType<AnnotatedRecipe> {
 const AnnotatedRecipeType = AnnotatedRecipeTypeFactory();
 
 extension type MealPlan(Map<String, dynamic> _json) {
+  factory MealPlan.from({required String day, required MealType mealType}) {
+    return MealPlan({'day': day, 'mealType': mealType});
+  }
+
   String get day {
     return _json['day'] as String;
   }
@@ -163,6 +207,10 @@ extension type MealPlan(Map<String, dynamic> _json) {
 
   set mealType(MealType value) {
     _json['mealType'] = value.name;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
   }
 }
 
@@ -189,6 +237,20 @@ class MealPlanTypeFactory implements JsonExtensionType<MealPlan> {
 const MealPlanType = MealPlanTypeFactory();
 
 extension type NullableFields(Map<String, dynamic> _json) {
+  factory NullableFields.from({
+    String? optionalString,
+    int? optionalInt,
+    List<String>? optionalList,
+    Ingredient? optionalIngredient,
+  }) {
+    return NullableFields({
+      'optionalString': optionalString,
+      'optionalInt': optionalInt,
+      'optionalList': optionalList,
+      'optionalIngredient': optionalIngredient?.toJson(),
+    });
+  }
+
   String? get optionalString {
     return _json['optionalString'] as String?;
   }
@@ -238,6 +300,10 @@ extension type NullableFields(Map<String, dynamic> _json) {
       _json['optionalIngredient'] = (value as dynamic)?._json;
     }
   }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
 }
 
 class NullableFieldsTypeFactory implements JsonExtensionType<NullableFields> {
@@ -265,6 +331,24 @@ class NullableFieldsTypeFactory implements JsonExtensionType<NullableFields> {
 const NullableFieldsType = NullableFieldsTypeFactory();
 
 extension type ComplexObject(Map<String, dynamic> _json) {
+  factory ComplexObject.from({
+    required String id,
+    required DateTime createdAt,
+    required double price,
+    required Map<String, String> metadata,
+    required List<int> ratings,
+    NullableFields? nestedNullable,
+  }) {
+    return ComplexObject({
+      'id': id,
+      'createdAt': createdAt,
+      'price': price,
+      'metadata': metadata,
+      'ratings': ratings,
+      'nestedNullable': nestedNullable?.toJson(),
+    });
+  }
+
   String get id {
     return _json['id'] as String;
   }
@@ -318,6 +402,10 @@ extension type ComplexObject(Map<String, dynamic> _json) {
       _json['nestedNullable'] = (value as dynamic)?._json;
     }
   }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
 }
 
 class ComplexObjectTypeFactory implements JsonExtensionType<ComplexObject> {
@@ -347,6 +435,18 @@ class ComplexObjectTypeFactory implements JsonExtensionType<ComplexObject> {
 const ComplexObjectType = ComplexObjectTypeFactory();
 
 extension type Menu(Map<String, dynamic> _json) {
+  factory Menu.from({
+    required List<Recipe> recipes,
+    List<Ingredient>? optionalIngredients,
+  }) {
+    return Menu({
+      'recipes': recipes.map((e) => e.toJson()).toList(),
+      'optionalIngredients': optionalIngredients
+          ?.map((e) => e.toJson())
+          .toList(),
+    });
+  }
+
   List<Recipe> get recipes {
     return (_json['recipes'] as List)
         .map((e) => Recipe(e as Map<String, dynamic>))
@@ -357,16 +457,24 @@ extension type Menu(Map<String, dynamic> _json) {
     _json['recipes'] = value.map((e) => (e as dynamic)._json).toList();
   }
 
-  List<Ingredient?> get optionalIngredients {
-    return (_json['optionalIngredients'] as List)
-        .map((e) => e == null ? null : Ingredient(e as Map<String, dynamic>))
+  List<Ingredient>? get optionalIngredients {
+    return (_json['optionalIngredients'] as List?)
+        ?.map((e) => Ingredient(e as Map<String, dynamic>))
         .toList();
   }
 
-  set optionalIngredients(List<Ingredient?> value) {
-    _json['optionalIngredients'] = value
-        .map((e) => (e as dynamic)?._json)
-        .toList();
+  set optionalIngredients(List<Ingredient>? value) {
+    if (value == null) {
+      _json.remove('optionalIngredients');
+    } else {
+      _json['optionalIngredients'] = value
+          ?.map((e) => (e as dynamic)._json)
+          .toList();
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
   }
 }
 
@@ -385,7 +493,7 @@ class MenuTypeFactory implements JsonExtensionType<Menu> {
         'recipes': Schema.list(items: RecipeType.jsonSchema),
         'optionalIngredients': Schema.list(items: IngredientType.jsonSchema),
       },
-      required: ['recipes', 'optionalIngredients'],
+      required: ['recipes'],
     );
   }
 }

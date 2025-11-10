@@ -10,8 +10,8 @@ class ClassGenerator {
   String generate(Set<String> allowlist) {
     final library = Library((b) {
       b.directives.addAll([
-        Directive.import('package:json_annotation/json_annotation.dart'),
-        Directive.part('genkit_schemas.g.dart'),
+        Directive.import('package:genkit/schema.dart'),
+        Directive.part('types.schema.g.dart'),
       ]);
       for (final className in allowlist) {
         if (definitions.containsKey(className)) {
@@ -48,40 +48,27 @@ class ClassGenerator {
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
     final required =
         (schema['required'] as List<dynamic>? ?? []).cast<String>();
-    final isAbstract = properties.isEmpty;
 
     b.body.add(Class((c) {
       c
-        ..name = className
-        ..abstract = isAbstract
-        ..extend = extend
-        ..annotations.add(refer('JsonSerializable').call([],
-            {'explicitToJson': literalTrue, 'includeIfNull': literalFalse}));
+        ..name = '${className}Schema'
+        ..abstract = true
+        ..annotations.add(refer('GenkitSchema').call([]));
 
-      if (!isAbstract) {
-        c.constructors.add(Constructor((con) {
-          con.optionalParameters.addAll(properties.entries.map((e) {
-            final isRequired = required.contains(e.key);
-            return Parameter((p) {
-              p
-                ..name = _sanitizeFieldName(e.key)
-                ..toThis = true
-                ..named = true
-                ..required = isRequired;
-            });
-          }));
-        }));
-        c.constructors.add(_createFromJsonConstructor(className));
-        c.methods
-            .add(_createToJsonMethod(className, isOverride: extend != null));
+      if (extend != null) {
+        c.implements.add(extend);
       }
 
-      c.fields.addAll(properties.entries.map((e) {
-        return Field((f) {
-          f
+      c.methods.addAll(properties.entries
+          .where((e) => !_isNotType(e.value as Map<String, dynamic>))
+          .map((e) {
+        final isRequired = required.contains(e.key);
+        return Method((m) {
+          m
             ..name = _sanitizeFieldName(e.key)
-            ..type = _mapType(e.value)
-            ..modifier = FieldModifier.final$;
+            ..type = MethodType.getter
+            ..returns = _mapType(e.value, isRequired: isRequired)
+            ..external = true;
         });
       }));
     }));
@@ -99,36 +86,30 @@ class ClassGenerator {
   void _generateUnionClass(
       LibraryBuilder b, String className, List<dynamic> anyOf,
       {Reference? extend}) {
-    final subtypes = <Map<String, String>>[];
+    // Generate the base abstract class for the union type.
+    b.body.add(Class((c) {
+      c
+        ..name = '${className}Schema'
+        ..abstract = true;
+      if (extend != null) {
+        c.implements.add(extend);
+      }
+    }));
+
     for (final item in anyOf) {
       final ref = item['\$ref'] as String?;
       if (ref != null) {
         final subclassName = ref.split('/').last;
         final subclassSchema =
             definitions[subclassName] as Map<String, dynamic>;
-        final required =
-            (subclassSchema['required'] as List<dynamic>? ?? []).cast<String>();
-        if (required.isNotEmpty) {
-          subtypes.add({'name': subclassName, 'key': required.first});
-        }
         if (definitions.containsKey(subclassName) &&
             !_generatedClasses.contains(subclassName)) {
+          // Pass the union type as an interface to implement.
           _generateClass(b, subclassName, subclassSchema,
-              extend: refer(className));
+              extend: refer('${className}Schema'));
         }
       }
     }
-
-    b.body.add(Class((c) {
-      c
-        ..name = className
-        ..abstract = true
-        ..extend = extend
-        ..constructors.add(Constructor())
-        ..constructors.add(_createFromJsonConstructor(className, subtypes))
-        ..methods.add(_createToJsonMethod(className,
-            subtypes: subtypes, isOverride: extend != null));
-    }));
   }
 
   String _sanitizeFieldName(String name) {
@@ -138,27 +119,78 @@ class ClassGenerator {
     return name.replaceAll('-', '_');
   }
 
-  Reference _mapType(Map<String, dynamic> schema) {
+  bool _isNotType(Map<String, dynamic> schema) {
+    if (schema.containsKey('not')) {
+      return true;
+    }
+    if (schema.isEmpty) {
+      return true;
+    }
+    if (schema.containsKey('\$ref')) {
+      final ref = schema['\$ref'] as String;
+      final parts = ref.split('/');
+      if (parts.length > 2 && parts[0] == '#' && parts[1] == '\$defs') {
+        var current = definitions;
+        for (var i = 2; i < parts.length; i++) {
+          if (current == null || !(current is Map<String, dynamic>)) {
+            return false;
+          }
+          final part = parts[i];
+          if (current.containsKey(part)) {
+            current = current[part];
+          } else {
+            return false;
+          }
+        }
+        if (current != null && current is Map<String, dynamic>) {
+          return _isNotType(current);
+        }
+      }
+    }
+    return false;
+  }
+
+  Reference _mapType(Map<String, dynamic> schema, {bool isRequired = false}) {
+    final type = _mapTypeInner(schema);
+    if (isRequired) {
+      return refer(type.symbol!.replaceAll('?', ''));
+    }
+    if (!type.symbol!.endsWith('?')) {
+      return refer('${type.symbol}?');
+    }
+    return type;
+  }
+
+  Reference _mapTypeInner(Map<String, dynamic> schema) {
+    if (schema.isEmpty) {
+      return refer('dynamic');
+    }
     if (schema.containsKey('not')) {
       return refer('dynamic');
     }
     if (schema.containsKey('\$ref')) {
       return _mapRefType(schema);
     }
-    final type = schema['type'] as String?;
+    final typeValue = schema['type'];
+    String? type;
+    if (typeValue is String) {
+      type = typeValue;
+    } else if (typeValue is List) {
+      type = typeValue.firstWhere((e) => e != 'null', orElse: () => null);
+    }
     switch (type) {
       case 'string':
-        return refer('String?');
+        return refer('String');
       case 'number':
-        return refer('double?');
+        return refer('double');
       case 'integer':
-        return refer('int?');
+        return refer('int');
       case 'boolean':
-        return refer('bool?');
+        return refer('bool');
       case 'array':
         return _mapArrayType(schema);
       case 'object':
-        return refer('Map<String, dynamic>?');
+        return refer('Map<String, dynamic>');
       default:
         return refer('dynamic');
     }
@@ -167,7 +199,7 @@ class ClassGenerator {
   Reference _mapRefType(Map<String, dynamic> schema) {
     final ref = schema['\$ref'] as String;
     if (ref == '#/\$defs/DocumentPart') {
-      return refer('Part?');
+      return refer('PartSchema');
     }
     final parts = ref.split('/');
     if (parts.length == 4 && parts[0] == '#' && parts[1] == '\$defs') {
@@ -177,13 +209,18 @@ class ClassGenerator {
           def.containsKey('properties')) {
         final prop = def['properties'][parts[3]];
         if (prop != null && prop is Map<String, dynamic>) {
-          return _mapType(prop);
+          return _mapTypeInner(prop);
         }
       }
     }
     var className = ref.split('/').last;
     if (definitions.containsKey(className)) {
-      return refer('${className[0].toUpperCase()}${className.substring(1)}?');
+      final newName = '${className[0].toUpperCase()}${className.substring(1)}';
+      final def = definitions[className];
+      if (def != null && def is Map<String, dynamic> && def.containsKey('enum')) {
+        return refer(newName);
+      }
+      return refer('${newName}Schema');
     }
     return refer('dynamic');
   }
@@ -191,48 +228,9 @@ class ClassGenerator {
   Reference _mapArrayType(Map<String, dynamic> schema) {
     final items = schema['items'] as Map<String, dynamic>?;
     if (items != null) {
-      return refer('List<${_mapType(items).symbol}>?');
+      final itemType = _mapType(items, isRequired: true);
+      return refer('List<${itemType.symbol}>');
     }
-    return refer('List<dynamic>?');
-  }
-
-  Constructor _createFromJsonConstructor(String className,
-      [List<Map<String, String>>? subtypes]) {
-    return Constructor((c) {
-      c
-        ..factory = true
-        ..name = 'fromJson'
-        ..requiredParameters.add(Parameter((p) => p
-          ..name = 'json'
-          ..type = refer('Map<String, dynamic>')));
-      if (subtypes == null) {
-        c
-          ..lambda = true
-          ..body = Code('_\$${className}FromJson(json)');
-      } else {
-        c.body = Code(
-            '${subtypes.map((s) => "if (json.containsKey('${s['key']}')) { return ${s['name']}.fromJson(json); }").join('\n')}\n throw Exception(\'Unknown subtype of $className\');');
-      }
-    });
-  }
-
-  Method _createToJsonMethod(String className,
-      {List<Map<String, String>>? subtypes, bool isOverride = false}) {
-    return Method((m) {
-      m
-        ..name = 'toJson'
-        ..returns = refer('Map<String, dynamic>');
-      if (isOverride) {
-        m.annotations.add(refer('override'));
-      }
-      if (subtypes == null) {
-        m
-          ..lambda = true
-          ..body = Code('_\$${className}ToJson(this)');
-      } else {
-        m.body = Code(
-            '${subtypes.map((s) => "if (this is ${s['name']}) return (this as ${s['name']}).toJson();").join('\n')}\n throw Exception(\'Unknown subtype of $className\');');
-      }
-    });
+    return refer('List<dynamic>');
   }
 }

@@ -65,7 +65,8 @@ class ReflectionServer {
   });
 
   Future<void> start() async {
-    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port,
+        shared: true);
     print('Reflection server running on http://localhost:${_server!.port}');
 
     _server!.listen((HttpRequest request) async {

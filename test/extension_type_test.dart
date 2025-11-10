@@ -54,7 +54,7 @@ abstract class ComplexObjectSchema {
 @GenkitSchema()
 abstract class MenuSchema {
   List<RecipeSchema> get recipes;
-  List<IngredientSchema?> get optionalIngredients;
+  List<IngredientSchema>? get optionalIngredients;
 }
 
 void main() {
@@ -295,7 +295,7 @@ void main() {
             ),
           ),
         },
-        required: ['recipes', 'optionalIngredients'],
+        required: ['recipes'],
       );
 
       expect(MenuType.jsonSchema.toJson(), expectedSchema.toJson());
@@ -313,8 +313,7 @@ void main() {
           }
         ],
         'optionalIngredients': [
-          {"name": "Syrup", "quantity": "2 tbsp"},
-          null,
+          {"name": "Syrup", "quantity": "2 tbsp"}
         ],
       };
 
@@ -322,9 +321,8 @@ void main() {
 
       expect(menu.recipes.length, 1);
       expect(menu.recipes[0].title, "Pancakes");
-      expect(menu.optionalIngredients.length, 2);
-      expect(menu.optionalIngredients[0]?.name, "Syrup");
-      expect(menu.optionalIngredients[1], isNull);
+      expect(menu.optionalIngredients?.length, 1);
+      expect(menu.optionalIngredients?[0].name, "Syrup");
     });
   });
 }

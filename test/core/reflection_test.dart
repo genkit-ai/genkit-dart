@@ -11,7 +11,7 @@ void main() {
   group('ReflectionServer', () {
     late Registry registry;
     late ReflectionServer server;
-    const port = 3200;
+    const port = 3110;
     final url = 'http://localhost:$port';
 
     setUp(() async {
