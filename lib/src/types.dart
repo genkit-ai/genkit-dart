@@ -167,9 +167,20 @@ abstract class OutputConfigSchema {
   external String? get contentType;
 }
 
-enum FinishReason { stop, length, blocked, interrupted, other, unknown }
-
-enum Role { system, user, model, tool }
+extension type FinishReason(String value) {
+  static FinishReason get stop => FinishReason('stop');
+  static FinishReason get length => FinishReason('length');
+  static FinishReason get blocked => FinishReason('blocked');
+  static FinishReason get interrupted => FinishReason('interrupted');
+  static FinishReason get other => FinishReason('other');
+  static FinishReason get unknown => FinishReason('unknown');
+}
+extension type Role(String value) {
+  static Role get system => Role('system');
+  static Role get user => Role('user');
+  static Role get model => Role('model');
+  static Role get tool => Role('tool');
+}
 
 @GenkitSchema()
 abstract class DocumentDataSchema {

@@ -55,11 +55,11 @@ extension type Candidate(Map<String, dynamic> _json) {
   }
 
   FinishReason get finishReason {
-    return FinishReason.values.byName(_json['finishReason'] as String);
+    return _json['finishReason'] as FinishReason;
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value.name;
+    _json['finishReason'] = value;
   }
 
   String? get finishMessage {
@@ -94,16 +94,7 @@ class CandidateTypeFactory implements JsonExtensionType<Candidate> {
         'index': Schema.number(),
         'message': MessageType.jsonSchema,
         'usage': GenerationUsageType.jsonSchema,
-        'finishReason': Schema.string(
-          enumValues: [
-            'stop',
-            'length',
-            'blocked',
-            'interrupted',
-            'other',
-            'unknown',
-          ],
-        ),
+        'finishReason': Schema.any(),
         'finishMessage': Schema.string(),
       },
       required: ['index', 'message', 'finishReason'],
@@ -127,11 +118,11 @@ extension type Message(Map<String, dynamic> _json) {
   }
 
   Role get role {
-    return Role.values.byName(_json['role'] as String);
+    return _json['role'] as Role;
   }
 
   set role(Role value) {
-    _json['role'] = value.name;
+    _json['role'] = value;
   }
 
   List<Part> get content {
@@ -173,7 +164,7 @@ class MessageTypeFactory implements JsonExtensionType<Message> {
   Schema get jsonSchema {
     return Schema.object(
       properties: {
-        'role': Schema.string(enumValues: ['system', 'user', 'model', 'tool']),
+        'role': Schema.any(),
         'content': Schema.list(items: PartType.jsonSchema),
         'metadata': Schema.object(additionalProperties: Schema.any()),
       },
@@ -1079,11 +1070,11 @@ extension type ModelResponse(Map<String, dynamic> _json) {
   }
 
   FinishReason get finishReason {
-    return FinishReason.values.byName(_json['finishReason'] as String);
+    return _json['finishReason'] as FinishReason;
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value.name;
+    _json['finishReason'] = value;
   }
 
   dynamic get finishMessage {
@@ -1144,16 +1135,7 @@ class ModelResponseTypeFactory implements JsonExtensionType<ModelResponse> {
     return Schema.object(
       properties: {
         'message': Schema.any(),
-        'finishReason': Schema.string(
-          enumValues: [
-            'stop',
-            'length',
-            'blocked',
-            'interrupted',
-            'other',
-            'unknown',
-          ],
-        ),
+        'finishReason': Schema.any(),
         'finishMessage': Schema.any(),
         'latencyMs': Schema.any(),
         'usage': Schema.any(),

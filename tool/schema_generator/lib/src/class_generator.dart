@@ -34,7 +34,7 @@ class ClassGenerator {
     _generatedClasses.add(className);
 
     if (schema.containsKey('enum')) {
-      _generateEnum(b, className, schema['enum']);
+      _generateEnumExtensionType(b, className, schema['enum']);
     } else if (schema.containsKey('anyOf')) {
       _generateUnionClass(b, className, schema['anyOf'], extend: extend);
     } else {
@@ -67,20 +67,25 @@ class ClassGenerator {
           m
             ..name = _sanitizeFieldName(e.key)
             ..type = MethodType.getter
-            ..returns = _mapType(e.value, isRequired: isRequired)
+            ..returns =
+                _mapType(className, e.value, isRequired: isRequired)
             ..external = true;
         });
       }));
     }));
   }
 
-  void _generateEnum(LibraryBuilder b, String enumName, List<dynamic> values) {
-    b.body.add(Enum((e) {
-      e
-        ..name = enumName
-        ..values.addAll(values.map((v) =>
-            EnumValue((ev) => ev..name = _sanitizeFieldName(v.toString()))));
-    }));
+  void _generateEnumExtensionType(
+      LibraryBuilder b, String enumName, List<dynamic> values) {
+    final buffer = StringBuffer();
+    buffer.writeln('extension type $enumName(String value) {');
+    for (final value in values) {
+      final fieldName = _sanitizeFieldName(value.toString());
+      buffer.writeln(
+          "  static $enumName get $fieldName => $enumName('$value');");
+    }
+    buffer.writeln('}');
+    b.body.add(Code(buffer.toString()));
   }
 
   void _generateUnionClass(
@@ -150,8 +155,9 @@ class ClassGenerator {
     return false;
   }
 
-  Reference _mapType(Map<String, dynamic> schema, {bool isRequired = false}) {
-    final type = _mapTypeInner(schema);
+  Reference _mapType(String parentType, Map<String, dynamic> schema,
+      {bool isRequired = false}) {
+    final type = _mapTypeInner(parentType, schema);
     if (isRequired) {
       return refer(type.symbol!.replaceAll('?', ''));
     }
@@ -161,7 +167,7 @@ class ClassGenerator {
     return type;
   }
 
-  Reference _mapTypeInner(Map<String, dynamic> schema) {
+  Reference _mapTypeInner(String parentType, Map<String, dynamic> schema) {
     if (schema.isEmpty) {
       return refer('dynamic');
     }
@@ -169,7 +175,7 @@ class ClassGenerator {
       return refer('dynamic');
     }
     if (schema.containsKey('\$ref')) {
-      return _mapRefType(schema);
+      return _mapRefType(parentType, schema);
     }
     final typeValue = schema['type'];
     String? type;
@@ -180,6 +186,9 @@ class ClassGenerator {
     }
     switch (type) {
       case 'string':
+        if (schema.containsKey('enum')) {
+          return refer(parentType);
+        }
         return refer('String');
       case 'number':
         return refer('double');
@@ -188,7 +197,7 @@ class ClassGenerator {
       case 'boolean':
         return refer('bool');
       case 'array':
-        return _mapArrayType(schema);
+        return _mapArrayType(parentType, schema);
       case 'object':
         return refer('Map<String, dynamic>');
       default:
@@ -196,7 +205,7 @@ class ClassGenerator {
     }
   }
 
-  Reference _mapRefType(Map<String, dynamic> schema) {
+  Reference _mapRefType(String parentType, Map<String, dynamic> schema) {
     final ref = schema['\$ref'] as String;
     if (ref == '#/\$defs/DocumentPart') {
       return refer('PartSchema');
@@ -209,7 +218,7 @@ class ClassGenerator {
           def.containsKey('properties')) {
         final prop = def['properties'][parts[3]];
         if (prop != null && prop is Map<String, dynamic>) {
-          return _mapTypeInner(prop);
+          return _mapTypeInner(parts[2], prop);
         }
       }
     }
@@ -217,7 +226,9 @@ class ClassGenerator {
     if (definitions.containsKey(className)) {
       final newName = '${className[0].toUpperCase()}${className.substring(1)}';
       final def = definitions[className];
-      if (def != null && def is Map<String, dynamic> && def.containsKey('enum')) {
+      if (def != null &&
+          def is Map<String, dynamic> &&
+          def.containsKey('enum')) {
         return refer(newName);
       }
       return refer('${newName}Schema');
@@ -225,10 +236,10 @@ class ClassGenerator {
     return refer('dynamic');
   }
 
-  Reference _mapArrayType(Map<String, dynamic> schema) {
+  Reference _mapArrayType(String parentType, Map<String, dynamic> schema) {
     final items = schema['items'] as Map<String, dynamic>?;
     if (items != null) {
-      final itemType = _mapType(items, isRequired: true);
+      final itemType = _mapType(parentType, items, isRequired: true);
       return refer('List<${itemType.symbol}>');
     }
     return refer('List<dynamic>');
