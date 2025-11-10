@@ -132,5 +132,18 @@ void main() {
       expect(chunks, ['chunk1', 'chunk2']);
       expect(result, 'output');
     });
+
+    test('should run an action with telemetry', () async {
+      final action = Action(
+        name: 'testAction',
+        actionType: 'test',
+        fn: (String input, context) async => 'output',
+      );
+
+      final result = await action.runWithTelemetry('input');
+      expect(result.result, 'output');
+      expect(result.traceId, isA<String>());
+      expect(result.spanId, isA<String>());
+    });
   });
 }

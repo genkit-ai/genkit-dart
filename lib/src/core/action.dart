@@ -20,13 +20,33 @@ class Action<I, O, S> {
   JsonExtensionType<O>? outputType;
   JsonExtensionType<S>? streamType;
   ActionFn<I, O, S> fn;
+  Map<String, dynamic> metadata;
 
-  Future<O> run(I input,
-      {StreamingCallback<S>? onChunk, Map<String, dynamic>? context}) {
-    return runInNewSpan(
+  Future<O> run(
+    I input, {
+    StreamingCallback<S>? onChunk,
+    Map<String, dynamic>? context,
+  }) async {
+    return (await this.runWithTelemetry(
+      input,
+      onChunk: onChunk,
+      context: context,
+    )).result;
+  }
+
+  Future<({O result, String traceId, String spanId})> runWithTelemetry(
+    I input, {
+    StreamingCallback<S>? onChunk,
+    Map<String, dynamic>? context,
+  }) async {
+    String traceId = "";
+    String spanId = "";
+    final result = await runInNewSpan(
       name,
-      (telemetryContext) {
-        return fn(input, (
+      (telemetryContext) async {
+        traceId = telemetryContext.traceId;
+        spanId = telemetryContext.traceId;
+        return await fn(input, (
           // TODO: try to check if sentinel onChunk callback is used.
           streamingRequested: onChunk != null,
           sendChunk: onChunk ?? (chunk) {},
@@ -37,33 +57,39 @@ class Action<I, O, S> {
       actionType: actionType,
       input: input,
     );
+    return (result: result, traceId: traceId, spanId: spanId);
   }
 
-  ActionStream<S, O> stream(I input,
-      {StreamingCallback<S>? onChunk, Map<String, dynamic>? context}) {
+  ActionStream<S, O> stream(
+    I input, {
+    StreamingCallback<S>? onChunk,
+    Map<String, dynamic>? context,
+  }) {
     final streamController = StreamController<S>();
     final actionStream = ActionStream<S, O>(streamController.stream);
 
     run(
-      input,
-      onChunk: (S chunk) {
-        if (streamController.isClosed) return;
-        streamController.add(chunk);
-        onChunk?.call(chunk);
-      },
-      context: context,
-    ).then((result) {
-      actionStream.setResult(result);
-      if (!streamController.isClosed) {
-        streamController.close();
-      }
-    }).catchError((e, s) {
-      actionStream.setError(e, s);
-      if (!streamController.isClosed) {
-        streamController.addError(e, s);
-        streamController.close();
-      }
-    });
+          input,
+          onChunk: (S chunk) {
+            if (streamController.isClosed) return;
+            streamController.add(chunk);
+            onChunk?.call(chunk);
+          },
+          context: context,
+        )
+        .then((result) {
+          actionStream.setResult(result);
+          if (!streamController.isClosed) {
+            streamController.close();
+          }
+        })
+        .catchError((e, s) {
+          actionStream.setError(e, s);
+          if (!streamController.isClosed) {
+            streamController.addError(e, s);
+            streamController.close();
+          }
+        });
 
     return actionStream;
   }
@@ -75,6 +101,7 @@ class Action<I, O, S> {
     this.inputType,
     this.outputType,
     this.streamType,
+    this.metadata = const {},
   });
 }
 

@@ -5,7 +5,11 @@ import 'package:opentelemetry/api.dart' as api;
 
 final _tracer = api.globalTracerProvider.getTracer('genkit-dart');
 
-typedef TelemetryContext = ({Map<String, String> attributes});
+typedef TelemetryContext = ({
+  Map<String, String> attributes,
+  String traceId,
+  String spanId,
+});
 
 Future<O> runInNewSpan<I, O>(
   String name,
@@ -35,7 +39,11 @@ Future<O> runInNewSpan<I, O>(
         attributes?.forEach((key, value) {
           span.setAttribute(api.Attribute.fromString(key, value));
         });
-        final telemetryContext = (attributes: <String, String>{});
+        final telemetryContext = (
+          attributes: <String, String>{},
+          traceId: span.spanContext.traceId.toString(),
+          spanId: span.spanContext.spanId.toString(),
+        );
         final output = await fn(telemetryContext);
         telemetryContext.attributes.forEach((key, value) {
           span.setAttribute(api.Attribute.fromString(key, value));
