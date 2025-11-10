@@ -95,7 +95,8 @@ class ClassGenerator {
     b.body.add(Class((c) {
       c
         ..name = '${className}Schema'
-        ..abstract = true;
+        ..abstract = true
+        ..annotations.add(refer('GenkitSchema').call([]));
       if (extend != null) {
         c.implements.add(extend);
       }
@@ -186,9 +187,6 @@ class ClassGenerator {
     }
     switch (type) {
       case 'string':
-        if (schema.containsKey('enum')) {
-          return refer(parentType);
-        }
         return refer('String');
       case 'number':
         return refer('double');
