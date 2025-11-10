@@ -161,6 +161,7 @@ class ReflectionServer {
         return shelf.Response.ok(
           controller.stream,
           headers: {'Content-Type': 'application/x-ndjson'},
+          context: {"shelf.io.buffer_output": false},
         );
       } else {
         try {

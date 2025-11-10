@@ -22,6 +22,7 @@ void main() async {
       if (context.streamingRequested) {
         for (var i = 0; i < 5; i++) {
           context.sendChunk('Thinking... $i');
+          await Future.delayed(Duration(seconds: 1)); // Delays for 2 seconds
         }
       }
       return await child(name);
