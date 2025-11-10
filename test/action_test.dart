@@ -39,7 +39,7 @@ void main() {
         fn: (input, context) async => 'output',
       );
 
-      await action.run('input', null);
+      await action.run('input');
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);
@@ -53,7 +53,7 @@ void main() {
         fn: (input, context) async => 'output',
       );
 
-      await action.run('input', null);
+      await action.run('input');
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);
@@ -71,7 +71,7 @@ void main() {
         fn: (String input, context) async => 'output',
       );
 
-      final result = await action.run('input', null);
+      final result = await action.run('input');
       expect(result, 'output');
     });
 
@@ -88,7 +88,6 @@ void main() {
 
       final result = await action.run(
         TestInputType.parse({'name': 'world'}),
-        null,
       );
       expect(result.greeting, 'Hello world');
     });
@@ -104,7 +103,7 @@ void main() {
         },
       );
 
-      await action.run(TestInputType.parse({'name': 'world'}), null);
+      await action.run(TestInputType.parse({'name': 'world'}));
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);
@@ -126,7 +125,7 @@ void main() {
         },
       );
 
-      final stream = action.stream('input', null);
+      final stream = action.stream('input');
       final chunks = await stream.toList();
       final result = await stream.onResult;
 

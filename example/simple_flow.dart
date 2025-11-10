@@ -9,7 +9,7 @@ final ai = Genkit();
 final simpleFlow = ai.defineFlow(
   name: 'simpleFlow',
   fn: (String name, context) async {
-    return await simpleFlow2.run(name, null);
+    return await simpleFlow2.run(name);
   },
 );
 final simpleFlow2 = ai.defineFlow(
@@ -34,7 +34,7 @@ void main() async {
 
   // Run the flow
   print('Running simpleFlow...');
-  final result = await simpleFlow.run('World', null);
+  final result = await simpleFlow.run('World');
   print('Flow result: $result');
 
   // Allow time for the exporter to send the data

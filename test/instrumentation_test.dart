@@ -39,11 +39,11 @@ void main() {
       final parentFlow = genkit.defineFlow(
         name: 'parentFlow',
         fn: (String input, context) async {
-          return await childFlow.run(input, null);
+          return await childFlow.run(input);
         },
       );
 
-      await parentFlow.run('World', null);
+      await parentFlow.run('World');
 
       // Force flush to ensure spans are exported
       processor.forceFlush();

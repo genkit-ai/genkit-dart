@@ -11,11 +11,6 @@ typedef ActionFnArg<S> = ({
   Map<String, dynamic>? context,
 });
 
-typedef ActionRunOptions<S> = ({
-  StreamingCallback<S>? onChunk,
-  Map<String, dynamic>? context,
-});
-
 typedef ActionFn<I, O, S> = Future<O> Function(I input, ActionFnArg<S> context);
 
 class Action<I, O, S> {
@@ -26,16 +21,17 @@ class Action<I, O, S> {
   JsonExtensionType<S>? streamType;
   ActionFn<I, O, S> fn;
 
-  Future<O> run(I input, ActionRunOptions<S>? options) {
+  Future<O> run(I input,
+      {StreamingCallback<S>? onChunk, Map<String, dynamic>? context}) {
     return runInNewSpan(
       name,
       (telemetryContext) {
         return fn(input, (
           // TODO: try to check if sentinel onChunk callback is used.
-          streamingRequested: options?.onChunk != null,
-          sendChunk: options?.onChunk ?? (chunk) {},
+          streamingRequested: onChunk != null,
+          sendChunk: onChunk ?? (chunk) {},
           // TODO: fallback to context from Async Context
-          context: options?.context ?? {},
+          context: context ?? {},
         ));
       },
       actionType: actionType,
@@ -43,20 +39,20 @@ class Action<I, O, S> {
     );
   }
 
-  ActionStream<S, O> stream(I input, ActionRunOptions<S>? options) {
+  ActionStream<S, O> stream(I input,
+      {StreamingCallback<S>? onChunk, Map<String, dynamic>? context}) {
     final streamController = StreamController<S>();
     final actionStream = ActionStream<S, O>(streamController.stream);
 
-    final runOptions = (
+    run(
+      input,
       onChunk: (S chunk) {
         if (streamController.isClosed) return;
         streamController.add(chunk);
-        options?.onChunk?.call(chunk);
+        onChunk?.call(chunk);
       },
-      context: options?.context,
-    );
-
-    run(input, runOptions).then((result) {
+      context: context,
+    ).then((result) {
       actionStream.setResult(result);
       if (!streamController.isClosed) {
         streamController.close();
