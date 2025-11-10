@@ -7,5 +7,6 @@ class Flow<I, O, S> extends Action<I, O, S> {
     super.inputType,
     super.outputType,
     super.streamType,
+    super.metadata,
   }) : super(actionType: 'flow');
 }

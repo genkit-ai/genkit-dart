@@ -1,11 +1,23 @@
+import 'package:genkit/schema.dart';
 import 'package:genkit/src/core/action.dart';
+import 'package:genkit/src/types.dart';
 
-class Model<I, O, S> extends Action<I, O, S> {
+class Model extends Action<ModelRequest, ModelResponse, ModelResponseChunk> {
   Model({
     required super.name,
     required super.fn,
-    super.inputType,
-    super.outputType,
-    super.streamType,
-  }) : super(actionType: 'flow');
+    super.metadata,
+    Schema? customOptions,
+  }) : super(
+         actionType: 'model',
+         inputType: ModelRequestType,
+         outputType: ModelResponseType,
+         streamType: ModelResponseChunkType,
+       ) {
+    metadata['description'] = name;
+    metadata['model'] = {'label': name};
+    if (customOptions != null) {
+      metadata['model']['customOptions'] = customOptions.toJson();
+    }
+  }
 }

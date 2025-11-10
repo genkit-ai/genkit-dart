@@ -1,13 +1,17 @@
 import 'dart:io';
 
 import 'package:genkit/schema.dart';
+import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/flow.dart';
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/types.dart';
 
-export 'package:genkit/src/o11y/otlp_http_exporter.dart' show configureCollectorExporter;
+export 'package:genkit/src/o11y/otlp_http_exporter.dart'
+    show configureCollectorExporter;
 
+export 'package:genkit/src/types.dart';
 
 bool _isDevEnv() {
   return Platform.environment['GENKIT_ENV'] == 'dev';
@@ -44,5 +48,14 @@ class Genkit {
     );
     registry.register(flow);
     return flow;
+  }
+
+  Model defineModel({
+    required String name,
+    required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk> fn,
+  }) {
+    final model = Model(name: name, fn: fn);
+    registry.register(model);
+    return model;
   }
 }

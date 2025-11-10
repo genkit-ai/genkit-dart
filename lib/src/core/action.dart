@@ -28,11 +28,7 @@ class Action<I, O, S> {
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
   }) async {
-    return (await this.run(
-      input,
-      onChunk: onChunk,
-      context: context,
-    )).result;
+    return (await this.run(input, onChunk: onChunk, context: context)).result;
   }
 
   Future<({O result, String traceId, String spanId})> run(
@@ -103,7 +99,11 @@ class Action<I, O, S> {
     this.outputType,
     this.streamType,
     this.metadata = const {},
-  });
+  }) {
+    if (metadata.isEmpty) {
+      metadata = {'description': name};
+    }
+  }
 }
 
 class ActionStream<S, F> extends StreamView<S> {
