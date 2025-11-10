@@ -25,11 +25,18 @@ Future<O> runInNewSpan<I, O>(
   return runZoned(
     () async {
       try {
+        span.setName(name);
         span.setAttribute(api.Attribute.fromString('genkit:name', name));
         if (actionType != null) {
           span.setAttribute(
             api.Attribute.fromString('genkit:type', actionType),
           );
+          // tmp hack...
+          if (actionType == 'flow') {
+            span.setAttribute(
+              api.Attribute.fromString('genkit:metadata:flow:name', name),
+            );
+          }
         }
         if (input != null) {
           span.setAttribute(

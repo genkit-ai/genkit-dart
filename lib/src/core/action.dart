@@ -23,19 +23,19 @@ class Action<I, O, S> {
   ActionFn<I, O, S> fn;
   Map<String, dynamic> metadata;
 
-  Future<O> run(
+  Future<O> call(
     I input, {
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
   }) async {
-    return (await this.runWithTelemetry(
+    return (await this.run(
       input,
       onChunk: onChunk,
       context: context,
     )).result;
   }
 
-  Future<({O result, String traceId, String spanId})> runWithTelemetry(
+  Future<({O result, String traceId, String spanId})> run(
     I input, {
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
@@ -69,7 +69,7 @@ class Action<I, O, S> {
     final streamController = StreamController<S>();
     final actionStream = ActionStream<S, O>(streamController.stream);
 
-    run(
+    call(
           input,
           onChunk: (S chunk) {
             if (streamController.isClosed) return;

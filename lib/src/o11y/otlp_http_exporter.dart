@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:opentelemetry/api.dart' as api;
@@ -14,9 +15,9 @@ class CollectorHttpExporter implements sdk.SpanExporter {
     String url, {
     Map<String, String> headers = const {},
     http.Client? client,
-  })  : _uri = Uri.parse(url),
-        _headers = {...headers},
-        _client = client ?? http.Client();
+  }) : _uri = Uri.parse(url),
+       _headers = {...headers},
+       _client = client ?? http.Client();
 
   @override
   void export(List<sdk.ReadOnlySpan> spans) {
@@ -24,17 +25,11 @@ class CollectorHttpExporter implements sdk.SpanExporter {
       return;
     }
 
-    final body = {
-      'resourceSpans': _translateSpans(spans),
-    };
+    final body = {'resourceSpans': _translateSpans(spans)};
 
-    _client
-        .post(
+    _client.post(
       _uri,
-      headers: {
-        'Content-Type': 'application/json',
-        ..._headers,
-      },
+      headers: {'Content-Type': 'application/json', ..._headers},
       body: jsonEncode(body),
     );
   }
@@ -50,8 +45,11 @@ class CollectorHttpExporter implements sdk.SpanExporter {
   }
 
   List<Map<String, dynamic>> _translateSpans(List<sdk.ReadOnlySpan> spans) {
-    final resourceSpans = <sdk.Resource,
-        Map<sdk.InstrumentationScope, List<Map<String, dynamic>>>>{};
+    final resourceSpans =
+        <
+          sdk.Resource,
+          Map<sdk.InstrumentationScope, List<Map<String, dynamic>>>
+        >{};
 
     for (final span in spans) {
       final resource = span.resource;
@@ -128,27 +126,27 @@ class CollectorHttpExporter implements sdk.SpanExporter {
       if (value is String) {
         result.add({
           'key': key,
-          'value': {'stringValue': value}
+          'value': {'stringValue': value},
         });
       } else if (value is bool) {
         result.add({
           'key': key,
-          'value': {'boolValue': value}
+          'value': {'boolValue': value},
         });
       } else if (value is int) {
         result.add({
           'key': key,
-          'value': {'intValue': value}
+          'value': {'intValue': value},
         });
       } else if (value is double) {
         result.add({
           'key': key,
-          'value': {'doubleValue': value}
+          'value': {'doubleValue': value},
         });
       } else {
         result.add({
           'key': key,
-          'value': {'stringValue': value.toString()}
+          'value': {'stringValue': value.toString()},
         });
       }
     }
@@ -171,4 +169,15 @@ class CollectorHttpExporter implements sdk.SpanExporter {
     }
     return {'code': code, 'message': status.description};
   }
+}
+
+void configureCollectorExporter() {
+  // Configure the OTLP HTTP Exporter
+  final baseUrl =
+      Platform.environment['GENKIT_TELEMETRY_SERVER'] ??
+      'http://localhost:4041';
+  final exporter = CollectorHttpExporter('$baseUrl/api/otlp');
+  final processor = sdk.SimpleSpanProcessor(exporter);
+  final provider = sdk.TracerProviderBase(processors: [processor]);
+  api.registerGlobalTracerProvider(provider);
 }

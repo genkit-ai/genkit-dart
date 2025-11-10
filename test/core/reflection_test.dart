@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/registry.dart';
@@ -34,6 +35,23 @@ void main() {
 
     tearDown(() async {
       await server.stop();
+    });
+
+    test('should create and clean up runtime file', () async {
+      final runtimesDir = Directory('.genkit/runtimes');
+      final files = await runtimesDir.list().toList();
+      expect(files, isNotEmpty);
+      final runtimeFile = File(files.first.path);
+      final content = jsonDecode(await runtimeFile.readAsString());
+      expect(content['pid'], isNotNull);
+      expect(content['reflectionServerUrl'], url);
+
+      await server.stop();
+
+      expect(await runtimeFile.exists(), isFalse);
+
+      // Restart server for other tests
+      await server.start();
     });
 
     test('GET /api/actions', () async {

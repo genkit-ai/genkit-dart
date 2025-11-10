@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
@@ -49,10 +50,11 @@ class ReflectionServer {
   final String? name;
 
   HttpServer? _server;
+  String? _runtimeFilePath;
 
   ReflectionServer(
     this.registry, {
-    this.port = 3100,
+    this.port = 3110,
     this.bodyLimit = '30mb',
     this.configuredEnvs = const ['dev'],
     this.name,
@@ -63,6 +65,10 @@ class ReflectionServer {
 
     router.get('/api/__health', (shelf.Request request) async {
       await registry.listActions();
+      return shelf.Response.ok('OK');
+    });
+
+    router.post('/api/notify', (shelf.Request request) async {
       return shelf.Response.ok('OK');
     });
 
@@ -117,7 +123,7 @@ class ReflectionServer {
         }
 
         action
-            .runWithTelemetry(
+            .run(
               input,
               onChunk: (chunk) {
                 sendChunk(chunk);
@@ -149,7 +155,7 @@ class ReflectionServer {
         );
       } else {
         try {
-          final result = await action.runWithTelemetry(input);
+          final result = await action.run(input);
           final response = RunActionResponse(
             result: result.result,
             telemetry: {'traceId': result.traceId},
@@ -186,11 +192,76 @@ class ReflectionServer {
 
     _server = await shelf_io.serve(handler, 'localhost', port);
     print('Reflection server running on http://localhost:${_server!.port}');
+    await _writeRuntimeFile();
   }
 
   Future<void> stop() async {
+    await _cleanupRuntimeFile();
     await _server?.close(force: true);
     _server = null;
     print('Reflection server stopped.');
   }
+
+  String get _runtimeId => '$pid${_server != null ? '-${_server!.port}' : ''}';
+
+  Future<void> _writeRuntimeFile() async {
+    try {
+      final rootDir = await _findProjectRoot();
+      if (rootDir == null) {
+        print('Could not find project root (pubspec.yaml not found)');
+        return;
+      }
+      final runtimesDir = p.join(rootDir, '.genkit', 'runtimes');
+      final date = DateTime.now();
+      final time = date.millisecondsSinceEpoch;
+      final timestamp = date.toIso8601String();
+      _runtimeFilePath =
+          p.join(runtimesDir, '${_runtimeId}-${time}.json');
+      final fileContent = jsonEncode({
+        'id': Platform.environment['GENKIT_RUNTIME_ID'] ?? _runtimeId,
+        'pid': pid,
+        'name': name ?? pid.toString(),
+        'reflectionServerUrl': 'http://localhost:${_server!.port}',
+        'timestamp': timestamp,
+        'genkitVersion': 'dart/$genkitVersion',
+        'reflectionApiSpecVersion': genkitReflectionApiSpecVersion,
+      });
+      await Directory(runtimesDir).create(recursive: true);
+      await File(_runtimeFilePath!).writeAsString(fileContent);
+      print('Runtime file written: $_runtimeFilePath');
+    } catch (e) {
+      print('Error writing runtime file: $e');
+    }
+  }
+
+  Future<void> _cleanupRuntimeFile() async {
+    if (_runtimeFilePath == null) {
+      return;
+    }
+    try {
+      final file = File(_runtimeFilePath!);
+      if (await file.exists()) {
+        final fileContent = await file.readAsString();
+        final data = jsonDecode(fileContent);
+        if (data['pid'] == pid) {
+          await file.delete();
+          print('Runtime file cleaned up: $_runtimeFilePath');
+        }
+      }
+    } catch (e) {
+      print('Error cleaning up runtime file: $e');
+    }
+  }
+}
+
+Future<String?> _findProjectRoot() async {
+  var current = Directory.current.path;
+  while (current != p.dirname(current)) {
+    final pubspecPath = p.join(current, 'pubspec.yaml');
+    if (await File(pubspecPath).exists()) {
+      return current;
+    }
+    current = p.dirname(current);
+  }
+  return null;
 }

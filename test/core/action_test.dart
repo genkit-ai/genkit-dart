@@ -39,7 +39,7 @@ void main() {
         fn: (input, context) async => 'output',
       );
 
-      await action.run('input');
+      await action('input');
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);
@@ -53,7 +53,7 @@ void main() {
         fn: (input, context) async => 'output',
       );
 
-      await action.run('input');
+      await action('input');
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);
@@ -71,7 +71,7 @@ void main() {
         fn: (String input, context) async => 'output',
       );
 
-      final result = await action.run('input');
+      final result = await action('input');
       expect(result, 'output');
     });
 
@@ -86,7 +86,7 @@ void main() {
         },
       );
 
-      final result = await action.run(
+      final result = await action(
         TestInputType.parse({'name': 'world'}),
       );
       expect(result.greeting, 'Hello world');
@@ -103,7 +103,7 @@ void main() {
         },
       );
 
-      await action.run(TestInputType.parse({'name': 'world'}));
+      await action(TestInputType.parse({'name': 'world'}));
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);
@@ -140,7 +140,7 @@ void main() {
         fn: (String input, context) async => 'output',
       );
 
-      final result = await action.runWithTelemetry('input');
+      final result = await action.run('input');
       expect(result.result, 'output');
       expect(result.traceId, isA<String>());
       expect(result.spanId, isA<String>());
