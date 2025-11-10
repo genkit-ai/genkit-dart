@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -9,6 +10,12 @@ import 'registry.dart';
 
 const genkitVersion = '0.1.0';
 const genkitReflectionApiSpecVersion = '1';
+
+String _jsonSchemaWithDraft(jsb.Schema jsonSchema) {
+  final schemaMap = Map<String, Object?>.from(jsonSchema.value);
+  schemaMap['\$schema'] = 'http://json-schema.org/draft-07/schema#';
+  return jsonEncode(schemaMap);
+}
 
 class Status {
   final int code;
@@ -89,9 +96,11 @@ class ReflectionServer {
           'description': action.metadata['description'],
           'metadata': action.metadata,
           if (action.inputType != null)
-            'inputSchema': action.inputType!.jsonSchema.toJson(),
+            'inputSchema':
+                jsonDecode(_jsonSchemaWithDraft(action.inputType!.jsonSchema)),
           if (action.outputType != null)
-            'outputSchema': action.outputType!.jsonSchema.toJson(),
+            'outputSchema':
+                jsonDecode(_jsonSchemaWithDraft(action.outputType!.jsonSchema)),
         };
       }
       return shelf.Response.ok(
