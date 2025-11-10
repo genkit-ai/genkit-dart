@@ -16,4 +16,12 @@ class Registry {
     final key = _getKey(actionType, name);
     return _actions[key];
   }
+
+  Future<List<Action>> listActions() async {
+    return _actions.values.toList();
+  }
+}
+
+String getKey(String actionType, String name) {
+  return '/$actionType/$name';
 }

@@ -16,7 +16,7 @@
 library;
 
 export 'src/client/client.dart' show RemoteAction, defineRemoteAction;
-export 'src/client/exception.dart' show GenkitException;
+export 'src/exception.dart' show GenkitException;
 export 'src/client/genkit_schemas.dart';
 export 'src/client/common.dart';
 export 'src/core/action.dart' show ActionStream;

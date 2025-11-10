@@ -3,7 +3,7 @@ import 'package:opentelemetry/api.dart' as api;
 import 'package:genkit/src/core/action.dart';
 import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:genkit/schema.dart';
-import 'test_util.dart';
+import '../test_util.dart';
 
 part 'action_test.schema.g.dart';
 

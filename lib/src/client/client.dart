@@ -18,7 +18,7 @@ import 'dart:convert';
 import 'package:genkit/src/core/action.dart';
 import 'package:http/http.dart' as http;
 
-import 'exception.dart';
+import '../exception.dart';
 
 const _flowStreamDelimiter = '\n\n';
 

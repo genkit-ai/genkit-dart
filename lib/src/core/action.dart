@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:genkit/client.dart';
 import 'package:genkit/schema.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
+import 'package:genkit/src/exception.dart';
 
 typedef StreamingCallback<S> = void Function(S chunk);
 

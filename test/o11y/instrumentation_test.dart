@@ -2,7 +2,7 @@ import 'package:genkit/genkit.dart';
 import 'package:opentelemetry/api.dart' as api;
 import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:test/test.dart';
-import 'test_util.dart';
+import '../test_util.dart';
 
 void main() {
   group('Instrumentation with nested spans', () {
