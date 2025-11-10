@@ -14,34 +14,45 @@ Future<O> runInNewSpan<I, O>(
   I? input,
   Map<String, String>? attributes,
 }) async {
-  final span = _tracer.startSpan(name);
-  try {
-    span.setAttribute(api.Attribute.fromString('genkit:name', name));
-    if (actionType != null) {
-      span.setAttribute(api.Attribute.fromString('genkit:type', actionType));
-    }
-    if (input != null) {
-      span.setAttribute(
-          api.Attribute.fromString('genkit:input', jsonEncode(input)));
-    }
-    attributes?.forEach((key, value) {
-      span.setAttribute(api.Attribute.fromString(key, value));
-    });
-    final telemetryContext = (attributes: <String, String>{});
-    final output = await fn(telemetryContext);
-    telemetryContext.attributes.forEach((key, value) {
-      span.setAttribute(api.Attribute.fromString(key, value));
-    });
-    span.setAttribute(
-      api.Attribute.fromString('genkit:output', jsonEncode(output)),
-    );
-    return output;
-  } catch (e, s) {
-    span
-      ..setStatus(api.StatusCode.error, e.toString())
-      ..recordException(e, stackTrace: s);
-    rethrow;
-  } finally {
-    span.end();
-  }
+  final parentContext = Zone.current[#api.context] as api.Context?;
+  final span = parentContext == null
+      ? _tracer.startSpan(name)
+      : _tracer.startSpan(name, context: parentContext);
+  return runZoned(
+    () async {
+      try {
+        span.setAttribute(api.Attribute.fromString('genkit:name', name));
+        if (actionType != null) {
+          span.setAttribute(
+            api.Attribute.fromString('genkit:type', actionType),
+          );
+        }
+        if (input != null) {
+          span.setAttribute(
+            api.Attribute.fromString('genkit:input', jsonEncode(input)),
+          );
+        }
+        attributes?.forEach((key, value) {
+          span.setAttribute(api.Attribute.fromString(key, value));
+        });
+        final telemetryContext = (attributes: <String, String>{});
+        final output = await fn(telemetryContext);
+        telemetryContext.attributes.forEach((key, value) {
+          span.setAttribute(api.Attribute.fromString(key, value));
+        });
+        span.setAttribute(
+          api.Attribute.fromString('genkit:output', jsonEncode(output)),
+        );
+        return output;
+      } catch (e, s) {
+        span
+          ..setStatus(api.StatusCode.error, e.toString())
+          ..recordException(e, stackTrace: s);
+        rethrow;
+      } finally {
+        span.end();
+      }
+    },
+    zoneValues: {#api.context: api.contextWithSpan(api.Context.current, span)},
+  );
 }
