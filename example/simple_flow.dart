@@ -1,6 +1,21 @@
 import 'package:genkit/genkit.dart';
 import 'package:genkit/plugins/google-genai.dart';
 
+part 'simple_flow.schema.g.dart';
+
+@GenkitSchema()
+abstract class IngredientSchema {
+  String get name;
+  String get quantity;
+}
+
+@GenkitSchema()
+abstract class RecipeSchema {
+  String get title;
+  List<IngredientSchema> get ingredients;
+  int get servings;
+}
+
 void main() async {
   configureCollectorExporter();
 
@@ -48,6 +63,27 @@ void main() async {
         }
       }
       return await child(name);
+    },
+  );
+
+  ai.defineFlow(
+    name: 'recipeTransformer',
+    inputType: RecipeType,
+    outputType: RecipeType,
+    fn: (recipe, context) async {
+      final hasSalt =
+          recipe.ingredients.any((i) => i.name.toLowerCase() == 'salt');
+      if (hasSalt) {
+        return recipe;
+      }
+      return Recipe.from(
+        title: recipe.title,
+        servings: recipe.servings,
+        ingredients: [
+          ...recipe.ingredients,
+          Ingredient.from(name: 'salt', quantity: 'a pinch'),
+        ],
+      );
     },
   );
 }
