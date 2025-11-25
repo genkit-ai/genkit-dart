@@ -6,8 +6,26 @@ import 'package:http/http.dart' as http;
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/core/plugin.dart';
 
-GenkitPlugin googleAI() {
-  return _GoogleGenAiPlugin();
+part 'google-genai.schema.g.dart';
+
+@GenkitSchema()
+abstract class GeminiOptionsSchema {
+  int get maxOutputTokens;
+  int get temperature;
+}
+
+const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
+
+class GoogleGenAiPluginHandle {
+  const GoogleGenAiPluginHandle();
+
+  GenkitPlugin call() {
+    return _GoogleGenAiPlugin();
+  }
+
+  ModelRef<GeminiOptions> gemini(String name) {
+    return modelRef('googleai/$name', customOptions: GeminiOptionsType);
+  }
 }
 
 class _GoogleGenAiPlugin extends GenkitPlugin {

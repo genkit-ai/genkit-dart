@@ -101,11 +101,11 @@ class Genkit {
     return model;
   }
 
-  Future<ModelResponse> generate({
+  Future<ModelResponse> generate<C>({
     String? prompt,
     List<Message>? messages,
-    required Object model,
-    GenerateConfig? config,
+    required ModelRef<C> model,
+    C? config,
     List<String>? tools,
     GenerateOutput? output,
     // TODO: Add support for streaming.
@@ -124,13 +124,13 @@ class Genkit {
           ),
         ];
 
-    final modelName = model is Model ? model.name : model as String;
+    final modelName = model.name;
 
     return await _generateAction!(
       GenerateActionOptions.from(
         model: modelName,
         messages: resolvedMessages,
-        config: config?.toJson(),
+        config: config is Map ? config : (config as dynamic)?.toJson(),
         tools: tools,
         output: output == null
             ? null

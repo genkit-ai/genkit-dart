@@ -44,7 +44,7 @@ void main() async {
     name: 'child',
     fn: (String subject, context) async {
       final response = await ai.generate(
-        model: 'googleai/gemini-2.5-flash',
+        model: googleAI.gemini('gemini-2.5-flash'),
         prompt: 'tell me joke about $subject',
       );
       return response.text;

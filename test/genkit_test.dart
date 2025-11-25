@@ -1,10 +1,18 @@
 import 'dart:io';
 
+import 'package:genkit/src/ai/model.dart';
 import 'package:test/test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/flow.dart';
 import 'package:http/http.dart' as http;
+
+part 'genkit_test.schema.g.dart';
+
+@GenkitSchema()
+abstract class TestCustomOptionsSchema {
+  String get customField;
+}
 
 void main() {
   group('Genkit', () {
@@ -87,24 +95,32 @@ void main() {
     test('should call generate action with correct parameters', () async {
       const modelName = 'testModel';
       const prompt = 'test prompt';
-      final response = ModelResponse.from(
-        finishReason: FinishReason.stop,
-        message: Message.from(
-          role: Role.model,
-          content: [TextPart.from(text: 'test response')],
-        ),
-      );
 
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
+          final response = ModelResponse.from(
+            finishReason: FinishReason.stop,
+            message: Message.from(
+              role: Role.model,
+              content: [
+                TextPart.from(
+                  text:
+                      'config:${request.config} req:${request.messages.map((m) => m.content.map((c) => c.toJson().toString())).join('\n')}',
+                ),
+              ],
+            ),
+          );
           return response;
         },
       );
 
-      final result = await genkit.generate(model: modelName, prompt: prompt);
-
-      expect(result.text, 'test response');
+      final result = await genkit.generate(
+        model: modelRef(modelName, customOptions: TestCustomOptionsType),
+        prompt: prompt,
+        config: TestCustomOptions.from(customField: 'yo'),
+      );
+      expect(result.text, 'config:{customField: yo} req:({text: test prompt})');
     });
   });
 }

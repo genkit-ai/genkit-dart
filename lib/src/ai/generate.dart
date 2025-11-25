@@ -17,7 +17,10 @@ defineGenerateAction(Registry registry) {
     fn: (options, context) async {
       final model = await registry.get('model', options.model) as Model?;
       if (model == null) {
-        throw GenkitException('Model ${options.model} not found', statusCode: 404);
+        throw GenkitException(
+          'Model ${options.model} not found',
+          statusCode: 404,
+        );
       }
 
       final request = ModelRequest.from(
@@ -53,7 +56,7 @@ ToolDefinition toToolDefinition(Tool tool) {
 }
 
 /// Represents the options for a generate request.
-class GenerateOptions {
+class GenerateOptions<C> {
   /// The prompt to send to the model.
   String? prompt;
 
@@ -64,7 +67,7 @@ class GenerateOptions {
   Object model;
 
   /// The configuration for the model.
-  GenerateConfig? config;
+  C? config;
 
   /// The tools to use for the request.
   List<String>? tools;
@@ -90,9 +93,7 @@ class GenerateOptions {
 ///
 /// Model providers can extend this class to provide their own configuration
 /// options.
-abstract class GenerateConfig {
-  Map<String, dynamic> toJson();
-}
+abstract class GenerateConfig {}
 
 /// Represents the output format for a generate request.
 class GenerateOutput {
