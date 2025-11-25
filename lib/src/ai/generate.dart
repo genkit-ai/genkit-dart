@@ -3,6 +3,7 @@ import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/exception.dart';
 
 /// Defines the utility 'generate' action.
 Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>
@@ -14,7 +15,10 @@ defineGenerateAction(Registry registry) {
     outputType: ModelResponseType,
     streamType: ModelResponseChunkType,
     fn: (options, context) async {
-      final model = await registry.get('model', options.model) as Model;
+      final model = await registry.get('model', options.model) as Model?;
+      if (model == null) {
+        throw GenkitException('Model ${options.model} not found', statusCode: 404);
+      }
 
       final request = ModelRequest.from(
         messages: options.messages,

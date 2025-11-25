@@ -6,6 +6,7 @@ import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/flow.dart';
+import 'package:genkit/src/core/plugin.dart';
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/types.dart';
@@ -27,7 +28,16 @@ class Genkit {
   Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>?
   _generateAction;
 
-  Genkit({bool? isDevEnv, int? reflectionPort}) {
+  Genkit({
+    List<GenkitPlugin> plugins = const [],
+    bool? isDevEnv,
+    int? reflectionPort,
+  }) {
+    // Register plugins
+    for (final plugin in plugins) {
+      registry.registerPlugin(plugin);
+    }
+
     if (isDevEnv ?? _isDevEnv()) {
       _reflectionServer = ReflectionServer(
         registry,

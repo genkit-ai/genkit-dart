@@ -19,8 +19,9 @@ abstract class RecipeSchema {
 void main() async {
   configureCollectorExporter();
 
-  final ai = Genkit();
-  defineGoogleGenAiModels(ai);
+  final ai = Genkit(
+    plugins: [googleAI()],
+  );
 
   ai.defineModel(
     name: 'echo',
@@ -43,7 +44,7 @@ void main() async {
     name: 'child',
     fn: (String subject, context) async {
       final response = await ai.generate(
-        model: 'gemini-2.5-flash',
+        model: 'googleai/gemini-2.5-flash',
         prompt: 'tell me joke about $subject',
       );
       return response.text;

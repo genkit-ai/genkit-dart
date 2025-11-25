@@ -40,7 +40,7 @@ The Genkit `generate` API provides a unified interface for interacting with gene
 
 The `GenerateActionOptions` object is the heart of the API, providing a rich set of features to control the generation process.
 
--   **`model` (Required)**: A string identifying the model to use (e.g., `googleai/gemini-1.5-flash`).
+-   **`model` (Required)**: A string identifying the model to use (e.g., `googleai/gemini-2.5-flash`).
 -   **`messages` (Required)**: A list of `Message` objects representing the conversation history. Each message has a `role` (`user`, `model`, etc.) and `content`, which is a list of `Part` objects.
 -   **`config`**: A flexible `Map<String, dynamic>` for model-specific settings like `temperature`, `topK`, and `maxOutputTokens`.
 -   **`tools`**: A list of tool names (strings) to make available to the model. The API automatically handles:

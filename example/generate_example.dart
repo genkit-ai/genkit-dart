@@ -6,7 +6,7 @@ void main() async {
     plugins: [googleAI()],
   );
 
-  final model = 'gemini-2.5-flash';
+  final model = 'googleai/gemini-2.5-flash';
 
   final response = await genkit.generate(
     model: model,
