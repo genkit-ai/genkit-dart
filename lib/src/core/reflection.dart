@@ -54,7 +54,7 @@ class ReflectionServer {
   final String? name;
 
   HttpServer? _server;
-  String? _runtimeFilePath;
+  String? runtimeFilePath;
 
   ReflectionServer(
     this.registry, {
@@ -65,8 +65,11 @@ class ReflectionServer {
   });
 
   Future<void> start() async {
-    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port,
-        shared: true);
+    _server = await HttpServer.bind(
+      InternetAddress.loopbackIPv4,
+      port,
+      shared: true,
+    );
     print('Reflection server running on http://localhost:${_server!.port}');
 
     _server!.listen((HttpRequest request) async {
@@ -123,11 +126,13 @@ class ReflectionServer {
         'description': action.metadata['description'],
         'metadata': action.metadata,
         if (action.inputType != null)
-          'inputSchema':
-              jsonDecode(_jsonSchemaWithDraft(action.inputType!.jsonSchema)),
+          'inputSchema': jsonDecode(
+            _jsonSchemaWithDraft(action.inputType!.jsonSchema),
+          ),
         if (action.outputType != null)
-          'outputSchema':
-              jsonDecode(_jsonSchemaWithDraft(action.outputType!.jsonSchema)),
+          'outputSchema': jsonDecode(
+            _jsonSchemaWithDraft(action.outputType!.jsonSchema),
+          ),
       };
     }
     request.response
@@ -161,8 +166,10 @@ class ReflectionServer {
     }
 
     if (stream) {
-      request.response.headers.contentType =
-          ContentType('application', 'x-ndjson');
+      request.response.headers.contentType = ContentType(
+        'application',
+        'x-ndjson',
+      );
       request.response.bufferOutput = false;
 
       try {
@@ -221,6 +228,7 @@ class ReflectionServer {
     await _cleanupRuntimeFile();
     await _server?.close(force: true);
     _server = null;
+    runtimeFilePath = null;
     print('Reflection server stopped.');
   }
 
@@ -237,7 +245,7 @@ class ReflectionServer {
       final date = DateTime.now();
       final time = date.millisecondsSinceEpoch;
       final timestamp = date.toIso8601String();
-      _runtimeFilePath = p.join(runtimesDir, '${_runtimeId}-${time}.json');
+      runtimeFilePath = p.join(runtimesDir, '$_runtimeId-$time.json');
       final fileContent = jsonEncode({
         'id': Platform.environment['GENKIT_RUNTIME_ID'] ?? _runtimeId,
         'pid': pid,
@@ -248,25 +256,25 @@ class ReflectionServer {
         'reflectionApiSpecVersion': genkitReflectionApiSpecVersion,
       });
       await Directory(runtimesDir).create(recursive: true);
-      await File(_runtimeFilePath!).writeAsString(fileContent);
-      print('Runtime file written: $_runtimeFilePath');
+      await File(runtimeFilePath!).writeAsString(fileContent);
+      print('Runtime file written: $runtimeFilePath');
     } catch (e) {
       print('Error writing runtime file: $e');
     }
   }
 
   Future<void> _cleanupRuntimeFile() async {
-    if (_runtimeFilePath == null) {
+    if (runtimeFilePath == null) {
       return;
     }
     try {
-      final file = File(_runtimeFilePath!);
+      final file = File(runtimeFilePath!);
       if (await file.exists()) {
         final fileContent = await file.readAsString();
         final data = jsonDecode(fileContent);
         if (data['pid'] == pid) {
           await file.delete();
-          print('Runtime file cleaned up: $_runtimeFilePath');
+          print('Runtime file cleaned up: $runtimeFilePath');
         }
       }
     } catch (e) {

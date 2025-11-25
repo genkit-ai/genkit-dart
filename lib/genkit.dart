@@ -27,9 +27,12 @@ class Genkit {
   Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>?
   _generateAction;
 
-  Genkit({bool? isDevEnv}) {
+  Genkit({bool? isDevEnv, int? reflectionPort}) {
     if (isDevEnv ?? _isDevEnv()) {
-      _reflectionServer = ReflectionServer(registry);
+      _reflectionServer = ReflectionServer(
+        registry,
+        port: reflectionPort ?? 3110,
+      );
       _reflectionServer!.start();
     }
 
@@ -102,7 +105,8 @@ class Genkit {
       throw ArgumentError('prompt or messages must be provided');
     }
 
-    final resolvedMessages = messages ??
+    final resolvedMessages =
+        messages ??
         [
           Message.from(
             role: Role.user,
@@ -123,8 +127,7 @@ class Genkit {
             : GenerateActionOutputConfig.from(
                 format: output.format,
                 contentType: output.contentType,
-                jsonSchema:
-                    output.schema?.jsonSchema as Map<String, dynamic>?,
+                jsonSchema: output.schema?.jsonSchema as Map<String, dynamic>?,
               ),
       ),
     );

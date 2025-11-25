@@ -14,15 +14,43 @@ typedef ActionFnArg<S> = ({
 
 typedef ActionFn<I, O, S> = Future<O> Function(I input, ActionFnArg<S> context);
 
-class Action<I, O, S> {
+class ActionMetadata<I, O, S> {
   String name;
   String? description;
   String actionType;
   JsonExtensionType<I>? inputType;
   JsonExtensionType<O>? outputType;
   JsonExtensionType<S>? streamType;
-  ActionFn<I, O, S> fn;
   Map<String, dynamic> metadata;
+
+  ActionMetadata({
+    required this.actionType,
+    required this.name,
+    this.description,
+    this.inputType,
+    this.outputType,
+    this.streamType,
+    this.metadata = const {},
+  }) {
+    if (metadata.isEmpty) {
+      metadata = {'description': description ?? name};
+    }
+  }
+}
+
+class Action<I, O, S> extends ActionMetadata<I, O, S> {
+  ActionFn<I, O, S> fn;
+
+  Action({
+    required super.actionType,
+    required super.name,
+    super.description,
+    super.inputType,
+    super.outputType,
+    super.streamType,
+    super.metadata,
+    required this.fn,
+  });
 
   Future<O> call(
     I input, {
@@ -37,8 +65,8 @@ class Action<I, O, S> {
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
   }) async {
-    String traceId = "";
-    String spanId = "";
+    String traceId = '';
+    String spanId = '';
     final result = await runInNewSpan(
       name,
       (telemetryContext) async {
@@ -90,21 +118,6 @@ class Action<I, O, S> {
         });
 
     return actionStream;
-  }
-
-  Action({
-    required this.actionType,
-    required this.name,
-    this.description,
-    required this.fn,
-    this.inputType,
-    this.outputType,
-    this.streamType,
-    this.metadata = const {},
-  }) {
-    if (metadata.isEmpty) {
-      metadata = {'description': description ?? name};
-    }
   }
 }
 

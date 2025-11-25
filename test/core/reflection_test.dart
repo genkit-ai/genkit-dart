@@ -8,11 +8,32 @@ import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
 void main() {
-  group('ReflectionServer', () {
+  const port = 3110;
+  final url = 'http://localhost:$port';
+
+  group('ReflectionServer lifecycle', () {
+    test('should create and clean up runtime file', () async {
+      final registry = Registry();
+      final server = ReflectionServer(registry, port: port);
+      await server.start();
+
+      expect(server.runtimeFilePath, isNotNull);
+      final runtimeFile = File(server.runtimeFilePath!);
+      expect(await runtimeFile.exists(), isTrue);
+
+      final content = jsonDecode(await runtimeFile.readAsString());
+      expect(content['pid'], isNotNull);
+      expect(content['reflectionServerUrl'], url);
+
+      await server.stop();
+
+      expect(await runtimeFile.exists(), isFalse);
+    });
+  });
+
+  group('ReflectionServer API', () {
     late Registry registry;
     late ReflectionServer server;
-    const port = 3110;
-    final url = 'http://localhost:$port';
 
     setUp(() async {
       registry = Registry();
@@ -35,23 +56,6 @@ void main() {
 
     tearDown(() async {
       await server.stop();
-    });
-
-    test('should create and clean up runtime file', () async {
-      final runtimesDir = Directory('.genkit/runtimes');
-      final files = await runtimesDir.list().toList();
-      expect(files, isNotEmpty);
-      final runtimeFile = File(files.first.path);
-      final content = jsonDecode(await runtimeFile.readAsString());
-      expect(content['pid'], isNotNull);
-      expect(content['reflectionServerUrl'], url);
-
-      await server.stop();
-
-      expect(await runtimeFile.exists(), isFalse);
-
-      // Restart server for other tests
-      await server.start();
     });
 
     test('GET /api/actions', () async {

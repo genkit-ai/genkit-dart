@@ -8,29 +8,35 @@ import 'package:http/http.dart' as http;
 
 void main() {
   group('Genkit', () {
-    test('should start reflection server in dev mode', () async {
-      final genkit = Genkit(isDevEnv: true);
-      try {
-        final response = await http.get(
-          Uri.parse('http://localhost:3110/api/__health'),
-        );
-        expect(response.statusCode, 200);
-      } finally {
-        await genkit.shutdown();
-      }
+    const reflectionPort = 3111;
+    late Genkit genkit;
+
+    setUp(() {
+      genkit = Genkit(isDevEnv: false, reflectionPort: reflectionPort);
     });
 
-    test('should not start reflection server in non-dev mode', () async {
-      final genkit = Genkit(isDevEnv: false);
-      await expectLater(
-        () => http.get(Uri.parse('http://localhost:3110/api/__health')),
-        throwsA(isA<SocketException>()),
-      );
+    tearDown(() async {
       await genkit.shutdown();
     });
 
+    test('should start reflection server in dev mode', () async {
+      genkit = Genkit(isDevEnv: true, reflectionPort: reflectionPort);
+      final response = await http.get(
+        Uri.parse('http://localhost:$reflectionPort/api/__health'),
+      );
+      expect(response.statusCode, 200);
+    });
+
+    test('should not start reflection server in non-dev mode', () async {
+      await expectLater(
+        () => http.get(
+          Uri.parse('http://localhost:$reflectionPort/api/__health'),
+        ),
+        throwsA(isA<SocketException>()),
+      );
+    });
+
     test('should define and register a flow', () async {
-      final genkit = Genkit(isDevEnv: false);
       const flowName = 'testFlow';
 
       final flow = genkit.defineFlow(
@@ -53,7 +59,6 @@ void main() {
     });
 
     test('should define and register a tool', () async {
-      final genkit = Genkit(isDevEnv: false);
       const toolName = 'testTool';
       const toolDescription = 'A test tool.';
 
@@ -80,7 +85,6 @@ void main() {
     });
 
     test('should call generate action with correct parameters', () async {
-      final genkit = Genkit(isDevEnv: false);
       const modelName = 'testModel';
       const prompt = 'test prompt';
       final response = ModelResponse.from(
