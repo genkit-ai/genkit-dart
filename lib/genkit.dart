@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:genkit/schema.dart';
@@ -109,8 +110,7 @@ class Genkit {
     List<String>? tools,
     GenerateOutput? output,
     Map<String, dynamic>? context,
-    // TODO: Add support for streaming.
-    // bool? stream,
+    StreamingCallback<ModelResponseChunk>? onChunk,
   }) async {
     if (messages == null && prompt == null) {
       throw ArgumentError('prompt or messages must be provided');
@@ -142,6 +142,51 @@ class Genkit {
               ),
       ),
       context: context,
+      onChunk: onChunk,
     );
+  }
+
+  ActionStream<ModelResponseChunk, ModelResponse> generateStream<C>({
+    String? prompt,
+    List<Message>? messages,
+    required ModelRef<C> model,
+    C? config,
+    List<String>? tools,
+    GenerateOutput? output,
+    Map<String, dynamic>? context,
+  }) {
+    final streamController = StreamController<ModelResponseChunk>();
+    final actionStream = ActionStream<ModelResponseChunk, ModelResponse>(
+      streamController.stream,
+    );
+
+    generate(
+          prompt: prompt,
+          messages: messages,
+          model: model,
+          config: config,
+          tools: tools,
+          output: output,
+          context: context,
+          onChunk: (chunk) {
+            if (streamController.isClosed) return;
+            streamController.add(chunk);
+          },
+        )
+        .then((result) {
+          actionStream.setResult(result);
+          if (!streamController.isClosed) {
+            streamController.close();
+          }
+        })
+        .catchError((e, s) {
+          actionStream.setError(e, s);
+          if (!streamController.isClosed) {
+            streamController.addError(e, s);
+            streamController.close();
+          }
+        });
+
+    return actionStream;
   }
 }

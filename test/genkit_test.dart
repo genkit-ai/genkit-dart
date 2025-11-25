@@ -122,5 +122,112 @@ void main() {
       );
       expect(result.text, 'config:{customField: yo} req:({text: test prompt})');
     });
+
+    test('should handle streaming with onChunk callback', () async {
+      const modelName = 'streamingModel';
+      const prompt = 'streaming prompt';
+
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+          final chunks = [
+            ModelResponseChunk.from(
+              index: 0,
+              content: [TextPart.from(text: 'chunk1')],
+            ),
+            ModelResponseChunk.from(
+              index: 0,
+              content: [TextPart.from(text: 'chunk2')],
+            ),
+          ];
+
+          for (final chunk in chunks) {
+            context.sendChunk(chunk);
+          }
+
+          final response = ModelResponse.from(
+            finishReason: FinishReason.stop,
+            message: Message.from(
+              role: Role.model,
+              content: [
+                TextPart.from(
+                  text: 'final response',
+                ),
+              ],
+            ),
+          );
+          return response;
+        },
+      );
+
+      final receivedChunks = <ModelResponseChunk>[];
+      final result = await genkit.generate(
+        model: modelRef(modelName),
+        prompt: prompt,
+        onChunk: (chunk) {
+          receivedChunks.add(chunk);
+        },
+      );
+
+      expect(receivedChunks.length, 2);
+      expect(receivedChunks[0].text, 'chunk1');
+      expect(receivedChunks[1].text, 'chunk2');
+      expect(result.text, 'final response');
+    });
+
+    test('should handle streaming with generateStream', () async {
+      const modelName = 'streamingModel';
+      const prompt = 'streaming prompt';
+
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+          final chunks = [
+            ModelResponseChunk.from(
+              index: 0,
+              content: [TextPart.from(text: 'chunk1')],
+            ),
+            ModelResponseChunk.from(
+              index: 0,
+              content: [TextPart.from(text: 'chunk2')],
+            ),
+          ];
+
+          for (final chunk in chunks) {
+            context.sendChunk(chunk);
+          }
+
+          final response = ModelResponse.from(
+            finishReason: FinishReason.stop,
+            message: Message.from(
+              role: Role.model,
+              content: [
+                TextPart.from(
+                  text: 'final response',
+                ),
+              ],
+            ),
+          );
+          return response;
+        },
+      );
+
+      final stream = genkit.generateStream(
+        model: modelRef(modelName),
+        prompt: prompt,
+      );
+
+      final receivedChunks = <ModelResponseChunk>[];
+      await for (final chunk in stream) {
+        receivedChunks.add(chunk);
+      }
+
+      final result = await stream.onResult;
+
+      expect(receivedChunks.length, 2);
+      expect(receivedChunks[0].text, 'chunk1');
+      expect(receivedChunks[1].text, 'chunk2');
+      expect(result.text, 'final response');
+    });
   });
 }

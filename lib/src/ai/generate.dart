@@ -37,7 +37,10 @@ defineGenerateAction(Registry registry) {
                 schema: options.output!.jsonSchema,
               ),
       );
-      return model(request);
+      return model(
+        request,
+        onChunk: context.streamingRequested ? context.sendChunk : null,
+      );
     },
   );
 }
