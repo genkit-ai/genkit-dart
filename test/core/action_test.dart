@@ -86,9 +86,7 @@ void main() {
         },
       );
 
-      final result = await action(
-        TestInputType.parse({'name': 'world'}),
-      );
+      final result = await action(TestInputType.parse({'name': 'world'}));
       expect(result.greeting, 'Hello world');
     });
 
@@ -111,7 +109,10 @@ void main() {
       expect(span.attributes.get('genkit:type'), 'test');
       expect(span.attributes.get('genkit:name'), 'testAction');
       expect(span.attributes.get('genkit:input'), '{"name":"world"}');
-      expect(span.attributes.get('genkit:output'), '{"greeting":"Hello world"}');
+      expect(
+        span.attributes.get('genkit:output'),
+        '{"greeting":"Hello world"}',
+      );
     });
 
     test('should stream an action', () async {
@@ -144,6 +145,39 @@ void main() {
       expect(result.result, 'output');
       expect(result.traceId, isA<String>());
       expect(result.spanId, isA<String>());
+    });
+
+    test('should run an action with provided context', () async {
+      final action = Action(
+        name: 'testAction',
+        actionType: 'test',
+        fn: (input, ctx) async {
+          return ctx.context!['value'];
+        },
+      );
+
+      final result = await action('input', context: {'value': 'foo'});
+      expect(result, 'foo');
+    });
+
+    test('provided context should be available in a nested action', () async {
+      final innerAction = Action(
+        name: 'innerAction',
+        actionType: 'test',
+        fn: (input, ctx) async {
+          return ctx.context!['value'];
+        },
+      );
+      final outerAction = Action(
+        name: 'outerAction',
+        actionType: 'test',
+        fn: (input, ctx) async {
+          return await innerAction(input);
+        },
+      );
+
+      final result = await outerAction('input', context: {'value': 'baz'});
+      expect(result, 'baz');
     });
   });
 }

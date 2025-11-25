@@ -108,6 +108,7 @@ class Genkit {
     C? config,
     List<String>? tools,
     GenerateOutput? output,
+    Map<String, dynamic>? context,
     // TODO: Add support for streaming.
     // bool? stream,
   }) async {
@@ -140,6 +141,7 @@ class Genkit {
                 jsonSchema: output.schema?.jsonSchema as Map<String, dynamic>?,
               ),
       ),
+      context: context,
     );
   }
 }

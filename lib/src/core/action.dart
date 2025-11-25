@@ -4,6 +4,8 @@ import 'package:genkit/schema.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/exception.dart';
 
+const _genkitContextKey = #genkitContext;
+
 typedef StreamingCallback<S> = void Function(S chunk);
 
 typedef ActionFnArg<S> = ({
@@ -65,25 +67,32 @@ class Action<I, O, S> extends ActionMetadata<I, O, S> {
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
   }) async {
-    String traceId = '';
-    String spanId = '';
-    final result = await runInNewSpan(
-      name,
-      (telemetryContext) async {
-        traceId = telemetryContext.traceId;
-        spanId = telemetryContext.traceId;
-        return await fn(input, (
-          // TODO: try to check if sentinel onChunk callback is used.
-          streamingRequested: onChunk != null,
-          sendChunk: onChunk ?? (chunk) {},
-          // TODO: fallback to context from Async Context
-          context: context ?? {},
-        ));
-      },
-      actionType: actionType,
-      input: input,
-    );
-    return (result: result, traceId: traceId, spanId: spanId);
+    final executionContext = context ?? Zone.current[_genkitContextKey];
+    Future<({O result, String traceId, String spanId})> runner() async {
+      String traceId = '';
+      String spanId = '';
+      final result = await runInNewSpan(
+        name,
+        (telemetryContext) async {
+          traceId = telemetryContext.traceId;
+          spanId = telemetryContext.traceId;
+          return await fn(input, (
+            streamingRequested: onChunk != null,
+            sendChunk: onChunk ?? (chunk) {},
+            context: executionContext,
+          ));
+        },
+        actionType: actionType,
+        input: input,
+      );
+      return (result: result, traceId: traceId, spanId: spanId);
+    }
+
+    if (context != null) {
+      return runZoned(runner, zoneValues: {_genkitContextKey: context});
+    } else {
+      return runner();
+    }
   }
 
   ActionStream<S, O> stream(
