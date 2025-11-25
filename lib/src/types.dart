@@ -11,6 +11,7 @@ abstract class CandidateSchema {
   external GenerationUsageSchema? get usage;
   external FinishReason get finishReason;
   external String? get finishMessage;
+  external Map<String, dynamic>? get custom;
 }
 
 @GenkitSchema()
@@ -35,6 +36,7 @@ abstract class PartSchema {}
 @GenkitSchema()
 abstract class TextPartSchema implements PartSchema {
   external String get text;
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic>? get custom;
 }
@@ -42,6 +44,7 @@ abstract class TextPartSchema implements PartSchema {
 @GenkitSchema()
 abstract class MediaPartSchema implements PartSchema {
   external MediaSchema get media;
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic>? get custom;
 }
@@ -49,6 +52,7 @@ abstract class MediaPartSchema implements PartSchema {
 @GenkitSchema()
 abstract class ToolRequestPartSchema implements PartSchema {
   external ToolRequestSchema get toolRequest;
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic>? get custom;
 }
@@ -56,24 +60,28 @@ abstract class ToolRequestPartSchema implements PartSchema {
 @GenkitSchema()
 abstract class ToolResponsePartSchema implements PartSchema {
   external ToolResponseSchema get toolResponse;
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic>? get custom;
 }
 
 @GenkitSchema()
 abstract class DataPartSchema implements PartSchema {
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic>? get custom;
 }
 
 @GenkitSchema()
 abstract class CustomPartSchema implements PartSchema {
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic> get custom;
 }
 
 @GenkitSchema()
 abstract class ReasoningPartSchema implements PartSchema {
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic>? get custom;
   external String get reasoning;
@@ -81,6 +89,7 @@ abstract class ReasoningPartSchema implements PartSchema {
 
 @GenkitSchema()
 abstract class ResourcePartSchema implements PartSchema {
+  external Map<String, dynamic>? get data;
   external Map<String, dynamic>? get metadata;
   external Map<String, dynamic>? get custom;
   external Map<String, dynamic> get resource;
@@ -96,17 +105,20 @@ abstract class MediaSchema {
 abstract class ToolRequestSchema {
   external String? get ref;
   external String get name;
+  external Map<String, dynamic>? get input;
 }
 
 @GenkitSchema()
 abstract class ToolResponseSchema {
   external String? get ref;
   external String get name;
+  external Map<String, dynamic>? get output;
 }
 
 @GenkitSchema()
 abstract class ModelRequestSchema {
   external List<MessageSchema> get messages;
+  external Map<String, dynamic>? get config;
   external List<ToolDefinitionSchema>? get tools;
   external String? get toolChoice;
   external OutputConfigSchema? get output;
@@ -120,6 +132,8 @@ abstract class ModelResponseSchema {
   external String? get finishMessage;
   external double? get latencyMs;
   external GenerationUsageSchema? get usage;
+  external Map<String, dynamic>? get custom;
+  external Map<String, dynamic>? get raw;
   external GenerateRequestSchema? get request;
   external OperationSchema? get operation;
 }
@@ -129,12 +143,14 @@ abstract class ModelResponseChunkSchema {
   external Role? get role;
   external double? get index;
   external List<PartSchema> get content;
+  external Map<String, dynamic>? get custom;
   external bool? get aggregated;
 }
 
 @GenkitSchema()
 abstract class GenerateRequestSchema {
   external List<MessageSchema> get messages;
+  external Map<String, dynamic>? get config;
   external List<ToolDefinitionSchema>? get tools;
   external String? get toolChoice;
   external OutputConfigSchema? get output;
@@ -165,6 +181,7 @@ abstract class OperationSchema {
   external String? get action;
   external String get id;
   external bool? get done;
+  external Map<String, dynamic>? get output;
   external Map<String, dynamic>? get error;
   external Map<String, dynamic>? get metadata;
 }
@@ -205,6 +222,7 @@ abstract class GenerateActionOptionsSchema {
   external List<MessageSchema> get messages;
   external List<String>? get tools;
   external String? get toolChoice;
+  external Map<String, dynamic>? get config;
   external GenerateActionOutputConfigSchema? get output;
   external Map<String, dynamic>? get resume;
   external bool? get returnToolRequests;
@@ -217,5 +235,6 @@ abstract class GenerateActionOutputConfigSchema {
   external String? get format;
   external String? get contentType;
   external bool? get instructions;
+  external Map<String, dynamic>? get jsonSchema;
   external bool? get constrained;
 }

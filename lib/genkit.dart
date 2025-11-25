@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:genkit/schema.dart';
+import 'package:genkit/src/ai/generate.dart';
 import 'package:genkit/src/ai/model.dart';
+import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/flow.dart';
 import 'package:genkit/src/core/reflection.dart';
@@ -31,18 +33,7 @@ class Genkit {
       _reflectionServer!.start();
     }
 
-    _generateAction = Action(
-      actionType: 'util',
-      name: 'generate',
-      inputType: GenerateActionOptionsType,
-      outputType: ModelResponseType,
-      streamType: ModelResponseChunkType,
-      fn: (options, context) async {
-        final model = await registry.get('model', options.model) as Model;
-
-        return model(ModelRequest.from(messages: options.messages));
-      },
-    );
+    _generateAction = defineGenerateAction(registry);
 
     registry.register(_generateAction!);
   }
@@ -69,6 +60,25 @@ class Genkit {
     return flow;
   }
 
+  Tool<I, O> defineTool<I, O, S>({
+    required String name,
+    required String description,
+    required ActionFn<I, O, S> fn,
+    JsonExtensionType<I>? inputType,
+    JsonExtensionType<O>? outputType,
+    JsonExtensionType<S>? streamType,
+  }) {
+    final tool = Tool(
+      name: name,
+      description: description,
+      fn: fn,
+      inputType: inputType,
+      outputType: outputType,
+    );
+    registry.register(tool);
+    return tool;
+  }
+
   Model defineModel({
     required String name,
     required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk> fn,
@@ -81,21 +91,42 @@ class Genkit {
   Future<ModelResponse> generate({
     String? prompt,
     List<Message>? messages,
-    required String model,
+    required Object model,
+    GenerateConfig? config,
+    List<String>? tools,
+    GenerateOutput? output,
+    // TODO: Add support for streaming.
+    // bool? stream,
   }) async {
     if (messages == null && prompt == null) {
       throw ArgumentError('prompt or messages must be provided');
     }
 
-    messages ??= [
-      Message.from(
-        role: Role.user,
-        content: [TextPart.from(text: prompt!)],
-      ),
-    ];
+    final resolvedMessages = messages ??
+        [
+          Message.from(
+            role: Role.user,
+            content: [TextPart.from(text: prompt!)],
+          ),
+        ];
+
+    final modelName = model is Model ? model.name : model as String;
 
     return await _generateAction!(
-      GenerateActionOptions.from(model: model, messages: messages),
+      GenerateActionOptions.from(
+        model: modelName,
+        messages: resolvedMessages,
+        config: config?.toJson(),
+        tools: tools,
+        output: output == null
+            ? null
+            : GenerateActionOutputConfig.from(
+                format: output.format,
+                contentType: output.contentType,
+                jsonSchema:
+                    output.schema?.jsonSchema as Map<String, dynamic>?,
+              ),
+      ),
     );
   }
 }

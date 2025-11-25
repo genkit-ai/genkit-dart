@@ -129,9 +129,6 @@ class ClassGenerator {
     if (schema.containsKey('not')) {
       return true;
     }
-    if (schema.isEmpty) {
-      return true;
-    }
     if (schema.containsKey('\$ref')) {
       final ref = schema['\$ref'] as String;
       final parts = ref.split('/');
@@ -170,7 +167,7 @@ class ClassGenerator {
 
   Reference _mapTypeInner(String parentType, Map<String, dynamic> schema) {
     if (schema.isEmpty) {
-      return refer('dynamic');
+      return refer('Map<String, dynamic>');
     }
     if (schema.containsKey('not')) {
       return refer('dynamic');

@@ -16,6 +16,7 @@ typedef ActionFn<I, O, S> = Future<O> Function(I input, ActionFnArg<S> context);
 
 class Action<I, O, S> {
   String name;
+  String? description;
   String actionType;
   JsonExtensionType<I>? inputType;
   JsonExtensionType<O>? outputType;
@@ -94,6 +95,7 @@ class Action<I, O, S> {
   Action({
     required this.actionType,
     required this.name,
+    this.description,
     required this.fn,
     this.inputType,
     this.outputType,
@@ -101,7 +103,7 @@ class Action<I, O, S> {
     this.metadata = const {},
   }) {
     if (metadata.isEmpty) {
-      metadata = {'description': name};
+      metadata = {'description': description ?? name};
     }
   }
 }
