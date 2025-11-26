@@ -1063,11 +1063,13 @@ extension type ToolRequest(Map<String, dynamic> _json) {
     String? ref,
     required String name,
     Map<String, dynamic>? input,
+    bool? partial,
   }) {
     return ToolRequest({
       if (ref != null) 'ref': ref,
       'name': name,
       if (input != null) 'input': input,
+      if (partial != null) 'partial': partial,
     });
   }
 
@@ -1103,6 +1105,18 @@ extension type ToolRequest(Map<String, dynamic> _json) {
     }
   }
 
+  bool? get partial {
+    return _json['partial'] as bool?;
+  }
+
+  set partial(bool? value) {
+    if (value == null) {
+      _json.remove('partial');
+    } else {
+      _json['partial'] = value;
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1123,6 +1137,7 @@ class ToolRequestTypeFactory implements JsonExtensionType<ToolRequest> {
         'ref': Schema.string(),
         'name': Schema.string(),
         'input': Schema.object(additionalProperties: Schema.any()),
+        'partial': Schema.boolean(),
       },
       required: ['name'],
     );
@@ -1135,12 +1150,14 @@ extension type ToolResponse(Map<String, dynamic> _json) {
   factory ToolResponse.from({
     String? ref,
     required String name,
-    Map<String, dynamic>? output,
+    dynamic output,
+    List<Part>? content,
   }) {
     return ToolResponse({
       if (ref != null) 'ref': ref,
       'name': name,
       if (output != null) 'output': output,
+      if (content != null) 'content': content?.map((e) => e.toJson()).toList(),
     });
   }
 
@@ -1164,15 +1181,25 @@ extension type ToolResponse(Map<String, dynamic> _json) {
     _json['name'] = value;
   }
 
-  Map<String, dynamic>? get output {
-    return _json['output'] as Map<String, dynamic>?;
+  dynamic get output {
+    return _json['output'] as dynamic;
   }
 
-  set output(Map<String, dynamic>? value) {
+  set output(dynamic value) {
+    _json['output'] = value;
+  }
+
+  List<Part>? get content {
+    return (_json['content'] as List?)
+        ?.map((e) => Part(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set content(List<Part>? value) {
     if (value == null) {
-      _json.remove('output');
+      _json.remove('content');
     } else {
-      _json['output'] = value;
+      _json['content'] = value?.map((e) => (e as dynamic)._json).toList();
     }
   }
 
@@ -1195,9 +1222,10 @@ class ToolResponseTypeFactory implements JsonExtensionType<ToolResponse> {
       properties: {
         'ref': Schema.string(),
         'name': Schema.string(),
-        'output': Schema.object(additionalProperties: Schema.any()),
+        'output': Schema.any(),
+        'content': Schema.list(items: PartType.jsonSchema),
       },
-      required: ['name'],
+      required: ['name', 'output'],
     );
   }
 }
@@ -2272,7 +2300,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
     GenerateActionOutputConfig? output,
     Map<String, dynamic>? resume,
     bool? returnToolRequests,
-    double? maxTurns,
+    int? maxTurns,
     String? stepName,
   }) {
     return GenerateActionOptions({
@@ -2396,11 +2424,11 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
     }
   }
 
-  double? get maxTurns {
-    return _json['maxTurns'] as double?;
+  int? get maxTurns {
+    return _json['maxTurns'] as int?;
   }
 
-  set maxTurns(double? value) {
+  set maxTurns(int? value) {
     if (value == null) {
       _json.remove('maxTurns');
     } else {
@@ -2447,7 +2475,7 @@ class GenerateActionOptionsTypeFactory
         'output': GenerateActionOutputConfigType.jsonSchema,
         'resume': Schema.object(additionalProperties: Schema.any()),
         'returnToolRequests': Schema.boolean(),
-        'maxTurns': Schema.number(),
+        'maxTurns': Schema.integer(),
         'stepName': Schema.string(),
       },
       required: ['model', 'messages'],

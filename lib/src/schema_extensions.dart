@@ -29,6 +29,16 @@ extension ModelResponseExtension on ModelResponse {
 
   /// The media content of the response.
   Media? get media => (message as Message?)?.media;
+
+  /// The tool requests in the response.
+  List<ToolRequest> get toolRequests {
+    return (message as Message?)
+            ?.content
+            .where((c) => c.toJson().containsKey('toolRequest'))
+            .map((c) => (c as ToolRequestPart).toolRequest)
+            .toList() ??
+        [];
+  }
 }
 
 extension ModelResponseChunkExtension on ModelResponseChunk {

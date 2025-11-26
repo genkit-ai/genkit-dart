@@ -14,6 +14,11 @@ abstract class TestCustomOptionsSchema {
   String get customField;
 }
 
+@GenkitSchema()
+abstract class TestToolInputSchema {
+  String get name;
+}
+
 void main() {
   group('Genkit', () {
     const reflectionPort = 3111;
@@ -121,6 +126,62 @@ void main() {
         config: TestCustomOptions.from(customField: 'yo'),
       );
       expect(result.text, 'config:{customField: yo} req:({text: test prompt})');
+    });
+
+    test('should execute a tool and return the result', () async {
+      const modelName = 'toolModel';
+      const toolName = 'testTool';
+
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+          if (request.messages.last.role == Role.tool) {
+            return ModelResponse.from(
+              finishReason: FinishReason.stop,
+              message: Message.from(
+                role: Role.model,
+                content: [
+                  TextPart.from(
+                    text:
+                        'Tool output: ${request.messages.last.content.whereType<ToolResponsePart>().first.toolResponse.output}',
+                  ),
+                ],
+              ),
+            );
+          }
+          return ModelResponse.from(
+            finishReason: FinishReason.stop,
+            message: Message.from(
+              role: Role.model,
+              content: [
+                ToolRequestPart.from(
+                  toolRequest: ToolRequest.from(
+                    name: toolName,
+                    input: {'name': 'world'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: toolName,
+        description: 'A test tool',
+        inputType: TestToolInputType,
+        fn: (input, context) async {
+          return 'Hello, ${input.name}!';
+        },
+      );
+
+      final result = await genkit.generate(
+        model: modelRef(modelName),
+        prompt: 'Use the test tool',
+        tools: [toolName],
+      );
+
+      expect(result.text, 'Tool output: Hello, world!');
     });
 
     test('should handle streaming with onChunk callback', () async {

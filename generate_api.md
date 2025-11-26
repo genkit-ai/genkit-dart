@@ -75,10 +75,10 @@ The `content` of each `Message` is an array of `Part` objects, allowing for rich
     -   [x] **Text Streaming**: Implement streaming for mode chunk responses.
 -   [x] **Implement Context Support (Zones)**: Investigate and implement context propagation using Dart's `Zone`s to mimic `AsyncLocalStorage` in Node.js or `contextvars` in Python, allowing for implicit context passing through async calls.
 -   [x] **Create New Example for Generate API**: Create a new, dedicated example file (`example/generate_example.dart`) that showcases the various features of the new `generate` API.
--   [ ] **Implement Full Tool Support**:
-    -   [ ] **Basic tool calling**: yeah, basics.
-    -   [ ] **Tool Choice**: Implement the `toolChoice` parameter to force the model to use a specific tool.
-    -   [ ] **Return Tool Requests**: Implement the `returnToolRequests` parameter.
+-   [x] **Implement Full Tool Support**:
+    -   [x] **Basic tool calling**: yeah, basics: generate action constructs the tool definition object.
+    -   [x] **Tool Choice**: Implement the `toolChoice` parameter to force the model to use a specific tool.
+    -   [x] **Return Tool Requests**: Implement the `returnToolRequests` parameter.
     -   [ ] **Interrupts**: Implement the ability for a tool to interrupt the generation flow and return control to the caller.
     -   [ ] **Stateful Resumption**: Implement the `resume` parameter to allow for the continuation of an interrupted generation, including providing `respond` and `restart` directives for pending tool calls.
 -   [ ] **Implement Structured Output Handling**:

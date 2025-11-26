@@ -106,13 +106,15 @@ abstract class ToolRequestSchema {
   external String? get ref;
   external String get name;
   external Map<String, dynamic>? get input;
+  external bool? get partial;
 }
 
 @GenkitSchema()
 abstract class ToolResponseSchema {
   external String? get ref;
   external String get name;
-  external Map<String, dynamic>? get output;
+  external dynamic? get output;
+  external List<PartSchema>? get content;
 }
 
 @GenkitSchema()
@@ -226,7 +228,7 @@ abstract class GenerateActionOptionsSchema {
   external GenerateActionOutputConfigSchema? get output;
   external Map<String, dynamic>? get resume;
   external bool? get returnToolRequests;
-  external double? get maxTurns;
+  external int? get maxTurns;
   external String? get stepName;
 }
 

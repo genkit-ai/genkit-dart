@@ -1,6 +1,11 @@
 import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
 
+const typeOverrides = {
+  'ToolResponse': {'output': 'dynamic', 'content': 'List<PartSchema>'},
+  'GenerateActionOptions': {'maxTurns': 'int'},
+};
+
 class ClassGenerator {
   final Map<String, dynamic> definitions;
   final Set<String> _generatedClasses = {};
@@ -68,7 +73,7 @@ class ClassGenerator {
             ..name = _sanitizeFieldName(e.key)
             ..type = MethodType.getter
             ..returns =
-                _mapType(className, e.value, isRequired: isRequired)
+                _mapType(className, e.key, e.value, isRequired: isRequired)
             ..external = true;
         });
       }));
@@ -153,8 +158,12 @@ class ClassGenerator {
     return false;
   }
 
-  Reference _mapType(String parentType, Map<String, dynamic> schema,
+  Reference _mapType(String parentType, String fieldName, Map<String, dynamic> schema,
       {bool isRequired = false}) {
+    if (typeOverrides.containsKey(parentType) &&
+        typeOverrides[parentType]!.containsKey(fieldName)) {
+      return refer('${typeOverrides[parentType]![fieldName]}?');
+    }
     final type = _mapTypeInner(parentType, schema);
     if (isRequired) {
       return refer(type.symbol!.replaceAll('?', ''));
@@ -251,7 +260,7 @@ class ClassGenerator {
   Reference _mapArrayType(String parentType, Map<String, dynamic> schema) {
     final items = schema['items'] as Map<String, dynamic>?;
     if (items != null) {
-      final itemType = _mapType(parentType, items, isRequired: true);
+      final itemType = _mapType(parentType, 'items', items, isRequired: true);
       return refer('List<${itemType.symbol}>');
     }
     return refer('List<dynamic>');
