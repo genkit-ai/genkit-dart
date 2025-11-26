@@ -8,7 +8,7 @@ class TestPlugin extends GenkitPlugin {
   final String name;
   final Action? resolvedAction;
   final List<ActionMetadata> listedActions;
-  final List<ResolvableAction> initActions;
+  final List<Action> initActions;
   int initCount = 0;
 
   TestPlugin(
@@ -19,15 +19,15 @@ class TestPlugin extends GenkitPlugin {
   });
 
   @override
-  Future<List<ResolvableAction>> init() async {
+  Future<List<Action>> init() async {
     initCount++;
     return initActions;
   }
 
   @override
-  Future<ResolvableAction?> resolve(String actionType, String name) async {
+  Action? resolve(String actionType, String name) {
     if (resolvedAction != null && resolvedAction!.name == name) {
-      return (action: resolvedAction);
+      return resolvedAction;
     }
     return null;
   }

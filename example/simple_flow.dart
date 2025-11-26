@@ -1,5 +1,5 @@
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugins/google-genai.dart';
+import 'package:genkit/plugins/google_genai.dart';
 
 part 'simple_flow.schema.g.dart';
 
@@ -40,8 +40,8 @@ void main() async {
     },
   );
 
-  final child = ai.defineFlow(
-    name: 'child',
+  final inner = ai.defineFlow(
+    name: 'inner',
     fn: (String subject, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -52,7 +52,7 @@ void main() async {
   );
 
   ai.defineFlow(
-    name: 'parent',
+    name: 'outer',
     inputType: StringType,
     outputType: StringType,
     streamType: StringType,
@@ -63,7 +63,7 @@ void main() async {
           await Future.delayed(Duration(seconds: 1)); // Delays for 2 seconds
         }
       }
-      return await child(name);
+      return await inner(name);
     },
   );
 

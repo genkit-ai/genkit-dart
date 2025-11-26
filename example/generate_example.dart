@@ -1,5 +1,5 @@
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugins/google-genai.dart';
+import 'package:genkit/plugins/google_genai.dart';
 
 void main() async {
   final ai = Genkit(plugins: [googleAI()]);

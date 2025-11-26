@@ -23,7 +23,7 @@ The primary goal of this task was to replace the placeholder `generate` API in `
 
 ## Reference Materials
 
-- **JS and Go API Reference:** [ref/models.mdx](ref/models.mdx)
+- **JS and Go API Docs:** [ref/models.mdx](ref/models.mdx)
 - **Go Implementation Reference:** [ref/generate.go](ref/generate.go)
 
 ## Generate API Features
@@ -71,19 +71,20 @@ The `content` of each `Message` is an array of `Part` objects, allowing for rich
 
 ## Remaining TODOs
 
--   [ ] **Implement Streaming Support**:
-    -   [ ] **Text Streaming**: Implement streaming for plain text responses.
-    -   [ ] **Structured Data Streaming**: Implement support for streaming partially constructed JSON objects when a `jsonSchema` is provided.
--   [ ] **Implement Context Support (Zones)**: Investigate and implement context propagation using Dart's `Zone`s to mimic `AsyncLocalStorage` in Node.js or `contextvars` in Python, allowing for implicit context passing through async calls.
--   [ ] **Create New Example for Generate API**: Create a new, dedicated example file (`example/generate_example.dart`) that showcases the various features of the new `generate` API.
+-   [x] **Implement Streaming Support**:
+    -   [x] **Text Streaming**: Implement streaming for mode chunk responses.
+-   [x] **Implement Context Support (Zones)**: Investigate and implement context propagation using Dart's `Zone`s to mimic `AsyncLocalStorage` in Node.js or `contextvars` in Python, allowing for implicit context passing through async calls.
+-   [x] **Create New Example for Generate API**: Create a new, dedicated example file (`example/generate_example.dart`) that showcases the various features of the new `generate` API.
 -   [ ] **Implement Full Tool Support**:
-    -   [ ] **Interrupts**: Implement the ability for a tool to interrupt the generation flow and return control to the caller.
-    -   [ ] **Stateful Resumption**: Implement the `resume` parameter to allow for the continuation of an interrupted generation, including providing `respond` and `restart` directives for pending tool calls.
+    -   [ ] **Basic tool calling**: yeah, basics.
     -   [ ] **Tool Choice**: Implement the `toolChoice` parameter to force the model to use a specific tool.
     -   [ ] **Return Tool Requests**: Implement the `returnToolRequests` parameter.
+    -   [ ] **Interrupts**: Implement the ability for a tool to interrupt the generation flow and return control to the caller.
+    -   [ ] **Stateful Resumption**: Implement the `resume` parameter to allow for the continuation of an interrupted generation, including providing `respond` and `restart` directives for pending tool calls.
 -   [ ] **Implement Structured Output Handling**:
     -   [ ] **Format Handling**: Implement a `FormatHandler` system to parse and validate model output against a JSON schema.
     -   [ ] **Instruction Injection**: For models without native constrained output, automatically inject instructions into the prompt to guide the model toward the desired schema.
+    -   [ ] **Structured Data Streaming**: Implement support for streaming partially constructed JSON objects when a `jsonSchema` is provided. (can leave this till the end)
 -   [ ] **Implement Resource Handling**:
     -   [ ] **Resource Part Processing**: Implement the logic to process `ResourcePart` in messages, executing the resource and embedding its content before calling the model.
 -   [ ] **Implement Middleware Pipeline**:

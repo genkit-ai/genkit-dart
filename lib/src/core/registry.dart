@@ -8,12 +8,9 @@ class Registry {
 
   Future<void> _ensurePluginInitialized(GenkitPlugin plugin) async {
     if (!_initializedPlugins.contains(plugin.name)) {
-      final results = await plugin.init();
-      for (final result in results) {
-        if (result.action != null) {
-          register(result.action!);
-        }
-        // TODO: Handle background actions
+      final actions = await plugin.init();
+      for (final action in actions) {
+        register(action);
       }
       _initializedPlugins.add(plugin.name);
     }
@@ -56,10 +53,10 @@ class Registry {
         if (_actions.containsKey(key)) {
           return _actions[key];
         }
-        final result = await plugin.resolve(actionType, resolvedActionName);
-        if (result != null && result.action != null) {
-          register(result.action!);
-          return result.action;
+        final action = plugin.resolve(actionType, resolvedActionName);
+        if (action != null) {
+          register(action);
+          return action;
         }
       }
     }
