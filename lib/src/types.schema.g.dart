@@ -1151,13 +1151,13 @@ extension type ToolResponse(Map<String, dynamic> _json) {
     String? ref,
     required String name,
     dynamic output,
-    List<Part>? content,
+    List<dynamic>? content,
   }) {
     return ToolResponse({
       if (ref != null) 'ref': ref,
       'name': name,
       if (output != null) 'output': output,
-      if (content != null) 'content': content?.map((e) => e.toJson()).toList(),
+      if (content != null) 'content': content,
     });
   }
 
@@ -1189,17 +1189,15 @@ extension type ToolResponse(Map<String, dynamic> _json) {
     _json['output'] = value;
   }
 
-  List<Part>? get content {
-    return (_json['content'] as List?)
-        ?.map((e) => Part(e as Map<String, dynamic>))
-        .toList();
+  List<dynamic>? get content {
+    return (_json['content'] as List?)?.cast<dynamic>();
   }
 
-  set content(List<Part>? value) {
+  set content(List<dynamic>? value) {
     if (value == null) {
       _json.remove('content');
     } else {
-      _json['content'] = value?.map((e) => (e as dynamic)._json).toList();
+      _json['content'] = value;
     }
   }
 
@@ -1223,7 +1221,7 @@ class ToolResponseTypeFactory implements JsonExtensionType<ToolResponse> {
         'ref': Schema.string(),
         'name': Schema.string(),
         'output': Schema.any(),
-        'content': Schema.list(items: PartType.jsonSchema),
+        'content': Schema.list(items: Schema.any()),
       },
       required: ['name', 'output'],
     );

@@ -1,11 +1,14 @@
 import 'dart:convert';
-import 'dart:io';
+
 import 'package:genkit/src/ai/model.dart';
+import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
-import 'package:http/http.dart' as http;
+import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
+    as gcl;
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/core/plugin.dart';
+import 'package:google_cloud_protobuf/protobuf.dart' as pb;
 
 part 'google_genai.schema.g.dart';
 
@@ -36,9 +39,8 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     return [
-      createModel('gemini-2.5-flash'),
-      createModel('gemini-2.5-pro'),
-      createModel('gemini-3-pro-preview'),
+      createModel('gemini-1.5-flash-latest'),
+      createModel('gemini-1.5-pro-latest'),
     ];
   }
 
@@ -52,39 +54,102 @@ Model createModel(String modelName) {
   return Model(
     name: 'googleai/$modelName',
     fn: (req, ctx) async {
-      final apiKey = Platform.environment['GEMINI_API_KEY'];
-      if (apiKey == null) {
-        throw Exception('GEMINI_API_KEY is not set');
+      final service = gcl.GenerativeService.fromApiKey();
+      try {
+        final response = await service.generateContent(
+          gcl.GenerateContentRequest(
+            model: 'models/$modelName',
+            contents: _toGeminiContent(req.messages),
+            tools: req.tools?.map(_toGeminiTool).toList() ?? [],
+          ),
+        );
+        final (message, finishReason) = _fromGeminiCandidate(
+          response.candidates.first,
+        );
+        return ModelResponse.from(
+          finishReason: finishReason,
+          message: message,
+          raw: jsonDecode(jsonEncode(response)),
+        );
+      } finally {
+        service.close();
       }
-      final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent',
-      );
-      final response = await http.post(
-        url,
-        headers: {'x-goog-api-key': apiKey, 'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': req.messages.map((m) {
-            return {
-              'role': m.role.value,
-              'parts': m.content.map((p) => p.toJson()).toList(),
-            };
-          }).toList(),
-        }),
-      );
-      if (response.statusCode != 200) {
-        throw Exception('Failed to generate content: ${response.body}');
-      }
-      final responseJson = jsonDecode(response.body);
-      final candidate = responseJson['candidates'][0];
-      return ModelResponse.from(
-        finishReason: FinishReason(candidate['finishReason']),
-        message: Message.from(
-          role: Role(candidate['content']['role']),
-          content: (candidate['content']['parts'] as List<dynamic>)
-              .map((p) => TextPart.from(text: p['text']))
-              .toList(),
-        ),
-      );
     },
+  );
+}
+
+List<gcl.Content> _toGeminiContent(List<Message> messages) {
+  return messages
+      .map(
+        (m) => gcl.Content(
+          role: m.role.value,
+          parts: m.content.map(_toGeminiPart).toList(),
+        ),
+      )
+      .toList();
+}
+
+(Message, FinishReason) _fromGeminiCandidate(gcl.Candidate candidate) {
+  final finishReason = FinishReason(candidate.finishReason.value);
+  final message = Message.from(
+    role: Role(candidate.content!.role),
+    content: candidate.content?.parts.map(_fromGeminiPart).toList() ?? [],
+  );
+  return (message, finishReason);
+}
+
+gcl.Part _toGeminiPart(Part p) {
+  if (p.toJson().containsKey('text')) {
+    p as TextPart;
+    return gcl.Part(text: p.text);
+  }
+  if (p.toJson().containsKey('toolRequest')) {
+    p as ToolRequestPart;
+    return gcl.Part(
+        functionCall: gcl.FunctionCall(
+      name: p.toolRequest.name,
+      args: p.toolRequest.input == null
+          ? null
+          : pb.Struct.fromJson(p.toolRequest.input!),
+    ));
+  }
+  if (p.toJson().containsKey('toolResponse')) {
+    p as ToolResponsePart;
+    return gcl.Part(
+      functionResponse: gcl.FunctionResponse(
+        name: p.toolResponse.name,
+        response: pb.Struct.fromJson({'output': p.toolResponse.output}),
+      ),
+    );
+  }
+  throw UnimplementedError('Unsupported part type: $p');
+}
+
+Part _fromGeminiPart(gcl.Part p) {
+  if (p.text != null) {
+    return TextPart.from(text: p.text!);
+  }
+  if (p.functionCall != null) {
+    return ToolRequestPart.from(
+      toolRequest: ToolRequest.from(
+        name: p.functionCall!.name,
+        input: p.functionCall!.args?.toJson() as Map<String, dynamic>?,
+      ),
+    );
+  }
+  throw UnimplementedError('Unsupported part type: $p');
+}
+
+gcl.Tool _toGeminiTool(ToolDefinition tool) {
+  return gcl.Tool(
+    functionDeclarations: [
+      gcl.FunctionDeclaration(
+        name: tool.name,
+        description: tool.description,
+        parametersJsonSchema: tool.inputSchema == null
+            ? null
+            : pb.Value.fromJson(tool.inputSchema as Map<String, dynamic>),
+      ),
+    ],
   );
 }

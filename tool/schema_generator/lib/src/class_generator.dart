@@ -2,7 +2,7 @@ import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
 
 const typeOverrides = {
-  'ToolResponse': {'output': 'dynamic', 'content': 'List<PartSchema>'},
+  'ToolResponse': {'output': 'dynamic'},
   'GenerateActionOptions': {'maxTurns': 'int'},
 };
 
@@ -86,8 +86,8 @@ class ClassGenerator {
     buffer.writeln('extension type $enumName(String value) {');
     for (final value in values) {
       final fieldName = _sanitizeFieldName(value.toString());
-      buffer.writeln(
-          "  static $enumName get $fieldName => $enumName('$value');");
+      buffer
+          .writeln("  static $enumName get $fieldName => $enumName('$value');");
     }
     buffer.writeln('}');
     b.body.add(Code(buffer.toString()));
@@ -140,7 +140,7 @@ class ClassGenerator {
       if (parts.length > 2 && parts[0] == '#' && parts[1] == '\$defs') {
         var current = definitions;
         for (var i = 2; i < parts.length; i++) {
-          if (current == null || !(current is Map<String, dynamic>)) {
+          if (current is! Map<String, dynamic>) {
             return false;
           }
           final part = parts[i];
@@ -150,7 +150,7 @@ class ClassGenerator {
             return false;
           }
         }
-        if (current != null && current is Map<String, dynamic>) {
+        if (current is Map<String, dynamic>) {
           return _isNotType(current);
         }
       }
@@ -158,7 +158,8 @@ class ClassGenerator {
     return false;
   }
 
-  Reference _mapType(String parentType, String fieldName, Map<String, dynamic> schema,
+  Reference _mapType(
+      String parentType, String fieldName, Map<String, dynamic> schema,
       {bool isRequired = false}) {
     if (typeOverrides.containsKey(parentType) &&
         typeOverrides[parentType]!.containsKey(fieldName)) {

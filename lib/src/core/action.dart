@@ -59,7 +59,7 @@ class Action<I, O, S> extends ActionMetadata<I, O, S> {
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
   }) async {
-    return (await this.run(input, onChunk: onChunk, context: context)).result;
+    return (await run(input, onChunk: onChunk, context: context)).result;
   }
 
   Future<({O result, String traceId, String spanId})> run(

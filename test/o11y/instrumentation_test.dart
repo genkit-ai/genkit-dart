@@ -56,7 +56,7 @@ void main() {
 
       // Verify the parent-child relationship
       expect(childSpan.parentSpanId, parentSpan.spanContext.spanId);
-      expect(parentSpan.parentSpanId?.isValid, isFalse);
+      expect(parentSpan.parentSpanId.isValid, isFalse);
     });
   });
 }

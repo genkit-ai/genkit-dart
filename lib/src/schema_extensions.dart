@@ -25,14 +25,14 @@ extension MessageExtension on Message {
 
 extension ModelResponseExtension on ModelResponse {
   /// The text content of the response.
-  String get text => (message as Message?)?.text ?? '';
+  String get text => message?.text ?? '';
 
   /// The media content of the response.
-  Media? get media => (message as Message?)?.media;
+  Media? get media => message?.media;
 
   /// The tool requests in the response.
   List<ToolRequest> get toolRequests {
-    return (message as Message?)
+    return (message)
             ?.content
             .where((c) => c.toJson().containsKey('toolRequest'))
             .map((c) => (c as ToolRequestPart).toolRequest)
@@ -45,25 +45,21 @@ extension ModelResponseChunkExtension on ModelResponseChunk {
   /// The text content of the response chunk.
   String get text {
     final buffer = StringBuffer();
-    if (content != null) {
-      for (final part in content as List) {
-        if (part is TextPart) {
-          buffer.write(part.text);
-        }
+    for (final part in content as List) {
+      if (part is TextPart) {
+        buffer.write(part.text);
       }
     }
-    return buffer.toString();
+      return buffer.toString();
   }
 
   /// The media content of the response chunk.
   Media? get media {
-    if (content != null) {
-      for (final part in content as List) {
-        if (part is MediaPart) {
-          return part.media;
-        }
+    for (final part in content as List) {
+      if (part is MediaPart) {
+        return part.media;
       }
     }
-    return null;
+      return null;
   }
 }

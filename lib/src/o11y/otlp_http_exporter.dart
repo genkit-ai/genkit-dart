@@ -96,7 +96,7 @@ class CollectorHttpExporter implements sdk.SpanExporter {
       'links': [],
       'droppedLinksCount': 0,
     };
-    if (span.parentSpanId?.isValid ?? false) {
+    if (span.parentSpanId.isValid) {
       map['parentSpanId'] = span.parentSpanId.toString();
     }
     return map;

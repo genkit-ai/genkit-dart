@@ -114,7 +114,7 @@ abstract class ToolResponseSchema {
   external String? get ref;
   external String get name;
   external dynamic? get output;
-  external List<PartSchema>? get content;
+  external List<dynamic>? get content;
 }
 
 @GenkitSchema()

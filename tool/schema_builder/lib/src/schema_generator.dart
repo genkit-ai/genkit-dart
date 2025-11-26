@@ -25,7 +25,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         element: element,
       );
     }
-    final baseName = className!.substring(0, className.length - 6);
+    final baseName = className.substring(0, className.length - 6);
 
     final extensionType = _generateExtensionType(baseName, element);
     final factory = _generateFactory(baseName, element);
@@ -73,7 +73,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
               ..type = paramType
               ..named = true
               ..required = !isNullable));
-            var valueExpression;
+            Expression valueExpression;
             if (getter.returnType.isDartCoreList) {
               final itemType =
                   (getter.returnType as InterfaceType).typeArguments.first;

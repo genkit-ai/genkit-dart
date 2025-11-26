@@ -1,5 +1,4 @@
 import 'package:genkit/client.dart';
-import 'package:genkit/src/types.dart';
 import 'package:http/http.dart' as http;
 
 import '../test/schemas/my_schemas.dart';

@@ -1,6 +1,5 @@
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/model.dart';
 import 'package:test/test.dart';
 
