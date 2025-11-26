@@ -112,35 +112,14 @@ class Genkit {
     Map<String, dynamic>? context,
     StreamingCallback<ModelResponseChunk>? onChunk,
   }) async {
-    if (messages == null && prompt == null) {
-      throw ArgumentError('prompt or messages must be provided');
-    }
-
-    final resolvedMessages =
-        messages ??
-        [
-          Message.from(
-            role: Role.user,
-            content: [TextPart.from(text: prompt!)],
-          ),
-        ];
-
-    final modelName = model.name;
-
-    return await _generateAction!(
-      GenerateActionOptions.from(
-        model: modelName,
-        messages: resolvedMessages,
-        config: config is Map ? config : (config as dynamic)?.toJson(),
-        tools: tools,
-        output: output == null
-            ? null
-            : GenerateActionOutputConfig.from(
-                format: output.format,
-                contentType: output.contentType,
-                jsonSchema: output.schema?.jsonSchema as Map<String, dynamic>?,
-              ),
-      ),
+    return generateHelper(
+      _generateAction!,
+      prompt: prompt,
+      messages: messages,
+      model: model,
+      config: config,
+      tools: tools,
+      output: output,
       context: context,
       onChunk: onChunk,
     );

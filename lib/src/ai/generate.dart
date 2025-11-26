@@ -58,40 +58,6 @@ ToolDefinition toToolDefinition(Tool tool) {
   );
 }
 
-/// Represents the options for a generate request.
-class GenerateOptions<C> {
-  /// The prompt to send to the model.
-  String? prompt;
-
-  /// The messages to send to the model.
-  List<Message>? messages;
-
-  /// The model to use for the request.
-  Object model;
-
-  /// The configuration for the model.
-  C? config;
-
-  /// The tools to use for the request.
-  List<String>? tools;
-
-  /// The output format for the request.
-  GenerateOutput? output;
-
-  /// Whether to stream the response.
-  bool? stream;
-
-  GenerateOptions({
-    this.prompt,
-    this.messages,
-    required this.model,
-    this.config,
-    this.tools,
-    this.output,
-    this.stream,
-  });
-}
-
 /// Base class for model-specific configuration.
 ///
 /// Model providers can extend this class to provide their own configuration
@@ -110,4 +76,51 @@ class GenerateOutput {
   String? contentType;
 
   GenerateOutput({this.schema, this.format, this.contentType});
+}
+
+
+Future<ModelResponse> generateHelper<C>(
+  Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>
+  generateAction, {
+  String? prompt,
+  List<Message>? messages,
+  required ModelRef<C> model,
+  C? config,
+  List<String>? tools,
+  GenerateOutput? output,
+  Map<String, dynamic>? context,
+  StreamingCallback<ModelResponseChunk>? onChunk,
+}) async {
+  if (messages == null && prompt == null) {
+    throw ArgumentError('prompt or messages must be provided');
+  }
+
+  final resolvedMessages =
+      messages ??
+      [
+        Message.from(
+          role: Role.user,
+          content: [TextPart.from(text: prompt!)],
+        ),
+      ];
+
+  final modelName = model.name;
+
+  return await generateAction(
+    GenerateActionOptions.from(
+      model: modelName,
+      messages: resolvedMessages,
+      config: config is Map ? config : (config as dynamic)?.toJson(),
+      tools: tools,
+      output: output == null
+          ? null
+          : GenerateActionOutputConfig.from(
+              format: output.format,
+              contentType: output.contentType,
+              jsonSchema: output.schema?.jsonSchema as Map<String, dynamic>?,
+            ),
+    ),
+    context: context,
+    onChunk: onChunk,
+  );
 }
