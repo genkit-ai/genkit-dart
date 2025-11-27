@@ -155,7 +155,7 @@ class ReflectionServer {
         ..close();
       return;
     }
-    final action = await registry.get(parts[1], parts[2]);
+    final action = await registry.lookupAction(parts[1], parts[2]);
 
     if (action == null) {
       request.response

@@ -62,7 +62,7 @@ void main() {
       expect(flow.name, flowName);
 
       // Check if the flow is registered in the registry
-      final retrievedAction = await genkit.registry.get('flow', flowName);
+      final retrievedAction = await genkit.registry.lookupAction('flow', flowName);
       expect(retrievedAction, isNotNull);
       expect(retrievedAction, isA<Flow>());
       expect(retrievedAction!.name, flowName);
@@ -87,7 +87,7 @@ void main() {
       expect(tool.description, toolDescription);
 
       // Check if the tool is registered in the registry
-      final retrievedAction = await genkit.registry.get('tool', toolName);
+      final retrievedAction = await genkit.registry.lookupAction('tool', toolName);
       expect(retrievedAction, isNotNull);
       expect(retrievedAction, isA<Tool>());
       expect(retrievedAction!.name, toolName);

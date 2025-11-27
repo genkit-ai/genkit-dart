@@ -35,7 +35,7 @@ class Registry {
     _actions[key] = action;
   }
 
-  Future<Action?> get(String actionType, String name) async {
+  Future<Action?> lookupAction(String actionType, String name) async {
     final key = _getKey(actionType, name);
     if (_actions.containsKey(key)) {
       return _actions[key];

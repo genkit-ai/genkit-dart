@@ -15,7 +15,7 @@ defineGenerateAction(Registry registry) {
     outputType: ModelResponseType,
     streamType: ModelResponseChunkType,
     fn: (options, ctx) async {
-      final model = await registry.get('model', options.model) as Model?;
+      final model = await registry.lookupAction('model', options.model) as Model?;
       if (model == null) {
         throw GenkitException(
           'Model ${options.model} not found',
@@ -26,7 +26,7 @@ defineGenerateAction(Registry registry) {
       var toolDefs = <ToolDefinition>[];
       if (options.tools != null) {
         for (var toolName in options.tools!) {
-          final tool = await registry.get('tool', toolName) as Tool?;
+          final tool = await registry.lookupAction('tool', toolName) as Tool?;
           if (tool != null) {
             toolDefs.add(toToolDefinition(tool));
           }
@@ -69,7 +69,7 @@ defineGenerateAction(Registry registry) {
         final toolResponses = <Part>[];
         for (final toolRequest in toolRequests) {
           final tool =
-              await registry.get('tool', toolRequest.toolRequest.name) as Tool?;
+              await registry.lookupAction('tool', toolRequest.toolRequest.name) as Tool?;
           if (tool == null) {
             throw GenkitException(
               'Tool ${toolRequest.toolRequest.name} not found',

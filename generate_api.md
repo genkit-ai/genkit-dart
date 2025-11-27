@@ -51,7 +51,7 @@ The `GenerateActionOptions` object is the heart of the API, providing a rich set
 -   **`maxTurns`**: A number to limit the number of tool-calling iterations to prevent infinite loops.
 -   **`returnToolRequests`**: A boolean that, if `true`, causes the API to return the model-generated tool requests to the caller instead of executing them.
 -   **`output`**: An `OutputConfig` object to define the desired output format.
-    -   **`format`**: Specifies the output format (e.g., `json`, `text`).
+    -   **`format`**: Specifies the output format (e.g., `json`, `text`). Default: `json`. This maps to registered formats.
     -   **`jsonSchema`**: A JSON schema definition for requesting structured, typed output from the model. The API will guide the model to produce output that conforms to this schema.
     -   **`constrained`**: A boolean to request the use of the model's native constrained output feature, if available.
 -   **`docs`**: A list of `DocumentData` objects to provide as context for Retrieval-Augmented Generation (RAG).
@@ -79,8 +79,8 @@ The `content` of each `Message` is an array of `Part` objects, allowing for rich
     -   [x] **Basic tool calling**: yeah, basics: generate action constructs the tool definition object.
     -   [x] **Tool Choice**: Implement the `toolChoice` parameter to force the model to use a specific tool.
     -   [x] **Return Tool Requests**: Implement the `returnToolRequests` parameter.
-    -   [ ] **Interrupts**: Implement the ability for a tool to interrupt the generation flow and return control to the caller.
-    -   [ ] **Stateful Resumption**: Implement the `resume` parameter to allow for the continuation of an interrupted generation, including providing `respond` and `restart` directives for pending tool calls.
+    -   [ ] DO LATER: **Interrupts**: Implement the ability for a tool to interrupt the generation flow and return control to the caller.
+    -   [ ] DO LATER: **Stateful Resumption**: Implement the `resume` parameter to allow for the continuation of an interrupted generation, including providing `respond` and `restart` directives for pending tool calls.
 -   [ ] **Implement Structured Output Handling**:
     -   [ ] **Format Handling**: Implement a `FormatHandler` system to parse and validate model output against a JSON schema.
     -   [ ] **Instruction Injection**: For models without native constrained output, automatically inject instructions into the prompt to guide the model toward the desired schema.

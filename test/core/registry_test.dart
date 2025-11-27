@@ -48,13 +48,13 @@ void main() {
         fn: (input, context) async => 'output',
       );
       registry.register(action);
-      final retrievedAction = await registry.get('test', 'testAction');
+      final retrievedAction = await registry.lookupAction('test', 'testAction');
       expect(retrievedAction, same(action));
     });
 
     test('get returns null when action not found', () async {
       final registry = Registry();
-      final retrievedAction = await registry.get('test', 'nonExistent');
+      final retrievedAction = await registry.lookupAction('test', 'nonExistent');
       expect(retrievedAction, isNull);
     });
 
@@ -62,7 +62,7 @@ void main() {
       final registry = Registry();
       final plugin = TestPlugin('myPlugin');
       registry.registerPlugin(plugin);
-      final retrievedAction = await registry.get('model', 'myPlugin/nonExistent');
+      final retrievedAction = await registry.lookupAction('model', 'myPlugin/nonExistent');
       expect(retrievedAction, isNull);
     });
 
@@ -77,13 +77,13 @@ void main() {
       registry.registerPlugin(plugin);
 
       expect(plugin.initCount, 0);
-      final retrievedAction = await registry.get('model', 'myPlugin/myModel');
+      final retrievedAction = await registry.lookupAction('model', 'myPlugin/myModel');
       expect(plugin.initCount, 1);
       expect(retrievedAction, isNotNull);
       expect(retrievedAction!.name, 'myModel');
 
       // Verify that the action is now cached
-      final cachedAction = await registry.get('model', 'myPlugin/myModel');
+      final cachedAction = await registry.lookupAction('model', 'myPlugin/myModel');
       expect(cachedAction, same(retrievedAction));
     });
 
