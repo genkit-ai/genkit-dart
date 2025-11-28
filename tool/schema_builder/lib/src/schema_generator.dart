@@ -270,7 +270,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     if (paramType.isNullable) {
       var valueExpression = 'value';
       if (nonNullableTypeName.endsWith('Schema')) {
-        valueExpression = '(value as dynamic)?._json';
+        valueExpression = 'value';
       } else if (nonNullableTypeName == 'DateTime') {
         valueExpression = 'value?.toIso8601String()';
       } else if (paramType.isDartCoreList) {
@@ -280,10 +280,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         if (itemTypeName.endsWith('Schema')) {
           if (itemIsNullable) {
             valueExpression =
-                'value?.map((e) => (e as dynamic)?._json).toList()';
+                'value?.toList()';
           } else {
             valueExpression =
-                'value?.map((e) => (e as dynamic)._json).toList()';
+                'value?.toList()';
           }
         }
       }
@@ -298,16 +298,16 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       if (itemTypeName.endsWith('Schema')) {
         if (itemIsNullable) {
           setterBody =
-              "_json['$jsonFieldName'] = value.map((e) => (e as dynamic)?._json).toList();";
+              "_json['$jsonFieldName'] = value.toList();";
         } else {
           setterBody =
-              "_json['$jsonFieldName'] = value.map((e) => (e as dynamic)._json).toList();";
+              "_json['$jsonFieldName'] = value.toList();";
         }
       }
     } else if (nonNullableTypeName == 'DateTime') {
       setterBody = "_json['$jsonFieldName'] = value.toIso8601String();";
     } else if (nonNullableTypeName.endsWith('Schema')) {
-      setterBody = "_json['$jsonFieldName'] = (value as dynamic)._json;";
+      setterBody = "_json['$jsonFieldName'] = value;";
     }
 
     return Method((b) => b

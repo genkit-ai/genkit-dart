@@ -80,7 +80,7 @@ extension type Recipe(Map<String, dynamic> _json) {
   }
 
   set ingredients(List<Ingredient> value) {
-    _json['ingredients'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['ingredients'] = value.toList();
   }
 
   int get servings {

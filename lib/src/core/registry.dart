@@ -3,6 +3,7 @@ import './plugin.dart';
 
 class Registry {
   final Map<String, Action> _actions = {};
+  final Map<String, dynamic> _values = {};
   final List<GenkitPlugin> _plugins = [];
   final Set<String> _initializedPlugins = {};
 
@@ -28,6 +29,30 @@ class Registry {
 
   String _getKey(String actionType, String name) {
     return '/$actionType/$name';
+  }
+
+  void registerValue(String type, String name, dynamic value) {
+    final key = _getKey(type, name);
+    _values[key] = value;
+  }
+
+  T? lookupValue<T>(String type, String name) {
+    final key = _getKey(type, name);
+    if (_values.containsKey(key)) {
+      return _values[key] as T?;
+    }
+    return null;
+  }
+
+  Map<String, T> listValues<T>(String type) {
+    final prefix = '/$type/';
+    final result = <String, T>{};
+    for (final key in _values.keys) {
+      if (key.startsWith(prefix)) {
+        result[key] = _values[key] as T;
+      }
+    }
+    return result;
   }
 
   void register(Action action) {

@@ -80,7 +80,7 @@ extension type Recipe(Map<String, dynamic> _json) {
   }
 
   set ingredients(List<Ingredient> value) {
-    _json['ingredients'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['ingredients'] = value.toList();
   }
 
   int get servings {
@@ -147,7 +147,7 @@ extension type AnnotatedRecipe(Map<String, dynamic> _json) {
   }
 
   set ingredients(List<Ingredient> value) {
-    _json['ingredients'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['ingredients'] = value.toList();
   }
 
   int get servings {
@@ -298,7 +298,7 @@ extension type NullableFields(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('optionalIngredient');
     } else {
-      _json['optionalIngredient'] = (value as dynamic)?._json;
+      _json['optionalIngredient'] = value;
     }
   }
 
@@ -400,7 +400,7 @@ extension type ComplexObject(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('nestedNullable');
     } else {
-      _json['nestedNullable'] = (value as dynamic)?._json;
+      _json['nestedNullable'] = value;
     }
   }
 
@@ -456,7 +456,7 @@ extension type Menu(Map<String, dynamic> _json) {
   }
 
   set recipes(List<Recipe> value) {
-    _json['recipes'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['recipes'] = value.toList();
   }
 
   List<Ingredient>? get optionalIngredients {
@@ -469,9 +469,7 @@ extension type Menu(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('optionalIngredients');
     } else {
-      _json['optionalIngredients'] = value
-          ?.map((e) => (e as dynamic)._json)
-          .toList();
+      _json['optionalIngredients'] = value?.toList();
     }
   }
 

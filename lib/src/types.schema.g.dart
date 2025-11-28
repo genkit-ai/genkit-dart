@@ -39,7 +39,7 @@ extension type Candidate(Map<String, dynamic> _json) {
   }
 
   set message(Message value) {
-    _json['message'] = (value as dynamic)._json;
+    _json['message'] = value;
   }
 
   GenerationUsage? get usage {
@@ -52,7 +52,7 @@ extension type Candidate(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('usage');
     } else {
-      _json['usage'] = (value as dynamic)?._json;
+      _json['usage'] = value;
     }
   }
 
@@ -147,7 +147,7 @@ extension type Message(Map<String, dynamic> _json) {
   }
 
   set content(List<Part> value) {
-    _json['content'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['content'] = value.toList();
   }
 
   Map<String, dynamic>? get metadata {
@@ -435,7 +435,7 @@ extension type MediaPart(Map<String, dynamic> _json) implements Part {
   }
 
   set media(Media value) {
-    _json['media'] = (value as dynamic)._json;
+    _json['media'] = value;
   }
 
   Map<String, dynamic>? get data {
@@ -523,7 +523,7 @@ extension type ToolRequestPart(Map<String, dynamic> _json) implements Part {
   }
 
   set toolRequest(ToolRequest value) {
-    _json['toolRequest'] = (value as dynamic)._json;
+    _json['toolRequest'] = value;
   }
 
   Map<String, dynamic>? get data {
@@ -611,7 +611,7 @@ extension type ToolResponsePart(Map<String, dynamic> _json) implements Part {
   }
 
   set toolResponse(ToolResponse value) {
-    _json['toolResponse'] = (value as dynamic)._json;
+    _json['toolResponse'] = value;
   }
 
   Map<String, dynamic>? get data {
@@ -1256,7 +1256,7 @@ extension type ModelRequest(Map<String, dynamic> _json) {
   }
 
   set messages(List<Message> value) {
-    _json['messages'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['messages'] = value.toList();
   }
 
   Map<String, dynamic>? get config {
@@ -1281,7 +1281,7 @@ extension type ModelRequest(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('tools');
     } else {
-      _json['tools'] = value?.map((e) => (e as dynamic)._json).toList();
+      _json['tools'] = value?.toList();
     }
   }
 
@@ -1307,7 +1307,7 @@ extension type ModelRequest(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('output');
     } else {
-      _json['output'] = (value as dynamic)?._json;
+      _json['output'] = value;
     }
   }
 
@@ -1321,7 +1321,7 @@ extension type ModelRequest(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('docs');
     } else {
-      _json['docs'] = value?.map((e) => (e as dynamic)._json).toList();
+      _json['docs'] = value?.toList();
     }
   }
 
@@ -1391,7 +1391,7 @@ extension type ModelResponse(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('message');
     } else {
-      _json['message'] = (value as dynamic)?._json;
+      _json['message'] = value;
     }
   }
 
@@ -1437,7 +1437,7 @@ extension type ModelResponse(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('usage');
     } else {
-      _json['usage'] = (value as dynamic)?._json;
+      _json['usage'] = value;
     }
   }
 
@@ -1475,7 +1475,7 @@ extension type ModelResponse(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('request');
     } else {
-      _json['request'] = (value as dynamic)?._json;
+      _json['request'] = value;
     }
   }
 
@@ -1489,7 +1489,7 @@ extension type ModelResponse(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('operation');
     } else {
-      _json['operation'] = (value as dynamic)?._json;
+      _json['operation'] = value;
     }
   }
 
@@ -1575,7 +1575,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json) {
   }
 
   set content(List<Part> value) {
-    _json['content'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['content'] = value.toList();
   }
 
   Map<String, dynamic>? get custom {
@@ -1661,7 +1661,7 @@ extension type GenerateRequest(Map<String, dynamic> _json) {
   }
 
   set messages(List<Message> value) {
-    _json['messages'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['messages'] = value.toList();
   }
 
   Map<String, dynamic>? get config {
@@ -1686,7 +1686,7 @@ extension type GenerateRequest(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('tools');
     } else {
-      _json['tools'] = value?.map((e) => (e as dynamic)._json).toList();
+      _json['tools'] = value?.toList();
     }
   }
 
@@ -1712,7 +1712,7 @@ extension type GenerateRequest(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('output');
     } else {
-      _json['output'] = (value as dynamic)?._json;
+      _json['output'] = value;
     }
   }
 
@@ -1726,7 +1726,7 @@ extension type GenerateRequest(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('docs');
     } else {
-      _json['docs'] = value?.map((e) => (e as dynamic)._json).toList();
+      _json['docs'] = value?.toList();
     }
   }
 
@@ -2245,7 +2245,7 @@ extension type DocumentData(Map<String, dynamic> _json) {
   }
 
   set content(List<Part> value) {
-    _json['content'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['content'] = value.toList();
   }
 
   Map<String, dynamic>? get metadata {
@@ -2334,7 +2334,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('docs');
     } else {
-      _json['docs'] = value?.map((e) => (e as dynamic)._json).toList();
+      _json['docs'] = value?.toList();
     }
   }
 
@@ -2345,7 +2345,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
   }
 
   set messages(List<Message> value) {
-    _json['messages'] = value.map((e) => (e as dynamic)._json).toList();
+    _json['messages'] = value.toList();
   }
 
   List<String>? get tools {
@@ -2394,7 +2394,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('output');
     } else {
-      _json['output'] = (value as dynamic)?._json;
+      _json['output'] = value;
     }
   }
 
