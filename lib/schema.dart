@@ -29,3 +29,54 @@ class StringTypeFactory implements JsonExtensionType<String> {
 }
 
 const StringType = StringTypeFactory();
+
+class IntTypeFactory implements JsonExtensionType<int> {
+  const IntTypeFactory();
+
+  @override
+  int parse(Object json) => json as int;
+
+  @override
+  jsb.Schema get jsonSchema => jsb.Schema.integer();
+}
+
+const IntType = IntTypeFactory();
+
+class DoubleTypeFactory implements JsonExtensionType<double> {
+  const DoubleTypeFactory();
+
+  @override
+  double parse(Object json) {
+    if (json is int) return json.toDouble();
+    return json as double;
+  }
+
+  @override
+  jsb.Schema get jsonSchema => jsb.Schema.number();
+}
+
+const DoubleType = DoubleTypeFactory();
+
+class BoolTypeFactory implements JsonExtensionType<bool> {
+  const BoolTypeFactory();
+
+  @override
+  bool parse(Object json) => json as bool;
+
+  @override
+  jsb.Schema get jsonSchema => jsb.Schema.boolean();
+}
+
+const BoolType = BoolTypeFactory();
+
+class VoidTypeFactory implements JsonExtensionType<void> {
+  const VoidTypeFactory();
+
+  @override
+  void parse(Object? json) => null;
+
+  @override
+  jsb.Schema get jsonSchema => jsb.Schema.nil();
+}
+
+const VoidType = VoidTypeFactory();

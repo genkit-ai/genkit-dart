@@ -9,7 +9,9 @@ import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/flow.dart';
 import 'package:genkit/src/core/plugin.dart';
 import 'package:genkit/src/core/reflection.dart';
+import 'package:genkit/src/core/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/types.dart';
 
 export 'package:genkit/src/o11y/otlp_http_exporter.dart'
@@ -25,9 +27,9 @@ bool _isDevEnv() {
 
 class Genkit {
   final Registry registry = Registry();
-  ReflectionServer? _reflectionServer;
+  Object? _reflectionServer;
   Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>?
-  _generateAction;
+      _generateAction;
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
@@ -40,11 +42,22 @@ class Genkit {
     }
 
     if (isDevEnv ?? _isDevEnv()) {
-      _reflectionServer = ReflectionServer(
-        registry,
-        port: reflectionPort ?? 3110,
-      );
-      _reflectionServer!.start();
+      final v2ServerUrl = Platform.environment['GENKIT_REFLECTION_V2_SERVER'];
+      if (v2ServerUrl != null) {
+        final server = ReflectionServerV2(
+          registry,
+          url: v2ServerUrl,
+        );
+        server.start();
+        _reflectionServer = server;
+      } else {
+        final server = ReflectionServer(
+          registry,
+          port: reflectionPort ?? 3110,
+        );
+        server.start();
+        _reflectionServer = server;
+      }
     }
 
     _generateAction = defineGenerateAction(registry);
@@ -53,7 +66,15 @@ class Genkit {
   }
 
   Future<void> shutdown() async {
-    await _reflectionServer?.stop();
+    if (_reflectionServer is ReflectionServer) {
+      await (_reflectionServer as ReflectionServer).stop();
+    } else if (_reflectionServer is ReflectionServerV2) {
+      await (_reflectionServer as ReflectionServerV2).stop();
+    }
+  }
+
+  Future<O> run<O>(String name, Future<O> Function() fn) {
+    return runInNewSpan(name, (_) => fn());
   }
 
   Flow<I, O, S> defineFlow<I, O, S>({
