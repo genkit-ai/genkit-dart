@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:genkit/src/utils.dart';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:path/path.dart' as p;
 import 'registry.dart';
@@ -247,7 +248,7 @@ class ReflectionServer {
       final timestamp = date.toIso8601String();
       runtimeFilePath = p.join(runtimesDir, '$_runtimeId-$time.json');
       final fileContent = jsonEncode({
-        'id': Platform.environment['GENKIT_RUNTIME_ID'] ?? _runtimeId,
+        'id': getEnvVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
         'pid': pid,
         'name': name ?? pid.toString(),
         'reflectionServerUrl': 'http://localhost:${_server!.port}',

@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:genkit/src/utils.dart';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
+import 'package:web_socket_channel/web_socket_channel.dart';
+
 import 'registry.dart';
 
 const genkitVersion = '0.9.0';
 const genkitReflectionApiSpecVersion = 2;
+
+int reflectionInstanceCount = 0;
 
 String _jsonSchemaWithDraft(jsb.Schema jsonSchema) {
   final schemaMap = Map<String, Object?>.from(jsonSchema.value);
@@ -19,9 +24,9 @@ class ReflectionServerV2 {
   final List<String> configuredEnvs;
   final String? name;
 
-  WebSocket? _ws;
-  final int _pid = pid;
-  int _apiIndex = 0;
+  WebSocketChannel? _ws;
+  final String _pid = getPid();
+  final int _apiIndex = reflectionInstanceCount++;
 
   ReflectionServerV2(
     this.registry, {
@@ -33,12 +38,12 @@ class ReflectionServerV2 {
   Future<void> start() async {
     print('Connecting to Reflection V2 server at $url');
     try {
-      _ws = await WebSocket.connect(url);
+      _ws = WebSocketChannel.connect(Uri.parse(url));
       print('Connected to Reflection V2 server.');
 
       _register();
 
-      _ws!.listen(
+      _ws!.stream.listen(
         (data) {
           if (data is String) {
             _handleMessage(data);
@@ -57,13 +62,17 @@ class ReflectionServerV2 {
   }
 
   Future<void> stop() async {
-    await _ws?.close();
+    await _ws?.sink.close();
     _ws = null;
   }
 
   void _send(Map<String, dynamic> message) {
-    if (_ws != null && _ws!.readyState == WebSocket.open) {
-      _ws!.add(jsonEncode(message));
+    if (_ws != null) {
+      try {
+        _ws!.sink.add(jsonEncode(message));
+      } catch (e) {
+        print('Error sending message: $e');
+      }
     }
   }
 
@@ -99,7 +108,7 @@ class ReflectionServerV2 {
 
   void _register() {
     final params = {
-      'id': Platform.environment['GENKIT_RUNTIME_ID'] ?? _runtimeId,
+      'id': getEnvVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
       'pid': _pid,
       'name': name ?? _runtimeId,
       'genkitVersion': genkitVersion,

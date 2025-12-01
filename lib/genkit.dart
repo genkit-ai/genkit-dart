@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'package:genkit/schema.dart';
 import 'package:genkit/src/ai/generate.dart';
 import 'package:genkit/src/ai/model.dart';
@@ -13,23 +11,24 @@ import 'package:genkit/src/core/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/types.dart';
+import 'package:genkit/src/utils.dart';
 
 export 'package:genkit/src/o11y/otlp_http_exporter.dart'
     show configureCollectorExporter;
-
+export 'package:genkit/src/core/flow.dart';
 export 'package:genkit/src/types.dart';
 export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';
 
 bool _isDevEnv() {
-  return Platform.environment['GENKIT_ENV'] == 'dev';
+  return getEnvVar('GENKIT_ENV') == 'dev';
 }
 
 class Genkit {
   final Registry registry = Registry();
   Object? _reflectionServer;
   Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>?
-      _generateAction;
+  _generateAction;
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
@@ -42,19 +41,13 @@ class Genkit {
     }
 
     if (isDevEnv ?? _isDevEnv()) {
-      final v2ServerUrl = Platform.environment['GENKIT_REFLECTION_V2_SERVER'];
+      final v2ServerUrl = getEnvVar('GENKIT_REFLECTION_V2_SERVER');
       if (v2ServerUrl != null) {
-        final server = ReflectionServerV2(
-          registry,
-          url: v2ServerUrl,
-        );
+        final server = ReflectionServerV2(registry, url: v2ServerUrl);
         server.start();
         _reflectionServer = server;
       } else {
-        final server = ReflectionServer(
-          registry,
-          port: reflectionPort ?? 3110,
-        );
+        final server = ReflectionServer(registry, port: reflectionPort ?? 3110);
         server.start();
         _reflectionServer = server;
       }

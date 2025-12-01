@@ -73,8 +73,7 @@ class ClassGenerator {
             ..name = _sanitizeFieldName(e.key)
             ..type = MethodType.getter
             ..returns =
-                _mapType(className, e.key, e.value, isRequired: isRequired)
-            ..external = true;
+                _mapType(className, e.key, e.value, isRequired: isRequired);
         });
       }));
     }));

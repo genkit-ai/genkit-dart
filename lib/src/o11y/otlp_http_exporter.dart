@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
-
+import 'package:genkit/src/utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:opentelemetry/api.dart' as api;
 import 'package:opentelemetry/sdk.dart' as sdk;
@@ -174,8 +173,7 @@ class CollectorHttpExporter implements sdk.SpanExporter {
 void configureCollectorExporter() {
   // Configure the OTLP HTTP Exporter
   final baseUrl =
-      Platform.environment['GENKIT_TELEMETRY_SERVER'] ??
-      'http://localhost:4041';
+      getEnvVar('GENKIT_TELEMETRY_SERVER') ?? 'http://localhost:4041';
   final exporter = CollectorHttpExporter('$baseUrl/api/otlp');
   final processor = sdk.SimpleSpanProcessor(exporter);
   final provider = sdk.TracerProviderBase(processors: [processor]);

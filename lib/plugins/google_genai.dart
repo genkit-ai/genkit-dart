@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:genkit/src/ai/model.dart';
-import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
@@ -18,13 +17,16 @@ abstract class GeminiOptionsSchema {
   int get temperature;
 }
 
+typedef GoogleGenAiPluginOptions = ();
+
+
 const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
-  GenkitPlugin call() {
-    return _GoogleGenAiPlugin();
+  GenkitPlugin call({String? apiKey}) {
+    return _GoogleGenAiPlugin(apiKey: apiKey);
   }
 
   ModelRef<GeminiOptions> gemini(String name) {
@@ -36,25 +38,29 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
   @override
   String get name => 'googleai';
 
+  String? apiKey;
+
+  _GoogleGenAiPlugin({this.apiKey});
+
   @override
   Future<List<Action>> init() async {
     return [
-      createModel('gemini-1.5-flash-latest'),
-      createModel('gemini-1.5-pro-latest'),
+      _createModel('gemini-1.5-flash-latest'),
+      _createModel('gemini-1.5-pro-latest'),
     ];
   }
 
   @override
   Action? resolve(String actionType, String name) {
-    return createModel(name);
+    return _createModel(name);
   }
-}
 
-Model createModel(String modelName) {
+
+Model _createModel(String modelName) {
   return Model(
     name: 'googleai/$modelName',
     fn: (req, ctx) async {
-      final service = gcl.GenerativeService.fromApiKey();
+      final service = gcl.GenerativeService.fromApiKey(apiKey);
       try {
         final response = await service.generateContent(
           gcl.GenerateContentRequest(
@@ -76,6 +82,8 @@ Model createModel(String modelName) {
       }
     },
   );
+}
+
 }
 
 List<gcl.Content> _toGeminiContent(List<Message> messages) {
