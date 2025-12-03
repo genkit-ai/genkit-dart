@@ -1,3 +1,8 @@
+## 0.9.1-wip
+
+- Removed dynamic invocations at runtime.
+- Removed unused dependencies.
+
 ## 0.9.0
 
 - Made `fromResponse` and `fromStreamChunk` optional in `defineRemoteAction`. If not provided, the response and stream chunks will be `dynamic` objects decoded from JSON, instead of requiring a typed conversion function.

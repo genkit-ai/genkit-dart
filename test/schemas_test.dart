@@ -141,7 +141,10 @@ void main() {
       };
       final part = Part.fromJson(json);
       expect(part, isA<MediaPart>());
-      expect(part.toJson()['media']['url'], 'http://example.com/image.png');
+      expect(
+        (part.toJson()['media'] as Map)['url'],
+        'http://example.com/image.png',
+      );
     });
 
     test('deserializes ToolRequestPart', () {
@@ -150,7 +153,7 @@ void main() {
       };
       final part = Part.fromJson(json);
       expect(part, isA<ToolRequestPart>());
-      expect(part.toJson()['toolRequest']['name'], 'testTool');
+      expect((part.toJson()['toolRequest'] as Map)['name'], 'testTool');
     });
 
     test('deserializes ToolResponsePart', () {
@@ -159,7 +162,7 @@ void main() {
       };
       final part = Part.fromJson(json);
       expect(part, isA<ToolResponsePart>());
-      expect(part.toJson()['toolResponse']['name'], 'testTool');
+      expect((part.toJson()['toolResponse'] as Map)['name'], 'testTool');
     });
 
     test('throws for unknown Part subtype', () {

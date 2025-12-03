@@ -107,7 +107,7 @@ void main() {
     });
 
     test('should include all information in complete exception', () {
-      final underlyingException = FormatException('Invalid JSON');
+      final underlyingException = const FormatException('Invalid JSON');
       final stackTrace = StackTrace.current;
 
       final exception = GenkitException(

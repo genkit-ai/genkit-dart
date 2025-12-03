@@ -34,8 +34,8 @@ Future<O?> streamFlow<O, S>({
   final responseCompleter = Completer<O?>();
 
   httpClient ??= http.Client();
-  fromResponse ??= (json) => json;
-  fromStreamChunk ??= (json) => json;
+  fromResponse ??= (json) => json as O;
+  fromStreamChunk ??= (json) => json as S;
 
   final uri = Uri.parse(url);
   final request = http.Request('POST', uri)
@@ -57,7 +57,7 @@ Future<O?> streamFlow<O, S>({
     );
   }
 
-  bool errorOccurred = false;
+  var errorOccurred = false;
 
   void handleError(Object error, [StackTrace? stackTrace]) {
     if (errorOccurred) return;
@@ -90,9 +90,10 @@ Future<O?> streamFlow<O, S>({
               final errorData = jsonDecode(jsonString);
               if (errorData is Map<String, dynamic> &&
                   errorData.containsKey('error')) {
-                final errorContent = errorData['error'];
+                final errorContent = errorData['error'] as Map<String, dynamic>;
                 final message =
-                    errorContent['message'] ?? 'Unknown streaming error';
+                    errorContent['message'] as String? ??
+                    'Unknown streaming error';
                 return handleError(
                   GenkitException(message, details: jsonEncode(errorContent)),
                 );
@@ -186,8 +187,8 @@ RemoteAction<O, S> defineRemoteAction<O, S>({
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
-    fromResponse: fromResponse ?? (d) => d,
-    fromStreamChunk: fromStreamChunk ?? (d) => d,
+    fromResponse: fromResponse ?? (d) => d as O,
+    fromStreamChunk: fromStreamChunk ?? (d) => d as S,
   );
 }
 
@@ -338,7 +339,7 @@ class RemoteAction<O, S> {
           streamController.close();
         }
       },
-      onError: (error, st) {
+      onError: (Object error, StackTrace st) {
         actionStream._setError(error, st);
         if (!streamController.isClosed) {
           streamController.addError(error, st);
@@ -350,7 +351,9 @@ class RemoteAction<O, S> {
     return actionStream;
   }
 
-  /// Disposes of the underlying HTTP client if it was created by this [RemoteAction].
+  /// Disposes of the underlying HTTP client if it was created by this 
+  /// [RemoteAction].
+  /// 
   /// Call this when the [RemoteAction] is no longer needed to free up resources,
   /// but only if an `httpClient` was not provided at construction.
   void dispose() {
@@ -386,6 +389,7 @@ class ActionStream<S, F> extends StreamView<S> {
       throw GenkitException('Stream not consumed yet');
     }
     if (_streamError != null) {
+      // ignore: only_throw_errors
       throw _streamError!;
     }
     return _result as F;

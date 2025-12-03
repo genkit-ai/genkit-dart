@@ -8,22 +8,24 @@ const baseUrl = 'http://localhost:8080';
 
 void printServerInstructions() {
   print(
-    '-------------------------------------------------------------------\n'
-    '| Before running these examples, make sure the server is running. |\n'
-    '| The server is using a fake model, so does not require API keys. |\n'
-    '| In a separate terminal run:                                     |\n'
-    '|                                                                 |\n'
-    '| \$ cd example/server                                             |\n'
-    '| \$ npm i                                                         |\n'
-    '| \$ npm start                                                     |\n'
-    '-------------------------------------------------------------------\n',
+    r'''
+-------------------------------------------------------------------
+| Before running these examples, make sure the server is running. |
+| The server is using a fake model, so does not require API keys. |
+| In a separate terminal run:                                     |
+|                                                                 |
+| $ cd example/server                                             |
+| $ npm i                                                         |
+| $ npm start                                                     |
+-------------------------------------------------------------------
+''',
   );
 }
 
 // A simple flow that takes a string and returns a string.
 Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
-  final echoStringFlow = defineRemoteAction(
+  final echoStringFlow = defineRemoteAction<String, String>(
     url: '$baseUrl/echoString',
     fromResponse: (json) => json as String,
   );
@@ -34,7 +36,7 @@ Future<void> _runStringFlow() async {
 // Error handling when calling remote flows.
 Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
-  final throwy = defineRemoteAction(
+  final throwy = defineRemoteAction<String, String>(
     url: '$baseUrl/throwy',
     fromResponse: (json) => json as String,
   );
@@ -78,9 +80,9 @@ Future<void> _runThrowingStreamingFlow() async {
 // A flow that takes an object and returns an object.
 Future<void> _runObjectFlow() async {
   print('\n--- Object to Object flow ---');
-  final processObjectFlow = defineRemoteAction(
+  final processObjectFlow = defineRemoteAction<MyOutput, MyInput>(
     url: '$baseUrl/processObject',
-    fromResponse: (json) => MyOutput.fromJson(json),
+    fromResponse: (json) => MyOutput.fromJson(json as Map<String, dynamic>),
   );
   final response = await processObjectFlow(
     input: MyInput(message: 'Hello Genkit!', count: 20),
@@ -93,8 +95,9 @@ Future<void> _runStreamingFlow() async {
   print('\n--- Stream generate call ---');
   final streamObjectsFlow = defineRemoteAction(
     url: '$baseUrl/streamObjects',
-    fromResponse: (json) => StreamOutput.fromJson(json),
-    fromStreamChunk: (json) => StreamOutput.fromJson(json),
+    fromResponse: (json) => StreamOutput.fromJson(json as Map<String, dynamic>),
+    fromStreamChunk: (json) =>
+        StreamOutput.fromJson(json as Map<String, dynamic>),
   );
   final stream = streamObjectsFlow.stream(
     input: StreamInput(prompt: 'What is Genkit?'),
@@ -114,22 +117,24 @@ Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
     url: '$baseUrl/generate',
-    fromResponse: (json) => GenerateResponse.fromJson(json),
-    fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
+    fromResponse: (json) =>
+        GenerateResponse.fromJson(json as Map<String, dynamic>),
+    fromStreamChunk: (json) =>
+        GenerateResponseChunk.fromJson(json as Map<String, dynamic>),
   );
   final stream = generateFlow.stream(
     input: [
       Message(
         role: Role.user,
-        content: [TextPart(text: "hello")],
+        content: [TextPart(text: 'hello')],
       ),
       Message(
         role: Role.model,
-        content: [TextPart(text: "Hello, how can I help you?")],
+        content: [TextPart(text: 'Hello, how can I help you?')],
       ),
       Message(
         role: Role.user,
-        content: [TextPart(text: "Sing me a song.")],
+        content: [TextPart(text: 'Sing me a song.')],
       ),
     ],
   );
@@ -149,7 +154,7 @@ Future<void> _runPerformanceExample() async {
   final client = http.Client();
   try {
     print('\n--- Manual Client Management for Performance ---');
-    final echoAction = defineRemoteAction(
+    final echoAction = defineRemoteAction<String, String>(
       url: '$baseUrl/echoString',
       httpClient: client,
       fromResponse: (json) => json as String,

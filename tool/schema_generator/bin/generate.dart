@@ -1,11 +1,15 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:schema_generator/src/class_generator.dart';
 
 void main() async {
-  final response = await http.get(Uri.parse(
-      'https://raw.githubusercontent.com/firebase/genkit/refs/heads/main/genkit-tools/genkit-schema.json'));
+  final response = await http.get(
+    Uri.parse(
+      'https://raw.githubusercontent.com/firebase/genkit/refs/heads/main/genkit-tools/genkit-schema.json',
+    ),
+  );
 
   if (response.statusCode == 200) {
     final schema = json.decode(response.body) as Map<String, dynamic>;

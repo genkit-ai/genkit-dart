@@ -16,9 +16,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:genkit/client.dart';
-import 'package:test/test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mockito/mockito.dart';
+import 'package:test/test.dart';
 
 import 'client_test.mocks.dart';
 import 'schemas/stream_schemas.dart';
@@ -35,7 +35,8 @@ void main() {
       url: 'http://localhost:3400/string-stream',
       httpClient: mockClient,
       fromResponse: (data) => data as String,
-      fromStreamChunk: (data) => data['chunk'] as String,
+      fromStreamChunk: (data) =>
+          (data as Map<String, dynamic>)['chunk'] as String,
     );
 
     objectStreamAction = RemoteAction<Map<String, dynamic>, TestStreamChunk>(
@@ -109,7 +110,7 @@ void main() {
       final finalResponse = await stream.onResult;
 
       expect(chunks.length, expectedChunks.length);
-      for (int i = 0; i < chunks.length; i++) {
+      for (var i = 0; i < chunks.length; i++) {
         expect(chunks[i].chunk, expectedChunks[i].chunk);
       }
       expect(finalResponse, expectedResponse);
@@ -198,7 +199,7 @@ void main() {
       await expectLater(
         () async => {
           await for (final _ in stream)
-            {
+            <String, dynamic>{
               // nothing
             },
         },
@@ -264,9 +265,7 @@ void main() {
       final stream = stringStreamAction.stream(input: 'test');
       final receivedChunks = <String>[];
 
-      stream.listen((chunk) {
-        receivedChunks.add(chunk);
-      });
+      stream.listen(receivedChunks.add);
 
       // Send chunks progressively
       for (final chunk in chunks) {
@@ -275,7 +274,7 @@ void main() {
               'message': {'chunk': chunk},
             })}\n\n';
         streamController.add(utf8.encode(data));
-        await Future.delayed(Duration(milliseconds: 10));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
 
       // Send final response
@@ -309,7 +308,7 @@ void main() {
           // Errors might be thrown here depending on timing.
         },
       );
-      await Future.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
       await subscription.cancel();
 
       await expectLater(
@@ -406,7 +405,7 @@ void main() {
       });
 
       final stream = stringStreamAction.stream(input: 'test');
-      await stream.drain(); // Ensure stream is done
+      await stream.drain<void>(); // Ensure stream is done
 
       // Call onResult *after* the stream is done
       await expectLater(stream.onResult, completion('done'));
