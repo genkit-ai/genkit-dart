@@ -1,0 +1,72 @@
+import 'dart:io';
+
+import 'package:genkit/client.dart';
+import 'package:genkit/genkit.dart';
+import 'package:genkit/plugins/shelf.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as io;
+import 'package:shelf_router/shelf_router.dart';
+
+// This example demonstrates how to use the shelfHandler directly to integrate
+// Genkit flows into an existing Shelf application or with custom routing.
+//
+// To run this example:
+// 1. dart run example/shelf_handler_example.dart
+//
+// To test the endpoint:
+// curl -X POST http://localhost:8080/api/custom-flow -H "Content-Type: application/json" -d '{"data": "Dart"}'
+//
+// To test the client flow:
+// curl -X POST http://localhost:8080/api/client -H "Content-Type: application/json" -d '{"data": "start"}'
+
+void main() async {
+  configureCollectorExporter();
+
+  final ai = Genkit();
+
+  // Define client action
+  final customAction = defineRemoteAction(
+    url: 'http://localhost:8080/api/custom-flow',
+    fromResponse: (data) => data as String,
+  );
+
+  // Define a flow
+  final customFlow = ai.defineFlow(
+    name: 'customFlow',
+    fn: (String input, _) async => 'Processed by custom handler: $input',
+    inputType: StringType,
+    outputType: StringType,
+  );
+
+  // Define client flow
+  final clientFlow = ai.defineFlow(
+    name: 'client',
+    fn: (String input, _) async {
+      return await customAction(input: 'Client via $input');
+    },
+    inputType: StringType,
+    outputType: StringType,
+  );
+
+  // Create a Shelf Router
+  final router = Router();
+
+  // Mount the flow handler at a specific path
+  router.post('/api/custom-flow', shelfHandler(customFlow));
+  router.post('/api/client', shelfHandler(clientFlow));
+
+  // Add other application routes
+  router.get('/health', (Request request) => Response.ok('OK'));
+
+  // Create a handler pipeline (e.g., adding logging)
+  final handler = const Pipeline()
+      .addMiddleware(logRequests())
+      .addHandler(router.call);
+
+  // Start the server
+  final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);
+  print('Server running on http://localhost:${server.port}');
+  print('Health check: http://localhost:${server.port}/health');
+  print('Flow endpoint: http://localhost:${server.port}/api/custom-flow');
+  print('Client endpoint: http://localhost:${server.port}/api/client');
+}

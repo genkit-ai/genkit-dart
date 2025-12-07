@@ -1,10 +1,9 @@
 import 'dart:io' as io;
-import 'package:flutter/foundation.dart';
+
+const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
 
 String? getEnvVar(String name) {
-  print('getEnvVar $name $kIsWeb');
   if (kIsWeb) {
-    print('qpam $name = ${Uri.base.queryParameters[name]}');
      if (Uri.base.queryParameters.containsKey(name)) {
       return Uri.base.queryParameters[name];
      }
