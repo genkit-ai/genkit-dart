@@ -63,7 +63,8 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
             final paramName = getter.name;
             final paramType = refer(_convertSchemaType(getter.returnType));
             final isExtensionType = getter.returnType
-                .getDisplayString(withNullability: false)
+                .getDisplayString()
+                .replaceAll('?', '')
                 .endsWith('Schema');
             final isNullable = getter.returnType.isNullable ||
                 getter.returnType.isDartCoreObject ||
@@ -78,7 +79,8 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
               final itemType =
                   (getter.returnType as InterfaceType).typeArguments.first;
               if (itemType
-                  .getDisplayString(withNullability: false)
+                  .getDisplayString()
+                  .replaceAll('?', '')
                   .endsWith('Schema')) {
                 final toJsonLambda = Method((m) => m
                   ..requiredParameters.add(Parameter((p) => p.name = 'e'))
@@ -125,7 +127,8 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       }));
 
       for (final interface in element.interfaces) {
-        final interfaceName = interface.getDisplayString(withNullability: false);
+        final interfaceName =
+            interface.getDisplayString().replaceAll('?', '');
         if (interfaceName.endsWith('Schema')) {
           final interfaceBaseName =
               interfaceName.substring(0, interfaceName.length - 6);
@@ -151,22 +154,20 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
   }
 
   String _convertSchemaType(DartType type) {
-    final typeName = type.getDisplayString(withNullability: true);
+    final typeName = type.getDisplayString();
     if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
-      final itemTypeName = itemType.getDisplayString(withNullability: false);
+      final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       if (itemTypeName.endsWith('Schema')) {
         final nestedBaseName =
             itemTypeName.substring(0, itemTypeName.length - 6);
-        final nullability =
-            itemType.getDisplayString(withNullability: true).endsWith('?')
-                ? '?'
-                : '';
+            final nullability =
+                itemType.getDisplayString().endsWith('?') ? '?' : '';
         final listNullability = typeName.endsWith('?') ? '?' : '';
         return 'List<$nestedBaseName$nullability>$listNullability';
       }
     }
-    final nonNullableTypeName = type.getDisplayString(withNullability: false);
+    final nonNullableTypeName = type.getDisplayString().replaceAll('?', '');
     if (nonNullableTypeName.endsWith('Schema')) {
       final nestedBaseName =
           nonNullableTypeName.substring(0, nonNullableTypeName.length - 6);
@@ -180,10 +181,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     final fieldName = getter.name;
     final jsonFieldName = _getJsonKey(getter);
     final returnType = getter.returnType;
-    final typeName = returnType.getDisplayString(withNullability: true);
+    final typeName = returnType.getDisplayString();
     final convertedTypeName = _convertSchemaType(returnType);
     final nonNullableTypeName =
-        returnType.getDisplayString(withNullability: false);
+        returnType.getDisplayString().replaceAll('?', '');
 
     var getterBody = "return _json['$jsonFieldName'] as $typeName;";
 
@@ -191,7 +192,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       getterBody = "return _json['$jsonFieldName'] as $typeName;";
       if (returnType.isDartCoreList) {
         final itemType = (returnType as InterfaceType).typeArguments.first;
-        final itemTypeName = itemType.getDisplayString(withNullability: false);
+        final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         final itemIsNullable = itemType.isNullable;
         if (itemTypeName.endsWith('Schema')) {
           final nestedBaseName =
@@ -217,12 +218,12 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
             "return _json['$jsonFieldName'] == null ? null : DateTime.parse(_json['$jsonFieldName'] as String);";
       }
     } else if (returnType.element is EnumElement) {
-      final enumName = returnType.getDisplayString(withNullability: false);
+      final enumName = returnType.getDisplayString().replaceAll('?', '');
       getterBody =
           "return $enumName.values.byName(_json['$jsonFieldName'] as String);";
     } else if (returnType.isDartCoreList) {
       final itemType = (returnType as InterfaceType).typeArguments.first;
-      final itemTypeName = itemType.getDisplayString(withNullability: false);
+      final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       final itemIsNullable = itemType.isNullable;
       if (itemTypeName.endsWith('Schema')) {
         final nestedBaseName =
@@ -263,7 +264,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     final paramType = getter.returnType;
     final convertedTypeName = _convertSchemaType(paramType);
     final nonNullableTypeName =
-        paramType.getDisplayString(withNullability: false);
+        paramType.getDisplayString().replaceAll('?', '');
 
     var setterBody = "_json['$jsonFieldName'] = value;";
 
@@ -275,7 +276,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         valueExpression = 'value.toIso8601String()';
       } else if (paramType.isDartCoreList) {
         final itemType = (paramType as InterfaceType).typeArguments.first;
-        final itemTypeName = itemType.getDisplayString(withNullability: false);
+        final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         final itemIsNullable = itemType.isNullable;
         if (itemTypeName.endsWith('Schema')) {
           if (itemIsNullable) {
@@ -293,7 +294,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       setterBody = "_json['$jsonFieldName'] = value.name;";
     } else if (paramType.isDartCoreList) {
       final itemType = (paramType as InterfaceType).typeArguments.first;
-      final itemTypeName = itemType.getDisplayString(withNullability: false);
+      final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       final itemIsNullable = itemType.isNullable;
       if (itemTypeName.endsWith('Schema')) {
         if (itemIsNullable) {
@@ -353,7 +354,7 @@ if (jsonMap.containsKey('text')) {
           ..body = Code(parseBody)));
       } else if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
         final subtypes = element.interfaces.map((i) {
-          final interfaceName = i.getDisplayString(withNullability: false);
+          final interfaceName = i.getDisplayString().replaceAll('?', '');
           if (interfaceName.endsWith('Schema')) {
             return interfaceName.substring(0, interfaceName.length - 6);
           }
@@ -428,7 +429,7 @@ if (jsonMap.containsKey('text')) {
     }
     if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
       final subtypes = element.interfaces.map((i) {
-        final interfaceName = i.getDisplayString(withNullability: false);
+        final interfaceName = i.getDisplayString().replaceAll('?', '');
         if (interfaceName.endsWith('Schema')) {
           return refer(
               '${interfaceName.substring(0, interfaceName.length - 6)}Type.jsonSchema');
@@ -494,7 +495,7 @@ if (jsonMap.containsKey('text')) {
       properties['additionalProperties'] = _jsonSchemaForType(valueType, null);
       schemaExpression = refer('Schema.object').call([], properties);
     } else {
-      final typeName = type.getDisplayString(withNullability: false);
+      final typeName = type.getDisplayString().replaceAll('?', '');
       if (typeName == 'DateTime') {
         properties['format'] = literalString('date-time');
         schemaExpression = refer('Schema.string').call([], properties);
@@ -541,10 +542,10 @@ const _keyChecker = TypeChecker.fromUrl('package:genkit/schema.dart#Key');
 
 extension on DartType {
   bool get isNullable {
-    return getDisplayString(withNullability: true).endsWith('?');
+    return getDisplayString().endsWith('?');
   }
 
   bool get isDynamic {
-    return getDisplayString(withNullability: false) == 'dynamic';
+    return getDisplayString() == 'dynamic';
   }
 }
