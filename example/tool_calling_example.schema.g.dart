@@ -43,4 +43,5 @@ class WeatherToolInputTypeFactory
   }
 }
 
+// ignore: constant_identifier_names
 const WeatherToolInputType = WeatherToolInputTypeFactory();

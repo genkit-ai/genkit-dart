@@ -43,4 +43,5 @@ class TestCustomOptionsTypeFactory
   }
 }
 
+// ignore: constant_identifier_names
 const TestCustomOptionsType = TestCustomOptionsTypeFactory();

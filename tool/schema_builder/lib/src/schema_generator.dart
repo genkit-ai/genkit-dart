@@ -85,7 +85,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
                   ..body = refer('e').property('toJson').call([]).code).closure;
                 if (getter.returnType.isNullable) {
                   valueExpression = refer(paramName!)
-                      .nullSafeProperty('map')
+                      .property('map')
                       .call([toJsonLambda])
                       .property('toList')
                       .call([]);
@@ -272,7 +272,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       if (nonNullableTypeName.endsWith('Schema')) {
         valueExpression = 'value';
       } else if (nonNullableTypeName == 'DateTime') {
-        valueExpression = 'value?.toIso8601String()';
+        valueExpression = 'value.toIso8601String()';
       } else if (paramType.isDartCoreList) {
         final itemType = (paramType as InterfaceType).typeArguments.first;
         final itemTypeName = itemType.getDisplayString(withNullability: false);
@@ -280,10 +280,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         if (itemTypeName.endsWith('Schema')) {
           if (itemIsNullable) {
             valueExpression =
-                'value?.toList()';
+                'value.toList()';
           } else {
             valueExpression =
-                'value?.toList()';
+                'value.toList()';
           }
         }
       }
@@ -531,6 +531,7 @@ if (jsonMap.containsKey('text')) {
   Field _generateConstInstance(String baseName) {
     return Field((b) => b
       ..name = '${baseName}Type'
+      ..docs.add('// ignore: constant_identifier_names')
       ..modifier = FieldModifier.constant
       ..assignment = refer('${baseName}TypeFactory').constInstance([]).code);
   }

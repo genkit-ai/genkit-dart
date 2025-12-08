@@ -50,6 +50,7 @@ class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
   }
 }
 
+// ignore: constant_identifier_names
 const IngredientType = IngredientTypeFactory();
 
 extension type Recipe(Map<String, dynamic> _json) {
@@ -117,6 +118,7 @@ class RecipeTypeFactory implements JsonExtensionType<Recipe> {
   }
 }
 
+// ignore: constant_identifier_names
 const RecipeType = RecipeTypeFactory();
 
 extension type AnnotatedRecipe(Map<String, dynamic> _json) {
@@ -186,6 +188,7 @@ class AnnotatedRecipeTypeFactory implements JsonExtensionType<AnnotatedRecipe> {
   }
 }
 
+// ignore: constant_identifier_names
 const AnnotatedRecipeType = AnnotatedRecipeTypeFactory();
 
 extension type MealPlan(Map<String, dynamic> _json) {
@@ -234,6 +237,7 @@ class MealPlanTypeFactory implements JsonExtensionType<MealPlan> {
   }
 }
 
+// ignore: constant_identifier_names
 const MealPlanType = MealPlanTypeFactory();
 
 extension type NullableFields(Map<String, dynamic> _json) {
@@ -329,6 +333,7 @@ class NullableFieldsTypeFactory implements JsonExtensionType<NullableFields> {
   }
 }
 
+// ignore: constant_identifier_names
 const NullableFieldsType = NullableFieldsTypeFactory();
 
 extension type ComplexObject(Map<String, dynamic> _json) {
@@ -433,6 +438,7 @@ class ComplexObjectTypeFactory implements JsonExtensionType<ComplexObject> {
   }
 }
 
+// ignore: constant_identifier_names
 const ComplexObjectType = ComplexObjectTypeFactory();
 
 extension type Menu(Map<String, dynamic> _json) {
@@ -444,7 +450,7 @@ extension type Menu(Map<String, dynamic> _json) {
       'recipes': recipes.map((e) => e.toJson()).toList(),
       if (optionalIngredients != null)
         'optionalIngredients': optionalIngredients
-            ?.map((e) => e.toJson())
+            .map((e) => e.toJson())
             .toList(),
     });
   }
@@ -469,7 +475,7 @@ extension type Menu(Map<String, dynamic> _json) {
     if (value == null) {
       _json.remove('optionalIngredients');
     } else {
-      _json['optionalIngredients'] = value?.toList();
+      _json['optionalIngredients'] = value.toList();
     }
   }
 
@@ -498,4 +504,5 @@ class MenuTypeFactory implements JsonExtensionType<Menu> {
   }
 }
 
+// ignore: constant_identifier_names
 const MenuType = MenuTypeFactory();

@@ -42,6 +42,7 @@ class HelloInputTypeFactory implements JsonExtensionType<HelloInput> {
   }
 }
 
+// ignore: constant_identifier_names
 const HelloInputType = HelloInputTypeFactory();
 
 extension type HelloOutput(Map<String, dynamic> _json) {
@@ -79,6 +80,7 @@ class HelloOutputTypeFactory implements JsonExtensionType<HelloOutput> {
   }
 }
 
+// ignore: constant_identifier_names
 const HelloOutputType = HelloOutputTypeFactory();
 
 extension type CountChunk(Map<String, dynamic> _json) {
@@ -116,4 +118,5 @@ class CountChunkTypeFactory implements JsonExtensionType<CountChunk> {
   }
 }
 
+// ignore: constant_identifier_names
 const CountChunkType = CountChunkTypeFactory();

@@ -42,6 +42,7 @@ class TestInputTypeFactory implements JsonExtensionType<TestInput> {
   }
 }
 
+// ignore: constant_identifier_names
 const TestInputType = TestInputTypeFactory();
 
 extension type TestOutput(Map<String, dynamic> _json) {
@@ -79,4 +80,5 @@ class TestOutputTypeFactory implements JsonExtensionType<TestOutput> {
   }
 }
 
+// ignore: constant_identifier_names
 const TestOutputType = TestOutputTypeFactory();

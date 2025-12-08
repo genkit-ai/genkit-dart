@@ -59,4 +59,5 @@ class GeminiOptionsTypeFactory implements JsonExtensionType<GeminiOptions> {
   }
 }
 
+// ignore: constant_identifier_names
 const GeminiOptionsType = GeminiOptionsTypeFactory();

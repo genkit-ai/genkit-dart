@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 
-part 'flow-basics.schema.g.dart';
+part 'flow_basics.schema.g.dart';
 
 @GenkitSchema()
 abstract class SubjectSchema {
@@ -40,7 +40,7 @@ void main() async {
   ai.defineFlow(
     name: 'parent',
     outputType: StringType,
-    fn: (void _, __) async {
+    fn: (_, _) async {
       // Dart flow objects are callable, but we need to handle the input.
       // basic expects a string.
       final result = await basic('foo');
@@ -164,7 +164,9 @@ void main() async {
           }
           return '$result1 ${i++},';
         });
-      } catch (e) {}
+      } catch (e) {
+        // Ignored
+      }
 
       return await ai.run('step3', () async {
         return '$result2 ${i++}';
@@ -189,7 +191,7 @@ void main() async {
       final out3 = await ai.run('step3-array', () async {
         return [out2, out2];
       });
-      final out4 = await ai.run('step4-num', () async {
+      await ai.run('step4-num', () async {
         return out3.join('-()-');
       });
       return 42;
@@ -199,7 +201,7 @@ void main() async {
   ai.defineFlow(
     name: 'largeSteps',
     outputType: StringType,
-    fn: (void _, __) async {
+    fn: (_, _) async {
       await ai.run('large-step1', () async {
         return generateString(100000);
       });

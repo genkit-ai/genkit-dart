@@ -69,7 +69,8 @@ void main() {
       final tracer = provider.getTracer('test-tracer', version: '1.2.3');
 
       final parentSpan = tracer.startSpan('parent-span');
-      final context = api.Context.current.withSpan(parentSpan);
+      
+      final context = api.contextWithSpan(api.Context.current, parentSpan);
 
       final span = tracer.startSpan('test-span', context: context);
       span.setAttribute(api.Attribute.fromString('test-attribute', 'test-value'));

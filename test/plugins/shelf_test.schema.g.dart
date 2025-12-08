@@ -42,6 +42,7 @@ class ShelfTestOutputTypeFactory implements JsonExtensionType<ShelfTestOutput> {
   }
 }
 
+// ignore: constant_identifier_names
 const ShelfTestOutputType = ShelfTestOutputTypeFactory();
 
 extension type ShelfTestStream(Map<String, dynamic> _json) {
@@ -79,4 +80,5 @@ class ShelfTestStreamTypeFactory implements JsonExtensionType<ShelfTestStream> {
   }
 }
 
+// ignore: constant_identifier_names
 const ShelfTestStreamType = ShelfTestStreamTypeFactory();

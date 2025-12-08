@@ -43,6 +43,7 @@ class TestCustomOptionsTypeFactory
   }
 }
 
+// ignore: constant_identifier_names
 const TestCustomOptionsType = TestCustomOptionsTypeFactory();
 
 extension type TestToolInput(Map<String, dynamic> _json) {
@@ -80,4 +81,5 @@ class TestToolInputTypeFactory implements JsonExtensionType<TestToolInput> {
   }
 }
 
+// ignore: constant_identifier_names
 const TestToolInputType = TestToolInputTypeFactory();

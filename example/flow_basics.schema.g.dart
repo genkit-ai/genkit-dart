@@ -1,7 +1,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'flow-basics.dart';
+part of 'flow_basics.dart';
 
 // **************************************************************************
 // SchemaGenerator
@@ -42,6 +42,7 @@ class SubjectTypeFactory implements JsonExtensionType<Subject> {
   }
 }
 
+// ignore: constant_identifier_names
 const SubjectType = SubjectTypeFactory();
 
 extension type Count(Map<String, dynamic> _json) {
@@ -79,4 +80,5 @@ class CountTypeFactory implements JsonExtensionType<Count> {
   }
 }
 
+// ignore: constant_identifier_names
 const CountType = CountTypeFactory();

@@ -113,8 +113,6 @@ class CollectorHttpExporter implements sdk.SpanExporter {
         return 4;
       case api.SpanKind.consumer:
         return 5;
-      default:
-        return 0;
     }
   }
 
@@ -162,7 +160,6 @@ class CollectorHttpExporter implements sdk.SpanExporter {
         code = 2;
         break;
       case api.StatusCode.unset:
-      default:
         code = 0;
         break;
     }

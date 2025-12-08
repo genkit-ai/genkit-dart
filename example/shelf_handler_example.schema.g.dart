@@ -42,6 +42,7 @@ class HandlerInputTypeFactory implements JsonExtensionType<HandlerInput> {
   }
 }
 
+// ignore: constant_identifier_names
 const HandlerInputType = HandlerInputTypeFactory();
 
 extension type HandlerOutput(Map<String, dynamic> _json) {
@@ -79,4 +80,5 @@ class HandlerOutputTypeFactory implements JsonExtensionType<HandlerOutput> {
   }
 }
 
+// ignore: constant_identifier_names
 const HandlerOutputType = HandlerOutputTypeFactory();

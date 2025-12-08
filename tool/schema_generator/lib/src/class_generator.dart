@@ -137,7 +137,7 @@ class ClassGenerator {
       final ref = schema['\$ref'] as String;
       final parts = ref.split('/');
       if (parts.length > 2 && parts[0] == '#' && parts[1] == '\$defs') {
-        var current = definitions;
+        dynamic current = definitions;
         for (var i = 2; i < parts.length; i++) {
           if (current is! Map<String, dynamic>) {
             return false;
@@ -162,11 +162,16 @@ class ClassGenerator {
       {bool isRequired = false}) {
     if (typeOverrides.containsKey(parentType) &&
         typeOverrides[parentType]!.containsKey(fieldName)) {
-      return refer('${typeOverrides[parentType]![fieldName]}?');
+      final overrideType = typeOverrides[parentType]![fieldName];
+      if (overrideType == 'dynamic') return refer('dynamic');
+      return refer('$overrideType?');
     }
     final type = _mapTypeInner(parentType, schema);
     if (isRequired) {
       return refer(type.symbol!.replaceAll('?', ''));
+    }
+    if (type.symbol == 'dynamic') {
+      return refer('dynamic');
     }
     if (!type.symbol!.endsWith('?')) {
       return refer('${type.symbol}?');

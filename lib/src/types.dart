@@ -25,8 +25,8 @@ abstract class MessageSchema {
 abstract class ToolDefinitionSchema {
   String get name;
   String get description;
-  dynamic? get inputSchema;
-  dynamic? get outputSchema;
+  dynamic get inputSchema;
+  dynamic get outputSchema;
   Map<String, dynamic>? get metadata;
 }
 
@@ -113,7 +113,7 @@ abstract class ToolRequestSchema {
 abstract class ToolResponseSchema {
   String? get ref;
   String get name;
-  dynamic? get output;
+  dynamic get output;
   List<dynamic>? get content;
 }
 

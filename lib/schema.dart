@@ -28,6 +28,7 @@ class StringTypeFactory implements JsonExtensionType<String> {
   jsb.Schema get jsonSchema => jsb.Schema.string();
 }
 
+// ignore: constant_identifier_names
 const StringType = StringTypeFactory();
 
 class IntTypeFactory implements JsonExtensionType<int> {
@@ -40,6 +41,7 @@ class IntTypeFactory implements JsonExtensionType<int> {
   jsb.Schema get jsonSchema => jsb.Schema.integer();
 }
 
+// ignore: constant_identifier_names
 const IntType = IntTypeFactory();
 
 class DoubleTypeFactory implements JsonExtensionType<double> {
@@ -55,6 +57,7 @@ class DoubleTypeFactory implements JsonExtensionType<double> {
   jsb.Schema get jsonSchema => jsb.Schema.number();
 }
 
+// ignore: constant_identifier_names
 const DoubleType = DoubleTypeFactory();
 
 class BoolTypeFactory implements JsonExtensionType<bool> {
@@ -67,16 +70,18 @@ class BoolTypeFactory implements JsonExtensionType<bool> {
   jsb.Schema get jsonSchema => jsb.Schema.boolean();
 }
 
+// ignore: constant_identifier_names
 const BoolType = BoolTypeFactory();
 
 class VoidTypeFactory implements JsonExtensionType<void> {
   const VoidTypeFactory();
 
   @override
-  void parse(Object? json) => null;
+  void parse(Object? json) {}
 
   @override
   jsb.Schema get jsonSchema => jsb.Schema.nil();
 }
 
+// ignore: constant_identifier_names
 const VoidType = VoidTypeFactory();

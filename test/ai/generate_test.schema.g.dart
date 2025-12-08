@@ -42,4 +42,5 @@ class TestToolInputTypeFactory implements JsonExtensionType<TestToolInput> {
   }
 }
 
+// ignore: constant_identifier_names
 const TestToolInputType = TestToolInputTypeFactory();

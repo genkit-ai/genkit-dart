@@ -50,6 +50,7 @@ class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
   }
 }
 
+// ignore: constant_identifier_names
 const IngredientType = IngredientTypeFactory();
 
 extension type Recipe(Map<String, dynamic> _json) {
@@ -117,4 +118,5 @@ class RecipeTypeFactory implements JsonExtensionType<Recipe> {
   }
 }
 
+// ignore: constant_identifier_names
 const RecipeType = RecipeTypeFactory();
