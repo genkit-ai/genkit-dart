@@ -7,6 +7,18 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
+part 'shelf_handler_example.schema.g.dart';
+
+@GenkitSchema()
+abstract class HandlerInputSchema {
+  String get message;
+}
+
+@GenkitSchema()
+abstract class HandlerOutputSchema {
+  String get processedMessage;
+}
+
 // This example demonstrates how to use the shelfHandler directly to integrate
 // Genkit flows into an existing Shelf application or with custom routing.
 //
@@ -27,22 +39,27 @@ void main() async {
   // Define client action
   final customAction = defineRemoteAction(
     url: 'http://localhost:8080/api/custom-flow',
-    fromResponse: (data) => data as String,
+    outputType: HandlerOutputType,
   );
 
   // Define a flow
   final customFlow = ai.defineFlow(
     name: 'customFlow',
-    fn: (String input, _) async => 'Processed by custom handler: $input',
-    inputType: StringType,
-    outputType: StringType,
+    fn: (HandlerInput input, _) async => HandlerOutput.from(
+      processedMessage: 'Processed by custom handler: ${input.message}',
+    ),
+    inputType: HandlerInputType,
+    outputType: HandlerOutputType,
   );
 
   // Define client flow
   final clientFlow = ai.defineFlow(
     name: 'client',
     fn: (String input, _) async {
-      return await customAction(input: 'Client via $input');
+      final result = await customAction(
+        input: HandlerInput.from(message: 'Client via $input'),
+      );
+      return result.processedMessage;
     },
     inputType: StringType,
     outputType: StringType,

@@ -15,6 +15,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:genkit/schema.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:http/http.dart' as http;
 
@@ -183,13 +184,26 @@ RemoteAction<O, S> defineRemoteAction<O, S>({
   http.Client? httpClient,
   O Function(dynamic jsonData)? fromResponse,
   S Function(dynamic jsonData)? fromStreamChunk,
+  JsonExtensionType<O>? outputType,
+  JsonExtensionType<S>? streamType,
 }) {
+  if (fromResponse != null && outputType != null) {
+    throw ArgumentError(
+        'Cannot provide both fromResponse and outputType. Please provide only one.');
+  }
+  if (fromStreamChunk != null && streamType != null) {
+    throw ArgumentError(
+        'Cannot provide both fromStreamChunk and streamType. Please provide only one.');
+  }
+
   return RemoteAction<O, S>(
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
-    fromResponse: fromResponse ?? (d) => d,
-    fromStreamChunk: fromStreamChunk ?? (d) => d,
+    fromResponse: fromResponse ??
+        (outputType != null ? (d) => outputType.parse(d) : (d) => d as O),
+    fromStreamChunk: fromStreamChunk ??
+        (streamType != null ? (d) => streamType.parse(d) : (d) => d as S),
   );
 }
 

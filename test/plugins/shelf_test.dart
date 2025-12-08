@@ -6,6 +6,18 @@ import 'package:genkit/plugins/shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
+part 'shelf_test.schema.g.dart';
+
+@GenkitSchema()
+abstract class ShelfTestOutputSchema {
+  String get greeting;
+}
+
+@GenkitSchema()
+abstract class ShelfTestStreamSchema {
+  String get chunk;
+}
+
 void main() {
   late Genkit ai;
   HttpServer? server;
@@ -144,5 +156,63 @@ void main() {
     expect(response.statusCode, 200);
     final body = await response.readAsString();
     expect(body, contains('"result":"Echo: direct"'));
+  });
+
+  test('Client using JsonExtensionType', () async {
+    final echoFlow = ai.defineFlow(
+      name: 'echoType',
+      fn: (input, _) async => 'Echo: $input',
+      inputType: StringType,
+      outputType: StringType,
+    );
+
+    server = await startFlowServer(flows: [echoFlow], port: 0);
+    port = server!.port;
+
+    final action = defineRemoteAction(
+      url: 'http://localhost:$port/echoType',
+      outputType: StringType,
+    );
+
+    final result = await action(input: 'typed');
+    expect(result, 'Echo: typed');
+  });
+
+  test('Client using GenkitSchema types and Streaming', () async {
+    final complexStreamFlow = ai.defineFlow(
+      name: 'complexStream',
+      fn: (input, ctx) async {
+        ctx.sendChunk(ShelfTestStream.from(chunk: 'chunk1'));
+        await Future.delayed(const Duration(milliseconds: 10));
+        ctx.sendChunk(ShelfTestStream.from(chunk: 'chunk2'));
+        return ShelfTestOutput.from(greeting: 'done');
+      },
+      inputType: StringType,
+      outputType: ShelfTestOutputType,
+      streamType: ShelfTestStreamType,
+    );
+
+    server = await startFlowServer(flows: [complexStreamFlow], port: 0);
+    port = server!.port;
+
+    final action = defineRemoteAction(
+      url: 'http://localhost:$port/complexStream',
+      outputType: ShelfTestOutputType,
+      streamType: ShelfTestStreamType,
+    );
+
+    final stream = action.stream(input: 'start');
+    final chunks = <ShelfTestStream>[];
+    await for (final chunk in stream) {
+      chunks.add(chunk);
+    }
+
+    final result = await stream.onResult;
+
+    expect(chunks.length, 2);
+    expect(chunks[0].chunk, 'chunk1');
+    expect(chunks[1].chunk, 'chunk2');
+
+    expect(result.greeting, 'done');
   });
 }

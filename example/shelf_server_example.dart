@@ -2,6 +2,23 @@ import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/plugins/shelf.dart';
 
+part 'shelf_server_example.schema.g.dart';
+
+@GenkitSchema()
+abstract class HelloInputSchema {
+  String get name;
+}
+
+@GenkitSchema()
+abstract class HelloOutputSchema {
+  String get greeting;
+}
+
+@GenkitSchema()
+abstract class CountChunkSchema {
+  int get count;
+}
+
 // This example demonstrates how to expose Genkit flows as HTTP endpoints using the Shelf plugin.
 //
 // To run this example:
@@ -29,23 +46,23 @@ void main() async {
   // Define remote actions for the client flow
   final helloAction = defineRemoteAction(
     url: 'http://localhost:3400/hello',
-    fromResponse: (data) => data as String,
+    outputType: HelloOutputType,
   );
 
   final countAction = defineRemoteAction(
     url: 'http://localhost:3400/count',
-    fromStreamChunk: (data) => data as String,
-    fromResponse: (data) => data as String,
+    streamType: CountChunkType,
+    outputType: StringType,
   );
 
   // 1. Define a simple unary flow
   final helloFlow = ai.defineFlow(
     name: 'hello',
-    fn: (String name, _) async {
-      return 'Hello, $name!';
+    fn: (HelloInput input, _) async {
+      return HelloOutput.from(greeting: 'Hello, ${input.name}!');
     },
-    inputType: StringType,
-    outputType: StringType,
+    inputType: HelloInputType,
+    outputType: HelloOutputType,
   );
 
   // 2. Define a streaming flow
@@ -54,13 +71,13 @@ void main() async {
     fn: (int count, ctx) async {
       for (var i = 1; i <= count; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
-        ctx.sendChunk('Count: $i');
+        ctx.sendChunk(CountChunk.from(count: i));
       }
       return 'Done counting to $count';
     },
     inputType: IntType,
     outputType: StringType,
-    streamType: StringType,
+    streamType: CountChunkType,
   );
 
   // 3. Define a flow with authentication (context)
@@ -86,8 +103,10 @@ void main() async {
 
       // Call 'hello' flow
       try {
-        final helloRes = await helloAction(input: 'Client');
-        results.add('Hello Flow: $helloRes');
+        final helloRes = await helloAction(
+          input: HelloInput.from(name: 'Client'),
+        );
+        results.add('Hello Flow: ${helloRes.greeting}');
       } catch (e) {
         results.add('Hello Flow Error: $e');
       }
@@ -95,12 +114,13 @@ void main() async {
       // Call 'count' flow (streaming)
       try {
         final stream = countAction.stream(input: 3);
-        final chunks = <String>[];
+        final chunks = <CountChunk>[];
         await for (final chunk in stream) {
           chunks.add(chunk);
         }
         final countRes = await stream.onResult;
-        results.add('Count Flow: Result="$countRes", Chunks=$chunks');
+        final chunkValues = chunks.map((c) => c.count).toList();
+        results.add('Count Flow: Result="$countRes", Chunks=$chunkValues');
       } catch (e) {
         results.add('Count Flow Error: $e');
       }
