@@ -54,7 +54,7 @@ class Model<C> extends Action<ModelRequest, ModelResponse, ModelResponseChunk>
     metadata['model'] = <String, dynamic>{};
     metadata['model']['label'] = name;
     if (customOptions != null) {
-      metadata['model']['customOptions'] = customOptions!.jsonSchema ?? {};
+      metadata['model']['customOptions'] = customOptions!.jsonSchema.toJson();
     }
   }
 }
