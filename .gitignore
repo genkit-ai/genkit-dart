@@ -9,3 +9,6 @@ pubspec.lock
 node_modules
 .genkit
 package-lock.json
+
+scratch
+build
