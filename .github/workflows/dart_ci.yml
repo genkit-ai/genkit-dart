@@ -32,6 +32,12 @@ jobs:
       - name: Run build_runner
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Apply license headers
+        run: dart tool/apply_license.dart
+
+      - name: Analyze project source
+        run: dart analyze
+
       - name: Run tests
         run: dart test
 

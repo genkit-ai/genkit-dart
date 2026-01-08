@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:genkit/client.dart';
 import 'package:http/http.dart' as http;
 
@@ -114,22 +128,22 @@ Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
     url: '$baseUrl/generate',
-    fromResponse: (json) => GenerateResponse.fromJson(json),
-    fromStreamChunk: (json) => GenerateResponseChunk.fromJson(json),
+    fromResponse: (json) => ModelResponseType.parse(json),
+    fromStreamChunk: (json) => ModelResponseChunkType.parse(json),
   );
   final stream = generateFlow.stream(
     input: [
-      Message(
+      Message.from(
         role: Role.user,
-        content: [TextPart(text: "hello")],
+        content: [TextPart.from(text: "hello")],
       ),
-      Message(
+      Message.from(
         role: Role.model,
-        content: [TextPart(text: "Hello, how can I help you?")],
+        content: [TextPart.from(text: "Hello, how can I help you?")],
       ),
-      Message(
+      Message.from(
         role: Role.user,
-        content: [TextPart(text: "Sing me a song.")],
+        content: [TextPart.from(text: "Sing me a song.")],
       ),
     ],
   );

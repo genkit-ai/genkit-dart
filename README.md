@@ -255,7 +255,7 @@ These classes include helpful getters like `.text` to easily extract string cont
 
 ### Example: Streaming with Genkit Data Objects
 
-Here is an example of how to call a generative model and process the streaming response using the built-in data classes. See `example/genkit_example.dart` for a runnable version.
+Here is an example of how to call a generative model and process the streaming response using the built-in data classes. See `example/client_example.dart` for a runnable version.
 
 ```dart
 import 'package:genkit/client.dart';

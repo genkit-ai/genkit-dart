@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Support for Genkit client operations in Dart.
-library;
+import 'package:build/build.dart';
+import 'package:source_gen/source_gen.dart';
+import 'package:schema_builder/src/schema_generator.dart';
 
-export 'src/client/client.dart' show RemoteAction, defineRemoteAction;
-export 'src/exception.dart' show GenkitException;
-export 'src/types.dart';
-export 'src/schema_extensions.dart';
-export 'src/core/action.dart' show ActionStream;
+Builder schemaBuilder(BuilderOptions options) {
+  return PartBuilder([SchemaGenerator()], '.schema.g.dart');
+}

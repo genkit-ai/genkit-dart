@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Support for Genkit client operations in Dart.
-library;
+import 'package:genkit/genkit.dart';
+import 'package:genkit/plugins/google_genai.dart';
 
-export 'src/client/client.dart' show RemoteAction, defineRemoteAction;
-export 'src/exception.dart' show GenkitException;
-export 'src/types.dart';
-export 'src/schema_extensions.dart';
-export 'src/core/action.dart' show ActionStream;
+void main() async {
+  final ai = Genkit(plugins: [googleAI()]);
+
+  final response = await ai.generate(
+    model: googleAI.gemini('gemini-2.5-flash'),
+    prompt:
+        'Tell me a joke about a developer who is trying to learn a new language.',
+  );
+
+  print(response.text);
+}

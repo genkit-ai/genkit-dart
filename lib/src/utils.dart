@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Support for Genkit client operations in Dart.
-library;
+import 'dart:io' as io;
 
-export 'src/client/client.dart' show RemoteAction, defineRemoteAction;
-export 'src/exception.dart' show GenkitException;
-export 'src/types.dart';
-export 'src/schema_extensions.dart';
-export 'src/core/action.dart' show ActionStream;
+const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
+
+String? getEnvVar(String name) {
+  if (kIsWeb) {
+     if (Uri.base.queryParameters.containsKey(name)) {
+      return Uri.base.queryParameters[name];
+     }
+
+    return null;
+  } else {
+    return io.Platform.environment[name];
+  }
+}
+
+String getPid() {
+  return kIsWeb ? 'web' : '${io.pid}';
+}

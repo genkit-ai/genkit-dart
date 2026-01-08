@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:genkit/client.dart';
+import 'package:genkit/schema.dart';
 import 'package:test/test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mockito/annotations.dart';
@@ -260,6 +261,80 @@ void main() {
       );
 
       expect(action, isA<RemoteAction<String, String>>());
+    });
+
+    test('should work with JsonExtensionType', () async {
+      final action = defineRemoteAction<String, String>(
+        url: 'http://localhost:3400/test',
+        httpClient: mockClient,
+        outputType: StringType,
+      );
+
+      when(
+        mockClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(jsonEncode({'result': 'success'}), 200),
+      );
+
+      final result = await action(input: 'input');
+      expect(result, 'success');
+    });
+
+    test('should work with JsonExtensionType for streaming', () async {
+      final action = defineRemoteAction<String, String>(
+        url: 'http://localhost:3400/stream',
+        httpClient: mockClient,
+        outputType: StringType,
+        streamType: StringType,
+      );
+
+      final expectedChunks = ['chunk1', 'chunk2'];
+      final expectedResponse = 'done';
+      final responseBody =
+          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
+                'message': chunk,
+              })}').join('\n\n')}\n\ndata: ${jsonEncode({'result': expectedResponse})}\n\n';
+
+      when(mockClient.send(any)).thenAnswer((_) async {
+        return http.StreamedResponse(
+          Stream.fromIterable([responseBody.codeUnits]),
+          200,
+        );
+      });
+
+      final stream = action.stream(input: 'start');
+      final chunks = <String>[];
+      await for (final chunk in stream) {
+        chunks.add(chunk);
+      }
+
+      expect(chunks, expectedChunks);
+      expect(await stream.onResult, expectedResponse);
+    });
+
+    test('should validate mutually exclusive options', () {
+      expect(
+        () => defineRemoteAction<String, String>(
+          url: 'http://localhost:3400/test',
+          fromResponse: (d) => d as String,
+          outputType: StringType,
+        ),
+        throwsArgumentError,
+      );
+
+      expect(
+        () => defineRemoteAction<String, String>(
+          url: 'http://localhost:3400/test',
+          fromResponse: (d) => d as String,
+          fromStreamChunk: (d) => d as String,
+          streamType: StringType,
+        ),
+        throwsArgumentError,
+      );
     });
   });
 
