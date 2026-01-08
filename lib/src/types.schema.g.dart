@@ -2312,7 +2312,7 @@ const DocumentDataType = DocumentDataTypeFactory();
 
 extension type GenerateActionOptions(Map<String, dynamic> _json) {
   factory GenerateActionOptions.from({
-    required String model,
+    String? model,
     List<DocumentData>? docs,
     required List<Message> messages,
     List<String>? tools,
@@ -2325,7 +2325,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
     String? stepName,
   }) {
     return GenerateActionOptions({
-      'model': model,
+      if (model != null) 'model': model,
       if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
       'messages': messages.map((e) => e.toJson()).toList(),
       if (tools != null) 'tools': tools,
@@ -2339,12 +2339,16 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
     });
   }
 
-  String get model {
-    return _json['model'] as String;
+  String? get model {
+    return _json['model'] as String?;
   }
 
-  set model(String value) {
-    _json['model'] = value;
+  set model(String? value) {
+    if (value == null) {
+      _json.remove('model');
+    } else {
+      _json['model'] = value;
+    }
   }
 
   List<DocumentData>? get docs {
@@ -2499,7 +2503,7 @@ class GenerateActionOptionsTypeFactory
         'maxTurns': Schema.integer(),
         'stepName': Schema.string(),
       },
-      required: ['model', 'messages'],
+      required: ['messages'],
     );
   }
 }
