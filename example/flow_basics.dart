@@ -248,7 +248,7 @@ String generateString(int length) {
   var str = '';
   while (str.length < length) {
     str +=
-        '${loremIpsum[DateTime.now().millisecondsSinceEpoch % loremIpsum.length]} ';
+        '${loremIpsum[Random().nextInt(loremIpsum.length)]} ';
   }
   return str.substring(0, length);
 }
