@@ -219,7 +219,7 @@ abstract class DocumentDataSchema {
 
 @GenkitSchema()
 abstract class GenerateActionOptionsSchema {
-  String get model;
+  String? get model;
   List<DocumentDataSchema>? get docs;
   List<MessageSchema> get messages;
   List<String>? get tools;
