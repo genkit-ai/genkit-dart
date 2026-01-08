@@ -91,11 +91,7 @@ class ReflectionServerV2 {
   }
 
   void _sendResponse(dynamic id, dynamic result) {
-    _send({
-      'jsonrpc': '2.0',
-      'result': result,
-      'id': id,
-    });
+    _send({'jsonrpc': '2.0', 'result': result, 'id': id});
   }
 
   void _sendError(dynamic id, int code, String message, [dynamic data]) {
@@ -111,11 +107,7 @@ class ReflectionServerV2 {
   }
 
   void _sendNotification(String method, dynamic params) {
-    _send({
-      'jsonrpc': '2.0',
-      'method': method,
-      'params': params,
-    });
+    _send({'jsonrpc': '2.0', 'method': method, 'params': params});
   }
 
   String get _runtimeId => '$_pid${_apiIndex > 0 ? '-$_apiIndex' : ''}';
@@ -219,10 +211,7 @@ class ReflectionServerV2 {
         final result = await action.run(
           input,
           onChunk: (chunk) {
-            _sendNotification('streamChunk', {
-              'requestId': id,
-              'chunk': chunk,
-            });
+            _sendNotification('streamChunk', {'requestId': id, 'chunk': chunk});
           },
           context: context,
         );

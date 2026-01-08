@@ -25,9 +25,8 @@ import 'package:shelf_router/shelf_router.dart';
 const _streamDelimiter = '\n\n';
 
 /// Context provider function.
-typedef ContextProvider = FutureOr<Map<String, dynamic>> Function(
-  Request request,
-);
+typedef ContextProvider =
+    FutureOr<Map<String, dynamic>> Function(Request request);
 
 /// A wrapper object containing a flow with its associated auth policy.
 class FlowWithContextProvider {
@@ -146,10 +145,7 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
 
       return Response.ok(
         controller.stream,
-        headers: {
-          'Content-Type': 'text/plain',
-          'Cache-Control': 'no-cache',
-        },
+        headers: {'Content-Type': 'text/plain', 'Cache-Control': 'no-cache'},
       );
     } else {
       try {
@@ -199,8 +195,8 @@ Future<HttpServer> startFlowServer({
 
   Handler handler = app.call;
   if (cors != null) {
-    handler =
-        const Pipeline().addMiddleware((innerHandler) {
+    handler = const Pipeline()
+        .addMiddleware((innerHandler) {
           return (request) async {
             if (request.method == 'OPTIONS') {
               return Response.ok(
@@ -208,8 +204,7 @@ Future<HttpServer> startFlowServer({
                 headers: {
                   'Access-Control-Allow-Origin': cors['origin'] ?? '*',
                   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-                  'Access-Control-Allow-Headers':
-                      'Content-Type, Authorization',
+                  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                 },
               );
             }
@@ -221,7 +216,8 @@ Future<HttpServer> startFlowServer({
               },
             );
           };
-        }).addHandler(handler);
+        })
+        .addHandler(handler);
   }
 
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);

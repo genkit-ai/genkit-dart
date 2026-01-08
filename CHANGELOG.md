@@ -1,3 +1,10 @@
+## 0.10.0-wip
+
+- Require `sdk: ^3.10.0`
+- Require `google_cloud_ai_generativelanguage_v1beta: ^0.4.0`
+- Require `google_cloud_protobuf: ^0.4.0`
+- Require `meta: ^1.16.0`
+
 ## 0.9.0
 
 - Made `fromResponse` and `fromStreamChunk` optional in `defineRemoteAction`. If not provided, the response and stream chunks will be `dynamic` objects decoded from JSON, instead of requiring a typed conversion function.

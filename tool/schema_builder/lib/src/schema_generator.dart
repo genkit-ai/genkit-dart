@@ -129,7 +129,8 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
             final emitter = DartEmitter(useNullSafetySyntax: true);
             final valueString = valueExpression.accept(emitter);
             if (isNullable) {
-              jsonMapEntries.add("if ($paramName != null) '$key': $valueString");
+              jsonMapEntries
+                  .add("if ($paramName != null) '$key': $valueString");
             } else {
               jsonMapEntries.add("'$key': $valueString");
             }
@@ -137,12 +138,14 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         }
         c.optionalParameters.addAll(params);
         final mapLiteral = '{${jsonMapEntries.join(', ')}}';
-        c.body = refer(baseName).call([CodeExpression(Code(mapLiteral))]).returned.statement;
+        c.body = refer(baseName)
+            .call([CodeExpression(Code(mapLiteral))])
+            .returned
+            .statement;
       }));
 
       for (final interface in element.interfaces) {
-        final interfaceName =
-            interface.getDisplayString().replaceAll('?', '');
+        final interfaceName = interface.getDisplayString().replaceAll('?', '');
         if (interfaceName.endsWith('Schema')) {
           final interfaceBaseName =
               interfaceName.substring(0, interfaceName.length - 6);
@@ -175,8 +178,8 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       if (itemTypeName.endsWith('Schema')) {
         final nestedBaseName =
             itemTypeName.substring(0, itemTypeName.length - 6);
-            final nullability =
-                itemType.getDisplayString().endsWith('?') ? '?' : '';
+        final nullability =
+            itemType.getDisplayString().endsWith('?') ? '?' : '';
         final listNullability = typeName.endsWith('?') ? '?' : '';
         return 'List<$nestedBaseName$nullability>$listNullability';
       }
@@ -294,11 +297,9 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         final itemIsNullable = itemType.isNullable;
         if (itemTypeName.endsWith('Schema')) {
           if (itemIsNullable) {
-            valueExpression =
-                'value.toList()';
+            valueExpression = 'value.toList()';
           } else {
-            valueExpression =
-                'value.toList()';
+            valueExpression = 'value.toList()';
           }
         }
       }
@@ -312,11 +313,9 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       final itemIsNullable = itemType.isNullable;
       if (itemTypeName.endsWith('Schema')) {
         if (itemIsNullable) {
-          setterBody =
-              "_json['$jsonFieldName'] = value.toList();";
+          setterBody = "_json['$jsonFieldName'] = value.toList();";
         } else {
-          setterBody =
-              "_json['$jsonFieldName'] = value.toList();";
+          setterBody = "_json['$jsonFieldName'] = value.toList();";
         }
       }
     } else if (nonNullableTypeName == 'DateTime') {

@@ -189,20 +189,24 @@ RemoteAction<O, S> defineRemoteAction<O, S>({
 }) {
   if (fromResponse != null && outputType != null) {
     throw ArgumentError(
-        'Cannot provide both fromResponse and outputType. Please provide only one.');
+      'Cannot provide both fromResponse and outputType. Please provide only one.',
+    );
   }
   if (fromStreamChunk != null && streamType != null) {
     throw ArgumentError(
-        'Cannot provide both fromStreamChunk and streamType. Please provide only one.');
+      'Cannot provide both fromStreamChunk and streamType. Please provide only one.',
+    );
   }
 
   return RemoteAction<O, S>(
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
-    fromResponse: fromResponse ??
+    fromResponse:
+        fromResponse ??
         (outputType != null ? (d) => outputType.parse(d) : (d) => d as O),
-    fromStreamChunk: fromStreamChunk ??
+    fromStreamChunk:
+        fromStreamChunk ??
         (streamType != null ? (d) => streamType.parse(d) : (d) => d as S),
   );
 }

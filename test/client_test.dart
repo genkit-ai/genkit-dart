@@ -216,8 +216,8 @@ void main() {
         url: 'http://localhost:3400/typed',
         httpClient: mockClient,
         fromResponse: (data) => MyOutput.fromJson(data as Map<String, dynamic>),
-        fromStreamChunk:
-            (data) => TestStreamChunk.fromJson(data as Map<String, dynamic>),
+        fromStreamChunk: (data) =>
+            TestStreamChunk.fromJson(data as Map<String, dynamic>),
       );
 
       final input = MyInput(message: 'test', count: 1);
@@ -295,9 +295,7 @@ void main() {
       final expectedChunks = ['chunk1', 'chunk2'];
       final expectedResponse = 'done';
       final responseBody =
-          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
-                'message': chunk,
-              })}').join('\n\n')}\n\ndata: ${jsonEncode({'result': expectedResponse})}\n\n';
+          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({'message': chunk})}').join('\n\n')}\n\ndata: ${jsonEncode({'result': expectedResponse})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(

@@ -34,21 +34,21 @@ const licenseHeader = '''
 void main(List<String> args) async {
   final checkMode = args.contains('--check');
   final currentDir = Directory.current;
-  
+
   print('Running in ${checkMode ? "check" : "apply"} mode...');
 
   final stats = await processDirectory(currentDir, checkMode);
-  
+
   print('\nSummary:');
   print('Files checked: ${stats.checked}');
   print('Files skipped (already has header): ${stats.skipped}');
   print('Files needing header: ${stats.modified}');
-  
+
   if (checkMode && stats.modified > 0) {
     print('\nFAILURE: ${stats.modified} files are missing license headers.');
     exit(1);
   }
-  
+
   if (!checkMode && stats.modified > 0) {
     print('\nSUCCESS: Applied license headers to ${stats.modified} files.');
   } else if (!checkMode) {
@@ -64,11 +64,11 @@ class Stats {
 
 Future<Stats> processDirectory(Directory dir, bool checkMode) async {
   final stats = Stats();
-  
+
   await for (final entity in dir.list(recursive: true, followLinks: false)) {
     if (entity is File) {
       if (!_shouldProcess(entity.path)) continue;
-      
+
       stats.checked++;
       final needsHeader = await _processFile(entity, checkMode);
       if (needsHeader) {
@@ -78,7 +78,7 @@ Future<Stats> processDirectory(Directory dir, bool checkMode) async {
       }
     }
   }
-  
+
   return stats;
 }
 
@@ -86,27 +86,27 @@ bool _shouldProcess(String path) {
   if (!path.endsWith('.dart')) return false;
   // Exclude hidden files and directories
   if (path.contains('/.')) return false;
-  // Exclude generated files (optional, but usually good practice to exclude .g.dart or .freezed.dart if the header shouldn't be there, 
-  // but often licenses are applied there too. Let's include them for now unless they are typically excluded. 
+  // Exclude generated files (optional, but usually good practice to exclude .g.dart or .freezed.dart if the header shouldn't be there,
+  // but often licenses are applied there too. Let's include them for now unless they are typically excluded.
   // Actually, generated files often have "Do not edit" comments. Let's apply to all .dart files as requested "all files (.dart mainly)".)
-  
+
   // Exclude build directories or package cache if any (unlikely in recursive list from root unless ignored)
   // .gitignore is respected by developer but Directory.list lists everything.
   // We should probably check if it's in a hidden directory like .dart_tool
   if (path.contains('.dart_tool/')) return false;
-  
+
   return true;
 }
 
 Future<bool> _processFile(File file, bool checkMode) async {
   try {
     final content = await file.readAsString();
-    
+
     // Check for shebang
     bool hasShebang = content.startsWith('#!');
     String contentToCheck = content;
     String? shebangLine;
-    
+
     if (hasShebang) {
       final newlineIndex = content.indexOf('\n');
       if (newlineIndex != -1) {
@@ -122,12 +122,16 @@ Future<bool> _processFile(File file, bool checkMode) async {
     if (contentToCheck.trimLeft().startsWith('// Copyright')) {
       return false; // Already has header
     }
-    
+
     // Check for Apache license mention if copyright format is different
     // We only check the first 1000 characters to avoid matching string constants later in the file
-    final checkLimit = contentToCheck.length > 1000 ? 1000 : contentToCheck.length;
-    if (contentToCheck.substring(0, checkLimit).contains('Licensed under the Apache License')) {
-       return false;
+    final checkLimit = contentToCheck.length > 1000
+        ? 1000
+        : contentToCheck.length;
+    if (contentToCheck
+        .substring(0, checkLimit)
+        .contains('Licensed under the Apache License')) {
+      return false;
     }
 
     if (checkMode) {
@@ -142,11 +146,10 @@ Future<bool> _processFile(File file, bool checkMode) async {
     }
     sb.write(licenseHeader);
     sb.write(contentToCheck);
-    
+
     await file.writeAsString(sb.toString());
     print('Applied header: ${file.path}');
     return true;
-    
   } catch (e) {
     print('Error processing ${file.path}: $e');
     return false;

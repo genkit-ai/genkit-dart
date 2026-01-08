@@ -89,11 +89,9 @@ void main() {
       expect(decoded['method'], equals('register'));
 
       // Request listActions
-      ws.add(jsonEncode({
-        'jsonrpc': '2.0',
-        'method': 'listActions',
-        'id': '123',
-      }));
+      ws.add(
+        jsonEncode({'jsonrpc': '2.0', 'method': 'listActions', 'id': '123'}),
+      );
 
       // Response
       msg = await queue.next;
@@ -127,15 +125,17 @@ void main() {
       await queue.next;
 
       // Request runAction
-      ws.add(jsonEncode({
-        'jsonrpc': '2.0',
-        'method': 'runAction',
-        'params': {
-          'key': '/custom/testAction',
-          'input': {'foo': 'baz'},
-        },
-        'id': '456',
-      }));
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'runAction',
+          'params': {
+            'key': '/custom/testAction',
+            'input': {'foo': 'baz'},
+          },
+          'id': '456',
+        }),
+      );
 
       // Response
       final msg = await queue.next;
@@ -170,16 +170,18 @@ void main() {
       await queue.next;
 
       // Request runAction with stream: true
-      ws.add(jsonEncode({
-        'jsonrpc': '2.0',
-        'method': 'runAction',
-        'params': {
-          'key': '/custom/streamAction',
-          'input': {'foo': 'baz'},
-          'stream': true,
-        },
-        'id': '789',
-      }));
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'runAction',
+          'params': {
+            'key': '/custom/streamAction',
+            'input': {'foo': 'baz'},
+            'stream': true,
+          },
+          'id': '789',
+        }),
+      );
 
       // Should receive chunks then result
       // Note: chunks and result order is determined by implementation.

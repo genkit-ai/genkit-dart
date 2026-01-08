@@ -18,9 +18,9 @@ const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
 
 String? getEnvVar(String name) {
   if (kIsWeb) {
-     if (Uri.base.queryParameters.containsKey(name)) {
+    if (Uri.base.queryParameters.containsKey(name)) {
       return Uri.base.queryParameters[name];
-     }
+    }
 
     return null;
   } else {

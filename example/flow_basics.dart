@@ -248,8 +248,7 @@ const loremIpsum = [
 String generateString(int length) {
   var str = '';
   while (str.length < length) {
-    str +=
-        '${loremIpsum[Random().nextInt(loremIpsum.length)]} ';
+    str += '${loremIpsum[Random().nextInt(loremIpsum.length)]} ';
   }
   return str.substring(0, length);
 }
