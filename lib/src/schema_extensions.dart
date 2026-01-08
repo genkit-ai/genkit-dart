@@ -59,8 +59,8 @@ extension ModelResponseChunkExtension on ModelResponseChunk {
   /// The text content of the response chunk.
   String get text {
     final buffer = StringBuffer();
-    for (final part in content as List) {
-      if (part is TextPart) {
+    for (final part in content) {
+      if (part.toJson().containsKey('text') && part is TextPart) {
         buffer.write(part.text);
       }
     }
