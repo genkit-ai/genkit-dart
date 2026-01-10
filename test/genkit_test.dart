@@ -162,7 +162,7 @@ void main() {
                 content: [
                   TextPart.from(
                     text:
-                        'Tool output: ${request.messages.last.content.whereType<ToolResponsePart>().first.toolResponse.output}',
+                        'Tool output: ${request.messages.last.content.firstWhere((p) => p.isToolResponse).toolResponse!.output}',
                   ),
                 ],
               ),

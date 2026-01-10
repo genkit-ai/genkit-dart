@@ -76,16 +76,16 @@ class GenerateResponseChunk<T> {
 
   // Derived properties
   String get text => content
-      .where((p) => p.toJson().containsKey('text'))
-      .map((p) => (p as TextPart).text)
+      .where((p) => p.isText)
+      .map((p) => p.text!)
       .join('');
 
   String get accumulatedText {
     final prev = previousChunks
         .map(
           (c) => c.content
-              .where((p) => p.toJson().containsKey('text'))
-              .map((p) => (p as TextPart).text)
+              .where((p) => p.isText)
+              .map((p) => p.text!)
               .join(''),
         )
         .join('');
@@ -97,9 +97,7 @@ class GenerateResponseChunk<T> {
       return _parser(this);
     }
     // Default parsing logic
-    final dataPart =
-        content.where((p) => p.toJson().containsKey('data')).firstOrNull
-            as DataPart?;
+    final dataPart = content.where((p) => p.isData).firstOrNull as DataPart?;
     if (dataPart != null && dataPart.data != null) {
       return dataPart.data as T?;
     }
@@ -227,7 +225,7 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
     }
 
     final toolRequests = response.message?.content
-        .where((c) => c.toJson().containsKey('toolRequest'))
+        .where((c) => c.isToolRequest)
         .map((c) => c as ToolRequestPart)
         .toList();
     if (toolRequests == null || toolRequests.isEmpty) {

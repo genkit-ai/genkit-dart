@@ -100,8 +100,7 @@ void main() {
         fn: (req, ctx) async {
           for (final m in req.messages) {
             for (final p in m.content) {
-              if (p.toJson().containsKey('text') &&
-                  (p as TextPart).metadata?['purpose'] == 'output') {
+              if (p.isText && p.metadata?['purpose'] == 'output') {
                 receivedInstructions = p.text;
               }
             }
@@ -155,8 +154,8 @@ void main() {
         name: 'echoModel',
         fn: (req, ctx) async {
           capturedRequest = req as GenerateRequest;
-          final text = req.messages.last.content.first is TextPart
-              ? (req.messages.last.content.first as TextPart).text
+          final text = req.messages.last.content.first.isText
+              ? req.messages.last.content.first.text!
               : '';
           ctx.sendChunk(
             ModelResponseChunk.from(content: [TextPart.from(text: 'chunk 1')]),
@@ -235,9 +234,9 @@ void main() {
       final hasInstructions = messages?.any(
         (m) => m.content.any(
           (p) =>
-              p is TextPart &&
+              p.isText &&
               p.metadata?['purpose'] == 'output' &&
-              p.text.contains('Output should be in banana format'),
+              p.text!.contains('Output should be in banana format'),
         ),
       );
       expect(hasInstructions, isTrue);
@@ -271,10 +270,55 @@ void main() {
       final messages = capturedRequest?.messages;
       final hasInstructions = messages?.any(
         (m) => m.content.any(
-          (p) => p is TextPart && p.metadata?['purpose'] == 'output',
+          (p) => p.isText && p.metadata?['purpose'] == 'output',
         ),
       );
       expect(hasInstructions, isFalse);
+    });
+
+    test('skips instruction injection if already present', () async {
+      GenerateRequest? capturedRequest;
+      genkit.defineModel(
+        name: 'echoModel',
+        fn: (req, ctx) async {
+          capturedRequest = req as GenerateRequest;
+          return ModelResponse.from(
+            finishReason: FinishReason.stop,
+            message: Message.from(
+              role: Role.model,
+              content: [TextPart.from(text: 'Echo: hi')],
+            ),
+          );
+        },
+      );
+
+      final manualInstructions = Message.from(
+        role: Role.user,
+        content: [
+          TextPart.from(
+            text: 'Manual instructions',
+            metadata: {'purpose': 'output'},
+          ),
+        ],
+      );
+
+      await genkit.generate(
+        model: modelRef('echoModel'),
+        messages: [
+          Message.from(role: Role.user, content: [TextPart.from(text: 'hi')]),
+          manualInstructions,
+        ],
+        outputSchema: TestObjectType,
+      );
+
+      final messages = capturedRequest?.messages;
+      final instructionParts = messages
+          ?.expand((m) => m.content)
+          .where((p) => p.isText && p.metadata?['purpose'] == 'output')
+          .toList();
+
+      expect(instructionParts?.length, 1);
+      expect(instructionParts!.first.text!, 'Manual instructions');
     });
   });
 }

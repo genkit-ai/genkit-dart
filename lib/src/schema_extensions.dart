@@ -19,7 +19,7 @@ extension MessageExtension on Message {
   String get text {
     final buffer = StringBuffer();
     for (final part in content) {
-      if (part.toJson().containsKey('text') && part is TextPart) {
+      if (part.isText) {
         buffer.write(part.text);
       }
     }
@@ -29,7 +29,7 @@ extension MessageExtension on Message {
   /// The media content of the message.
   Media? get media {
     for (final part in content) {
-      if (part.toJson().containsKey('media') && part is MediaPart) {
+      if (part.isMedia) {
         return part.media;
       }
     }
@@ -39,8 +39,8 @@ extension MessageExtension on Message {
   /// The tool requests in the response.
   List<ToolRequest> get toolRequests {
     return content
-        .where((c) => c.toJson().containsKey('toolRequest'))
-        .map((c) => (c as ToolRequestPart).toolRequest)
+        .where((c) => c.isToolRequest)
+        .map((c) => c.toolRequest!)
         .toList();
   }
 }
@@ -55,8 +55,8 @@ extension ModelResponseExtension on ModelResponse {
   /// The tool requests in the response.
   List<ToolRequest> get toolRequests {
     return (message)?.content
-            .where((c) => c.toJson().containsKey('toolRequest'))
-            .map((c) => (c as ToolRequestPart).toolRequest)
+            .where((c) => c.isToolRequest)
+            .map((c) => c.toolRequest!)
             .toList() ??
         [];
   }
@@ -67,7 +67,7 @@ extension ModelResponseChunkExtension on ModelResponseChunk {
   String get text {
     final buffer = StringBuffer();
     for (final part in content) {
-      if (part.toJson().containsKey('text') && part is TextPart) {
+      if (part.isText) {
         buffer.write(part.text);
       }
     }
@@ -76,11 +76,39 @@ extension ModelResponseChunkExtension on ModelResponseChunk {
 
   /// The media content of the response chunk.
   Media? get media {
-    for (final part in content as List) {
-      if (part is MediaPart) {
+    for (final part in content) {
+      if (part.isMedia) {
         return part.media;
       }
     }
     return null;
   }
+}
+
+extension PartExtension on Part {
+  bool get isText => toJson().containsKey('text');
+  String? get text => isText ? (this as TextPart).text : null;
+
+  bool get isMedia => toJson().containsKey('media');
+  Media? get media => isMedia ? (this as MediaPart).media : null;
+
+  bool get isToolRequest => toJson().containsKey('toolRequest');
+  ToolRequest? get toolRequest => isToolRequest ? (this as ToolRequestPart).toolRequest : null;
+
+  bool get isToolResponse => toJson().containsKey('toolResponse');
+  ToolResponse? get toolResponse => isToolResponse ? (this as ToolResponsePart).toolResponse : null;
+
+  bool get isData => toJson().containsKey('data');
+  Map<String, dynamic>? get data => isData ? (this as DataPart).data : null;
+
+  bool get isCustom => toJson().containsKey('custom');
+  Map<String, dynamic>? get custom => isCustom ? (this as CustomPart).custom : null;
+
+  bool get isReasoning => toJson().containsKey('reasoning');
+  String? get reasoning => isReasoning ? (this as ReasoningPart).reasoning : null;
+
+  bool get isResource => toJson().containsKey('resource');
+  Map<String, dynamic>? get resource => isResource ? (this as ResourcePart).resource : null;
+
+  Map<String, dynamic>? get metadata => toJson().containsKey('metadata') ? toJson()['metadata']: null;
 }

@@ -16,6 +16,7 @@ import 'package:genkit/src/ai/formatters/json.dart';
 import 'package:genkit/src/ai/formatters/types.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/types.dart';
+import 'package:genkit/src/schema_extensions.dart';
 
 export 'package:genkit/src/ai/formatters/json.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
@@ -136,7 +137,7 @@ List<Message> injectInstructions(List<Message> messages, String? instructions) {
 
   bool hasOutputInstruction(Message m) {
     return m.content.any((p) {
-      if (p is TextPart) {
+      if (p.isText) {
         return p.metadata?['purpose'] == 'output' &&
             p.metadata?['pending'] != true;
       }
@@ -164,7 +165,7 @@ List<Message> injectInstructions(List<Message> messages, String? instructions) {
 
   final pendingIndex = newContent.indexWhere(
     (p) =>
-        p is TextPart &&
+        p.isText &&
         p.metadata?['purpose'] == 'output' &&
         p.metadata?['pending'] == true,
   );

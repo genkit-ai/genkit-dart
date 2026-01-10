@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'package:genkit/src/ai/formatters/types.dart';
 import 'package:genkit/src/extract.dart';
 import 'package:genkit/src/types.dart';
+import 'package:genkit/src/schema_extensions.dart';
 
 final jsonFormatter = Formatter(
   name: 'json',
@@ -32,12 +33,7 @@ final jsonFormatter = Formatter(
     }
     return FormatterHandlerResult(
       parseMessage: (message) {
-        final text = message.content
-            .where((p) => p.toJson().containsKey('text'))
-            .map((p) => p as TextPart)
-            .map((p) => p.text)
-            .join('');
-        return extractJson(text);
+        return extractJson(message.text);
       },
       // TODO: implement parseChunk once we have partial json parsing implemented
       instructions: instructions,
