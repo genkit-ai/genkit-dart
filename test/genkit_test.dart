@@ -162,7 +162,7 @@ void main() {
                 content: [
                   TextPart.from(
                     text:
-                        'Tool output: ${request.messages.last.content.whereType<ToolResponsePart>().first.toolResponse.output}',
+                        'Tool output: ${request.messages.last.content.firstWhere((p) => p.isToolResponse).toolResponse!.output}',
                   ),
                 ],
               ),
@@ -236,7 +236,7 @@ void main() {
         },
       );
 
-      final receivedChunks = <ModelResponseChunk>[];
+      final receivedChunks = <GenerateResponseChunk>[];
       final result = await genkit.generate(
         model: modelRef(modelName),
         prompt: prompt,
@@ -289,7 +289,7 @@ void main() {
         prompt: prompt,
       );
 
-      final receivedChunks = <ModelResponseChunk>[];
+      final receivedChunks = <GenerateResponseChunk>[];
       await for (final chunk in stream) {
         receivedChunks.add(chunk);
       }

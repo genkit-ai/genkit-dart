@@ -118,11 +118,11 @@ List<gcl.Content> _toGeminiContent(List<Message> messages) {
 }
 
 gcl.Part _toGeminiPart(Part p) {
-  if (p.toJson().containsKey('text')) {
+  if (p.isText) {
     p as TextPart;
     return gcl.Part(text: p.text);
   }
-  if (p.toJson().containsKey('toolRequest')) {
+  if (p.isToolRequest) {
     p as ToolRequestPart;
     return gcl.Part(
       functionCall: gcl.FunctionCall(
@@ -133,7 +133,7 @@ gcl.Part _toGeminiPart(Part p) {
       ),
     );
   }
-  if (p.toJson().containsKey('toolResponse')) {
+  if (p.isToolResponse) {
     p as ToolResponsePart;
     return gcl.Part(
       functionResponse: gcl.FunctionResponse(

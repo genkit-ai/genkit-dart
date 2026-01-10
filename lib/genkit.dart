@@ -35,6 +35,7 @@ export 'package:genkit/src/types.dart';
 export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
+export 'package:genkit/src/ai/generate.dart' show GenerateResponseChunk;
 
 bool _isDevEnv() {
   return getEnvVar('GENKIT_ENV') == 'dev';
@@ -55,7 +56,7 @@ class Genkit {
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);
     }
-    
+
     // Register default formats
     configureFormats(registry);
 
@@ -144,10 +145,38 @@ class Genkit {
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    GenerateOutput? output,
+    JsonExtensionType? outputSchema,
+    String? outputFormat,
+    bool? outputConstrained,
+    String? outputInstructions,
+    bool? outputNoInstructions,
+    String? outputContentType,
     Map<String, dynamic>? context,
-    StreamingCallback<ModelResponseChunk>? onChunk,
+    StreamingCallback<GenerateResponseChunk>? onChunk,
   }) async {
+    if (outputInstructions != null && outputNoInstructions == true) {
+      throw ArgumentError(
+        'Cannot set both outputInstructions and outputNoInstructions to true.',
+      );
+    }
+
+    GenerateActionOutputConfig? outputConfig;
+    if (outputSchema != null ||
+        outputFormat != null ||
+        outputConstrained != null ||
+        outputInstructions != null ||
+        outputNoInstructions != null ||
+        outputContentType != null) {
+      outputConfig = GenerateActionOutputConfig({
+        if (outputFormat != null) 'format': outputFormat,
+        if (outputSchema != null)
+          'jsonSchema': outputSchema.jsonSchema as Map<String, dynamic>,
+        if (outputConstrained != null) 'constrained': outputConstrained,
+        if (outputInstructions != null) 'instructions': outputInstructions,
+        if (outputContentType != null) 'contentType': outputContentType,
+        if (outputNoInstructions == true) 'instructions': false,
+      });
+    }
     return generateHelper(
       registry,
       prompt: prompt,
@@ -158,13 +187,13 @@ class Genkit {
       toolChoice: toolChoice,
       returnToolRequests: returnToolRequests,
       maxTurns: maxTurns,
-      output: output,
+      output: outputConfig,
       context: context,
       onChunk: onChunk,
     );
   }
 
-  ActionStream<ModelResponseChunk, GenerateResponse> generateStream<C>({
+  ActionStream<GenerateResponseChunk, GenerateResponse> generateStream<C>({
     String? prompt,
     List<Message>? messages,
     required ModelRef<C> model,
@@ -173,11 +202,16 @@ class Genkit {
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    GenerateOutput? output,
+    JsonExtensionType? outputSchema,
+    String? outputFormat,
+    bool? outputConstrained,
+    String? outputInstructions,
+    bool? outputNoInstructions,
+    String? outputContentType,
     Map<String, dynamic>? context,
   }) {
-    final streamController = StreamController<ModelResponseChunk>();
-    final actionStream = ActionStream<ModelResponseChunk, GenerateResponse>(
+    final streamController = StreamController<GenerateResponseChunk>();
+    final actionStream = ActionStream<GenerateResponseChunk, GenerateResponse>(
       streamController.stream,
     );
 
@@ -190,7 +224,12 @@ class Genkit {
           toolChoice: toolChoice,
           returnToolRequests: returnToolRequests,
           maxTurns: maxTurns,
-          output: output,
+          outputSchema: outputSchema,
+          outputFormat: outputFormat,
+          outputConstrained: outputConstrained,
+          outputInstructions: outputInstructions,
+          outputNoInstructions: outputNoInstructions,
+          outputContentType: outputContentType,
           context: context,
           onChunk: (chunk) {
             if (streamController.isClosed) return;

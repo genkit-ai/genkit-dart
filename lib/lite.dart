@@ -33,13 +33,41 @@ Future<GenerateResponse> generate<C>({
   String? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
-  GenerateOutput? output,
+  JsonExtensionType? outputSchema,
+  String? outputFormat,
+  bool? outputConstrained,
+  String? outputInstructions,
+  bool? outputNoInstructions,
+  String? outputContentType,
   Map<String, dynamic>? context,
-  StreamingCallback<ModelResponseChunk>? onChunk,
+  StreamingCallback<GenerateResponseChunk>? onChunk,
 }) async {
+  if (outputInstructions != null && outputNoInstructions == true) {
+    throw ArgumentError(
+      'Cannot set both outputInstructions and outputNoInstructions to true.',
+    );
+  }
+
   final registry = Registry();
   registry.register(model);
   tools?.forEach((t) => registry.register(t));
+  GenerateActionOutputConfig? outputConfig;
+  if (outputSchema != null ||
+      outputFormat != null ||
+      outputConstrained != null ||
+      outputInstructions != null ||
+      outputNoInstructions != null ||
+      outputContentType != null) {
+    outputConfig = GenerateActionOutputConfig({
+      if (outputFormat != null) 'format': outputFormat,
+      if (outputSchema != null)
+        'jsonSchema': outputSchema.jsonSchema as Map<String, dynamic>,
+      if (outputConstrained != null) 'constrained': outputConstrained,
+      if (outputInstructions != null) 'instructions': outputInstructions,
+      if (outputContentType != null) 'contentType': outputContentType,
+      if (outputNoInstructions == true) 'instructions': false,
+    });
+  }
   return generateHelper(
     registry,
     prompt: prompt,
@@ -50,13 +78,13 @@ Future<GenerateResponse> generate<C>({
     toolChoice: toolChoice,
     returnToolRequests: returnToolRequests,
     maxTurns: maxTurns,
-    output: output,
+    output: outputConfig,
     context: context,
     onChunk: onChunk,
   );
 }
 
-ActionStream<ModelResponseChunk, GenerateResponse> generateStream<C>({
+ActionStream<GenerateResponseChunk, GenerateResponse> generateStream<C>({
   required Model<C> model,
   String? prompt,
   List<Message>? messages,
@@ -65,14 +93,18 @@ ActionStream<ModelResponseChunk, GenerateResponse> generateStream<C>({
   String? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
-  GenerateOutput? output,
+  JsonExtensionType? outputSchema,
+  String? outputFormat,
+  bool? outputConstrained,
+  String? outputInstructions,
+  bool? outputNoInstructions,
+  String? outputContentType,
   Map<String, dynamic>? context,
 }) {
-  final streamController = StreamController<ModelResponseChunk>();
-  final actionStream = ActionStream<ModelResponseChunk, GenerateResponse>(
+  final streamController = StreamController<GenerateResponseChunk>();
+  final actionStream = ActionStream<GenerateResponseChunk, GenerateResponse>(
     streamController.stream,
   );
-
 
   generate(
         prompt: prompt,
@@ -83,7 +115,12 @@ ActionStream<ModelResponseChunk, GenerateResponse> generateStream<C>({
         toolChoice: toolChoice,
         returnToolRequests: returnToolRequests,
         maxTurns: maxTurns,
-        output: output,
+        outputSchema: outputSchema,
+        outputFormat: outputFormat,
+        outputConstrained: outputConstrained,
+        outputInstructions: outputInstructions,
+        outputNoInstructions: outputNoInstructions,
+        outputContentType: outputContentType,
         context: context,
         onChunk: (chunk) {
           if (streamController.isClosed) return;

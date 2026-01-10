@@ -16,6 +16,7 @@ import 'package:genkit/src/ai/formatters/json.dart';
 import 'package:genkit/src/ai/formatters/types.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/types.dart';
+import 'package:genkit/src/schema_extensions.dart';
 
 export 'package:genkit/src/ai/formatters/json.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
@@ -29,7 +30,9 @@ void defineFormat(Registry registry, Formatter formatter) {
 }
 
 Formatter? resolveFormat(
-    Registry registry, GenerateActionOutputConfig? output) {
+  Registry registry,
+  GenerateActionOutputConfig? output,
+) {
   if (output == null) return null;
   if (output.format != null) {
     return registry.lookupValue<Formatter>('format', output.format!);
@@ -46,17 +49,24 @@ GenerateActionOptions applyFormat(
 ) {
   var outputConfig = request.output;
   if (outputConfig?.jsonSchema != null && outputConfig?.format == null) {
-    outputConfig = GenerateActionOutputConfig.from(
-      format: 'json',
-      contentType: outputConfig?.contentType,
-      instructions: outputConfig?.instructions,
-      jsonSchema: outputConfig?.jsonSchema,
-      constrained: outputConfig?.constrained,
-    );
+    outputConfig = GenerateActionOutputConfig({
+      'format': 'json',
+      if (outputConfig?.contentType != null)
+        'contentType': outputConfig?.contentType,
+      if (outputConfig?.toJson()['instructions'] != null)
+        'instructions': outputConfig?.toJson()['instructions'],
+      if (outputConfig?.jsonSchema != null)
+        'jsonSchema': outputConfig?.jsonSchema,
+      if (outputConfig?.constrained != null)
+        'constrained': outputConfig?.constrained,
+    });
   }
 
   final instructions = resolveInstructions(
-      formatter, outputConfig?.jsonSchema, outputConfig?.instructions);
+    formatter,
+    outputConfig?.jsonSchema,
+    outputConfig?.toJson()['instructions'],
+  );
 
   List<Message> messages = request.messages;
 
@@ -66,16 +76,26 @@ GenerateActionOptions applyFormat(
     }
 
     // Merge config
-    outputConfig = GenerateActionOutputConfig.from(
-      format: outputConfig?.format ?? formatter.config.format,
-      contentType:
-          outputConfig?.contentType ?? formatter.config.contentType,
-      instructions:
-          outputConfig?.instructions ?? formatter.config.instructions,
-      jsonSchema: outputConfig?.jsonSchema ?? formatter.config.jsonSchema,
-      constrained:
-          outputConfig?.constrained ?? formatter.config.constrained,
-    );
+    outputConfig = GenerateActionOutputConfig({
+      if (outputConfig?.format != null || formatter.config.format != null)
+        'format': outputConfig?.format ?? formatter.config.format,
+      if (outputConfig?.contentType != null ||
+          formatter.config.contentType != null)
+        'contentType':
+            outputConfig?.contentType ?? formatter.config.contentType,
+      if (outputConfig?.toJson()['instructions'] != null ||
+          formatter.config.toJson()['instructions'] != null)
+        'instructions':
+            outputConfig?.toJson()['instructions'] ??
+            formatter.config.toJson()['instructions'],
+      if (outputConfig?.jsonSchema != null ||
+          formatter.config.jsonSchema != null)
+        'jsonSchema': outputConfig?.jsonSchema ?? formatter.config.jsonSchema,
+      if (outputConfig?.constrained != null ||
+          formatter.config.constrained != null)
+        'constrained':
+            outputConfig?.constrained ?? formatter.config.constrained,
+    });
   }
 
   return GenerateActionOptions.from(
@@ -93,26 +113,31 @@ GenerateActionOptions applyFormat(
   );
 }
 
-String? resolveInstructions(Formatter? formatter,
-    Map<String, dynamic>? schema, bool? instructionsOption) {
+String? resolveInstructions(
+  Formatter? formatter,
+  Map<String, dynamic>? schema,
+  dynamic instructionsOption,
+) {
+  if (instructionsOption is String) return instructionsOption;
   if (instructionsOption == false) return null;
   if (formatter == null) return null;
   return formatter.handler(schema).instructions;
 }
 
-bool shouldInjectFormatInstructions(GenerateActionOutputConfig formatConfig,
-    GenerateActionOutputConfig? requestConfig) {
-  return formatConfig.instructions != false ||
-      requestConfig?.instructions == true;
+bool shouldInjectFormatInstructions(
+  GenerateActionOutputConfig formatConfig,
+  GenerateActionOutputConfig? requestConfig,
+) {
+  return formatConfig.toJson()['instructions'] != false ||
+      requestConfig?.toJson()['instructions'] == true;
 }
 
-List<Message> injectInstructions(
-    List<Message> messages, String? instructions) {
+List<Message> injectInstructions(List<Message> messages, String? instructions) {
   if (instructions == null) return messages;
 
   bool hasOutputInstruction(Message m) {
     return m.content.any((p) {
-      if (p is TextPart) {
+      if (p.isText) {
         return p.metadata?['purpose'] == 'output' &&
             p.metadata?['pending'] != true;
       }
@@ -138,10 +163,12 @@ List<Message> injectInstructions(
   final targetMessage = messages[targetIndex];
   final newContent = List<Part>.from(targetMessage.content);
 
-  final pendingIndex = newContent.indexWhere((p) =>
-      p is TextPart &&
-      p.metadata?['purpose'] == 'output' &&
-      p.metadata?['pending'] == true);
+  final pendingIndex = newContent.indexWhere(
+    (p) =>
+        p.isText &&
+        p.metadata?['purpose'] == 'output' &&
+        p.metadata?['pending'] == true,
+  );
 
   if (pendingIndex >= 0) {
     newContent[pendingIndex] = newPart;

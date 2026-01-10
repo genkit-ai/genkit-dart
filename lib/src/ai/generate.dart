@@ -19,6 +19,7 @@ import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/exception.dart';
+import 'package:genkit/src/extract.dart';
 
 /// Defines the utility 'generate' action.
 Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>
@@ -55,24 +56,56 @@ ToolDefinition toToolDefinition(Tool tool) {
 /// options.
 abstract class GenerateConfig {}
 
-/// Represents the output format for a generate request.
-class GenerateOutput {
-  /// The JSON schema for the output.
-  JsonExtensionType? schema;
+/// A chunk of a response from a generate action.
+class GenerateResponseChunk<T> {
+  final ModelResponseChunk _chunk;
+  final List<ModelResponseChunk> previousChunks;
+  final ChunkParser<T>? _parser;
 
-  /// The output format.
-  String? format;
+  GenerateResponseChunk(
+    this._chunk, {
+    this.previousChunks = const [],
+    ChunkParser<T>? parser,
+  }) : _parser = parser;
 
-  /// The content type of the output.
-  String? contentType;
+  // Delegate properties to _chunk
+  double? get index => _chunk.index;
+  Role? get role => _chunk.role;
+  List<Part> get content => _chunk.content;
+  Map<String, dynamic>? get custom => _chunk.custom;
 
-  GenerateOutput({this.schema, this.format, this.contentType});
+  // Derived properties
+  String get text =>
+      content.where((p) => p.isText).map((p) => p.text!).join('');
+
+  String get accumulatedText {
+    final prev = previousChunks.map((c) => c.text).join('');
+    return prev + text;
+  }
+
+  T? get output {
+    if (_parser != null) {
+      return _parser(this);
+    }
+    // Default parsing logic
+    final dataPart = content.where((p) => p.isData).firstOrNull as DataPart?;
+    if (dataPart != null && dataPart.data != null) {
+      return dataPart.data as T?;
+    }
+    try {
+      return extractJson(accumulatedText) as T?;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic> toJson() => _chunk.toJson();
 }
 
 /// A response from a generate action.
 class GenerateResponse<O> {
   final ModelResponse _response;
-  final MessageParser<O>? _parser;
+  final MessageParser? _parser;
 
   GenerateResponse(this._response, this._parser);
 
@@ -124,7 +157,7 @@ class GenerateResponse<O> {
   }
 }
 
-Future<GenerateResponse> runGenerateAction(
+Future<GenerateResponse<O>> runGenerateAction<O>(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk> ctx,
@@ -163,6 +196,7 @@ Future<GenerateResponse> runGenerateAction(
             format: requestOptions.output!.format,
             contentType: requestOptions.output!.contentType,
             schema: requestOptions.output!.jsonSchema,
+            constrained: requestOptions.output!.constrained,
           ),
   );
   var currentRequest = request;
@@ -173,19 +207,20 @@ Future<GenerateResponse> runGenerateAction(
       onChunk: ctx.streamingRequested ? ctx.sendChunk : null,
     );
 
-    final parser =
-        format?.handler(requestOptions.output?.jsonSchema).parseMessage;
+    final parser = format
+        ?.handler(requestOptions.output?.jsonSchema)
+        .parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
-      return GenerateResponse(response, parser);
+      return GenerateResponse<O>(response, parser as dynamic);
     }
 
     final toolRequests = response.message?.content
-        .where((c) => c.toJson().containsKey('toolRequest'))
+        .where((c) => c.isToolRequest)
         .map((c) => c as ToolRequestPart)
         .toList();
     if (toolRequests == null || toolRequests.isEmpty) {
-      return GenerateResponse(response, parser);
+      return GenerateResponse<O>(response, parser);
     }
 
     final toolResponses = <Part>[];
@@ -230,7 +265,7 @@ Future<GenerateResponse> runGenerateAction(
   );
 }
 
-Future<GenerateResponse> generateHelper<C>(
+Future<GenerateResponse<O>> generateHelper<C, O>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
@@ -240,9 +275,9 @@ Future<GenerateResponse> generateHelper<C>(
   String? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
-  GenerateOutput? output,
+  GenerateActionOutputConfig? output,
   Map<String, dynamic>? context,
-  StreamingCallback<ModelResponseChunk>? onChunk,
+  StreamingCallback<GenerateResponseChunk>? onChunk,
 }) async {
   if (messages == null && prompt == null) {
     throw ArgumentError('prompt or messages must be provided');
@@ -259,6 +294,10 @@ Future<GenerateResponse> generateHelper<C>(
 
   final modelName = model.name;
 
+  final format = resolveFormat(registry, output);
+  final chunkParser = format?.handler(output?.jsonSchema).parseChunk;
+  final previousChunks = <ModelResponseChunk>[];
+
   return await runGenerateAction(
     registry,
     GenerateActionOptions.from(
@@ -269,17 +308,21 @@ Future<GenerateResponse> generateHelper<C>(
       toolChoice: toolChoice,
       returnToolRequests: returnToolRequests,
       maxTurns: maxTurns,
-      output: output == null
-          ? null
-          : GenerateActionOutputConfig.from(
-              format: output.format,
-              contentType: output.contentType,
-              jsonSchema: output.schema?.jsonSchema as Map<String, dynamic>?,
-            ),
+      output: output,
     ),
     (
       streamingRequested: onChunk != null,
-      sendChunk: onChunk ?? (_) {},
+      sendChunk: (chunk) {
+        if (onChunk != null) {
+          final wrapped = GenerateResponseChunk(
+            chunk,
+            previousChunks: previousChunks,
+            parser: chunkParser,
+          );
+          previousChunks.add(chunk);
+          onChunk(wrapped);
+        }
+      },
       context: context,
     ),
   );
