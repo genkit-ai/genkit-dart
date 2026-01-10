@@ -1,0 +1,46 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'dart:convert';
+import 'package:genkit/src/ai/formatters/types.dart';
+import 'package:genkit/src/extract.dart';
+import 'package:genkit/src/types.dart';
+
+final jsonFormatter = Formatter(
+  name: 'json',
+  config: GenerateActionOutputConfig.from(
+    format: 'json',
+    contentType: 'application/json',
+  ),
+  handler: (schema) {
+    String? instructions;
+    if (schema != null) {
+      final schemaString = const JsonEncoder.withIndent('  ').convert(schema);
+      instructions =
+          'Output should be in JSON format and conform to the following schema:\n\n```\n$schemaString\n```\n';
+    }
+    return FormatterHandlerResult(
+      parseMessage: (message) {
+        final text = message.content
+            .where((p) => p.toJson().containsKey('text'))
+            .map((p) => p as TextPart)
+            .map((p) => p.text)
+            .join('');
+        return extractJson(text);
+      },
+      // TODO: implement parseChunk once we have partial json parsing implemented
+      instructions: instructions,
+    );
+  },
+);
