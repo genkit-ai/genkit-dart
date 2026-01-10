@@ -93,22 +93,28 @@ extension PartExtension on Part {
   Media? get media => isMedia ? (this as MediaPart).media : null;
 
   bool get isToolRequest => toJson().containsKey('toolRequest');
-  ToolRequest? get toolRequest => isToolRequest ? (this as ToolRequestPart).toolRequest : null;
+  ToolRequest? get toolRequest =>
+      isToolRequest ? (this as ToolRequestPart).toolRequest : null;
 
   bool get isToolResponse => toJson().containsKey('toolResponse');
-  ToolResponse? get toolResponse => isToolResponse ? (this as ToolResponsePart).toolResponse : null;
+  ToolResponse? get toolResponse =>
+      isToolResponse ? (this as ToolResponsePart).toolResponse : null;
 
   bool get isData => toJson().containsKey('data');
   Map<String, dynamic>? get data => isData ? (this as DataPart).data : null;
 
   bool get isCustom => toJson().containsKey('custom');
-  Map<String, dynamic>? get custom => isCustom ? (this as CustomPart).custom : null;
+  Map<String, dynamic>? get custom =>
+      isCustom ? (this as CustomPart).custom : null;
 
   bool get isReasoning => toJson().containsKey('reasoning');
-  String? get reasoning => isReasoning ? (this as ReasoningPart).reasoning : null;
+  String? get reasoning =>
+      isReasoning ? (this as ReasoningPart).reasoning : null;
 
   bool get isResource => toJson().containsKey('resource');
-  Map<String, dynamic>? get resource => isResource ? (this as ResourcePart).resource : null;
+  Map<String, dynamic>? get resource =>
+      isResource ? (this as ResourcePart).resource : null;
 
-  Map<String, dynamic>? get metadata => toJson().containsKey('metadata') ? toJson()['metadata']: null;
+  Map<String, dynamic>? get metadata =>
+      toJson().containsKey('metadata') ? toJson()['metadata'] : null;
 }

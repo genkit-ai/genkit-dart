@@ -37,7 +37,8 @@ dynamic extractJson(String text) {
 
   if (firstOpenBrace == -1 && firstOpenBracket == -1) {
     throw FormatException('No JSON object or array found');
-  } else if (firstOpenBrace != -1 && (firstOpenBracket == -1 || firstOpenBrace < firstOpenBracket)) {
+  } else if (firstOpenBrace != -1 &&
+      (firstOpenBracket == -1 || firstOpenBrace < firstOpenBracket)) {
     start = firstOpenBrace;
     isObject = true;
   } else {
