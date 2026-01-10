@@ -33,9 +33,7 @@ abstract class RecipeSchema {
 void main() async {
   configureCollectorExporter();
 
-  final ai = Genkit(
-    plugins: [googleAI()],
-  );
+  final ai = Genkit(plugins: [googleAI()]);
 
   ai.defineModel(
     name: 'echo',
@@ -86,8 +84,9 @@ void main() async {
     inputType: RecipeType,
     outputType: RecipeType,
     fn: (recipe, context) async {
-      final hasSalt =
-          recipe.ingredients.any((i) => i.name.toLowerCase() == 'salt');
+      final hasSalt = recipe.ingredients.any(
+        (i) => i.name.toLowerCase() == 'salt',
+      );
       if (hasSalt) {
         return recipe;
       }

@@ -30,9 +30,14 @@ void main() {
         expect(resourceSpans.length, 1);
 
         final resourceSpan = resourceSpans[0];
-        expect(resourceSpan['resource']['attributes'][0]['key'], 'service.name');
-        expect(resourceSpan['resource']['attributes'][0]['value']['stringValue'],
-            'test-service');
+        expect(
+          resourceSpan['resource']['attributes'][0]['key'],
+          'service.name',
+        );
+        expect(
+          resourceSpan['resource']['attributes'][0]['value']['stringValue'],
+          'test-service',
+        );
 
         final scopeSpans = resourceSpan['scopeSpans'];
         expect(scopeSpans.length, 1);
@@ -83,11 +88,13 @@ void main() {
       final tracer = provider.getTracer('test-tracer', version: '1.2.3');
 
       final parentSpan = tracer.startSpan('parent-span');
-      
+
       final context = api.contextWithSpan(api.Context.current, parentSpan);
 
       final span = tracer.startSpan('test-span', context: context);
-      span.setAttribute(api.Attribute.fromString('test-attribute', 'test-value'));
+      span.setAttribute(
+        api.Attribute.fromString('test-attribute', 'test-value'),
+      );
       span.setStatus(api.StatusCode.error, 'test-error');
       span.end();
 

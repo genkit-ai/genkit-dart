@@ -68,7 +68,10 @@ void main() {
 
     test('get returns null when action not found', () async {
       final registry = Registry();
-      final retrievedAction = await registry.lookupAction('test', 'nonExistent');
+      final retrievedAction = await registry.lookupAction(
+        'test',
+        'nonExistent',
+      );
       expect(retrievedAction, isNull);
     });
 
@@ -76,7 +79,10 @@ void main() {
       final registry = Registry();
       final plugin = TestPlugin('myPlugin');
       registry.registerPlugin(plugin);
-      final retrievedAction = await registry.lookupAction('model', 'myPlugin/nonExistent');
+      final retrievedAction = await registry.lookupAction(
+        'model',
+        'myPlugin/nonExistent',
+      );
       expect(retrievedAction, isNull);
     });
 
@@ -91,13 +97,19 @@ void main() {
       registry.registerPlugin(plugin);
 
       expect(plugin.initCount, 0);
-      final retrievedAction = await registry.lookupAction('model', 'myPlugin/myModel');
+      final retrievedAction = await registry.lookupAction(
+        'model',
+        'myPlugin/myModel',
+      );
       expect(plugin.initCount, 1);
       expect(retrievedAction, isNotNull);
       expect(retrievedAction!.name, 'myModel');
 
       // Verify that the action is now cached
-      final cachedAction = await registry.lookupAction('model', 'myPlugin/myModel');
+      final cachedAction = await registry.lookupAction(
+        'model',
+        'myPlugin/myModel',
+      );
       expect(cachedAction, same(retrievedAction));
     });
 
@@ -116,12 +128,15 @@ void main() {
         fn: (input, context) async => 'output',
       );
 
-      final plugin = TestPlugin('myPlugin', listedActions: [
-        ActionMetadata(
-          actionType: pluginAction.actionType,
-          name: 'myPlugin/${pluginAction.name}',
-        )
-      ]);
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(
+            actionType: pluginAction.actionType,
+            name: 'myPlugin/${pluginAction.name}',
+          ),
+        ],
+      );
       registry.registerPlugin(plugin);
 
       expect(plugin.initCount, 0);
@@ -162,12 +177,12 @@ void main() {
       );
       registry.register(action);
 
-      final plugin = TestPlugin('myPlugin', listedActions: [
-        ActionMetadata(
-          actionType: action.actionType,
-          name: action.name,
-        )
-      ]);
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(actionType: action.actionType, name: action.name),
+        ],
+      );
       registry.registerPlugin(plugin);
 
       final actions = await registry.listActions();

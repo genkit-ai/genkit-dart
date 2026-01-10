@@ -246,9 +246,7 @@ void main() {
           'id': Schema.string(),
           'createdAt': Schema.string(format: 'date-time'),
           'price': Schema.number(),
-          'metadata': Schema.object(
-            additionalProperties: Schema.string(),
-          ),
+          'metadata': Schema.object(additionalProperties: Schema.string()),
           'ratings': Schema.list(items: Schema.integer()),
           'nestedNullable': NullableFieldsType.jsonSchema,
         },
@@ -266,9 +264,7 @@ void main() {
         'price': 99.99,
         'metadata': {'source': 'test', 'version': '1.0'},
         'ratings': [5, 4, 5],
-        'nestedNullable': {
-          'optionalString': 'nested',
-        },
+        'nestedNullable': {'optionalString': 'nested'},
       };
 
       final complexObject = ComplexObjectType.parse(complexJson);
@@ -290,8 +286,9 @@ void main() {
         'ratings': [5, 4, 5],
         'nestedNullable': null,
       };
-      final complexObjectWithNull =
-          ComplexObjectType.parse(complexJsonWithNull);
+      final complexObjectWithNull = ComplexObjectType.parse(
+        complexJsonWithNull,
+      );
       expect(complexObjectWithNull.nestedNullable, isNull);
     });
 
@@ -321,13 +318,13 @@ void main() {
           {
             "title": "Pancakes",
             "ingredients": [
-              {"name": "Flour", "quantity": "1 cup"}
+              {"name": "Flour", "quantity": "1 cup"},
             ],
             "servings": 4,
-          }
+          },
         ],
         'optionalIngredients': [
-          {"name": "Syrup", "quantity": "2 tbsp"}
+          {"name": "Syrup", "quantity": "2 tbsp"},
         ],
       };
 

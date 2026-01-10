@@ -174,15 +174,9 @@ void main() {
         ),
       );
 
-      await expectLater(
-        stream.onResult,
-        throwsA(isA<GenkitException>()),
-      );
+      await expectLater(stream.onResult, throwsA(isA<GenkitException>()));
 
-      expect(
-        () => stream.result,
-        throwsA(isA<GenkitException>()),
-      );
+      expect(() => stream.result, throwsA(isA<GenkitException>()));
     });
 
     test('should handle errors gracefully with await for', () async {
@@ -313,14 +307,26 @@ void main() {
       await subscription.cancel();
 
       await expectLater(
-          stream.onResult,
-          throwsA(isA<GenkitException>().having(
-              (e) => e.message, 'message', 'Stream cancelled by client.')));
+        stream.onResult,
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            'Stream cancelled by client.',
+          ),
+        ),
+      );
 
       expect(
-          () => stream.result,
-          throwsA(isA<GenkitException>().having(
-              (e) => e.message, 'message', 'Stream cancelled by client.')));
+        () => stream.result,
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            'Stream cancelled by client.',
+          ),
+        ),
+      );
     });
   });
 
@@ -365,36 +371,42 @@ void main() {
       final stream = stringStreamAction.stream(input: 'test');
       expect(
         () => stream.result,
-        throwsA(isA<GenkitException>()
-            .having((e) => e.message, 'message', 'Stream not consumed yet')),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            'Stream not consumed yet',
+          ),
+        ),
       );
     });
 
     test(
-        'onResult completes after stream is consumed, even if called before',
-        () async {
-      final streamController = StreamController<List<int>>();
-      when(mockClient.send(any)).thenAnswer((_) async {
-        return http.StreamedResponse(
-          streamController.stream,
-          200,
-          headers: {'content-type': 'text/event-stream'},
-        );
-      });
+      'onResult completes after stream is consumed, even if called before',
+      () async {
+        final streamController = StreamController<List<int>>();
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            streamController.stream,
+            200,
+            headers: {'content-type': 'text/event-stream'},
+          );
+        });
 
-      final stream = stringStreamAction.stream(input: 'test');
+        final stream = stringStreamAction.stream(input: 'test');
 
-      // Call onResult *before* the stream is done
-      final futureResult = stream.onResult;
+        // Call onResult *before* the stream is done
+        final futureResult = stream.onResult;
 
-      // Complete the stream
-      streamController.add(utf8.encode('data: {"result": "done"}\n\n'));
-      await streamController.close();
+        // Complete the stream
+        streamController.add(utf8.encode('data: {"result": "done"}\n\n'));
+        await streamController.close();
 
-      // The future should now complete
-      await expectLater(futureResult, completion('done'));
-      expect(stream.result, 'done');
-    });
+        // The future should now complete
+        await expectLater(futureResult, completion('done'));
+        expect(stream.result, 'done');
+      },
+    );
 
     test('onResult completes if called after stream is done', () async {
       when(mockClient.send(any)).thenAnswer((_) async {

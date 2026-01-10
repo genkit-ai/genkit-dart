@@ -46,8 +46,7 @@ extension ModelResponseExtension on ModelResponse {
 
   /// The tool requests in the response.
   List<ToolRequest> get toolRequests {
-    return (message)
-            ?.content
+    return (message)?.content
             .where((c) => c.toJson().containsKey('toolRequest'))
             .map((c) => (c as ToolRequestPart).toolRequest)
             .toList() ??
@@ -64,7 +63,7 @@ extension ModelResponseChunkExtension on ModelResponseChunk {
         buffer.write(part.text);
       }
     }
-      return buffer.toString();
+    return buffer.toString();
   }
 
   /// The media content of the response chunk.
@@ -74,6 +73,6 @@ extension ModelResponseChunkExtension on ModelResponseChunk {
         return part.media;
       }
     }
-      return null;
+    return null;
   }
 }

@@ -103,53 +103,55 @@ void main() {
       expect(tool2Called, isFalse);
     });
 
-    test('should return tool requests when returnToolRequests is true',
-        () async {
-      const modelName = 'returnToolRequestsModel';
-      const toolName = 'testTool';
-      var toolCalled = false;
+    test(
+      'should return tool requests when returnToolRequests is true',
+      () async {
+        const modelName = 'returnToolRequestsModel';
+        const toolName = 'testTool';
+        var toolCalled = false;
 
-      genkit.defineModel(
-        name: modelName,
-        fn: (request, context) async {
-          return ModelResponse.from(
-            finishReason: FinishReason.stop,
-            message: Message.from(
-              role: Role.model,
-              content: [
-                ToolRequestPart.from(
-                  toolRequest: ToolRequest.from(
-                    name: toolName,
-                    input: {'name': 'world'},
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse.from(
+              finishReason: FinishReason.stop,
+              message: Message.from(
+                role: Role.model,
+                content: [
+                  ToolRequestPart.from(
+                    toolRequest: ToolRequest.from(
+                      name: toolName,
+                      input: {'name': 'world'},
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+                ],
+              ),
+            );
+          },
+        );
 
-      genkit.defineTool(
-        name: toolName,
-        description: 'A test tool',
-        inputType: TestToolInputType,
-        fn: (input, context) async {
-          toolCalled = true;
-          return 'tool output';
-        },
-      );
+        genkit.defineTool(
+          name: toolName,
+          description: 'A test tool',
+          inputType: TestToolInputType,
+          fn: (input, context) async {
+            toolCalled = true;
+            return 'tool output';
+          },
+        );
 
-      final result = await genkit.generate(
-        model: modelRef(modelName),
-        prompt: 'Use a tool',
-        tools: [toolName],
-        returnToolRequests: true,
-      );
+        final result = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'Use a tool',
+          tools: [toolName],
+          returnToolRequests: true,
+        );
 
-      expect(toolCalled, isFalse);
-      expect(result.toolRequests, isNotEmpty);
-      expect(result.toolRequests.first.name, toolName);
-    });
+        expect(toolCalled, isFalse);
+        expect(result.toolRequests, isNotEmpty);
+        expect(result.toolRequests.first.name, toolName);
+      },
+    );
 
     test('should throw an error when maxTurns is reached', () async {
       const modelName = 'maxTurnsModel';

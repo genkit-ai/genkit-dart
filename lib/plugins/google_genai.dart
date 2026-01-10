@@ -33,7 +33,6 @@ abstract class GeminiOptionsSchema {
 
 typedef GoogleGenAiPluginOptions = ();
 
-
 const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 
 class GoogleGenAiPluginHandle {
@@ -69,35 +68,33 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
     return _createModel(name);
   }
 
-
-Model _createModel(String modelName) {
-  return Model(
-    name: 'googleai/$modelName',
-    fn: (req, ctx) async {
-      final service = gcl.GenerativeService.fromApiKey(apiKey);
-      try {
-        final response = await service.generateContent(
-          gcl.GenerateContentRequest(
-            model: 'models/$modelName',
-            contents: _toGeminiContent(req.messages),
-            tools: req.tools?.map(_toGeminiTool).toList() ?? [],
-          ),
-        );
-        final (message, finishReason) = _fromGeminiCandidate(
-          response.candidates.first,
-        );
-        return ModelResponse.from(
-          finishReason: finishReason,
-          message: message,
-          raw: jsonDecode(jsonEncode(response)),
-        );
-      } finally {
-        service.close();
-      }
-    },
-  );
-}
-
+  Model _createModel(String modelName) {
+    return Model(
+      name: 'googleai/$modelName',
+      fn: (req, ctx) async {
+        final service = gcl.GenerativeService.fromApiKey(apiKey);
+        try {
+          final response = await service.generateContent(
+            gcl.GenerateContentRequest(
+              model: 'models/$modelName',
+              contents: _toGeminiContent(req.messages),
+              tools: req.tools?.map(_toGeminiTool).toList() ?? [],
+            ),
+          );
+          final (message, finishReason) = _fromGeminiCandidate(
+            response.candidates.first,
+          );
+          return ModelResponse.from(
+            finishReason: finishReason,
+            message: message,
+            raw: jsonDecode(jsonEncode(response)),
+          );
+        } finally {
+          service.close();
+        }
+      },
+    );
+  }
 }
 
 List<gcl.Content> _toGeminiContent(List<Message> messages) {
@@ -128,12 +125,13 @@ gcl.Part _toGeminiPart(Part p) {
   if (p.toJson().containsKey('toolRequest')) {
     p as ToolRequestPart;
     return gcl.Part(
-        functionCall: gcl.FunctionCall(
-      name: p.toolRequest.name,
-      args: p.toolRequest.input == null
-          ? null
-          : pb.Struct.fromJson(p.toolRequest.input!),
-    ));
+      functionCall: gcl.FunctionCall(
+        name: p.toolRequest.name,
+        args: p.toolRequest.input == null
+            ? null
+            : pb.Struct.fromJson(p.toolRequest.input!),
+      ),
+    );
   }
   if (p.toJson().containsKey('toolResponse')) {
     p as ToolResponsePart;
