@@ -24,7 +24,7 @@ import 'package:genkit/src/core/registry.dart';
 export 'package:genkit/src/types.dart';
 export 'package:genkit/src/schema_extensions.dart';
 
-Future<ModelResponse> generate<C>({
+Future<GenerateResponse> generate<C>({
   String? prompt,
   List<Message>? messages,
   required Model<C> model,
@@ -40,9 +40,8 @@ Future<ModelResponse> generate<C>({
   final registry = Registry();
   registry.register(model);
   tools?.forEach((t) => registry.register(t));
-  final generateAction = defineGenerateAction(registry);
   return generateHelper(
-    generateAction,
+    registry,
     prompt: prompt,
     messages: messages,
     model: model,
@@ -57,7 +56,7 @@ Future<ModelResponse> generate<C>({
   );
 }
 
-ActionStream<ModelResponseChunk, ModelResponse> generateStream<C>({
+ActionStream<ModelResponseChunk, GenerateResponse> generateStream<C>({
   required Model<C> model,
   String? prompt,
   List<Message>? messages,
@@ -70,9 +69,10 @@ ActionStream<ModelResponseChunk, ModelResponse> generateStream<C>({
   Map<String, dynamic>? context,
 }) {
   final streamController = StreamController<ModelResponseChunk>();
-  final actionStream = ActionStream<ModelResponseChunk, ModelResponse>(
+  final actionStream = ActionStream<ModelResponseChunk, GenerateResponse>(
     streamController.stream,
   );
+
 
   generate(
         prompt: prompt,

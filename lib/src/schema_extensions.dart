@@ -35,6 +35,14 @@ extension MessageExtension on Message {
     }
     return null;
   }
+
+  /// The tool requests in the response.
+  List<ToolRequest> get toolRequests {
+    return content
+        .where((c) => c.toJson().containsKey('toolRequest'))
+        .map((c) => (c as ToolRequestPart).toolRequest)
+        .toList();
+  }
 }
 
 extension ModelResponseExtension on ModelResponse {

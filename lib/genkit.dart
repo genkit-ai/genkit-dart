@@ -14,6 +14,7 @@
 
 import 'dart:async';
 import 'package:genkit/schema.dart';
+import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/generate.dart';
 import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/ai/tool.dart';
@@ -33,6 +34,7 @@ export 'package:genkit/src/core/flow.dart';
 export 'package:genkit/src/types.dart';
 export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';
+export 'package:genkit/src/ai/formatters/types.dart';
 
 bool _isDevEnv() {
   return getEnvVar('GENKIT_ENV') == 'dev';
@@ -53,6 +55,9 @@ class Genkit {
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);
     }
+    
+    // Register default formats
+    configureFormats(registry);
 
     if (isDevEnv ?? _isDevEnv()) {
       final v2ServerUrl = getEnvVar('GENKIT_REFLECTION_V2_SERVER');
@@ -130,7 +135,7 @@ class Genkit {
     return model;
   }
 
-  Future<ModelResponse> generate<C>({
+  Future<GenerateResponse> generate<C>({
     String? prompt,
     List<Message>? messages,
     required ModelRef<C> model,
@@ -144,7 +149,7 @@ class Genkit {
     StreamingCallback<ModelResponseChunk>? onChunk,
   }) async {
     return generateHelper(
-      _generateAction!,
+      registry,
       prompt: prompt,
       messages: messages,
       model: model,
@@ -159,7 +164,7 @@ class Genkit {
     );
   }
 
-  ActionStream<ModelResponseChunk, ModelResponse> generateStream<C>({
+  ActionStream<ModelResponseChunk, GenerateResponse> generateStream<C>({
     String? prompt,
     List<Message>? messages,
     required ModelRef<C> model,
@@ -172,7 +177,7 @@ class Genkit {
     Map<String, dynamic>? context,
   }) {
     final streamController = StreamController<ModelResponseChunk>();
-    final actionStream = ActionStream<ModelResponseChunk, ModelResponse>(
+    final actionStream = ActionStream<ModelResponseChunk, GenerateResponse>(
       streamController.stream,
     );
 
