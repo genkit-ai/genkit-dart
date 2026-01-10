@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:genkit/src/ai/generate.dart';
 import 'package:genkit/src/types.dart';
 
 /// Function type for parsing a message.
 typedef MessageParser<O> = O Function(Message message);
 
 /// Function type for parsing a chunk.
-typedef ChunkParser<O> = O Function(ModelResponseChunk chunk);
+typedef ChunkParser<O> = O Function(GenerateResponseChunk<O> chunk);
 
 /// Return type for formatter handlers.
 class FormatterHandlerResult<O> {
@@ -38,11 +39,8 @@ class FormatterHandlerResult<O> {
 class Formatter<O> {
   final String name;
   final GenerateActionOutputConfig config;
-  final FormatterHandlerResult<O> Function(Map<String, dynamic>? schema) handler;
+  final FormatterHandlerResult<O> Function(Map<String, dynamic>? schema)
+  handler;
 
-  Formatter({
-    required this.name,
-    required this.config,
-    required this.handler,
-  });
+  Formatter({required this.name, required this.config, required this.handler});
 }

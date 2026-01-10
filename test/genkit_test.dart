@@ -236,7 +236,7 @@ void main() {
         },
       );
 
-      final receivedChunks = <ModelResponseChunk>[];
+      final receivedChunks = <GenerateResponseChunk>[];
       final result = await genkit.generate(
         model: modelRef(modelName),
         prompt: prompt,
@@ -289,7 +289,7 @@ void main() {
         prompt: prompt,
       );
 
-      final receivedChunks = <ModelResponseChunk>[];
+      final receivedChunks = <GenerateResponseChunk>[];
       await for (final chunk in stream) {
         receivedChunks.add(chunk);
       }
