@@ -75,20 +75,11 @@ class GenerateResponseChunk<T> {
   Map<String, dynamic>? get custom => _chunk.custom;
 
   // Derived properties
-  String get text => content
-      .where((p) => p.isText)
-      .map((p) => p.text!)
-      .join('');
+  String get text =>
+      content.where((p) => p.isText).map((p) => p.text!).join('');
 
   String get accumulatedText {
-    final prev = previousChunks
-        .map(
-          (c) => c.content
-              .where((p) => p.isText)
-              .map((p) => p.text!)
-              .join(''),
-        )
-        .join('');
+    final prev = previousChunks.map((c) => c.text).join('');
     return prev + text;
   }
 
