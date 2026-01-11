@@ -45,7 +45,7 @@ class Genkit {
   final Registry registry = Registry();
   Object? _reflectionServer;
   Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>?
-      _generateAction;
+  _generateAction;
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
@@ -101,6 +101,9 @@ class Genkit {
     final flow = Flow(
       name: name,
       fn: (input, context) {
+        if (input == null && inputType != null && null is! I) {
+          throw ArgumentError('Flow "$name" requires a non-null input.');
+        }
         return fn(input as I, context);
       },
       inputType: inputType,
@@ -149,6 +152,9 @@ class Genkit {
       name: name,
       description: description,
       fn: (input, context) {
+        if (input == null && inputType != null && null is! I) {
+          throw ArgumentError('Tool "$name" requires a non-null input.');
+        }
         return fn(input as I, context);
       },
       inputType: inputType,
@@ -252,37 +258,39 @@ class Genkit {
     );
 
     generate(
-      prompt: prompt,
-      messages: messages,
-      model: model,
-      config: config,
-      tools: tools,
-      toolChoice: toolChoice,
-      returnToolRequests: returnToolRequests,
-      maxTurns: maxTurns,
-      outputSchema: outputSchema,
-      outputFormat: outputFormat,
-      outputConstrained: outputConstrained,
-      outputInstructions: outputInstructions,
-      outputNoInstructions: outputNoInstructions,
-      outputContentType: outputContentType,
-      context: context,
-      onChunk: (chunk) {
-        if (streamController.isClosed) return;
-        streamController.add(chunk);
-      },
-    ).then((result) {
-      actionStream.setResult(result);
-      if (!streamController.isClosed) {
-        streamController.close();
-      }
-    }).catchError((e, s) {
-      actionStream.setError(e, s);
-      if (!streamController.isClosed) {
-        streamController.addError(e, s);
-        streamController.close();
-      }
-    });
+          prompt: prompt,
+          messages: messages,
+          model: model,
+          config: config,
+          tools: tools,
+          toolChoice: toolChoice,
+          returnToolRequests: returnToolRequests,
+          maxTurns: maxTurns,
+          outputSchema: outputSchema,
+          outputFormat: outputFormat,
+          outputConstrained: outputConstrained,
+          outputInstructions: outputInstructions,
+          outputNoInstructions: outputNoInstructions,
+          outputContentType: outputContentType,
+          context: context,
+          onChunk: (chunk) {
+            if (streamController.isClosed) return;
+            streamController.add(chunk);
+          },
+        )
+        .then((result) {
+          actionStream.setResult(result);
+          if (!streamController.isClosed) {
+            streamController.close();
+          }
+        })
+        .catchError((e, s) {
+          actionStream.setError(e, s);
+          if (!streamController.isClosed) {
+            streamController.addError(e, s);
+            streamController.close();
+          }
+        });
 
     return actionStream;
   }
