@@ -315,7 +315,7 @@ class BidiActionStream<S, F, I> extends ActionStream<S, F> {
     if (_inputSink == null) {
       throw GenkitException('Cannot send to this stream (external input)');
     }
-    _inputSink!.add(chunk);
+    _inputSink.add(chunk);
   }
 
   Future<void> close() async {

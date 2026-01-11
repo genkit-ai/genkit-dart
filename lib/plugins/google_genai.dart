@@ -77,7 +77,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
           final response = await service.generateContent(
             gcl.GenerateContentRequest(
               model: 'models/$modelName',
-              contents: _toGeminiContent(req.messages),
+              contents: _toGeminiContent(req!.messages),
               tools: req.tools?.map(_toGeminiTool).toList() ?? [],
             ),
           );

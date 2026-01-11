@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/core/action.dart';
-import 'package:genkit/src/core/registry.dart';
 import 'package:test/test.dart';
 
 void main() {

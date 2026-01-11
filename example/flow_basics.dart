@@ -55,7 +55,7 @@ void main() async {
   ai.defineFlow(
     name: 'parent',
     outputType: StringType,
-    fn: (_, _) async {
+    fn: (_, __) async {
       // Dart flow objects are callable, but we need to handle the input.
       // basic expects a string.
       final result = await basic('foo');
@@ -216,7 +216,7 @@ void main() async {
   ai.defineFlow(
     name: 'largeSteps',
     outputType: StringType,
-    fn: (_, _) async {
+    fn: (_, __) async {
       await ai.run('large-step1', () async {
         return generateString(100000);
       });
