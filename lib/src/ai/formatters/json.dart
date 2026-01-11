@@ -35,7 +35,9 @@ final jsonFormatter = Formatter(
       parseMessage: (message) {
         return extractJson(message.text);
       },
-      // TODO: implement parseChunk once we have partial json parsing implemented
+      parseChunk: (chunk) {
+        return extractJson(chunk.accumulatedText, allowPartial: true);
+      },
       instructions: instructions,
     );
   },
