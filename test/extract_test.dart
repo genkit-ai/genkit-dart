@@ -56,10 +56,10 @@ void main() {
       final input = '{"a": 1';
       expect(() => extractJson(input), throwsFormatException);
     });
-    
+
     test('throws on malformed json inside text', () {
       final input = 'some text {"a": } end';
-       expect(() => extractJson(input), throwsFormatException);
+      expect(() => extractJson(input), throwsFormatException);
     });
   });
 }

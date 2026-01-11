@@ -286,7 +286,7 @@ void main() {
             finishReason: FinishReason.stop,
             message: Message.from(
               role: Role.model,
-              content: [TextPart.from(text: 'Echo: hi')],
+              content: [TextPart.from(text: '{}')],
             ),
           );
         },
@@ -305,7 +305,10 @@ void main() {
       await genkit.generate(
         model: modelRef('echoModel'),
         messages: [
-          Message.from(role: Role.user, content: [TextPart.from(text: 'hi')]),
+          Message.from(
+            role: Role.user,
+            content: [TextPart.from(text: 'hi')],
+          ),
           manualInstructions,
         ],
         outputSchema: TestObjectType,
