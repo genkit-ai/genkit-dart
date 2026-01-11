@@ -191,15 +191,10 @@ String _repairJson(String json) {
   // 3. Handle trailing comma or colon
   final trimmed = repaired.trimRight();
   if (trimmed.isNotEmpty) {
-    final last = trimmed[trimmed.length - 1];
-    if (last == ',') {
-      // Remove trailing comma
-      final index = repaired.lastIndexOf(',');
-      if (index != -1) {
-        repaired = repaired.substring(0, index) + repaired.substring(index + 1);
-      }
-    } else if (last == ':') {
-      repaired += 'null';
+    if (trimmed.endsWith(',')) {
+      repaired = trimmed.substring(0, trimmed.length - 1);
+    } else if (trimmed.endsWith(':')) {
+      repaired = '${trimmed}null';
     }
   }
 
