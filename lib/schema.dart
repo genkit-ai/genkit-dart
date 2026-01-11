@@ -99,3 +99,16 @@ class VoidTypeFactory implements JsonExtensionType<void> {
 
 // ignore: constant_identifier_names
 const VoidType = VoidTypeFactory();
+
+class MapTypeFactory implements JsonExtensionType<Map<String, dynamic>> {
+  const MapTypeFactory();
+
+  @override
+  Map<String, dynamic> parse(Object? json) => json as Map<String, dynamic>;
+
+  @override
+  jsb.Schema get jsonSchema => jsb.Schema.object();
+}
+
+// ignore: constant_identifier_names
+const MapType = MapTypeFactory();

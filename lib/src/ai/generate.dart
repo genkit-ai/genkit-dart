@@ -22,15 +22,18 @@ import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/extract.dart';
 
 /// Defines the utility 'generate' action.
-Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>
-defineGenerateAction(Registry registry) {
+Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
+    defineGenerateAction(Registry registry) {
   return Action(
-    actionType: 'util',
+    actionType: 'generate',
     name: 'generate',
     inputType: GenerateActionOptionsType,
     outputType: ModelResponseType,
     streamType: ModelResponseChunkType,
     fn: (options, ctx) async {
+      if (options == null) {
+        throw Exception('Generate action called with null options');
+      }
       final response = await runGenerateAction(registry, options, ctx);
       return response.modelResponse;
     },
@@ -155,7 +158,7 @@ class GenerateResponse<O> {
 Future<GenerateResponse<O>> runGenerateAction<O>(
   Registry registry,
   GenerateActionOptions options,
-  ActionFnArg<ModelResponseChunk> ctx,
+  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
 ) async {
   if (options.model == null) {
     throw GenkitException('Model must be provided', statusCode: 400);
@@ -202,9 +205,8 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
       onChunk: ctx.streamingRequested ? ctx.sendChunk : null,
     );
 
-    final parser = format
-        ?.handler(requestOptions.output?.jsonSchema)
-        .parseMessage;
+    final parser =
+        format?.handler(requestOptions.output?.jsonSchema).parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
       return GenerateResponse<O>(response, output: null);
@@ -223,9 +225,8 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
 
     final toolResponses = <Part>[];
     for (final toolRequest in toolRequests) {
-      final tool =
-          await registry.lookupAction('tool', toolRequest.toolRequest.name)
-              as Tool?;
+      final tool = await registry.lookupAction(
+          'tool', toolRequest.toolRequest.name) as Tool?;
       if (tool == null) {
         throw GenkitException(
           'Tool ${toolRequest.toolRequest.name} not found',
@@ -281,8 +282,7 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
     throw ArgumentError('prompt or messages must be provided');
   }
 
-  final resolvedMessages =
-      messages ??
+  final resolvedMessages = messages ??
       [
         Message.from(
           role: Role.user,
@@ -322,6 +322,8 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
         }
       },
       context: context,
+      inputStream: null,
+      init: null,
     ),
   );
 }

@@ -4,7 +4,7 @@ version: 0.10.0-wip
 repository: https://github.com/genkit-ai/genkit-dart
 
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.8.0
 
 dependencies:
   google_cloud_ai_generativelanguage_v1beta: ^0.4.0

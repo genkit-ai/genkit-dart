@@ -53,9 +53,16 @@ Future<O> runInNewSpan<I, O>(
           }
         }
         if (input != null) {
-          span.setAttribute(
-            api.Attribute.fromString('genkit:input', jsonEncode(input)),
-          );
+          try {
+            span.setAttribute(
+              api.Attribute.fromString('genkit:input', jsonEncode(input)),
+            );
+          } catch (e) {
+            span.setAttribute(
+              api.Attribute.fromString(
+                  'genkit:input', 'Unable to encode input: $e'),
+            );
+          }
         }
         attributes?.forEach((key, value) {
           span.setAttribute(api.Attribute.fromString(key, value));
@@ -69,9 +76,17 @@ Future<O> runInNewSpan<I, O>(
         telemetryContext.attributes.forEach((key, value) {
           span.setAttribute(api.Attribute.fromString(key, value));
         });
-        span.setAttribute(
-          api.Attribute.fromString('genkit:output', jsonEncode(output)),
-        );
+        try {
+          span.setAttribute(
+            api.Attribute.fromString('genkit:output', jsonEncode(output)),
+          );
+        } catch (e) {
+          // Ignore json encoding errors for output
+          span.setAttribute(
+            api.Attribute.fromString(
+                'genkit:output', 'Unable to encode output: $e'),
+          );
+        }
         return output;
       } catch (e, s) {
         span

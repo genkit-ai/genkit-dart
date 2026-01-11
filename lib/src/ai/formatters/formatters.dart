@@ -85,8 +85,7 @@ GenerateActionOptions applyFormat(
             outputConfig?.contentType ?? formatter.config.contentType,
       if (outputConfig?.toJson()['instructions'] != null ||
           formatter.config.toJson()['instructions'] != null)
-        'instructions':
-            outputConfig?.toJson()['instructions'] ??
+        'instructions': outputConfig?.toJson()['instructions'] ??
             formatter.config.toJson()['instructions'],
       if (outputConfig?.jsonSchema != null ||
           formatter.config.jsonSchema != null)

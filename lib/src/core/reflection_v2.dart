@@ -41,6 +41,7 @@ class ReflectionServerV2 {
   WebSocketChannel? _ws;
   final String _pid = getPid();
   final int _apiIndex = reflectionInstanceCount++;
+  final Map<dynamic, StreamController> _inputStreams = {};
 
   ReflectionServerV2(
     this.registry, {
@@ -150,6 +151,12 @@ class ReflectionServerV2 {
         case 'configure':
           // Not implemented yet
           break;
+        case 'streamInputChunk':
+          await _handleStreamInputChunk(request['params']);
+          break;
+        case 'endStreamInput':
+          await _handleEndStreamInput(request['params']);
+          break;
         default:
           if (id != null) {
             _sendError(id, -32601, 'Method not found: $method');
@@ -181,6 +188,10 @@ class ReflectionServerV2 {
           'outputSchema': jsonDecode(
             _jsonSchemaWithDraft(action.outputType!.jsonSchema),
           ),
+        if (action.initType != null)
+          'initSchema': jsonDecode(
+            _jsonSchemaWithDraft(action.initType!.jsonSchema),
+          ),
       };
     }
     _sendResponse(id, convertedActions);
@@ -193,6 +204,7 @@ class ReflectionServerV2 {
     final input = params['input'];
     final context = params['context'] as Map<String, dynamic>?;
     final stream = params['stream'] == true;
+    final streamInput = params['streamInput'] == true;
 
     final parts = key.split('/');
     if (parts.length < 3 || parts[0] != '') {
@@ -206,45 +218,63 @@ class ReflectionServerV2 {
       return;
     }
 
-    if (stream) {
-      try {
+    Stream<dynamic>? inputStream;
+    if (streamInput) {
+      final controller = StreamController<dynamic>();
+      _inputStreams[id] = controller;
+      inputStream = controller.stream;
+    }
+
+    try {
+      if (stream) {
         final result = await action.run(
           input,
           onChunk: (chunk) {
             _sendNotification('streamChunk', {'requestId': id, 'chunk': chunk});
           },
           context: context,
+          inputStream: inputStream,
         );
 
         _sendResponse(id, {
           'result': result.result,
           'telemetry': {'traceId': result.traceId},
         });
-      } catch (e, stack) {
-        print('Error running action: $e\n$stack');
-        final errorResponse = {
-          'code': 13, // StatusCodes.INTERNAL
-          'message': e.toString(),
-          'details': {'stack': stack.toString()},
-        };
-        _sendError(id, -32000, e.toString(), errorResponse);
-      }
-    } else {
-      try {
-        final result = await action.run(input, context: context);
+      } else {
+        final result = await action.run(
+          input,
+          context: context,
+          inputStream: inputStream,
+        );
         _sendResponse(id, {
           'result': result.result,
           'telemetry': {'traceId': result.traceId},
         });
-      } catch (e, stack) {
-        print('Error running action: $e\n$stack');
-        final errorResponse = {
-          'code': 13, // StatusCodes.INTERNAL
-          'message': e.toString(),
-          'details': {'stack': stack.toString()},
-        };
-        _sendError(id, -32000, e.toString(), errorResponse);
       }
+    } catch (e, stack) {
+      print('Error running action: $e\n$stack');
+      final errorResponse = {
+        'code': 13, // StatusCodes.INTERNAL
+        'message': e.toString(),
+        'details': {'stack': stack.toString()},
+      };
+      _sendError(id, -32000, e.toString(), errorResponse);
+    }
+  }
+
+  Future<void> _handleStreamInputChunk(Map<String, dynamic> params) async {
+    final id = params['requestId'];
+    final chunk = params['chunk'];
+    if (id != null && _inputStreams.containsKey(id)) {
+      _inputStreams[id]!.add(chunk);
+    }
+  }
+
+  Future<void> _handleEndStreamInput(Map<String, dynamic> params) async {
+    final id = params['requestId'];
+    if (id != null && _inputStreams.containsKey(id)) {
+      await _inputStreams[id]!.close();
+      _inputStreams.remove(id);
     }
   }
 }

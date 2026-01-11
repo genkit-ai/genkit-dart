@@ -34,7 +34,8 @@ class _ModelRef<C> implements ModelRef<C> {
   _ModelRef(this.name, this.customOptions);
 }
 
-class Model<C> extends Action<ModelRequest, ModelResponse, ModelResponseChunk>
+class Model<C>
+    extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
     implements ModelRef<C> {
   @override
   JsonExtensionType<C>? customOptions;
@@ -45,11 +46,11 @@ class Model<C> extends Action<ModelRequest, ModelResponse, ModelResponseChunk>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'model',
-         inputType: ModelRequestType,
-         outputType: ModelResponseType,
-         streamType: ModelResponseChunkType,
-       ) {
+          actionType: 'model',
+          inputType: ModelRequestType,
+          outputType: ModelResponseType,
+          streamType: ModelResponseChunkType,
+        ) {
     metadata['description'] = name;
     metadata['model'] = <String, dynamic>{};
     metadata['model']['label'] = name;

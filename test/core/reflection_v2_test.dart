@@ -20,6 +20,7 @@ import 'package:async/async.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/schema.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -66,10 +67,11 @@ void main() {
     });
 
     test('should handle listActions', () async {
-      final testAction = Action<Map<String, dynamic>, dynamic, dynamic>(
+      final testAction = Action(
         actionType: 'custom',
+        inputType: MapType,
         name: 'testAction',
-        fn: (input, context) async => {'bar': input['foo']},
+        fn: (input, context) async => {'bar': input!['foo']},
         metadata: {'description': 'A test action'},
       );
       registry.register(testAction);
@@ -105,10 +107,11 @@ void main() {
     });
 
     test('should handle runAction', () async {
-      final testAction = Action<Map<String, dynamic>, dynamic, dynamic>(
+      final testAction = Action(
         actionType: 'custom',
+        inputType: MapType,
         name: 'testAction',
-        fn: (input, context) async => {'bar': input['foo']},
+        fn: (input, context) async => {'bar': input!['foo']},
       );
       registry.register(testAction);
 
@@ -146,9 +149,10 @@ void main() {
     });
 
     test('should handle streaming runAction', () async {
-      final streamAction = Action<dynamic, String, String>(
+      final streamAction = Action(
         actionType: 'custom',
         name: 'streamAction',
+        streamType: StringType,
         fn: (input, context) async {
           context.sendChunk('chunk1');
           context.sendChunk('chunk2');

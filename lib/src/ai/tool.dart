@@ -14,7 +14,7 @@
 
 import 'package:genkit/src/core/action.dart';
 
-class Tool<I, O> extends Action<I, O, dynamic> {
+class Tool<I, O> extends Action<I, O, void, void> {
   Tool({
     required super.name,
     required super.description,
