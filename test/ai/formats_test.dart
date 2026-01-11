@@ -323,5 +323,46 @@ void main() {
       expect(instructionParts?.length, 1);
       expect(instructionParts!.first.text!, 'Manual instructions');
     });
+
+    test('parses partial json chunks', () async {
+      genkit.defineModel(
+        name: 'streamingJsonModel',
+        fn: (req, ctx) async {
+          ctx.sendChunk(
+            ModelResponseChunk.from(content: [TextPart.from(text: '{"a":')]),
+          );
+          ctx.sendChunk(
+            ModelResponseChunk.from(content: [TextPart.from(text: ' 1,')]),
+          );
+          ctx.sendChunk(
+            ModelResponseChunk.from(content: [TextPart.from(text: '"b": 2}')]),
+          );
+          return ModelResponse.from(
+            finishReason: FinishReason.stop,
+            message: Message.from(
+              role: Role.model,
+              content: [TextPart.from(text: '{"a": 1, "b": 2}')],
+            ),
+          );
+        },
+      );
+
+      final stream = genkit.generateStream(
+        model: modelRef('streamingJsonModel'),
+        prompt: 'hi',
+        outputFormat: 'json',
+      );
+
+      final chunks = await stream.toList();
+      final outputs = chunks.map((c) => c.jsonOutput).toList();
+
+      expect(outputs.length, 3);
+      // Chunk 1: '{"a":' -> repaired to {"a": null}
+      expect(outputs[0], equals({'a': null}));
+      // Chunk 2: '{"a": 1,' -> repaired to {"a": 1}
+      expect(outputs[1], equals({'a': 1}));
+      // Chunk 3: '{"a": 1, "b": 2}' -> valid
+      expect(outputs[2], equals({'a': 1, 'b': 2}));
+    });
   });
 }
