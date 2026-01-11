@@ -24,6 +24,7 @@ import 'package:genkit/src/core/plugin.dart';
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/types.dart';
 import 'package:genkit/src/utils.dart';
@@ -193,7 +194,10 @@ class Genkit {
       name: name,
       fn: (input, context) {
         if (context.inputStream == null) {
-          throw Exception('Bidi model $name called without an input stream');
+          throw GenkitException(
+            'Bidi model $name called without an input stream',
+            statusCode: 400,
+          );
         }
         return fn(context.inputStream!, context);
       },
