@@ -30,18 +30,14 @@ typedef ActionFnArg<S, I, Init> = ({
   Init? init,
 });
 
-typedef ActionFn<I, O, S, Init> = Future<O> Function(
-    I input, ActionFnArg<S, I, Init> context);
+typedef ActionFn<I, O, S, Init> =
+    Future<O> Function(I input, ActionFnArg<S, I, Init> context);
 
-typedef BidiActionFn<I, O, S, Init> = Future<O> Function(
-  Stream<I> inputStream,
-  ActionFnArg<S, I, Init> context,
-);
+typedef BidiActionFn<I, O, S, Init> =
+    Future<O> Function(Stream<I> inputStream, ActionFnArg<S, I, Init> context);
 
-typedef InternalActionFn<I, O, S, Init> = Future<O> Function(
-  I? input,
-  ActionFnArg<S, I, Init> context,
-);
+typedef InternalActionFn<I, O, S, Init> =
+    Future<O> Function(I? input, ActionFnArg<S, I, Init> context);
 
 class RunResult<O> {
   final O result;
@@ -55,11 +51,7 @@ class RunResult<O> {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      'result': result,
-      'traceId': traceId,
-      'spanId': spanId,
-    };
+    return {'result': result, 'traceId': traceId, 'spanId': spanId};
   }
 }
 
@@ -182,27 +174,29 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     final actionStream = ActionStream<S, O>(streamController.stream);
 
     run(
-      input,
-      context: context,
-      inputStream: inputStream,
-      init: init,
-      onChunk: (chunk) {
-        if (!streamController.isClosed) {
-          streamController.add(chunk);
-        }
-      },
-    ).then((result) {
-      actionStream.setResult(result.result);
-      if (!streamController.isClosed) {
-        streamController.close();
-      }
-    }).catchError((e, s) {
-      actionStream.setError(e, s);
-      if (!streamController.isClosed) {
-        streamController.addError(e, s);
-        streamController.close();
-      }
-    });
+          input,
+          context: context,
+          inputStream: inputStream,
+          init: init,
+          onChunk: (chunk) {
+            if (!streamController.isClosed) {
+              streamController.add(chunk);
+            }
+          },
+        )
+        .then((result) {
+          actionStream.setResult(result.result);
+          if (!streamController.isClosed) {
+            streamController.close();
+          }
+        })
+        .catchError((e, s) {
+          actionStream.setError(e, s);
+          if (!streamController.isClosed) {
+            streamController.addError(e, s);
+            streamController.close();
+          }
+        });
 
     return actionStream;
   }
@@ -226,30 +220,32 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     );
 
     run(
-      null, // Pass null for unary input
-      onChunk: (chunk) {
-        if (!streamController.isClosed) {
-          streamController.add(chunk);
-        }
-        if (onChunk != null) {
-          onChunk(chunk);
-        }
-      },
-      context: context,
-      inputStream: inputStream,
-      init: init,
-    ).then((result) {
-      bidiStream.setResult(result.result);
-      if (!streamController.isClosed) {
-        streamController.close();
-      }
-    }).catchError((e, s) {
-      bidiStream.setError(e, s);
-      if (!streamController.isClosed) {
-        streamController.addError(e, s);
-        streamController.close();
-      }
-    });
+          null, // Pass null for unary input
+          onChunk: (chunk) {
+            if (!streamController.isClosed) {
+              streamController.add(chunk);
+            }
+            if (onChunk != null) {
+              onChunk(chunk);
+            }
+          },
+          context: context,
+          inputStream: inputStream,
+          init: init,
+        )
+        .then((result) {
+          bidiStream.setResult(result.result);
+          if (!streamController.isClosed) {
+            streamController.close();
+          }
+        })
+        .catchError((e, s) {
+          bidiStream.setError(e, s);
+          if (!streamController.isClosed) {
+            streamController.addError(e, s);
+            streamController.close();
+          }
+        });
 
     return bidiStream;
   }

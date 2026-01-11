@@ -53,11 +53,10 @@ void main() {
       final expectedChunks = ['chunk1', 'chunk2', 'chunk3'];
       final expectedResponse = 'final response';
 
-      final streamData = '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
-                'message': {'chunk': chunk},
-              })}\n\n').join()}data: ${jsonEncode({
-            'result': expectedResponse
-          })}\n\n';
+      final streamData =
+          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
+            'message': {'chunk': chunk},
+          })}\n\n').join()}data: ${jsonEncode({'result': expectedResponse})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(
@@ -89,11 +88,8 @@ void main() {
       ];
       final expectedResponse = {'result': 'completed'};
 
-      final streamData = '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
-                'message': chunk.toJson()
-              })}\n\n').join()}data: ${jsonEncode({
-            'result': expectedResponse
-          })}\n\n';
+      final streamData =
+          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({'message': chunk.toJson()})}\n\n').join()}data: ${jsonEncode({'result': expectedResponse})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(
@@ -268,7 +264,8 @@ void main() {
 
       // Send chunks progressively
       for (final chunk in chunks) {
-        final data = 'data: ${jsonEncode({
+        final data =
+            'data: ${jsonEncode({
               'message': {'chunk': chunk},
             })}\n\n';
         streamController.add(utf8.encode(data));
@@ -336,7 +333,8 @@ void main() {
   group('Streaming - Custom Headers', () {
     test('should send custom headers', () async {
       final customHeaders = {'Authorization': 'Bearer token123'};
-      final streamData = 'data: ${jsonEncode({
+      final streamData =
+          'data: ${jsonEncode({
             'message': {'chunk': 'test'},
           })}\n\n'
           'data: ${jsonEncode({'result': 'success'})}\n\n';
@@ -353,8 +351,9 @@ void main() {
           .stream(input: 'test', headers: customHeaders)
           .toList();
 
-      final captured = verify(mockClient.send(captureAny)).captured.single
-          as http.BaseRequest;
+      final captured =
+          verify(mockClient.send(captureAny)).captured.single
+              as http.BaseRequest;
       expect(captured.headers['authorization'], 'Bearer token123');
       expect(captured.headers['accept'], 'text/event-stream');
     });

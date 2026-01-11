@@ -40,7 +40,7 @@ class Formatter<O> {
   final String name;
   final GenerateActionOutputConfig config;
   final FormatterHandlerResult<O> Function(Map<String, dynamic>? schema)
-      handler;
+  handler;
 
   Formatter({required this.name, required this.config, required this.handler});
 }

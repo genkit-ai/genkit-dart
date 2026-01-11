@@ -24,6 +24,7 @@ import 'package:genkit/src/core/plugin.dart';
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/types.dart';
 import 'package:genkit/src/utils.dart';
@@ -35,7 +36,8 @@ export 'package:genkit/src/types.dart';
 export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
-export 'package:genkit/src/ai/generate.dart' show GenerateResponseChunk;
+export 'package:genkit/src/ai/generate.dart'
+    show GenerateResponseChunk, GenerateBidiSession;
 
 bool _isDevEnv() {
   return getEnvVar('GENKIT_ENV') == 'dev';
@@ -176,6 +178,47 @@ class Genkit {
     );
     registry.register(model);
     return model;
+  }
+
+  BidiModel defineBidiModel({
+    required String name,
+    required BidiActionFn<
+      ModelRequest,
+      ModelResponse,
+      ModelResponseChunk,
+      ModelRequest
+    >
+    fn,
+  }) {
+    final model = BidiModel(
+      name: name,
+      fn: (input, context) {
+        if (context.inputStream == null) {
+          throw GenkitException(
+            'Bidi model $name called without an input stream',
+            statusCode: 400,
+          );
+        }
+        return fn(context.inputStream!, context);
+      },
+    );
+    registry.register(model);
+    return model;
+  }
+
+  Future<GenerateBidiSession> generateBidi({
+    required String model,
+    dynamic config,
+    List<String>? tools,
+    String? system,
+  }) {
+    return runGenerateBidi(
+      registry,
+      modelName: model,
+      config: config,
+      tools: tools,
+      system: system,
+    );
   }
 
   Future<GenerateResponse> generate<C>({

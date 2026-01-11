@@ -76,7 +76,9 @@ Future<O?> streamFlow<O, S>({
   }
 
   var buffer = '';
-  final subscription = streamedResponse.stream.transform(utf8.decoder).listen(
+  final subscription = streamedResponse.stream
+      .transform(utf8.decoder)
+      .listen(
         (chunk) {
           buffer += chunk;
           while (buffer.contains(_flowStreamDelimiter)) {
@@ -200,9 +202,11 @@ RemoteAction<O, S> defineRemoteAction<O, S>({
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
-    fromResponse: fromResponse ??
+    fromResponse:
+        fromResponse ??
         (outputType != null ? (d) => outputType.parse(d) : (d) => d as O),
-    fromStreamChunk: fromStreamChunk ??
+    fromStreamChunk:
+        fromStreamChunk ??
         (streamType != null ? (d) => streamType.parse(d) : (d) => d as S),
   );
 }
@@ -234,12 +238,12 @@ class RemoteAction<O, S> {
     http.Client? httpClient,
     required O Function(dynamic jsonData) fromResponse,
     required S Function(dynamic jsonData) fromStreamChunk,
-  })  : _url = url,
-        _defaultHeaders = defaultHeaders,
-        _httpClient = httpClient ?? http.Client(),
-        _ownsHttpClient = httpClient == null,
-        _fromResponse = fromResponse,
-        _fromStreamChunk = fromStreamChunk;
+  }) : _url = url,
+       _defaultHeaders = defaultHeaders,
+       _httpClient = httpClient ?? http.Client(),
+       _ownsHttpClient = httpClient == null,
+       _fromResponse = fromResponse,
+       _fromStreamChunk = fromStreamChunk;
 
   /// Invokes the remote flow.
   Future<O> call<I>({required I input, Map<String, String>? headers}) async {
@@ -289,7 +293,8 @@ class RemoteAction<O, S> {
     if (decodedBody is Map<String, dynamic>) {
       if (decodedBody.containsKey('error')) {
         final errorData = decodedBody['error'];
-        final message = (errorData is Map<String, dynamic> &&
+        final message =
+            (errorData is Map<String, dynamic> &&
                 errorData.containsKey('message'))
             ? errorData['message'] as String
             : errorData.toString();

@@ -148,8 +148,7 @@ void main() {
             {'name': 'Flour', 'quantity': '1 cup'},
           ],
           'servings': 4,
-        }))
-            .length,
+        })).length,
         isZero,
       );
 
@@ -159,8 +158,7 @@ void main() {
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
           ],
-        }))
-            .length,
+        })).length,
         isNot(isZero),
       );
 
@@ -171,8 +169,7 @@ void main() {
             {'name': 'Flour', 'quantity': '1 cup'},
           ],
           'servings': 4,
-        }))
-            .length,
+        })).length,
         isNot(isZero),
       );
     });

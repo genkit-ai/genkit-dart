@@ -99,10 +99,8 @@ void main() {
 
         final responseBody =
             '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
-                      'message': {'chunk': chunk},
-                    })}').join('\n\n')}\n\ndata: ${jsonEncode({
-              'result': expectedResponse
-            })}\n\n';
+              'message': {'chunk': chunk},
+            })}').join('\n\n')}\n\ndata: ${jsonEncode({'result': expectedResponse})}\n\n';
 
         when(mockClient.send(any)).thenAnswer((_) async {
           return http.StreamedResponse(
@@ -297,11 +295,7 @@ void main() {
       final expectedChunks = ['chunk1', 'chunk2'];
       final expectedResponse = 'done';
       final responseBody =
-          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({
-                    'message': chunk
-                  })}').join('\n\n')}\n\ndata: ${jsonEncode({
-            'result': expectedResponse
-          })}\n\n';
+          '${expectedChunks.map((chunk) => 'data: ${jsonEncode({'message': chunk})}').join('\n\n')}\n\ndata: ${jsonEncode({'result': expectedResponse})}\n\n';
 
       when(mockClient.send(any)).thenAnswer((_) async {
         return http.StreamedResponse(
