@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/core/action.dart';
+import 'package:genkit/schema.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -51,8 +52,11 @@ void main() {
 
     setUp(() async {
       registry = Registry();
-      final testAction = Action<String, String, String>(
+      final testAction = Action(
         actionType: 'test',
+        inputType: StringType,
+        outputType: StringType,
+        streamType: StringType,
         name: 'testAction',
         fn: (input, context) async {
           if (context.streamingRequested) {

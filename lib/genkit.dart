@@ -44,7 +44,7 @@ bool _isDevEnv() {
 class Genkit {
   final Registry registry = Registry();
   Object? _reflectionServer;
-  Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>?
+  Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>?
   _generateAction;
 
   Genkit({
@@ -90,19 +90,48 @@ class Genkit {
     return runInNewSpan(name, (_) => fn());
   }
 
-  Flow<I, O, S> defineFlow<I, O, S>({
+  Flow<I, O, S, Init> defineFlow<I, O, S, Init>({
     required String name,
-    required ActionFn<I, O, S> fn,
+    required ActionFn<I, O, S, Init> fn,
     JsonExtensionType<I>? inputType,
     JsonExtensionType<O>? outputType,
     JsonExtensionType<S>? streamType,
+    JsonExtensionType<Init>? initType,
   }) {
     final flow = Flow(
       name: name,
-      fn: fn,
+      fn: (input, context) {
+        return fn(input as I, context);
+      },
       inputType: inputType,
       outputType: outputType,
       streamType: streamType,
+      initType: initType,
+    );
+    registry.register(flow);
+    return flow;
+  }
+
+  Flow<I, O, S, Init> defineBidiFlow<I, O, S, Init>({
+    required String name,
+    required BidiActionFn<I, O, S, Init> fn,
+    JsonExtensionType<I>? inputType,
+    JsonExtensionType<O>? outputType,
+    JsonExtensionType<S>? streamType,
+    JsonExtensionType<Init>? initType,
+  }) {
+    final flow = Flow(
+      name: name,
+      fn: (input, context) {
+        if (context.inputStream == null) {
+          throw Exception('Bidi flow $name called without an input stream');
+        }
+        return fn(context.inputStream!, context);
+      },
+      inputType: inputType,
+      outputType: outputType,
+      streamType: streamType,
+      initType: initType,
     );
     registry.register(flow);
     return flow;
@@ -111,7 +140,7 @@ class Genkit {
   Tool<I, O> defineTool<I, O, S>({
     required String name,
     required String description,
-    required ActionFn<I, O, S> fn,
+    required ActionFn<I, O, S, void> fn,
     JsonExtensionType<I>? inputType,
     JsonExtensionType<O>? outputType,
     JsonExtensionType<S>? streamType,
@@ -119,7 +148,9 @@ class Genkit {
     final tool = Tool(
       name: name,
       description: description,
-      fn: fn,
+      fn: (input, context) {
+        return fn(input as I, context);
+      },
       inputType: inputType,
       outputType: outputType,
     );
@@ -129,9 +160,14 @@ class Genkit {
 
   Model defineModel({
     required String name,
-    required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk> fn,
+    required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
   }) {
-    final model = Model(name: name, fn: fn);
+    final model = Model(
+      name: name,
+      fn: (input, context) {
+        return fn(input!, context);
+      },
+    );
     registry.register(model);
     return model;
   }

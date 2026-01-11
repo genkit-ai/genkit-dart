@@ -29,7 +29,7 @@ void main() {
     test('should include customOptions in metadata', () {
       final model = Model(
         name: 'testModel',
-        fn: (ModelRequest request, context) async {
+        fn: (request, context) async {
           return ModelResponse.from(
             finishReason: FinishReason.stop,
             message: Message.from(

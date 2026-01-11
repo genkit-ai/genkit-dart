@@ -22,67 +22,120 @@ const _genkitContextKey = #genkitContext;
 
 typedef StreamingCallback<S> = void Function(S chunk);
 
-typedef ActionFnArg<S> = ({
+typedef ActionFnArg<S, I, Init> = ({
   bool streamingRequested,
   StreamingCallback<S> sendChunk,
   Map<String, dynamic>? context,
+  Stream<I>? inputStream,
+  Init? init,
 });
 
-typedef ActionFn<I, O, S> = Future<O> Function(I input, ActionFnArg<S> context);
+typedef ActionFn<I, O, S, Init> =
+    Future<O> Function(I input, ActionFnArg<S, I, Init> context);
 
-class ActionMetadata<I, O, S> {
+typedef BidiActionFn<I, O, S, Init> = Future<O> Function(
+  Stream<I> inputStream,
+  ActionFnArg<S, I, Init> context,
+);
+
+typedef InternalActionFn<I, O, S, Init> = Future<O> Function(
+  I? input,
+  ActionFnArg<S, I, Init> context,
+);
+
+class RunResult<O> {
+  final O result;
+  final String traceId;
+  final String spanId;
+
+  RunResult({
+    required this.result,
+    required this.traceId,
+    required this.spanId,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'result': result,
+      'traceId': traceId,
+      'spanId': spanId,
+    };
+  }
+}
+
+class ActionMetadata<I, O, S, Init> {
   String name;
   String? description;
   String actionType;
   JsonExtensionType<I>? inputType;
   JsonExtensionType<O>? outputType;
   JsonExtensionType<S>? streamType;
+  JsonExtensionType<Init>? initType;
   Map<String, dynamic> metadata;
 
   ActionMetadata({
-    required this.actionType,
     required this.name,
+    this.actionType = 'custom', // Default or required?
     this.description,
     this.inputType,
     this.outputType,
     this.streamType,
-    this.metadata = const {},
-  }) {
-    if (metadata.isEmpty) {
-      metadata = {'description': description ?? name};
-    }
+    this.initType,
+    Map<String, dynamic>? metadata,
+  }) : metadata = metadata ?? {};
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'description': description,
+      'inputSchema': inputType?.jsonSchema,
+      'outputSchema': outputType?.jsonSchema,
+      'streamSchema': streamType?.jsonSchema,
+      'initSchema': initType?.jsonSchema,
+    };
   }
 }
 
-class Action<I, O, S> extends ActionMetadata<I, O, S> {
-  ActionFn<I, O, S> fn;
+class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
+  final InternalActionFn<I, O, S, Init> fn;
 
   Action({
-    required super.actionType,
     required super.name,
-    super.description,
+    required super.actionType,
+    required this.fn,
     super.inputType,
     super.outputType,
     super.streamType,
+    super.initType,
+    super.description,
     super.metadata,
-    required this.fn,
   });
 
-  Future<O> call(
-    I input, {
-    StreamingCallback<S>? onChunk,
-    Map<String, dynamic>? context,
-  }) async {
-    return (await run(input, onChunk: onChunk, context: context)).result;
+  @override
+  String toString() {
+    return 'Action(name: $name, actionType: $actionType)';
   }
 
-  Future<({O result, String traceId, String spanId})> run(
-    I input, {
+  Future<O> call(
+    I? input, {
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
+    Stream<I>? inputStream,
+    Init? init,
   }) async {
-    final executionContext = context ?? Zone.current[_genkitContextKey];
-    Future<({O result, String traceId, String spanId})> runner() async {
+    return (await run(input, onChunk: onChunk, context: context)).result;
+
+  }
+
+  Future<RunResult<O>> run(
+    I? input, {
+    StreamingCallback<S>? onChunk,
+    Map<String, dynamic>? context,
+    Stream<I>? inputStream,
+    Init? init,
+  }) async {
+        final executionContext = context ?? Zone.current[_genkitContextKey];
+    Future<RunResult<O>> runner() async {
       String traceId = '';
       String spanId = '';
       final result = await runInNewSpan(
@@ -94,12 +147,14 @@ class Action<I, O, S> extends ActionMetadata<I, O, S> {
             streamingRequested: onChunk != null,
             sendChunk: onChunk ?? (chunk) {},
             context: executionContext,
+            inputStream: inputStream,
+            init: init,
           ));
         },
         actionType: actionType,
         input: input,
       );
-      return (result: result, traceId: traceId, spanId: spanId);
+      return RunResult<O>(result: result, traceId: traceId, spanId: spanId);
     }
 
     if (context != null) {
@@ -110,24 +165,27 @@ class Action<I, O, S> extends ActionMetadata<I, O, S> {
   }
 
   ActionStream<S, O> stream(
-    I input, {
-    StreamingCallback<S>? onChunk,
+    I? input, {
     Map<String, dynamic>? context,
+    Stream<I>? inputStream,
+    Init? init,
   }) {
     final streamController = StreamController<S>();
     final actionStream = ActionStream<S, O>(streamController.stream);
 
-    call(
-          input,
-          onChunk: (S chunk) {
-            if (streamController.isClosed) return;
-            streamController.add(chunk);
-            onChunk?.call(chunk);
-          },
-          context: context,
-        )
+    run(
+      input,
+      context: context,
+      inputStream: inputStream,
+      init: init,
+      onChunk: (chunk) {
+        if (!streamController.isClosed) {
+          streamController.add(chunk);
+        }
+      },
+    )
         .then((result) {
-          actionStream.setResult(result);
+          actionStream.setResult(result.result);
           if (!streamController.isClosed) {
             streamController.close();
           }
@@ -141,6 +199,50 @@ class Action<I, O, S> extends ActionMetadata<I, O, S> {
         });
 
     return actionStream;
+  }
+
+  BidiActionStream<S, O, I> streamBidi(
+    Stream<I> inputStream, {
+    StreamingCallback<S>? onChunk,
+    Map<String, dynamic>? context,
+    Init? init,
+  }) {
+    final streamController = StreamController<S>();
+    // We pass null for controller since we don't own the input stream creation here
+    final bidiStream = BidiActionStream<S, O, I>(
+      streamController.stream,
+      null,
+    );
+
+    run(
+      null, // Pass null for unary input
+      onChunk: (chunk) {
+        if (!streamController.isClosed) {
+          streamController.add(chunk);
+        }
+        if (onChunk != null) {
+          onChunk(chunk);
+        }
+      },
+      context: context,
+      inputStream: inputStream,
+      init: init,
+    )
+        .then((result) {
+          bidiStream.setResult(result.result);
+          if (!streamController.isClosed) {
+            streamController.close();
+          }
+        })
+        .catchError((e, s) {
+          bidiStream.setError(e, s);
+          if (!streamController.isClosed) {
+            streamController.addError(e, s);
+            streamController.close();
+          }
+        });
+
+    return bidiStream;
   }
 }
 
@@ -193,4 +295,21 @@ class ActionStream<S, F> extends StreamView<S> {
   }
 
   ActionStream(super.stream);
+}
+
+class BidiActionStream<S, F, I> extends ActionStream<S, F> {
+  final StreamSink<I>? _inputSink;
+
+  BidiActionStream(super.stream, this._inputSink);
+
+  void send(I chunk) {
+    if (_inputSink == null) {
+      throw GenkitException('Cannot send to this stream (external input)');
+    }
+    _inputSink!.add(chunk);
+  }
+
+  Future<void> close() async {
+    await _inputSink?.close();
+  }
 }

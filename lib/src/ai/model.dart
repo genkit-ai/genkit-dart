@@ -34,7 +34,8 @@ class _ModelRef<C> implements ModelRef<C> {
   _ModelRef(this.name, this.customOptions);
 }
 
-class Model<C> extends Action<ModelRequest, ModelResponse, ModelResponseChunk>
+class Model<C>
+    extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
     implements ModelRef<C> {
   @override
   JsonExtensionType<C>? customOptions;

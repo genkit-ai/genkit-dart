@@ -22,15 +22,18 @@ import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/extract.dart';
 
 /// Defines the utility 'generate' action.
-Action<GenerateActionOptions, ModelResponse, ModelResponseChunk>
+Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
 defineGenerateAction(Registry registry) {
   return Action(
-    actionType: 'util',
+    actionType: 'generate',
     name: 'generate',
     inputType: GenerateActionOptionsType,
     outputType: ModelResponseType,
     streamType: ModelResponseChunkType,
     fn: (options, ctx) async {
+      if (options == null) {
+        throw Exception('Generate action called with null options');
+      }
       final response = await runGenerateAction(registry, options, ctx);
       return response.modelResponse;
     },
@@ -155,7 +158,7 @@ class GenerateResponse<O> {
 Future<GenerateResponse<O>> runGenerateAction<O>(
   Registry registry,
   GenerateActionOptions options,
-  ActionFnArg<ModelResponseChunk> ctx,
+  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
 ) async {
   if (options.model == null) {
     throw GenkitException('Model must be provided', statusCode: 400);
@@ -322,6 +325,8 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
         }
       },
       context: context,
+      inputStream: null,
+      init: null,
     ),
   );
 }

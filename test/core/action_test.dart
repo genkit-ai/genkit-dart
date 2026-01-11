@@ -82,7 +82,7 @@ void main() {
       final action = Action(
         name: 'testAction',
         actionType: 'test',
-        fn: (String input, context) async => 'output',
+        fn: (String? input, context) async => 'output',
       );
 
       final result = await action('input');
@@ -95,8 +95,8 @@ void main() {
         actionType: 'test',
         inputType: TestInputType,
         outputType: TestOutputType,
-        fn: (TestInput input, context) async {
-          return TestOutputType.parse({'greeting': 'Hello ${input.name}'});
+        fn: (TestInput? input, context) async {
+          return TestOutputType.parse({'greeting': 'Hello ${input!.name}'});
         },
       );
 
@@ -110,8 +110,8 @@ void main() {
         actionType: 'test',
         inputType: TestInputType,
         outputType: TestOutputType,
-        fn: (TestInput input, context) async {
-          return TestOutputType.parse({'greeting': 'Hello ${input.name}'});
+        fn: (TestInput? input, context) async {
+          return TestOutputType.parse({'greeting': 'Hello ${input!.name}'});
         },
       );
 
@@ -130,7 +130,7 @@ void main() {
     });
 
     test('should stream an action', () async {
-      final action = Action<String, String, String>(
+      final action = Action<String, String, String, void>(
         name: 'testAction',
         actionType: 'test',
         fn: (input, context) async {
@@ -152,7 +152,7 @@ void main() {
       final action = Action(
         name: 'testAction',
         actionType: 'test',
-        fn: (String input, context) async => 'output',
+        fn: (String? input, context) async => 'output',
       );
 
       final result = await action.run('input');
