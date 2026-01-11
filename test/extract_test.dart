@@ -208,14 +208,17 @@ void main() {
 
     test('handles trailing comma with whitespace', () {
       expect(
-        extractJson('  {       "a"   :         1,   ', allowPartial: true),
+        extractJson(
+          '  \n\n{   \n    "a"   :       \n  1\n,  \n ',
+          allowPartial: true,
+        ),
         equals({'a': 1}),
       );
     });
 
     test('handles trailing comma in array with whitespace', () {
       expect(
-        extractJson('        [  1,      2,   ', allowPartial: true),
+        extractJson('     \n   [  1,  \n\n    2,\n   ', allowPartial: true),
         equals([1, 2]),
       );
     });
