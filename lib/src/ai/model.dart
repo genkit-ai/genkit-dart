@@ -46,11 +46,60 @@ class Model<C>
     super.metadata,
     this.customOptions,
   }) : super(
-          actionType: 'model',
-          inputType: ModelRequestType,
-          outputType: ModelResponseType,
-          streamType: ModelResponseChunkType,
-        ) {
+         actionType: 'model',
+         inputType: ModelRequestType,
+         outputType: ModelResponseType,
+         streamType: ModelResponseChunkType,
+       ) {
+    metadata['description'] = name;
+    metadata['model'] = <String, dynamic>{};
+    metadata['model']['label'] = name;
+    if (customOptions != null) {
+      metadata['model']['customOptions'] = customOptions!.jsonSchema ?? {};
+    }
+  }
+}
+
+BidiModelRef<C> bidiModelRef<C>(
+  String name, {
+  JsonExtensionType<C>? customOptions,
+}) {
+  return _BidiModelRef<C>(name, customOptions);
+}
+
+abstract class BidiModelRef<C> {
+  String get name;
+  JsonExtensionType<C>? get customOptions;
+}
+
+class _BidiModelRef<C> implements BidiModelRef<C> {
+  @override
+  final String name;
+  @override
+  final JsonExtensionType<C>? customOptions;
+
+  _BidiModelRef(this.name, this.customOptions);
+}
+
+class BidiModel<C>
+    extends
+        Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
+    implements BidiModelRef<C> {
+  @override
+  JsonExtensionType<C>? customOptions;
+
+  BidiModel({
+    required super.name,
+    required super.fn,
+    super.metadata,
+    this.customOptions,
+  }) : super(
+         actionType: 'bidi-model',
+         inputType: ModelRequestType,
+         initType: ModelRequestType,
+         outputType: ModelResponseType,
+         streamType: ModelResponseChunkType,
+       ) {
     metadata['description'] = name;
     metadata['model'] = <String, dynamic>{};
     metadata['model']['label'] = name;

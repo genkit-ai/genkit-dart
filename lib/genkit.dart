@@ -178,6 +178,29 @@ class Genkit {
     return model;
   }
 
+  BidiModel defineBidiModel({
+    required String name,
+    required BidiActionFn<
+      ModelRequest,
+      ModelResponse,
+      ModelResponseChunk,
+      ModelRequest
+    >
+    fn,
+  }) {
+    final model = BidiModel(
+      name: name,
+      fn: (input, context) {
+        if (context.inputStream == null) {
+          throw Exception('Bidi model $name called without an input stream');
+        }
+        return fn(context.inputStream!, context);
+      },
+    );
+    registry.register(model);
+    return model;
+  }
+
   Future<GenerateResponse> generate<C>({
     String? prompt,
     List<Message>? messages,
