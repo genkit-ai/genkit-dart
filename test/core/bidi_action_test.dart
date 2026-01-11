@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'package:genkit/src/core/action.dart';
-import 'package:genkit/src/core/registry.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('Bidi Action', () {
-    test('streamBidi ergonomic (push)', () async {
+    test('streamBidi with input stream', () async {
       final action = Action<String, String, String, void>(
         name: 'chat',
         actionType: 'custom',
@@ -18,7 +17,7 @@ void main() {
       );
 
       final controller = StreamController<String>();
-      final session = action.streamBidi(controller.stream);
+      final session = action.streamBidi(inputStream: controller.stream);
       controller.add('1');
       controller.add('2');
       controller.close();
@@ -26,6 +25,46 @@ void main() {
 
       final chunks = await session.toList();
       expect(chunks, ['echo 1', 'echo 2']);
+      expect(await session.onResult, 'done');
+    });
+
+    test('streamBidi ergonomic (send)', () async {
+      final action = Action<String, String, String, void>(
+        name: 'chat',
+        actionType: 'custom',
+        fn: (input, context) async {
+          await for (final chunk in context.inputStream!) {
+            context.sendChunk('echo $chunk');
+          }
+          return 'done';
+        },
+      );
+
+      final session = action.streamBidi();
+      session.send('1');
+      session.send('2');
+      session.close();
+
+      final chunks = await session.toList();
+      expect(chunks, ['echo 1', 'echo 2']);
+      expect(await session.onResult, 'done');
+    });
+
+    test('can run bidi action with unary input', () async {
+      final action = Action<String, String, String, void>(
+        name: 'chat',
+        actionType: 'custom',
+        fn: (input, context) async {
+          await for (final chunk in context.inputStream!) {
+            context.sendChunk('echo $chunk');
+          }
+          return 'done';
+        },
+      );
+
+      final session = action.stream('1');
+      final chunks = await session.toList();
+      expect(chunks, ['echo 1']);
       expect(await session.onResult, 'done');
     });
 
@@ -46,7 +85,7 @@ void main() {
       inputController.add('2');
       inputController.close();
 
-      final session = action.streamBidi(inputController.stream);
+      final session = action.streamBidi(inputStream: inputController.stream);
 
       final chunks = await session.toList();
       expect(chunks, ['echo 1', 'echo 2']);
@@ -68,7 +107,7 @@ void main() {
 
       final controller = StreamController<String>();
       final session = action.streamBidi(
-        controller.stream,
+        inputStream: controller.stream,
         init: {'prefix': '>> '},
       );
       controller.add('1');

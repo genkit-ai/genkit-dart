@@ -30,8 +30,8 @@ typedef ActionFnArg<S, I, Init> = ({
   Init? init,
 });
 
-typedef ActionFn<I, O, S, Init> =
-    Future<O> Function(I input, ActionFnArg<S, I, Init> context);
+typedef ActionFn<I, O, S, Init> = Future<O> Function(
+    I input, ActionFnArg<S, I, Init> context);
 
 typedef BidiActionFn<I, O, S, Init> = Future<O> Function(
   Stream<I> inputStream,
@@ -124,7 +124,6 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     Init? init,
   }) async {
     return (await run(input, onChunk: onChunk, context: context)).result;
-
   }
 
   Future<RunResult<O>> run(
@@ -134,7 +133,16 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     Stream<I>? inputStream,
     Init? init,
   }) async {
-        final executionContext = context ?? Zone.current[_genkitContextKey];
+    if (inputStream == null) {
+      final internalInputController = StreamController<I>();
+      inputStream = internalInputController.stream;
+      if (input != null) {
+        internalInputController.add(input);
+      }
+      internalInputController.close();
+    }
+
+    final executionContext = context ?? Zone.current[_genkitContextKey];
     Future<RunResult<O>> runner() async {
       String traceId = '';
       String spanId = '';
@@ -183,35 +191,38 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
           streamController.add(chunk);
         }
       },
-    )
-        .then((result) {
-          actionStream.setResult(result.result);
-          if (!streamController.isClosed) {
-            streamController.close();
-          }
-        })
-        .catchError((e, s) {
-          actionStream.setError(e, s);
-          if (!streamController.isClosed) {
-            streamController.addError(e, s);
-            streamController.close();
-          }
-        });
+    ).then((result) {
+      actionStream.setResult(result.result);
+      if (!streamController.isClosed) {
+        streamController.close();
+      }
+    }).catchError((e, s) {
+      actionStream.setError(e, s);
+      if (!streamController.isClosed) {
+        streamController.addError(e, s);
+        streamController.close();
+      }
+    });
 
     return actionStream;
   }
 
-  BidiActionStream<S, O, I> streamBidi(
-    Stream<I> inputStream, {
+  BidiActionStream<S, O, I> streamBidi({
+    Stream<I>? inputStream,
     StreamingCallback<S>? onChunk,
     Map<String, dynamic>? context,
     Init? init,
   }) {
+    StreamController<I>? internalInputController;
+    if (inputStream == null) {
+      internalInputController = StreamController<I>();
+      inputStream = internalInputController.stream;
+    }
+
     final streamController = StreamController<S>();
-    // We pass null for controller since we don't own the input stream creation here
     final bidiStream = BidiActionStream<S, O, I>(
       streamController.stream,
-      null,
+      internalInputController?.sink,
     );
 
     run(
@@ -227,20 +238,18 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
       context: context,
       inputStream: inputStream,
       init: init,
-    )
-        .then((result) {
-          bidiStream.setResult(result.result);
-          if (!streamController.isClosed) {
-            streamController.close();
-          }
-        })
-        .catchError((e, s) {
-          bidiStream.setError(e, s);
-          if (!streamController.isClosed) {
-            streamController.addError(e, s);
-            streamController.close();
-          }
-        });
+    ).then((result) {
+      bidiStream.setResult(result.result);
+      if (!streamController.isClosed) {
+        streamController.close();
+      }
+    }).catchError((e, s) {
+      bidiStream.setError(e, s);
+      if (!streamController.isClosed) {
+        streamController.addError(e, s);
+        streamController.close();
+      }
+    });
 
     return bidiStream;
   }

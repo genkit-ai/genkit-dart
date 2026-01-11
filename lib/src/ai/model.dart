@@ -46,11 +46,11 @@ class Model<C>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'model',
-         inputType: ModelRequestType,
-         outputType: ModelResponseType,
-         streamType: ModelResponseChunkType,
-       ) {
+          actionType: 'model',
+          inputType: ModelRequestType,
+          outputType: ModelResponseType,
+          streamType: ModelResponseChunkType,
+        ) {
     metadata['description'] = name;
     metadata['model'] = <String, dynamic>{};
     metadata['model']['label'] = name;

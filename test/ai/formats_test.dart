@@ -190,9 +190,8 @@ void main() {
         outputFormat: 'banana',
       );
 
-      final chunks = (await streamResponse.toList())
-          .map((c) => c.output)
-          .toList();
+      final chunks =
+          (await streamResponse.toList()).map((c) => c.output).toList();
       expect(chunks, ['banana chunk: chunk 1', 'banana chunk: chunk 2']);
 
       // Simulation of echo chunks isn't implemented in the model, it returns single response.
