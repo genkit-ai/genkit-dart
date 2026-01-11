@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/model.dart';
@@ -23,7 +24,7 @@ import 'package:genkit/src/extract.dart';
 
 /// Defines the utility 'generate' action.
 Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
-    defineGenerateAction(Registry registry) {
+defineGenerateAction(Registry registry) {
   return Action(
     actionType: 'generate',
     name: 'generate',
@@ -205,8 +206,9 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
       onChunk: ctx.streamingRequested ? ctx.sendChunk : null,
     );
 
-    final parser =
-        format?.handler(requestOptions.output?.jsonSchema).parseMessage;
+    final parser = format
+        ?.handler(requestOptions.output?.jsonSchema)
+        .parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
       return GenerateResponse<O>(response, output: null);
@@ -225,8 +227,9 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
 
     final toolResponses = <Part>[];
     for (final toolRequest in toolRequests) {
-      final tool = await registry.lookupAction(
-          'tool', toolRequest.toolRequest.name) as Tool?;
+      final tool =
+          await registry.lookupAction('tool', toolRequest.toolRequest.name)
+              as Tool?;
       if (tool == null) {
         throw GenkitException(
           'Tool ${toolRequest.toolRequest.name} not found',
@@ -282,7 +285,8 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
     throw ArgumentError('prompt or messages must be provided');
   }
 
-  final resolvedMessages = messages ??
+  final resolvedMessages =
+      messages ??
       [
         Message.from(
           role: Role.user,
@@ -326,6 +330,158 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
       init: null,
     ),
   );
+}
+
+class GenerateBidiSession {
+  final BidiActionStream<ModelResponseChunk, ModelResponse, ModelRequest>
+  _session;
+  final Stream<GenerateResponseChunk> stream;
+
+  GenerateBidiSession._(this._session, this.stream);
+
+  void send(dynamic promptOrMessages) {
+    if (promptOrMessages is String) {
+      _session.send(
+        ModelRequest.from(
+          messages: [
+            Message.from(
+              role: Role.user,
+              content: [TextPart.from(text: promptOrMessages)],
+            ),
+          ],
+        ),
+      );
+    } else if (promptOrMessages is List<Part>) {
+      _session.send(
+        ModelRequest.from(
+          messages: [Message.from(role: Role.user, content: promptOrMessages)],
+        ),
+      );
+    } else if (promptOrMessages is ModelRequest) {
+      _session.send(promptOrMessages);
+    } else {
+      throw ArgumentError(
+        'Invalid argument type. Expected String, List<Part>, or ModelRequest.',
+      );
+    }
+  }
+
+  Future<void> close() => _session.close();
+}
+
+Future<GenerateBidiSession> runGenerateBidi(
+  Registry registry, {
+  required String modelName,
+  dynamic config,
+  List<String>? tools,
+  String? system,
+}) async {
+  final model =
+      await registry.lookupAction('bidi-model', modelName) as BidiModel?;
+  if (model == null) {
+    throw GenkitException('Bidi Model $modelName not found', statusCode: 404);
+  }
+
+  var toolDefs = <ToolDefinition>[];
+  var toolActions = <Tool>[];
+  if (tools != null) {
+    for (var toolName in tools) {
+      final tool = await registry.lookupAction('tool', toolName) as Tool?;
+      if (tool != null) {
+        toolActions.add(tool);
+        toolDefs.add(toToolDefinition(tool));
+      }
+    }
+  }
+
+  final initRequest = ModelRequest.from(
+    messages: [
+      if (system != null)
+        Message.from(
+          role: Role.system,
+          content: [TextPart.from(text: system)],
+        ),
+    ],
+    config: config is Map
+        ? config as Map<String, dynamic>
+        : (config as dynamic)?.toJson(),
+    tools: toolDefs,
+  );
+
+  final session = model.streamBidi(init: initRequest);
+
+  // ignore: close_sinks
+  final outputController = StreamController<GenerateResponseChunk>();
+  final previousChunks = <ModelResponseChunk>[];
+
+  void handleStream() async {
+    try {
+      await for (final chunk in session) {
+        final wrapped = GenerateResponseChunk(
+          chunk,
+          previousChunks: previousChunks,
+          output: _parseChunkOutput(chunk, previousChunks, null),
+        );
+        previousChunks.add(chunk);
+        if (!outputController.isClosed) {
+          outputController.add(wrapped);
+        }
+
+        final toolRequests = chunk.content
+            .where((p) => p.isToolRequest)
+            .map((p) => p as ToolRequestPart)
+            .toList();
+
+        if (toolRequests.isNotEmpty) {
+          final toolResponses = <Part>[];
+          for (final toolRequest in toolRequests) {
+            final tool = toolActions.firstWhere(
+              (t) => t.name == toolRequest.toolRequest.name,
+              orElse: () => throw GenkitException(
+                'Tool ${toolRequest.toolRequest.name} not found',
+                statusCode: 404,
+              ),
+            );
+
+            try {
+              final output = await tool(toolRequest.toolRequest.input);
+              toolResponses.add(
+                ToolResponsePart.from(
+                  toolResponse: ToolResponse.from(
+                    ref: toolRequest.toolRequest.ref,
+                    name: toolRequest.toolRequest.name,
+                    output: output,
+                  ),
+                ),
+              );
+            } catch (e) {
+              toolResponses.add(
+                ToolResponsePart.from(
+                  toolResponse: ToolResponse.from(
+                    ref: toolRequest.toolRequest.ref,
+                    name: toolRequest.toolRequest.name,
+                    output: 'Error: $e',
+                  ),
+                ),
+              );
+            }
+          }
+          session.send(
+            ModelRequest.from(
+              messages: [Message.from(role: Role.tool, content: toolResponses)],
+            ),
+          );
+        }
+      }
+      if (!outputController.isClosed) outputController.close();
+    } catch (e, st) {
+      if (!outputController.isClosed) outputController.addError(e, st);
+    }
+  }
+
+  handleStream();
+
+  return GenerateBidiSession._(session, outputController.stream);
 }
 
 O? _parseOutput<O>(Message? message, MessageParser? parser) {

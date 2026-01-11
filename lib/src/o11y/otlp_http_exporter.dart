@@ -28,9 +28,9 @@ class CollectorHttpExporter implements sdk.SpanExporter {
     String url, {
     Map<String, String> headers = const {},
     http.Client? client,
-  })  : _uri = Uri.parse(url),
-        _headers = {...headers},
-        _client = client ?? http.Client();
+  }) : _uri = Uri.parse(url),
+       _headers = {...headers},
+       _client = client ?? http.Client();
 
   @override
   void export(List<sdk.ReadOnlySpan> spans) {
@@ -58,8 +58,11 @@ class CollectorHttpExporter implements sdk.SpanExporter {
   }
 
   List<Map<String, dynamic>> _translateSpans(List<sdk.ReadOnlySpan> spans) {
-    final resourceSpans = <sdk.Resource,
-        Map<sdk.InstrumentationScope, List<Map<String, dynamic>>>>{};
+    final resourceSpans =
+        <
+          sdk.Resource,
+          Map<sdk.InstrumentationScope, List<Map<String, dynamic>>>
+        >{};
 
     for (final span in spans) {
       final resource = span.resource;

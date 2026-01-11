@@ -35,7 +35,8 @@ export 'package:genkit/src/types.dart';
 export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
-export 'package:genkit/src/ai/generate.dart' show GenerateResponseChunk;
+export 'package:genkit/src/ai/generate.dart'
+    show GenerateResponseChunk, GenerateBidiSession;
 
 bool _isDevEnv() {
   return getEnvVar('GENKIT_ENV') == 'dev';
@@ -199,6 +200,21 @@ class Genkit {
     );
     registry.register(model);
     return model;
+  }
+
+  Future<GenerateBidiSession> generateBidi({
+    required String model,
+    dynamic config,
+    List<String>? tools,
+    String? system,
+  }) {
+    return runGenerateBidi(
+      registry,
+      modelName: model,
+      config: config,
+      tools: tools,
+      system: system,
+    );
   }
 
   Future<GenerateResponse> generate<C>({

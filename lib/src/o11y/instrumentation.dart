@@ -60,7 +60,9 @@ Future<O> runInNewSpan<I, O>(
           } catch (e) {
             span.setAttribute(
               api.Attribute.fromString(
-                  'genkit:input', 'Unable to encode input: $e'),
+                'genkit:input',
+                'Unable to encode input: $e',
+              ),
             );
           }
         }
@@ -84,7 +86,9 @@ Future<O> runInNewSpan<I, O>(
           // Ignore json encoding errors for output
           span.setAttribute(
             api.Attribute.fromString(
-                'genkit:output', 'Unable to encode output: $e'),
+              'genkit:output',
+              'Unable to encode output: $e',
+            ),
           );
         }
         return output;
