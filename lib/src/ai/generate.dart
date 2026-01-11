@@ -475,7 +475,10 @@ Future<GenerateBidiSession> runGenerateBidi(
       }
       if (!outputController.isClosed) outputController.close();
     } catch (e, st) {
-      if (!outputController.isClosed) outputController.addError(e, st);
+      if (!outputController.isClosed) {
+        outputController.addError(e, st);
+        outputController.close();
+      }
     }
   }
 
