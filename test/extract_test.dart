@@ -205,5 +205,19 @@ void main() {
         equals({'a': 1}),
       );
     });
+
+    test('handles trailing comma with whitespace', () {
+      expect(
+        extractJson('  {       "a"   :         1,   ', allowPartial: true),
+        equals({'a': 1}),
+      );
+    });
+
+    test('handles trailing comma in array with whitespace', () {
+      expect(
+        extractJson('        [  1,      2,   ', allowPartial: true),
+        equals([1, 2]),
+      );
+    });
   });
 }
