@@ -57,16 +57,16 @@ ToolDefinition toToolDefinition(Tool tool) {
 abstract class GenerateConfig {}
 
 /// A chunk of a response from a generate action.
-class GenerateResponseChunk<T> {
+class GenerateResponseChunk<O> {
   final ModelResponseChunk _chunk;
   final List<ModelResponseChunk> previousChunks;
-  final ChunkParser<T>? _parser;
+  final O? output;
 
   GenerateResponseChunk(
     this._chunk, {
     this.previousChunks = const [],
-    ChunkParser<T>? parser,
-  }) : _parser = parser;
+    this.output,
+  });
 
   // Delegate properties to _chunk
   double? get index => _chunk.index;
@@ -83,20 +83,13 @@ class GenerateResponseChunk<T> {
     return prev + text;
   }
 
-  T? get output {
-    if (_parser != null) {
-      return _parser(this);
-    }
-    // Default parsing logic
-    final dataPart = content.where((p) => p.isData).firstOrNull as DataPart?;
-    if (dataPart != null && dataPart.data != null) {
-      return dataPart.data as T?;
-    }
-    try {
-      return extractJson(accumulatedText) as T?;
-    } catch (e) {
-      return null;
-    }
+  /// Tries to parse the output as JSON.
+  ///
+  /// This will be populated if the output format is JSON, or if the output is
+  /// arbitrarily parsed as JSON.
+  O? get jsonOutput {
+    if (output != null) return output;
+    return extractJson(accumulatedText) as O?;
   }
 
   Map<String, dynamic> toJson() => _chunk.toJson();
@@ -105,9 +98,9 @@ class GenerateResponseChunk<T> {
 /// A response from a generate action.
 class GenerateResponse<O> {
   final ModelResponse _response;
-  final MessageParser? _parser;
+  final O? output;
 
-  GenerateResponse(this._response, this._parser);
+  GenerateResponse(this._response, {this.output});
 
   /// The generated message.
   Message? get message => _response.message;
@@ -149,11 +142,13 @@ class GenerateResponse<O> {
   /// The tool requests in the response.
   List<ToolRequest> get toolRequests => _response.toolRequests;
 
-  O? get output {
-    if (_parser != null && _response.message != null) {
-      return _parser(_response.message!);
-    }
-    return null;
+  /// Tries to parse the output as JSON.
+  ///
+  /// This will be populated if the output format is JSON, or if the output is
+  /// arbitrarily parsed as JSON.
+  O? get jsonOutput {
+    if (output != null) return output;
+    return extractJson(text) as O?;
   }
 }
 
@@ -212,7 +207,7 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
         .parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
-      return GenerateResponse<O>(response, parser as dynamic);
+      return GenerateResponse<O>(response, output: null);
     }
 
     final toolRequests = response.message?.content
@@ -220,7 +215,10 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
         .map((c) => c as ToolRequestPart)
         .toList();
     if (toolRequests == null || toolRequests.isEmpty) {
-      return GenerateResponse<O>(response, parser);
+      return GenerateResponse<O>(
+        response,
+        output: _parseOutput(response.message, parser),
+      );
     }
 
     final toolResponses = <Part>[];
@@ -317,7 +315,7 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
           final wrapped = GenerateResponseChunk(
             chunk,
             previousChunks: previousChunks,
-            parser: chunkParser,
+            output: _parseChunkOutput(chunk, previousChunks, chunkParser),
           );
           previousChunks.add(chunk);
           onChunk(wrapped);
@@ -326,4 +324,32 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
       context: context,
     ),
   );
+}
+
+O? _parseOutput<O>(Message? message, MessageParser? parser) {
+  if (parser != null && message != null) {
+    return parser(message);
+  }
+  return null;
+}
+
+O? _parseChunkOutput<O>(
+  ModelResponseChunk chunk,
+  List<ModelResponseChunk> previousChunks,
+  ChunkParser<O>? parser,
+) {
+  if (parser != null) {
+    final temp = GenerateResponseChunk<O>(
+      chunk,
+      previousChunks: previousChunks,
+      output: null,
+    );
+    return parser(temp);
+  }
+  final dataPart =
+      chunk.content.where((p) => p.isData).firstOrNull as DataPart?;
+  if (dataPart != null && dataPart.data != null) {
+    return dataPart.data as O?;
+  }
+  return null;
 }
