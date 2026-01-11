@@ -21,21 +21,21 @@ part of 'my_schemas.dart';
 // **************************************************************************
 
 MyInput _$MyInputFromJson(Map<String, dynamic> json) => MyInput(
-      message: json['message'] as String,
-      count: (json['count'] as num).toInt(),
-    );
+  message: json['message'] as String,
+  count: (json['count'] as num).toInt(),
+);
 
 Map<String, dynamic> _$MyInputToJson(MyInput instance) => <String, dynamic>{
-      'message': instance.message,
-      'count': instance.count,
-    };
+  'message': instance.message,
+  'count': instance.count,
+};
 
 MyOutput _$MyOutputFromJson(Map<String, dynamic> json) => MyOutput(
-      reply: json['reply'] as String,
-      newCount: (json['newCount'] as num).toInt(),
-    );
+  reply: json['reply'] as String,
+  newCount: (json['newCount'] as num).toInt(),
+);
 
 Map<String, dynamic> _$MyOutputToJson(MyOutput instance) => <String, dynamic>{
-      'reply': instance.reply,
-      'newCount': instance.newCount,
-    };
+  'reply': instance.reply,
+  'newCount': instance.newCount,
+};

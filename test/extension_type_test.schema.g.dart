@@ -463,8 +463,9 @@ extension type Menu(Map<String, dynamic> _json) {
     return Menu({
       'recipes': recipes.map((e) => e.toJson()).toList(),
       if (optionalIngredients != null)
-        'optionalIngredients':
-            optionalIngredients.map((e) => e.toJson()).toList(),
+        'optionalIngredients': optionalIngredients
+            .map((e) => e.toJson())
+            .toList(),
     });
   }
 
