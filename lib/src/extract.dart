@@ -98,9 +98,11 @@ String _repairJson(String json) {
   var inString = false;
   var escaped = false;
   final stack = <String>[];
+  final buffer = StringBuffer();
 
   for (var i = 0; i < json.length; i++) {
     final char = json[i];
+    buffer.write(char);
 
     if (inString) {
       if (escaped) {
@@ -120,12 +122,17 @@ String _repairJson(String json) {
       } else if (char == '}' || char == ']') {
         if (stack.isNotEmpty && stack.last == char) {
           stack.removeLast();
+          // If we just closed the last container, we are done!
+          // This avoids including trailing garbage.
+          if (stack.isEmpty) {
+            return buffer.toString();
+          }
         }
       }
     }
   }
 
-  var repaired = json;
+  var repaired = buffer.toString();
 
   // 1. Close string if open
   if (inString) {

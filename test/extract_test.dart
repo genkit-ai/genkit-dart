@@ -194,5 +194,16 @@ void main() {
       // '{"key' -> '{"key": null}'
       expect(extractJson('{"key', allowPartial: true), equals({'key': null}));
     });
+
+    test('handles trailing garbage containing braces', () {
+      expect(extractJson('{"a": 1} }', allowPartial: true), equals({'a': 1}));
+    });
+
+    test('handles trailing garbage containing braces and text', () {
+      expect(
+        extractJson('{"a": 1} some text }', allowPartial: true),
+        equals({'a': 1}),
+      );
+    });
   });
 }
