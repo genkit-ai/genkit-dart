@@ -14,6 +14,7 @@
 
 export 'package:json_schema_builder/json_schema_builder.dart' show Schema;
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
+export 'package:genkit/src/schema_extensions.dart';
 
 class GenkitSchema {
   const GenkitSchema();

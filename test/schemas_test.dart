@@ -141,7 +141,6 @@ void main() {
     test('deserializes TextPart', () {
       final json = {'text': 'hello'};
       final part = PartType.parse(json);
-      expect(part, isA<TextPart>());
       expect((part as TextPart).text, 'hello');
     });
 
@@ -150,7 +149,6 @@ void main() {
         'media': {'url': 'http://example.com/image.png'},
       };
       final part = PartType.parse(json);
-      expect(part, isA<MediaPart>());
       expect((part as MediaPart).media.url, 'http://example.com/image.png');
     });
 
@@ -170,11 +168,6 @@ void main() {
       final part = PartType.parse(json);
       expect(part, isA<ToolResponsePart>());
       expect((part as ToolResponsePart).toolResponse.name, 'testTool');
-    });
-
-    test('throws for unknown Part subtype', () {
-      final json = {'unknown': 'subtype'};
-      expect(() => PartType.parse(json), throwsException);
     });
   });
 }

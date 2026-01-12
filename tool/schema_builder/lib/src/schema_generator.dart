@@ -245,10 +245,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       if (itemTypeName.endsWith('Schema')) {
         final nestedBaseName =
             itemTypeName.substring(0, itemTypeName.length - 6);
-        if (nestedBaseName == 'Part') {
-          getterBody =
-              "return (_json['$jsonFieldName'] as List).map((e) => PartType.parse(e as Map<String, dynamic>)).toList();";
-        } else if (itemIsNullable) {
+        if (itemIsNullable) {
           getterBody =
               "return (_json['$jsonFieldName'] as List).map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
         } else {
@@ -340,32 +337,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         ..implements.add(refer('JsonExtensionType<$baseName>'))
         ..constructors.add(Constructor((c) => c..constant = true));
 
-      if (baseName == 'Part') {
-        const parseBody = """
-final Map<String, dynamic> jsonMap = json as Map<String, dynamic>;
-if (jsonMap.containsKey('text')) {
-      return TextPart(jsonMap);
-    }
-    if (jsonMap.containsKey('media')) {
-      return MediaPart(jsonMap);
-    }
-    if (jsonMap.containsKey('toolRequest')) {
-      return ToolRequestPart(jsonMap);
-    }
-    if (jsonMap.containsKey('toolResponse')) {
-      return ToolResponsePart(jsonMap);
-    }
-    throw Exception("Invalid JSON for Part");
-""";
-        b.methods.add(Method((m) => m
-          ..annotations.add(refer('override'))
-          ..name = 'parse'
-          ..returns = refer(baseName)
-          ..requiredParameters.add(Parameter((p) => p
-            ..name = 'json'
-            ..type = refer('Object')))
-          ..body = Code(parseBody)));
-      } else if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
+      if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
         final subtypes = element.interfaces.map((i) {
           final interfaceName = i.getDisplayString().replaceAll('?', '');
           if (interfaceName.endsWith('Schema')) {
@@ -423,23 +395,6 @@ if (jsonMap.containsKey('text')) {
       }
     }
 
-    final baseName = element.name!.substring(0, element.name!.length - 6);
-    if (baseName == 'Part') {
-      final schemaExpression = refer('Schema.combined').call([], {
-        'anyOf': literalList([
-          refer('TextPartType.jsonSchema'),
-          refer('MediaPartType.jsonSchema'),
-          refer('ToolRequestPartType.jsonSchema'),
-          refer('ToolResponsePartType.jsonSchema'),
-        ])
-      });
-      return Method((b) => b
-        ..annotations.add(refer('override'))
-        ..type = MethodType.getter
-        ..name = 'jsonSchema'
-        ..returns = refer('Schema')
-        ..body = schemaExpression.returned.statement);
-    }
     if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
       final subtypes = element.interfaces.map((i) {
         final interfaceName = i.getDisplayString().replaceAll('?', '');

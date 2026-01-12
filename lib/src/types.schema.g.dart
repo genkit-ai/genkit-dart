@@ -157,7 +157,7 @@ extension type Message(Map<String, dynamic> _json) {
 
   List<Part> get content {
     return (_json['content'] as List)
-        .map((e) => PartType.parse(e as Map<String, dynamic>))
+        .map((e) => Part(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -313,32 +313,12 @@ class PartTypeFactory implements JsonExtensionType<Part> {
 
   @override
   Part parse(Object json) {
-    final Map<String, dynamic> jsonMap = json as Map<String, dynamic>;
-    if (jsonMap.containsKey('text')) {
-      return TextPart(jsonMap);
-    }
-    if (jsonMap.containsKey('media')) {
-      return MediaPart(jsonMap);
-    }
-    if (jsonMap.containsKey('toolRequest')) {
-      return ToolRequestPart(jsonMap);
-    }
-    if (jsonMap.containsKey('toolResponse')) {
-      return ToolResponsePart(jsonMap);
-    }
-    throw Exception("Invalid JSON for Part");
+    return Part(json as Map<String, dynamic>);
   }
 
   @override
   Schema get jsonSchema {
-    return Schema.combined(
-      anyOf: [
-        TextPartType.jsonSchema,
-        MediaPartType.jsonSchema,
-        ToolRequestPartType.jsonSchema,
-        ToolResponsePartType.jsonSchema,
-      ],
-    );
+    return Schema.object(properties: {}, required: []);
   }
 }
 
@@ -1601,7 +1581,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json) {
 
   List<Part> get content {
     return (_json['content'] as List)
-        .map((e) => PartType.parse(e as Map<String, dynamic>))
+        .map((e) => Part(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2276,7 +2256,7 @@ extension type DocumentData(Map<String, dynamic> _json) {
 
   List<Part> get content {
     return (_json['content'] as List)
-        .map((e) => PartType.parse(e as Map<String, dynamic>))
+        .map((e) => Part(e as Map<String, dynamic>))
         .toList();
   }
 
