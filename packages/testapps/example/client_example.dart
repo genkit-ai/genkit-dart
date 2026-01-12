@@ -13,13 +13,14 @@
 // limitations under the License.
 
 import 'package:genkit/client.dart';
+import 'package:genkit/schema.dart';
 import 'package:http/http.dart' as http;
 
-import 'schemas/my_schemas.dart';
-import 'schemas/stream_schemas.dart';
+import 'types.dart';
 
 const baseUrl = 'http://localhost:8080';
 
+// A simple flow that takes a string and returns a string.
 void printServerInstructions() {
   print(
     '-------------------------------------------------------------------\n'
@@ -34,12 +35,11 @@ void printServerInstructions() {
   );
 }
 
-// A simple flow that takes a string and returns a string.
 Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
   final echoStringFlow = defineRemoteAction(
     url: '$baseUrl/echoString',
-    fromResponse: (json) => json as String,
+    outputType: StringType,
   );
   final response = await echoStringFlow(input: 'Hello Genkit client for Dart!');
   print('Response: $response');
@@ -50,7 +50,7 @@ Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
   final throwy = defineRemoteAction(
     url: '$baseUrl/throwy',
-    fromResponse: (json) => json as String,
+    outputType: StringType,
   );
   try {
     await throwy(input: 'Hello Genkit client for Dart!');
@@ -69,13 +69,13 @@ Future<void> _runThrowingStreamingFlow() async {
   print('\n--- Streaming Flow error handling ---');
   final streamyThrowy = defineRemoteAction(
     url: '$baseUrl/streamyThrowy',
-    fromResponse: (json) => json as String,
-    fromStreamChunk: (json) => json,
+    outputType: StringType,
+    streamType: StreamyThrowyChunkType,
   );
   try {
     final stream = streamyThrowy.stream(input: 5);
     await for (final chunk in stream) {
-      print('Chunk: $chunk');
+      print('Chunk: ${chunk.count}');
     }
   } on GenkitException catch (e) {
     if (e.underlyingException is http.ClientException) {
@@ -94,24 +94,24 @@ Future<void> _runObjectFlow() async {
   print('\n--- Object to Object flow ---');
   final processObjectFlow = defineRemoteAction(
     url: '$baseUrl/processObject',
-    fromResponse: (json) => MyOutput.fromJson(json),
+    outputType: ProcessObjectOutputType,
   );
   final response = await processObjectFlow(
-    input: MyInput(message: 'Hello Genkit!', count: 20),
+    input: ProcessObjectInput.from(message: 'Hello Genkit!', count: 20),
   );
   print('Response: ${response.reply}');
 }
 
 // A streaming flow.
 Future<void> _runStreamingFlow() async {
-  print('\n--- Stream generate call ---');
+  print('\n--- Stream Objects ---');
   final streamObjectsFlow = defineRemoteAction(
     url: '$baseUrl/streamObjects',
-    fromResponse: (json) => StreamOutput.fromJson(json),
-    fromStreamChunk: (json) => StreamOutput.fromJson(json),
+    outputType: StreamObjectsOutputType,
+    streamType: StreamObjectsOutputType,
   );
   final stream = streamObjectsFlow.stream(
-    input: StreamInput(prompt: 'What is Genkit?'),
+    input: StreamObjectsInput.from(prompt: 'What is Genkit?'),
   );
 
   print('Streaming chunks:');
@@ -128,24 +128,26 @@ Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
     url: '$baseUrl/generate',
-    fromResponse: (json) => ModelResponseType.parse(json),
-    fromStreamChunk: (json) => ModelResponseChunkType.parse(json),
+    outputType: ModelResponseType,
+    streamType: ModelResponseChunkType,
   );
   final stream = generateFlow.stream(
-    input: [
-      Message.from(
-        role: Role.user,
-        content: [TextPart.from(text: "hello")],
-      ),
-      Message.from(
-        role: Role.model,
-        content: [TextPart.from(text: "Hello, how can I help you?")],
-      ),
-      Message.from(
-        role: Role.user,
-        content: [TextPart.from(text: "Sing me a song.")],
-      ),
-    ],
+    input: ModelRequest.from(
+      messages: [
+        Message.from(
+          role: Role.user,
+          content: [TextPart.from(text: "hello")],
+        ),
+        Message.from(
+          role: Role.model,
+          content: [TextPart.from(text: "Hello, how can I help you?")],
+        ),
+        Message.from(
+          role: Role.user,
+          content: [TextPart.from(text: "Sing me a song.")],
+        ),
+      ],
+    ),
   );
 
   print('Streaming chunks:');
@@ -166,7 +168,7 @@ Future<void> _runPerformanceExample() async {
     final echoAction = defineRemoteAction(
       url: '$baseUrl/echoString',
       httpClient: client,
-      fromResponse: (json) => json as String,
+      outputType: StringType,
     );
 
     final r1 = await echoAction(input: 'First call');

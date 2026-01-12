@@ -31,7 +31,9 @@ import 'package:genkit/src/utils.dart';
 
 export 'package:genkit/src/o11y/otlp_http_exporter.dart'
     show configureCollectorExporter;
+export 'package:genkit/src/exception.dart' show GenkitException;
 export 'package:genkit/src/core/flow.dart';
+export 'package:genkit/src/ai/model.dart' show modelRef;
 export 'package:genkit/src/types.dart';
 export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';

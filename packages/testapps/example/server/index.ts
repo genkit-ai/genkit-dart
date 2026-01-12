@@ -1,5 +1,6 @@
 import { genkit, UserFacingError, z } from "genkit";
 import {
+  GenerateRequestSchema,
   GenerateResponseChunkSchema,
   GenerateResponseSchema,
   MessageSchema,
@@ -96,13 +97,13 @@ const streamObjects = ai.defineFlow(
 const generate = ai.defineFlow(
   {
     name: "generate",
-    inputSchema: z.array(MessageSchema),
+    inputSchema: GenerateRequestSchema,
     outputSchema: GenerateResponseSchema,
     streamSchema: GenerateResponseChunkSchema,
   },
-  async (messages, { sendChunk }) =>
+  async (req, { sendChunk }) =>
     ai.generate({
-      messages,
+      messages: req.messages,
       onChunk: sendChunk,
     })
 );

@@ -97,6 +97,8 @@ class GenerateResponseChunk<O> {
   }
 
   Map<String, dynamic> toJson() => _chunk.toJson();
+
+  ModelResponseChunk get rawChunk => _chunk;
 }
 
 /// A response from a generate action.
@@ -154,6 +156,8 @@ class GenerateResponse<O> {
     if (output != null) return output;
     return extractJson(text) as O?;
   }
+
+  ModelResponse get rawResponse => _response;
 }
 
 Future<GenerateResponse<O>> runGenerateAction<O>(
