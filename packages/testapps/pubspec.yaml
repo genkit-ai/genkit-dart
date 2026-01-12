@@ -1,0 +1,20 @@
+name: testapps
+publish_to: none
+description: Genkit Dart testapps
+resolution: workspace
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  genkit: any
+  genkit_google_genai: any
+  genkit_shelf: any
+  json_annotation: ^4.9.0
+  genkit_schema_builder: any
+
+dev_dependencies:
+  build_runner: ^2.8.0
+  lints: ^6.0.0
+  test: ^1.26.3
+  json_serializable: ^6.7.0

@@ -15,8 +15,8 @@
 import 'package:genkit/client.dart';
 import 'package:http/http.dart' as http;
 
-import '../test/schemas/my_schemas.dart';
-import '../test/schemas/stream_schemas.dart';
+import 'schemas/my_schemas.dart';
+import 'schemas/stream_schemas.dart';
 
 const baseUrl = 'http://localhost:8080';
 
