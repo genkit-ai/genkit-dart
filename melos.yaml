@@ -3,11 +3,4 @@ name: genkit_workspace
 packages:
   - packages/**
 
-scripts:
-  test:
-    exec: dart test
-    packageFilters:
-      dirExists: test
-  
-  analyze:
-    exec: dart analyze .
+# scripts are defined in the root pubspec.yaml

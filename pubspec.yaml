@@ -15,9 +15,6 @@ workspace:
 dev_dependencies:
   melos: ^7.0.0
   
-# Shared dev dependencies can go here if we want to enforce versions, 
-# but for now let's keep it minimal.
-
 melos:
   name: genkit_workspace
   packages:
@@ -32,8 +29,30 @@ melos:
     analyze:
       exec: dart analyze .
 
+
     build-gen:
-      order-dependents: true
-      packageFilters:
-        dependsOn: build_runner
-      exec: dart run build_runner build
+      run: |
+        melos run build-gen-core
+        melos run build-gen-plugins
+        melos run build-gen-testapps
+      description: Run build_runner in topological order (core -> plugins -> app) to avoid race conditions.
+
+
+    build-gen-core:
+      run: |
+        melos exec --scope="genkit" -- dart run build_runner build
+        dart run tools/apply_license.dart
+      description: Run build_runner for genkit.
+
+    build-gen-plugins:
+      run: |
+        melos exec --scope="genkit_google_genai,genkit_shelf" --depends-on="build_runner" -- dart run build_runner build
+        dart run tools/apply_license.dart
+      description: Run build_runner for plugins.
+
+    build-gen-testapps:
+      run: |
+        melos exec --scope="testapps" -- dart run build_runner build
+        dart run tools/apply_license.dart
+      description: Run build_runner for testapps.
+      
