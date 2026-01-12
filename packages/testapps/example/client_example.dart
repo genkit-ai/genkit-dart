@@ -28,9 +28,8 @@ void printServerInstructions() {
     '| The server is using a fake model, so does not require API keys. |\n'
     '| In a separate terminal run:                                     |\n'
     '|                                                                 |\n'
-    '| \$ cd example/server                                             |\n'
-    '| \$ npm i                                                         |\n'
-    '| \$ npm start                                                     |\n'
+    '| \$ cd packages/testapps                                          |\n'
+    '| \$ dart run example/server_dart.dart                             |\n'
     '-------------------------------------------------------------------\n',
   );
 }
