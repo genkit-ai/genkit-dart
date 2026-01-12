@@ -28,11 +28,11 @@ jobs:
       # - name: Check Formatting
       #   run: dart format --output=none --set-exit-if-changed .
 
+      - name: Run Code Generation
+        run: melos exec --depends-on="build_runner" -- dart run build_runner build
+
       - name: Apply license headers
         run: dart run tools/apply_license.dart
-
-      - name: Run Code Generation
-        run: melos exec --depends-on="build_runner" -- dart run build_runner build --delete-conflicting-outputs
 
       - name: Analyze Project Source
         run: melos run analyze
