@@ -1,7 +1,0 @@
-builders:
-  genkit_schema_builder:
-    import: "package:schema_builder/builder.dart"
-    builder_factories: ["schemaBuilder"]
-    build_extensions: {".dart": [".g.dart"]}
-    auto_apply: dependents
-    build_to: source

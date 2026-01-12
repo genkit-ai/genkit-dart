@@ -1,0 +1,6 @@
+name: genkit_workspace
+
+packages:
+  - packages/**
+
+# scripts are defined in the root pubspec.yaml

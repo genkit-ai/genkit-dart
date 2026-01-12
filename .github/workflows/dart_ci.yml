@@ -19,27 +19,26 @@ jobs:
         with:
           sdk: stable
 
-      - name: Install dependencies
-        run: dart pub get
+      - name: Install Melos
+        run: dart pub global activate melos
 
-      - name: Install schema_generator dependencies
-        run: dart pub get
-        working-directory: tool/schema_generator
+      - name: Bootstrap Workspace
+        run: melos bootstrap
 
-      - name: Run schema generator
-        run: dart tool/schema_generator/bin/generate.dart
+      # - name: Check Formatting
+      #   run: dart format --output=none --set-exit-if-changed .
 
-      - name: Run build_runner
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Run Code Generation
+        run: melos run build-gen
 
       - name: Apply license headers
-        run: dart tool/apply_license.dart
+        run: dart run tools/apply_license.dart
 
-      - name: Analyze project source
-        run: dart analyze
+      - name: Analyze Project Source
+        run: melos run analyze
 
-      - name: Run tests
-        run: dart test
+      - name: Run Tests
+        run: melos run test
 
       - name: Verify clean git tree
         run: |

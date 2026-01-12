@@ -1,0 +1,254 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:genkit/genkit.dart';
+
+part 'flow_basics.schema.g.dart';
+
+@GenkitSchema()
+abstract class SubjectSchema {
+  String get subject;
+}
+
+@GenkitSchema()
+abstract class CountSchema {
+  int get count;
+}
+
+void main() async {
+  configureCollectorExporter();
+
+  final ai = Genkit();
+
+  // To run this flow;
+  // genkit flow:run basic "\"hello\""
+  final basic = ai.defineFlow(
+    name: 'basic',
+    inputType: StringType,
+    outputType: StringType,
+    fn: (String subject, _) async {
+      final foo = await ai.run('call-llm', () async {
+        return 'subject: $subject';
+      });
+
+      return await ai.run('call-llm1', () async {
+        return 'foo: $foo';
+      });
+    },
+  );
+
+  ai.defineFlow(
+    name: 'parent',
+    outputType: StringType,
+    fn: (_, __) async {
+      // Dart flow objects are callable, but we need to handle the input.
+      // basic expects a string.
+      final result = await basic('foo');
+      return jsonEncode(result);
+    },
+  );
+
+  ai.defineFlow(
+    name: 'withInputSchema',
+    inputType: SubjectType,
+    outputType: StringType,
+    fn: (input, _) async {
+      final foo = await ai.run('call-llm', () async {
+        return 'subject: ${input.subject}';
+      });
+
+      return await ai.run('call-llm1', () async {
+        return 'foo: $foo';
+      });
+    },
+  );
+
+  ai.defineFlow(
+    name: 'withContext',
+    inputType: SubjectType,
+    outputType: StringType,
+    fn: (input, context) async {
+      return 'subject: ${input.subject}, context: ${jsonEncode(context.context)}';
+    },
+  );
+
+  // genkit flow:run streamy 5 -s
+  ai.defineFlow(
+    name: 'streamy',
+    inputType: IntType,
+    outputType: StringType,
+    streamType: CountType,
+    fn: (count, context) async {
+      var i = 0;
+      for (; i < count; i++) {
+        await Future.delayed(Duration(seconds: 1));
+        context.sendChunk(Count.from(count: i));
+      }
+      return 'done: $count, streamed: $i times';
+    },
+  );
+
+  // genkit flow:run streamyThrowy 5 -s
+  ai.defineFlow(
+    name: 'streamyThrowy',
+    inputType: IntType,
+    outputType: StringType,
+    streamType: CountType,
+    fn: (count, context) async {
+      var i = 0;
+      for (; i < count; i++) {
+        if (i == 3) {
+          throw Exception('whoops');
+        }
+        await Future.delayed(Duration(seconds: 1));
+        context.sendChunk(Count.from(count: i));
+      }
+      return 'done: $count, streamed: $i times';
+    },
+  );
+
+  // To run this flow;
+  // genkit flow:run throwy "\"hello\""
+  ai.defineFlow(
+    name: 'throwy',
+    inputType: StringType,
+    outputType: StringType,
+    fn: (subject, _) async {
+      final foo = await ai.run('call-llm', () async {
+        return 'subject: $subject';
+      });
+      if (subject.isNotEmpty) {
+        throw Exception(subject);
+      }
+      return await ai.run('call-llm', () async {
+        return 'foo: $foo';
+      });
+    },
+  );
+
+  // To run this flow;
+  // genkit flow:run throwy2 "\"hello\""
+  ai.defineFlow(
+    name: 'throwy2',
+    inputType: StringType,
+    outputType: StringType,
+    fn: (subject, _) async {
+      final foo = await ai.run('call-llm', () async {
+        if (subject.isNotEmpty) {
+          throw Exception(subject);
+        }
+        return 'subject: $subject';
+      });
+      return await ai.run('call-llm', () async {
+        return 'foo: $foo';
+      });
+    },
+  );
+
+  ai.defineFlow(
+    name: 'flowMultiStepCaughtError',
+    inputType: StringType,
+    outputType: StringType,
+    fn: (input, _) async {
+      var i = 1;
+
+      final result1 = await ai.run('step1', () async {
+        return '$input ${i++},';
+      });
+
+      var result2 = '';
+      try {
+        result2 = await ai.run('step2', () async {
+          if (result1.isNotEmpty) {
+            throw Exception('Got an error!');
+          }
+          return '$result1 ${i++},';
+        });
+      } catch (e) {
+        // Ignored
+      }
+
+      return await ai.run('step3', () async {
+        return '$result2 ${i++}';
+      });
+    },
+  );
+
+  ai.defineFlow(
+    name: 'multiSteps',
+    inputType: StringType,
+    outputType: IntType,
+    fn: (input, _) async {
+      final out1 = await ai.run('step1', () async {
+        return 'Hello, $input! step 1';
+      });
+      await ai.run('step1', () async {
+        return 'Hello2222, $input! step 1';
+      });
+      final out2 = await ai.run('step2', () async {
+        return '$out1 Faf ';
+      });
+      final out3 = await ai.run('step3-array', () async {
+        return [out2, out2];
+      });
+      await ai.run('step4-num', () async {
+        return out3.join('-()-');
+      });
+      return 42;
+    },
+  );
+
+  ai.defineFlow(
+    name: 'largeSteps',
+    outputType: StringType,
+    fn: (_, __) async {
+      await ai.run('large-step1', () async {
+        return generateString(100000);
+      });
+      await ai.run('large-step2', () async {
+        return generateString(800000);
+      });
+      await ai.run('large-step3', () async {
+        return generateString(900000);
+      });
+      await ai.run('large-step4', () async {
+        return generateString(999000);
+      });
+      return 'something...';
+    },
+  );
+}
+
+const loremIpsum = [
+  'lorem',
+  'ipsum',
+  'dolor',
+  'sit',
+  'amet',
+  'consectetur',
+  'adipiscing',
+  'elit',
+];
+
+String generateString(int length) {
+  var str = '';
+  while (str.length < length) {
+    str += '${loremIpsum[Random().nextInt(loremIpsum.length)]} ';
+  }
+  return str.substring(0, length);
+}

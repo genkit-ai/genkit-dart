@@ -1,5 +1,0 @@
-targets:
-  $default:
-    builders:
-      schema_builder:genkit_schema_builder:
-        enabled: true
