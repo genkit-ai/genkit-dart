@@ -8,7 +8,7 @@ workspace:
   - packages/genkit
   - packages/genkit_google_ai
   - packages/genkit_shelf
-  - tools/schema_builder
+  - packages/genkit_schema_builder
 
 dev_dependencies:
   melos: ^6.3.1
