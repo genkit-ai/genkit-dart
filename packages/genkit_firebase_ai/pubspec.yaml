@@ -9,8 +9,8 @@ environment:
 
 dependencies:
   genkit: any
-  firebase_ai: any
-  firebase_core: any
+  firebase_ai: ^3.6.1
+  firebase_core: ^4.3.0
   json_annotation: ^4.9.0
   genkit_schema_builder: any
 

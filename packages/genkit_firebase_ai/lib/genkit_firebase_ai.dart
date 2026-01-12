@@ -21,7 +21,7 @@ part 'genkit_firebase_ai.schema.g.dart';
 @GenkitSchema()
 abstract class GeminiOptionsSchema {
   int get maxOutputTokens;
-  int get temperature;
+  double get temperature;
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -80,6 +80,10 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           tools: req.tools?.map(toGeminiTool).toList(),
         );
 
+        if (response.candidates.isEmpty) {
+          // TODO: Consider inspecting response.promptFeedback for the block reason.
+          throw GenkitException('Model returned no candidates.');
+        }
         final (message, finishReason) = fromGeminiCandidate(
           response.candidates.first,
         );
@@ -170,8 +174,8 @@ Part fromGeminiPart(m.Part p) {
 
 @visibleForTesting
 m.Tool toGeminiTool(ToolDefinition tool) {
-  final schemaMap = tool.inputSchema as Map<String, dynamic>;
-  final propertiesMap = schemaMap['properties'] as Map<String, dynamic>? ?? {};
+  final schemaMap = tool.inputSchema as Map<String, dynamic>?;
+  final propertiesMap = schemaMap?['properties'] as Map<String, dynamic>? ?? {};
 
   final parameters = propertiesMap.map((key, value) {
     return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));

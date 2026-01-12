@@ -24,7 +24,7 @@ part of 'genkit_firebase_ai.dart';
 extension type GeminiOptions(Map<String, dynamic> _json) {
   factory GeminiOptions.from({
     required int maxOutputTokens,
-    required int temperature,
+    required double temperature,
   }) {
     return GeminiOptions({
       'maxOutputTokens': maxOutputTokens,
@@ -40,11 +40,11 @@ extension type GeminiOptions(Map<String, dynamic> _json) {
     _json['maxOutputTokens'] = value;
   }
 
-  int get temperature {
-    return _json['temperature'] as int;
+  double get temperature {
+    return _json['temperature'] as double;
   }
 
-  set temperature(int value) {
+  set temperature(double value) {
     _json['temperature'] = value;
   }
 
@@ -66,7 +66,7 @@ class GeminiOptionsTypeFactory implements JsonExtensionType<GeminiOptions> {
     return Schema.object(
       properties: {
         'maxOutputTokens': Schema.integer(),
-        'temperature': Schema.integer(),
+        'temperature': Schema.number(),
       },
       required: ['maxOutputTokens', 'temperature'],
     );
