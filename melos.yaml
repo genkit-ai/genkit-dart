@@ -6,8 +6,8 @@ packages:
 scripts:
   test:
     exec: dart test
-    select-package:
-      dir-exists: test
+    packageFilters:
+      dirExists: test
   
   analyze:
     exec: dart analyze .

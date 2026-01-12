@@ -15,3 +15,17 @@ dev_dependencies:
   
 # Shared dev dependencies can go here if we want to enforce versions, 
 # but for now let's keep it minimal.
+
+melos:
+  name: genkit_workspace
+  packages:
+    - packages/**
+  
+  scripts:
+    test:
+      exec: dart test
+      packageFilters:
+        dirExists: test
+
+    analyze:
+      exec: dart analyze .
