@@ -39,9 +39,7 @@ void main() async {
         await Future.delayed(Duration(seconds: 1));
       }
 
-      final text = input.messages
-          .map((m) => m.content.map((c) => c.text).join())
-          .join();
+      final text = input.messages.map((m) => m.text).join();
       return ModelResponse.from(
         message: Message.from(
           role: Role.model,
