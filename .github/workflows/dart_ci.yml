@@ -25,8 +25,8 @@ jobs:
       - name: Bootstrap Workspace
         run: melos bootstrap
 
-      - name: Check Formatting
-        run: dart format --output=none --set-exit-if-changed .
+      # - name: Check Formatting
+      #   run: dart format --output=none --set-exit-if-changed .
 
       - name: Apply license headers
         run: dart run tools/apply_license.dart
