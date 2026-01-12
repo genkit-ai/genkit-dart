@@ -1,6 +1,6 @@
-name: testapps
+name: basic_sample
 publish_to: none
-description: Genkit Dart testapps
+description: Genkit Dart basic testapp
 resolution: workspace
 
 environment:
