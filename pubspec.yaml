@@ -6,12 +6,12 @@ environment:
 
 workspace:
   - packages/genkit
-  - packages/genkit_google_ai
+  - packages/genkit_google_genai
   - packages/genkit_shelf
   - packages/genkit_schema_builder
 
 dev_dependencies:
-  melos: ^6.3.1
+  melos: ^7.0.0
   
 # Shared dev dependencies can go here if we want to enforce versions, 
 # but for now let's keep it minimal.

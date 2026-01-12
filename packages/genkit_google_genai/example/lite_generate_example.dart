@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/lite.dart';
-import 'package:genkit_google_ai/genkit_google_ai.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 void main() async {
   final gemini = googleAI();

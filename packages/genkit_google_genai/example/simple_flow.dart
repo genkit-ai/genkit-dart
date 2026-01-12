@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_ai/genkit_google_ai.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 part 'simple_flow.schema.g.dart';
 

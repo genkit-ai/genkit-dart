@@ -23,7 +23,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/src/core/plugin.dart';
 import 'package:google_cloud_protobuf/protobuf.dart' as pb;
 
-part 'genkit_google_ai.schema.g.dart';
+part 'genkit_google_genai.schema.g.dart';
 
 @GenkitSchema()
 abstract class GeminiOptionsSchema {

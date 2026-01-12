@@ -1,4 +1,4 @@
-name: genkit_google_ai
+name: genkit_google_genai
 description: Google AI plugin for Genkit Dart.
 resolution: workspace
 version: 0.1.0-wip
