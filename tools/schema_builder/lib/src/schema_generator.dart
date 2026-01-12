@@ -506,7 +506,8 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
   }
 }
 
-const _keyChecker = TypeChecker.fromUrl('package:genkit/schema.dart#Key');
+const _keyChecker = TypeChecker.fromUrl(
+    'package:genkit_schema_builder/genkit_schema_builder.dart#Key');
 
 extension on DartType {
   bool get isNullable {

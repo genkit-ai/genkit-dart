@@ -3,7 +3,6 @@ name: genkit_workspace
 packages:
   - packages/**
   - tools/**
-  - packages/genkit/tool/schema_generator
 
 scripts:
   test:

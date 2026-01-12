@@ -5,7 +5,7 @@ version: 0.1.0-wip
 repository: https://github.com/genkit-ai/genkit-dart
 
 environment:
-  sdk: ^3.8.0
+  sdk: '>=3.5.0 <4.0.0'
 
 dependencies:
   genkit: any
