@@ -29,12 +29,16 @@ import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/types.dart';
 import 'package:genkit/src/utils.dart';
 
+export 'package:genkit/src/ai/tool.dart' show Tool;
 export 'package:genkit/src/o11y/otlp_http_exporter.dart'
     show configureCollectorExporter;
 export 'package:genkit/src/exception.dart' show GenkitException;
 export 'package:genkit/src/core/flow.dart';
-export 'package:genkit/src/ai/model.dart' show modelRef;
+export 'package:genkit/src/core/action.dart' show Action;
+export 'package:genkit/src/ai/model.dart'
+    show Model, BidiModel, modelRef, ModelRef;
 export 'package:genkit/src/types.dart';
+export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/ai/formatters/types.dart';

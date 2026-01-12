@@ -17,7 +17,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/core/action.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';

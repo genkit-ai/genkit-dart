@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/ai/model.dart';
 import 'package:test/test.dart';
 
 part 'generate_test.schema.g.dart';

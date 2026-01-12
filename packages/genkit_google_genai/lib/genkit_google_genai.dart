@@ -14,13 +14,9 @@
 
 import 'dart:convert';
 
-import 'package:genkit/src/ai/model.dart';
-import 'package:genkit/src/core/action.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
-
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/core/plugin.dart';
 import 'package:google_cloud_protobuf/protobuf.dart' as pb;
 
 part 'genkit_google_genai.schema.g.dart';

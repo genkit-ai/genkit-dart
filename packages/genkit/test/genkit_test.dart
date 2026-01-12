@@ -14,10 +14,8 @@
 
 import 'dart:io';
 
-import 'package:genkit/src/ai/model.dart';
 import 'package:test/test.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/ai/tool.dart';
 import 'package:http/http.dart' as http;
 
 part 'genkit_test.schema.g.dart';

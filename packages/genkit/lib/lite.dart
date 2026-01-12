@@ -16,8 +16,6 @@ import 'dart:async';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/generate.dart';
-import 'package:genkit/src/ai/model.dart';
-import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
 

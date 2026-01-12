@@ -15,11 +15,8 @@
 import 'dart:async';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
-import 'package:genkit/src/ai/model.dart';
-import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
-import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/extract.dart';
 
 /// Defines the utility 'generate' action.

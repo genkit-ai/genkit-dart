@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:test/test.dart';
 
