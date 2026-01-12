@@ -1,0 +1,17 @@
+name: genkit_shelf
+description: Shelf integration for Genkit Dart.
+resolution: workspace
+version: 0.1.0-wip
+repository: https://github.com/genkit-ai/genkit-dart
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  genkit: any
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+  
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.3

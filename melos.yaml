@@ -1,0 +1,15 @@
+name: genkit_workspace
+
+packages:
+  - packages/**
+  - tools/**
+  - packages/genkit/tool/schema_generator
+
+scripts:
+  test:
+    exec: dart test
+    select-package:
+      dir-exists: test
+  
+  analyze:
+    exec: dart analyze .
