@@ -15,7 +15,6 @@ dependencies:
   opentelemetry: ^0.18.10
   path: ^1.9.0
   web_socket_channel: ^3.0.3
-  genkit_schema_builder: any
 
 dev_dependencies:
   build_runner: ^2.8.0
