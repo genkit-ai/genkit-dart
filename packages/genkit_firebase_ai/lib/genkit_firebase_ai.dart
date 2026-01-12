@@ -35,7 +35,7 @@ class FirebaseGenAiPluginHandle {
 
   /// Ref to a model in the Firebase AI plugin.
   ///
-  /// The [name] is the model name, e.g. 'gemini-1.5-flash'.
+  /// The [name] is the model name, e.g. 'gemini-2.5-flash'.
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('firebaseai/$name', customOptions: GeminiOptionsType);
   }
@@ -50,8 +50,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     return [
-      _createModel('gemini-1.5-flash'),
-      _createModel('gemini-1.5-pro'),
+      _createModel('gemini-2.5-flash'),
+      _createModel('gemini-2.5-pro'),
     ];
   }
 

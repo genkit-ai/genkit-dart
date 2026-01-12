@@ -54,8 +54,8 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     return [
-      _createModel('gemini-1.5-flash-latest'),
-      _createModel('gemini-1.5-pro-latest'),
+      _createModel('gemini-2.5-flash'),
+      _createModel('gemini-2.5-pro'),
     ];
   }
 
