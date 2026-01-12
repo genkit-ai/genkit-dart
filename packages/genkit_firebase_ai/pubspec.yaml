@@ -1,0 +1,27 @@
+name: genkit_firebase_ai
+description: Firebase AI plugin for Genkit Dart.
+
+version: 0.1.0-wip
+repository: https://github.com/genkit-ai/genkit-dart
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  genkit: any
+  firebase_ai: any
+  firebase_core: any
+  json_annotation: ^4.9.0
+  genkit_schema_builder: any
+
+dev_dependencies:
+  build_runner: ^2.8.0
+  lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+dependency_overrides:
+  genkit:
+    path: ../genkit
+  genkit_schema_builder:
+    path: ../genkit_schema_builder
