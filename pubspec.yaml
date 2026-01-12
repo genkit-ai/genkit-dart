@@ -31,3 +31,9 @@ melos:
 
     analyze:
       exec: dart analyze .
+
+    build-gen:
+      order-dependents: true
+      packageFilters:
+        dependsOn: build_runner
+      exec: dart run build_runner build
