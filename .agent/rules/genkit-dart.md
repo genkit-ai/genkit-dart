@@ -2,84 +2,83 @@
 trigger: always_on
 ---
 
-This is Genkit Dart repo.
+This is the Genkit Dart monorepo.
 
-basic structure:
+# Structure
 
-lib/src/core: core framework -- actions, flows, observability, registry, reflection api
-lib/src/ai: AI framework -- model, embedders, generate API, tools, formats, resources.
-lib/src/client: Client for accessing Flows or other deployed actions remotely (over HTTP flow protocol).
-lib/genkit.dart: Main Genkit veneer API -- how end-users interact with Genkit, insntiate it, install plugins, call generate api, create flows, tools, etc.
-lib/lite.dart: Lite generate API -- super basic way to interact with models. See example/lite_generate_example.dart
-lib/plugins: current, probably temporary location for some 1P plugins.
-example: examples folder -- good place to get a good ideal about how APIs are intended to work. Keep these samples up to date
+The repository is managed using [Melos](https://melos.invertase.dev/).
 
-# Testing
+*   `packages/`: Contains all published packages.
+    *   `genkit`: Core framework.
+        *   `lib/src`: Internal implementation.
+        *   `lib/genkit.dart`: Main entrypoint.
+    *   `genkit_...`: First-party plugins (e.g., `genkit_google_genai`, `genkit_firebase_ai`, `genkit_shelf`).
+*   `testapps/`: Integration tests and specific test applications.
+*   `melos.yaml`: Workspace configuration.
+*   `tools/`: Helper scripts (e.g. license headers).
 
-Always test your changes by running `dart test`.
+# Development
 
-other best practices tooling:
+*   **Setup**: Run `melos bootstrap` to link packages.
+*   **Testing**: Run `melos run test` to run all tests, or `dart test` inside a specific package.
+*   **Formatting**: Run `dart format .` or use your IDE.
+*   **Analysis**: Run `melos run analyze`.
+*   **Code Generation**: Genkit uses `build_runner` for serialization and schemas.
+    *   Whole repo: `melos run build-gen` (runs in order: core -> plugins -> apps)
+    *   Single package: `dart run build_runner build`
 
- * run `dart analyze` to ensure things are clean.
- * good to run `dart format lib/ test/`.
- * `dart run tool/apply_license.dart` when adding new files.
+# Best Practices
 
-# Schema framework
+*   Always run `melos run analyze` to verify code health.
+*   Apply license headers when adding new files: `dart run tools/apply_license.dart`.
+*   Do not modify `pubspec.lock` manually; let `melos bootstrap` or `dart pub get` handle it.
 
-Genkit often needs users to define schemas. And also we rely on schemas internally. Genkit has its own schema framework (that uses json_schema_builder package under the hood).
+# Schema Framework
 
-You define your schema like this:
+Genkit uses a custom schema framework via `package:genkit/schema.dart` (exported by `package:genkit/genkit.dart`).
 
-```
+## Definition
+
+Define schemas using the `@GenkitSchema()` annotation:
+
+```dart
 import 'package:genkit/genkit.dart';
-// or
-import 'package:genkit/schema.dart';
+// or import 'package:genkit/schema.dart';
 
 part 'my_file.schema.g.dart';
 
 @GenkitSchema()
-abstract class MySubObjSchema {
-  String get foofoo;
+abstract class MyObjSchema {
+  String get name;
+  MySubObjSchema get subObj;
 }
 
 @GenkitSchema()
-abstract class MyObjSchema {
-  String get name;
-
-  MySubObjSchema get subObj;
+abstract class MySubObjSchema {
+  String get foo;
 }
 ```
 
-then run the generator:
+## Generation
 
-```
+Run the generator:
+```bash
 dart run build_runner build
 ```
 
-It will generate `MySubObj` and `MyObj` (note absense of *Schema suffix), as well as `MySubObjType` and `MyObjType` (note *Type suffix) which can be passes around, like:
+This generates `MyObj` (data class), `MyObjType` (type token), and schema definitions.
 
-```
+## Usage
+
+Use the generated `*Type` classes when defining flows, actions, or tools:
+
+```dart
 ai.defineFlow(
   name: 'my-flow',
   inputType: MyObjType,
-  fn: ...
-)
+  fn: (input, _) async {
+    print(input.name); // Typed access
+    ...
+  }
+);
 ```
-
-*Type can be used to infer the suffix-less type. If necessary, see how lib/src/core/action.dart does it.
-
-
-We export `Schema` from json_schema_builder as well, which can be used to define JSON Schemas directly, Zod style:
-
-
-```dart
-  final bananaSchema = Schema.object(
-    title: 'banana',
-    description: 'yeah banana',
-    properties: {'name': Schema.string()},
-  );
-
-  bananaSchema.validate(data);
-```
-
-`Schema` is an extension type on top of Map, which represents JSON of JSONSchema 2020-12. So, if you have a Map representing JSON Schema you can just cast it to `Schema` and use to validate. Unlike Zod or pydantic these schemas cannot be used as static types in Dart, so prefer to define schemas using `@GenkitSchema()`.
