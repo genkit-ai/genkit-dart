@@ -1,7 +1,6 @@
 name: genkit_schema_builder
 description: A builder for generating Genkit schema extension types.
 resolution: workspace
-publish_to: none
 version: 1.0.0
 environment:
   sdk: '>=3.5.0 <4.0.0'
