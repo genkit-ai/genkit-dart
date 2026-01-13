@@ -22,6 +22,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+import 'package:logging/logging.dart';
 
 part 'main.schema.g.dart';
 
@@ -32,6 +33,12 @@ abstract class WeatherToolInputSchema {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Configure logging to print to console
+  Logger.root.level = Level.ALL; // Defaults to Level.INFO
+  Logger.root.onRecord.listen((record) {
+    print('${record.level.name}: ${record.time}: ${record.message}');
+  });
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
@@ -182,7 +189,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
   final _logs = <String>[];
   StreamSubscription? _audioSubscription;
   final _textController = TextEditingController();
-  InputMode _inputMode = InputMode.text;
+  InputMode _inputMode = InputMode.audio;
 
   @override
   void initState() {
@@ -211,17 +218,22 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       _log('Connecting to Live Model (${_inputMode.name})...');
       final newSession = await _ai.generateBidi(
         model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
-        config: {
-          'responseModalities': [
-            _inputMode == InputMode.audio ? 'AUDIO' : 'TEXT'
-          ],
-        },
+        config: _inputMode == InputMode.audio
+            ? {
+                'responseModalities': ['AUDIO'],
+              }
+            : null,
       );
       _session = newSession;
       _log('Connected!');
       setState(() {
         _isConnected = true;
       });
+
+      if (_inputMode == InputMode.text) {
+        _log('Sending initial greeting...');
+        newSession.send('Hello');
+      }
 
       // Listen to responses
       newSession.stream.listen((chunk) async {

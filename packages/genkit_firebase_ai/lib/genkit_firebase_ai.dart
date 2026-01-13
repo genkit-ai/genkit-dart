@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 import 'package:firebase_ai/firebase_ai.dart' as m;
@@ -169,6 +168,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       name: 'firebaseai/$modelName',
       fn: (stream, ctx) async {
         final configMap = ctx.init?.config;
+        final tools = ctx.init?.tools?.map(toGeminiTool).toList();
+        final systemMessage =
+            ctx.init?.messages.where((m) => m.role == Role.system).firstOrNull;
+        final systemInstruction = systemMessage != null
+            ? m.Content(
+                'system', systemMessage.content.map(toGeminiPart).toList())
+            : null;
+
         final liveConfig = m.LiveGenerationConfig(
           responseModalities:
               (configMap?['responseModalities'] as List?)?.map((e) {
@@ -181,53 +188,110 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final model = instance.liveGenerativeModel(
           model: modelName,
           liveGenerationConfig: liveConfig,
+          tools: tools,
+          systemInstruction: systemInstruction,
         );
 
-        final session = await model.connect();
+        _logger
+            .info('Connecting to model: $modelName with config: $liveConfig');
+        if (liveConfig.responseModalities != null) {
+          _logger.info(
+              'Modalities: ${liveConfig.responseModalities!.map((e) => e.name).toList()}');
+        }
+        var session = await model.connect();
+        _logger.info('Connected to model: $modelName');
 
-        print('FAIL: listen to stream...');
-        final sub = ctx.inputStream!.listen((chunk) {
-          print('FAIL: Sending chunk: $chunk');
+        // Send initial history
+        final initialMessages =
+            ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
+                [];
+        for (final msg in initialMessages) {
+          await _sendToSession(session, msg);
+        }
+
+        final sub = ctx.inputStream!.listen((chunk) async {
           for (final msg in chunk.messages) {
-            print('FAIL: Sending message: $msg');
-            final contentParts = msg.content
-                .map((p) {
-                  try {
-                    return toGeminiPart(p);
-                  } catch (e) {
-                    _logger.warning('Skipping unsupported part: $p', e);
-                    return null;
-                  }
-                })
-                .whereType<m.Part>()
-                .toList();
-
-            if (contentParts.isNotEmpty) {
-              session.send(input: m.Content(msg.role.value, contentParts));
-            }
+            await _sendToSession(session, msg);
           }
+        }, onError: (e) {
+          _logger.severe('InputStream error', e);
+        }, onDone: () {
+          _logger.info('InputStream done');
+          session.close();
         });
 
         final receiveFuture = () async {
           try {
             await for (final event in session.receive()) {
-              print('FAIL: Received event: $event');
+              _logger.info('Session receive loop: $event');
               final chunk = _fromGeminiLiveEvent(event);
               if (chunk != null) ctx.sendChunk(chunk);
             }
+            _logger.info('Session receive loop finished naturally');
           } catch (e, s) {
             _logger.warning('Error in Live session receive loop', e, s);
+            print(e);
+            print(s);
           }
         }();
 
         await receiveFuture;
-        print('FAIL: Closing session');
         await sub.cancel();
-        await session.close();
+        _logger.info('FAIL: Closing session');
+        session.close();
+        // Session closed in receiveFuture usually, but ensure it here?
+        // Actually session.close() is called on inputStream done.
+        // If receive loop finishes, we might want to stop input stream?
+        // Usually Bidi sessions end when input ends OR model ends.
 
         return ModelResponse.from(finishReason: FinishReason.stop);
       },
     );
+  }
+
+  Future<void> _sendToSession(m.LiveSession session, Message msg) async {
+    _logger.info(
+        'Sending message: ${msg.role} isMedia: ${msg.content.map((p) => p.isMedia)}');
+    final contentParts = msg.content
+        .map((p) {
+          try {
+            return toGeminiPart(p);
+          } catch (e) {
+            _logger.warning('Skipping unsupported part: $p', e);
+            return null;
+          }
+        })
+        .whereType<m.Part>()
+        .toList();
+
+    if (contentParts.isEmpty) return;
+
+    // Heuristic: If only media parts + user role -> send as realtime
+    final isRealtimeInput = msg.role == Role.user &&
+        contentParts.every((p) => p is m.InlineDataPart);
+
+    if (isRealtimeInput) {
+      for (final part in contentParts.cast<m.InlineDataPart>()) {
+        try {
+          // TODO: Check if we need to send mimeType separate or if `sendAudioRealtime` is just for audio
+          // Ideally check mimeType.
+          // For now, assuming audio-only for realtime in this plugin version
+          // or use a more generic sendRealtime if available.
+          // The previous code used sendAudioRealtime.
+          await session.sendAudioRealtime(part);
+        } catch (e) {
+          _logger.severe('Error sending realtime content', e);
+        }
+      }
+    } else {
+      try {
+        // Regular turn
+        await session.send(
+            input: m.Content(msg.role.value, contentParts), turnComplete: true);
+      } catch (e) {
+        _logger.severe('Error sending content', e);
+      }
+    }
   }
 }
 
@@ -317,27 +381,17 @@ Part fromGeminiPart(m.Part p) {
   throw UnimplementedError('Part type $p not supported yet in response');
 }
 
-ModelResponseChunk? _fromGeminiLiveEvent(dynamic event) {
-  // Assuming event is m.GenerateContentResponse
-  if (event is m.GenerateContentResponse) {
-    if (event.candidates.isEmpty) return null;
-    final candidate = event.candidates.first;
-    // We only care about content updates for now
-    final parts = candidate.content.parts.map(fromGeminiPart).toList();
-    if (parts.isEmpty && candidate.finishReason == null) return null;
+ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
+  print('Received event: $event');
+  if (event.message is! m.LiveServerContent) return null;
+  final liveContent = event.message as m.LiveServerContent;
+  // We only care about content updates for now
+  final parts = liveContent.modelTurn?.parts.map(fromGeminiPart).toList() ?? [];
 
-    final finishReason = candidate.finishReason != null
-        ? FinishReason(candidate.finishReason!.name)
-        : null;
-
-    return ModelResponseChunk.from(
-      index: 0,
-      content: parts,
-      custom:
-          finishReason != null ? {'finishReason': finishReason.value} : null,
-    );
-  }
-  return null;
+  return ModelResponseChunk.from(
+    index: 0,
+    content: parts,
+  );
 }
 
 @visibleForTesting
