@@ -20,8 +20,25 @@ part 'genkit_firebase_ai.schema.g.dart';
 
 @GenkitSchema()
 abstract class GeminiOptionsSchema {
-  int get maxOutputTokens;
-  double get temperature;
+  int? get candidateCount;
+  List<String>? get stopSequences;
+  int? get maxOutputTokens;
+  double? get temperature;
+  double? get topP;
+  int? get topK;
+  double? get presencePenalty;
+  double? get frequencyPenalty;
+  List<String>? get responseModalities;
+  String? get responseMimeType;
+  Map<String, dynamic>? get responseSchema;
+  Map<String, dynamic>? get responseJsonSchema;
+  ThinkingConfigSchema? get thinkingConfig;
+}
+
+@GenkitSchema()
+abstract class ThinkingConfigSchema {
+  int? get thinkingBudget;
+  bool? get includeThoughts;
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -70,8 +87,35 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final model = instance.generativeModel(
           model: modelName,
           generationConfig: m.GenerationConfig(
+            candidateCount: req.config?['candidateCount'] as int?,
+            stopSequences:
+                (req.config?['stopSequences'] as List?)?.cast<String>(),
             maxOutputTokens: req.config?['maxOutputTokens'] as int?,
             temperature: (req.config?['temperature'] as num?)?.toDouble(),
+            topP: (req.config?['topP'] as num?)?.toDouble(),
+            topK: req.config?['topK'] as int?,
+            presencePenalty:
+                (req.config?['presencePenalty'] as num?)?.toDouble(),
+            frequencyPenalty:
+                (req.config?['frequencyPenalty'] as num?)?.toDouble(),
+            responseModalities: (req.config?['responseModalities'] as List?)
+                ?.map((e) => m.ResponseModalities.values.byName(e as String))
+                .toList(),
+            responseMimeType: req.config?['responseMimeType'] as String?,
+            responseSchema: req.config?['responseSchema'] != null
+                ? toGeminiSchema(
+                    req.config!['responseSchema'] as Map<String, dynamic>)
+                : null,
+            responseJsonSchema:
+                req.config?['responseJsonSchema'] as Map<String, dynamic>?,
+            thinkingConfig: req.config?['thinkingConfig'] != null
+                ? m.ThinkingConfig(
+                    thinkingBudget: (req.config!['thinkingConfig']
+                        as Map)['thinkingBudget'] as int?,
+                    includeThoughts: (req.config!['thinkingConfig']
+                        as Map)['includeThoughts'] as bool?,
+                  )
+                : null,
           ),
         );
 
