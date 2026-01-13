@@ -185,9 +185,11 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
         final session = await model.connect();
 
+        print('FAIL: listen to stream...');
         final sub = ctx.inputStream!.listen((chunk) {
+          print('FAIL: Sending chunk: $chunk');
           for (final msg in chunk.messages) {
-            print('Sending message: $msg');
+            print('FAIL: Sending message: $msg');
             final contentParts = msg.content
                 .map((p) {
                   try {
@@ -209,7 +211,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final receiveFuture = () async {
           try {
             await for (final event in session.receive()) {
-              print('Received event: $event');
+              print('FAIL: Received event: $event');
               final chunk = _fromGeminiLiveEvent(event);
               if (chunk != null) ctx.sendChunk(chunk);
             }
@@ -219,6 +221,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         }();
 
         await receiveFuture;
+        print('FAIL: Closing session');
         await sub.cancel();
         await session.close();
 

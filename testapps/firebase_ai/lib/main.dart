@@ -181,6 +181,8 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
   bool _isConnected = false;
   final _logs = <String>[];
   StreamSubscription? _audioSubscription;
+  final _textController = TextEditingController();
+  InputMode _inputMode = InputMode.text;
 
   @override
   void initState() {
@@ -191,56 +193,53 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
 
   Future<void> _initSession() async {
     // Request permissions
-    final status = await Permission.microphone.request();
-    if (status != PermissionStatus.granted) {
-      _log('Microphone permission denied');
-      return;
+    if (_inputMode == InputMode.audio) {
+      final status = await Permission.microphone.request();
+      if (status != PermissionStatus.granted) {
+        _log('Microphone permission denied');
+        return;
+      }
     }
 
     try {
-      _log('Connecting to Live Model...');
-      _session = await _ai.generateBidi(
+      await _session?.close();
+      _session = null;
+      setState(() {
+        _isConnected = false;
+      });
+
+      _log('Connecting to Live Model (${_inputMode.name})...');
+      final newSession = await _ai.generateBidi(
         model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
-          'responseModalities': ['AUDIO'],
+          'responseModalities': [
+            _inputMode == InputMode.audio ? 'AUDIO' : 'TEXT'
+          ],
         },
       );
+      _session = newSession;
       _log('Connected!');
       setState(() {
         _isConnected = true;
       });
 
       // Listen to responses
-      _session!.stream.listen((chunk) async {
-        // Play audio if present
-        // Chunk might contain InlineDataPart or similar
-        // Genkit mapping for Bidi output:
-        // We need to see how _fromGeminiLiveEvent maps it.
-        // If it maps to DataPart? Or custom?
-        // Current implementation returns empty for now in my code?
-        // Wait, I implemented: `ModelResponseChunk? _fromGeminiLiveEvent(dynamic event)` returning null.
-        // So I won't get anything yet!
-        // I need to fix `_fromGeminiLiveEvent` before this works!
-        // But for now, let's assume it works or log what we get.
+      newSession.stream.listen((chunk) async {
+        if (_session != newSession) return;
         _log('Received chunk: ${chunk.content.length} parts');
         for (final part in chunk.content) {
-          if (part.isData) {
-            // Assuming audio/pcm or similar
-            // part.data?
-            // Wait, DataPart has 'data' map? No.
-            // DataPart isn't fully supported in standard types yet?
-            // Let's check `Part` definition.
-            // `DataPart` has `data` field (Map<String, dynamic>).
-            // But `InlineDataPart` usually has bytes.
-            // genkit `Part` hierarchy:
-            // `DataPart` seems to be generic data.
-            // `MediaPart` has `Media` which has `url` (data uri).
-            // I should probably map audio to `MediaPart` with data URI in `_fromGeminiLiveEvent`.
+          if (part.isText) {
+            _log('AI: ${(part as TextPart).text}');
+          }
+          if (part.isMedia) {
+            _log('AI: <Audio Data>');
           }
         }
       }, onError: (e) {
+        if (_session != newSession) return;
         _log('Error from session: $e');
       }, onDone: () {
+        if (_session != newSession) return;
         _log('Session closed');
         setState(() {
           _isConnected = false;
@@ -301,6 +300,22 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
     }
   }
 
+  void _sendText() {
+    final text = _textController.text;
+    if (text.isEmpty || _session == null) return;
+
+    _session!.send(ModelRequest.from(
+      messages: [
+        Message.from(
+          role: Role.user,
+          content: [TextPart.from(text: text)],
+        ),
+      ],
+    ));
+    _log('Sent: $text');
+    _textController.clear();
+  }
+
   void _log(String msg) {
     setState(() {
       _logs.add(msg);
@@ -329,28 +344,84 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
               itemBuilder: (ctx, i) => Text(_logs[i]),
             ),
           ),
+          const Divider(),
+          // Mode Toggle
           Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: GestureDetector(
-              onLongPressStart: (_) => _toggleRecording(),
-              onLongPressEnd: (_) => _toggleRecording(),
-              onTap: () {
-                // Tap to toggle if long press is annoying in simulator
-                _toggleRecording();
-              },
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: _isRecording ? Colors.red : Colors.blue,
-                child: Icon(
-                  _isRecording ? Icons.mic : Icons.mic_none,
-                  color: Colors.white,
-                  size: 40,
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: SegmentedButton<InputMode>(
+              segments: const [
+                ButtonSegment(
+                  value: InputMode.audio,
+                  label: Text('Audio'),
+                  icon: Icon(Icons.mic),
                 ),
-              ),
+                ButtonSegment(
+                  value: InputMode.text,
+                  label: Text('Text'),
+                  icon: Icon(Icons.keyboard),
+                ),
+              ],
+              selected: {_inputMode},
+              onSelectionChanged: (Set<InputMode> newSelection) {
+                final newMode = newSelection.first;
+                if (_inputMode != newMode) {
+                  setState(() {
+                    _inputMode = newMode;
+                  });
+                  _initSession();
+                }
+              },
             ),
           ),
-          const SizedBox(height: 20),
-          Text(_isConnected ? 'Tap/Hold to Speak' : 'Connecting...'),
+          // Input Area
+          if (_inputMode == InputMode.audio)
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: GestureDetector(
+                onLongPressStart: (_) => _toggleRecording(),
+                onLongPressEnd: (_) => _toggleRecording(),
+                onTap: () {
+                  // Tap to toggle if long press is annoying in simulator
+                  _toggleRecording();
+                },
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: _isRecording ? Colors.red : Colors.blue,
+                  child: Icon(
+                    _isRecording ? Icons.mic : Icons.mic_none,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _textController,
+                      decoration: const InputDecoration(
+                        hintText: 'Type a message...',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSubmitted: (_) => _sendText(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.send),
+                    onPressed: _sendText,
+                  ),
+                ],
+              ),
+            ),
+          if (_inputMode == InputMode.audio) ...[
+            const SizedBox(height: 20),
+            Text(_isConnected ? 'Tap/Hold to Speak' : 'Connecting...'),
+          ],
         ],
       ),
     );
@@ -364,3 +435,5 @@ extension DataPartExtension on DataPart {
   // If I can't modify `DataPart`, I should use `CustomPart` or `MediaPart` with data URI.
   // Using MediaPart with data URI for audio is standard.
 }
+
+enum InputMode { audio, text }
