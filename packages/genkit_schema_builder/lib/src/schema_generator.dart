@@ -18,7 +18,7 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
-import 'package:genkit/schema.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:source_gen/source_gen.dart';
 
 class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
