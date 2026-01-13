@@ -25,7 +25,6 @@ final _logger = Logger('genkit_firebase_ai');
 
 @GenkitSchema()
 abstract class GeminiOptionsSchema {
-  int? get candidateCount;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
   double? get temperature;
@@ -47,8 +46,31 @@ abstract class ThinkingConfigSchema {
 }
 
 @GenkitSchema()
+abstract class PrebuiltVoiceConfigSchema {
+  String? get voiceName;
+}
+
+@GenkitSchema()
+abstract class VoiceConfigSchema {
+  PrebuiltVoiceConfigSchema? get prebuiltVoiceConfig;
+}
+
+@GenkitSchema()
+abstract class SpeechConfigSchema {
+  VoiceConfigSchema? get voiceConfig;
+}
+
+@GenkitSchema()
 abstract class LiveGenerationConfigSchema {
   List<String>? get responseModalities;
+  SpeechConfigSchema? get speechConfig;
+  List<String>? get stopSequences;
+  int? get maxOutputTokens;
+  double? get temperature;
+  double? get topP;
+  int? get topK;
+  double? get presencePenalty;
+  double? get frequencyPenalty;
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -182,6 +204,20 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             return m.ResponseModalities.values
                 .byName((e as String).toLowerCase());
           }).toList(),
+          speechConfig: configMap?['speechConfig'] != null
+              ? m.SpeechConfig(
+                  voiceName: (((configMap!['speechConfig']
+                          as Map)['voiceConfig'] as Map)['prebuiltVoiceConfig']
+                      as Map)['voiceName'] as String,
+                )
+              : null,
+          maxOutputTokens: configMap?['maxOutputTokens'] as int?,
+          temperature: (configMap?['temperature'] as num?)?.toDouble(),
+          topP: (configMap?['topP'] as num?)?.toDouble(),
+          topK: configMap?['topK'] as int?,
+          presencePenalty: (configMap?['presencePenalty'] as num?)?.toDouble(),
+          frequencyPenalty:
+              (configMap?['frequencyPenalty'] as num?)?.toDouble(),
         );
 
         final instance = m.FirebaseAI.googleAI();
@@ -223,11 +259,11 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final receiveFuture = () async {
           try {
             await for (final event in session.receive()) {
-              _logger.info('Session receive loop: $event');
+              _logger.fine('Session receive loop: $event');
               final chunk = _fromGeminiLiveEvent(event);
               if (chunk != null) ctx.sendChunk(chunk);
             }
-            _logger.info('Session receive loop finished naturally');
+            _logger.fine('Session receive loop finished naturally');
           } catch (e, s) {
             _logger.warning('Error in Live session receive loop', e, s);
           }
@@ -235,7 +271,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
         await receiveFuture;
         await sub.cancel();
-        _logger.info('FAIL: Closing session');
+        _logger.fine('Closing session');
         session.close();
         // Session closed in receiveFuture usually, but ensure it here?
         // Actually session.close() is called on inputStream done.
@@ -248,46 +284,25 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   }
 
   Future<void> _sendToSession(m.LiveSession session, Message msg) async {
-    _logger.info(
-        'Sending message: ${msg.role} isMedia: ${msg.content.map((p) => p.isMedia)}');
-    final contentParts = msg.content
-        .map((p) {
-          try {
-            return toGeminiPart(p);
-          } catch (e) {
-            _logger.warning('Skipping unsupported part: $p', e);
-            return null;
-          }
-        })
-        .whereType<m.Part>()
-        .toList();
+    _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
 
-    if (contentParts.isEmpty) return;
+    final contentParts = msg.content.map((p) => toGeminiPart(p)).toList();
 
-    // Heuristic: If only media parts + user role -> send as realtime
-    final isRealtimeInput = msg.role == Role.user &&
-        contentParts.every((p) => p is m.InlineDataPart);
-
-    if (isRealtimeInput) {
-      for (final part in contentParts.cast<m.InlineDataPart>()) {
-        try {
-          // TODO: Check if we need to send mimeType separate or if `sendAudioRealtime` is just for audio
-          // Ideally check mimeType.
-          // For now, assuming audio-only for realtime in this plugin version
-          // or use a more generic sendRealtime if available.
-          // The previous code used sendAudioRealtime.
-          await session.sendAudioRealtime(part);
-        } catch (e) {
-          _logger.severe('Error sending realtime content', e);
-        }
-      }
-    } else {
+    for (final part in contentParts) {
       try {
-        // Regular turn
-        await session.send(
-            input: m.Content(msg.role.value, contentParts), turnComplete: true);
+        if (part is m.InlineDataPart) {
+          // TODO: Check mimeType for video vs audio
+          await session.sendAudioRealtime(part);
+        } else if (part is m.FunctionResponse) {
+          await session.sendToolResponse([part]);
+        } else {
+          // Fallback for others
+          await session.send(
+              input: m.Content(msg.role.value, [part]), turnComplete: true);
+        }
       } catch (e) {
-        _logger.severe('Error sending content', e);
+        _logger.severe('Error sending part: $part', e);
+        rethrow;
       }
     }
   }
@@ -332,6 +347,7 @@ m.Part toGeminiPart(Part p) {
     return m.FunctionResponse(
       p.toolResponse.name,
       {'result': p.toolResponse.output},
+      id: p.toolResponse.ref,
     );
   }
   if (p.isToolRequest) {
@@ -339,6 +355,7 @@ m.Part toGeminiPart(Part p) {
     return m.FunctionCall(
       p.toolRequest.name,
       p.toolRequest.input ?? {},
+      id: p.toolRequest.ref,
     );
   }
   throw UnimplementedError('Part type $p not supported yet');
@@ -380,10 +397,15 @@ Part fromGeminiPart(m.Part p) {
 }
 
 ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
-  if (event.message is! m.LiveServerContent) return null;
-  final liveContent = event.message as m.LiveServerContent;
+  final liveParts = event.message is m.LiveServerContent
+      ? (event.message as m.LiveServerContent).modelTurn?.parts
+      : event.message is m.LiveServerToolCall
+          ? (event.message as m.LiveServerToolCall).functionCalls
+              as List<m.Part>
+          : null;
+  if (liveParts == null) return null;
   // We only care about content updates for now
-  final parts = liveContent.modelTurn?.parts.map(fromGeminiPart).toList() ?? [];
+  final parts = liveParts.map(fromGeminiPart).toList();
 
   return ModelResponseChunk.from(
     index: 0,

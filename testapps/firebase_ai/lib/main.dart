@@ -203,6 +203,18 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
   void initState() {
     super.initState();
     _ai = Genkit(plugins: [firebaseAI()]);
+
+    _ai.defineTool(
+      name: 'getWeather',
+      description: 'Get the weather for a location',
+      inputType: WeatherToolInputType,
+      fn: (input, context) async {
+        if (input.location.toLowerCase().contains('boston')) {
+          return 'The weather in Boston is 72 and sunny.';
+        }
+        return 'The weather in ${input.location} is 75 and cloudy.';
+      },
+    );
     _initSession();
   }
 
@@ -223,9 +235,15 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
 
       final newSession = await _ai.generateBidi(
         model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
-        config: {
-          'responseModalities': ['AUDIO']
-        },
+        config: LiveGenerationConfig.from(
+          responseModalities: ['AUDIO'],
+          speechConfig: SpeechConfig.from(
+              voiceConfig: VoiceConfig.from(
+                  prebuiltVoiceConfig:
+                      PrebuiltVoiceConfig.from(voiceName: 'Algenib'))),
+        ),
+        system: 'Talk like pirate',
+        tools: ['getWeather'],
       );
       newSession.send('Hello');
 
