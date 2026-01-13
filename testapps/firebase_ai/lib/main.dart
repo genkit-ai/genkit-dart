@@ -14,6 +14,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_ai_testapp/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -33,8 +34,8 @@ abstract class WeatherToolInputSchema {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Configure logging to print to console
-  Logger.root.level = Level.ALL; // Defaults to Level.INFO
+  // Keep logging minimal
+  Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen((record) {
     print('${record.level.name}: ${record.time}: ${record.message}');
   });
@@ -48,7 +49,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: HomeScreen());
+    return MaterialApp(
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const HomeScreen(),
+    );
   }
 }
 
@@ -69,16 +76,17 @@ class HomeScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const ChatScreen()),
                 );
               },
-              child: const Text('Text Chat'),
+              child: const Text('Text Chat (Standard)'),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
+            FilledButton.icon(
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const LiveChatScreen()),
                 );
               },
-              child: const Text('Live Conversation'),
+              icon: const Icon(Icons.mic),
+              label: const Text('Live Conversation (Bidi)'),
             ),
           ],
         ),
@@ -155,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
                 Expanded(child: TextField(controller: _controller)),
@@ -183,13 +191,12 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
   late final Genkit _ai;
   GenerateBidiSession? _session;
   final _recorder = AudioRecorder();
-  final _player = AudioPlayer();
+  final _audioQueue = AudioPlayerQueue();
   bool _isRecording = false;
-  bool _isConnected = false;
-  final _logs = <String>[];
   StreamSubscription? _audioSubscription;
-  final _textController = TextEditingController();
-  InputMode _inputMode = InputMode.audio;
+  String _statusMessage = 'Initializing...';
+  final _messages = <String>[];
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -199,66 +206,61 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
   }
 
   Future<void> _initSession() async {
-    // Request permissions
-    if (_inputMode == InputMode.audio) {
-      final status = await Permission.microphone.request();
-      if (status != PermissionStatus.granted) {
-        _log('Microphone permission denied');
-        return;
-      }
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      setState(() => _statusMessage = 'Microphone permission denied');
+      return;
     }
 
     try {
       await _session?.close();
       _session = null;
       setState(() {
-        _isConnected = false;
+        _statusMessage = 'Connecting to Gemini Live...';
+        _messages.clear();
       });
 
-      _log('Connecting to Live Model (${_inputMode.name})...');
       final newSession = await _ai.generateBidi(
         model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
-        config: _inputMode == InputMode.audio
-            ? {
-                'responseModalities': ['AUDIO'],
-              }
-            : null,
+        config: {
+          'responseModalities': ['AUDIO']
+        },
       );
+      newSession.send('Hello');
       _session = newSession;
-      _log('Connected!');
       setState(() {
-        _isConnected = true;
+        _statusMessage = 'Connected! Tap & Hold to speak.';
       });
 
-      if (_inputMode == InputMode.text) {
-        _log('Sending initial greeting...');
-        newSession.send('Hello');
-      }
-
-      // Listen to responses
       newSession.stream.listen((chunk) async {
         if (_session != newSession) return;
-        _log('Received chunk: ${chunk.content.length} parts');
         for (final part in chunk.content) {
           if (part.isText) {
-            _log('AI: ${(part as TextPart).text}');
+            _addMessage('AI: ${(part as TextPart).text}');
           }
           if (part.isMedia) {
-            _log('AI: <Audio Data>');
+            final mediaPart = part as MediaPart;
+            if (mediaPart.media.url.startsWith('data:')) {
+              final data = Uri.parse(mediaPart.media.url).data;
+              if (data != null) {
+                _audioQueue.enqueue(data.contentAsBytes());
+              }
+            }
           }
         }
       }, onError: (e) {
         if (_session != newSession) return;
-        _log('Error from session: $e');
+        setState(() => _statusMessage = 'Error: $e');
       }, onDone: () {
         if (_session != newSession) return;
-        _log('Session closed');
         setState(() {
-          _isConnected = false;
+          _statusMessage = 'Session closed.';
         });
       });
     } catch (e) {
-      _log('Failed to connect: $e');
+      if (mounted) {
+        setState(() => _statusMessage = 'Failed to connect: $e');
+      }
     }
   }
 
@@ -266,16 +268,10 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
     if (_session == null) return;
 
     if (_isRecording) {
-      await _recorder.stop(); // Stop local recording
-      // Ideally we stream data.
-      // `_recorder.startStream` gives us a stream of Uint8List.
+      await _recorder.stop();
       await _audioSubscription?.cancel();
-      setState(() {
-        _isRecording = false;
-      });
-      _log('Stopped recording');
+      setState(() => _isRecording = false);
     } else {
-      // Start streaming
       if (!await _recorder.hasPermission()) return;
 
       final stream = await _recorder.startStream(
@@ -287,7 +283,6 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       );
 
       _audioSubscription = stream.listen((data) {
-        // Send data to session as MediaPart with data URI
         final base64Audio = base64Encode(data);
         _session!.send(ModelRequest.from(
           messages: [
@@ -305,147 +300,211 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
         ));
       });
 
-      setState(() {
-        _isRecording = true;
-      });
-      _log('Started recording');
+      setState(() => _isRecording = true);
+      _addMessage('User: <Audio Input>');
     }
   }
 
-  void _sendText() {
-    final text = _textController.text;
-    if (text.isEmpty || _session == null) return;
-
-    _session!.send(ModelRequest.from(
-      messages: [
-        Message.from(
-          role: Role.user,
-          content: [TextPart.from(text: text)],
-        ),
-      ],
-    ));
-    _log('Sent: $text');
-    _textController.clear();
-  }
-
-  void _log(String msg) {
+  void _addMessage(String msg) {
     setState(() {
-      _logs.add(msg);
+      _messages.add(msg);
     });
-    print(msg);
+    // Auto-scroll
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
   void dispose() {
     _recorder.dispose();
-    _player.dispose();
+    _audioQueue.dispose();
     _session?.close();
     _audioSubscription?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Conversation')),
+      appBar: AppBar(title: const Text('Gemini Live')),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
-              itemCount: _logs.length,
-              itemBuilder: (ctx, i) => Text(_logs[i]),
-            ),
-          ),
-          const Divider(),
-          // Mode Toggle
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: SegmentedButton<InputMode>(
-              segments: const [
-                ButtonSegment(
-                  value: InputMode.audio,
-                  label: Text('Audio'),
-                  icon: Icon(Icons.mic),
-                ),
-                ButtonSegment(
-                  value: InputMode.text,
-                  label: Text('Text'),
-                  icon: Icon(Icons.keyboard),
-                ),
-              ],
-              selected: {_inputMode},
-              onSelectionChanged: (Set<InputMode> newSelection) {
-                final newMode = newSelection.first;
-                if (_inputMode != newMode) {
-                  setState(() {
-                    _inputMode = newMode;
-                  });
-                  _initSession();
-                }
-              },
-            ),
-          ),
-          // Input Area
-          if (_inputMode == InputMode.audio)
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: GestureDetector(
-                onLongPressStart: (_) => _toggleRecording(),
-                onLongPressEnd: (_) => _toggleRecording(),
-                onTap: () {
-                  // Tap to toggle if long press is annoying in simulator
-                  _toggleRecording();
-                },
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundColor: _isRecording ? Colors.red : Colors.blue,
-                  child: Icon(
-                    _isRecording ? Icons.mic : Icons.mic_none,
-                    color: Colors.white,
-                    size: 40,
-                  ),
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (ctx, i) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  _messages[i],
+                  style: i.isEven
+                      ? null
+                      : const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      decoration: const InputDecoration(
-                        hintText: 'Type a message...',
-                        border: OutlineInputBorder(),
-                      ),
-                      onSubmitted: (_) => _sendText(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: _sendText,
-                  ),
+            ),
+          ),
+          const Divider(height: 1),
+          // Visualizer / Status Area
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: Text(
+              _statusMessage,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+          // Microphone Interaction
+          GestureDetector(
+            onLongPressStart: (_) => _toggleRecording(),
+            onLongPressEnd: (_) => _toggleRecording(),
+            onTap: _toggleRecording, // Tap fallback
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: _isRecording ? 80 : 64,
+              height: _isRecording ? 80 : 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isRecording
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.primary,
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isRecording
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.primary)
+                        .withOpacity(0.4),
+                    blurRadius: _isRecording ? 10 : 5,
+                    spreadRadius: _isRecording ? 2 : 1,
+                  )
                 ],
               ),
+              child: Icon(
+                _isRecording ? Icons.mic : Icons.mic_none,
+                color: Colors.white,
+                size: 32,
+              ),
             ),
-          if (_inputMode == InputMode.audio) ...[
-            const SizedBox(height: 20),
-            Text(_isConnected ? 'Tap/Hold to Speak' : 'Connecting...'),
-          ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isRecording ? 'Listening...' : 'Hold to Speak',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 }
 
-// Helper for DataPart construction if needed
-extension DataPartExtension on DataPart {
-  // If DataPart doesn't have explicit bytes field, we might need a custom subclass or use 'custom' field?
-  // `DataPart` is generated.
-  // If I can't modify `DataPart`, I should use `CustomPart` or `MediaPart` with data URI.
-  // Using MediaPart with data URI for audio is standard.
-}
+class AudioPlayerQueue {
+  final List<Uint8List> _queue = [];
+  final List<int> _buffer = [];
+  static const int _minBufferSize = 24000; // ~0.5 seconds at 24kHz
+  Timer? _flushTimer;
+  bool _isPlaying = false;
+  final AudioPlayer _player = AudioPlayer();
 
-enum InputMode { audio, text }
+  AudioPlayerQueue();
+
+  void enqueue(Uint8List pcmData) {
+    _buffer.addAll(pcmData);
+
+    _flushTimer?.cancel();
+    // Flush if buffer is large enough
+    if (_buffer.length >= _minBufferSize) {
+      _flush();
+    } else {
+      // Or flush if no new data arrives shortly (end of speech)
+      _flushTimer = Timer(const Duration(milliseconds: 200), _flush);
+    }
+  }
+
+  void _flush() {
+    if (_buffer.isEmpty) return;
+    final wavData = _createWav(Uint8List.fromList(_buffer));
+    _buffer.clear();
+    _queue.add(wavData);
+    _playNext();
+  }
+
+  Future<void> _playNext() async {
+    if (_isPlaying || _queue.isEmpty) return;
+    _isPlaying = true;
+    final data = _queue.removeAt(0);
+
+    try {
+      await _player.play(BytesSource(data));
+
+      final completer = Completer();
+      final sub = _player.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+
+      // Calculate duration plus a small buffer
+      final durationSec = (data.length - 44) / 48000;
+      final timeout =
+          Duration(milliseconds: (durationSec * 1000).ceil() + 1000);
+
+      await completer.future.timeout(timeout, onTimeout: () {});
+      await sub.cancel();
+    } catch (e) {
+      print('AudioQueue Error: $e');
+    } finally {
+      _isPlaying = false;
+      _playNext();
+    }
+  }
+
+  void dispose() {
+    _flushTimer?.cancel();
+    _player.dispose();
+  }
+
+  Uint8List _createWav(Uint8List pcmData) {
+    const sampleRate = 24000;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+
+    final byteRate = sampleRate * numChannels * bitsPerSample ~/ 8;
+    final blockAlign = numChannels * bitsPerSample ~/ 8;
+    final dataSize = pcmData.length;
+    final fileSize = 36 + dataSize;
+
+    final head = Uint8List(44);
+    final view = ByteData.view(head.buffer);
+
+    _writeString(view, 0, 'RIFF');
+    view.setUint32(4, fileSize, Endian.little);
+    _writeString(view, 8, 'WAVE');
+
+    _writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, Endian.little);
+    view.setUint16(20, 1, Endian.little);
+    view.setUint16(22, numChannels, Endian.little);
+    view.setUint32(24, sampleRate, Endian.little);
+    view.setUint32(28, byteRate, Endian.little);
+    view.setUint16(32, blockAlign, Endian.little);
+    view.setUint16(34, bitsPerSample, Endian.little);
+
+    _writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, Endian.little);
+
+    final wavFile = Uint8List(44 + dataSize);
+    wavFile.setRange(0, 44, head);
+    wavFile.setRange(44, 44 + dataSize, pcmData);
+    return wavFile;
+  }
+
+  void _writeString(ByteData view, int offset, String s) {
+    for (int i = 0; i < s.length; i++) {
+      view.setUint8(offset + i, s.codeUnitAt(i));
+    }
+  }
+}

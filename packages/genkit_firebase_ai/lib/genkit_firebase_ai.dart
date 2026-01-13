@@ -230,8 +230,6 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             _logger.info('Session receive loop finished naturally');
           } catch (e, s) {
             _logger.warning('Error in Live session receive loop', e, s);
-            print(e);
-            print(s);
           }
         }();
 
@@ -382,7 +380,6 @@ Part fromGeminiPart(m.Part p) {
 }
 
 ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
-  print('Received event: $event');
   if (event.message is! m.LiveServerContent) return null;
   final liveContent = event.message as m.LiveServerContent;
   // We only care about content updates for now
