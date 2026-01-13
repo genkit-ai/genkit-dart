@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:meta/meta.dart';
 import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:genkit/genkit.dart';
+import 'package:logging/logging.dart';
 
 part 'genkit_firebase_ai.schema.g.dart';
+
+final _logger = Logger('genkit_firebase_ai');
 
 @GenkitSchema()
 abstract class GeminiOptionsSchema {
@@ -39,6 +45,11 @@ abstract class GeminiOptionsSchema {
 abstract class ThinkingConfigSchema {
   int? get thinkingBudget;
   bool? get includeThoughts;
+}
+
+@GenkitSchema()
+abstract class LiveGenerationConfigSchema {
+  List<String>? get responseModalities;
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -69,13 +80,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     return [
       _createModel('gemini-2.5-flash'),
       _createModel('gemini-2.5-pro'),
+      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
     ];
   }
 
   @override
   Action? resolve(String actionType, String name) {
-    if (actionType != 'model') return null;
-    return _createModel(name);
+    if (actionType == 'model') return _createModel(name);
+    if (actionType == 'bidi-model') return _createBidiModel(name);
+    return null;
   }
 
   Model _createModel(String modelName) {
@@ -150,9 +163,94 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       },
     );
   }
-}
 
-// ... class definitions ...
+  BidiModel _createBidiModel(String modelName) {
+    return BidiModel(
+      name: 'firebaseai/$modelName',
+      fn: (stream, ctx) async {
+        final configMap = ctx.init?.config;
+        final liveConfig = m.LiveGenerationConfig(
+          responseModalities:
+              (configMap?['responseModalities'] as List?)?.map((e) {
+            return m.ResponseModalities.values
+                .byName((e as String).toLowerCase());
+          }).toList(),
+        );
+
+        final instance = m.FirebaseAI.googleAI();
+        final model = instance.liveGenerativeModel(
+          model: modelName,
+          liveGenerationConfig: liveConfig,
+        );
+
+        final session = await model.connect();
+
+        final sub = ctx.inputStream!.listen((chunk) {
+          for (final msg in chunk.messages) {
+            print('Sending message: $msg');
+            final contentParts = msg.content
+                .map((p) {
+                  if (p.isMedia) {
+                    final media = (p as MediaPart).media;
+                    if (media.url.startsWith('data:')) {
+                      final uri = Uri.parse(media.url);
+                      // Handle data URI
+                      if (uri.data != null) {
+                        return m.InlineDataPart(
+                          media.contentType ?? 'application/octet-stream',
+                          uri.data!.contentAsBytes(),
+                        );
+                      }
+                    }
+                  }
+                  if (p.isData) {
+                    final dataPart = p as DataPart;
+                    if (dataPart.data != null &&
+                        dataPart.data!.containsKey('mimeType') &&
+                        dataPart.data!.containsKey('bytes')) {
+                      return m.InlineDataPart(
+                        dataPart.data!['mimeType'] as String,
+                        dataPart.data!['bytes'] as Uint8List,
+                      );
+                    }
+                  }
+                  try {
+                    return toGeminiPart(p);
+                  } catch (e) {
+                    _logger.warning('Skipping unsupported part: $p', e);
+                    return null;
+                  }
+                })
+                .whereType<m.Part>()
+                .toList();
+
+            if (contentParts.isNotEmpty) {
+              session.send(input: m.Content(msg.role.value, contentParts));
+            }
+          }
+        });
+
+        final receiveFuture = () async {
+          try {
+            await for (final event in session.receive()) {
+              print('Received event: $event');
+              final chunk = _fromGeminiLiveEvent(event);
+              if (chunk != null) ctx.sendChunk(chunk);
+            }
+          } catch (e, s) {
+            _logger.warning('Error in Live session receive loop', e, s);
+          }
+        }();
+
+        await receiveFuture;
+        await sub.cancel();
+        await session.close();
+
+        return ModelResponse.from(finishReason: FinishReason.stop);
+      },
+    );
+  }
+}
 
 @visibleForTesting
 Iterable<m.Content> toGeminiContent(List<Message> messages) {
@@ -172,14 +270,11 @@ m.Part toGeminiPart(Part p) {
   }
   if (p.isToolResponse) {
     p as ToolResponsePart;
-    // Firebase AI expects a FunctionResponse part.
     return m.FunctionResponse(
       p.toolResponse.name,
       {'result': p.toolResponse.output},
     );
   }
-  // ToolRequest is usually handled by the model response, not sent by user.
-  // But if we are sending history (context), we might need to send ToolRequests (function calls) made by assistant.
   if (p.isToolRequest) {
     p as ToolRequestPart;
     return m.FunctionCall(
@@ -201,6 +296,7 @@ m.Part toGeminiPart(Part p) {
 }
 
 @visibleForTesting
+@visibleForTesting
 Part fromGeminiPart(m.Part p) {
   if (p is m.TextPart) {
     return TextPart.from(text: p.text);
@@ -213,7 +309,38 @@ Part fromGeminiPart(m.Part p) {
       ),
     );
   }
+  if (p is m.InlineDataPart) {
+    final base64 = base64Encode(p.bytes);
+    return MediaPart.from(
+        media: Media.from(
+      url: 'data:${p.mimeType};base64,$base64',
+      contentType: p.mimeType,
+    ));
+  }
   throw UnimplementedError('Part type $p not supported yet in response');
+}
+
+ModelResponseChunk? _fromGeminiLiveEvent(dynamic event) {
+  // Assuming event is m.GenerateContentResponse
+  if (event is m.GenerateContentResponse) {
+    if (event.candidates.isEmpty) return null;
+    final candidate = event.candidates.first;
+    // We only care about content updates for now
+    final parts = candidate.content.parts.map(fromGeminiPart).toList();
+    if (parts.isEmpty && candidate.finishReason == null) return null;
+
+    final finishReason = candidate.finishReason != null
+        ? FinishReason(candidate.finishReason!.name)
+        : null;
+
+    return ModelResponseChunk.from(
+      index: 0,
+      content: parts,
+      custom:
+          finishReason != null ? {'finishReason': finishReason.value} : null,
+    );
+  }
+  return null;
 }
 
 @visibleForTesting

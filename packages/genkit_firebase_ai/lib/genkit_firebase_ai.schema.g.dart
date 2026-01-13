@@ -1,17 +1,3 @@
-// Copyright 2025 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
@@ -310,3 +296,48 @@ class ThinkingConfigTypeFactory implements JsonExtensionType<ThinkingConfig> {
 
 // ignore: constant_identifier_names
 const ThinkingConfigType = ThinkingConfigTypeFactory();
+
+extension type LiveGenerationConfig(Map<String, dynamic> _json) {
+  factory LiveGenerationConfig.from({List<String>? responseModalities}) {
+    return LiveGenerationConfig({
+      if (responseModalities != null) 'responseModalities': responseModalities,
+    });
+  }
+
+  List<String>? get responseModalities {
+    return (_json['responseModalities'] as List?)?.cast<String>();
+  }
+
+  set responseModalities(List<String>? value) {
+    if (value == null) {
+      _json.remove('responseModalities');
+    } else {
+      _json['responseModalities'] = value;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class LiveGenerationConfigTypeFactory
+    implements JsonExtensionType<LiveGenerationConfig> {
+  const LiveGenerationConfigTypeFactory();
+
+  @override
+  LiveGenerationConfig parse(Object json) {
+    return LiveGenerationConfig(json as Map<String, dynamic>);
+  }
+
+  @override
+  Schema get jsonSchema {
+    return Schema.object(
+      properties: {'responseModalities': Schema.list(items: Schema.string())},
+      required: [],
+    );
+  }
+}
+
+// ignore: constant_identifier_names
+const LiveGenerationConfigType = LiveGenerationConfigTypeFactory();

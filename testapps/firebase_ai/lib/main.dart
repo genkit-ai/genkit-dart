@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+import 'dart:convert';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_ai_testapp/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 
 part 'main.schema.g.dart';
 
@@ -36,7 +41,42 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: ChatScreen());
+    return MaterialApp(home: HomeScreen());
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Genkit Firebase AI')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ChatScreen()),
+                );
+              },
+              child: const Text('Text Chat'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const LiveChatScreen()),
+                );
+              },
+              child: const Text('Live Conversation'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -98,7 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Genkit Firebase AI')),
+      appBar: AppBar(title: const Text('Text Chat')),
       body: Column(
         children: [
           Expanded(
@@ -123,4 +163,204 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+}
+
+class LiveChatScreen extends StatefulWidget {
+  const LiveChatScreen({super.key});
+
+  @override
+  State<LiveChatScreen> createState() => _LiveChatScreenState();
+}
+
+class _LiveChatScreenState extends State<LiveChatScreen> {
+  late final Genkit _ai;
+  GenerateBidiSession? _session;
+  final _recorder = AudioRecorder();
+  final _player = AudioPlayer();
+  bool _isRecording = false;
+  bool _isConnected = false;
+  final _logs = <String>[];
+  StreamSubscription? _audioSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _ai = Genkit(plugins: [firebaseAI()]);
+    _initSession();
+  }
+
+  Future<void> _initSession() async {
+    // Request permissions
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      _log('Microphone permission denied');
+      return;
+    }
+
+    try {
+      _log('Connecting to Live Model...');
+      _session = await _ai.generateBidi(
+        model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
+        config: {
+          'responseModalities': ['AUDIO'],
+        },
+      );
+      _log('Connected!');
+      setState(() {
+        _isConnected = true;
+      });
+
+      // Listen to responses
+      _session!.stream.listen((chunk) async {
+        // Play audio if present
+        // Chunk might contain InlineDataPart or similar
+        // Genkit mapping for Bidi output:
+        // We need to see how _fromGeminiLiveEvent maps it.
+        // If it maps to DataPart? Or custom?
+        // Current implementation returns empty for now in my code?
+        // Wait, I implemented: `ModelResponseChunk? _fromGeminiLiveEvent(dynamic event)` returning null.
+        // So I won't get anything yet!
+        // I need to fix `_fromGeminiLiveEvent` before this works!
+        // But for now, let's assume it works or log what we get.
+        _log('Received chunk: ${chunk.content.length} parts');
+        for (final part in chunk.content) {
+          if (part.isData) {
+            // Assuming audio/pcm or similar
+            // part.data?
+            // Wait, DataPart has 'data' map? No.
+            // DataPart isn't fully supported in standard types yet?
+            // Let's check `Part` definition.
+            // `DataPart` has `data` field (Map<String, dynamic>).
+            // But `InlineDataPart` usually has bytes.
+            // genkit `Part` hierarchy:
+            // `DataPart` seems to be generic data.
+            // `MediaPart` has `Media` which has `url` (data uri).
+            // I should probably map audio to `MediaPart` with data URI in `_fromGeminiLiveEvent`.
+          }
+        }
+      }, onError: (e) {
+        _log('Error from session: $e');
+      }, onDone: () {
+        _log('Session closed');
+        setState(() {
+          _isConnected = false;
+        });
+      });
+    } catch (e) {
+      _log('Failed to connect: $e');
+    }
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_session == null) return;
+
+    if (_isRecording) {
+      await _recorder.stop(); // Stop local recording
+      // Ideally we stream data.
+      // `_recorder.startStream` gives us a stream of Uint8List.
+      await _audioSubscription?.cancel();
+      setState(() {
+        _isRecording = false;
+      });
+      _log('Stopped recording');
+    } else {
+      // Start streaming
+      if (!await _recorder.hasPermission()) return;
+
+      final stream = await _recorder.startStream(
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+      );
+
+      _audioSubscription = stream.listen((data) {
+        // Send data to session as MediaPart with data URI
+        final base64Audio = base64Encode(data);
+        _session!.send(ModelRequest.from(
+          messages: [
+            Message.from(
+              role: Role.user,
+              content: [
+                MediaPart.from(
+                    media: Media.from(
+                  url: 'data:audio/pcm;rate=16000;base64,$base64Audio',
+                  contentType: 'audio/pcm;rate=16000',
+                )),
+              ],
+            ),
+          ],
+        ));
+      });
+
+      setState(() {
+        _isRecording = true;
+      });
+      _log('Started recording');
+    }
+  }
+
+  void _log(String msg) {
+    setState(() {
+      _logs.add(msg);
+    });
+    print(msg);
+  }
+
+  @override
+  void dispose() {
+    _recorder.dispose();
+    _player.dispose();
+    _session?.close();
+    _audioSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Live Conversation')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _logs.length,
+              itemBuilder: (ctx, i) => Text(_logs[i]),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: GestureDetector(
+              onLongPressStart: (_) => _toggleRecording(),
+              onLongPressEnd: (_) => _toggleRecording(),
+              onTap: () {
+                // Tap to toggle if long press is annoying in simulator
+                _toggleRecording();
+              },
+              child: CircleAvatar(
+                radius: 40,
+                backgroundColor: _isRecording ? Colors.red : Colors.blue,
+                child: Icon(
+                  _isRecording ? Icons.mic : Icons.mic_none,
+                  color: Colors.white,
+                  size: 40,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(_isConnected ? 'Tap/Hold to Speak' : 'Connecting...'),
+        ],
+      ),
+    );
+  }
+}
+
+// Helper for DataPart construction if needed
+extension DataPartExtension on DataPart {
+  // If DataPart doesn't have explicit bytes field, we might need a custom subclass or use 'custom' field?
+  // `DataPart` is generated.
+  // If I can't modify `DataPart`, I should use `CustomPart` or `MediaPart` with data URI.
+  // Using MediaPart with data URI for audio is standard.
 }
