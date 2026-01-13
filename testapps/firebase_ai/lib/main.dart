@@ -197,6 +197,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
   String _statusMessage = 'Initializing...';
   final _messages = <String>[];
   final _scrollController = ScrollController();
+  final _textController = TextEditingController();
 
   @override
   void initState() {
@@ -227,9 +228,10 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
         },
       );
       newSession.send('Hello');
+
       _session = newSession;
       setState(() {
-        _statusMessage = 'Connected! Tap & Hold to speak.';
+        _statusMessage = 'Connected!';
       });
 
       newSession.stream.listen((chunk) async {
@@ -305,6 +307,15 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
     }
   }
 
+  void _sendText() {
+    final text = _textController.text;
+    if (text.isEmpty || _session == null) return;
+
+    _session!.send(text);
+    _addMessage('User: $text');
+    _textController.clear();
+  }
+
   void _addMessage(String msg) {
     setState(() {
       _messages.add(msg);
@@ -324,6 +335,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
     _session?.close();
     _audioSubscription?.cancel();
     _scrollController.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
@@ -350,53 +362,96 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
             ),
           ),
           const Divider(height: 1),
-          // Visualizer / Status Area
+          // Status
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Theme.of(context).colorScheme.surfaceContainer,
             child: Text(
               _statusMessage,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          // Microphone Interaction
-          GestureDetector(
-            onLongPressStart: (_) => _toggleRecording(),
-            onLongPressEnd: (_) => _toggleRecording(),
-            onTap: _toggleRecording, // Tap fallback
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: _isRecording ? 80 : 64,
-              height: _isRecording ? 80 : 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isRecording
-                    ? Theme.of(context).colorScheme.error
-                    : Theme.of(context).colorScheme.primary,
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isRecording
-                            ? Theme.of(context).colorScheme.error
-                            : Theme.of(context).colorScheme.primary)
-                        .withOpacity(0.4),
-                    blurRadius: _isRecording ? 10 : 5,
-                    spreadRadius: _isRecording ? 2 : 1,
-                  )
-                ],
-              ),
-              child: Icon(
-                _isRecording ? Icons.mic : Icons.mic_none,
-                color: Colors.white,
-                size: 32,
-              ),
+          // Input Area
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _textController,
+                    decoration: const InputDecoration(
+                      hintText: 'Type a message...',
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onSubmitted: (_) => _sendText(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _textController,
+                  builder: (context, value, child) {
+                    final isTyping = value.text.isNotEmpty;
+                    return GestureDetector(
+                      onLongPressStart:
+                          isTyping ? null : (_) => _toggleRecording(),
+                      onLongPressEnd:
+                          isTyping ? null : (_) => _toggleRecording(),
+                      onTap: isTyping ? _sendText : _toggleRecording,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isTyping
+                              ? Theme.of(context).colorScheme.secondary
+                              : (_isRecording
+                                  ? Theme.of(context).colorScheme.error
+                                  : Theme.of(context).colorScheme.primary),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isTyping
+                                      ? Theme.of(context).colorScheme.secondary
+                                      : (_isRecording
+                                          ? Theme.of(context).colorScheme.error
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .primary))
+                                  .withOpacity(0.4),
+                              blurRadius: _isRecording ? 10 : 4,
+                              spreadRadius: _isRecording ? 2 : 1,
+                            )
+                          ],
+                        ),
+                        child: Icon(
+                          isTyping
+                              ? Icons.send
+                              : (_isRecording ? Icons.mic : Icons.mic_none),
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _isRecording ? 'Listening...' : 'Hold to Speak',
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-          const SizedBox(height: 24),
+          if (_isRecording)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Text(
+                'Listening...',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: Colors.red),
+              ),
+            ),
         ],
       ),
     );

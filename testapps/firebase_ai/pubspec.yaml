@@ -7,6 +7,9 @@ version: 1.0.0+1
 environment:
   sdk: ^3.6.0
 
+flutter:
+  uses-material-design: true
+
 dependencies:
   flutter:
     sdk: flutter
