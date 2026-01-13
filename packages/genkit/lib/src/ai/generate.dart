@@ -18,6 +18,9 @@ import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/extract.dart';
+import 'package:logging/logging.dart';
+
+final _logger = Logger('genkit');
 
 /// Defines the utility 'generate' action.
 Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
@@ -434,6 +437,7 @@ Future<GenerateBidiSession> runGenerateBidi(
             .toList();
 
         if (toolRequests.isNotEmpty) {
+          _logger.fine('Processing ${toolRequests.length} tool requests');
           final toolResponses = <Part>[];
           for (final toolRequest in toolRequests) {
             final tool = toolActions.firstWhere(
@@ -467,6 +471,7 @@ Future<GenerateBidiSession> runGenerateBidi(
               );
             }
           }
+          _logger.fine('toolResponses: $toolResponses');
           session.send(
             ModelRequest.from(
               messages: [Message.from(role: Role.tool, content: toolResponses)],

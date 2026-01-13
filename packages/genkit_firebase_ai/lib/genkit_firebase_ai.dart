@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:meta/meta.dart';
 import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:genkit/genkit.dart';
+import 'package:logging/logging.dart';
 
 part 'genkit_firebase_ai.schema.g.dart';
 
+final _logger = Logger('genkit_firebase_ai');
+
 @GenkitSchema()
 abstract class GeminiOptionsSchema {
-  int? get candidateCount;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
   double? get temperature;
@@ -39,6 +43,34 @@ abstract class GeminiOptionsSchema {
 abstract class ThinkingConfigSchema {
   int? get thinkingBudget;
   bool? get includeThoughts;
+}
+
+@GenkitSchema()
+abstract class PrebuiltVoiceConfigSchema {
+  String? get voiceName;
+}
+
+@GenkitSchema()
+abstract class VoiceConfigSchema {
+  PrebuiltVoiceConfigSchema? get prebuiltVoiceConfig;
+}
+
+@GenkitSchema()
+abstract class SpeechConfigSchema {
+  VoiceConfigSchema? get voiceConfig;
+}
+
+@GenkitSchema()
+abstract class LiveGenerationConfigSchema {
+  List<String>? get responseModalities;
+  SpeechConfigSchema? get speechConfig;
+  List<String>? get stopSequences;
+  int? get maxOutputTokens;
+  double? get temperature;
+  double? get topP;
+  int? get topK;
+  double? get presencePenalty;
+  double? get frequencyPenalty;
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -69,13 +101,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     return [
       _createModel('gemini-2.5-flash'),
       _createModel('gemini-2.5-pro'),
+      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
     ];
   }
 
   @override
   Action? resolve(String actionType, String name) {
-    if (actionType != 'model') return null;
-    return _createModel(name);
+    if (actionType == 'model') return _createModel(name);
+    if (actionType == 'bidi-model') return _createBidiModel(name);
+    return null;
   }
 
   Model _createModel(String modelName) {
@@ -150,9 +184,129 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       },
     );
   }
-}
 
-// ... class definitions ...
+  BidiModel _createBidiModel(String modelName) {
+    return BidiModel(
+      name: 'firebaseai/$modelName',
+      fn: (stream, ctx) async {
+        final configMap = ctx.init?.config;
+        final tools = ctx.init?.tools?.map(toGeminiTool).toList();
+        final systemMessage =
+            ctx.init?.messages.where((m) => m.role == Role.system).firstOrNull;
+        final systemInstruction = systemMessage != null
+            ? m.Content(
+                'system', systemMessage.content.map(toGeminiPart).toList())
+            : null;
+
+        final liveConfig = m.LiveGenerationConfig(
+          responseModalities:
+              (configMap?['responseModalities'] as List?)?.map((e) {
+            return m.ResponseModalities.values
+                .byName((e as String).toLowerCase());
+          }).toList(),
+          speechConfig: configMap?['speechConfig'] != null
+              ? m.SpeechConfig(
+                  voiceName: (((configMap!['speechConfig']
+                          as Map)['voiceConfig'] as Map)['prebuiltVoiceConfig']
+                      as Map)['voiceName'] as String,
+                )
+              : null,
+          maxOutputTokens: configMap?['maxOutputTokens'] as int?,
+          temperature: (configMap?['temperature'] as num?)?.toDouble(),
+          topP: (configMap?['topP'] as num?)?.toDouble(),
+          topK: configMap?['topK'] as int?,
+          presencePenalty: (configMap?['presencePenalty'] as num?)?.toDouble(),
+          frequencyPenalty:
+              (configMap?['frequencyPenalty'] as num?)?.toDouble(),
+        );
+
+        final instance = m.FirebaseAI.googleAI();
+        final model = instance.liveGenerativeModel(
+          model: modelName,
+          liveGenerationConfig: liveConfig,
+          tools: tools,
+          systemInstruction: systemInstruction,
+        );
+
+        _logger
+            .info('Connecting to model: $modelName with config: $liveConfig');
+        if (liveConfig.responseModalities != null) {
+          _logger.info(
+              'Modalities: ${liveConfig.responseModalities!.map((e) => e.name).toList()}');
+        }
+        var session = await model.connect();
+        _logger.info('Connected to model: $modelName');
+
+        // Send initial history
+        final initialMessages =
+            ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
+                [];
+        for (final msg in initialMessages) {
+          await _sendToSession(session, msg);
+        }
+
+        final sub = ctx.inputStream!.listen((chunk) async {
+          for (final msg in chunk.messages) {
+            await _sendToSession(session, msg);
+          }
+        }, onError: (e) {
+          _logger.severe('InputStream error', e);
+        }, onDone: () {
+          _logger.info('InputStream done');
+          session.close();
+        });
+
+        final receiveFuture = () async {
+          try {
+            await for (final event in session.receive()) {
+              _logger.fine('Session receive loop: $event');
+              final chunk = _fromGeminiLiveEvent(event);
+              if (chunk != null) ctx.sendChunk(chunk);
+            }
+            _logger.fine('Session receive loop finished naturally');
+          } catch (e, s) {
+            _logger.warning('Error in Live session receive loop', e, s);
+          }
+        }();
+
+        await receiveFuture;
+        await sub.cancel();
+        _logger.fine('Closing session');
+        session.close();
+        // Session closed in receiveFuture usually, but ensure it here?
+        // Actually session.close() is called on inputStream done.
+        // If receive loop finishes, we might want to stop input stream?
+        // Usually Bidi sessions end when input ends OR model ends.
+
+        return ModelResponse.from(finishReason: FinishReason.stop);
+      },
+    );
+  }
+
+  Future<void> _sendToSession(m.LiveSession session, Message msg) async {
+    _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
+
+    final contentParts = msg.content.map((p) => toGeminiPart(p)).toList();
+
+    for (final part in contentParts) {
+      try {
+        if (part is m.InlineDataPart) {
+          // TODO: Check mimeType for video vs audio
+          await session.sendAudioRealtime(part);
+        } else if (part is m.FunctionResponse) {
+          await session.sendToolResponse([part]);
+        } else {
+          // Fallback for others
+          await session.send(
+              input: m.Content(msg.role.value, [part]), turnComplete: true);
+        }
+      } catch (e) {
+        _logger.severe('Error sending part: $part', e);
+        rethrow;
+      }
+    }
+  }
+}
 
 @visibleForTesting
 Iterable<m.Content> toGeminiContent(List<Message> messages) {
@@ -170,21 +324,38 @@ m.Part toGeminiPart(Part p) {
     p as TextPart;
     return m.TextPart(p.text);
   }
+  if (p.isMedia) {
+    p as MediaPart;
+    final media = p.media;
+    if (media.url.startsWith('data:')) {
+      final uri = Uri.parse(media.url);
+      if (uri.data != null) {
+        return m.InlineDataPart(
+          media.contentType ?? 'application/octet-stream',
+          uri.data!.contentAsBytes(),
+        );
+      }
+    }
+    // Assume HTTP/S or other URLs are File URIs
+    return m.FileData(
+      media.contentType ?? 'application/octet-stream',
+      media.url,
+    );
+  }
   if (p.isToolResponse) {
     p as ToolResponsePart;
-    // Firebase AI expects a FunctionResponse part.
     return m.FunctionResponse(
       p.toolResponse.name,
       {'result': p.toolResponse.output},
+      id: p.toolResponse.ref,
     );
   }
-  // ToolRequest is usually handled by the model response, not sent by user.
-  // But if we are sending history (context), we might need to send ToolRequests (function calls) made by assistant.
   if (p.isToolRequest) {
     p as ToolRequestPart;
     return m.FunctionCall(
       p.toolRequest.name,
       p.toolRequest.input ?? {},
+      id: p.toolRequest.ref,
     );
   }
   throw UnimplementedError('Part type $p not supported yet');
@@ -201,6 +372,7 @@ m.Part toGeminiPart(Part p) {
 }
 
 @visibleForTesting
+@visibleForTesting
 Part fromGeminiPart(m.Part p) {
   if (p is m.TextPart) {
     return TextPart.from(text: p.text);
@@ -213,7 +385,32 @@ Part fromGeminiPart(m.Part p) {
       ),
     );
   }
+  if (p is m.InlineDataPart) {
+    final base64 = base64Encode(p.bytes);
+    return MediaPart.from(
+        media: Media.from(
+      url: 'data:${p.mimeType};base64,$base64',
+      contentType: p.mimeType,
+    ));
+  }
   throw UnimplementedError('Part type $p not supported yet in response');
+}
+
+ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
+  final liveParts = event.message is m.LiveServerContent
+      ? (event.message as m.LiveServerContent).modelTurn?.parts
+      : event.message is m.LiveServerToolCall
+          ? (event.message as m.LiveServerToolCall).functionCalls
+              as List<m.Part>
+          : null;
+  if (liveParts == null) return null;
+  // We only care about content updates for now
+  final parts = liveParts.map(fromGeminiPart).toList();
+
+  return ModelResponseChunk.from(
+    index: 0,
+    content: parts,
+  );
 }
 
 @visibleForTesting
