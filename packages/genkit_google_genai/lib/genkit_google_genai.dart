@@ -18,6 +18,7 @@ import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dar
     as gcl;
 import 'package:genkit/genkit.dart';
 import 'package:google_cloud_protobuf/protobuf.dart' as pb;
+import 'package:meta/meta.dart';
 
 part 'genkit_google_genai.schema.g.dart';
 
@@ -73,7 +74,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
           final response = await service.generateContent(
             gcl.GenerateContentRequest(
               model: 'models/$modelName',
-              contents: _toGeminiContent(req!.messages),
+              contents: toGeminiContent(req!.messages),
               tools: req.tools?.map(_toGeminiTool).toList() ?? [],
             ),
           );
@@ -93,12 +94,13 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
   }
 }
 
-List<gcl.Content> _toGeminiContent(List<Message> messages) {
+@visibleForTesting
+List<gcl.Content> toGeminiContent(List<Message> messages) {
   return messages
       .map(
         (m) => gcl.Content(
           role: m.role.value,
-          parts: m.content.map(_toGeminiPart).toList(),
+          parts: m.content.map(toGeminiPart).toList(),
         ),
       )
       .toList();
@@ -113,7 +115,8 @@ List<gcl.Content> _toGeminiContent(List<Message> messages) {
   return (message, finishReason);
 }
 
-gcl.Part _toGeminiPart(Part p) {
+@visibleForTesting
+gcl.Part toGeminiPart(Part p) {
   if (p.isText) {
     p as TextPart;
     return gcl.Part(text: p.text);
@@ -135,6 +138,28 @@ gcl.Part _toGeminiPart(Part p) {
       functionResponse: gcl.FunctionResponse(
         name: p.toolResponse.name,
         response: pb.Struct.fromJson({'output': p.toolResponse.output}),
+      ),
+    );
+  }
+  if (p.isMedia) {
+    p as MediaPart;
+    final media = p.media;
+    if (media.url.startsWith('data:')) {
+      final uri = Uri.parse(media.url);
+      if (uri.data != null) {
+        return gcl.Part(
+          inlineData: gcl.Blob(
+            mimeType: media.contentType ?? 'application/octet-stream',
+            data: uri.data!.contentAsBytes(),
+          ),
+        );
+      }
+    }
+    // Assume HTTP/S or other URLs are File URIs
+    return gcl.Part(
+      fileData: gcl.FileData(
+        mimeType: media.contentType ?? 'application/octet-stream',
+        fileUri: media.url,
       ),
     );
   }

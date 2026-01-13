@@ -190,30 +190,6 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             print('Sending message: $msg');
             final contentParts = msg.content
                 .map((p) {
-                  if (p.isMedia) {
-                    final media = (p as MediaPart).media;
-                    if (media.url.startsWith('data:')) {
-                      final uri = Uri.parse(media.url);
-                      // Handle data URI
-                      if (uri.data != null) {
-                        return m.InlineDataPart(
-                          media.contentType ?? 'application/octet-stream',
-                          uri.data!.contentAsBytes(),
-                        );
-                      }
-                    }
-                  }
-                  if (p.isData) {
-                    final dataPart = p as DataPart;
-                    if (dataPart.data != null &&
-                        dataPart.data!.containsKey('mimeType') &&
-                        dataPart.data!.containsKey('bytes')) {
-                      return m.InlineDataPart(
-                        dataPart.data!['mimeType'] as String,
-                        dataPart.data!['bytes'] as Uint8List,
-                      );
-                    }
-                  }
                   try {
                     return toGeminiPart(p);
                   } catch (e) {
@@ -267,6 +243,24 @@ m.Part toGeminiPart(Part p) {
   if (p.isText) {
     p as TextPart;
     return m.TextPart(p.text);
+  }
+  if (p.isMedia) {
+    p as MediaPart;
+    final media = p.media;
+    if (media.url.startsWith('data:')) {
+      final uri = Uri.parse(media.url);
+      if (uri.data != null) {
+        return m.InlineDataPart(
+          media.contentType ?? 'application/octet-stream',
+          uri.data!.contentAsBytes(),
+        );
+      }
+    }
+    // Assume HTTP/S or other URLs are File URIs
+    return m.FileData(
+      media.contentType ?? 'application/octet-stream',
+      media.url,
+    );
   }
   if (p.isToolResponse) {
     p as ToolResponsePart;
