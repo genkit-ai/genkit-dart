@@ -1,7 +1,6 @@
 # Genkit Dart
 
 [![Pub](https://img.shields.io/pub/v/genkit.svg)](https://pub.dev/packages/genkit)
-[![Dart SDK](https://img.shields.io/badge/Dart-SDK-blue.svg)](https://github.com/firebase/genkit/tree/main/dart)
 
 **AI SDK for Dart • LLM Framework • AI Agent Toolkit**
 
