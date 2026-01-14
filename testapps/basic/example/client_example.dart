@@ -37,11 +37,12 @@ void printServerInstructions() {
 Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
   final echoStringFlow = defineRemoteAction(
+    name: 'echoString',
     url: '$baseUrl/echoString',
     inputType: StringType,
     outputType: StringType,
   );
-  final response = await echoStringFlow(input: 'Hello Genkit client for Dart!');
+  final response = await echoStringFlow('Hello Genkit client for Dart!');
   print('Response: $response');
 }
 
@@ -49,12 +50,13 @@ Future<void> _runStringFlow() async {
 Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
   final throwy = defineRemoteAction(
+    name: 'throwy',
     url: '$baseUrl/throwy',
     inputType: StringType,
     outputType: StringType,
   );
   try {
-    await throwy(input: 'Hello Genkit client for Dart!');
+    await throwy('Hello Genkit client for Dart!');
   } on GenkitException catch (e) {
     if (e.underlyingException is http.ClientException) {
       print('Client error: ${e.underlyingException}');
@@ -69,13 +71,14 @@ Future<void> _runThrowingFlow() async {
 Future<void> _runThrowingStreamingFlow() async {
   print('\n--- Streaming Flow error handling ---');
   final streamyThrowy = defineRemoteAction(
+    name: 'streamyThrowy',
     url: '$baseUrl/streamyThrowy',
     inputType: IntType,
     outputType: StringType,
     streamType: StreamyThrowyChunkType,
   );
   try {
-    final stream = streamyThrowy.stream(input: 5);
+    final stream = streamyThrowy.stream(5);
     await for (final chunk in stream) {
       print('Chunk: ${chunk.count}');
     }
@@ -95,12 +98,13 @@ Future<void> _runThrowingStreamingFlow() async {
 Future<void> _runObjectFlow() async {
   print('\n--- Object to Object flow ---');
   final processObjectFlow = defineRemoteAction(
+    name: 'processObject',
     url: '$baseUrl/processObject',
     inputType: ProcessObjectInputType,
     outputType: ProcessObjectOutputType,
   );
   final response = await processObjectFlow(
-    input: ProcessObjectInput.from(message: 'Hello Genkit!', count: 20),
+    ProcessObjectInput.from(message: 'Hello Genkit!', count: 20),
   );
   print('Response: ${response.reply}');
 }
@@ -109,13 +113,14 @@ Future<void> _runObjectFlow() async {
 Future<void> _runStreamingFlow() async {
   print('\n--- Stream Objects ---');
   final streamObjectsFlow = defineRemoteAction(
+    name: 'streamObjects',
     url: '$baseUrl/streamObjects',
     inputType: StreamObjectsInputType,
     outputType: StreamObjectsOutputType,
     streamType: StreamObjectsOutputType,
   );
   final stream = streamObjectsFlow.stream(
-    input: StreamObjectsInput.from(prompt: 'What is Genkit?'),
+    StreamObjectsInput.from(prompt: 'What is Genkit?'),
   );
 
   print('Streaming chunks:');
@@ -131,13 +136,14 @@ Future<void> _runStreamingFlow() async {
 Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
+    name: 'generate',
     url: '$baseUrl/generate',
     inputType: ModelRequestType,
     outputType: ModelResponseType,
     streamType: ModelResponseChunkType,
   );
   final stream = generateFlow.stream(
-    input: ModelRequest.from(
+    ModelRequest.from(
       messages: [
         Message.from(
           role: Role.user,
@@ -171,15 +177,16 @@ Future<void> _runPerformanceExample() async {
   try {
     print('\n--- Manual Client Management for Performance ---');
     final echoAction = defineRemoteAction(
+      name: 'echoStringPerf', // Different name just to be safe/clear
       url: '$baseUrl/echoString',
       httpClient: client,
       inputType: StringType,
       outputType: StringType,
     );
 
-    final r1 = await echoAction(input: 'First call');
+    final r1 = await echoAction('First call');
     print('First response: $r1');
-    final r2 = await echoAction(input: 'Second call');
+    final r2 = await echoAction('Second call');
     print('Second response: $r2');
   } finally {
     print('\nClosing HTTP client.');

@@ -25,20 +25,28 @@ import 'schemas/stream_schemas.dart';
 
 void main() {
   late MockClient mockClient;
-  late RemoteAction<String, String> stringStreamAction;
-  late RemoteAction<Map<String, dynamic>, TestStreamChunk> objectStreamAction;
+  late RemoteAction<String, String, String, void> stringStreamAction;
+  late RemoteAction<
+    Map<String, dynamic>,
+    Map<String, dynamic>,
+    TestStreamChunk,
+    void
+  >
+  objectStreamAction;
 
   setUp(() {
     mockClient = MockClient();
 
-    stringStreamAction = RemoteAction<String, String>(
+    stringStreamAction = RemoteAction(
+      name: 'stringStreamAction',
       url: 'http://localhost:3400/string-stream',
       httpClient: mockClient,
       fromResponse: (data) => data as String,
       fromStreamChunk: (data) => data['chunk'] as String,
     );
 
-    objectStreamAction = RemoteAction<Map<String, dynamic>, TestStreamChunk>(
+    objectStreamAction = RemoteAction(
+      name: 'objectStreamAction',
       url: 'http://localhost:3400/object-stream',
       httpClient: mockClient,
       fromResponse: (data) => data as Map<String, dynamic>,
@@ -66,7 +74,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: input);
+      final stream = stringStreamAction.stream(input);
       final chunks = <String>[];
 
       await for (final chunk in stream) {
@@ -99,7 +107,7 @@ void main() {
         );
       });
 
-      final stream = objectStreamAction.stream(input: input);
+      final stream = objectStreamAction.stream(input);
       final chunks = <TestStreamChunk>[];
 
       await for (final chunk in stream) {
@@ -126,7 +134,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
 
       await expectLater(
         stream.toList(),
@@ -161,7 +169,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
 
       await expectLater(
         stream.toList(),
@@ -187,7 +195,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
 
       await expectLater(
         () async => {
@@ -215,7 +223,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
 
       await expectLater(
         stream.toList(),
@@ -255,7 +263,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
       final receivedChunks = <String>[];
 
       stream.listen((chunk) {
@@ -295,7 +303,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
 
       final subscription = stream.listen(
         (_) {},
@@ -348,7 +356,7 @@ void main() {
       });
 
       await stringStreamAction
-          .stream(input: 'test', headers: customHeaders)
+          .stream('test', context: {'headers': customHeaders})
           .toList();
 
       final captured =
@@ -368,7 +376,7 @@ void main() {
           headers: {'content-type': 'text/event-stream'},
         );
       });
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
       expect(
         () => stream.result,
         throwsA(
@@ -393,7 +401,7 @@ void main() {
           );
         });
 
-        final stream = stringStreamAction.stream(input: 'test');
+        final stream = stringStreamAction.stream('test');
 
         // Call onResult *before* the stream is done
         final futureResult = stream.onResult;
@@ -417,7 +425,7 @@ void main() {
         );
       });
 
-      final stream = stringStreamAction.stream(input: 'test');
+      final stream = stringStreamAction.stream('test');
       await stream.drain(); // Ensure stream is done
 
       // Call onResult *after* the stream is done

@@ -164,6 +164,7 @@ Future<O?> streamFlow<O, S>({
 ///   - `S`: The type of the data chunks streamed from the flow.
 ///
 /// Parameters:
+///   - `name`: A name for this action, used for observability and logging.
 ///   - `url`: The absolute URL of the Genkit flow.
 ///   - `defaultHeaders`: Optional default HTTP headers to be sent with every request.
 ///   - `httpClient`: Optional `http.Client` instance. If not provided, a new one
@@ -178,7 +179,8 @@ Future<O?> streamFlow<O, S>({
 ///                        provided, chunks are `dynamic` objects from `jsonDecode`.
 ///
 /// Returns a [RemoteAction<O, S>] instance.
-RemoteAction<I, O, S> defineRemoteAction<I, O, S>({
+RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
+  required String name,
   required String url,
   Map<String, String>? defaultHeaders,
   http.Client? httpClient,
@@ -199,7 +201,8 @@ RemoteAction<I, O, S> defineRemoteAction<I, O, S>({
     );
   }
 
-  return RemoteAction<I, O, S>(
+  return RemoteAction<I, O, S, Init>(
+    name: name,
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
@@ -209,6 +212,9 @@ RemoteAction<I, O, S> defineRemoteAction<I, O, S>({
     fromStreamChunk:
         fromStreamChunk ??
         (streamType != null ? (d) => streamType.parse(d) : (d) => d as S),
+    inputType: inputType,
+    outputType: outputType,
+    streamType: streamType,
   );
 }
 
@@ -224,7 +230,7 @@ RemoteAction<I, O, S> defineRemoteAction<I, O, S>({
 ///          or the type of the final response from a streaming flow.
 ///   - `S`: The type of the data chunks streamed from the flow.
 /// {@endtemplate}
-class RemoteAction<I, O, S> {
+class RemoteAction<I, O, S, Init> extends Action<I, O, S, Init> {
   final String _url;
   final Map<String, String>? _defaultHeaders;
   final http.Client _httpClient;
@@ -234,25 +240,42 @@ class RemoteAction<I, O, S> {
 
   /// {@macro remote_action}
   RemoteAction({
+    required super.name,
     required String url,
     Map<String, String>? defaultHeaders,
     http.Client? httpClient,
     required O Function(dynamic jsonData) fromResponse,
     required S Function(dynamic jsonData) fromStreamChunk,
+    super.inputType,
+    super.outputType,
+    super.streamType,
+    super.actionType = 'flow',
   }) : _url = url,
        _defaultHeaders = defaultHeaders,
        _httpClient = httpClient ?? http.Client(),
        _ownsHttpClient = httpClient == null,
        _fromResponse = fromResponse,
-       _fromStreamChunk = fromStreamChunk;
+       _fromStreamChunk = fromStreamChunk,
+       super(fn: (_, __) => throw UnimplementedError());
 
-  /// Invokes the remote flow.
-  Future<O> call({required I input, Map<String, String>? headers}) async {
+  @override
+  InternalActionFn<I, O, S, Init> get fn => _execute;
+
+  Future<O> _execute(I? input, ActionFnArg<S, I, Init> context) {
+    if (context.streamingRequested) {
+      return _streamExecute(input, context);
+    } else {
+      return _callExecute(input, context);
+    }
+  }
+
+  Future<O> _callExecute(I? input, ActionFnArg<S, I, Init> context) async {
     final uri = Uri.parse(_url);
     final requestHeaders = {
       'Content-Type': 'application/json',
       ...?_defaultHeaders,
-      ...?headers,
+      if (context.context != null && context.context!.containsKey('headers'))
+        ...context.context!['headers'] as Map<String, String>,
     };
     final requestBody = jsonEncode({'data': input});
 
@@ -310,65 +333,55 @@ class RemoteAction<I, O, S> {
     return _fromResponse(decodedBody);
   }
 
-  /// Invokes the remote flow and streams its response.
-  ActionStream<S, O> stream({
-    required I input,
-    Map<String, String>? headers,
-  }) {
+  Future<O> _streamExecute(I? input, ActionFnArg<S, I, Init> context) async {
     final fromStreamChunk = _fromStreamChunk;
     if (fromStreamChunk == null) {
-      final error = GenkitException(
+      throw GenkitException(
         'fromStreamChunk must be provided for streaming operations.',
       );
-      final stream = Stream<S>.error(error);
-      final actionStream = ActionStream<S, O>(stream);
-      actionStream.setError(error, StackTrace.current);
-      return actionStream;
     }
 
-    StreamSubscription? subscription;
-    final streamController = StreamController<S>();
+    final completer = Completer<O>();
 
-    final actionStream = ActionStream<S, O>(streamController.stream);
-
-    streamFlow<O, S>(
-      url: _url,
-      fromResponse: _fromResponse,
-      fromStreamChunk: _fromStreamChunk,
-      headers: {
-        if (_defaultHeaders != null) ..._defaultHeaders,
-        if (headers != null) ...headers,
-      },
-      onChunk: (chunk) {
-        if (streamController.isClosed) return;
-        streamController.add(chunk);
-      },
-      onSubscription: (sub) => subscription = sub,
-      setCancelCallback: (cancelCallback) {
-        streamController.onCancel = () {
-          cancelCallback();
-          subscription?.cancel();
-        };
-      },
-      input: input,
-      httpClient: _httpClient,
-    ).then(
-      (d) {
-        actionStream.setResult(d as O);
-        if (!streamController.isClosed) {
-          streamController.close();
-        }
-      },
-      onError: (error, st) {
-        actionStream.setError(error, st);
-        if (!streamController.isClosed) {
-          streamController.addError(error, st);
-          streamController.close();
-        }
-      },
-    );
-
-    return actionStream;
+    try {
+      await streamFlow<O, S>(
+            url: _url,
+            fromResponse: _fromResponse,
+            fromStreamChunk: fromStreamChunk,
+            headers: {
+              if (_defaultHeaders != null) ..._defaultHeaders,
+              if (context.context != null &&
+                  context.context!.containsKey('headers'))
+                ...context.context!['headers'] as Map<String, String>,
+            },
+            onChunk: (chunk) {
+              context.sendChunk(chunk);
+            },
+            onSubscription: (sub) => sub,
+            setCancelCallback: (cancelCallback) {
+              if (context.onCancel != null) {
+                context.onCancel!(cancelCallback);
+              }
+            },
+            input: input,
+            httpClient: _httpClient,
+          )
+          .then((result) {
+            if (!completer.isCompleted) {
+              completer.complete(result as O);
+            }
+          })
+          .catchError((e, s) {
+            if (!completer.isCompleted) {
+              completer.completeError(e, s);
+            }
+          });
+    } catch (e, s) {
+      if (!completer.isCompleted) {
+        completer.completeError(e, s);
+      }
+    }
+    return completer.future;
   }
 
   /// Disposes of the underlying HTTP client if it was created by this [RemoteAction].
