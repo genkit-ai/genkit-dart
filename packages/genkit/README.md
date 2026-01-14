@@ -1,20 +1,196 @@
-# Dart client library for Genkit
+# Genkit Dart
 
-This library provides a Dart client for interacting with Genkit flows, enabling type-safe communication for both unary and streaming operations.
+**AI SDK for Dart • LLM Framework • AI Agent Toolkit**
 
-## Getting Started
+Build production-ready AI-powered applications in Dart with a unified interface for text generation, structured output, tool calling, and agentic workflows.
 
-Import the library and define your remote actions.
+[Documentation](https://genkit.dev) • [API Reference](https://pub.dev/packages/genkit) • [Discord](https://discord.gg/qXt5zzQKpc)
+
+---
+
+## Installation
+
+```bash
+dart pub add genkit
+# For usage with Google AI (Gemini):
+dart pub add genkit_google_genai
+```
+
+## Quick Start (Framework)
+
+Get up and running in under a minute:
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
+
+void main() async {
+  final ai = Genkit(plugins: [googleAI()]);
+
+  final response = await ai.generate(
+    model: googleAI.gemini('gemini-2.5-flash'),
+    prompt: 'Why is Dart a great language for AI applications?',
+  );
+
+  print(response.text);
+}
+```
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+dart run main.dart
+```
+
+---
+
+## Features
+
+Genkit Dart gives you everything you need to build AI applications with confidence.
+
+### Generate Text
+
+Call any model with a simple, unified API:
+
+```dart
+final response = await ai.generate(
+  model: googleAI.gemini('gemini-2.5-flash'),
+  prompt: 'Explain quantum computing in simple terms.',
+);
+print(response.text);
+```
+
+### Stream Responses
+
+Stream text as it's generated for responsive user experiences:
+
+```dart
+final stream = ai.generateStream(
+  model: googleAI.gemini('gemini-2.5-flash'),
+  prompt: 'Write a short story about a robot learning to paint.',
+);
+
+await for (final chunk in stream) {
+  print(chunk.text);
+}
+```
+
+### Define Tools
+
+Give models the ability to take actions and access external data:
+
+```dart
+// Define schemas for tool input
+@GenkitSchema()
+abstract class WeatherInput {
+  String get location;
+}
+
+// ... run build_runner to generate WeatherInputType ...
+
+final weatherTool = ai.defineTool(
+  name: 'getWeather',
+  description: 'Gets the current weather for a location',
+  inputType: WeatherInputType,
+  fn: (input, _) async {
+    // Call your weather API here
+    return 'Weather in ${input.location}: 72°F and sunny';
+  },
+);
+
+final response = await ai.generate(
+  model: googleAI.gemini('gemini-2.5-flash'),
+  prompt: 'What\'s the weather like in San Francisco?',
+  tools: ['getWeather'],
+);
+print(response.text);
+```
+
+### Define Flows
+
+Wrap your AI logic in flows for better observability, testing, and deployment:
+
+```dart
+final jokeFlow = ai.defineFlow(
+  name: 'tellJoke',
+  inputType: StringType,
+  outputType: StringType,
+  fn: (topic, _) async {
+    final response = await ai.generate(
+      model: googleAI.gemini('gemini-2.5-flash'),
+      prompt: 'Tell me a joke about $topic',
+    );
+    return response.text;
+  },
+);
+
+final joke = await jokeFlow('programming');
+print(joke);
+```
+
+### Streaming Flows
+
+Stream data from your flows using `context.sendChunk`:
+
+```dart
+final streamStory = ai.defineFlow(
+  name: 'streamStory',
+  inputType: StringType,
+  outputType: StringType,
+  streamType: StringType,
+  fn: (topic, context) async {
+    final stream = ai.generateStream(
+      model: googleAI.gemini('gemini-2.5-flash'),
+      prompt: 'Write a story about $topic',
+    );
+
+    await for (final chunk in stream) {
+      context.sendChunk(chunk.text);
+    }
+    return 'Story complete';
+  },
+);
+```
+
+---
+
+## Development Tools
+
+### Genkit CLI
+
+Use the Genkit CLI to run your app with tracing and a local development UI:
+
+```bash
+curl -sL cli.genkit.dev | bash
+genkit start -- dart run main.dart
+```
+
+### Developer UI
+
+The local developer UI lets you:
+
+- **Test flows** with different inputs interactively
+- **Inspect traces** to debug complex multi-step operations
+- **View traces** of your generative AI applications
+
+---
+
+## Client SDK
+
+This package also provides a Dart client for interacting with remote Genkit flows, enabling type-safe communication for both unary and streaming operations.
+
+### Getting Started
+
+Import the client library and define your remote actions.
 
 ```dart
 import 'package:genkit/client.dart';
 ```
 
-## Defining remote actions
+### Defining Remote Actions
 
 Remote actions represent a remote Genkit action (like flows, models and prompts) that can be invoked or streamed.
 
-### Creating a remote action
+#### Creating a remote action
 
 ```dart
 // Create a remote action for a flow that takes a String and returns a String
@@ -37,9 +213,9 @@ final dynamicAction = defineRemoteAction(
 
 The code assumes that you have `my-flow` and `custom-flow` deployed at those URLs. See https://genkit.dev/docs/deploy-node/ or https://genkit.dev/go/docs/deploy/ for details.
 
-## Calling actions
+### Calling Actions
 
-### Example: String to String
+#### Example: String to String
 
 ```dart
 final action = defineRemoteAction(
@@ -55,7 +231,7 @@ try {
 }
 ```
 
-### Example: Custom Object Input and Output
+#### Example: Custom Object Input and Output
 
 ```dart
 class MyInput {
@@ -97,14 +273,14 @@ try {
 }
 ```
 
-## Calling Streaming Flows
+### Calling Streaming Flows
 
 Use the `stream` method for flows that stream multiple chunks of data and then return a final response. It returns an `ActionStream`, which is a `Stream` of chunks and also provides two ways to access the final result of the flow:
 
 - `onResult`: A `Future` that completes with the final result when the stream is fully consumed. This is the recommended way to get the final result, as it works naturally with `async/await`. If the stream is cancelled or encounters an error, this `Future` will complete with a `GenkitException`.
 - `result`: A synchronous getter that returns the final result. This should only be accessed *after* the stream has been fully consumed. It will throw an exception if the stream is not yet done or if it terminated with an error.
 
-### Example 1: Using `onResult` (Recommended)
+#### Example 1: Using `onResult` (Recommended)
 
 This example shows how to asynchronously wait for the final result after consuming the stream.
 
@@ -133,7 +309,7 @@ try {
 }
 ```
 
-### Example 2: Using `result`
+#### Example 2: Using `result`
 
 If you have already consumed the stream (e.g., with `await for`), you can use the synchronous `result` getter.
 
@@ -145,7 +321,7 @@ If you have already consumed the stream (e.g., with `await for`), you can use th
   print('\nFinal Response: $finalResult');
 ```
 
-### Example: Custom Object Streaming
+#### Example: Custom Object Streaming
 
 ```dart
 class StreamChunk {
@@ -181,7 +357,7 @@ try {
 }
 ```
 
-## Custom Headers
+### Custom Headers
 
 You can provide custom headers for individual requests:
 
@@ -208,7 +384,7 @@ final action = defineRemoteAction(
 );
 ```
 
-## Error Handling
+### Error Handling
 
 The library throws `GenkitException` for various error conditions:
 
@@ -224,19 +400,19 @@ try {
 }
 ```
 
-## Type Parameters
+### Type Parameters
 
 - `O`: The type of the output data from the flow's final response
 - `S`: The type of the data chunks streamed from the flow (use `void` for non-streaming flows)
 
-## Data Conversion Functions
+### Data Conversion Functions
 
 - `fromResponse`: (Optional) Converts the JSON response data to your output type `O`. If not provided, the result will be a `dynamic` object decoded from JSON.
 - `fromStreamChunk`: (Optional) Converts JSON chunk data to your stream chunk type `S`. If not provided, chunks will be `dynamic` objects decoded from JSON.
 
 Make sure your custom classes have appropriate `toJson()` and `fromJson()` methods for serialization and deserialization.
 
-## Working with Genkit Data Objects
+### Working with Genkit Data Objects
 
 When interacting with Genkit models, you'll often work with a set of standardized data classes that represent the inputs and outputs of generative models. This library provides these classes to make it easy to construct requests and handle responses in a type-safe way.
 
@@ -245,15 +421,15 @@ Key data classes include:
 - `GenerateResponseChunk`: A streaming chunk from a model generation call.
 - `Message`: Represents a message in a conversation, containing a `role` (e.g., `user`, `model`) and `content`.
 - `Part`: The content of a message is made up of one or more `Part` objects. Common parts include:
-  - `TextPart`: For text content.
-  - `MediaPart`: For media content like images.
-  - `ToolRequestPart`: A request from the model to invoke a tool.
-  - `ToolResponsePart`: The response from a tool invocation.
-  - `DataPart`, `CustomPart`, `ReasoningPart`, `ResourcePart`: For other specialized data.
+- `TextPart`: For text content.
+- `MediaPart`: For media content like images.
+- `ToolRequestPart`: A request from the model to invoke a tool.
+- `ToolResponsePart`: The response from a tool invocation.
+- `DataPart`, `CustomPart`, `ReasoningPart`, `ResourcePart`: For other specialized data.
 
 These classes include helpful getters like `.text` to easily extract string content and `.media` to get the first media object from responses and messages.
 
-### Example: Streaming with Genkit Data Objects
+#### Example: Streaming with Genkit Data Objects
 
 Here is an example of how to call a generative model and process the streaming response using the built-in data classes. See `example/client_example.dart` for a runnable version.
 
@@ -282,3 +458,7 @@ final finalResult = await stream.onResult;
 // The .text getter also works on the final response
 print('Final Response: ${finalResult.text}');
 ```
+
+---
+
+Built by [Google](https://firebase.google.com/) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors)
