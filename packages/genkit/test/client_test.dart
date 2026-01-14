@@ -29,11 +29,11 @@ import 'client_test.mocks.dart';
 
 void main() {
   late MockClient mockClient;
-  late RemoteAction<String, String> remoteAction;
+  late RemoteAction<String, String, String, void> testAction;
 
   setUp(() {
     mockClient = MockClient();
-    remoteAction = RemoteAction<String, String>(
+    testAction = RemoteAction(
       url: 'http://localhost:3400/test',
       httpClient: mockClient,
       fromResponse: (data) => data as String,
@@ -58,7 +58,7 @@ void main() {
               http.Response(jsonEncode({'result': expectedOutput}), 200),
         );
 
-        final result = await remoteAction(input: input);
+        final result = await testAction(input: input);
         expect(result, expectedOutput);
       });
 
@@ -76,7 +76,7 @@ void main() {
           (_) async => http.Response(jsonEncode({'result': 'success'}), 200),
         );
 
-        await remoteAction(input: input, headers: customHeaders);
+        await testAction(input: input, headers: customHeaders);
 
         verify(
           mockClient.post(
@@ -109,7 +109,7 @@ void main() {
           );
         });
 
-        final stream = remoteAction.stream(input: input);
+        final stream = testAction.stream(input: input);
         final chunks = <String>[];
 
         await for (final chunk in stream) {
@@ -135,7 +135,7 @@ void main() {
       ).thenAnswer((_) async => http.Response('Server Error', 500));
 
       expect(
-        () => remoteAction(input: 'test'),
+        () => testAction(input: 'test'),
         throwsA(
           isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
         ),
@@ -152,7 +152,7 @@ void main() {
       ).thenAnswer((_) async => http.Response('invalid json', 200));
 
       expect(
-        () => remoteAction(input: 'test'),
+        () => testAction(input: 'test'),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -173,7 +173,7 @@ void main() {
       ).thenThrow(Exception('Network error'));
 
       expect(
-        () => remoteAction(input: 'test'),
+        () => testAction(input: 'test'),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -198,7 +198,7 @@ void main() {
       ).thenAnswer((_) async => http.Response(jsonEncode(errorResponse), 200));
 
       expect(
-        () => remoteAction(input: 'test'),
+        () => testAction(input: 'test'),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -212,7 +212,8 @@ void main() {
 
   group('RemoteAction - Type Safety', () {
     test('should handle typed objects', () async {
-      final typedAction = RemoteAction<MyOutput, TestStreamChunk>(
+      final typedAction =
+          RemoteAction<MyInput, MyOutput, TestStreamChunk, void>(
         url: 'http://localhost:3400/typed',
         httpClient: mockClient,
         fromResponse: (data) => MyOutput.fromJson(data as Map<String, dynamic>),
@@ -234,7 +235,7 @@ void main() {
             http.Response(jsonEncode({'result': expectedOutput.toJson()}), 200),
       );
 
-      final result = await typedAction(input: input.toJson());
+      final result = await typedAction(input: input);
 
       expect(result.reply, expectedOutput.reply);
       expect(result.newCount, expectedOutput.newCount);
@@ -243,29 +244,31 @@ void main() {
 
   group('defineRemoteAction helper function', () {
     test('should create RemoteAction instance', () {
-      final action = defineRemoteAction<String, String>(
+      final action = defineRemoteAction(
         url: 'http://localhost:3400/helper',
+        inputType: StringType,
         fromResponse: (data) => data as String,
       );
 
-      expect(action, isA<RemoteAction<String, String>>());
+      expect(action, isA<RemoteAction<dynamic, String, dynamic, dynamic>>());
     });
 
     test('should set default headers', () {
       final defaultHeaders = {'X-API-Key': 'test-key'};
 
-      final action = defineRemoteAction<String, String>(
+      final action = defineRemoteAction(
         url: 'http://localhost:3400/helper',
         fromResponse: (data) => data as String,
         defaultHeaders: defaultHeaders,
       );
 
-      expect(action, isA<RemoteAction<String, String>>());
+      expect(action, isA<RemoteAction<dynamic, String, dynamic, dynamic>>());
     });
 
     test('should work with JsonExtensionType', () async {
-      final action = defineRemoteAction<String, String>(
+      final action = defineRemoteAction(
         url: 'http://localhost:3400/test',
+        inputType: StringType,
         httpClient: mockClient,
         outputType: StringType,
       );
@@ -285,9 +288,10 @@ void main() {
     });
 
     test('should work with JsonExtensionType for streaming', () async {
-      final action = defineRemoteAction<String, String>(
+      final action = defineRemoteAction(
         url: 'http://localhost:3400/stream',
         httpClient: mockClient,
+        inputType: StringType,
         outputType: StringType,
         streamType: StringType,
       );
@@ -316,7 +320,7 @@ void main() {
 
     test('should validate mutually exclusive options', () {
       expect(
-        () => defineRemoteAction<String, String>(
+        () => defineRemoteAction(
           url: 'http://localhost:3400/test',
           fromResponse: (d) => d as String,
           outputType: StringType,
@@ -325,7 +329,7 @@ void main() {
       );
 
       expect(
-        () => defineRemoteAction<String, String>(
+        () => defineRemoteAction(
           url: 'http://localhost:3400/test',
           fromResponse: (d) => d as String,
           fromStreamChunk: (d) => d as String,
