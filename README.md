@@ -11,7 +11,6 @@
 
 <p align="center">
   <a href="https://pub.dev/packages/genkit"><img src="https://img.shields.io/pub/v/genkit.svg" alt="Pub"></a>
-  <a href="https://github.com/firebase/genkit/tree/main/dart"><img src="https://img.shields.io/badge/Dart-SDK-blue.svg" alt="Dart SDK"></a>
 </p>
 
 <p align="center">
@@ -19,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="https://firebase.google.com/docs/genkit">Documentation</a> &bull;
+  <a href="https://genkit.dev">Documentation</a> &bull;
   <a href="https://pub.dev/packages/genkit">API Reference</a> &bull;
   <a href="https://discord.gg/qXt5zzQKpc">Discord</a>
 </p>
@@ -170,25 +169,6 @@ final streamStory = ai.defineFlow(
 
 ---
 
-## Model Providers
-
-Genkit provides a unified interface across all major AI providers.
-
-| Provider | Plugin | Models |
-|----------|--------|--------|
-| **Google AI** | `genkit_google_genai` | Gemini 2.5 Flash, Gemini 2.5 Pro, and more |
-| **Vertex AI** | `genkit_vertex_ai` | (Coming Soon) Gemini models via Google Cloud |
-| **Ollama** | `genkit_ollama` | (Coming Soon) Llama, Mistral, and other open models |
-
-```dart
-final ai = Genkit(plugins: [
-  googleAI(),
-  // firebaseAI(),
-]);
-```
-
----
-
 ## Development Tools
 
 ### Genkit CLI
@@ -196,7 +176,7 @@ final ai = Genkit(plugins: [
 Use the Genkit CLI to run your app with tracing and a local development UI:
 
 ```bash
-npm install -g genkit-cli
+curl -sL cli.genkit.dev | bash
 genkit start -- dart run main.dart
 ```
 
@@ -211,5 +191,5 @@ The local developer UI lets you:
 ---
 
 <p align="center">
-  Built by <a href="https://firebase.google.com/">Google</a> with contributions from the <a href="https://github.com/firebase/genkit/graphs/contributors">Open Source Community</a>
+  Built by Google with contributions from the <a href="https://github.com/genkit-ai/genkit-dart/graphs/contributors">Open Source Community</a>
 </p>
