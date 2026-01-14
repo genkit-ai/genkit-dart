@@ -139,10 +139,12 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
         controller.close();
       });
 
-      return Response.ok(
-        controller.stream,
-        headers: {'Content-Type': 'text/plain', 'Cache-Control': 'no-cache'},
-      );
+      return Response.ok(controller.stream, headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'no-cache',
+      }, context: {
+        'shelf.io.buffer_output': false,
+      });
     } else {
       try {
         final result = await action.run(input, context: context);
