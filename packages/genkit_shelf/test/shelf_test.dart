@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
+import 'package:http/http.dart' as http;
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
@@ -57,11 +58,12 @@ void main() {
     port = server!.port;
 
     final action = defineRemoteAction(
+      name: 'echoAction',
       url: 'http://localhost:$port/echo',
       fromResponse: (data) => data as String,
     );
 
-    final result = await action(input: 'hello');
+    final result = await action('hello');
     expect(result, 'Echo: hello');
   });
 
@@ -83,12 +85,13 @@ void main() {
     port = server!.port;
 
     final action = defineRemoteAction(
+      name: 'streamAction',
       url: 'http://localhost:$port/stream',
       fromResponse: (data) => data as String,
       fromStreamChunk: (data) => data as String,
     );
 
-    final stream = action.stream(input: 'start');
+    final stream = action.stream('start');
     final chunks = <String>[];
     await for (final chunk in stream) {
       chunks.add(chunk);
@@ -125,22 +128,24 @@ void main() {
     port = server!.port;
 
     final action = defineRemoteAction(
+      name: 'authAction',
       url: 'http://localhost:$port/auth',
       fromResponse: (data) => data as String,
       defaultHeaders: {'Authorization': 'Bearer token'},
     );
 
-    final result = await action(input: 'hi');
+    final result = await action('hi');
     expect(result, 'Hello Admin');
 
     // Fail case
     final actionFail = defineRemoteAction(
+      name: 'authFailAction',
       url: 'http://localhost:$port/auth',
       fromResponse: (data) => data as String,
     );
 
     try {
-      await actionFail(input: 'hi');
+      await actionFail('hi');
       fail('Should have thrown');
     } catch (e) {
       // Expected
@@ -184,11 +189,12 @@ void main() {
     port = server!.port;
 
     final action = defineRemoteAction(
+      name: 'echoTypeAction',
       url: 'http://localhost:$port/echoType',
       outputType: StringType,
     );
 
-    final result = await action(input: 'typed');
+    final result = await action('typed');
     expect(result, 'Echo: typed');
   });
 
@@ -210,12 +216,13 @@ void main() {
     port = server!.port;
 
     final action = defineRemoteAction(
+      name: 'complexStreamAction',
       url: 'http://localhost:$port/complexStream',
       outputType: ShelfTestOutputType,
       streamType: ShelfTestStreamType,
     );
 
-    final stream = action.stream(input: 'start');
+    final stream = action.stream('start');
     final chunks = <ShelfTestStream>[];
     await for (final chunk in stream) {
       chunks.add(chunk);
@@ -228,5 +235,63 @@ void main() {
     expect(chunks[1].chunk, 'chunk2');
 
     expect(result.greeting, 'done');
+  });
+
+  test('Streaming flow headers and timing', () async {
+    final streamFlow = ai.defineFlow(
+      name: 'streamHeaders',
+      fn: (input, ctx) async {
+        ctx.sendChunk('Chunk 1');
+        await Future.delayed(const Duration(milliseconds: 100));
+        ctx.sendChunk('Chunk 2');
+        return 'Done';
+      },
+      inputType: StringType,
+      outputType: StringType,
+      streamType: StringType,
+    );
+
+    server = await startFlowServer(flows: [streamFlow], port: 0);
+    port = server!.port;
+
+    final client = http.Client();
+    final request = http.Request(
+      'POST',
+      Uri.parse('http://localhost:$port/streamHeaders?stream=true'),
+    );
+    request.headers['Content-Type'] = 'application/json';
+    request.body = '{"data": "start"}';
+
+    final response = await client.send(request);
+
+    final chunks = <int>[];
+    final start = DateTime.now();
+    await response.stream.listen((chunk) {
+      chunks.add(DateTime.now().difference(start).inMilliseconds);
+    }).asFuture();
+
+    // First chunk should be fast, next should be after ~100ms
+    // We expect at least some delay between chunks if streaming works.
+    // If buffering, all chunks might arrive at same time > 100ms.
+    // Actually, response.stream gives bytes.
+    // Let's decode to ensure we get distinctive data chunks.
+    // But raw byte chunks arrival time is enough.
+
+    // If buffered, we likely get one big chunk after 100ms.
+    // If streaming, we get one chunk immediately (or very fast), then another.
+
+    expect(chunks.length, greaterThanOrEqualTo(2),
+        reason: 'Should receive multiple chunks');
+    expect(chunks.last, greaterThan(80),
+        reason: 'Total time should be around 100ms');
+    // If buffering happened, chunks.first would probably be ~100ms too (depending on implementation).
+    // Better check:
+    // If we receive multiple chunks, and the first one is fast (< 50ms) and last is slow (> 80ms), then we streamed.
+    // If we receive only 1 chunk, or all chunks > 80ms, then we buffered.
+
+    // Note: shelf might send headers immediately, then body.
+    // checking first chunk time.
+    expect(chunks.first, lessThan(80),
+        reason: 'First chunk should arrive quickly');
   });
 }
