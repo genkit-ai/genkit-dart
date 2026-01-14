@@ -3,6 +3,7 @@ description: A type-safe Dart client library for calling Google Genkit flows wit
 resolution: workspace
 version: 0.10.0-dev.1
 repository: https://github.com/genkit-ai/genkit-dart
+license: Apache-2.0
 
 environment:
   sdk: ^3.8.0
