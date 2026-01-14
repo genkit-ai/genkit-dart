@@ -256,7 +256,7 @@ class RemoteAction<I, O, S, Init> extends Action<I, O, S, Init> {
        _ownsHttpClient = httpClient == null,
        _fromResponse = fromResponse,
        _fromStreamChunk = fromStreamChunk,
-       super(fn: (_, __) => throw UnimplementedError());
+       super(fn: (_, _) => throw UnimplementedError());
 
   @override
   InternalActionFn<I, O, S, Init> get fn => _execute;
