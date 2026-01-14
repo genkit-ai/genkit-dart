@@ -1,9 +1,8 @@
-## 0.10.0-wip
+## 0.10.0-dev.1
 
-- Require `sdk: ^3.10.0`
-- Require `google_cloud_ai_generativelanguage_v1beta: ^0.4.0`
-- Require `google_cloud_protobuf: ^0.4.0`
-- Require `meta: ^1.16.0`
+- Initial release of Genkit Dart framework.
+- **BREAKING CHANGE**: `RemoteAction` has 2 extra generic type parameters `I` and `Init` for the input and init types. 
+- feat: defineRemoteAction now accepts inputType, outputType and streamType parameters using genkit schema builder types.
 
 ## 0.9.0
 
