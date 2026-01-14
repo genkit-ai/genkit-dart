@@ -4,7 +4,7 @@
     <img alt="Genkit logo" src="./docs/resources/genkit-logo.png" width="400">
   </picture>
   <br>
-  <strong>Genkit Dart</strong>
+  <strong>Genkit Dart (Preview)</strong>
   <br>
   <em>AI SDK for Dart &bull; LLM Framework &bull; AI Agent Toolkit</em>
 </p>
