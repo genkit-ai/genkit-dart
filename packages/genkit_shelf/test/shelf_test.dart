@@ -57,12 +57,13 @@ void main() {
     server = await startFlowServer(flows: [echoFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
+      name: 'echoAction',
       url: 'http://localhost:$port/echo',
       fromResponse: (data) => data as String,
     );
 
-    final result = await action(input: 'hello');
+    final result = await action('hello');
     expect(result, 'Echo: hello');
   });
 
@@ -83,13 +84,14 @@ void main() {
     server = await startFlowServer(flows: [streamFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
+      name: 'streamAction',
       url: 'http://localhost:$port/stream',
       fromResponse: (data) => data as String,
       fromStreamChunk: (data) => data as String,
     );
 
-    final stream = action.stream(input: 'start');
+    final stream = action.stream('start');
     final chunks = <String>[];
     await for (final chunk in stream) {
       chunks.add(chunk);
@@ -125,23 +127,25 @@ void main() {
     server = await startFlowServer(flows: [flowWithContext], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
+      name: 'authAction',
       url: 'http://localhost:$port/auth',
       fromResponse: (data) => data as String,
       defaultHeaders: {'Authorization': 'Bearer token'},
     );
 
-    final result = await action(input: 'hi');
+    final result = await action('hi');
     expect(result, 'Hello Admin');
 
     // Fail case
-    final actionFail = defineRemoteAction(
+    final actionFail = remoteAction(
+      name: 'authFailAction',
       url: 'http://localhost:$port/auth',
       fromResponse: (data) => data as String,
     );
 
     try {
-      await actionFail(input: 'hi');
+      await actionFail('hi');
       fail('Should have thrown');
     } catch (e) {
       // Expected
@@ -184,12 +188,13 @@ void main() {
     server = await startFlowServer(flows: [echoFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
+      name: 'echoTypeAction',
       url: 'http://localhost:$port/echoType',
       outputType: StringType,
     );
 
-    final result = await action(input: 'typed');
+    final result = await action('typed');
     expect(result, 'Echo: typed');
   });
 
@@ -210,13 +215,14 @@ void main() {
     server = await startFlowServer(flows: [complexStreamFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
+      name: 'complexStreamAction',
       url: 'http://localhost:$port/complexStream',
       outputType: ShelfTestOutputType,
       streamType: ShelfTestStreamType,
     );
 
-    final stream = action.stream(input: 'start');
+    final stream = action.stream('start');
     final chunks = <ShelfTestStream>[];
     await for (final chunk in stream) {
       chunks.add(chunk);

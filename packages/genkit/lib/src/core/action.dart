@@ -28,6 +28,7 @@ typedef ActionFnArg<S, I, Init> = ({
   Map<String, dynamic>? context,
   Stream<I>? inputStream,
   Init? init,
+  void Function(void Function() callback)? onCancel,
 });
 
 typedef ActionFn<I, O, S, Init> =
@@ -124,6 +125,7 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     Map<String, dynamic>? context,
     Stream<I>? inputStream,
     Init? init,
+    void Function(void Function() callback)? onCancel,
   }) async {
     if (inputStream == null) {
       final internalInputController = StreamController<I>();
@@ -149,6 +151,7 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
             context: executionContext,
             inputStream: inputStream,
             init: init,
+            onCancel: onCancel,
           ));
         },
         actionType: actionType,
@@ -170,7 +173,14 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     Stream<I>? inputStream,
     Init? init,
   }) {
-    final streamController = StreamController<S>();
+    void Function()? onCancelCallback;
+    final streamController = StreamController<S>(
+      onCancel: () {
+        if (onCancelCallback != null) {
+          onCancelCallback!();
+        }
+      },
+    );
     final actionStream = ActionStream<S, O>(streamController.stream);
 
     run(
@@ -183,6 +193,7 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
               streamController.add(chunk);
             }
           },
+          onCancel: (cb) => onCancelCallback = cb,
         )
         .then((result) {
           actionStream.setResult(result.result);

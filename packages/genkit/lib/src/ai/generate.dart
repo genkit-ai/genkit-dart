@@ -332,6 +332,7 @@ Future<GenerateResponse<O>> generateHelper<C, O>(
       context: context,
       inputStream: null,
       init: null,
+      onCancel: null,
     ),
   );
 }

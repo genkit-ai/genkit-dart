@@ -58,12 +58,14 @@ void main() async {
   final ai = Genkit();
 
   // Define remote actions for the client flow
-  final helloAction = defineRemoteAction(
+  final helloAction = remoteAction(
+    name: 'hello',
     url: 'http://localhost:3400/hello',
     outputType: HelloOutputType,
   );
 
-  final countAction = defineRemoteAction(
+  final countAction = remoteAction(
+    name: 'count',
     url: 'http://localhost:3400/count',
     streamType: CountChunkType,
     outputType: StringType,
@@ -117,9 +119,7 @@ void main() async {
 
       // Call 'hello' flow
       try {
-        final helloRes = await helloAction(
-          input: HelloInput.from(name: 'Client'),
-        );
+        final helloRes = await helloAction(HelloInput.from(name: 'Client'));
         results.add('Hello Flow: ${helloRes.greeting}');
       } catch (e) {
         results.add('Hello Flow Error: $e');
@@ -127,7 +127,7 @@ void main() async {
 
       // Call 'count' flow (streaming)
       try {
-        final stream = countAction.stream(input: 3);
+        final stream = countAction.stream(3);
         final chunks = <CountChunk>[];
         await for (final chunk in stream) {
           chunks.add(chunk);

@@ -51,7 +51,8 @@ void main() async {
   final ai = Genkit();
 
   // Define client action
-  final customAction = defineRemoteAction(
+  final customAction = remoteAction(
+    name: 'custom',
     url: 'http://localhost:8080/api/custom-flow',
     outputType: HandlerOutputType,
   );
@@ -71,7 +72,7 @@ void main() async {
     name: 'client',
     fn: (String input, _) async {
       final result = await customAction(
-        input: HandlerInput.from(message: 'Client via $input'),
+        HandlerInput.from(message: 'Client via $input'),
       );
       return result.processedMessage;
     },
