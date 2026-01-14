@@ -38,6 +38,7 @@ Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
   final echoStringFlow = defineRemoteAction(
     url: '$baseUrl/echoString',
+    inputType: StringType,
     outputType: StringType,
   );
   final response = await echoStringFlow(input: 'Hello Genkit client for Dart!');
@@ -49,6 +50,7 @@ Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
   final throwy = defineRemoteAction(
     url: '$baseUrl/throwy',
+    inputType: StringType,
     outputType: StringType,
   );
   try {
@@ -68,6 +70,7 @@ Future<void> _runThrowingStreamingFlow() async {
   print('\n--- Streaming Flow error handling ---');
   final streamyThrowy = defineRemoteAction(
     url: '$baseUrl/streamyThrowy',
+    inputType: IntType,
     outputType: StringType,
     streamType: StreamyThrowyChunkType,
   );
@@ -93,6 +96,7 @@ Future<void> _runObjectFlow() async {
   print('\n--- Object to Object flow ---');
   final processObjectFlow = defineRemoteAction(
     url: '$baseUrl/processObject',
+    inputType: ProcessObjectInputType,
     outputType: ProcessObjectOutputType,
   );
   final response = await processObjectFlow(
@@ -106,6 +110,7 @@ Future<void> _runStreamingFlow() async {
   print('\n--- Stream Objects ---');
   final streamObjectsFlow = defineRemoteAction(
     url: '$baseUrl/streamObjects',
+    inputType: StreamObjectsInputType,
     outputType: StreamObjectsOutputType,
     streamType: StreamObjectsOutputType,
   );
@@ -127,6 +132,7 @@ Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
     url: '$baseUrl/generate',
+    inputType: ModelRequestType,
     outputType: ModelResponseType,
     streamType: ModelResponseChunkType,
   );
@@ -167,6 +173,7 @@ Future<void> _runPerformanceExample() async {
     final echoAction = defineRemoteAction(
       url: '$baseUrl/echoString',
       httpClient: client,
+      inputType: StringType,
       outputType: StringType,
     );
 
