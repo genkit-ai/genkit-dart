@@ -57,7 +57,7 @@ void main() {
     server = await startFlowServer(flows: [echoFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
       name: 'echoAction',
       url: 'http://localhost:$port/echo',
       fromResponse: (data) => data as String,
@@ -84,7 +84,7 @@ void main() {
     server = await startFlowServer(flows: [streamFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
       name: 'streamAction',
       url: 'http://localhost:$port/stream',
       fromResponse: (data) => data as String,
@@ -127,7 +127,7 @@ void main() {
     server = await startFlowServer(flows: [flowWithContext], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
       name: 'authAction',
       url: 'http://localhost:$port/auth',
       fromResponse: (data) => data as String,
@@ -138,7 +138,7 @@ void main() {
     expect(result, 'Hello Admin');
 
     // Fail case
-    final actionFail = defineRemoteAction(
+    final actionFail = remoteAction(
       name: 'authFailAction',
       url: 'http://localhost:$port/auth',
       fromResponse: (data) => data as String,
@@ -188,7 +188,7 @@ void main() {
     server = await startFlowServer(flows: [echoFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
       name: 'echoTypeAction',
       url: 'http://localhost:$port/echoType',
       outputType: StringType,
@@ -215,7 +215,7 @@ void main() {
     server = await startFlowServer(flows: [complexStreamFlow], port: 0);
     port = server!.port;
 
-    final action = defineRemoteAction(
+    final action = remoteAction(
       name: 'complexStreamAction',
       url: 'http://localhost:$port/complexStream',
       outputType: ShelfTestOutputType,

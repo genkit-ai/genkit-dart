@@ -58,13 +58,13 @@ void main() async {
   final ai = Genkit();
 
   // Define remote actions for the client flow
-  final helloAction = defineRemoteAction(
+  final helloAction = remoteAction(
     name: 'hello',
     url: 'http://localhost:3400/hello',
     outputType: HelloOutputType,
   );
 
-  final countAction = defineRemoteAction(
+  final countAction = remoteAction(
     name: 'count',
     url: 'http://localhost:3400/count',
     streamType: CountChunkType,

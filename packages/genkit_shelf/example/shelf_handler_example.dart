@@ -51,7 +51,7 @@ void main() async {
   final ai = Genkit();
 
   // Define client action
-  final customAction = defineRemoteAction(
+  final customAction = remoteAction(
     name: 'custom',
     url: 'http://localhost:8080/api/custom-flow',
     outputType: HandlerOutputType,

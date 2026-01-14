@@ -159,9 +159,11 @@ Future<O?> streamFlow<O, S>({
 /// a flow client by allowing direct specification of data conversion functions.
 ///
 /// Type parameters:
+///   - `I`: The type of the input data for the flow.
 ///   - `O`: The type of the output data from a non-streaming flow invocation,
 ///          or the type of the final response from a streaming flow.
 ///   - `S`: The type of the data chunks streamed from the flow.
+///   - `Init`: The type of the initial data for the flow.
 ///
 /// Parameters:
 ///   - `name`: A name for this action, used for observability and logging.
@@ -179,7 +181,7 @@ Future<O?> streamFlow<O, S>({
 ///                        provided, chunks are `dynamic` objects from `jsonDecode`.
 ///
 /// Returns a [RemoteAction<O, S>] instance.
-RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
+RemoteAction<I, O, S, Init> remoteAction<I, O, S, Init>({
   required String name,
   required String url,
   Map<String, String>? defaultHeaders,
@@ -221,14 +223,16 @@ RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
 /// {@template remote_action}
 /// Represents a remote Genkit action (flow) that can be invoked or streamed.
 ///
-/// This class is typically instantiated via [defineRemoteAction].
+/// This class is typically instantiated via [remoteAction].
 /// It encapsulates the URL, default headers, HTTP client, and data conversion logic
 /// for a specific flow.
 ///
 /// Type parameters:
+///   - `I`: The type of the input data for the flow.
 ///   - `O`: The type of the output data from a non-streaming flow invocation,
 ///          or the type of the final response from a streaming flow.
 ///   - `S`: The type of the data chunks streamed from the flow.
+///   - `Init`: The type of the initial data for the flow.
 /// {@endtemplate}
 class RemoteAction<I, O, S, Init> extends Action<I, O, S, Init> {
   final String _url;

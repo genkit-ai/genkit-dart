@@ -36,7 +36,7 @@ void printServerInstructions() {
 
 Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
-  final echoStringFlow = defineRemoteAction(
+  final echoStringFlow = remoteAction(
     name: 'echoString',
     url: '$baseUrl/echoString',
     inputType: StringType,
@@ -49,7 +49,7 @@ Future<void> _runStringFlow() async {
 // Error handling when calling remote flows.
 Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
-  final throwy = defineRemoteAction(
+  final throwy = remoteAction(
     name: 'throwy',
     url: '$baseUrl/throwy',
     inputType: StringType,
@@ -70,7 +70,7 @@ Future<void> _runThrowingFlow() async {
 // Error handling when calling remote flows.
 Future<void> _runThrowingStreamingFlow() async {
   print('\n--- Streaming Flow error handling ---');
-  final streamyThrowy = defineRemoteAction(
+  final streamyThrowy = remoteAction(
     name: 'streamyThrowy',
     url: '$baseUrl/streamyThrowy',
     inputType: IntType,
@@ -97,7 +97,7 @@ Future<void> _runThrowingStreamingFlow() async {
 // A flow that takes an object and returns an object.
 Future<void> _runObjectFlow() async {
   print('\n--- Object to Object flow ---');
-  final processObjectFlow = defineRemoteAction(
+  final processObjectFlow = remoteAction(
     name: 'processObject',
     url: '$baseUrl/processObject',
     inputType: ProcessObjectInputType,
@@ -112,7 +112,7 @@ Future<void> _runObjectFlow() async {
 // A streaming flow.
 Future<void> _runStreamingFlow() async {
   print('\n--- Stream Objects ---');
-  final streamObjectsFlow = defineRemoteAction(
+  final streamObjectsFlow = remoteAction(
     name: 'streamObjects',
     url: '$baseUrl/streamObjects',
     inputType: StreamObjectsInputType,
@@ -135,7 +135,7 @@ Future<void> _runStreamingFlow() async {
 // --- Stream generate call ---
 Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
-  final generateFlow = defineRemoteAction(
+  final generateFlow = remoteAction(
     name: 'generate',
     url: '$baseUrl/generate',
     inputType: ModelRequestType,
@@ -176,7 +176,7 @@ Future<void> _runPerformanceExample() async {
   final client = http.Client();
   try {
     print('\n--- Manual Client Management for Performance ---');
-    final echoAction = defineRemoteAction(
+    final echoAction = remoteAction(
       name: 'echoStringPerf', // Different name just to be safe/clear
       url: '$baseUrl/echoString',
       httpClient: client,
