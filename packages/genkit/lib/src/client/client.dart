@@ -274,8 +274,8 @@ class RemoteAction<I, O, S, Init> extends Action<I, O, S, Init> {
     final requestHeaders = {
       'Content-Type': 'application/json',
       ...?_defaultHeaders,
-      if (context.context != null && context.context!.containsKey('headers'))
-        ...context.context!['headers'] as Map<String, String>,
+      if (context.context?['headers'] is Map<String, String>)
+        ...(context.context?['headers'] as Map<String, String>),
     };
     final requestBody = jsonEncode({'data': input});
 
