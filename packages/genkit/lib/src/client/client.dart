@@ -350,9 +350,8 @@ class RemoteAction<I, O, S, Init> extends Action<I, O, S, Init> {
             fromStreamChunk: fromStreamChunk,
             headers: {
               if (_defaultHeaders != null) ..._defaultHeaders,
-              if (context.context != null &&
-                  context.context!.containsKey('headers'))
-                ...context.context!['headers'] as Map<String, String>,
+              if (context.context?['headers'] is Map<String, String>)
+                ...(context.context?['headers'] as Map<String, String>),
             },
             onChunk: (chunk) {
               context.sendChunk(chunk);
