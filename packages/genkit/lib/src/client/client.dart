@@ -178,12 +178,13 @@ Future<O?> streamFlow<O, S>({
 ///                        provided, chunks are `dynamic` objects from `jsonDecode`.
 ///
 /// Returns a [RemoteAction<O, S>] instance.
-RemoteAction<O, S> defineRemoteAction<O, S>({
+RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
   required String url,
   Map<String, String>? defaultHeaders,
   http.Client? httpClient,
   O Function(dynamic jsonData)? fromResponse,
   S Function(dynamic jsonData)? fromStreamChunk,
+  JsonExtensionType<I>? inputType,
   JsonExtensionType<O>? outputType,
   JsonExtensionType<S>? streamType,
 }) {
@@ -198,7 +199,7 @@ RemoteAction<O, S> defineRemoteAction<O, S>({
     );
   }
 
-  return RemoteAction<O, S>(
+  return RemoteAction<I, O, S, Init>(
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
@@ -223,7 +224,7 @@ RemoteAction<O, S> defineRemoteAction<O, S>({
 ///          or the type of the final response from a streaming flow.
 ///   - `S`: The type of the data chunks streamed from the flow.
 /// {@endtemplate}
-class RemoteAction<O, S> {
+class RemoteAction<I, O, S, Init> {
   final String _url;
   final Map<String, String>? _defaultHeaders;
   final http.Client _httpClient;
@@ -246,7 +247,7 @@ class RemoteAction<O, S> {
        _fromStreamChunk = fromStreamChunk;
 
   /// Invokes the remote flow.
-  Future<O> call<I>({required I input, Map<String, String>? headers}) async {
+  Future<O> call({required I input, Map<String, String>? headers}) async {
     final uri = Uri.parse(_url);
     final requestHeaders = {
       'Content-Type': 'application/json',
@@ -310,7 +311,7 @@ class RemoteAction<O, S> {
   }
 
   /// Invokes the remote flow and streams its response.
-  ActionStream<S, O> stream<I>({
+  ActionStream<S, O> stream({
     required I input,
     Map<String, String>? headers,
   }) {

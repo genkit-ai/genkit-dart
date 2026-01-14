@@ -25,20 +25,32 @@ import 'schemas/stream_schemas.dart';
 
 void main() {
   late MockClient mockClient;
-  late RemoteAction<String, String> stringStreamAction;
-  late RemoteAction<Map<String, dynamic>, TestStreamChunk> objectStreamAction;
+  late RemoteAction<String, String, String, dynamic> stringStreamAction;
+  late RemoteAction<
+    Map<String, dynamic>,
+    Map<String, dynamic>,
+    TestStreamChunk,
+    dynamic
+  >
+  objectStreamAction;
 
   setUp(() {
     mockClient = MockClient();
 
-    stringStreamAction = RemoteAction<String, String>(
+    stringStreamAction = RemoteAction<String, String, String, dynamic>(
       url: 'http://localhost:3400/string-stream',
       httpClient: mockClient,
       fromResponse: (data) => data as String,
       fromStreamChunk: (data) => data['chunk'] as String,
     );
 
-    objectStreamAction = RemoteAction<Map<String, dynamic>, TestStreamChunk>(
+    objectStreamAction =
+        RemoteAction<
+          Map<String, dynamic>,
+          Map<String, dynamic>,
+          TestStreamChunk,
+          dynamic
+        >(
       url: 'http://localhost:3400/object-stream',
       httpClient: mockClient,
       fromResponse: (data) => data as Map<String, dynamic>,
