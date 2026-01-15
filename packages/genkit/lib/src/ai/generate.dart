@@ -46,10 +46,10 @@ ToolDefinition toToolDefinition(Tool tool) {
     name: tool.name,
     description: tool.description!,
     inputSchema: tool.inputType?.jsonSchema != null
-        ? tool.inputType?.jsonSchema as Map<String, dynamic>
+        ? tool.inputType?.jsonSchema() as Map<String, dynamic>
         : null,
     outputSchema: tool.outputType?.jsonSchema != null
-        ? tool.outputType?.jsonSchema as Map<String, dynamic>
+        ? tool.outputType?.jsonSchema() as Map<String, dynamic>
         : null,
   );
 }

@@ -53,7 +53,7 @@ extension type GeminiOptions(Map<String, dynamic> _json) {
   }
 }
 
-class GeminiOptionsTypeFactory implements JsonExtensionType<GeminiOptions> {
+class GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
   const GeminiOptionsTypeFactory();
 
   @override
@@ -62,15 +62,17 @@ class GeminiOptionsTypeFactory implements JsonExtensionType<GeminiOptions> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {
-        'maxOutputTokens': Schema.integer(),
-        'temperature': Schema.integer(),
-      },
-      required: ['maxOutputTokens', 'temperature'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'GeminiOptions',
+        definition: Schema.object(
+          properties: {
+            'maxOutputTokens': Schema.integer(),
+            'temperature': Schema.integer(),
+          },
+          required: ['maxOutputTokens', 'temperature'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names

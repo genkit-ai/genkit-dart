@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
-import 'package:genkit/schema.dart';
+import 'package:genkit/src/schema_extensions.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/generate.dart';
 import 'package:genkit/src/ai/model.dart';
@@ -28,6 +28,7 @@ import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/types.dart';
 import 'package:genkit/src/utils.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 export 'package:genkit/src/ai/tool.dart' show Tool;
 export 'package:genkit/src/o11y/otlp_http_exporter.dart'
@@ -39,7 +40,6 @@ export 'package:genkit/src/ai/model.dart'
     show Model, BidiModel, modelRef, ModelRef;
 export 'package:genkit/src/types.dart';
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
-export 'package:genkit/schema.dart';
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'
@@ -261,7 +261,7 @@ class Genkit {
       outputConfig = GenerateActionOutputConfig({
         if (outputFormat != null) 'format': outputFormat,
         if (outputSchema != null)
-          'jsonSchema': outputSchema.jsonSchema as Map<String, dynamic>,
+          'jsonSchema': outputSchema.jsonSchema() as Map<String, dynamic>,
         if (outputConstrained != null) 'constrained': outputConstrained,
         if (outputInstructions != null) 'instructions': outputInstructions,
         if (outputContentType != null) 'contentType': outputContentType,

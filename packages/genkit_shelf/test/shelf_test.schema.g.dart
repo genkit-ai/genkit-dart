@@ -39,7 +39,7 @@ extension type ShelfTestOutput(Map<String, dynamic> _json) {
   }
 }
 
-class ShelfTestOutputTypeFactory implements JsonExtensionType<ShelfTestOutput> {
+class ShelfTestOutputTypeFactory extends JsonExtensionType<ShelfTestOutput> {
   const ShelfTestOutputTypeFactory();
 
   @override
@@ -48,12 +48,14 @@ class ShelfTestOutputTypeFactory implements JsonExtensionType<ShelfTestOutput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'greeting': Schema.string()},
-      required: ['greeting'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'ShelfTestOutput',
+        definition: Schema.object(
+          properties: {'greeting': Schema.string()},
+          required: ['greeting'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names
@@ -77,7 +79,7 @@ extension type ShelfTestStream(Map<String, dynamic> _json) {
   }
 }
 
-class ShelfTestStreamTypeFactory implements JsonExtensionType<ShelfTestStream> {
+class ShelfTestStreamTypeFactory extends JsonExtensionType<ShelfTestStream> {
   const ShelfTestStreamTypeFactory();
 
   @override
@@ -86,12 +88,14 @@ class ShelfTestStreamTypeFactory implements JsonExtensionType<ShelfTestStream> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'chunk': Schema.string()},
-      required: ['chunk'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'ShelfTestStream',
+        definition: Schema.object(
+          properties: {'chunk': Schema.string()},
+          required: ['chunk'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names

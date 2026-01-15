@@ -39,7 +39,7 @@ extension type MyToolInput(Map<String, dynamic> _json) {
   }
 }
 
-class MyToolInputTypeFactory implements JsonExtensionType<MyToolInput> {
+class MyToolInputTypeFactory extends JsonExtensionType<MyToolInput> {
   const MyToolInputTypeFactory();
 
   @override
@@ -48,12 +48,14 @@ class MyToolInputTypeFactory implements JsonExtensionType<MyToolInput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MyToolInput',
+    definition: Schema.object(
       properties: {'location': Schema.string()},
       required: ['location'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

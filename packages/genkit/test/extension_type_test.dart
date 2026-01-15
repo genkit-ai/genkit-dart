@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/schema.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:test/test.dart';
 
 part 'extension_type_test.schema.g.dart';
@@ -114,7 +113,7 @@ void main() {
         required: ['title', 'ingredients', 'servings'],
       );
 
-      expect(RecipeType.jsonSchema.toJson(), expectedSchema.toJson());
+      expect(RecipeType.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Generates correct JSON schema for annotated fields', () {
@@ -137,12 +136,15 @@ void main() {
         required: ['title_key_in_json', 'ingredients', 'servings'],
       );
 
-      expect(AnnotatedRecipeType.jsonSchema.toJson(), expectedSchema.toJson());
+      expect(
+        AnnotatedRecipeType.jsonSchema().toJson(),
+        expectedSchema.toJson(),
+      );
     });
 
     test('Validates annotated schema correctly', () async {
       expect(
-        (await AnnotatedRecipeType.jsonSchema.validate({
+        (await AnnotatedRecipeType.jsonSchema().validate({
           'title_key_in_json': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -153,7 +155,7 @@ void main() {
       );
 
       expect(
-        (await AnnotatedRecipeType.jsonSchema.validate({
+        (await AnnotatedRecipeType.jsonSchema().validate({
           'title_key_in_json': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -163,7 +165,7 @@ void main() {
       );
 
       expect(
-        (await AnnotatedRecipeType.jsonSchema.validate({
+        (await AnnotatedRecipeType.jsonSchema().validate({
           'title': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -185,7 +187,7 @@ void main() {
         required: ['day', 'mealType'],
       );
 
-      expect(MealPlanType.jsonSchema.toJson(), expectedSchema.toJson());
+      expect(MealPlanType.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Generates correct JSON schema for nullable fields', () {
@@ -194,12 +196,12 @@ void main() {
           'optionalString': Schema.string(),
           'optionalInt': Schema.integer(),
           'optionalList': Schema.list(items: Schema.string()),
-          'optionalIngredient': IngredientType.jsonSchema,
+          'optionalIngredient': IngredientType.jsonSchema(),
         },
         required: [],
       );
 
-      expect(NullableFieldsType.jsonSchema.toJson(), expectedSchema.toJson());
+      expect(NullableFieldsType.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Parses and accesses nullable data correctly', () {
@@ -248,12 +250,12 @@ void main() {
           'price': Schema.number(),
           'metadata': Schema.object(additionalProperties: Schema.string()),
           'ratings': Schema.list(items: Schema.integer()),
-          'nestedNullable': NullableFieldsType.jsonSchema,
+          'nestedNullable': NullableFieldsType.jsonSchema(),
         },
         required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
       );
 
-      expect(ComplexObjectType.jsonSchema.toJson(), expectedSchema.toJson());
+      expect(ComplexObjectType.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Parses and accesses complex object data correctly', () {
@@ -295,7 +297,7 @@ void main() {
     test('Generates correct JSON schema for lists of complex objects', () {
       final expectedSchema = Schema.object(
         properties: {
-          'recipes': Schema.list(items: RecipeType.jsonSchema),
+          'recipes': Schema.list(items: RecipeType.jsonSchema()),
           'optionalIngredients': Schema.list(
             items: Schema.object(
               properties: {
@@ -309,7 +311,7 @@ void main() {
         required: ['recipes'],
       );
 
-      expect(MenuType.jsonSchema.toJson(), expectedSchema.toJson());
+      expect(MenuType.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Parses and accesses lists of complex objects correctly', () {

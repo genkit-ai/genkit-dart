@@ -52,7 +52,7 @@ melos:
 
     build-gen-testapps:
       run: |
-        melos exec --scope="basic-sample" -- dart run build_runner build
+        melos exec --scope="basic-sample,firebase_ai_testapp" -- dart run build_runner build
         dart run tools/apply_license.dart
       description: Run build_runner for testapps.
       

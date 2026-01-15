@@ -334,7 +334,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     return Class((b) {
       b
         ..name = '${baseName}TypeFactory'
-        ..implements.add(refer('JsonExtensionType<$baseName>'))
+        ..extend = refer('JsonExtensionType<$baseName>')
         ..constructors.add(Constructor((c) => c..constant = true));
 
       if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
@@ -349,8 +349,14 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         var parseBody =
             'final Map<String, dynamic> jsonMap = json as Map<String, dynamic>;';
         for (final subtype in subtypes) {
+          // This parse logic implies that we need to check validity.
+          // Note: validate() might need useRefs argument if it deals with refs?
+          // But validate() is on jsb.Schema, which doesn't take args.
+          // We assume validate() works on expanded schema or we use the non-ref one for validation?
+          // Actually, typical usage for validation is just checking structure.
+          // We should use the default schema (useRefs=false or flattened) for validation if possible.
           parseBody +=
-              'if (${subtype}Type.jsonSchema.validate(jsonMap)) { return $subtype(jsonMap); }';
+              'if (${subtype}Type.jsonSchema(useRefs: true).validate(jsonMap)) { return $subtype(jsonMap); }';
         }
         parseBody += 'throw Exception("Invalid JSON for $baseName");';
 
@@ -373,13 +379,40 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
           ..body = Code('return $baseName(json as Map<String, dynamic>);')));
       }
 
-      b.methods.add(_generateJsonSchemaGetter(element));
+      // Generate schemaMetadata
+      b.methods.add(_generateSchemaMetadataGetter(baseName, element));
     });
   }
 
-  Method _generateJsonSchemaGetter(ClassElement element) {
+  Method _generateSchemaMetadataGetter(String baseName, ClassElement element) {
+    // 1. Calculate properties for the "flat" definition.
+    // 2. Calculate dependencies.
+
     final properties = <String, Expression>{};
     final required = <String>[];
+    final dependencies = <Expression>{};
+
+    void addDependency(String typeName) {
+      if (typeName.endsWith('Schema')) {
+        final nestedBaseName = typeName.substring(0, typeName.length - 6);
+        dependencies.add(refer('${nestedBaseName}Type'));
+      }
+    }
+
+    void processType(DartType type) {
+      if (type.isDartCoreList) {
+        final itemType = (type as InterfaceType).typeArguments.first;
+        processType(itemType);
+      } else if (type.isDartCoreMap) {
+        final valueType = (type as InterfaceType).typeArguments[1];
+        processType(valueType);
+      } else {
+        final typeName = type.getDisplayString().replaceAll('?', '');
+        if (typeName.endsWith('Schema')) {
+          addDependency(typeName);
+        }
+      }
+    }
 
     for (final field in element.fields) {
       final getter = field.getter;
@@ -387,47 +420,67 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         final jsonFieldName = _getJsonKey(getter);
         final keyAnnotation =
             _keyChecker.firstAnnotationOf(getter, throwOnUnresolved: false);
+        // Note: _jsonSchemaForType is now called with `useRef: true` implicitly because we want
+        // the definition to contain refs to children, NOT inlined children when we successfully resolve them.
+        // Wait, current _jsonSchemaForType logic in strict inline mode (old Logic) would recurse.
+        // We want _jsonSchemaForType to output refs if it sees a GenkitSchema type.
         properties[jsonFieldName] =
-            _jsonSchemaForType(getter.returnType, keyAnnotation);
+            _jsonSchemaForType(getter.returnType, keyAnnotation, useRefs: true);
+
+        processType(getter.returnType);
+
         if (!getter.returnType.isNullable) {
           required.add(jsonFieldName);
         }
       }
     }
 
-    if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
-      final subtypes = element.interfaces.map((i) {
-        final interfaceName = i.getDisplayString().replaceAll('?', '');
-        if (interfaceName.endsWith('Schema')) {
-          return refer(
-              '${interfaceName.substring(0, interfaceName.length - 6)}Type.jsonSchema');
-        }
-        return null;
-      }).where((name) => name != null);
-      final schemaExpression =
-          refer('Schema.anyOf').call([literalList(subtypes)]);
-      return Method((b) => b
-        ..annotations.add(refer('override'))
-        ..type = MethodType.getter
-        ..name = 'jsonSchema'
-        ..returns = refer('Schema')
-        ..body = schemaExpression.returned.statement);
-    }
+    Expression definitionExpression;
 
-    final schemaExpression = refer('Schema.object').call([], {
-      'properties': literalMap(properties),
-      'required': literalList(required.map((r) => literalString(r))),
-    });
+    if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
+      final subtypes = element.interfaces
+          .map((i) {
+            final interfaceName = i.getDisplayString().replaceAll('?', '');
+            if (interfaceName.endsWith('Schema')) {
+              addDependency(interfaceName);
+              final nestedBaseName =
+                  interfaceName.substring(0, interfaceName.length - 6);
+              return refer('Schema.fromMap').call([
+                literalMap({
+                  literalString(r'\$ref'):
+                      CodeExpression(Code("r'#/\$defs/$nestedBaseName'"))
+                })
+              ]);
+            }
+            return null;
+          })
+          .where((name) => name != null)
+          .toList()
+          .cast<Expression>();
+
+      definitionExpression =
+          refer('Schema.anyOf').call([literalList(subtypes)]);
+    } else {
+      definitionExpression = refer('Schema.object').call([], {
+        'properties': literalMap(properties),
+        'required': literalList(required.map((r) => literalString(r))),
+      });
+    }
 
     return Method((b) => b
       ..annotations.add(refer('override'))
       ..type = MethodType.getter
-      ..name = 'jsonSchema'
-      ..returns = refer('Schema')
-      ..body = schemaExpression.returned.statement);
+      ..name = 'schemaMetadata'
+      ..returns = refer('JsonSchemaMetadata')
+      ..body = refer('JsonSchemaMetadata').call([], {
+        'name': literalString(baseName),
+        'definition': definitionExpression,
+        'dependencies': literalList(dependencies.toList()),
+      }).code);
   }
 
-  Expression _jsonSchemaForType(DartType type, DartObject? keyAnnotation) {
+  Expression _jsonSchemaForType(DartType type, DartObject? keyAnnotation,
+      {bool useRefs = false}) {
     final properties = <String, Expression>{};
     if (keyAnnotation != null) {
       final reader = ConstantReader(keyAnnotation);
@@ -456,11 +509,13 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       schemaExpression = refer('Schema.number').call([], properties);
     } else if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
-      properties['items'] = _jsonSchemaForType(itemType, null);
+      properties['items'] =
+          _jsonSchemaForType(itemType, null, useRefs: useRefs);
       schemaExpression = refer('Schema.list').call([], properties);
     } else if (type.isDartCoreMap) {
       final valueType = (type as InterfaceType).typeArguments[1];
-      properties['additionalProperties'] = _jsonSchemaForType(valueType, null);
+      properties['additionalProperties'] =
+          _jsonSchemaForType(valueType, null, useRefs: useRefs);
       schemaExpression = refer('Schema.object').call([], properties);
     } else {
       final typeName = type.getDisplayString().replaceAll('?', '');
@@ -469,11 +524,34 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         schemaExpression = refer('Schema.string').call([], properties);
       } else if (typeName.endsWith('Schema')) {
         final nestedBaseName = typeName.substring(0, typeName.length - 6);
-        schemaExpression = refer('${nestedBaseName}Type.jsonSchema');
+        // If we are building the "definition" for the metadata, we want to use refs for children.
+        // If we were building strict inline schema, we would call jsonSchema().
+        // BUT here we are only building schemaDefinition (which is used for metadata).
+        // So we should ALWAYS use refs here if it's a known GenkitSchema type.
+        // The old behavior "inline everything" is achieved by traversing schemaMetadata.
+
+        if (useRefs) {
+          schemaExpression = refer('Schema.fromMap').call([
+            literalMap({
+              literalString(r'\$ref'):
+                  CodeExpression(Code("r'#/\$defs/$nestedBaseName'"))
+            })
+          ]);
+        } else {
+          // Fallback for some reason? Actually, we should only be calling this for metadata generation now.
+          // But if we wanted to support "inline" generation inside here, we would call .jsonSchema() on the type.
+          // However, since we are generating code, we can't call .jsonSchema() at runtime here easily without emitting code.
+          // We can emit `${nestedBaseName}Type.jsonSchema()`.
+          schemaExpression = refer('${nestedBaseName}Type.jsonSchema').call([]);
+        }
+
         if (properties.isNotEmpty) {
+          // If there are extra properties (like description), we need to wrap the ref/schema.
+          // For a ref, we usually can't add properties directly effectively in all JSON Schema versions,
+          // but wrapping in allOf is safer.
           final mergedProperties = {
             ...properties,
-            'allOf': literalList([refer('${nestedBaseName}Type.jsonSchema')]),
+            'allOf': literalList([schemaExpression]),
           };
           return refer('Schema.object').call([], mergedProperties);
         }

@@ -14,9 +14,9 @@
 
 import 'dart:async';
 import 'package:genkit/client.dart';
-import 'package:genkit/schema.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/exception.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 const _genkitContextKey = #genkitContext;
 

@@ -40,7 +40,7 @@ extension type TestCustomOptions(Map<String, dynamic> _json) {
 }
 
 class TestCustomOptionsTypeFactory
-    implements JsonExtensionType<TestCustomOptions> {
+    extends JsonExtensionType<TestCustomOptions> {
   const TestCustomOptionsTypeFactory();
 
   @override
@@ -49,12 +49,14 @@ class TestCustomOptionsTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestCustomOptions',
+    definition: Schema.object(
       properties: {'customField': Schema.string()},
       required: ['customField'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

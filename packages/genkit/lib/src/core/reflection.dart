@@ -294,11 +294,11 @@ class ReflectionServer {
         'metadata': action.metadata,
         if (action.inputType != null)
           'inputSchema': jsonDecode(
-            _jsonSchemaWithDraft(action.inputType!.jsonSchema),
+            _jsonSchemaWithDraft(action.inputType!.jsonSchema()),
           ),
         if (action.outputType != null)
           'outputSchema': jsonDecode(
-            _jsonSchemaWithDraft(action.outputType!.jsonSchema),
+            _jsonSchemaWithDraft(action.outputType!.jsonSchema()),
           ),
       };
     }

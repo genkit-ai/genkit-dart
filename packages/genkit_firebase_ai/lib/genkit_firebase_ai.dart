@@ -14,6 +14,7 @@
 
 import 'dart:convert';
 
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:meta/meta.dart';
 import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:genkit/genkit.dart';
