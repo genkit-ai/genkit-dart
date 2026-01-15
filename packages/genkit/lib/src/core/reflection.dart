@@ -17,18 +17,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/utils.dart';
-import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:path/path.dart' as p;
 import 'registry.dart';
 
 const genkitVersion = '0.1.0';
 const genkitReflectionApiSpecVersion = '1';
-
-String _jsonSchemaWithDraft(jsb.Schema jsonSchema) {
-  final schemaMap = Map<String, Object?>.from(jsonSchema.value);
-  schemaMap['\$schema'] = 'http://json-schema.org/draft-07/schema#';
-  return jsonEncode(schemaMap);
-}
 
 class Status {
   final int code;

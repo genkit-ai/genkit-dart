@@ -17,7 +17,6 @@ import 'dart:convert';
 
 import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/utils.dart';
-import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'registry.dart';
