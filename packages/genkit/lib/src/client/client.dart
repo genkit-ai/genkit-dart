@@ -311,10 +311,7 @@ class RemoteAction<I, O, S, Init> {
   }
 
   /// Invokes the remote flow and streams its response.
-  ActionStream<S, O> stream({
-    required I input,
-    Map<String, String>? headers,
-  }) {
+  ActionStream<S, O> stream({required I input, Map<String, String>? headers}) {
     final fromStreamChunk = _fromStreamChunk;
     if (fromStreamChunk == null) {
       final error = GenkitException(

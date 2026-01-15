@@ -214,12 +214,13 @@ void main() {
     test('should handle typed objects', () async {
       final typedAction =
           RemoteAction<MyInput, MyOutput, TestStreamChunk, void>(
-        url: 'http://localhost:3400/typed',
-        httpClient: mockClient,
-        fromResponse: (data) => MyOutput.fromJson(data as Map<String, dynamic>),
-        fromStreamChunk: (data) =>
-            TestStreamChunk.fromJson(data as Map<String, dynamic>),
-      );
+            url: 'http://localhost:3400/typed',
+            httpClient: mockClient,
+            fromResponse: (data) =>
+                MyOutput.fromJson(data as Map<String, dynamic>),
+            fromStreamChunk: (data) =>
+                TestStreamChunk.fromJson(data as Map<String, dynamic>),
+          );
 
       final input = MyInput(message: 'test', count: 1);
       final expectedOutput = MyOutput(reply: 'processed', newCount: 2);
