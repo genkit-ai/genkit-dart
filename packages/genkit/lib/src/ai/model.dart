@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/src/core/action.dart';
+import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/types.dart';
 import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
@@ -55,7 +56,7 @@ class Model<C>
     metadata['model'] = <String, dynamic>{};
     metadata['model']['label'] = name;
     if (customOptions != null) {
-      metadata['model']['customOptions'] = customOptions!.jsonSchema() ?? {};
+      metadata['model']['customOptions'] = toJsonSchema(type: customOptions);
     }
   }
 }
@@ -104,7 +105,7 @@ class BidiModel<C>
     metadata['model'] = <String, dynamic>{};
     metadata['model']['label'] = name;
     if (customOptions != null) {
-      metadata['model']['customOptions'] = customOptions!.jsonSchema() ?? {};
+      metadata['model']['customOptions'] = toJsonSchema(type: customOptions);
     }
   }
 }

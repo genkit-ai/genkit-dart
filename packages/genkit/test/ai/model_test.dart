@@ -44,11 +44,17 @@ void main() {
       final metadata = model.metadata;
       expect(metadata['model']['customOptions'], isNotNull);
       expect(metadata['model']['customOptions'], {
-        'type': 'object',
-        'properties': {
-          'customField': {'type': 'string'},
+        r'$ref': r'#/$defs/TestCustomOptions',
+        r'$defs': {
+          'TestCustomOptions': {
+            'type': 'object',
+            'properties': {
+              'customField': {'type': 'string'},
+            },
+            'required': ['customField'],
+          },
         },
-        'required': ['customField'],
+        r'$schema': 'http://json-schema.org/draft-07/schema#',
       });
     });
   });

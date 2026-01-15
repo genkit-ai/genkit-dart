@@ -15,6 +15,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/utils.dart';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:path/path.dart' as p;
@@ -293,13 +294,9 @@ class ReflectionServer {
         'description': action.metadata['description'],
         'metadata': action.metadata,
         if (action.inputType != null)
-          'inputSchema': jsonDecode(
-            _jsonSchemaWithDraft(action.inputType!.jsonSchema()),
-          ),
+          'inputSchema': toJsonSchema(type: action.inputType),
         if (action.outputType != null)
-          'outputSchema': jsonDecode(
-            _jsonSchemaWithDraft(action.outputType!.jsonSchema()),
-          ),
+          'outputSchema': toJsonSchema(type: action.outputType),
       };
     }
     request.response

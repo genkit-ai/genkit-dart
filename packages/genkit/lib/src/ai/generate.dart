@@ -18,6 +18,7 @@ import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/extract.dart';
+import 'package:genkit/src/schema.dart';
 import 'package:logging/logging.dart';
 
 final _logger = Logger('genkit');
@@ -46,10 +47,10 @@ ToolDefinition toToolDefinition(Tool tool) {
     name: tool.name,
     description: tool.description!,
     inputSchema: tool.inputType?.jsonSchema != null
-        ? tool.inputType?.jsonSchema() as Map<String, dynamic>
+        ? toJsonSchema(type: tool.inputType)
         : null,
     outputSchema: tool.outputType?.jsonSchema != null
-        ? tool.outputType?.jsonSchema() as Map<String, dynamic>
+        ? toJsonSchema(type: tool.outputType)
         : null,
   );
 }

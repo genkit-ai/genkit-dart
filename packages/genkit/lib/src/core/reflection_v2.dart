@@ -15,6 +15,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/utils.dart';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -25,12 +26,6 @@ const genkitVersion = '0.9.0';
 const genkitReflectionApiSpecVersion = 2;
 
 int reflectionInstanceCount = 0;
-
-String _jsonSchemaWithDraft(jsb.Schema jsonSchema) {
-  final schemaMap = Map<String, Object?>.from(jsonSchema.value);
-  schemaMap['\$schema'] = 'http://json-schema.org/draft-07/schema#';
-  return jsonEncode(schemaMap);
-}
 
 class ReflectionServerV2 {
   final Registry registry;
@@ -181,17 +176,11 @@ class ReflectionServerV2 {
         'description': action.metadata['description'],
         'metadata': action.metadata,
         if (action.inputType != null)
-          'inputSchema': jsonDecode(
-            _jsonSchemaWithDraft(action.inputType!.jsonSchema()),
-          ),
+          'inputSchema': toJsonSchema(type: action.inputType),
         if (action.outputType != null)
-          'outputSchema': jsonDecode(
-            _jsonSchemaWithDraft(action.outputType!.jsonSchema()),
-          ),
+          'outputSchema': toJsonSchema(type: action.outputType),
         if (action.initType != null)
-          'initSchema': jsonDecode(
-            _jsonSchemaWithDraft(action.initType!.jsonSchema()),
-          ),
+          'initSchema': toJsonSchema(type: action.initType),
       };
     }
     _sendResponse(id, convertedActions);

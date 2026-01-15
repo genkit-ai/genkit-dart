@@ -25,6 +25,7 @@ import 'package:genkit/src/core/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/o11y/instrumentation.dart';
+import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/types.dart';
 import 'package:genkit/src/utils.dart';
 import 'package:genkit_schema_builder/genkit_schema_builder.dart';
@@ -260,7 +261,7 @@ class Genkit {
       outputConfig = GenerateActionOutputConfig({
         if (outputFormat != null) 'format': outputFormat,
         if (outputSchema != null)
-          'jsonSchema': outputSchema.jsonSchema() as Map<String, dynamic>,
+          'jsonSchema': toJsonSchema(type: outputSchema),
         if (outputConstrained != null) 'constrained': outputConstrained,
         if (outputInstructions != null) 'instructions': outputInstructions,
         if (outputContentType != null) 'contentType': outputContentType,
