@@ -51,8 +51,9 @@ abstract class UserSchema {
 ''',
         },
         outputs: {
-          'a|lib/a.schema.g.dart':
-              decodedMatches(contains('class UserTypeFactory')),
+          'a|lib/a.schema.g.dart': decodedMatches(
+            contains('class UserTypeFactory'),
+          ),
         },
       );
     });
@@ -86,12 +87,14 @@ abstract class UserSchema {
 ''',
         },
         outputs: {
-          'a|lib/a.schema.g.dart': decodedMatches(allOf(
-            contains('class AddressTypeFactory'),
-            contains('class UserTypeFactory'),
-            contains('List<Address> get addresses {'),
-            contains('Address? get primaryAddress {'),
-          )),
+          'a|lib/a.schema.g.dart': decodedMatches(
+            allOf(
+              contains('class AddressTypeFactory'),
+              contains('class UserTypeFactory'),
+              contains('List<Address> get addresses {'),
+              contains('Address? get primaryAddress {'),
+            ),
+          ),
         },
       );
     });
@@ -117,11 +120,14 @@ abstract class ProductSchema {
 ''',
         },
         outputs: {
-          'a|lib/a.schema.g.dart': decodedMatches(allOf(
-            contains("return _json['product_id'] as String;"),
-            contains(
-                "'product_id': Schema.string(description: 'The unique identifier')"),
-          )),
+          'a|lib/a.schema.g.dart': decodedMatches(
+            allOf(
+              contains("return _json['product_id'] as String;"),
+              contains(
+                "'product_id': Schema.string(description: 'The unique identifier')",
+              ),
+            ),
+          ),
         },
       );
     });
@@ -129,10 +135,12 @@ abstract class ProductSchema {
     test('generates schema with enums', () async {
       final builder = PartBuilder([SchemaGenerator()], '.schema.g.dart');
 
-      await testBuilder(builder, {
-        'genkit_schema_builder|lib/genkit_schema_builder.dart':
-            genkitSchemaBuilderLib,
-        'a|lib/a.dart': r'''
+      await testBuilder(
+        builder,
+        {
+          'genkit_schema_builder|lib/genkit_schema_builder.dart':
+              genkitSchemaBuilderLib,
+          'a|lib/a.dart': r'''
 import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 part 'a.schema.g.dart';
@@ -144,12 +152,18 @@ abstract class ItemSchema {
   Status get status;
 }
 ''',
-      }, outputs: {
-        'a|lib/a.schema.g.dart': decodedMatches(allOf(
-          contains("return Status.values.byName(_json['status'] as String);"),
-          contains("enumValues: ['active', 'inactive']"),
-        )),
-      });
+        },
+        outputs: {
+          'a|lib/a.schema.g.dart': decodedMatches(
+            allOf(
+              contains(
+                "return Status.values.byName(_json['status'] as String);",
+              ),
+              contains("enumValues: ['active', 'inactive']"),
+            ),
+          ),
+        },
+      );
     });
   });
 }

@@ -274,10 +274,16 @@ void main() {
     // If buffered, we likely get one big chunk after 100ms.
     // If streaming, we get one chunk immediately (or very fast), then another.
 
-    expect(chunks.length, greaterThanOrEqualTo(2),
-        reason: 'Should receive multiple chunks');
-    expect(chunks.last, greaterThan(80),
-        reason: 'Total time should be around 100ms');
+    expect(
+      chunks.length,
+      greaterThanOrEqualTo(2),
+      reason: 'Should receive multiple chunks',
+    );
+    expect(
+      chunks.last,
+      greaterThan(80),
+      reason: 'Total time should be around 100ms',
+    );
     // If buffering happened, chunks.first would probably be ~100ms too (depending on implementation).
     // Better check:
     // If we receive multiple chunks, and the first one is fast (< 50ms) and last is slow (> 80ms), then we streamed.
@@ -285,7 +291,10 @@ void main() {
 
     // Note: shelf might send headers immediately, then body.
     // checking first chunk time.
-    expect(chunks.first, lessThan(80),
-        reason: 'First chunk should arrive quickly');
+    expect(
+      chunks.first,
+      lessThan(80),
+      reason: 'First chunk should arrive quickly',
+    );
   });
 }

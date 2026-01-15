@@ -42,11 +42,7 @@ void main() {
       expect(user.isAdmin, isTrue);
 
       final json = user.toJson();
-      expect(json, {
-        'name': 'Alice',
-        'age': 30,
-        'isAdmin': true,
-      });
+      expect(json, {'name': 'Alice', 'age': 30, 'isAdmin': true});
 
       final parsed = UserType.parse(json);
       expect(parsed.name, 'Alice');
@@ -62,10 +58,7 @@ void main() {
       expect(user.isAdmin, isFalse);
 
       final json = user.toJson();
-      expect(json, {
-        'name': 'Bob',
-        'isAdmin': false,
-      });
+      expect(json, {'name': 'Bob', 'isAdmin': false});
       expect(json.containsKey('age'), isFalse);
 
       final parsed = UserType.parse(json);
@@ -108,22 +101,22 @@ void main() {
               'properties': {
                 'name': {'type': 'string'},
                 'age': {'type': 'integer'},
-                'isAdmin': {'type': 'boolean'}
+                'isAdmin': {'type': 'boolean'},
               },
-              'required': ['name', 'isAdmin']
-            }
+              'required': ['name', 'isAdmin'],
+            },
           },
           'leader': {
             'type': 'object',
             'properties': {
               'name': {'type': 'string'},
               'age': {'type': 'integer'},
-              'isAdmin': {'type': 'boolean'}
+              'isAdmin': {'type': 'boolean'},
             },
-            'required': ['name', 'isAdmin']
-          }
+            'required': ['name', 'isAdmin'],
+          },
         },
-        'required': ['groupName', 'members']
+        'required': ['groupName', 'members'],
       });
     });
   });

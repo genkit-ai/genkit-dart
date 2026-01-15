@@ -24,7 +24,10 @@ import 'package:source_gen/source_gen.dart';
 class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
   @override
   String generateForAnnotatedElement(
-      Element element, ConstantReader annotation, BuildStep buildStep) {
+    Element element,
+    ConstantReader annotation,
+    BuildStep buildStep,
+  ) {
     if (element is! ClassElement || !element.isAbstract) {
       throw InvalidGenerationSourceError(
         '`@GenkitSchema` can only be used on abstract classes.',
@@ -45,110 +48,123 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     final factory = _generateFactory(baseName, element);
     final constInstance = _generateConstInstance(baseName);
 
-    final library = Library((b) => b
-      ..body.addAll([
-        extensionType,
-        factory,
-        constInstance,
-      ]));
+    final library = Library(
+      (b) => b..body.addAll([extensionType, factory, constInstance]),
+    );
 
     final emitter = DartEmitter(useNullSafetySyntax: true);
-    return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
-        .format('${library.accept(emitter)}');
+    return DartFormatter(
+      languageVersion: DartFormatter.latestLanguageVersion,
+    ).format('${library.accept(emitter)}');
   }
 
   ExtensionType _generateExtensionType(String baseName, ClassElement element) {
     return ExtensionType((b) {
       b
         ..name = baseName
-        ..representationDeclaration = (RepresentationDeclarationBuilder()
-              ..declaredRepresentationType = refer('Map<String, dynamic>')
-              ..name = '_json')
-            .build();
+        ..representationDeclaration =
+            (RepresentationDeclarationBuilder()
+                  ..declaredRepresentationType = refer('Map<String, dynamic>')
+                  ..name = '_json')
+                .build();
 
-      b.constructors.add(Constructor((c) {
-        c.factory = true;
-        c.name = 'from';
-        final params = <Parameter>[];
-        final jsonMapEntries = <String>[];
-        for (final field in element.fields) {
-          final getter = field.getter;
-          if (getter != null) {
-            final paramName = getter.name;
-            final paramType = refer(_convertSchemaType(getter.returnType));
-            final isExtensionType = getter.returnType
-                .getDisplayString()
-                .replaceAll('?', '')
-                .endsWith('Schema');
-            final isNullable = getter.returnType.isNullable ||
-                getter.returnType.isDartCoreObject ||
-                getter.returnType.isDynamic;
-            params.add(Parameter((p) => p
-              ..name = paramName!
-              ..type = paramType
-              ..named = true
-              ..required = !isNullable));
-            Expression valueExpression;
-            if (getter.returnType.isDartCoreList) {
-              final itemType =
-                  (getter.returnType as InterfaceType).typeArguments.first;
-              if (itemType
+      b.constructors.add(
+        Constructor((c) {
+          c.factory = true;
+          c.name = 'from';
+          final params = <Parameter>[];
+          final jsonMapEntries = <String>[];
+          for (final field in element.fields) {
+            final getter = field.getter;
+            if (getter != null) {
+              final paramName = getter.name;
+              final paramType = refer(_convertSchemaType(getter.returnType));
+              final isExtensionType = getter.returnType
                   .getDisplayString()
                   .replaceAll('?', '')
-                  .endsWith('Schema')) {
-                final toJsonLambda = Method((m) => m
-                  ..requiredParameters.add(Parameter((p) => p.name = 'e'))
-                  ..body = refer('e').property('toJson').call([]).code).closure;
-                if (getter.returnType.isNullable) {
-                  valueExpression = refer(paramName!)
-                      .property('map')
-                      .call([toJsonLambda])
-                      .property('toList')
-                      .call([]);
+                  .endsWith('Schema');
+              final isNullable =
+                  getter.returnType.isNullable ||
+                  getter.returnType.isDartCoreObject ||
+                  getter.returnType.isDynamic;
+              params.add(
+                Parameter(
+                  (p) => p
+                    ..name = paramName!
+                    ..type = paramType
+                    ..named = true
+                    ..required = !isNullable,
+                ),
+              );
+              Expression valueExpression;
+              if (getter.returnType.isDartCoreList) {
+                final itemType =
+                    (getter.returnType as InterfaceType).typeArguments.first;
+                if (itemType
+                    .getDisplayString()
+                    .replaceAll('?', '')
+                    .endsWith('Schema')) {
+                  final toJsonLambda = Method(
+                    (m) => m
+                      ..requiredParameters.add(Parameter((p) => p.name = 'e'))
+                      ..body = refer('e').property('toJson').call([]).code,
+                  ).closure;
+                  if (getter.returnType.isNullable) {
+                    valueExpression = refer(paramName!)
+                        .property('map')
+                        .call([toJsonLambda])
+                        .property('toList')
+                        .call([]);
+                  } else {
+                    valueExpression = refer(paramName!)
+                        .property('map')
+                        .call([toJsonLambda])
+                        .property('toList')
+                        .call([]);
+                  }
                 } else {
-                  valueExpression = refer(paramName!)
-                      .property('map')
-                      .call([toJsonLambda])
-                      .property('toList')
-                      .call([]);
+                  valueExpression = refer(paramName!);
+                }
+              } else if (isExtensionType) {
+                if (getter.returnType.isNullable) {
+                  valueExpression = refer(
+                    paramName!,
+                  ).nullSafeProperty('toJson').call([]);
+                } else {
+                  valueExpression = refer(
+                    paramName!,
+                  ).property('toJson').call([]);
                 }
               } else {
                 valueExpression = refer(paramName!);
               }
-            } else if (isExtensionType) {
-              if (getter.returnType.isNullable) {
-                valueExpression =
-                    refer(paramName!).nullSafeProperty('toJson').call([]);
+              final key = _getJsonKey(getter);
+              final emitter = DartEmitter(useNullSafetySyntax: true);
+              final valueString = valueExpression.accept(emitter);
+              if (isNullable) {
+                jsonMapEntries.add(
+                  "if ($paramName != null) '$key': $valueString",
+                );
               } else {
-                valueExpression = refer(paramName!).property('toJson').call([]);
+                jsonMapEntries.add("'$key': $valueString");
               }
-            } else {
-              valueExpression = refer(paramName!);
-            }
-            final key = _getJsonKey(getter);
-            final emitter = DartEmitter(useNullSafetySyntax: true);
-            final valueString = valueExpression.accept(emitter);
-            if (isNullable) {
-              jsonMapEntries
-                  .add("if ($paramName != null) '$key': $valueString");
-            } else {
-              jsonMapEntries.add("'$key': $valueString");
             }
           }
-        }
-        c.optionalParameters.addAll(params);
-        final mapLiteral = '{${jsonMapEntries.join(', ')}}';
-        c.body = refer(baseName)
-            .call([CodeExpression(Code(mapLiteral))])
-            .returned
-            .statement;
-      }));
+          c.optionalParameters.addAll(params);
+          final mapLiteral = '{${jsonMapEntries.join(', ')}}';
+          c.body = refer(
+            baseName,
+          ).call([CodeExpression(Code(mapLiteral))]).returned.statement;
+        }),
+      );
 
       for (final interface in element.interfaces) {
         final interfaceName = interface.getDisplayString().replaceAll('?', '');
         if (interfaceName.endsWith('Schema')) {
-          final interfaceBaseName =
-              interfaceName.substring(0, interfaceName.length - 6);
+          final interfaceBaseName = interfaceName.substring(
+            0,
+            interfaceName.length - 6,
+          );
           b.implements.add(refer(interfaceBaseName));
         }
       }
@@ -156,17 +172,18 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       for (final field in element.fields) {
         final getter = field.getter;
         if (getter != null) {
-          b.methods.addAll([
-            _generateGetter(getter),
-            _generateSetter(getter),
-          ]);
+          b.methods.addAll([_generateGetter(getter), _generateSetter(getter)]);
         }
       }
 
-      b.methods.add(Method((m) => m
-        ..name = 'toJson'
-        ..returns = refer('Map<String, dynamic>')
-        ..body = Code('return _json;')));
+      b.methods.add(
+        Method(
+          (m) => m
+            ..name = 'toJson'
+            ..returns = refer('Map<String, dynamic>')
+            ..body = Code('return _json;'),
+        ),
+      );
     });
   }
 
@@ -176,18 +193,23 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       final itemType = (type as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       if (itemTypeName.endsWith('Schema')) {
-        final nestedBaseName =
-            itemTypeName.substring(0, itemTypeName.length - 6);
-        final nullability =
-            itemType.getDisplayString().endsWith('?') ? '?' : '';
+        final nestedBaseName = itemTypeName.substring(
+          0,
+          itemTypeName.length - 6,
+        );
+        final nullability = itemType.getDisplayString().endsWith('?')
+            ? '?'
+            : '';
         final listNullability = typeName.endsWith('?') ? '?' : '';
         return 'List<$nestedBaseName$nullability>$listNullability';
       }
     }
     final nonNullableTypeName = type.getDisplayString().replaceAll('?', '');
     if (nonNullableTypeName.endsWith('Schema')) {
-      final nestedBaseName =
-          nonNullableTypeName.substring(0, nonNullableTypeName.length - 6);
+      final nestedBaseName = nonNullableTypeName.substring(
+        0,
+        nonNullableTypeName.length - 6,
+      );
       final nullability = typeName.endsWith('?') ? '?' : '';
       return '$nestedBaseName$nullability';
     }
@@ -200,8 +222,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     final returnType = getter.returnType;
     final typeName = returnType.getDisplayString();
     final convertedTypeName = _convertSchemaType(returnType);
-    final nonNullableTypeName =
-        returnType.getDisplayString().replaceAll('?', '');
+    final nonNullableTypeName = returnType.getDisplayString().replaceAll(
+      '?',
+      '',
+    );
 
     var getterBody = "return _json['$jsonFieldName'] as $typeName;";
 
@@ -212,8 +236,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         final itemIsNullable = itemType.isNullable;
         if (itemTypeName.endsWith('Schema')) {
-          final nestedBaseName =
-              itemTypeName.substring(0, itemTypeName.length - 6);
+          final nestedBaseName = itemTypeName.substring(
+            0,
+            itemTypeName.length - 6,
+          );
           if (itemIsNullable) {
             getterBody =
                 "return (_json['$jsonFieldName'] as List?)?.map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
@@ -226,8 +252,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
               "return (_json['$jsonFieldName'] as List?)?.cast<$itemTypeName>();";
         }
       } else if (nonNullableTypeName.endsWith('Schema')) {
-        final nestedBaseName =
-            nonNullableTypeName.substring(0, nonNullableTypeName.length - 6);
+        final nestedBaseName = nonNullableTypeName.substring(
+          0,
+          nonNullableTypeName.length - 6,
+        );
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
       } else if (nonNullableTypeName == 'DateTime') {
@@ -243,8 +271,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       final itemIsNullable = itemType.isNullable;
       if (itemTypeName.endsWith('Schema')) {
-        final nestedBaseName =
-            itemTypeName.substring(0, itemTypeName.length - 6);
+        final nestedBaseName = itemTypeName.substring(
+          0,
+          itemTypeName.length - 6,
+        );
         if (itemIsNullable) {
           getterBody =
               "return (_json['$jsonFieldName'] as List).map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
@@ -259,17 +289,21 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     } else if (nonNullableTypeName == 'DateTime') {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
     } else if (nonNullableTypeName.endsWith('Schema')) {
-      final nestedBaseName =
-          nonNullableTypeName.substring(0, nonNullableTypeName.length - 6);
+      final nestedBaseName = nonNullableTypeName.substring(
+        0,
+        nonNullableTypeName.length - 6,
+      );
       getterBody =
           "return $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
     }
 
-    return Method((b) => b
-      ..type = MethodType.getter
-      ..name = fieldName
-      ..returns = refer(convertedTypeName)
-      ..body = Code(getterBody));
+    return Method(
+      (b) => b
+        ..type = MethodType.getter
+        ..name = fieldName
+        ..returns = refer(convertedTypeName)
+        ..body = Code(getterBody),
+    );
   }
 
   Method _generateSetter(PropertyAccessorElement getter) {
@@ -277,8 +311,10 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     final jsonFieldName = _getJsonKey(getter);
     final paramType = getter.returnType;
     final convertedTypeName = _convertSchemaType(paramType);
-    final nonNullableTypeName =
-        paramType.getDisplayString().replaceAll('?', '');
+    final nonNullableTypeName = paramType.getDisplayString().replaceAll(
+      '?',
+      '',
+    );
 
     var setterBody = "_json['$jsonFieldName'] = value;";
 
@@ -321,13 +357,19 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       setterBody = "_json['$jsonFieldName'] = value;";
     }
 
-    return Method((b) => b
-      ..type = MethodType.setter
-      ..name = fieldName
-      ..requiredParameters.add(Parameter((p) => p
-        ..name = 'value'
-        ..type = refer(convertedTypeName)))
-      ..body = Code(setterBody));
+    return Method(
+      (b) => b
+        ..type = MethodType.setter
+        ..name = fieldName
+        ..requiredParameters.add(
+          Parameter(
+            (p) => p
+              ..name = 'value'
+              ..type = refer(convertedTypeName),
+          ),
+        )
+        ..body = Code(setterBody),
+    );
   }
 
   Class _generateFactory(String baseName, ClassElement element) {
@@ -338,13 +380,15 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         ..constructors.add(Constructor((c) => c..constant = true));
 
       if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
-        final subtypes = element.interfaces.map((i) {
-          final interfaceName = i.getDisplayString().replaceAll('?', '');
-          if (interfaceName.endsWith('Schema')) {
-            return interfaceName.substring(0, interfaceName.length - 6);
-          }
-          return null;
-        }).where((name) => name != null);
+        final subtypes = element.interfaces
+            .map((i) {
+              final interfaceName = i.getDisplayString().replaceAll('?', '');
+              if (interfaceName.endsWith('Schema')) {
+                return interfaceName.substring(0, interfaceName.length - 6);
+              }
+              return null;
+            })
+            .where((name) => name != null);
 
         var parseBody =
             'final Map<String, dynamic> jsonMap = json as Map<String, dynamic>;';
@@ -354,23 +398,39 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         }
         parseBody += 'throw Exception("Invalid JSON for $baseName");';
 
-        b.methods.add(Method((m) => m
-          ..annotations.add(refer('override'))
-          ..name = 'parse'
-          ..returns = refer(baseName)
-          ..requiredParameters.add(Parameter((p) => p
-            ..name = 'json'
-            ..type = refer('Object')))
-          ..body = Code(parseBody)));
+        b.methods.add(
+          Method(
+            (m) => m
+              ..annotations.add(refer('override'))
+              ..name = 'parse'
+              ..returns = refer(baseName)
+              ..requiredParameters.add(
+                Parameter(
+                  (p) => p
+                    ..name = 'json'
+                    ..type = refer('Object'),
+                ),
+              )
+              ..body = Code(parseBody),
+          ),
+        );
       } else {
-        b.methods.add(Method((m) => m
-          ..annotations.add(refer('override'))
-          ..name = 'parse'
-          ..returns = refer(baseName)
-          ..requiredParameters.add(Parameter((p) => p
-            ..name = 'json'
-            ..type = refer('Object')))
-          ..body = Code('return $baseName(json as Map<String, dynamic>);')));
+        b.methods.add(
+          Method(
+            (m) => m
+              ..annotations.add(refer('override'))
+              ..name = 'parse'
+              ..returns = refer(baseName)
+              ..requiredParameters.add(
+                Parameter(
+                  (p) => p
+                    ..name = 'json'
+                    ..type = refer('Object'),
+                ),
+              )
+              ..body = Code('return $baseName(json as Map<String, dynamic>);'),
+          ),
+        );
       }
 
       b.methods.add(_generateJsonSchemaGetter(element));
@@ -385,10 +445,14 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       final getter = field.getter;
       if (getter != null) {
         final jsonFieldName = _getJsonKey(getter);
-        final keyAnnotation =
-            _keyChecker.firstAnnotationOf(getter, throwOnUnresolved: false);
-        properties[jsonFieldName] =
-            _jsonSchemaForType(getter.returnType, keyAnnotation);
+        final keyAnnotation = _keyChecker.firstAnnotationOf(
+          getter,
+          throwOnUnresolved: false,
+        );
+        properties[jsonFieldName] = _jsonSchemaForType(
+          getter.returnType,
+          keyAnnotation,
+        );
         if (!getter.returnType.isNullable) {
           required.add(jsonFieldName);
         }
@@ -396,22 +460,28 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
     }
 
     if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
-      final subtypes = element.interfaces.map((i) {
-        final interfaceName = i.getDisplayString().replaceAll('?', '');
-        if (interfaceName.endsWith('Schema')) {
-          return refer(
-              '${interfaceName.substring(0, interfaceName.length - 6)}Type.jsonSchema');
-        }
-        return null;
-      }).where((name) => name != null);
-      final schemaExpression =
-          refer('Schema.anyOf').call([literalList(subtypes)]);
-      return Method((b) => b
-        ..annotations.add(refer('override'))
-        ..type = MethodType.getter
-        ..name = 'jsonSchema'
-        ..returns = refer('Schema')
-        ..body = schemaExpression.returned.statement);
+      final subtypes = element.interfaces
+          .map((i) {
+            final interfaceName = i.getDisplayString().replaceAll('?', '');
+            if (interfaceName.endsWith('Schema')) {
+              return refer(
+                '${interfaceName.substring(0, interfaceName.length - 6)}Type.jsonSchema',
+              );
+            }
+            return null;
+          })
+          .where((name) => name != null);
+      final schemaExpression = refer(
+        'Schema.anyOf',
+      ).call([literalList(subtypes)]);
+      return Method(
+        (b) => b
+          ..annotations.add(refer('override'))
+          ..type = MethodType.getter
+          ..name = 'jsonSchema'
+          ..returns = refer('Schema')
+          ..body = schemaExpression.returned.statement,
+      );
     }
 
     final schemaExpression = refer('Schema.object').call([], {
@@ -419,12 +489,14 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
       'required': literalList(required.map((r) => literalString(r))),
     });
 
-    return Method((b) => b
-      ..annotations.add(refer('override'))
-      ..type = MethodType.getter
-      ..name = 'jsonSchema'
-      ..returns = refer('Schema')
-      ..body = schemaExpression.returned.statement);
+    return Method(
+      (b) => b
+        ..annotations.add(refer('override'))
+        ..type = MethodType.getter
+        ..name = 'jsonSchema'
+        ..returns = refer('Schema')
+        ..body = schemaExpression.returned.statement,
+    );
   }
 
   Expression _jsonSchemaForType(DartType type, DartObject? keyAnnotation) {
@@ -498,16 +570,19 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
   }
 
   Field _generateConstInstance(String baseName) {
-    return Field((b) => b
-      ..name = '${baseName}Type'
-      ..docs.add('// ignore: constant_identifier_names')
-      ..modifier = FieldModifier.constant
-      ..assignment = refer('${baseName}TypeFactory').constInstance([]).code);
+    return Field(
+      (b) => b
+        ..name = '${baseName}Type'
+        ..docs.add('// ignore: constant_identifier_names')
+        ..modifier = FieldModifier.constant
+        ..assignment = refer('${baseName}TypeFactory').constInstance([]).code,
+    );
   }
 }
 
 const _keyChecker = TypeChecker.fromUrl(
-    'package:genkit_schema_builder/genkit_schema_builder.dart#Key');
+  'package:genkit_schema_builder/genkit_schema_builder.dart#Key',
+);
 
 extension on DartType {
   bool get isNullable {
