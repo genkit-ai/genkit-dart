@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'dart:async';
-import 'package:genkit/src/schema_extensions.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/generate.dart';
 import 'package:genkit/src/ai/model.dart';
