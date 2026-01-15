@@ -15,7 +15,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:schema_generator/src/class_generator.dart';
+import '../lib/src/class_generator.dart';
 
 void main() async {
   final response = await http.get(Uri.parse(
