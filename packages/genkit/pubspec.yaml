@@ -6,7 +6,7 @@ repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
 environment:
-  sdk: ^3.8.0
+  sdk: ^3.10.0
 
 dependencies:
   http: ^1.6.0

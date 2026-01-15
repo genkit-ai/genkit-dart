@@ -73,17 +73,17 @@ class UserTypeFactory extends JsonExtensionType<User> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'User',
-        definition: Schema.object(
-          properties: {
-            'name': Schema.string(),
-            'age': Schema.integer(),
-            'isAdmin': Schema.boolean(),
-          },
-          required: ['name', 'isAdmin'],
-        ),
-        dependencies: [],
-      );
+    name: 'User',
+    definition: Schema.object(
+      properties: {
+        'name': Schema.string(),
+        'age': Schema.integer(),
+        'isAdmin': Schema.boolean(),
+      },
+      required: ['name', 'isAdmin'],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -149,19 +149,19 @@ class GroupTypeFactory extends JsonExtensionType<Group> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'Group',
-        definition: Schema.object(
-          properties: {
-            'groupName': Schema.string(),
-            'members': Schema.list(
-              items: Schema.fromMap({'\$ref': r'#/$defs/User'}),
-            ),
-            'leader': Schema.fromMap({'\$ref': r'#/$defs/User'}),
-          },
-          required: ['groupName', 'members'],
+    name: 'Group',
+    definition: Schema.object(
+      properties: {
+        'groupName': Schema.string(),
+        'members': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/User'}),
         ),
-        dependencies: [UserType],
-      );
+        'leader': Schema.fromMap({'\$ref': r'#/$defs/User'}),
+      },
+      required: ['groupName', 'members'],
+    ),
+    dependencies: [UserType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -213,18 +213,18 @@ class NodeTypeFactory extends JsonExtensionType<Node> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'Node',
-        definition: Schema.object(
-          properties: {
-            'id': Schema.string(),
-            'children': Schema.list(
-              items: Schema.fromMap({'\$ref': r'#/$defs/Node'}),
-            ),
-          },
-          required: ['id'],
+    name: 'Node',
+    definition: Schema.object(
+      properties: {
+        'id': Schema.string(),
+        'children': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Node'}),
         ),
-        dependencies: [NodeType],
-      );
+      },
+      required: ['id'],
+    ),
+    dependencies: [NodeType],
+  );
 }
 
 // ignore: constant_identifier_names

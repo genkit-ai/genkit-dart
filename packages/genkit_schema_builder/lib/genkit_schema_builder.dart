@@ -58,7 +58,8 @@ abstract class JsonExtensionType<T> {
         return jsb.Schema.fromMap(inlinedMap);
       } catch (e) {
         throw StateError(
-            'Failed to inline schema for ${schemaMetadata?.name}: $e');
+          'Failed to inline schema for ${schemaMetadata?.name}: $e',
+        );
       }
     }
     return SchemaHelpers.buildSchema(this);
@@ -82,8 +83,9 @@ class SchemaHelpers {
       definitions[rootMeta.name!] = rootMeta.definition;
       return jsb.Schema.fromMap({
         r'$ref': '#/\$defs/${rootMeta.name}',
-        r'$defs':
-            definitions.map((k, v) => MapEntry(k, jsonDecode(v.toJson()))),
+        r'$defs': definitions.map(
+          (k, v) => MapEntry(k, jsonDecode(v.toJson())),
+        ),
       });
     }
 
@@ -137,7 +139,8 @@ class SchemaHelpers {
         final name = ref.replaceFirst('#/\$defs/', '');
         if (visited.contains(name)) {
           throw StateError(
-              'Recursive schema detected for $name without useRefs=true');
+            'Recursive schema detected for $name without useRefs=true',
+          );
         }
 
         final dependency = dependencies.firstWhere(
@@ -147,11 +150,10 @@ class SchemaHelpers {
         );
 
         final meta = dependency.schemaMetadata!;
-        return _inlineSchema(
-          meta.definition,
-          meta.dependencies,
-          {...visited, name},
-        );
+        return _inlineSchema(meta.definition, meta.dependencies, {
+          ...visited,
+          name,
+        });
       }
     }
 

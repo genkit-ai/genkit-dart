@@ -49,13 +49,13 @@ class HandlerInputTypeFactory extends JsonExtensionType<HandlerInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'HandlerInput',
-        definition: Schema.object(
-          properties: {'message': Schema.string()},
-          required: ['message'],
-        ),
-        dependencies: [],
-      );
+    name: 'HandlerInput',
+    definition: Schema.object(
+      properties: {'message': Schema.string()},
+      required: ['message'],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -89,13 +89,13 @@ class HandlerOutputTypeFactory extends JsonExtensionType<HandlerOutput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'HandlerOutput',
-        definition: Schema.object(
-          properties: {'processedMessage': Schema.string()},
-          required: ['processedMessage'],
-        ),
-        dependencies: [],
-      );
+    name: 'HandlerOutput',
+    definition: Schema.object(
+      properties: {'processedMessage': Schema.string()},
+      required: ['processedMessage'],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

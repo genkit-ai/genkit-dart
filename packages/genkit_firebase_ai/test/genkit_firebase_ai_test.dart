@@ -34,8 +34,8 @@ void main() {
         'type': 'object',
         'properties': {
           'foo': {'type': 'string'},
-          'bar': {'type': 'integer'}
-        }
+          'bar': {'type': 'integer'},
+        },
       };
       final schema = toGeminiSchema(json);
       expect(schema, isA<m.Schema>());
@@ -44,7 +44,7 @@ void main() {
     test('converts array schema', () {
       final json = {
         'type': 'array',
-        'items': {'type': 'string'}
+        'items': {'type': 'string'},
       };
       final schema = toGeminiSchema(json);
       expect(schema, isA<m.Schema>());
@@ -54,17 +54,16 @@ void main() {
   group('Tool Conversion', () {
     test('converts tool definition', () {
       final toolDef = ToolDefinition.from(
-          name: 'myTool',
-          description: 'desc',
-          inputSchema: {
-            'type': 'object',
-            'properties': {
-              'a': {'type': 'string'}
-            }
+        name: 'myTool',
+        description: 'desc',
+        inputSchema: {
+          'type': 'object',
+          'properties': {
+            'a': {'type': 'string'},
           },
-          outputSchema: {
-            'type': 'string'
-          });
+        },
+        outputSchema: {'type': 'string'},
+      );
 
       final mTool = toGeminiTool(toolDef);
       expect(mTool, isA<m.Tool>());
@@ -78,7 +77,8 @@ void main() {
   group('Part Conversion', () {
     test('FunctionCall (ToolRequestPart)', () {
       final part = ToolRequestPart.from(
-          toolRequest: ToolRequest.from(name: 'foo', input: {'a': 1}));
+        toolRequest: ToolRequest.from(name: 'foo', input: {'a': 1}),
+      );
       final mPart = toGeminiPart(part);
       expect(mPart, isA<m.FunctionCall>());
       final fc = mPart as m.FunctionCall;
@@ -88,7 +88,8 @@ void main() {
 
     test('FunctionResponse (ToolResponsePart)', () {
       final part = ToolResponsePart.from(
-          toolResponse: ToolResponse.from(name: 'foo', output: {'b': 2}));
+        toolResponse: ToolResponse.from(name: 'foo', output: {'b': 2}),
+      );
       final mPart = toGeminiPart(part);
       expect(mPart, isA<m.FunctionResponse>());
       final fr = mPart as m.FunctionResponse;

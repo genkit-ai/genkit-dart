@@ -73,9 +73,9 @@ class HomeScreen extends StatelessWidget {
           children: [
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ChatScreen()),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const ChatScreen()));
               },
               child: const Text('Text Chat (Standard)'),
             ),
@@ -239,9 +239,12 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
         config: LiveGenerationConfig.from(
           responseModalities: ['AUDIO'],
           speechConfig: SpeechConfig.from(
-              voiceConfig: VoiceConfig.from(
-                  prebuiltVoiceConfig:
-                      PrebuiltVoiceConfig.from(voiceName: 'Algenib'))),
+            voiceConfig: VoiceConfig.from(
+              prebuiltVoiceConfig: PrebuiltVoiceConfig.from(
+                voiceName: 'Algenib',
+              ),
+            ),
+          ),
         ),
         system: 'Talk like pirate',
         tools: ['getWeather'],
@@ -253,31 +256,35 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
         _statusMessage = 'Connected!';
       });
 
-      newSession.stream.listen((chunk) async {
-        if (_session != newSession) return;
-        for (final part in chunk.content) {
-          if (part.isText) {
-            _addMessage('AI: ${(part as TextPart).text}');
-          }
-          if (part.isMedia) {
-            final mediaPart = part as MediaPart;
-            if (mediaPart.media.url.startsWith('data:')) {
-              final data = Uri.parse(mediaPart.media.url).data;
-              if (data != null) {
-                _audioQueue.enqueue(data.contentAsBytes());
+      newSession.stream.listen(
+        (chunk) async {
+          if (_session != newSession) return;
+          for (final part in chunk.content) {
+            if (part.isText) {
+              _addMessage('AI: ${(part as TextPart).text}');
+            }
+            if (part.isMedia) {
+              final mediaPart = part as MediaPart;
+              if (mediaPart.media.url.startsWith('data:')) {
+                final data = Uri.parse(mediaPart.media.url).data;
+                if (data != null) {
+                  _audioQueue.enqueue(data.contentAsBytes());
+                }
               }
             }
           }
-        }
-      }, onError: (e) {
-        if (_session != newSession) return;
-        setState(() => _statusMessage = 'Error: $e');
-      }, onDone: () {
-        if (_session != newSession) return;
-        setState(() {
-          _statusMessage = 'Session closed.';
-        });
-      });
+        },
+        onError: (e) {
+          if (_session != newSession) return;
+          setState(() => _statusMessage = 'Error: $e');
+        },
+        onDone: () {
+          if (_session != newSession) return;
+          setState(() {
+            _statusMessage = 'Session closed.';
+          });
+        },
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _statusMessage = 'Failed to connect: $e');
@@ -305,20 +312,23 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
 
       _audioSubscription = stream.listen((data) {
         final base64Audio = base64Encode(data);
-        _session!.send(ModelRequest.from(
-          messages: [
-            Message.from(
-              role: Role.user,
-              content: [
-                MediaPart.from(
+        _session!.send(
+          ModelRequest.from(
+            messages: [
+              Message.from(
+                role: Role.user,
+                content: [
+                  MediaPart.from(
                     media: Media.from(
-                  url: 'data:audio/pcm;rate=16000;base64,$base64Audio',
-                  contentType: 'audio/pcm;rate=16000',
-                )),
-              ],
-            ),
-          ],
-        ));
+                      url: 'data:audio/pcm;rate=16000;base64,$base64Audio',
+                      contentType: 'audio/pcm;rate=16000',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
       });
 
       setState(() => _isRecording = true);
@@ -403,8 +413,10 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                     decoration: const InputDecoration(
                       hintText: 'Type a message...',
                       border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     onSubmitted: (_) => _sendText(),
                   ),
@@ -415,10 +427,12 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                   builder: (context, value, child) {
                     final isTyping = value.text.isNotEmpty;
                     return GestureDetector(
-                      onLongPressStart:
-                          isTyping ? null : (_) => _toggleRecording(),
-                      onLongPressEnd:
-                          isTyping ? null : (_) => _toggleRecording(),
+                      onLongPressStart: isTyping
+                          ? null
+                          : (_) => _toggleRecording(),
+                      onLongPressEnd: isTyping
+                          ? null
+                          : (_) => _toggleRecording(),
                       onTap: isTyping ? _sendText : _toggleRecording,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -429,21 +443,26 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                           color: isTyping
                               ? Theme.of(context).colorScheme.secondary
                               : (_isRecording
-                                  ? Theme.of(context).colorScheme.error
-                                  : Theme.of(context).colorScheme.primary),
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary),
                           boxShadow: [
                             BoxShadow(
-                              color: (isTyping
-                                      ? Theme.of(context).colorScheme.secondary
-                                      : (_isRecording
-                                          ? Theme.of(context).colorScheme.error
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .primary))
-                                  .withOpacity(0.4),
+                              color:
+                                  (isTyping
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.secondary
+                                          : (_isRecording
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.error
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary))
+                                      .withOpacity(0.4),
                               blurRadius: _isRecording ? 10 : 4,
                               spreadRadius: _isRecording ? 2 : 1,
-                            )
+                            ),
                           ],
                         ),
                         child: Icon(
@@ -465,10 +484,9 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
               padding: const EdgeInsets.only(bottom: 16.0),
               child: Text(
                 'Listening...',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: Colors.red),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: Colors.red),
               ),
             ),
         ],
@@ -523,8 +541,9 @@ class AudioPlayerQueue {
 
       // Calculate duration plus a small buffer
       final durationSec = (data.length - 44) / 48000;
-      final timeout =
-          Duration(milliseconds: (durationSec * 1000).ceil() + 1000);
+      final timeout = Duration(
+        milliseconds: (durationSec * 1000).ceil() + 1000,
+      );
 
       await completer.future.timeout(timeout, onTimeout: () {});
       await sub.cancel();

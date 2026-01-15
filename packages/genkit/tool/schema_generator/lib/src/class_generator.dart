@@ -42,13 +42,17 @@ class ClassGenerator {
     });
 
     final emitter = DartEmitter();
-    return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
-        .format('${library.accept(emitter)}');
+    return DartFormatter(
+      languageVersion: DartFormatter.latestLanguageVersion,
+    ).format('${library.accept(emitter)}');
   }
 
   void _generateClass(
-      LibraryBuilder b, String className, Map<String, dynamic> schema,
-      {Reference? extend}) {
+    LibraryBuilder b,
+    String className,
+    Map<String, dynamic> schema, {
+    Reference? extend,
+  }) {
     if (_generatedClasses.contains(className)) {
       return;
     }
@@ -64,63 +68,83 @@ class ClassGenerator {
   }
 
   void _generateStandardClass(
-      LibraryBuilder b, String className, Map<String, dynamic> schema,
-      {Reference? extend}) {
+    LibraryBuilder b,
+    String className,
+    Map<String, dynamic> schema, {
+    Reference? extend,
+  }) {
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
-    final required =
-        (schema['required'] as List<dynamic>? ?? []).cast<String>();
+    final required = (schema['required'] as List<dynamic>? ?? [])
+        .cast<String>();
 
-    b.body.add(Class((c) {
-      c
-        ..name = '${className}Schema'
-        ..abstract = true
-        ..annotations.add(refer('GenkitSchema').call([]));
+    b.body.add(
+      Class((c) {
+        c
+          ..name = '${className}Schema'
+          ..abstract = true
+          ..annotations.add(refer('GenkitSchema').call([]));
 
-      if (extend != null) {
-        c.implements.add(extend);
-      }
+        if (extend != null) {
+          c.implements.add(extend);
+        }
 
-      c.methods.addAll(properties.entries
-          .where((e) => !_isNotType(e.value as Map<String, dynamic>))
-          .map((e) {
-        final isRequired = required.contains(e.key);
-        return Method((m) {
-          m
-            ..name = _sanitizeFieldName(e.key)
-            ..type = MethodType.getter
-            ..returns =
-                _mapType(className, e.key, e.value, isRequired: isRequired);
-        });
-      }));
-    }));
+        c.methods.addAll(
+          properties.entries
+              .where((e) => !_isNotType(e.value as Map<String, dynamic>))
+              .map((e) {
+                final isRequired = required.contains(e.key);
+                return Method((m) {
+                  m
+                    ..name = _sanitizeFieldName(e.key)
+                    ..type = MethodType.getter
+                    ..returns = _mapType(
+                      className,
+                      e.key,
+                      e.value,
+                      isRequired: isRequired,
+                    );
+                });
+              }),
+        );
+      }),
+    );
   }
 
   void _generateEnumExtensionType(
-      LibraryBuilder b, String enumName, List<dynamic> values) {
+    LibraryBuilder b,
+    String enumName,
+    List<dynamic> values,
+  ) {
     final buffer = StringBuffer();
     buffer.writeln('extension type $enumName(String value) {');
     for (final value in values) {
       final fieldName = _sanitizeFieldName(value.toString());
-      buffer
-          .writeln("  static $enumName get $fieldName => $enumName('$value');");
+      buffer.writeln(
+        "  static $enumName get $fieldName => $enumName('$value');",
+      );
     }
     buffer.writeln('}');
     b.body.add(Code(buffer.toString()));
   }
 
   void _generateUnionClass(
-      LibraryBuilder b, String className, List<dynamic> anyOf,
-      {Reference? extend}) {
+    LibraryBuilder b,
+    String className,
+    List<dynamic> anyOf, {
+    Reference? extend,
+  }) {
     // Generate the base abstract class for the union type.
-    b.body.add(Class((c) {
-      c
-        ..name = '${className}Schema'
-        ..abstract = true
-        ..annotations.add(refer('GenkitSchema').call([]));
-      if (extend != null) {
-        c.implements.add(extend);
-      }
-    }));
+    b.body.add(
+      Class((c) {
+        c
+          ..name = '${className}Schema'
+          ..abstract = true
+          ..annotations.add(refer('GenkitSchema').call([]));
+        if (extend != null) {
+          c.implements.add(extend);
+        }
+      }),
+    );
 
     for (final item in anyOf) {
       final ref = item['\$ref'] as String?;
@@ -131,8 +155,12 @@ class ClassGenerator {
         if (definitions.containsKey(subclassName) &&
             !_generatedClasses.contains(subclassName)) {
           // Pass the union type as an interface to implement.
-          _generateClass(b, subclassName, subclassSchema,
-              extend: refer('${className}Schema'));
+          _generateClass(
+            b,
+            subclassName,
+            subclassSchema,
+            extend: refer('${className}Schema'),
+          );
         }
       }
     }
@@ -174,8 +202,11 @@ class ClassGenerator {
   }
 
   Reference _mapType(
-      String parentType, String fieldName, Map<String, dynamic> schema,
-      {bool isRequired = false}) {
+    String parentType,
+    String fieldName,
+    Map<String, dynamic> schema, {
+    bool isRequired = false,
+  }) {
     if (typeOverrides.containsKey(parentType) &&
         typeOverrides[parentType]!.containsKey(fieldName)) {
       final overrideType = typeOverrides[parentType]![fieldName];

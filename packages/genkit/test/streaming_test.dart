@@ -51,12 +51,12 @@ void main() {
           TestStreamChunk,
           dynamic
         >(
-      url: 'http://localhost:3400/object-stream',
-      httpClient: mockClient,
-      fromResponse: (data) => data as Map<String, dynamic>,
-      fromStreamChunk: (data) =>
-          TestStreamChunk.fromJson(data as Map<String, dynamic>),
-    );
+          url: 'http://localhost:3400/object-stream',
+          httpClient: mockClient,
+          fromResponse: (data) => data as Map<String, dynamic>,
+          fromStreamChunk: (data) =>
+              TestStreamChunk.fromJson(data as Map<String, dynamic>),
+        );
   });
 
   group('Streaming - Core Functionality', () {

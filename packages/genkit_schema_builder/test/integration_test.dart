@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:genkit_schema_builder/genkit_schema_builder.dart';
@@ -49,11 +48,7 @@ void main() {
       expect(user.isAdmin, isTrue);
 
       final json = user.toJson();
-      expect(json, {
-        'name': 'Alice',
-        'age': 30,
-        'isAdmin': true,
-      });
+      expect(json, {'name': 'Alice', 'age': 30, 'isAdmin': true});
 
       final parsed = UserType.parse(json);
       expect(parsed.name, 'Alice');
@@ -69,10 +64,7 @@ void main() {
       expect(user.isAdmin, isFalse);
 
       final json = user.toJson();
-      expect(json, {
-        'name': 'Bob',
-        'isAdmin': false,
-      });
+      expect(json, {'name': 'Bob', 'isAdmin': false});
       expect(json.containsKey('age'), isFalse);
 
       final parsed = UserType.parse(json);
@@ -116,22 +108,22 @@ void main() {
               'properties': {
                 'name': {'type': 'string'},
                 'age': {'type': 'integer'},
-                'isAdmin': {'type': 'boolean'}
+                'isAdmin': {'type': 'boolean'},
               },
-              'required': ['name', 'isAdmin']
-            }
+              'required': ['name', 'isAdmin'],
+            },
           },
           'leader': {
             'type': 'object',
             'properties': {
               'name': {'type': 'string'},
               'age': {'type': 'integer'},
-              'isAdmin': {'type': 'boolean'}
+              'isAdmin': {'type': 'boolean'},
             },
-            'required': ['name', 'isAdmin']
-          }
+            'required': ['name', 'isAdmin'],
+          },
         },
-        'required': ['groupName', 'members']
+        'required': ['groupName', 'members'],
       });
     });
 
@@ -151,7 +143,9 @@ void main() {
       final nodeDef = defs['Node'];
       // Check children item ref
       expect(
-          nodeDef['properties']['children']['items'][r'$ref'], '#/\$defs/Node');
+        nodeDef['properties']['children']['items'][r'$ref'],
+        '#/\$defs/Node',
+      );
 
       // 2. Verify inline generation throws for recursive schema
       expect(() => NodeType.jsonSchema(useRefs: false), throwsStateError);
@@ -161,8 +155,9 @@ void main() {
       final schema = UserType.jsonSchema();
       // Valid data
       expect(
-          await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
-          isEmpty);
+        await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
+        isEmpty,
+      );
       // Valid data (optional field missing)
       expect(await schema.validate({'name': 'Bob', 'isAdmin': false}), isEmpty);
 
@@ -171,42 +166,51 @@ void main() {
 
       // Invalid data: wrong type for 'age'
       expect(
-          await schema
-              .validate({'name': 'Dave', 'age': 'not an int', 'isAdmin': true}),
-          isNotEmpty);
+        await schema.validate({
+          'name': 'Dave',
+          'age': 'not an int',
+          'isAdmin': true,
+        }),
+        isNotEmpty,
+      );
     });
 
     test('Schema Validation with useRefs: true', () async {
       final schema = UserType.jsonSchema(useRefs: true);
       // Valid data
       expect(
-          await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
-          isEmpty);
+        await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
+        isEmpty,
+      );
       // Invalid data
       expect(await schema.validate({'name': 'Charlie'}), isNotEmpty);
 
       // Recursive schema valid data
       final nodeSchema = NodeType.jsonSchema(useRefs: true);
       expect(
-          await nodeSchema.validate({'id': 'root', 'children': []}), isEmpty);
+        await nodeSchema.validate({'id': 'root', 'children': []}),
+        isEmpty,
+      );
       expect(
-          await nodeSchema.validate({
-            'id': 'root',
-            'children': [
-              {'id': 'child1', 'children': []}
-            ]
-          }),
-          isEmpty);
+        await nodeSchema.validate({
+          'id': 'root',
+          'children': [
+            {'id': 'child1', 'children': []},
+          ],
+        }),
+        isEmpty,
+      );
 
       // Recursive invalid (wrong type for child id)
       expect(
-          await nodeSchema.validate({
-            'id': 'root',
-            'children': [
-              {'id': 123, 'children': []}
-            ]
-          }),
-          isNotEmpty);
+        await nodeSchema.validate({
+          'id': 'root',
+          'children': [
+            {'id': 123, 'children': []},
+          ],
+        }),
+        isNotEmpty,
+      );
     });
   });
 }

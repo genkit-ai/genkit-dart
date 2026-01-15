@@ -43,7 +43,9 @@ void main() {
     test('converts http/s media URL to FileData', () {
       final part = MediaPart.from(
         media: Media.from(
-            url: 'https://example.com/image.png', contentType: 'image/png'),
+          url: 'https://example.com/image.png',
+          contentType: 'image/png',
+        ),
       );
       final geminiPart = toGeminiPart(part);
       expect(geminiPart.fileData, isNotNull);
