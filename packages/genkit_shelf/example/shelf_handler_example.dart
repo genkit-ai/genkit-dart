@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;

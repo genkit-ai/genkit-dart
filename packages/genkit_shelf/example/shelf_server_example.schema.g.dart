@@ -39,7 +39,7 @@ extension type HelloInput(Map<String, dynamic> _json) {
   }
 }
 
-class HelloInputTypeFactory implements JsonExtensionType<HelloInput> {
+class HelloInputTypeFactory extends JsonExtensionType<HelloInput> {
   const HelloInputTypeFactory();
 
   @override
@@ -48,12 +48,14 @@ class HelloInputTypeFactory implements JsonExtensionType<HelloInput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'HelloInput',
+        definition: Schema.object(
+          properties: {'name': Schema.string()},
+          required: ['name'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names
@@ -77,7 +79,7 @@ extension type HelloOutput(Map<String, dynamic> _json) {
   }
 }
 
-class HelloOutputTypeFactory implements JsonExtensionType<HelloOutput> {
+class HelloOutputTypeFactory extends JsonExtensionType<HelloOutput> {
   const HelloOutputTypeFactory();
 
   @override
@@ -86,12 +88,14 @@ class HelloOutputTypeFactory implements JsonExtensionType<HelloOutput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'greeting': Schema.string()},
-      required: ['greeting'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'HelloOutput',
+        definition: Schema.object(
+          properties: {'greeting': Schema.string()},
+          required: ['greeting'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names
@@ -115,7 +119,7 @@ extension type CountChunk(Map<String, dynamic> _json) {
   }
 }
 
-class CountChunkTypeFactory implements JsonExtensionType<CountChunk> {
+class CountChunkTypeFactory extends JsonExtensionType<CountChunk> {
   const CountChunkTypeFactory();
 
   @override
@@ -124,12 +128,14 @@ class CountChunkTypeFactory implements JsonExtensionType<CountChunk> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'count': Schema.integer()},
-      required: ['count'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'CountChunk',
+        definition: Schema.object(
+          properties: {'count': Schema.integer()},
+          required: ['count'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names

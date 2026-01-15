@@ -39,7 +39,7 @@ extension type TestInput(Map<String, dynamic> _json) {
   }
 }
 
-class TestInputTypeFactory implements JsonExtensionType<TestInput> {
+class TestInputTypeFactory extends JsonExtensionType<TestInput> {
   const TestInputTypeFactory();
 
   @override
@@ -48,12 +48,14 @@ class TestInputTypeFactory implements JsonExtensionType<TestInput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestInput',
+    definition: Schema.object(
       properties: {'name': Schema.string()},
       required: ['name'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -77,7 +79,7 @@ extension type TestOutput(Map<String, dynamic> _json) {
   }
 }
 
-class TestOutputTypeFactory implements JsonExtensionType<TestOutput> {
+class TestOutputTypeFactory extends JsonExtensionType<TestOutput> {
   const TestOutputTypeFactory();
 
   @override
@@ -86,12 +88,14 @@ class TestOutputTypeFactory implements JsonExtensionType<TestOutput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestOutput',
+    definition: Schema.object(
       properties: {'greeting': Schema.string()},
       required: ['greeting'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

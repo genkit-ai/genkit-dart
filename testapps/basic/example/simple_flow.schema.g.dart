@@ -47,7 +47,7 @@ extension type Ingredient(Map<String, dynamic> _json) {
   }
 }
 
-class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
+class IngredientTypeFactory extends JsonExtensionType<Ingredient> {
   const IngredientTypeFactory();
 
   @override
@@ -56,12 +56,14 @@ class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Ingredient',
+    definition: Schema.object(
       properties: {'name': Schema.string(), 'quantity': Schema.string()},
       required: ['name', 'quantity'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -111,7 +113,7 @@ extension type Recipe(Map<String, dynamic> _json) {
   }
 }
 
-class RecipeTypeFactory implements JsonExtensionType<Recipe> {
+class RecipeTypeFactory extends JsonExtensionType<Recipe> {
   const RecipeTypeFactory();
 
   @override
@@ -120,16 +122,20 @@ class RecipeTypeFactory implements JsonExtensionType<Recipe> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Recipe',
+    definition: Schema.object(
       properties: {
         'title': Schema.string(),
-        'ingredients': Schema.list(items: IngredientType.jsonSchema),
+        'ingredients': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
+        ),
         'servings': Schema.integer(),
       },
       required: ['title', 'ingredients', 'servings'],
-    );
-  }
+    ),
+    dependencies: [IngredientType],
+  );
 }
 
 // ignore: constant_identifier_names

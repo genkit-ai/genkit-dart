@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/schema.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/types.dart';
 import 'package:test/test.dart';
@@ -44,11 +44,17 @@ void main() {
       final metadata = model.metadata;
       expect(metadata['model']['customOptions'], isNotNull);
       expect(metadata['model']['customOptions'], {
-        'type': 'object',
-        'properties': {
-          'customField': {'type': 'string'},
+        r'$ref': r'#/$defs/TestCustomOptions',
+        r'$defs': {
+          'TestCustomOptions': {
+            'type': 'object',
+            'properties': {
+              'customField': {'type': 'string'},
+            },
+            'required': ['customField'],
+          },
         },
-        'required': ['customField'],
+        r'$schema': 'http://json-schema.org/draft-07/schema#',
       });
     });
   });

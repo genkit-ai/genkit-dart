@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 part 'simple_flow.schema.g.dart';
 

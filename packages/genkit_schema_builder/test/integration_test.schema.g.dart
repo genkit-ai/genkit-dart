@@ -63,7 +63,7 @@ extension type User(Map<String, dynamic> _json) {
   }
 }
 
-class UserTypeFactory implements JsonExtensionType<User> {
+class UserTypeFactory extends JsonExtensionType<User> {
   const UserTypeFactory();
 
   @override
@@ -72,16 +72,18 @@ class UserTypeFactory implements JsonExtensionType<User> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'age': Schema.integer(),
-        'isAdmin': Schema.boolean(),
-      },
-      required: ['name', 'isAdmin'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'User',
+        definition: Schema.object(
+          properties: {
+            'name': Schema.string(),
+            'age': Schema.integer(),
+            'isAdmin': Schema.boolean(),
+          },
+          required: ['name', 'isAdmin'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names
@@ -137,7 +139,7 @@ extension type Group(Map<String, dynamic> _json) {
   }
 }
 
-class GroupTypeFactory implements JsonExtensionType<Group> {
+class GroupTypeFactory extends JsonExtensionType<Group> {
   const GroupTypeFactory();
 
   @override
@@ -146,17 +148,84 @@ class GroupTypeFactory implements JsonExtensionType<Group> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {
-        'groupName': Schema.string(),
-        'members': Schema.list(items: UserType.jsonSchema),
-        'leader': UserType.jsonSchema,
-      },
-      required: ['groupName', 'members'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'Group',
+        definition: Schema.object(
+          properties: {
+            'groupName': Schema.string(),
+            'members': Schema.list(
+              items: Schema.fromMap({'\$ref': r'#/$defs/User'}),
+            ),
+            'leader': Schema.fromMap({'\$ref': r'#/$defs/User'}),
+          },
+          required: ['groupName', 'members'],
+        ),
+        dependencies: [UserType],
+      );
 }
 
 // ignore: constant_identifier_names
 const GroupType = GroupTypeFactory();
+
+extension type Node(Map<String, dynamic> _json) {
+  factory Node.from({required String id, List<Node>? children}) {
+    return Node({
+      'id': id,
+      if (children != null)
+        'children': children.map((e) => e.toJson()).toList(),
+    });
+  }
+
+  String get id {
+    return _json['id'] as String;
+  }
+
+  set id(String value) {
+    _json['id'] = value;
+  }
+
+  List<Node>? get children {
+    return (_json['children'] as List?)
+        ?.map((e) => Node(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set children(List<Node>? value) {
+    if (value == null) {
+      _json.remove('children');
+    } else {
+      _json['children'] = value.toList();
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class NodeTypeFactory extends JsonExtensionType<Node> {
+  const NodeTypeFactory();
+
+  @override
+  Node parse(Object json) {
+    return Node(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'Node',
+        definition: Schema.object(
+          properties: {
+            'id': Schema.string(),
+            'children': Schema.list(
+              items: Schema.fromMap({'\$ref': r'#/$defs/Node'}),
+            ),
+          },
+          required: ['id'],
+        ),
+        dependencies: [NodeType],
+      );
+}
+
+// ignore: constant_identifier_names
+const NodeType = NodeTypeFactory();
