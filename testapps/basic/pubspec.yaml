@@ -7,9 +7,9 @@ environment:
   sdk: '>=3.8.0 <4.0.0'
 
 dependencies:
-  genkit: any
-  genkit_google_genai: any
-  genkit_shelf: any
+  genkit: ^0.10.0-dev.2
+  genkit_google_genai: ^0.0.1-dev.2
+  genkit_shelf: ^0.0.1-dev.2
   json_annotation: ^4.9.0
   genkit_schema_builder: any
   shelf: ^1.4.2

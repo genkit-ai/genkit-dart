@@ -1,3 +1,8 @@
+## 0.10.0-dev.2
+
+ - **FIX**: register generate action with the correct name.
+ - **FEAT**: implemented live api using firebase ai logic (#19).
+
 ## 0.10.0-dev.1
 
 - Initial release of Genkit Dart framework.
