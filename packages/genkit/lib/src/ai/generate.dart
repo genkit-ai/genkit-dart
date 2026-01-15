@@ -26,7 +26,7 @@ final _logger = Logger('genkit');
 Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
 defineGenerateAction(Registry registry) {
   return Action(
-    actionType: 'generate',
+    actionType: 'util',
     name: 'generate',
     inputType: GenerateActionOptionsType,
     outputType: ModelResponseType,
