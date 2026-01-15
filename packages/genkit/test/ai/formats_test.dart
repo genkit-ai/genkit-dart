@@ -15,6 +15,7 @@
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:test/test.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 part 'formats_test.schema.g.dart';
 

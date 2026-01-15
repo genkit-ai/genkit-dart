@@ -107,7 +107,7 @@ extension type Candidate(Map<String, dynamic> _json) {
   }
 }
 
-class CandidateTypeFactory implements JsonExtensionType<Candidate> {
+class CandidateTypeFactory extends JsonExtensionType<Candidate> {
   const CandidateTypeFactory();
 
   @override
@@ -116,19 +116,21 @@ class CandidateTypeFactory implements JsonExtensionType<Candidate> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Candidate',
+    definition: Schema.object(
       properties: {
         'index': Schema.number(),
-        'message': MessageType.jsonSchema,
-        'usage': GenerationUsageType.jsonSchema,
+        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
         'finishReason': Schema.any(),
         'finishMessage': Schema.string(),
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['index', 'message', 'finishReason'],
-    );
-  }
+    ),
+    dependencies: [MessageType, GenerationUsageType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -182,7 +184,7 @@ extension type Message(Map<String, dynamic> _json) {
   }
 }
 
-class MessageTypeFactory implements JsonExtensionType<Message> {
+class MessageTypeFactory extends JsonExtensionType<Message> {
   const MessageTypeFactory();
 
   @override
@@ -191,16 +193,20 @@ class MessageTypeFactory implements JsonExtensionType<Message> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Message',
+    definition: Schema.object(
       properties: {
         'role': Schema.any(),
-        'content': Schema.list(items: PartType.jsonSchema),
+        'content': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+        ),
         'metadata': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['role', 'content'],
-    );
-  }
+    ),
+    dependencies: [PartType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -272,7 +278,7 @@ extension type ToolDefinition(Map<String, dynamic> _json) {
   }
 }
 
-class ToolDefinitionTypeFactory implements JsonExtensionType<ToolDefinition> {
+class ToolDefinitionTypeFactory extends JsonExtensionType<ToolDefinition> {
   const ToolDefinitionTypeFactory();
 
   @override
@@ -281,8 +287,9 @@ class ToolDefinitionTypeFactory implements JsonExtensionType<ToolDefinition> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ToolDefinition',
+    definition: Schema.object(
       properties: {
         'name': Schema.string(),
         'description': Schema.string(),
@@ -291,8 +298,9 @@ class ToolDefinitionTypeFactory implements JsonExtensionType<ToolDefinition> {
         'metadata': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['name', 'description', 'inputSchema', 'outputSchema'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -308,7 +316,7 @@ extension type Part(Map<String, dynamic> _json) {
   }
 }
 
-class PartTypeFactory implements JsonExtensionType<Part> {
+class PartTypeFactory extends JsonExtensionType<Part> {
   const PartTypeFactory();
 
   @override
@@ -317,9 +325,11 @@ class PartTypeFactory implements JsonExtensionType<Part> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(properties: {}, required: []);
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Part',
+    definition: Schema.object(properties: {}, required: []),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -389,7 +399,7 @@ extension type TextPart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class TextPartTypeFactory implements JsonExtensionType<TextPart> {
+class TextPartTypeFactory extends JsonExtensionType<TextPart> {
   const TextPartTypeFactory();
 
   @override
@@ -398,8 +408,9 @@ class TextPartTypeFactory implements JsonExtensionType<TextPart> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TextPart',
+    definition: Schema.object(
       properties: {
         'text': Schema.string(),
         'data': Schema.object(additionalProperties: Schema.any()),
@@ -407,8 +418,9 @@ class TextPartTypeFactory implements JsonExtensionType<TextPart> {
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['text'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -478,7 +490,7 @@ extension type MediaPart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class MediaPartTypeFactory implements JsonExtensionType<MediaPart> {
+class MediaPartTypeFactory extends JsonExtensionType<MediaPart> {
   const MediaPartTypeFactory();
 
   @override
@@ -487,17 +499,19 @@ class MediaPartTypeFactory implements JsonExtensionType<MediaPart> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MediaPart',
+    definition: Schema.object(
       properties: {
-        'media': MediaType.jsonSchema,
+        'media': Schema.fromMap({'\$ref': r'#/$defs/Media'}),
         'data': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['media'],
-    );
-  }
+    ),
+    dependencies: [MediaType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -567,7 +581,7 @@ extension type ToolRequestPart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class ToolRequestPartTypeFactory implements JsonExtensionType<ToolRequestPart> {
+class ToolRequestPartTypeFactory extends JsonExtensionType<ToolRequestPart> {
   const ToolRequestPartTypeFactory();
 
   @override
@@ -576,17 +590,19 @@ class ToolRequestPartTypeFactory implements JsonExtensionType<ToolRequestPart> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ToolRequestPart',
+    definition: Schema.object(
       properties: {
-        'toolRequest': ToolRequestType.jsonSchema,
+        'toolRequest': Schema.fromMap({'\$ref': r'#/$defs/ToolRequest'}),
         'data': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['toolRequest'],
-    );
-  }
+    ),
+    dependencies: [ToolRequestType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -656,8 +672,7 @@ extension type ToolResponsePart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class ToolResponsePartTypeFactory
-    implements JsonExtensionType<ToolResponsePart> {
+class ToolResponsePartTypeFactory extends JsonExtensionType<ToolResponsePart> {
   const ToolResponsePartTypeFactory();
 
   @override
@@ -666,17 +681,19 @@ class ToolResponsePartTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ToolResponsePart',
+    definition: Schema.object(
       properties: {
-        'toolResponse': ToolResponseType.jsonSchema,
+        'toolResponse': Schema.fromMap({'\$ref': r'#/$defs/ToolResponse'}),
         'data': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['toolResponse'],
-    );
-  }
+    ),
+    dependencies: [ToolResponseType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -736,7 +753,7 @@ extension type DataPart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class DataPartTypeFactory implements JsonExtensionType<DataPart> {
+class DataPartTypeFactory extends JsonExtensionType<DataPart> {
   const DataPartTypeFactory();
 
   @override
@@ -745,16 +762,18 @@ class DataPartTypeFactory implements JsonExtensionType<DataPart> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'DataPart',
+    definition: Schema.object(
       properties: {
         'data': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
       required: [],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -810,7 +829,7 @@ extension type CustomPart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class CustomPartTypeFactory implements JsonExtensionType<CustomPart> {
+class CustomPartTypeFactory extends JsonExtensionType<CustomPart> {
   const CustomPartTypeFactory();
 
   @override
@@ -819,16 +838,18 @@ class CustomPartTypeFactory implements JsonExtensionType<CustomPart> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'CustomPart',
+    definition: Schema.object(
       properties: {
         'data': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
         'custom': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['custom'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -898,7 +919,7 @@ extension type ReasoningPart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class ReasoningPartTypeFactory implements JsonExtensionType<ReasoningPart> {
+class ReasoningPartTypeFactory extends JsonExtensionType<ReasoningPart> {
   const ReasoningPartTypeFactory();
 
   @override
@@ -907,8 +928,9 @@ class ReasoningPartTypeFactory implements JsonExtensionType<ReasoningPart> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ReasoningPart',
+    definition: Schema.object(
       properties: {
         'data': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
@@ -916,8 +938,9 @@ class ReasoningPartTypeFactory implements JsonExtensionType<ReasoningPart> {
         'reasoning': Schema.string(),
       },
       required: ['reasoning'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -987,7 +1010,7 @@ extension type ResourcePart(Map<String, dynamic> _json) implements Part {
   }
 }
 
-class ResourcePartTypeFactory implements JsonExtensionType<ResourcePart> {
+class ResourcePartTypeFactory extends JsonExtensionType<ResourcePart> {
   const ResourcePartTypeFactory();
 
   @override
@@ -996,8 +1019,9 @@ class ResourcePartTypeFactory implements JsonExtensionType<ResourcePart> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ResourcePart',
+    definition: Schema.object(
       properties: {
         'data': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
@@ -1005,8 +1029,9 @@ class ResourcePartTypeFactory implements JsonExtensionType<ResourcePart> {
         'resource': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['resource'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1045,7 +1070,7 @@ extension type Media(Map<String, dynamic> _json) {
   }
 }
 
-class MediaTypeFactory implements JsonExtensionType<Media> {
+class MediaTypeFactory extends JsonExtensionType<Media> {
   const MediaTypeFactory();
 
   @override
@@ -1054,12 +1079,14 @@ class MediaTypeFactory implements JsonExtensionType<Media> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Media',
+    definition: Schema.object(
       properties: {'contentType': Schema.string(), 'url': Schema.string()},
       required: ['url'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1129,7 +1156,7 @@ extension type ToolRequest(Map<String, dynamic> _json) {
   }
 }
 
-class ToolRequestTypeFactory implements JsonExtensionType<ToolRequest> {
+class ToolRequestTypeFactory extends JsonExtensionType<ToolRequest> {
   const ToolRequestTypeFactory();
 
   @override
@@ -1138,8 +1165,9 @@ class ToolRequestTypeFactory implements JsonExtensionType<ToolRequest> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ToolRequest',
+    definition: Schema.object(
       properties: {
         'ref': Schema.string(),
         'name': Schema.string(),
@@ -1147,8 +1175,9 @@ class ToolRequestTypeFactory implements JsonExtensionType<ToolRequest> {
         'partial': Schema.boolean(),
       },
       required: ['name'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1214,7 +1243,7 @@ extension type ToolResponse(Map<String, dynamic> _json) {
   }
 }
 
-class ToolResponseTypeFactory implements JsonExtensionType<ToolResponse> {
+class ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
   const ToolResponseTypeFactory();
 
   @override
@@ -1223,8 +1252,9 @@ class ToolResponseTypeFactory implements JsonExtensionType<ToolResponse> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ToolResponse',
+    definition: Schema.object(
       properties: {
         'ref': Schema.string(),
         'name': Schema.string(),
@@ -1232,8 +1262,9 @@ class ToolResponseTypeFactory implements JsonExtensionType<ToolResponse> {
         'content': Schema.list(items: Schema.any()),
       },
       required: ['name', 'output'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1339,7 +1370,7 @@ extension type ModelRequest(Map<String, dynamic> _json) {
   }
 }
 
-class ModelRequestTypeFactory implements JsonExtensionType<ModelRequest> {
+class ModelRequestTypeFactory extends JsonExtensionType<ModelRequest> {
   const ModelRequestTypeFactory();
 
   @override
@@ -1348,19 +1379,32 @@ class ModelRequestTypeFactory implements JsonExtensionType<ModelRequest> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ModelRequest',
+    definition: Schema.object(
       properties: {
-        'messages': Schema.list(items: MessageType.jsonSchema),
+        'messages': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+        ),
         'config': Schema.object(additionalProperties: Schema.any()),
-        'tools': Schema.list(items: ToolDefinitionType.jsonSchema),
+        'tools': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
+        ),
         'toolChoice': Schema.string(),
-        'output': OutputConfigType.jsonSchema,
-        'docs': Schema.list(items: DocumentDataType.jsonSchema),
+        'output': Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
+        'docs': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+        ),
       },
       required: ['messages'],
-    );
-  }
+    ),
+    dependencies: [
+      MessageType,
+      ToolDefinitionType,
+      OutputConfigType,
+      DocumentDataType,
+    ],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1508,7 +1552,7 @@ extension type ModelResponse(Map<String, dynamic> _json) {
   }
 }
 
-class ModelResponseTypeFactory implements JsonExtensionType<ModelResponse> {
+class ModelResponseTypeFactory extends JsonExtensionType<ModelResponse> {
   const ModelResponseTypeFactory();
 
   @override
@@ -1517,22 +1561,29 @@ class ModelResponseTypeFactory implements JsonExtensionType<ModelResponse> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ModelResponse',
+    definition: Schema.object(
       properties: {
-        'message': MessageType.jsonSchema,
+        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
         'finishReason': Schema.any(),
         'finishMessage': Schema.string(),
         'latencyMs': Schema.number(),
-        'usage': GenerationUsageType.jsonSchema,
+        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
         'custom': Schema.object(additionalProperties: Schema.any()),
         'raw': Schema.object(additionalProperties: Schema.any()),
-        'request': GenerateRequestType.jsonSchema,
-        'operation': OperationType.jsonSchema,
+        'request': Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
+        'operation': Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
       },
       required: ['finishReason'],
-    );
-  }
+    ),
+    dependencies: [
+      MessageType,
+      GenerationUsageType,
+      GenerateRequestType,
+      OperationType,
+    ],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1619,7 +1670,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json) {
 }
 
 class ModelResponseChunkTypeFactory
-    implements JsonExtensionType<ModelResponseChunk> {
+    extends JsonExtensionType<ModelResponseChunk> {
   const ModelResponseChunkTypeFactory();
 
   @override
@@ -1628,18 +1679,22 @@ class ModelResponseChunkTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ModelResponseChunk',
+    definition: Schema.object(
       properties: {
         'role': Schema.any(),
         'index': Schema.number(),
-        'content': Schema.list(items: PartType.jsonSchema),
+        'content': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+        ),
         'custom': Schema.object(additionalProperties: Schema.any()),
         'aggregated': Schema.boolean(),
       },
       required: ['content'],
-    );
-  }
+    ),
+    dependencies: [PartType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1759,7 +1814,7 @@ extension type GenerateRequest(Map<String, dynamic> _json) {
   }
 }
 
-class GenerateRequestTypeFactory implements JsonExtensionType<GenerateRequest> {
+class GenerateRequestTypeFactory extends JsonExtensionType<GenerateRequest> {
   const GenerateRequestTypeFactory();
 
   @override
@@ -1768,20 +1823,33 @@ class GenerateRequestTypeFactory implements JsonExtensionType<GenerateRequest> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GenerateRequest',
+    definition: Schema.object(
       properties: {
-        'messages': Schema.list(items: MessageType.jsonSchema),
+        'messages': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+        ),
         'config': Schema.object(additionalProperties: Schema.any()),
-        'tools': Schema.list(items: ToolDefinitionType.jsonSchema),
+        'tools': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
+        ),
         'toolChoice': Schema.string(),
-        'output': OutputConfigType.jsonSchema,
-        'docs': Schema.list(items: DocumentDataType.jsonSchema),
+        'output': Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
+        'docs': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+        ),
         'candidates': Schema.number(),
       },
       required: ['messages'],
-    );
-  }
+    ),
+    dependencies: [
+      MessageType,
+      ToolDefinitionType,
+      OutputConfigType,
+      DocumentDataType,
+    ],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -1996,7 +2064,7 @@ extension type GenerationUsage(Map<String, dynamic> _json) {
   }
 }
 
-class GenerationUsageTypeFactory implements JsonExtensionType<GenerationUsage> {
+class GenerationUsageTypeFactory extends JsonExtensionType<GenerationUsage> {
   const GenerationUsageTypeFactory();
 
   @override
@@ -2005,8 +2073,9 @@ class GenerationUsageTypeFactory implements JsonExtensionType<GenerationUsage> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GenerationUsage',
+    definition: Schema.object(
       properties: {
         'inputTokens': Schema.number(),
         'outputTokens': Schema.number(),
@@ -2024,8 +2093,9 @@ class GenerationUsageTypeFactory implements JsonExtensionType<GenerationUsage> {
         'cachedContentTokens': Schema.number(),
       },
       required: [],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -2123,7 +2193,7 @@ extension type Operation(Map<String, dynamic> _json) {
   }
 }
 
-class OperationTypeFactory implements JsonExtensionType<Operation> {
+class OperationTypeFactory extends JsonExtensionType<Operation> {
   const OperationTypeFactory();
 
   @override
@@ -2132,8 +2202,9 @@ class OperationTypeFactory implements JsonExtensionType<Operation> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Operation',
+    definition: Schema.object(
       properties: {
         'action': Schema.string(),
         'id': Schema.string(),
@@ -2143,8 +2214,9 @@ class OperationTypeFactory implements JsonExtensionType<Operation> {
         'metadata': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['id'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -2218,7 +2290,7 @@ extension type OutputConfig(Map<String, dynamic> _json) {
   }
 }
 
-class OutputConfigTypeFactory implements JsonExtensionType<OutputConfig> {
+class OutputConfigTypeFactory extends JsonExtensionType<OutputConfig> {
   const OutputConfigTypeFactory();
 
   @override
@@ -2227,8 +2299,9 @@ class OutputConfigTypeFactory implements JsonExtensionType<OutputConfig> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'OutputConfig',
+    definition: Schema.object(
       properties: {
         'format': Schema.string(),
         'schema': Schema.object(additionalProperties: Schema.any()),
@@ -2236,8 +2309,9 @@ class OutputConfigTypeFactory implements JsonExtensionType<OutputConfig> {
         'contentType': Schema.string(),
       },
       required: [],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -2281,7 +2355,7 @@ extension type DocumentData(Map<String, dynamic> _json) {
   }
 }
 
-class DocumentDataTypeFactory implements JsonExtensionType<DocumentData> {
+class DocumentDataTypeFactory extends JsonExtensionType<DocumentData> {
   const DocumentDataTypeFactory();
 
   @override
@@ -2290,15 +2364,19 @@ class DocumentDataTypeFactory implements JsonExtensionType<DocumentData> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'DocumentData',
+    definition: Schema.object(
       properties: {
-        'content': Schema.list(items: PartType.jsonSchema),
+        'content': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+        ),
         'metadata': Schema.object(additionalProperties: Schema.any()),
       },
       required: ['content'],
-    );
-  }
+    ),
+    dependencies: [PartType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -2473,7 +2551,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
 }
 
 class GenerateActionOptionsTypeFactory
-    implements JsonExtensionType<GenerateActionOptions> {
+    extends JsonExtensionType<GenerateActionOptions> {
   const GenerateActionOptionsTypeFactory();
 
   @override
@@ -2482,24 +2560,36 @@ class GenerateActionOptionsTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GenerateActionOptions',
+    definition: Schema.object(
       properties: {
         'model': Schema.string(),
-        'docs': Schema.list(items: DocumentDataType.jsonSchema),
-        'messages': Schema.list(items: MessageType.jsonSchema),
+        'docs': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+        ),
+        'messages': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+        ),
         'tools': Schema.list(items: Schema.string()),
         'toolChoice': Schema.string(),
         'config': Schema.object(additionalProperties: Schema.any()),
-        'output': GenerateActionOutputConfigType.jsonSchema,
+        'output': Schema.fromMap({
+          '\$ref': r'#/$defs/GenerateActionOutputConfig',
+        }),
         'resume': Schema.object(additionalProperties: Schema.any()),
         'returnToolRequests': Schema.boolean(),
         'maxTurns': Schema.integer(),
         'stepName': Schema.string(),
       },
       required: ['messages'],
-    );
-  }
+    ),
+    dependencies: [
+      DocumentDataType,
+      MessageType,
+      GenerateActionOutputConfigType,
+    ],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -2588,7 +2678,7 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json) {
 }
 
 class GenerateActionOutputConfigTypeFactory
-    implements JsonExtensionType<GenerateActionOutputConfig> {
+    extends JsonExtensionType<GenerateActionOutputConfig> {
   const GenerateActionOutputConfigTypeFactory();
 
   @override
@@ -2597,8 +2687,9 @@ class GenerateActionOutputConfigTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GenerateActionOutputConfig',
+    definition: Schema.object(
       properties: {
         'format': Schema.string(),
         'contentType': Schema.string(),
@@ -2607,8 +2698,9 @@ class GenerateActionOutputConfigTypeFactory
         'constrained': Schema.boolean(),
       },
       required: [],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

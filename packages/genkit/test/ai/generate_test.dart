@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 part 'generate_test.schema.g.dart';
 

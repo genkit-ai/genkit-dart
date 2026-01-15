@@ -29,7 +29,9 @@ class ClassGenerator {
   String generate(Set<String> allowlist) {
     final library = Library((b) {
       b.directives.addAll([
-        Directive.import('package:genkit/schema.dart'),
+        Directive.import(
+          'package:genkit_schema_builder/genkit_schema_builder.dart',
+        ),
         Directive.part('types.schema.g.dart'),
       ]);
       for (final className in allowlist) {

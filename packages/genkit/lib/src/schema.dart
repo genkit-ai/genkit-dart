@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:test/test.dart';
-import 'package:genkit/genkit.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
-@GenkitSchema()
-abstract class TestCustomOptionsSchema {
-  String get customField;
-}
+Map<String, dynamic> toJsonSchema({
+  JsonExtensionType? type,
+  Map<String, dynamic>? jsonSchema,
+}) {
+  var result = Schema.any().value;
+  if (jsonSchema != null) {
+    result = jsonSchema;
+  }
 
-@GenkitSchema()
-abstract class TestToolInputSchema {
-  String get name;
-}
+  if (type != null) {
+    result = type.jsonSchema(useRefs: true).value;
+  }
 
-void main() {
-  group('Placeholder', () {
-    test('boo, write a real test', () async {});
-  });
+  result['\$schema'] = 'http://json-schema.org/draft-07/schema#';
+
+  return result;
 }

@@ -47,7 +47,7 @@ extension type Ingredient(Map<String, dynamic> _json) {
   }
 }
 
-class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
+class IngredientTypeFactory extends JsonExtensionType<Ingredient> {
   const IngredientTypeFactory();
 
   @override
@@ -56,12 +56,14 @@ class IngredientTypeFactory implements JsonExtensionType<Ingredient> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Ingredient',
+    definition: Schema.object(
       properties: {'name': Schema.string(), 'quantity': Schema.string()},
       required: ['name', 'quantity'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -111,7 +113,7 @@ extension type Recipe(Map<String, dynamic> _json) {
   }
 }
 
-class RecipeTypeFactory implements JsonExtensionType<Recipe> {
+class RecipeTypeFactory extends JsonExtensionType<Recipe> {
   const RecipeTypeFactory();
 
   @override
@@ -120,16 +122,20 @@ class RecipeTypeFactory implements JsonExtensionType<Recipe> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Recipe',
+    definition: Schema.object(
       properties: {
         'title': Schema.string(),
-        'ingredients': Schema.list(items: IngredientType.jsonSchema),
+        'ingredients': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
+        ),
         'servings': Schema.integer(),
       },
       required: ['title', 'ingredients', 'servings'],
-    );
-  }
+    ),
+    dependencies: [IngredientType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -179,7 +185,7 @@ extension type AnnotatedRecipe(Map<String, dynamic> _json) {
   }
 }
 
-class AnnotatedRecipeTypeFactory implements JsonExtensionType<AnnotatedRecipe> {
+class AnnotatedRecipeTypeFactory extends JsonExtensionType<AnnotatedRecipe> {
   const AnnotatedRecipeTypeFactory();
 
   @override
@@ -188,18 +194,22 @@ class AnnotatedRecipeTypeFactory implements JsonExtensionType<AnnotatedRecipe> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'AnnotatedRecipe',
+    definition: Schema.object(
       properties: {
         'title_key_in_json': Schema.string(
           description: 'description set in json schema',
         ),
-        'ingredients': Schema.list(items: IngredientType.jsonSchema),
+        'ingredients': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
+        ),
         'servings': Schema.integer(),
       },
       required: ['title_key_in_json', 'ingredients', 'servings'],
-    );
-  }
+    ),
+    dependencies: [IngredientType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -231,7 +241,7 @@ extension type MealPlan(Map<String, dynamic> _json) {
   }
 }
 
-class MealPlanTypeFactory implements JsonExtensionType<MealPlan> {
+class MealPlanTypeFactory extends JsonExtensionType<MealPlan> {
   const MealPlanTypeFactory();
 
   @override
@@ -240,15 +250,17 @@ class MealPlanTypeFactory implements JsonExtensionType<MealPlan> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MealPlan',
+    definition: Schema.object(
       properties: {
         'day': Schema.string(),
         'mealType': Schema.string(enumValues: ['breakfast', 'lunch', 'dinner']),
       },
       required: ['day', 'mealType'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -325,7 +337,7 @@ extension type NullableFields(Map<String, dynamic> _json) {
   }
 }
 
-class NullableFieldsTypeFactory implements JsonExtensionType<NullableFields> {
+class NullableFieldsTypeFactory extends JsonExtensionType<NullableFields> {
   const NullableFieldsTypeFactory();
 
   @override
@@ -334,17 +346,19 @@ class NullableFieldsTypeFactory implements JsonExtensionType<NullableFields> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'NullableFields',
+    definition: Schema.object(
       properties: {
         'optionalString': Schema.string(),
         'optionalInt': Schema.integer(),
         'optionalList': Schema.list(items: Schema.string()),
-        'optionalIngredient': IngredientType.jsonSchema,
+        'optionalIngredient': Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
       },
       required: [],
-    );
-  }
+    ),
+    dependencies: [IngredientType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -428,7 +442,7 @@ extension type ComplexObject(Map<String, dynamic> _json) {
   }
 }
 
-class ComplexObjectTypeFactory implements JsonExtensionType<ComplexObject> {
+class ComplexObjectTypeFactory extends JsonExtensionType<ComplexObject> {
   const ComplexObjectTypeFactory();
 
   @override
@@ -437,19 +451,21 @@ class ComplexObjectTypeFactory implements JsonExtensionType<ComplexObject> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ComplexObject',
+    definition: Schema.object(
       properties: {
         'id': Schema.string(),
         'createdAt': Schema.string(format: 'date-time'),
         'price': Schema.number(),
         'metadata': Schema.object(additionalProperties: Schema.string()),
         'ratings': Schema.list(items: Schema.integer()),
-        'nestedNullable': NullableFieldsType.jsonSchema,
+        'nestedNullable': Schema.fromMap({'\$ref': r'#/$defs/NullableFields'}),
       },
       required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
-    );
-  }
+    ),
+    dependencies: [NullableFieldsType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -498,7 +514,7 @@ extension type Menu(Map<String, dynamic> _json) {
   }
 }
 
-class MenuTypeFactory implements JsonExtensionType<Menu> {
+class MenuTypeFactory extends JsonExtensionType<Menu> {
   const MenuTypeFactory();
 
   @override
@@ -507,15 +523,21 @@ class MenuTypeFactory implements JsonExtensionType<Menu> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Menu',
+    definition: Schema.object(
       properties: {
-        'recipes': Schema.list(items: RecipeType.jsonSchema),
-        'optionalIngredients': Schema.list(items: IngredientType.jsonSchema),
+        'recipes': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Recipe'}),
+        ),
+        'optionalIngredients': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
+        ),
       },
       required: ['recipes'],
-    );
-  }
+    ),
+    dependencies: [RecipeType, IngredientType],
+  );
 }
 
 // ignore: constant_identifier_names

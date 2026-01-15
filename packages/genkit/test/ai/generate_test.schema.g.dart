@@ -39,7 +39,7 @@ extension type TestToolInput(Map<String, dynamic> _json) {
   }
 }
 
-class TestToolInputTypeFactory implements JsonExtensionType<TestToolInput> {
+class TestToolInputTypeFactory extends JsonExtensionType<TestToolInput> {
   const TestToolInputTypeFactory();
 
   @override
@@ -48,12 +48,14 @@ class TestToolInputTypeFactory implements JsonExtensionType<TestToolInput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestToolInput',
+    definition: Schema.object(
       properties: {'name': Schema.string()},
       required: ['name'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

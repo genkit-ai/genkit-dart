@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/client.dart';
-import 'package:genkit/schema.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:http/http.dart' as http;
 
 import 'types.dart';

@@ -20,6 +20,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 import 'types.dart';
 
