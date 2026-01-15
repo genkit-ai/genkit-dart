@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -90,9 +91,8 @@ void main() async {
   router.get('/health', (Request request) => Response.ok('OK'));
 
   // Create a handler pipeline (e.g., adding logging)
-  final handler = const Pipeline()
-      .addMiddleware(logRequests())
-      .addHandler(router.call);
+  final handler =
+      const Pipeline().addMiddleware(logRequests()).addHandler(router.call);
 
   // Start the server
   final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);

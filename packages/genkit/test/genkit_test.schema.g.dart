@@ -40,7 +40,7 @@ extension type TestCustomOptions(Map<String, dynamic> _json) {
 }
 
 class TestCustomOptionsTypeFactory
-    implements JsonExtensionType<TestCustomOptions> {
+    extends JsonExtensionType<TestCustomOptions> {
   const TestCustomOptionsTypeFactory();
 
   @override
@@ -49,12 +49,14 @@ class TestCustomOptionsTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestCustomOptions',
+    definition: Schema.object(
       properties: {'customField': Schema.string()},
       required: ['customField'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -78,7 +80,7 @@ extension type TestToolInput(Map<String, dynamic> _json) {
   }
 }
 
-class TestToolInputTypeFactory implements JsonExtensionType<TestToolInput> {
+class TestToolInputTypeFactory extends JsonExtensionType<TestToolInput> {
   const TestToolInputTypeFactory();
 
   @override
@@ -87,12 +89,14 @@ class TestToolInputTypeFactory implements JsonExtensionType<TestToolInput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestToolInput',
+    definition: Schema.object(
       properties: {'name': Schema.string()},
       required: ['name'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

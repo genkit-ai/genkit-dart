@@ -24,8 +24,8 @@ import 'package:shelf_router/shelf_router.dart';
 const _streamDelimiter = '\n\n';
 
 /// Context provider function.
-typedef ContextProvider =
-    FutureOr<Map<String, dynamic>> Function(Request request);
+typedef ContextProvider = FutureOr<Map<String, dynamic>> Function(
+    Request request);
 
 /// A wrapper object containing a flow with its associated auth policy.
 class FlowWithContextProvider {
@@ -122,25 +122,22 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
       }
 
       // Start processing in background to feed the stream
-      action
-          .run(
-            input,
-            context: context,
-            onChunk: (chunk) {
-              sendChunk('data:', {'message': chunk});
-            },
-          )
-          .then((result) {
-            sendChunk('data:', {'result': result.result});
-            controller.close();
-          })
-          .catchError((e) {
-            // TODO: Map GenkitException to status/message properly
-            sendChunk('error:', {
-              'error': {'message': e.toString(), 'status': 'INTERNAL'},
-            });
-            controller.close();
-          });
+      action.run(
+        input,
+        context: context,
+        onChunk: (chunk) {
+          sendChunk('data:', {'message': chunk});
+        },
+      ).then((result) {
+        sendChunk('data:', {'result': result.result});
+        controller.close();
+      }).catchError((e) {
+        // TODO: Map GenkitException to status/message properly
+        sendChunk('error:', {
+          'error': {'message': e.toString(), 'status': 'INTERNAL'},
+        });
+        controller.close();
+      });
 
       return Response.ok(
         controller.stream,
@@ -195,29 +192,27 @@ Future<HttpServer> startFlowServer({
 
   Handler handler = app.call;
   if (cors != null) {
-    handler = const Pipeline()
-        .addMiddleware((innerHandler) {
-          return (request) async {
-            if (request.method == 'OPTIONS') {
-              return Response.ok(
-                '',
-                headers: {
-                  'Access-Control-Allow-Origin': cors['origin'] ?? '*',
-                  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-                  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                },
-              );
-            }
-            final response = await innerHandler(request);
-            return response.change(
-              headers: {
-                'Access-Control-Allow-Origin': cors['origin'] ?? '*',
-                ...response.headers,
-              },
-            );
-          };
-        })
-        .addHandler(handler);
+    handler = const Pipeline().addMiddleware((innerHandler) {
+      return (request) async {
+        if (request.method == 'OPTIONS') {
+          return Response.ok(
+            '',
+            headers: {
+              'Access-Control-Allow-Origin': cors['origin'] ?? '*',
+              'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            },
+          );
+        }
+        final response = await innerHandler(request);
+        return response.change(
+          headers: {
+            'Access-Control-Allow-Origin': cors['origin'] ?? '*',
+            ...response.headers,
+          },
+        );
+      };
+    }).addHandler(handler);
   }
 
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);

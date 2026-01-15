@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:genkit/genkit.dart';
 
 part 'flow_basics.schema.g.dart';

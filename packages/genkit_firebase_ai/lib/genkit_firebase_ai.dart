@@ -14,6 +14,7 @@
 
 import 'dart:convert';
 
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 import 'package:meta/meta.dart';
 import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:genkit/genkit.dart';
@@ -122,16 +123,16 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           model: modelName,
           generationConfig: m.GenerationConfig(
             candidateCount: req.config?['candidateCount'] as int?,
-            stopSequences: (req.config?['stopSequences'] as List?)
-                ?.cast<String>(),
+            stopSequences:
+                (req.config?['stopSequences'] as List?)?.cast<String>(),
             maxOutputTokens: req.config?['maxOutputTokens'] as int?,
             temperature: (req.config?['temperature'] as num?)?.toDouble(),
             topP: (req.config?['topP'] as num?)?.toDouble(),
             topK: req.config?['topK'] as int?,
-            presencePenalty: (req.config?['presencePenalty'] as num?)
-                ?.toDouble(),
-            frequencyPenalty: (req.config?['frequencyPenalty'] as num?)
-                ?.toDouble(),
+            presencePenalty:
+                (req.config?['presencePenalty'] as num?)?.toDouble(),
+            frequencyPenalty:
+                (req.config?['frequencyPenalty'] as num?)?.toDouble(),
             responseModalities: (req.config?['responseModalities'] as List?)
                 ?.map((e) => m.ResponseModalities.values.byName(e as String))
                 .toList(),
@@ -145,13 +146,10 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
                 req.config?['responseJsonSchema'] as Map<String, dynamic>?,
             thinkingConfig: req.config?['thinkingConfig'] != null
                 ? m.ThinkingConfig(
-                    thinkingBudget:
-                        (req.config!['thinkingConfig'] as Map)['thinkingBudget']
-                            as int?,
-                    includeThoughts:
-                        (req.config!['thinkingConfig']
-                                as Map)['includeThoughts']
-                            as bool?,
+                    thinkingBudget: (req.config!['thinkingConfig']
+                        as Map)['thinkingBudget'] as int?,
+                    includeThoughts: (req.config!['thinkingConfig']
+                        as Map)['includeThoughts'] as bool?,
                   )
                 : null,
           ),
@@ -174,9 +172,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           'candidates': response.candidates
               .map(
                 (c) => {
-                  'content': c
-                      .content
-                      .parts
+                  'content': c.content.parts
                       .length, // content.toJson() might not exist or be simple
                   'finishReason': c.finishReason?.name,
                 },
@@ -199,9 +195,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       fn: (stream, ctx) async {
         final configMap = ctx.init?.config;
         final tools = ctx.init?.tools?.map(toGeminiTool).toList();
-        final systemMessage = ctx.init?.messages
-            .where((m) => m.role == Role.system)
-            .firstOrNull;
+        final systemMessage =
+            ctx.init?.messages.where((m) => m.role == Role.system).firstOrNull;
         final systemInstruction = systemMessage != null
             ? m.Content(
                 'system',
@@ -219,11 +214,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           }).toList(),
           speechConfig: configMap?['speechConfig'] != null
               ? m.SpeechConfig(
-                  voiceName:
-                      (((configMap!['speechConfig'] as Map)['voiceConfig']
-                                  as Map)['prebuiltVoiceConfig']
-                              as Map)['voiceName']
-                          as String,
+                  voiceName: (((configMap!['speechConfig']
+                          as Map)['voiceConfig'] as Map)['prebuiltVoiceConfig']
+                      as Map)['voiceName'] as String,
                 )
               : null,
           maxOutputTokens: configMap?['maxOutputTokens'] as int?,
@@ -231,8 +224,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           topP: (configMap?['topP'] as num?)?.toDouble(),
           topK: configMap?['topK'] as int?,
           presencePenalty: (configMap?['presencePenalty'] as num?)?.toDouble(),
-          frequencyPenalty: (configMap?['frequencyPenalty'] as num?)
-              ?.toDouble(),
+          frequencyPenalty:
+              (configMap?['frequencyPenalty'] as num?)?.toDouble(),
         );
 
         final instance = m.FirebaseAI.googleAI();
@@ -257,7 +250,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         // Send initial history
         final initialMessages =
             ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
-            [];
+                [];
         for (final msg in initialMessages) {
           await _sendToSession(session, msg);
         }
@@ -364,9 +357,12 @@ m.Part toGeminiPart(Part p) {
   }
   if (p.isToolResponse) {
     p as ToolResponsePart;
-    return m.FunctionResponse(p.toolResponse.name, {
-      'result': p.toolResponse.output,
-    }, id: p.toolResponse.ref);
+    return m.FunctionResponse(
+        p.toolResponse.name,
+        {
+          'result': p.toolResponse.output,
+        },
+        id: p.toolResponse.ref);
   }
   if (p.isToolRequest) {
     p as ToolRequestPart;
@@ -416,8 +412,9 @@ ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
   final liveParts = event.message is m.LiveServerContent
       ? (event.message as m.LiveServerContent).modelTurn?.parts
       : event.message is m.LiveServerToolCall
-      ? (event.message as m.LiveServerToolCall).functionCalls as List<m.Part>
-      : null;
+          ? (event.message as m.LiveServerToolCall).functionCalls
+              as List<m.Part>
+          : null;
   if (liveParts == null) return null;
   // We only care about content updates for now
   final parts = liveParts.map(fromGeminiPart).toList();

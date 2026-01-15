@@ -47,7 +47,7 @@ extension type TestObject(Map<String, dynamic> _json) {
   }
 }
 
-class TestObjectTypeFactory implements JsonExtensionType<TestObject> {
+class TestObjectTypeFactory extends JsonExtensionType<TestObject> {
   const TestObjectTypeFactory();
 
   @override
@@ -56,12 +56,14 @@ class TestObjectTypeFactory implements JsonExtensionType<TestObject> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestObject',
+    definition: Schema.object(
       properties: {'foo': Schema.string(), 'bar': Schema.integer()},
       required: ['foo', 'bar'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

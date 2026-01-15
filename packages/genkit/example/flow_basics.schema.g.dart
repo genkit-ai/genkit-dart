@@ -39,7 +39,7 @@ extension type Subject(Map<String, dynamic> _json) {
   }
 }
 
-class SubjectTypeFactory implements JsonExtensionType<Subject> {
+class SubjectTypeFactory extends JsonExtensionType<Subject> {
   const SubjectTypeFactory();
 
   @override
@@ -48,12 +48,14 @@ class SubjectTypeFactory implements JsonExtensionType<Subject> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Subject',
+    definition: Schema.object(
       properties: {'subject': Schema.string()},
       required: ['subject'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -77,7 +79,7 @@ extension type Count(Map<String, dynamic> _json) {
   }
 }
 
-class CountTypeFactory implements JsonExtensionType<Count> {
+class CountTypeFactory extends JsonExtensionType<Count> {
   const CountTypeFactory();
 
   @override
@@ -86,12 +88,14 @@ class CountTypeFactory implements JsonExtensionType<Count> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Count',
+    definition: Schema.object(
       properties: {'count': Schema.integer()},
       required: ['count'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

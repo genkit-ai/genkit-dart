@@ -39,7 +39,7 @@ extension type HandlerInput(Map<String, dynamic> _json) {
   }
 }
 
-class HandlerInputTypeFactory implements JsonExtensionType<HandlerInput> {
+class HandlerInputTypeFactory extends JsonExtensionType<HandlerInput> {
   const HandlerInputTypeFactory();
 
   @override
@@ -48,12 +48,14 @@ class HandlerInputTypeFactory implements JsonExtensionType<HandlerInput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'message': Schema.string()},
-      required: ['message'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'HandlerInput',
+        definition: Schema.object(
+          properties: {'message': Schema.string()},
+          required: ['message'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names
@@ -77,7 +79,7 @@ extension type HandlerOutput(Map<String, dynamic> _json) {
   }
 }
 
-class HandlerOutputTypeFactory implements JsonExtensionType<HandlerOutput> {
+class HandlerOutputTypeFactory extends JsonExtensionType<HandlerOutput> {
   const HandlerOutputTypeFactory();
 
   @override
@@ -86,12 +88,14 @@ class HandlerOutputTypeFactory implements JsonExtensionType<HandlerOutput> {
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'processedMessage': Schema.string()},
-      required: ['processedMessage'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'HandlerOutput',
+        definition: Schema.object(
+          properties: {'processedMessage': Schema.string()},
+          required: ['processedMessage'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names

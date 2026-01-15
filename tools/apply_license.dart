@@ -125,9 +125,8 @@ Future<bool> _processFile(File file, bool checkMode) async {
 
     // Check for Apache license mention if copyright format is different
     // We only check the first 1000 characters to avoid matching string constants later in the file
-    final checkLimit = contentToCheck.length > 1000
-        ? 1000
-        : contentToCheck.length;
+    final checkLimit =
+        contentToCheck.length > 1000 ? 1000 : contentToCheck.length;
     if (contentToCheck
         .substring(0, checkLimit)
         .contains('Licensed under the Apache License')) {

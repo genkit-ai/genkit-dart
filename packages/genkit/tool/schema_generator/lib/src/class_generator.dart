@@ -29,7 +29,9 @@ class ClassGenerator {
   String generate(Set<String> allowlist) {
     final library = Library((b) {
       b.directives.addAll([
-        Directive.import('package:genkit/schema.dart'),
+        Directive.import(
+          'package:genkit_schema_builder/genkit_schema_builder.dart',
+        ),
         Directive.part('types.schema.g.dart'),
       ]);
       for (final className in allowlist) {
@@ -72,8 +74,8 @@ class ClassGenerator {
     Reference? extend,
   }) {
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
-    final required = (schema['required'] as List<dynamic>? ?? [])
-        .cast<String>();
+    final required =
+        (schema['required'] as List<dynamic>? ?? []).cast<String>();
 
     b.body.add(
       Class((c) {
@@ -90,19 +92,19 @@ class ClassGenerator {
           properties.entries
               .where((e) => !_isNotType(e.value as Map<String, dynamic>))
               .map((e) {
-                final isRequired = required.contains(e.key);
-                return Method((m) {
-                  m
-                    ..name = _sanitizeFieldName(e.key)
-                    ..type = MethodType.getter
-                    ..returns = _mapType(
-                      className,
-                      e.key,
-                      e.value,
-                      isRequired: isRequired,
-                    );
-                });
-              }),
+            final isRequired = required.contains(e.key);
+            return Method((m) {
+              m
+                ..name = _sanitizeFieldName(e.key)
+                ..type = MethodType.getter
+                ..returns = _mapType(
+                  className,
+                  e.key,
+                  e.value,
+                  isRequired: isRequired,
+                );
+            });
+          }),
         );
       }),
     );

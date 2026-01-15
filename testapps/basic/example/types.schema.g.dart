@@ -51,7 +51,7 @@ extension type ProcessObjectInput(Map<String, dynamic> _json) {
 }
 
 class ProcessObjectInputTypeFactory
-    implements JsonExtensionType<ProcessObjectInput> {
+    extends JsonExtensionType<ProcessObjectInput> {
   const ProcessObjectInputTypeFactory();
 
   @override
@@ -60,12 +60,14 @@ class ProcessObjectInputTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ProcessObjectInput',
+    definition: Schema.object(
       properties: {'message': Schema.string(), 'count': Schema.integer()},
       required: ['message', 'count'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -101,7 +103,7 @@ extension type ProcessObjectOutput(Map<String, dynamic> _json) {
 }
 
 class ProcessObjectOutputTypeFactory
-    implements JsonExtensionType<ProcessObjectOutput> {
+    extends JsonExtensionType<ProcessObjectOutput> {
   const ProcessObjectOutputTypeFactory();
 
   @override
@@ -110,12 +112,14 @@ class ProcessObjectOutputTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ProcessObjectOutput',
+    definition: Schema.object(
       properties: {'reply': Schema.string(), 'newCount': Schema.integer()},
       required: ['reply', 'newCount'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -140,7 +144,7 @@ extension type StreamObjectsInput(Map<String, dynamic> _json) {
 }
 
 class StreamObjectsInputTypeFactory
-    implements JsonExtensionType<StreamObjectsInput> {
+    extends JsonExtensionType<StreamObjectsInput> {
   const StreamObjectsInputTypeFactory();
 
   @override
@@ -149,12 +153,14 @@ class StreamObjectsInputTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'StreamObjectsInput',
+    definition: Schema.object(
       properties: {'prompt': Schema.string()},
       required: ['prompt'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -190,7 +196,7 @@ extension type StreamObjectsOutput(Map<String, dynamic> _json) {
 }
 
 class StreamObjectsOutputTypeFactory
-    implements JsonExtensionType<StreamObjectsOutput> {
+    extends JsonExtensionType<StreamObjectsOutput> {
   const StreamObjectsOutputTypeFactory();
 
   @override
@@ -199,12 +205,14 @@ class StreamObjectsOutputTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'StreamObjectsOutput',
+    definition: Schema.object(
       properties: {'text': Schema.string(), 'summary': Schema.string()},
       required: ['text', 'summary'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -229,7 +237,7 @@ extension type StreamyThrowyChunk(Map<String, dynamic> _json) {
 }
 
 class StreamyThrowyChunkTypeFactory
-    implements JsonExtensionType<StreamyThrowyChunk> {
+    extends JsonExtensionType<StreamyThrowyChunk> {
   const StreamyThrowyChunkTypeFactory();
 
   @override
@@ -238,12 +246,14 @@ class StreamyThrowyChunkTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'StreamyThrowyChunk',
+    definition: Schema.object(
       properties: {'count': Schema.integer()},
       required: ['count'],
-    );
-  }
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

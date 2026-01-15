@@ -39,8 +39,7 @@ extension type WeatherToolInput(Map<String, dynamic> _json) {
   }
 }
 
-class WeatherToolInputTypeFactory
-    implements JsonExtensionType<WeatherToolInput> {
+class WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
   const WeatherToolInputTypeFactory();
 
   @override
@@ -49,12 +48,14 @@ class WeatherToolInputTypeFactory
   }
 
   @override
-  Schema get jsonSchema {
-    return Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
-    );
-  }
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'WeatherToolInput',
+        definition: Schema.object(
+          properties: {'location': Schema.string()},
+          required: ['location'],
+        ),
+        dependencies: [],
+      );
 }
 
 // ignore: constant_identifier_names

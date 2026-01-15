@@ -24,6 +24,7 @@ import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:logging/logging.dart';
+import 'package:genkit_schema_builder/genkit_schema_builder.dart';
 
 part 'main.schema.g.dart';
 
@@ -426,12 +427,10 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                   builder: (context, value, child) {
                     final isTyping = value.text.isNotEmpty;
                     return GestureDetector(
-                      onLongPressStart: isTyping
-                          ? null
-                          : (_) => _toggleRecording(),
-                      onLongPressEnd: isTyping
-                          ? null
-                          : (_) => _toggleRecording(),
+                      onLongPressStart:
+                          isTyping ? null : (_) => _toggleRecording(),
+                      onLongPressEnd:
+                          isTyping ? null : (_) => _toggleRecording(),
                       onTap: isTyping ? _sendText : _toggleRecording,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -442,23 +441,22 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                           color: isTyping
                               ? Theme.of(context).colorScheme.secondary
                               : (_isRecording
-                                    ? Theme.of(context).colorScheme.error
-                                    : Theme.of(context).colorScheme.primary),
+                                  ? Theme.of(context).colorScheme.error
+                                  : Theme.of(context).colorScheme.primary),
                           boxShadow: [
                             BoxShadow(
-                              color:
-                                  (isTyping
+                              color: (isTyping
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.secondary
+                                      : (_isRecording
                                           ? Theme.of(
                                               context,
-                                            ).colorScheme.secondary
-                                          : (_isRecording
-                                                ? Theme.of(
-                                                    context,
-                                                  ).colorScheme.error
-                                                : Theme.of(
-                                                    context,
-                                                  ).colorScheme.primary))
-                                      .withOpacity(0.4),
+                                            ).colorScheme.error
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.primary))
+                                  .withOpacity(0.4),
                               blurRadius: _isRecording ? 10 : 4,
                               spreadRadius: _isRecording ? 2 : 1,
                             ),
