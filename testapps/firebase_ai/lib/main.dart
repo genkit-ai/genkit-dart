@@ -427,10 +427,12 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                   builder: (context, value, child) {
                     final isTyping = value.text.isNotEmpty;
                     return GestureDetector(
-                      onLongPressStart:
-                          isTyping ? null : (_) => _toggleRecording(),
-                      onLongPressEnd:
-                          isTyping ? null : (_) => _toggleRecording(),
+                      onLongPressStart: isTyping
+                          ? null
+                          : (_) => _toggleRecording(),
+                      onLongPressEnd: isTyping
+                          ? null
+                          : (_) => _toggleRecording(),
                       onTap: isTyping ? _sendText : _toggleRecording,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -441,22 +443,23 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                           color: isTyping
                               ? Theme.of(context).colorScheme.secondary
                               : (_isRecording
-                                  ? Theme.of(context).colorScheme.error
-                                  : Theme.of(context).colorScheme.primary),
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary),
                           boxShadow: [
                             BoxShadow(
-                              color: (isTyping
-                                      ? Theme.of(
-                                          context,
-                                        ).colorScheme.secondary
-                                      : (_isRecording
+                              color:
+                                  (isTyping
                                           ? Theme.of(
                                               context,
-                                            ).colorScheme.error
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.primary))
-                                  .withOpacity(0.4),
+                                            ).colorScheme.secondary
+                                          : (_isRecording
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.error
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary))
+                                      .withOpacity(0.4),
                               blurRadius: _isRecording ? 10 : 4,
                               spreadRadius: _isRecording ? 2 : 1,
                             ),

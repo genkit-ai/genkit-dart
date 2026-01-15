@@ -63,16 +63,16 @@ class GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'GeminiOptions',
-        definition: Schema.object(
-          properties: {
-            'maxOutputTokens': Schema.integer(),
-            'temperature': Schema.integer(),
-          },
-          required: ['maxOutputTokens', 'temperature'],
-        ),
-        dependencies: [],
-      );
+    name: 'GeminiOptions',
+    definition: Schema.object(
+      properties: {
+        'maxOutputTokens': Schema.integer(),
+        'temperature': Schema.integer(),
+      },
+      required: ['maxOutputTokens', 'temperature'],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

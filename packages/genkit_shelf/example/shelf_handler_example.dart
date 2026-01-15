@@ -91,8 +91,9 @@ void main() async {
   router.get('/health', (Request request) => Response.ok('OK'));
 
   // Create a handler pipeline (e.g., adding logging)
-  final handler =
-      const Pipeline().addMiddleware(logRequests()).addHandler(router.call);
+  final handler = const Pipeline()
+      .addMiddleware(logRequests())
+      .addHandler(router.call);
 
   // Start the server
   final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);

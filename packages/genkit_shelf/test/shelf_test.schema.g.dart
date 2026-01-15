@@ -49,13 +49,13 @@ class ShelfTestOutputTypeFactory extends JsonExtensionType<ShelfTestOutput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'ShelfTestOutput',
-        definition: Schema.object(
-          properties: {'greeting': Schema.string()},
-          required: ['greeting'],
-        ),
-        dependencies: [],
-      );
+    name: 'ShelfTestOutput',
+    definition: Schema.object(
+      properties: {'greeting': Schema.string()},
+      required: ['greeting'],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -89,13 +89,13 @@ class ShelfTestStreamTypeFactory extends JsonExtensionType<ShelfTestStream> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'ShelfTestStream',
-        definition: Schema.object(
-          properties: {'chunk': Schema.string()},
-          required: ['chunk'],
-        ),
-        dependencies: [],
-      );
+    name: 'ShelfTestStream',
+    definition: Schema.object(
+      properties: {'chunk': Schema.string()},
+      required: ['chunk'],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names

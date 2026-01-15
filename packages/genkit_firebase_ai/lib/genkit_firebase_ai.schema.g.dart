@@ -213,28 +213,26 @@ class GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'GeminiOptions',
-        definition: Schema.object(
-          properties: {
-            'stopSequences': Schema.list(items: Schema.string()),
-            'maxOutputTokens': Schema.integer(),
-            'temperature': Schema.number(),
-            'topP': Schema.number(),
-            'topK': Schema.integer(),
-            'presencePenalty': Schema.number(),
-            'frequencyPenalty': Schema.number(),
-            'responseModalities': Schema.list(items: Schema.string()),
-            'responseMimeType': Schema.string(),
-            'responseSchema': Schema.object(additionalProperties: Schema.any()),
-            'responseJsonSchema':
-                Schema.object(additionalProperties: Schema.any()),
-            'thinkingConfig':
-                Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
-          },
-          required: [],
-        ),
-        dependencies: [ThinkingConfigType],
-      );
+    name: 'GeminiOptions',
+    definition: Schema.object(
+      properties: {
+        'stopSequences': Schema.list(items: Schema.string()),
+        'maxOutputTokens': Schema.integer(),
+        'temperature': Schema.number(),
+        'topP': Schema.number(),
+        'topK': Schema.integer(),
+        'presencePenalty': Schema.number(),
+        'frequencyPenalty': Schema.number(),
+        'responseModalities': Schema.list(items: Schema.string()),
+        'responseMimeType': Schema.string(),
+        'responseSchema': Schema.object(additionalProperties: Schema.any()),
+        'responseJsonSchema': Schema.object(additionalProperties: Schema.any()),
+        'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
+      },
+      required: [],
+    ),
+    dependencies: [ThinkingConfigType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -287,16 +285,16 @@ class ThinkingConfigTypeFactory extends JsonExtensionType<ThinkingConfig> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'ThinkingConfig',
-        definition: Schema.object(
-          properties: {
-            'thinkingBudget': Schema.integer(),
-            'includeThoughts': Schema.boolean(),
-          },
-          required: [],
-        ),
-        dependencies: [],
-      );
+    name: 'ThinkingConfig',
+    definition: Schema.object(
+      properties: {
+        'thinkingBudget': Schema.integer(),
+        'includeThoughts': Schema.boolean(),
+      },
+      required: [],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -335,13 +333,13 @@ class PrebuiltVoiceConfigTypeFactory
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'PrebuiltVoiceConfig',
-        definition: Schema.object(
-          properties: {'voiceName': Schema.string()},
-          required: [],
-        ),
-        dependencies: [],
-      );
+    name: 'PrebuiltVoiceConfig',
+    definition: Schema.object(
+      properties: {'voiceName': Schema.string()},
+      required: [],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -386,17 +384,17 @@ class VoiceConfigTypeFactory extends JsonExtensionType<VoiceConfig> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'VoiceConfig',
-        definition: Schema.object(
-          properties: {
-            'prebuiltVoiceConfig': Schema.fromMap({
-              '\$ref': r'#/$defs/PrebuiltVoiceConfig',
-            }),
-          },
-          required: [],
-        ),
-        dependencies: [PrebuiltVoiceConfigType],
-      );
+    name: 'VoiceConfig',
+    definition: Schema.object(
+      properties: {
+        'prebuiltVoiceConfig': Schema.fromMap({
+          '\$ref': r'#/$defs/PrebuiltVoiceConfig',
+        }),
+      },
+      required: [],
+    ),
+    dependencies: [PrebuiltVoiceConfigType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -438,15 +436,15 @@ class SpeechConfigTypeFactory extends JsonExtensionType<SpeechConfig> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'SpeechConfig',
-        definition: Schema.object(
-          properties: {
-            'voiceConfig': Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
-          },
-          required: [],
-        ),
-        dependencies: [VoiceConfigType],
-      );
+    name: 'SpeechConfig',
+    definition: Schema.object(
+      properties: {
+        'voiceConfig': Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
+      },
+      required: [],
+    ),
+    dependencies: [VoiceConfigType],
+  );
 }
 
 // ignore: constant_identifier_names
@@ -603,23 +601,23 @@ class LiveGenerationConfigTypeFactory
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'LiveGenerationConfig',
-        definition: Schema.object(
-          properties: {
-            'responseModalities': Schema.list(items: Schema.string()),
-            'speechConfig': Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
-            'stopSequences': Schema.list(items: Schema.string()),
-            'maxOutputTokens': Schema.integer(),
-            'temperature': Schema.number(),
-            'topP': Schema.number(),
-            'topK': Schema.integer(),
-            'presencePenalty': Schema.number(),
-            'frequencyPenalty': Schema.number(),
-          },
-          required: [],
-        ),
-        dependencies: [SpeechConfigType],
-      );
+    name: 'LiveGenerationConfig',
+    definition: Schema.object(
+      properties: {
+        'responseModalities': Schema.list(items: Schema.string()),
+        'speechConfig': Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
+        'stopSequences': Schema.list(items: Schema.string()),
+        'maxOutputTokens': Schema.integer(),
+        'temperature': Schema.number(),
+        'topP': Schema.number(),
+        'topK': Schema.integer(),
+        'presencePenalty': Schema.number(),
+        'frequencyPenalty': Schema.number(),
+      },
+      required: [],
+    ),
+    dependencies: [SpeechConfigType],
+  );
 }
 
 // ignore: constant_identifier_names

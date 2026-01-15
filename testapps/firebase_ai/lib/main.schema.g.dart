@@ -49,13 +49,13 @@ class WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'WeatherToolInput',
-        definition: Schema.object(
-          properties: {'location': Schema.string()},
-          required: ['location'],
-        ),
-        dependencies: [],
-      );
+    name: 'WeatherToolInput',
+    definition: Schema.object(
+      properties: {'location': Schema.string()},
+      required: ['location'],
+    ),
+    dependencies: [],
+  );
 }
 
 // ignore: constant_identifier_names
