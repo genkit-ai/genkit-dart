@@ -1,3 +1,9 @@
+## 0.0.1-dev.6
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**: Refactor basic types into factory functions to support schema constraints (#34).
+
 ## 0.0.1-dev.5
 
  - **REFACTOR**: move the package-specific schema generator into a peer package (#31).

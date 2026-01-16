@@ -11,6 +11,42 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - [`genkit` - `v0.10.0-dev.6`](#genkit---v0100-dev6)
+ - [`genkit_google_genai` - `v0.0.1-dev.6`](#genkit_google_genai---v001-dev6)
+ - [`genkit_shelf` - `v0.0.1-dev.6`](#genkit_shelf---v001-dev6)
+ - [`schemantic` - `v0.0.1-dev.7`](#schemantic---v001-dev7)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `genkit` - `v0.10.0-dev.6`
+
+ - **BREAKING** **FEAT**: Refactor basic types into factory functions to support schema constraints (#34).
+
+#### `genkit_google_genai` - `v0.0.1-dev.6`
+
+ - **BREAKING** **FEAT**: Refactor basic types into factory functions to support schema constraints (#34).
+
+#### `genkit_shelf` - `v0.0.1-dev.6`
+
+ - **BREAKING** **FEAT**: Refactor basic types into factory functions to support schema constraints (#34).
+
+#### `schemantic` - `v0.0.1-dev.7`
+
+ - **BREAKING** **FEAT**: Refactor basic types into factory functions to support schema constraints (#34).
+
+
+## 2026-01-16
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - [`genkit` - `v0.10.0-dev.5`](#genkit---v0100-dev5)
  - [`schemantic` - `v0.0.1-dev.6`](#schemantic---v001-dev6)
 
