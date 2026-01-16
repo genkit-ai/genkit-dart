@@ -21,7 +21,8 @@ part of 'generate_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestToolInput(Map<String, dynamic> _json) {
+extension type TestToolInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory TestToolInput.from({required String name}) {
     return TestToolInput({'name': name});
   }

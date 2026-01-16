@@ -80,6 +80,21 @@ void main() async {
   );
 
   ai.defineFlow(
+    name: 'withListInputSchema',
+    inputType: listType(SubjectType),
+    outputType: StringType,
+    fn: (input, _) async {
+      final foo = await ai.run('call-llm', () async {
+        return 'subjects: ${input.map((e) => e.subject).join(', ')}';
+      });
+
+      return await ai.run('call-llm1', () async {
+        return 'foo: $foo';
+      });
+    },
+  );
+
+  ai.defineFlow(
     name: 'withContext',
     inputType: SubjectType,
     outputType: StringType,

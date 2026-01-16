@@ -21,7 +21,8 @@ part of 'genkit_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestCustomOptions(Map<String, dynamic> _json) {
+extension type TestCustomOptions(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory TestCustomOptions.from({required String customField}) {
     return TestCustomOptions({'customField': customField});
   }
@@ -62,7 +63,8 @@ class TestCustomOptionsTypeFactory
 // ignore: constant_identifier_names
 const TestCustomOptionsType = TestCustomOptionsTypeFactory();
 
-extension type TestToolInput(Map<String, dynamic> _json) {
+extension type TestToolInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory TestToolInput.from({required String name}) {
     return TestToolInput({'name': name});
   }

@@ -21,7 +21,8 @@ part of 'extension_type_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Ingredient(Map<String, dynamic> _json) {
+extension type Ingredient(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Ingredient.from({required String name, required String quantity}) {
     return Ingredient({'name': name, 'quantity': quantity});
   }
@@ -69,7 +70,8 @@ class IngredientTypeFactory extends JsonExtensionType<Ingredient> {
 // ignore: constant_identifier_names
 const IngredientType = IngredientTypeFactory();
 
-extension type Recipe(Map<String, dynamic> _json) {
+extension type Recipe(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Recipe.from({
     required String title,
     required List<Ingredient> ingredients,
@@ -141,7 +143,8 @@ class RecipeTypeFactory extends JsonExtensionType<Recipe> {
 // ignore: constant_identifier_names
 const RecipeType = RecipeTypeFactory();
 
-extension type AnnotatedRecipe(Map<String, dynamic> _json) {
+extension type AnnotatedRecipe(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory AnnotatedRecipe.from({
     required String title,
     required List<Ingredient> ingredients,
@@ -215,7 +218,8 @@ class AnnotatedRecipeTypeFactory extends JsonExtensionType<AnnotatedRecipe> {
 // ignore: constant_identifier_names
 const AnnotatedRecipeType = AnnotatedRecipeTypeFactory();
 
-extension type MealPlan(Map<String, dynamic> _json) {
+extension type MealPlan(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory MealPlan.from({required String day, required MealType mealType}) {
     return MealPlan({'day': day, 'mealType': mealType});
   }
@@ -266,7 +270,8 @@ class MealPlanTypeFactory extends JsonExtensionType<MealPlan> {
 // ignore: constant_identifier_names
 const MealPlanType = MealPlanTypeFactory();
 
-extension type NullableFields(Map<String, dynamic> _json) {
+extension type NullableFields(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory NullableFields.from({
     String? optionalString,
     int? optionalInt,
@@ -278,7 +283,7 @@ extension type NullableFields(Map<String, dynamic> _json) {
       if (optionalInt != null) 'optionalInt': optionalInt,
       if (optionalList != null) 'optionalList': optionalList,
       if (optionalIngredient != null)
-        'optionalIngredient': optionalIngredient?.toJson(),
+        'optionalIngredient': optionalIngredient.toJson(),
     });
   }
 
@@ -364,7 +369,8 @@ class NullableFieldsTypeFactory extends JsonExtensionType<NullableFields> {
 // ignore: constant_identifier_names
 const NullableFieldsType = NullableFieldsTypeFactory();
 
-extension type ComplexObject(Map<String, dynamic> _json) {
+extension type ComplexObject(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ComplexObject.from({
     required String id,
     required DateTime createdAt,
@@ -379,7 +385,7 @@ extension type ComplexObject(Map<String, dynamic> _json) {
       'price': price,
       'metadata': metadata,
       'ratings': ratings,
-      if (nestedNullable != null) 'nestedNullable': nestedNullable?.toJson(),
+      if (nestedNullable != null) 'nestedNullable': nestedNullable.toJson(),
     });
   }
 
@@ -471,7 +477,8 @@ class ComplexObjectTypeFactory extends JsonExtensionType<ComplexObject> {
 // ignore: constant_identifier_names
 const ComplexObjectType = ComplexObjectTypeFactory();
 
-extension type Menu(Map<String, dynamic> _json) {
+extension type Menu(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Menu.from({
     required List<Recipe> recipes,
     List<Ingredient>? optionalIngredients,

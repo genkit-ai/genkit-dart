@@ -21,7 +21,8 @@ part of 'tool_calling_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type WeatherToolInput(Map<String, dynamic> _json) {
+extension type WeatherToolInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory WeatherToolInput.from({required String location}) {
     return WeatherToolInput({'location': location});
   }

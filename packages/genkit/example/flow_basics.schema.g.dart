@@ -21,7 +21,8 @@ part of 'flow_basics.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Subject(Map<String, dynamic> _json) {
+extension type Subject(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Subject.from({required String subject}) {
     return Subject({'subject': subject});
   }
@@ -61,7 +62,8 @@ class SubjectTypeFactory extends JsonExtensionType<Subject> {
 // ignore: constant_identifier_names
 const SubjectType = SubjectTypeFactory();
 
-extension type Count(Map<String, dynamic> _json) {
+extension type Count(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Count.from({required int count}) {
     return Count({'count': count});
   }

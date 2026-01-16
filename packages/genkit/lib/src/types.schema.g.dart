@@ -21,7 +21,8 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Candidate(Map<String, dynamic> _json) {
+extension type Candidate(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Candidate.from({
     required double index,
     required Message message,
@@ -33,7 +34,7 @@ extension type Candidate(Map<String, dynamic> _json) {
     return Candidate({
       'index': index,
       'message': message.toJson(),
-      if (usage != null) 'usage': usage?.toJson(),
+      if (usage != null) 'usage': usage.toJson(),
       'finishReason': finishReason,
       if (finishMessage != null) 'finishMessage': finishMessage,
       if (custom != null) 'custom': custom,
@@ -136,7 +137,8 @@ class CandidateTypeFactory extends JsonExtensionType<Candidate> {
 // ignore: constant_identifier_names
 const CandidateType = CandidateTypeFactory();
 
-extension type Message(Map<String, dynamic> _json) {
+extension type Message(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Message.from({
     required Role role,
     required List<Part> content,
@@ -212,7 +214,8 @@ class MessageTypeFactory extends JsonExtensionType<Message> {
 // ignore: constant_identifier_names
 const MessageType = MessageTypeFactory();
 
-extension type ToolDefinition(Map<String, dynamic> _json) {
+extension type ToolDefinition(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ToolDefinition.from({
     required String name,
     required String description,
@@ -306,7 +309,8 @@ class ToolDefinitionTypeFactory extends JsonExtensionType<ToolDefinition> {
 // ignore: constant_identifier_names
 const ToolDefinitionType = ToolDefinitionTypeFactory();
 
-extension type Part(Map<String, dynamic> _json) {
+extension type Part(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Part.from() {
     return Part({});
   }
@@ -335,7 +339,8 @@ class PartTypeFactory extends JsonExtensionType<Part> {
 // ignore: constant_identifier_names
 const PartType = PartTypeFactory();
 
-extension type TextPart(Map<String, dynamic> _json) implements Part {
+extension type TextPart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory TextPart.from({
     required String text,
     Map<String, dynamic>? data,
@@ -426,7 +431,8 @@ class TextPartTypeFactory extends JsonExtensionType<TextPart> {
 // ignore: constant_identifier_names
 const TextPartType = TextPartTypeFactory();
 
-extension type MediaPart(Map<String, dynamic> _json) implements Part {
+extension type MediaPart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory MediaPart.from({
     required Media media,
     Map<String, dynamic>? data,
@@ -517,7 +523,8 @@ class MediaPartTypeFactory extends JsonExtensionType<MediaPart> {
 // ignore: constant_identifier_names
 const MediaPartType = MediaPartTypeFactory();
 
-extension type ToolRequestPart(Map<String, dynamic> _json) implements Part {
+extension type ToolRequestPart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory ToolRequestPart.from({
     required ToolRequest toolRequest,
     Map<String, dynamic>? data,
@@ -608,7 +615,8 @@ class ToolRequestPartTypeFactory extends JsonExtensionType<ToolRequestPart> {
 // ignore: constant_identifier_names
 const ToolRequestPartType = ToolRequestPartTypeFactory();
 
-extension type ToolResponsePart(Map<String, dynamic> _json) implements Part {
+extension type ToolResponsePart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory ToolResponsePart.from({
     required ToolResponse toolResponse,
     Map<String, dynamic>? data,
@@ -699,7 +707,8 @@ class ToolResponsePartTypeFactory extends JsonExtensionType<ToolResponsePart> {
 // ignore: constant_identifier_names
 const ToolResponsePartType = ToolResponsePartTypeFactory();
 
-extension type DataPart(Map<String, dynamic> _json) implements Part {
+extension type DataPart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory DataPart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -779,7 +788,8 @@ class DataPartTypeFactory extends JsonExtensionType<DataPart> {
 // ignore: constant_identifier_names
 const DataPartType = DataPartTypeFactory();
 
-extension type CustomPart(Map<String, dynamic> _json) implements Part {
+extension type CustomPart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory CustomPart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -855,7 +865,8 @@ class CustomPartTypeFactory extends JsonExtensionType<CustomPart> {
 // ignore: constant_identifier_names
 const CustomPartType = CustomPartTypeFactory();
 
-extension type ReasoningPart(Map<String, dynamic> _json) implements Part {
+extension type ReasoningPart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory ReasoningPart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -946,7 +957,8 @@ class ReasoningPartTypeFactory extends JsonExtensionType<ReasoningPart> {
 // ignore: constant_identifier_names
 const ReasoningPartType = ReasoningPartTypeFactory();
 
-extension type ResourcePart(Map<String, dynamic> _json) implements Part {
+extension type ResourcePart(Map<String, dynamic> _json)
+    implements Map<String, dynamic>, Part {
   factory ResourcePart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -1037,7 +1049,8 @@ class ResourcePartTypeFactory extends JsonExtensionType<ResourcePart> {
 // ignore: constant_identifier_names
 const ResourcePartType = ResourcePartTypeFactory();
 
-extension type Media(Map<String, dynamic> _json) {
+extension type Media(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Media.from({String? contentType, required String url}) {
     return Media({
       if (contentType != null) 'contentType': contentType,
@@ -1092,7 +1105,8 @@ class MediaTypeFactory extends JsonExtensionType<Media> {
 // ignore: constant_identifier_names
 const MediaType = MediaTypeFactory();
 
-extension type ToolRequest(Map<String, dynamic> _json) {
+extension type ToolRequest(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ToolRequest.from({
     String? ref,
     required String name,
@@ -1183,7 +1197,8 @@ class ToolRequestTypeFactory extends JsonExtensionType<ToolRequest> {
 // ignore: constant_identifier_names
 const ToolRequestType = ToolRequestTypeFactory();
 
-extension type ToolResponse(Map<String, dynamic> _json) {
+extension type ToolResponse(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ToolResponse.from({
     String? ref,
     required String name,
@@ -1270,7 +1285,8 @@ class ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
 // ignore: constant_identifier_names
 const ToolResponseType = ToolResponseTypeFactory();
 
-extension type ModelRequest(Map<String, dynamic> _json) {
+extension type ModelRequest(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ModelRequest.from({
     required List<Message> messages,
     Map<String, dynamic>? config,
@@ -1284,7 +1300,7 @@ extension type ModelRequest(Map<String, dynamic> _json) {
       if (config != null) 'config': config,
       if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
       if (toolChoice != null) 'toolChoice': toolChoice,
-      if (output != null) 'output': output?.toJson(),
+      if (output != null) 'output': output.toJson(),
       if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
     });
   }
@@ -1410,7 +1426,8 @@ class ModelRequestTypeFactory extends JsonExtensionType<ModelRequest> {
 // ignore: constant_identifier_names
 const ModelRequestType = ModelRequestTypeFactory();
 
-extension type ModelResponse(Map<String, dynamic> _json) {
+extension type ModelResponse(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ModelResponse.from({
     Message? message,
     required FinishReason finishReason,
@@ -1423,15 +1440,15 @@ extension type ModelResponse(Map<String, dynamic> _json) {
     Operation? operation,
   }) {
     return ModelResponse({
-      if (message != null) 'message': message?.toJson(),
+      if (message != null) 'message': message.toJson(),
       'finishReason': finishReason,
       if (finishMessage != null) 'finishMessage': finishMessage,
       if (latencyMs != null) 'latencyMs': latencyMs,
-      if (usage != null) 'usage': usage?.toJson(),
+      if (usage != null) 'usage': usage.toJson(),
       if (custom != null) 'custom': custom,
       if (raw != null) 'raw': raw,
-      if (request != null) 'request': request?.toJson(),
-      if (operation != null) 'operation': operation?.toJson(),
+      if (request != null) 'request': request.toJson(),
+      if (operation != null) 'operation': operation.toJson(),
     });
   }
 
@@ -1589,7 +1606,8 @@ class ModelResponseTypeFactory extends JsonExtensionType<ModelResponse> {
 // ignore: constant_identifier_names
 const ModelResponseType = ModelResponseTypeFactory();
 
-extension type ModelResponseChunk(Map<String, dynamic> _json) {
+extension type ModelResponseChunk(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ModelResponseChunk.from({
     Role? role,
     double? index,
@@ -1700,7 +1718,8 @@ class ModelResponseChunkTypeFactory
 // ignore: constant_identifier_names
 const ModelResponseChunkType = ModelResponseChunkTypeFactory();
 
-extension type GenerateRequest(Map<String, dynamic> _json) {
+extension type GenerateRequest(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory GenerateRequest.from({
     required List<Message> messages,
     Map<String, dynamic>? config,
@@ -1715,7 +1734,7 @@ extension type GenerateRequest(Map<String, dynamic> _json) {
       if (config != null) 'config': config,
       if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
       if (toolChoice != null) 'toolChoice': toolChoice,
-      if (output != null) 'output': output?.toJson(),
+      if (output != null) 'output': output.toJson(),
       if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
       if (candidates != null) 'candidates': candidates,
     });
@@ -1855,7 +1874,8 @@ class GenerateRequestTypeFactory extends JsonExtensionType<GenerateRequest> {
 // ignore: constant_identifier_names
 const GenerateRequestType = GenerateRequestTypeFactory();
 
-extension type GenerationUsage(Map<String, dynamic> _json) {
+extension type GenerationUsage(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory GenerationUsage.from({
     double? inputTokens,
     double? outputTokens,
@@ -2101,7 +2121,8 @@ class GenerationUsageTypeFactory extends JsonExtensionType<GenerationUsage> {
 // ignore: constant_identifier_names
 const GenerationUsageType = GenerationUsageTypeFactory();
 
-extension type Operation(Map<String, dynamic> _json) {
+extension type Operation(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Operation.from({
     String? action,
     required String id,
@@ -2222,7 +2243,8 @@ class OperationTypeFactory extends JsonExtensionType<Operation> {
 // ignore: constant_identifier_names
 const OperationType = OperationTypeFactory();
 
-extension type OutputConfig(Map<String, dynamic> _json) {
+extension type OutputConfig(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory OutputConfig.from({
     String? format,
     Map<String, dynamic>? schema,
@@ -2317,7 +2339,8 @@ class OutputConfigTypeFactory extends JsonExtensionType<OutputConfig> {
 // ignore: constant_identifier_names
 const OutputConfigType = OutputConfigTypeFactory();
 
-extension type DocumentData(Map<String, dynamic> _json) {
+extension type DocumentData(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory DocumentData.from({
     required List<Part> content,
     Map<String, dynamic>? metadata,
@@ -2382,7 +2405,8 @@ class DocumentDataTypeFactory extends JsonExtensionType<DocumentData> {
 // ignore: constant_identifier_names
 const DocumentDataType = DocumentDataTypeFactory();
 
-extension type GenerateActionOptions(Map<String, dynamic> _json) {
+extension type GenerateActionOptions(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory GenerateActionOptions.from({
     String? model,
     List<DocumentData>? docs,
@@ -2403,7 +2427,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json) {
       if (tools != null) 'tools': tools,
       if (toolChoice != null) 'toolChoice': toolChoice,
       if (config != null) 'config': config,
-      if (output != null) 'output': output?.toJson(),
+      if (output != null) 'output': output.toJson(),
       if (resume != null) 'resume': resume,
       if (returnToolRequests != null) 'returnToolRequests': returnToolRequests,
       if (maxTurns != null) 'maxTurns': maxTurns,
@@ -2595,7 +2619,8 @@ class GenerateActionOptionsTypeFactory
 // ignore: constant_identifier_names
 const GenerateActionOptionsType = GenerateActionOptionsTypeFactory();
 
-extension type GenerateActionOutputConfig(Map<String, dynamic> _json) {
+extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory GenerateActionOutputConfig.from({
     String? format,
     String? contentType,

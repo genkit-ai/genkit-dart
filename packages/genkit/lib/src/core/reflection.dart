@@ -330,7 +330,7 @@ class ReflectionServer {
       request.response.bufferOutput = false;
 
       try {
-        final result = await action.run(
+        final result = await action.runRaw(
           input,
           onChunk: (chunk) {
             request.response.write('${jsonEncode(chunk)}\n');
@@ -356,7 +356,7 @@ class ReflectionServer {
       }
     } else {
       try {
-        final result = await action.run(input);
+        final result = await action.runRaw(input);
         final response = RunActionResponse(
           result: result.result,
           telemetry: {'traceId': result.traceId},
