@@ -14,7 +14,7 @@
 
 import 'dart:convert';
 
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
 import 'package:genkit/genkit.dart';

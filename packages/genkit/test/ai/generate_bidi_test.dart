@@ -15,7 +15,7 @@
 import 'dart:async';
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'generate_bidi_test.schema.g.dart';
 

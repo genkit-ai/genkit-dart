@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:build_test/build_test.dart';
-import 'package:genkit_schema_builder/src/schema_generator.dart';
+import 'package:schemantic/src/schema_generator.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:test/test.dart';
 
@@ -36,10 +36,9 @@ class Key {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
@@ -64,10 +63,9 @@ abstract class UserSchema {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
@@ -105,10 +103,9 @@ abstract class UserSchema {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
@@ -138,10 +135,9 @@ abstract class ProductSchema {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 

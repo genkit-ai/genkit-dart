@@ -1,4 +1,4 @@
-# Genkit Schema Builder
+# Schemantic
 
 A builder for generating Genkit schema extension types.
 
@@ -6,7 +6,7 @@ A builder for generating Genkit schema extension types.
 
 ```yaml
 dev_dependencies:
-  genkit_schema_builder: any
+  schemantic: any
   build_runner: ^2.8.0
 ```
 

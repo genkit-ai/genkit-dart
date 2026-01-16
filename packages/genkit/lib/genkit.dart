@@ -28,7 +28,7 @@ import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/types.dart';
 import 'package:genkit/src/utils.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 export 'package:genkit/src/ai/tool.dart' show Tool;
 export 'package:genkit/src/o11y/otlp_http_exporter.dart'

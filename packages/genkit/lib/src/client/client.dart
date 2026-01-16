@@ -16,7 +16,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:genkit/src/core/action.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:http/http.dart' as http;
 
 import '../exception.dart';

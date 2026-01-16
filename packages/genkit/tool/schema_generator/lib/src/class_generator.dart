@@ -30,7 +30,7 @@ class ClassGenerator {
     final library = Library((b) {
       b.directives.addAll([
         Directive.import(
-          'package:genkit_schema_builder/genkit_schema_builder.dart',
+          'package:schemantic/schemantic.dart',
         ),
         Directive.part('types.schema.g.dart'),
       ]);

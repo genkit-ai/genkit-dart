@@ -9,7 +9,7 @@ environment:
 
 dependencies:
   genkit: ^0.10.0-dev.1
-  genkit_schema_builder: ^0.0.1-dev.1
+  schemantic: ^0.0.1-dev.1
   firebase_ai: ^3.6.1
   firebase_core: ^4.3.0
   json_annotation: ^4.9.0
@@ -24,5 +24,5 @@ dev_dependencies:
 dependency_overrides:
   genkit:
     path: ../genkit
-  genkit_schema_builder:
-    path: ../genkit_schema_builder
+  schemantic:
+    path: ../schemantic

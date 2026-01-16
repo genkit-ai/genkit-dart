@@ -25,8 +25,8 @@ dependencies:
     path: ../../packages/genkit
   genkit_firebase_ai:
     path: ../../packages/genkit_firebase_ai
-  genkit_schema_builder:
-    path: ../../packages/genkit_schema_builder
+  schemantic:
+    path: ../../packages/schemantic
 
 dev_dependencies:
   build_runner: ^2.10.5
@@ -40,5 +40,5 @@ dependency_overrides:
     path: ../../packages/genkit
   genkit_firebase_ai:
     path: ../../packages/genkit_firebase_ai
-  genkit_schema_builder:
-    path: ../../packages/genkit_schema_builder
+  schemantic:
+    path: ../../packages/schemantic

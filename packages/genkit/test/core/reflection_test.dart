@@ -18,7 +18,7 @@ import 'dart:io';
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:genkit/src/core/action.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
