@@ -162,9 +162,17 @@ class _UserTypeFactory extends JsonExtensionType<User> {
     name: 'User',
     definition: Schema.object(
       properties: {
-        'name': Schema.string(),
-        'years_old': Schema.integer(description: 'Age of the user'),
-        'isAdmin': Schema.boolean(),
+        'name': Schema.string(
+          minLength: 2,
+          maxLength: 50,
+          pattern: r'^[a-zA-Z\s]+$',
+        ),
+        'years_old': Schema.integer(
+          description: 'Age of the user',
+          minimum: 0,
+          maximum: 120,
+        ),
+        'isAdmin': Schema.boolean(description: 'Is this user an admin?'),
         'address': Schema.fromMap({'\$ref': r'#/$defs/Address'}),
       },
       required: ['name', 'isAdmin'],

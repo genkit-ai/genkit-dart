@@ -553,6 +553,41 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   }) {
     final properties = <String, Expression>{};
     if (keyAnnotation != null) {
+      // Validate annotation usage
+      final annotationType = keyAnnotation.type!;
+      if (_stringFieldChecker.isAssignableFromType(annotationType) &&
+          !type.isDartCoreString &&
+          !type.isDynamic) {
+        // Allow dynamic? Maybe no. But let's be strict as requested.
+        // Wait, enums might use StringField (if we allow custom enum schema constraints? probably not supported yet for enums via StringField)
+        // For now, strict check.
+        throw InvalidGenerationSourceError(
+          '@StringField can only be used on String types.',
+          todo:
+              'Change the field type to String or use a different annotation.',
+        );
+      }
+      if (_integerFieldChecker.isAssignableFromType(annotationType) &&
+          !type.isDartCoreInt &&
+          !type.isDynamic) {
+        throw InvalidGenerationSourceError(
+          '@IntegerField can only be used on int types.',
+          todo: 'Change the field type to int or use a different annotation.',
+        );
+      }
+      if (_numberFieldChecker.isAssignableFromType(annotationType) &&
+          !type.isDartCoreDouble &&
+          !type.isDartCoreNum &&
+          !type.isDartCoreInt &&
+          !type.isDynamic) {
+        // NumberField can be used on double, num, or int (since int is num)
+        throw InvalidGenerationSourceError(
+          '@NumberField can only be used on num, double, or int types.',
+          todo:
+              'Change the field type to num/double or use a different annotation.',
+        );
+      }
+
       final reader = ConstantReader(keyAnnotation);
       final description = reader.read('description').literalValue as String?;
       if (description != null) {
@@ -570,12 +605,83 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       properties['enumValues'] = literalList(enumValues);
       schemaExpression = refer('Schema.string').call([], properties);
     } else if (type.isDartCoreString) {
+      if (keyAnnotation != null &&
+          _stringFieldChecker.isAssignableFromType(keyAnnotation.type!)) {
+        final reader = ConstantReader(keyAnnotation);
+        final minLength = reader.peek('minLength')?.intValue;
+        final maxLength = reader.peek('maxLength')?.intValue;
+        final pattern = reader.peek('pattern')?.stringValue;
+        final format = reader.peek('format')?.stringValue;
+        final enumValues = reader
+            .peek('enumValues')
+            ?.listValue
+            .map((e) => e.toStringValue())
+            .toList();
+
+        if (minLength != null) properties['minLength'] = literalNum(minLength);
+        if (maxLength != null) properties['maxLength'] = literalNum(maxLength);
+        if (pattern != null)
+          properties['pattern'] = literalString(pattern, raw: true);
+        if (format != null) properties['format'] = literalString(format);
+        if (enumValues != null)
+          properties['enumValues'] = literalList(enumValues);
+      }
       schemaExpression = refer('Schema.string').call([], properties);
     } else if (type.isDartCoreInt) {
+      if (keyAnnotation != null &&
+          _integerFieldChecker.isAssignableFromType(keyAnnotation.type!)) {
+        final reader = ConstantReader(keyAnnotation);
+        final minimum = reader.peek('minimum')?.intValue;
+        final maximum = reader.peek('maximum')?.intValue;
+        final exclusiveMinimum = reader.peek('exclusiveMinimum')?.intValue;
+        final exclusiveMaximum = reader.peek('exclusiveMaximum')?.intValue;
+        final multipleOf = reader.peek('multipleOf')?.intValue;
+
+        if (minimum != null) properties['minimum'] = literalNum(minimum);
+        if (maximum != null) properties['maximum'] = literalNum(maximum);
+        if (exclusiveMinimum != null) {
+          properties['exclusiveMinimum'] = literalNum(exclusiveMinimum);
+        }
+        if (exclusiveMaximum != null) {
+          properties['exclusiveMaximum'] = literalNum(exclusiveMaximum);
+        }
+        if (multipleOf != null)
+          properties['multipleOf'] = literalNum(multipleOf);
+      }
       schemaExpression = refer('Schema.integer').call([], properties);
     } else if (type.isDartCoreBool) {
       schemaExpression = refer('Schema.boolean').call([], properties);
     } else if (type.isDartCoreDouble || type.isDartCoreNum) {
+      if (keyAnnotation != null &&
+          _numberFieldChecker.isAssignableFromType(keyAnnotation.type!)) {
+        final reader = ConstantReader(keyAnnotation);
+        final minimum =
+            reader.peek('minimum')?.doubleValue ??
+            reader.peek('minimum')?.intValue;
+        final maximum =
+            reader.peek('maximum')?.doubleValue ??
+            reader.peek('maximum')?.intValue;
+        final exclusiveMinimum =
+            reader.peek('exclusiveMinimum')?.doubleValue ??
+            reader.peek('exclusiveMinimum')?.intValue;
+        final exclusiveMaximum =
+            reader.peek('exclusiveMaximum')?.doubleValue ??
+            reader.peek('exclusiveMaximum')?.intValue;
+        final multipleOf =
+            reader.peek('multipleOf')?.doubleValue ??
+            reader.peek('multipleOf')?.intValue;
+
+        if (minimum != null) properties['minimum'] = literalNum(minimum);
+        if (maximum != null) properties['maximum'] = literalNum(maximum);
+        if (exclusiveMinimum != null) {
+          properties['exclusiveMinimum'] = literalNum(exclusiveMinimum);
+        }
+        if (exclusiveMaximum != null) {
+          properties['exclusiveMaximum'] = literalNum(exclusiveMaximum);
+        }
+        if (multipleOf != null)
+          properties['multipleOf'] = literalNum(multipleOf);
+      }
       schemaExpression = refer('Schema.number').call([], properties);
     } else if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
@@ -644,7 +750,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     final fieldName = getter.name;
     for (final metadata in getter.metadata.annotations) {
       final annotation = metadata.computeConstantValue();
-      if (annotation != null && _keyChecker.isExactlyType(annotation.type!)) {
+      if (annotation != null &&
+          _keyChecker.isAssignableFromType(annotation.type!)) {
         final reader = ConstantReader(annotation);
         return reader.read('name').literalValue as String? ?? fieldName!;
       }
@@ -665,6 +772,18 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
 const _keyChecker = TypeChecker.fromUrl(
   'package:schemantic/schemantic.dart#Field',
+);
+
+const _stringFieldChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#StringField',
+);
+
+const _integerFieldChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#IntegerField',
+);
+
+const _numberFieldChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#NumberField',
 );
 
 extension on DartType {

@@ -235,8 +235,16 @@ const NodeType = _NodeTypeFactory();
 
 extension type Keyed(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory Keyed.from({required String originalName}) {
-    return Keyed({'custom_name': originalName});
+  factory Keyed.from({
+    required String originalName,
+    int? score,
+    double? rating,
+  }) {
+    return Keyed({
+      'custom_name': originalName,
+      if (score != null) 'score': score,
+      if (rating != null) 'rating': rating,
+    });
   }
 
   String get originalName {
@@ -245,6 +253,30 @@ extension type Keyed(Map<String, dynamic> _json)
 
   set originalName(String value) {
     _json['custom_name'] = value;
+  }
+
+  int? get score {
+    return _json['score'] as int?;
+  }
+
+  set score(int? value) {
+    if (value == null) {
+      _json.remove('score');
+    } else {
+      _json['score'] = value;
+    }
+  }
+
+  double? get rating {
+    return _json['rating'] as double?;
+  }
+
+  set rating(double? value) {
+    if (value == null) {
+      _json.remove('rating');
+    } else {
+      _json['rating'] = value;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -265,7 +297,12 @@ class _KeyedTypeFactory extends JsonExtensionType<Keyed> {
     name: 'Keyed',
     definition: Schema.object(
       properties: {
-        'custom_name': Schema.string(description: 'A custom named field'),
+        'custom_name': Schema.string(
+          description: 'A custom named field',
+          minLength: 3,
+        ),
+        'score': Schema.integer(minimum: 10, maximum: 100),
+        'rating': Schema.number(minimum: 0.5, maximum: 5.5),
       },
       required: ['custom_name'],
     ),
@@ -275,3 +312,93 @@ class _KeyedTypeFactory extends JsonExtensionType<Keyed> {
 
 // ignore: constant_identifier_names
 const KeyedType = _KeyedTypeFactory();
+
+extension type Comprehensive(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory Comprehensive.from({
+    required String stringField,
+    required int intField,
+    required double numberField,
+  }) {
+    return Comprehensive({
+      's_field': stringField,
+      'i_field': intField,
+      'n_field': numberField,
+    });
+  }
+
+  String get stringField {
+    return _json['s_field'] as String;
+  }
+
+  set stringField(String value) {
+    _json['s_field'] = value;
+  }
+
+  int get intField {
+    return _json['i_field'] as int;
+  }
+
+  set intField(int value) {
+    _json['i_field'] = value;
+  }
+
+  double get numberField {
+    return _json['n_field'] as double;
+  }
+
+  set numberField(double value) {
+    _json['n_field'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _ComprehensiveTypeFactory extends JsonExtensionType<Comprehensive> {
+  const _ComprehensiveTypeFactory();
+
+  @override
+  Comprehensive parse(Object json) {
+    return Comprehensive(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Comprehensive',
+    definition: Schema.object(
+      properties: {
+        's_field': Schema.string(
+          description: 'A string field',
+          minLength: 1,
+          maxLength: 10,
+          pattern: r'^[a-z]+$',
+          format: 'email',
+          enumValues: ['a', 'b'],
+        ),
+        'i_field': Schema.integer(
+          description: 'An integer field',
+          minimum: 0,
+          maximum: 100,
+          exclusiveMinimum: 0,
+          exclusiveMaximum: 100,
+          multipleOf: 5,
+        ),
+        'n_field': Schema.number(
+          description: 'A number field',
+          minimum: 0.0,
+          maximum: 100.0,
+          exclusiveMinimum: 0.0,
+          exclusiveMaximum: 100.0,
+          multipleOf: 0.5,
+        ),
+      },
+      required: ['s_field', 'i_field', 'n_field'],
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const ComprehensiveType = _ComprehensiveTypeFactory();

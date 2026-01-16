@@ -40,8 +40,54 @@ abstract class NodeSchema {
 
 @Schematic()
 abstract class KeyedSchema {
-  @Field(name: 'custom_name', description: 'A custom named field')
+  @StringField(
+    name: 'custom_name',
+    description: 'A custom named field',
+    minLength: 3,
+  )
   String get originalName;
+
+  @IntegerField(minimum: 10, maximum: 100)
+  int? get score;
+
+  @NumberField(minimum: 0.5, maximum: 5.5)
+  double? get rating;
+}
+
+@Schematic()
+abstract class ComprehensiveSchema {
+  @StringField(
+    name: 's_field',
+    description: 'A string field',
+    minLength: 1,
+    maxLength: 10,
+    pattern: '^[a-z]+\$',
+    format: 'email',
+    enumValues: ['a', 'b'],
+  )
+  String get stringField;
+
+  @IntegerField(
+    name: 'i_field',
+    description: 'An integer field',
+    minimum: 0,
+    maximum: 100,
+    exclusiveMinimum: 0,
+    exclusiveMaximum: 100,
+    multipleOf: 5,
+  )
+  int get intField;
+
+  @NumberField(
+    name: 'n_field',
+    description: 'A number field',
+    minimum: 0.0,
+    maximum: 100.0,
+    exclusiveMinimum: 0.0,
+    exclusiveMaximum: 100.0,
+    multipleOf: 0.5,
+  )
+  double get numberField;
 }
 
 void main() {
@@ -232,6 +278,42 @@ void main() {
         schemaJson['properties']['custom_name']['description'],
         'A custom named field',
       );
+    });
+
+    test('ComprehensiveSchema validation', () {
+      final schema = ComprehensiveType.jsonSchema();
+      final schemaJson = jsonDecode(schema.toJson());
+      final props = schemaJson['properties'] as Map<String, dynamic>;
+
+      // StringField validation
+      final s = props['s_field'];
+      expect(s['type'], 'string');
+      expect(s['description'], 'A string field');
+      expect(s['minLength'], 1);
+      expect(s['maxLength'], 10);
+      expect(s['pattern'], '^[a-z]+\$');
+      expect(s['format'], 'email');
+      expect(s['enum'], ['a', 'b']);
+
+      // IntegerField validation
+      final i = props['i_field'];
+      expect(i['type'], 'integer');
+      expect(i['description'], 'An integer field');
+      expect(i['minimum'], 0);
+      expect(i['maximum'], 100);
+      expect(i['exclusiveMinimum'], 0);
+      expect(i['exclusiveMaximum'], 100);
+      expect(i['multipleOf'], 5);
+
+      // NumberField validation
+      final n = props['n_field'];
+      expect(n['type'], 'number');
+      expect(n['description'], 'A number field');
+      expect(n['minimum'], 0.0);
+      expect(n['maximum'], 100.0);
+      expect(n['exclusiveMinimum'], 0.0);
+      expect(n['exclusiveMaximum'], 100.0);
+      expect(n['multipleOf'], 0.5);
     });
   });
 }

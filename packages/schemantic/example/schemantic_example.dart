@@ -27,9 +27,16 @@ abstract class AddressSchema {
 /// This will generate a concrete [User] class and a [UserType] utility.
 @Schematic()
 abstract class UserSchema {
+  @StringField(minLength: 2, maxLength: 50, pattern: r'^[a-zA-Z\s]+$')
   String get name;
-  @Field(name: 'years_old', description: 'Age of the user')
+  @IntegerField(
+    name: 'years_old',
+    description: 'Age of the user',
+    minimum: 0,
+    maximum: 120,
+  )
   int? get age;
+  @Field(description: 'Is this user an admin?')
   bool get isAdmin;
 
   // Nested schema
