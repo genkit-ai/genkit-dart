@@ -16,6 +16,12 @@ import 'package:schemantic/schemantic.dart';
 import 'dart:convert';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
+/// A string type.
+///
+/// Example:
+/// ```dart
+/// StringType.parse('hello');
+/// ```
 class StringTypeFactory extends JsonExtensionType<String> {
   const StringTypeFactory();
 
@@ -29,6 +35,12 @@ class StringTypeFactory extends JsonExtensionType<String> {
 // ignore: constant_identifier_names
 const StringType = StringTypeFactory();
 
+/// An integer type.
+///
+/// Example:
+/// ```dart
+/// IntType.parse(123);
+/// ```
 class IntTypeFactory extends JsonExtensionType<int> {
   const IntTypeFactory();
 
@@ -42,6 +54,12 @@ class IntTypeFactory extends JsonExtensionType<int> {
 // ignore: constant_identifier_names
 const IntType = IntTypeFactory();
 
+/// A double type.
+///
+/// Example:
+/// ```dart
+/// DoubleType.parse(12.34);
+/// ```
 class DoubleTypeFactory extends JsonExtensionType<double> {
   const DoubleTypeFactory();
 
@@ -58,6 +76,12 @@ class DoubleTypeFactory extends JsonExtensionType<double> {
 // ignore: constant_identifier_names
 const DoubleType = DoubleTypeFactory();
 
+/// A boolean type.
+///
+/// Example:
+/// ```dart
+/// BoolType.parse(true);
+/// ```
 class BoolTypeFactory extends JsonExtensionType<bool> {
   const BoolTypeFactory();
 
@@ -71,6 +95,12 @@ class BoolTypeFactory extends JsonExtensionType<bool> {
 // ignore: constant_identifier_names
 const BoolType = BoolTypeFactory();
 
+/// A void type, representing null in JSON.
+///
+/// Example:
+/// ```dart
+/// VoidType.parse(null);
+/// ```
 class VoidTypeFactory extends JsonExtensionType<void> {
   const VoidTypeFactory();
 
@@ -84,6 +114,12 @@ class VoidTypeFactory extends JsonExtensionType<void> {
 // ignore: constant_identifier_names
 const VoidType = VoidTypeFactory();
 
+/// A simplified Map type for Map<String, dynamic>.
+///
+/// Example:
+/// ```dart
+/// MapType.parse({'key': 'value'});
+/// ```
 class MapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
   const MapTypeFactory();
 
@@ -97,6 +133,13 @@ class MapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
 // ignore: constant_identifier_names
 const MapType = MapTypeFactory();
 
+/// Creates a strongly typed List type schema.
+///
+/// Example:
+/// ```dart
+/// final stringList = listType(StringType);
+/// stringList.parse(['a', 'b']);
+/// ```
 JsonExtensionType<List<T>> listType<T>(JsonExtensionType<T> itemType) {
   return _ListTypeFactory<T>(itemType);
 }
@@ -130,5 +173,55 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
     }
 
     return jsb.Schema.list(items: itemSchema);
+  }
+}
+
+/// Creates a strongly typed Map type schema.
+///
+/// Example:
+/// ```dart
+/// final myMap = mapType(StringType, IntType);
+/// myMap.parse({'a': 1, 'b': 2});
+/// ```
+JsonExtensionType<Map<K, V>> mapType<K, V>(
+  JsonExtensionType<K> keyType,
+  JsonExtensionType<V> valueType,
+) {
+  return _MapTypeFactory<K, V>(keyType, valueType);
+}
+
+class _MapTypeFactory<K, V> extends JsonExtensionType<Map<K, V>> {
+  final JsonExtensionType<K> keyType;
+  final JsonExtensionType<V> valueType;
+
+  const _MapTypeFactory(this.keyType, this.valueType);
+
+  @override
+  Map<K, V> parse(Object? json) {
+    return (json as Map).map((k, v) {
+      return MapEntry(keyType.parse(k), valueType.parse(v));
+    });
+  }
+
+  @override
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    final valueSchema = valueType.jsonSchema(useRefs: useRefs);
+    if (!useRefs) {
+      return jsb.Schema.object(additionalProperties: valueSchema);
+    }
+
+    // Check if value schema has $defs or ref that implies definitions
+    final valueJson = jsonDecode(valueSchema.toJson());
+    if (valueJson is Map<String, dynamic> && valueJson.containsKey(r'$defs')) {
+      final defs = valueJson.remove(r'$defs') as Map<String, dynamic>;
+
+      return jsb.Schema.fromMap({
+        'type': 'object',
+        'additionalProperties': valueJson,
+        r'$defs': defs,
+      });
+    }
+
+    return jsb.Schema.object(additionalProperties: valueSchema);
   }
 }

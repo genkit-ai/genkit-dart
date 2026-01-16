@@ -103,6 +103,18 @@ void main() {
       expect(() => listType(IntType).parse(['a']), throwsA(isA<TypeError>()));
     });
 
+    test('mapType with Strings and Ints', () {
+      final mapT = mapType(StringType, IntType);
+      final json = {'a': 1, 'b': 2};
+      final parsed = mapT.parse(json);
+      expect(parsed, {'a': 1, 'b': 2});
+      expect(parsed, isA<Map<String, int>>());
+
+      final schemaJson = jsonDecode(mapT.jsonSchema().toJson());
+      expect(schemaJson['type'], 'object');
+      expect(schemaJson['additionalProperties']['type'], 'integer');
+    });
+
     group('Reference Handling', () {
       test('listType with useRefs=true handles nested defs', () {
         final type = _MockType();
@@ -122,6 +134,26 @@ void main() {
           json['items'][r'$defs'],
           isNull,
           reason: 'Items should NOT have nested defs',
+        );
+      });
+
+      test('mapType with useRefs=true handles nested defs', () {
+        final type = _MockType();
+        final mapT = mapType(StringType, type);
+        final schema = mapT.jsonSchema(useRefs: true);
+        final json = jsonDecode(schema.toJson());
+
+        expect(json['type'], 'object');
+        expect(json[r'$defs'], isNotNull, reason: 'Root should have defs');
+        expect(
+          json['additionalProperties'][r'$ref'],
+          isNotNull,
+          reason: 'additionalProperties should refer to def',
+        );
+        expect(
+          json['additionalProperties'][r'$defs'],
+          isNull,
+          reason: 'additionalProperties should NOT have nested defs',
         );
       });
     });
