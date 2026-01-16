@@ -1,42 +1,112 @@
 # Schemantic
 
-A builder for generating Genkit schema extension types.
+A general-purpose Dart library for generating type-safe data classes and runtime-accessible JSON Schemas from abstract class definitions.
+
+## Features
+
+- **Type-Safe Data Classes**: Generates fully-typed Dart data classes from simple abstract definitions.
+- **Runtime JSON Schema**: Access the standard JSON Schema for any generated type at runtime.
+- **Serialization**: Built-in `toJson` and `parse` methods.
+- **Validation**: Validate JSON data against the generated schema at runtime.
+- **Recursive Schemas**: Easy support for recursive data structures (e.g., trees) using `$ref`.
 
 ## Installation
 
-```yaml
-dev_dependencies:
-  schemantic: any
-  build_runner: ^2.8.0
+Add `schemantic` and `build_runner` to your `pubspec.yaml`:
+
+```sh
+dart pub add schemantic
+dart pub add dev:build_runner
 ```
 
 ## Usage
 
-Annotate your schemas with `@Schematic()` and run `dart run build_runner build`.
+### 1. Define your specific Schema
+
+Create a Dart file (e.g., `user.dart`) and define your schema as an abstract class annotated with `@Schematic()`.
 
 ```dart
-import 'package:genkit/genkit.dart';
+import 'package:schemantic/schemantic.dart';
 
-part 'my_schema.g.dart';
+part 'user.schema.g.dart';
 
 @Schematic()
-abstract class MyInput {
+abstract class UserSchema {
   String get name;
   int? get age;
-}
-
-void main() {
-  // Use the generated data class
-  final input = MyInput.from(name: 'Alice', age: 30);
-  print(input.name); // Alice
-  
-  // Serialize to JSON
-  final json = input.toJson();
-  print(json); // {name: Alice, age: 30}
-  
-  // Parse from JSON using the generated Type class
-  final parsed = MyInputType.parse(json);
-  print(parsed.name); // Alice
+  bool get isAdmin;
 }
 ```
 
+### 2. Generate Code
+
+Run the build runner to generate the implementation:
+
+```sh
+dart run build_runner build
+```
+
+This will generate a `user.schema.g.dart` file containing:
+- `User`: The concrete data class.
+- `UserType`: A utility class for parsing, schema access, and validation.
+
+### 3. Use the Generated Types
+
+You can now use the generated `User` class and `UserType` utility:
+
+```dart
+void main() async {
+  // Create an instance using the generated class
+  final user = User.from(
+    name: 'Alice',
+    age: 30,
+    isAdmin: true,
+  );
+
+  // Serialize to JSON
+  print(user.toJson()); 
+  // Output: {name: Alice, age: 30, isAdmin: true}
+
+  // Parse from JSON
+  final parsed = UserType.parse({
+    'name': 'Bob',
+    'isAdmin': false,
+  });
+  print(parsed.name); // Bob
+
+  // Access JSON Schema at runtime
+  final schema = UserType.jsonSchema();
+  print(schema.toJson()); 
+  // Output: {type: object, properties: {name: {type: string}, ...}, required: [name, isAdmin]}
+  
+  // Validate data
+  final validation = await schema.validate({'name': 'Charlie'}); // Missing 'isAdmin'
+  if (validation.isNotEmpty) {
+    print('Validation errors: $validation');
+  }
+}
+```
+
+## Advanced
+
+### Recursive Schemas
+
+For recursive structures like trees, use the `useRefs: true` option when generating the schema. This utilizes JSON Schema `$ref` to handle recursion.
+
+```dart
+@Schematic()
+abstract class NodeSchema {
+  String get id;
+  List<NodeSchema>? get children;
+}
+```
+
+```dart
+void main() {
+  // Must use useRefs: true for recursive schemas
+  final schema = NodeType.jsonSchema(useRefs: true);
+  
+  print(schema.toJson());
+  // Generates schema with "$ref": "#/$defs/Node"
+}
+```
