@@ -30,9 +30,6 @@ class Schematic {
 
 /// Annotation to customize valid JSON fields.
 ///
-/// Use this annotation on a getter to specify a custom JSON key name or description.
-/// Annotation to customize valid JSON fields.
-///
 /// Use this annotation (or a subclass like [StringField], [IntegerField]) on a getter
 /// to specify a custom JSON key name, description, and other schema constraints.
 class Field {
