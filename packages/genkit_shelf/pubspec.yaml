@@ -12,7 +12,7 @@ dependencies:
   genkit: ^0.10.0-dev.3
   shelf: ^1.4.2
   shelf_router: ^1.1.4
-  schemantic: ^0.0.1-dev.3
+  schemantic: ^0.0.1-dev.4
 
 dev_dependencies:
   http: ^1.6.0

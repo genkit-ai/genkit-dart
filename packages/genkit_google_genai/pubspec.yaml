@@ -10,7 +10,7 @@ environment:
 
 dependencies:
   genkit: ^0.10.0-dev.3
-  schemantic: ^0.0.1-dev.3
+  schemantic: ^0.0.1-dev.4
   google_cloud_ai_generativelanguage_v1beta: ^0.4.0
   google_cloud_protobuf: ^0.4.0
   json_annotation: ^4.9.0

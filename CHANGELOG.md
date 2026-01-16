@@ -15,6 +15,25 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`schemantic` - `v0.0.1-dev.4`](#schemantic---v001-dev4)
+
+---
+
+#### `schemantic` - `v0.0.1-dev.4`
+
+
+## 2026-01-15
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`schemantic` - `v0.0.1-dev.3`](#schemantic---v001-dev3)
 
 ---
