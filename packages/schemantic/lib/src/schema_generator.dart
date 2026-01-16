@@ -593,21 +593,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (description != null) {
         properties['description'] = literalString(description);
       }
-    }
 
-    Expression schemaExpression;
-    if (type.element is EnumElement) {
-      final enumElement = type.element as EnumElement;
-      final enumValues = enumElement.fields
-          .where((f) => f.isEnumConstant)
-          .map((f) => f.name)
-          .toList();
-      properties['enumValues'] = literalList(enumValues);
-      schemaExpression = refer('Schema.string').call([], properties);
-    } else if (type.isDartCoreString) {
-      if (keyAnnotation != null &&
-          _stringFieldChecker.isAssignableFromType(keyAnnotation.type!)) {
-        final reader = ConstantReader(keyAnnotation);
+      if (_stringFieldChecker.isAssignableFromType(annotationType)) {
         final minLength = reader.peek('minLength')?.intValue;
         final maxLength = reader.peek('maxLength')?.intValue;
         final pattern = reader.peek('pattern')?.stringValue;
@@ -625,12 +612,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (format != null) properties['format'] = literalString(format);
         if (enumValues != null)
           properties['enumValues'] = literalList(enumValues);
-      }
-      schemaExpression = refer('Schema.string').call([], properties);
-    } else if (type.isDartCoreInt) {
-      if (keyAnnotation != null &&
-          _integerFieldChecker.isAssignableFromType(keyAnnotation.type!)) {
-        final reader = ConstantReader(keyAnnotation);
+      } else if (_integerFieldChecker.isAssignableFromType(annotationType)) {
         final minimum = reader.peek('minimum')?.intValue;
         final maximum = reader.peek('maximum')?.intValue;
         final exclusiveMinimum = reader.peek('exclusiveMinimum')?.intValue;
@@ -647,14 +629,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         }
         if (multipleOf != null)
           properties['multipleOf'] = literalNum(multipleOf);
-      }
-      schemaExpression = refer('Schema.integer').call([], properties);
-    } else if (type.isDartCoreBool) {
-      schemaExpression = refer('Schema.boolean').call([], properties);
-    } else if (type.isDartCoreDouble || type.isDartCoreNum) {
-      if (keyAnnotation != null &&
-          _numberFieldChecker.isAssignableFromType(keyAnnotation.type!)) {
-        final reader = ConstantReader(keyAnnotation);
+      } else if (_numberFieldChecker.isAssignableFromType(annotationType)) {
         final minimum =
             reader.peek('minimum')?.doubleValue ??
             reader.peek('minimum')?.intValue;
@@ -682,6 +657,24 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (multipleOf != null)
           properties['multipleOf'] = literalNum(multipleOf);
       }
+    }
+
+    Expression schemaExpression;
+    if (type.element is EnumElement) {
+      final enumElement = type.element as EnumElement;
+      final enumValues = enumElement.fields
+          .where((f) => f.isEnumConstant)
+          .map((f) => f.name)
+          .toList();
+      properties['enumValues'] = literalList(enumValues);
+      schemaExpression = refer('Schema.string').call([], properties);
+    } else if (type.isDartCoreString) {
+      schemaExpression = refer('Schema.string').call([], properties);
+    } else if (type.isDartCoreInt) {
+      schemaExpression = refer('Schema.integer').call([], properties);
+    } else if (type.isDartCoreBool) {
+      schemaExpression = refer('Schema.boolean').call([], properties);
+    } else if (type.isDartCoreDouble || type.isDartCoreNum) {
       schemaExpression = refer('Schema.number').call([], properties);
     } else if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
