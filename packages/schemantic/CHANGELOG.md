@@ -1,3 +1,12 @@
+## 0.0.1-dev.6
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: move the package-specific schema generator into a peer package (#31).
+ - **FEAT**: Add specialized `StringField`, `IntegerField`, and `NumberField` annotations for detailed JSON schema constraint generation with type validation. (#32).
+ - **DOCS**: add dynamic list and map type demonstrations.
+ - **BREAKING** **REFACTOR**: renamed @Key annotation to @Field (#30).
+
 ## 0.0.1-dev.5
 
  - **REFACTOR**: make generated JsonExtensionType factory classes (*TypeFactory) private (#29).

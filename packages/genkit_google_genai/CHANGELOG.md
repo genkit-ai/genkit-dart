@@ -1,3 +1,7 @@
+## 0.0.1-dev.5
+
+ - **REFACTOR**: move the package-specific schema generator into a peer package (#31).
+
 ## 0.0.1-dev.4
 
  - **REFACTOR**: make generated JsonExtensionType factory classes (*TypeFactory) private (#29).

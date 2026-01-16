@@ -1,3 +1,10 @@
+## 0.10.0-dev.5
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: move the package-specific schema generator into a peer package (#31).
+ - **BREAKING** **REFACTOR**: renamed @Key annotation to @Field (#30).
+
 ## 0.10.0-dev.4
 
  - **REFACTOR**: make generated JsonExtensionType factory classes (*TypeFactory) private (#29).

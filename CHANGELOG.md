@@ -11,6 +11,45 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - [`genkit` - `v0.10.0-dev.5`](#genkit---v0100-dev5)
+ - [`schemantic` - `v0.0.1-dev.6`](#schemantic---v001-dev6)
+
+Packages with other changes:
+
+ - [`genkit_google_genai` - `v0.0.1-dev.5`](#genkit_google_genai---v001-dev5)
+ - [`genkit_shelf` - `v0.0.1-dev.5`](#genkit_shelf---v001-dev5)
+
+---
+
+#### `genkit` - `v0.10.0-dev.5`
+
+ - **REFACTOR**: move the package-specific schema generator into a peer package (#31).
+ - **BREAKING** **REFACTOR**: renamed @Key annotation to @Field (#30).
+
+#### `schemantic` - `v0.0.1-dev.6`
+
+ - **REFACTOR**: move the package-specific schema generator into a peer package (#31).
+ - **FEAT**: Add specialized `StringField`, `IntegerField`, and `NumberField` annotations for detailed JSON schema constraint generation with type validation. (#32).
+ - **DOCS**: add dynamic list and map type demonstrations.
+ - **BREAKING** **REFACTOR**: renamed @Key annotation to @Field (#30).
+
+#### `genkit_google_genai` - `v0.0.1-dev.5`
+
+ - **REFACTOR**: move the package-specific schema generator into a peer package (#31).
+
+#### `genkit_shelf` - `v0.0.1-dev.5`
+
+ - **REFACTOR**: move the package-specific schema generator into a peer package (#31).
+
+
+## 2026-01-16
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - There are no breaking changes in this release.
 
 Packages with other changes:
