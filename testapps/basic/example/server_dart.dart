@@ -53,8 +53,8 @@ void main() async {
 
   final echoString = ai.defineFlow(
     name: 'echoString',
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
     fn: (input, _) async => input,
   );
 
@@ -114,8 +114,8 @@ void main() async {
 
   final streamyThrowy = ai.defineFlow(
     name: 'streamyThrowy',
-    inputType: IntType,
-    outputType: StringType,
+    inputType: intType(),
+    outputType: stringType(),
     streamType: StreamyThrowyChunkType,
     fn: (count, context) async {
       var i = 0;
@@ -132,8 +132,8 @@ void main() async {
 
   final throwy = ai.defineFlow(
     name: 'throwy',
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
     fn: (subject, _) async {
       // Mocking 'call-llm' calls as simple runs or strings since we don't have that model.
       final foo = await ai.run('call-llm', () async {

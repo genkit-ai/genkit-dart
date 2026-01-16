@@ -152,7 +152,7 @@ void main() {
       final streamAction = Action(
         actionType: 'custom',
         name: 'streamAction',
-        streamType: StringType,
+        streamType: stringType(),
         fn: (input, context) async {
           context.sendChunk('chunk1');
           context.sendChunk('chunk2');

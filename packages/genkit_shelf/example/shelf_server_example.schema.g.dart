@@ -21,7 +21,8 @@ part of 'shelf_server_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type HelloInput(Map<String, dynamic> _json) {
+extension type HelloInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory HelloInput.from({required String name}) {
     return HelloInput({'name': name});
   }
@@ -39,11 +40,11 @@ extension type HelloInput(Map<String, dynamic> _json) {
   }
 }
 
-class HelloInputTypeFactory extends JsonExtensionType<HelloInput> {
-  const HelloInputTypeFactory();
+class _HelloInputTypeFactory extends JsonExtensionType<HelloInput> {
+  const _HelloInputTypeFactory();
 
   @override
-  HelloInput parse(Object json) {
+  HelloInput parse(Object? json) {
     return HelloInput(json as Map<String, dynamic>);
   }
 
@@ -59,9 +60,10 @@ class HelloInputTypeFactory extends JsonExtensionType<HelloInput> {
 }
 
 // ignore: constant_identifier_names
-const HelloInputType = HelloInputTypeFactory();
+const HelloInputType = _HelloInputTypeFactory();
 
-extension type HelloOutput(Map<String, dynamic> _json) {
+extension type HelloOutput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory HelloOutput.from({required String greeting}) {
     return HelloOutput({'greeting': greeting});
   }
@@ -79,11 +81,11 @@ extension type HelloOutput(Map<String, dynamic> _json) {
   }
 }
 
-class HelloOutputTypeFactory extends JsonExtensionType<HelloOutput> {
-  const HelloOutputTypeFactory();
+class _HelloOutputTypeFactory extends JsonExtensionType<HelloOutput> {
+  const _HelloOutputTypeFactory();
 
   @override
-  HelloOutput parse(Object json) {
+  HelloOutput parse(Object? json) {
     return HelloOutput(json as Map<String, dynamic>);
   }
 
@@ -99,9 +101,10 @@ class HelloOutputTypeFactory extends JsonExtensionType<HelloOutput> {
 }
 
 // ignore: constant_identifier_names
-const HelloOutputType = HelloOutputTypeFactory();
+const HelloOutputType = _HelloOutputTypeFactory();
 
-extension type CountChunk(Map<String, dynamic> _json) {
+extension type CountChunk(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory CountChunk.from({required int count}) {
     return CountChunk({'count': count});
   }
@@ -119,11 +122,11 @@ extension type CountChunk(Map<String, dynamic> _json) {
   }
 }
 
-class CountChunkTypeFactory extends JsonExtensionType<CountChunk> {
-  const CountChunkTypeFactory();
+class _CountChunkTypeFactory extends JsonExtensionType<CountChunk> {
+  const _CountChunkTypeFactory();
 
   @override
-  CountChunk parse(Object json) {
+  CountChunk parse(Object? json) {
     return CountChunk(json as Map<String, dynamic>);
   }
 
@@ -139,4 +142,4 @@ class CountChunkTypeFactory extends JsonExtensionType<CountChunk> {
 }
 
 // ignore: constant_identifier_names
-const CountChunkType = CountChunkTypeFactory();
+const CountChunkType = _CountChunkTypeFactory();

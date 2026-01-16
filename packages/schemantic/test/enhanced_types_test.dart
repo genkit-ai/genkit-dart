@@ -53,7 +53,7 @@ void main() {
     });
 
     test('listType with refs and options', () {
-      // Create a recursive/ref type simulation (though StringType is simple)
+      // Create a recursive/ref type simulation (though stringType() is simple)
       final t = listType(_MockTypeWithDefs(), description: 'Recursive List');
       final schema = t.jsonSchema(useRefs: true);
       final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;

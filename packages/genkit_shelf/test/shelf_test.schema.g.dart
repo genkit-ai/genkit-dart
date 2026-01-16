@@ -21,7 +21,8 @@ part of 'shelf_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type ShelfTestOutput(Map<String, dynamic> _json) {
+extension type ShelfTestOutput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ShelfTestOutput.from({required String greeting}) {
     return ShelfTestOutput({'greeting': greeting});
   }
@@ -39,11 +40,11 @@ extension type ShelfTestOutput(Map<String, dynamic> _json) {
   }
 }
 
-class ShelfTestOutputTypeFactory extends JsonExtensionType<ShelfTestOutput> {
-  const ShelfTestOutputTypeFactory();
+class _ShelfTestOutputTypeFactory extends JsonExtensionType<ShelfTestOutput> {
+  const _ShelfTestOutputTypeFactory();
 
   @override
-  ShelfTestOutput parse(Object json) {
+  ShelfTestOutput parse(Object? json) {
     return ShelfTestOutput(json as Map<String, dynamic>);
   }
 
@@ -59,9 +60,10 @@ class ShelfTestOutputTypeFactory extends JsonExtensionType<ShelfTestOutput> {
 }
 
 // ignore: constant_identifier_names
-const ShelfTestOutputType = ShelfTestOutputTypeFactory();
+const ShelfTestOutputType = _ShelfTestOutputTypeFactory();
 
-extension type ShelfTestStream(Map<String, dynamic> _json) {
+extension type ShelfTestStream(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ShelfTestStream.from({required String chunk}) {
     return ShelfTestStream({'chunk': chunk});
   }
@@ -79,11 +81,11 @@ extension type ShelfTestStream(Map<String, dynamic> _json) {
   }
 }
 
-class ShelfTestStreamTypeFactory extends JsonExtensionType<ShelfTestStream> {
-  const ShelfTestStreamTypeFactory();
+class _ShelfTestStreamTypeFactory extends JsonExtensionType<ShelfTestStream> {
+  const _ShelfTestStreamTypeFactory();
 
   @override
-  ShelfTestStream parse(Object json) {
+  ShelfTestStream parse(Object? json) {
     return ShelfTestStream(json as Map<String, dynamic>);
   }
 
@@ -99,4 +101,4 @@ class ShelfTestStreamTypeFactory extends JsonExtensionType<ShelfTestStream> {
 }
 
 // ignore: constant_identifier_names
-const ShelfTestStreamType = ShelfTestStreamTypeFactory();
+const ShelfTestStreamType = _ShelfTestStreamTypeFactory();

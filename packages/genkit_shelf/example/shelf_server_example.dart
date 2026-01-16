@@ -67,7 +67,7 @@ void main() async {
   final countAction = defineRemoteAction(
     url: 'http://localhost:3400/count',
     streamType: CountChunkType,
-    outputType: StringType,
+    outputType: stringType(),
   );
 
   // 1. Define a simple unary flow
@@ -90,8 +90,8 @@ void main() async {
       }
       return 'Done counting to $count';
     },
-    inputType: IntType,
-    outputType: StringType,
+    inputType: intType(), // Changed from intType()
+    outputType: stringType(), // Changed from stringType()
     streamType: CountChunkType,
   );
 
@@ -105,8 +105,8 @@ void main() async {
       }
       return 'Secure data for $user: $input';
     },
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
   );
 
   // 4. Define a client flow that acts as a client to call other flows
@@ -142,8 +142,8 @@ void main() async {
 
       return results.join('\n');
     },
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
   );
 
   // 5. Start the flow server

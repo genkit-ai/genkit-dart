@@ -44,7 +44,7 @@ class _SubjectTypeFactory extends JsonExtensionType<Subject> {
   const _SubjectTypeFactory();
 
   @override
-  Subject parse(Object json) {
+  Subject parse(Object? json) {
     return Subject(json as Map<String, dynamic>);
   }
 
@@ -85,7 +85,7 @@ class _CountTypeFactory extends JsonExtensionType<Count> {
   const _CountTypeFactory();
 
   @override
-  Count parse(Object json) {
+  Count parse(Object? json) {
     return Count(json as Map<String, dynamic>);
   }
 

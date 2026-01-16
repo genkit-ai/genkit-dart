@@ -58,7 +58,7 @@ class _GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
   const _GeminiOptionsTypeFactory();
 
   @override
-  GeminiOptions parse(Object json) {
+  GeminiOptions parse(Object? json) {
     return GeminiOptions(json as Map<String, dynamic>);
   }
 
