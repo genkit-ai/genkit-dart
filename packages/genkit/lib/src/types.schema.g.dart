@@ -112,7 +112,7 @@ class _CandidateTypeFactory extends JsonExtensionType<Candidate> {
   const _CandidateTypeFactory();
 
   @override
-  Candidate parse(Object json) {
+  Candidate parse(Object? json) {
     return Candidate(json as Map<String, dynamic>);
   }
 
@@ -190,7 +190,7 @@ class _MessageTypeFactory extends JsonExtensionType<Message> {
   const _MessageTypeFactory();
 
   @override
-  Message parse(Object json) {
+  Message parse(Object? json) {
     return Message(json as Map<String, dynamic>);
   }
 
@@ -285,7 +285,7 @@ class _ToolDefinitionTypeFactory extends JsonExtensionType<ToolDefinition> {
   const _ToolDefinitionTypeFactory();
 
   @override
-  ToolDefinition parse(Object json) {
+  ToolDefinition parse(Object? json) {
     return ToolDefinition(json as Map<String, dynamic>);
   }
 
@@ -324,7 +324,7 @@ class _PartTypeFactory extends JsonExtensionType<Part> {
   const _PartTypeFactory();
 
   @override
-  Part parse(Object json) {
+  Part parse(Object? json) {
     return Part(json as Map<String, dynamic>);
   }
 
@@ -408,7 +408,7 @@ class _TextPartTypeFactory extends JsonExtensionType<TextPart> {
   const _TextPartTypeFactory();
 
   @override
-  TextPart parse(Object json) {
+  TextPart parse(Object? json) {
     return TextPart(json as Map<String, dynamic>);
   }
 
@@ -500,7 +500,7 @@ class _MediaPartTypeFactory extends JsonExtensionType<MediaPart> {
   const _MediaPartTypeFactory();
 
   @override
-  MediaPart parse(Object json) {
+  MediaPart parse(Object? json) {
     return MediaPart(json as Map<String, dynamic>);
   }
 
@@ -592,7 +592,7 @@ class _ToolRequestPartTypeFactory extends JsonExtensionType<ToolRequestPart> {
   const _ToolRequestPartTypeFactory();
 
   @override
-  ToolRequestPart parse(Object json) {
+  ToolRequestPart parse(Object? json) {
     return ToolRequestPart(json as Map<String, dynamic>);
   }
 
@@ -684,7 +684,7 @@ class _ToolResponsePartTypeFactory extends JsonExtensionType<ToolResponsePart> {
   const _ToolResponsePartTypeFactory();
 
   @override
-  ToolResponsePart parse(Object json) {
+  ToolResponsePart parse(Object? json) {
     return ToolResponsePart(json as Map<String, dynamic>);
   }
 
@@ -766,7 +766,7 @@ class _DataPartTypeFactory extends JsonExtensionType<DataPart> {
   const _DataPartTypeFactory();
 
   @override
-  DataPart parse(Object json) {
+  DataPart parse(Object? json) {
     return DataPart(json as Map<String, dynamic>);
   }
 
@@ -843,7 +843,7 @@ class _CustomPartTypeFactory extends JsonExtensionType<CustomPart> {
   const _CustomPartTypeFactory();
 
   @override
-  CustomPart parse(Object json) {
+  CustomPart parse(Object? json) {
     return CustomPart(json as Map<String, dynamic>);
   }
 
@@ -934,7 +934,7 @@ class _ReasoningPartTypeFactory extends JsonExtensionType<ReasoningPart> {
   const _ReasoningPartTypeFactory();
 
   @override
-  ReasoningPart parse(Object json) {
+  ReasoningPart parse(Object? json) {
     return ReasoningPart(json as Map<String, dynamic>);
   }
 
@@ -1026,7 +1026,7 @@ class _ResourcePartTypeFactory extends JsonExtensionType<ResourcePart> {
   const _ResourcePartTypeFactory();
 
   @override
-  ResourcePart parse(Object json) {
+  ResourcePart parse(Object? json) {
     return ResourcePart(json as Map<String, dynamic>);
   }
 
@@ -1087,7 +1087,7 @@ class _MediaTypeFactory extends JsonExtensionType<Media> {
   const _MediaTypeFactory();
 
   @override
-  Media parse(Object json) {
+  Media parse(Object? json) {
     return Media(json as Map<String, dynamic>);
   }
 
@@ -1174,7 +1174,7 @@ class _ToolRequestTypeFactory extends JsonExtensionType<ToolRequest> {
   const _ToolRequestTypeFactory();
 
   @override
-  ToolRequest parse(Object json) {
+  ToolRequest parse(Object? json) {
     return ToolRequest(json as Map<String, dynamic>);
   }
 
@@ -1262,7 +1262,7 @@ class _ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
   const _ToolResponseTypeFactory();
 
   @override
-  ToolResponse parse(Object json) {
+  ToolResponse parse(Object? json) {
     return ToolResponse(json as Map<String, dynamic>);
   }
 
@@ -1390,7 +1390,7 @@ class _ModelRequestTypeFactory extends JsonExtensionType<ModelRequest> {
   const _ModelRequestTypeFactory();
 
   @override
-  ModelRequest parse(Object json) {
+  ModelRequest parse(Object? json) {
     return ModelRequest(json as Map<String, dynamic>);
   }
 
@@ -1573,7 +1573,7 @@ class _ModelResponseTypeFactory extends JsonExtensionType<ModelResponse> {
   const _ModelResponseTypeFactory();
 
   @override
-  ModelResponse parse(Object json) {
+  ModelResponse parse(Object? json) {
     return ModelResponse(json as Map<String, dynamic>);
   }
 
@@ -1692,7 +1692,7 @@ class _ModelResponseChunkTypeFactory
   const _ModelResponseChunkTypeFactory();
 
   @override
-  ModelResponseChunk parse(Object json) {
+  ModelResponseChunk parse(Object? json) {
     return ModelResponseChunk(json as Map<String, dynamic>);
   }
 
@@ -1837,7 +1837,7 @@ class _GenerateRequestTypeFactory extends JsonExtensionType<GenerateRequest> {
   const _GenerateRequestTypeFactory();
 
   @override
-  GenerateRequest parse(Object json) {
+  GenerateRequest parse(Object? json) {
     return GenerateRequest(json as Map<String, dynamic>);
   }
 
@@ -2088,7 +2088,7 @@ class _GenerationUsageTypeFactory extends JsonExtensionType<GenerationUsage> {
   const _GenerationUsageTypeFactory();
 
   @override
-  GenerationUsage parse(Object json) {
+  GenerationUsage parse(Object? json) {
     return GenerationUsage(json as Map<String, dynamic>);
   }
 
@@ -2218,7 +2218,7 @@ class _OperationTypeFactory extends JsonExtensionType<Operation> {
   const _OperationTypeFactory();
 
   @override
-  Operation parse(Object json) {
+  Operation parse(Object? json) {
     return Operation(json as Map<String, dynamic>);
   }
 
@@ -2316,7 +2316,7 @@ class _OutputConfigTypeFactory extends JsonExtensionType<OutputConfig> {
   const _OutputConfigTypeFactory();
 
   @override
-  OutputConfig parse(Object json) {
+  OutputConfig parse(Object? json) {
     return OutputConfig(json as Map<String, dynamic>);
   }
 
@@ -2382,7 +2382,7 @@ class _DocumentDataTypeFactory extends JsonExtensionType<DocumentData> {
   const _DocumentDataTypeFactory();
 
   @override
-  DocumentData parse(Object json) {
+  DocumentData parse(Object? json) {
     return DocumentData(json as Map<String, dynamic>);
   }
 
@@ -2579,7 +2579,7 @@ class _GenerateActionOptionsTypeFactory
   const _GenerateActionOptionsTypeFactory();
 
   @override
-  GenerateActionOptions parse(Object json) {
+  GenerateActionOptions parse(Object? json) {
     return GenerateActionOptions(json as Map<String, dynamic>);
   }
 
@@ -2707,7 +2707,7 @@ class _GenerateActionOutputConfigTypeFactory
   const _GenerateActionOutputConfigTypeFactory();
 
   @override
-  GenerateActionOutputConfig parse(Object json) {
+  GenerateActionOutputConfig parse(Object? json) {
     return GenerateActionOutputConfig(json as Map<String, dynamic>);
   }
 

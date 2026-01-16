@@ -42,8 +42,8 @@ void main() async {
 
   final weatherFlow = ai.defineFlow(
     name: 'weatherFlow',
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),

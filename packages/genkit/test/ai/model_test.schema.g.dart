@@ -45,7 +45,7 @@ class _TestCustomOptionsTypeFactory
   const _TestCustomOptionsTypeFactory();
 
   @override
-  TestCustomOptions parse(Object json) {
+  TestCustomOptions parse(Object? json) {
     return TestCustomOptions(json as Map<String, dynamic>);
   }
 

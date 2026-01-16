@@ -44,7 +44,7 @@ class _MyToolInputTypeFactory extends JsonExtensionType<MyToolInput> {
   const _MyToolInputTypeFactory();
 
   @override
-  MyToolInput parse(Object json) {
+  MyToolInput parse(Object? json) {
     return MyToolInput(json as Map<String, dynamic>);
   }
 

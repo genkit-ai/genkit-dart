@@ -45,7 +45,7 @@ class _TestCustomOptionsTypeFactory
   const _TestCustomOptionsTypeFactory();
 
   @override
-  TestCustomOptions parse(Object json) {
+  TestCustomOptions parse(Object? json) {
     return TestCustomOptions(json as Map<String, dynamic>);
   }
 
@@ -86,7 +86,7 @@ class _TestToolInputTypeFactory extends JsonExtensionType<TestToolInput> {
   const _TestToolInputTypeFactory();
 
   @override
-  TestToolInput parse(Object json) {
+  TestToolInput parse(Object? json) {
     return TestToolInput(json as Map<String, dynamic>);
   }
 

@@ -64,7 +64,7 @@ class _AddressTypeFactory extends JsonExtensionType<Address> {
   const _AddressTypeFactory();
 
   @override
-  Address parse(Object json) {
+  Address parse(Object? json) {
     return Address(json as Map<String, dynamic>);
   }
 
@@ -153,7 +153,7 @@ class _UserTypeFactory extends JsonExtensionType<User> {
   const _UserTypeFactory();
 
   @override
-  User parse(Object json) {
+  User parse(Object? json) {
     return User(json as Map<String, dynamic>);
   }
 

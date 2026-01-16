@@ -40,8 +40,8 @@ void main() async {
   // genkit flow:run basic "\"hello\""
   final basic = ai.defineFlow(
     name: 'basic',
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
     fn: (String subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
@@ -55,7 +55,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'parent',
-    outputType: StringType,
+    outputType: stringType(),
     fn: (_, _) async {
       // Dart flow objects are callable, but we need to handle the input.
       // basic expects a string.
@@ -67,7 +67,7 @@ void main() async {
   ai.defineFlow(
     name: 'withInputSchema',
     inputType: SubjectType,
-    outputType: StringType,
+    outputType: stringType(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: ${input.subject}';
@@ -82,7 +82,7 @@ void main() async {
   ai.defineFlow(
     name: 'withListInputSchema',
     inputType: listType(SubjectType),
-    outputType: StringType,
+    outputType: stringType(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subjects: ${input.map((e) => e.subject).join(', ')}';
@@ -97,7 +97,7 @@ void main() async {
   ai.defineFlow(
     name: 'withContext',
     inputType: SubjectType,
-    outputType: StringType,
+    outputType: stringType(),
     fn: (input, context) async {
       return 'subject: ${input.subject}, context: ${jsonEncode(context.context)}';
     },
@@ -106,8 +106,8 @@ void main() async {
   // genkit flow:run streamy 5 -s
   ai.defineFlow(
     name: 'streamy',
-    inputType: IntType,
-    outputType: StringType,
+    inputType: intType(),
+    outputType: stringType(),
     streamType: CountType,
     fn: (count, context) async {
       var i = 0;
@@ -122,8 +122,8 @@ void main() async {
   // genkit flow:run streamyThrowy 5 -s
   ai.defineFlow(
     name: 'streamyThrowy',
-    inputType: IntType,
-    outputType: StringType,
+    inputType: intType(),
+    outputType: stringType(),
     streamType: CountType,
     fn: (count, context) async {
       var i = 0;
@@ -142,8 +142,8 @@ void main() async {
   // genkit flow:run throwy "\"hello\""
   ai.defineFlow(
     name: 'throwy',
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
     fn: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
@@ -161,8 +161,8 @@ void main() async {
   // genkit flow:run throwy2 "\"hello\""
   ai.defineFlow(
     name: 'throwy2',
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
     fn: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         if (subject.isNotEmpty) {
@@ -178,8 +178,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'flowMultiStepCaughtError',
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
     fn: (input, _) async {
       var i = 1;
 
@@ -207,8 +207,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'multiSteps',
-    inputType: StringType,
-    outputType: IntType,
+    inputType: stringType(),
+    outputType: intType(),
     fn: (input, _) async {
       final out1 = await ai.run('step1', () async {
         return 'Hello, $input! step 1';
@@ -231,7 +231,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'largeSteps',
-    outputType: StringType,
+    outputType: stringType(),
     fn: (_, _) async {
       await ai.run('large-step1', () async {
         return generateString(100000);

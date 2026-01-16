@@ -44,7 +44,7 @@ class _TestToolInputTypeFactory extends JsonExtensionType<TestToolInput> {
   const _TestToolInputTypeFactory();
 
   @override
-  TestToolInput parse(Object json) {
+  TestToolInput parse(Object? json) {
     return TestToolInput(json as Map<String, dynamic>);
   }
 

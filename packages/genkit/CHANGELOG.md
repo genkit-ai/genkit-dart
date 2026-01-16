@@ -1,3 +1,9 @@
+## 0.10.0-dev.6
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**: Refactor basic types into factory functions to support schema constraints (#34).
+
 ## 0.10.0-dev.5
 
 > Note: This release has breaking changes.
