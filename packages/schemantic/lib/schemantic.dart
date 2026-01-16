@@ -20,20 +20,36 @@ export 'package:json_schema_builder/json_schema_builder.dart'
 
 export 'package:schemantic/src/basic_types.dart';
 
+/// Annotation to mark a class as a schema definition.
+///
+/// This annotation triggers the generation of a counterpart `Schema.g.dart` file
+/// with a concrete implementation of the schema class and a type utility.
 class Schematic {
   const Schematic();
 }
 
-class Key {
+/// Annotation to customize valid JSON fields.
+///
+/// Use this annotation on a getter to specify a custom JSON key name or description.
+class Field {
+  /// The key name to use in the JSON map.
   final String? name;
+
+  /// A description of the field, which will be included in the generated JSON Schema.
   final String? description;
 
-  const Key({this.name, this.description});
+  const Field({this.name, this.description});
 }
 
+/// Metadata associated with a [JsonExtensionType], primarily used for schema generation.
 class JsonSchemaMetadata {
+  /// The name of the type in the schema (e.g. for $defs).
   final String? name;
+
+  /// The JSON Schema definition.
   final jsb.Schema definition;
+
+  /// Other types that this type depends on (for referencing via $defs).
   final List<JsonExtensionType> dependencies;
 
   const JsonSchemaMetadata({
@@ -43,11 +59,22 @@ class JsonSchemaMetadata {
   });
 }
 
+/// Base class for all runtime type utilities.
+///
+/// Provides methods to parse JSON and retrieve the JSON Schema.
 abstract class JsonExtensionType<T> {
   const JsonExtensionType();
+
+  /// Parses the given [json] object into type [T].
+  ///
+  /// Throws if the JSON data does not match the expected structure.
   T parse(Object json);
 
   // ignore: avoid_renaming_method_parameters
+  /// Returns the [jsb.Schema] for this type.
+  ///
+  /// If [useRefs] is true, the schema will use `$ref` to reference dependent types
+  /// in a global `$defs` section. This is required for recursive schemas.
   jsb.Schema jsonSchema({bool useRefs = false}) {
     if (!useRefs) {
       if (schemaMetadata == null) return jsb.Schema.any();
@@ -67,10 +94,13 @@ abstract class JsonExtensionType<T> {
     return SchemaHelpers.buildSchema(this);
   }
 
+  /// Metadata for this type, if available.
   JsonSchemaMetadata? get schemaMetadata => null;
 }
 
+/// Internal utilities for building JSON Schemas.
 class SchemaHelpers {
+  /// Builds a complete [jsb.Schema] for the [root] type, including all `$defs`.
   static jsb.Schema buildSchema(JsonExtensionType root) {
     if (root.schemaMetadata == null) {
       return root.jsonSchema(useRefs: false);

@@ -232,3 +232,46 @@ class _NodeTypeFactory extends JsonExtensionType<Node> {
 
 // ignore: constant_identifier_names
 const NodeType = _NodeTypeFactory();
+
+extension type Keyed(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory Keyed.from({required String originalName}) {
+    return Keyed({'custom_name': originalName});
+  }
+
+  String get originalName {
+    return _json['custom_name'] as String;
+  }
+
+  set originalName(String value) {
+    _json['custom_name'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _KeyedTypeFactory extends JsonExtensionType<Keyed> {
+  const _KeyedTypeFactory();
+
+  @override
+  Keyed parse(Object json) {
+    return Keyed(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Keyed',
+    definition: Schema.object(
+      properties: {
+        'custom_name': Schema.string(description: 'A custom named field'),
+      },
+      required: ['custom_name'],
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const KeyedType = _KeyedTypeFactory();

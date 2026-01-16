@@ -18,7 +18,7 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
-import 'package:schemantic/schemantic.dart';
+import 'package:schemantic/schemantic.dart' hide Field;
 import 'package:source_gen/source_gen.dart';
 
 class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
@@ -664,7 +664,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 }
 
 const _keyChecker = TypeChecker.fromUrl(
-  'package:schemantic/schemantic.dart#Key',
+  'package:schemantic/schemantic.dart#Field',
 );
 
 extension on DartType {

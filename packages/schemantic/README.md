@@ -145,3 +145,17 @@ void main() {
   // {type: object, additionalProperties: {type: integer}}
 }
 ```
+
+### 4. Customizing Fields
+
+You can use the `@Field` annotation to customize the JSON key name and add a description to the generated schema.
+
+```dart
+@Schematic()
+abstract class UserSchema {
+  // Map 'age' to 'years_old' in JSON, and add a description
+  @Field(name: 'years_old', description: 'Age of the user')
+  int? get age;
+}
+```
+
