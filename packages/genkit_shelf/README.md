@@ -1,13 +1,6 @@
-# Genkit Shelf
+[![Pub](https://img.shields.io/pub/v/genkit_shelf.svg)](https://pub.dev/packages/genkit_shelf)
 
 Shelf integration for Genkit Dart.
-
-## Installation
-
-```yaml
-dependencies:
-  genkit_shelf: any
-```
 
 ## Usage
 

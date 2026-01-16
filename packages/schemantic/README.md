@@ -1,4 +1,4 @@
-# Schemantic
+[![Pub](https://img.shields.io/pub/v/schemantic.svg)](https://pub.dev/packages/schemantic)
 
 A general-purpose Dart library for generating type-safe data classes and runtime-accessible JSON Schemas from abstract class definitions.
 
