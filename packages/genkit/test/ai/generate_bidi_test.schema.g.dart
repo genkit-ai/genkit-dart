@@ -40,8 +40,8 @@ extension type MyToolInput(Map<String, dynamic> _json)
   }
 }
 
-class MyToolInputTypeFactory extends JsonExtensionType<MyToolInput> {
-  const MyToolInputTypeFactory();
+class _MyToolInputTypeFactory extends JsonExtensionType<MyToolInput> {
+  const _MyToolInputTypeFactory();
 
   @override
   MyToolInput parse(Object json) {
@@ -60,4 +60,4 @@ class MyToolInputTypeFactory extends JsonExtensionType<MyToolInput> {
 }
 
 // ignore: constant_identifier_names
-const MyToolInputType = MyToolInputTypeFactory();
+const MyToolInputType = _MyToolInputTypeFactory();

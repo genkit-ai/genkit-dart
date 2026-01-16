@@ -54,8 +54,8 @@ extension type GeminiOptions(Map<String, dynamic> _json)
   }
 }
 
-class GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
-  const GeminiOptionsTypeFactory();
+class _GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
+  const _GeminiOptionsTypeFactory();
 
   @override
   GeminiOptions parse(Object json) {
@@ -77,4 +77,4 @@ class GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
 }
 
 // ignore: constant_identifier_names
-const GeminiOptionsType = GeminiOptionsTypeFactory();
+const GeminiOptionsType = _GeminiOptionsTypeFactory();

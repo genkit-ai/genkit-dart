@@ -60,8 +60,8 @@ extension type Address(Map<String, dynamic> _json)
   }
 }
 
-class AddressTypeFactory extends JsonExtensionType<Address> {
-  const AddressTypeFactory();
+class _AddressTypeFactory extends JsonExtensionType<Address> {
+  const _AddressTypeFactory();
 
   @override
   Address parse(Object json) {
@@ -84,7 +84,7 @@ class AddressTypeFactory extends JsonExtensionType<Address> {
 }
 
 // ignore: constant_identifier_names
-const AddressType = AddressTypeFactory();
+const AddressType = _AddressTypeFactory();
 
 extension type User(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -149,8 +149,8 @@ extension type User(Map<String, dynamic> _json)
   }
 }
 
-class UserTypeFactory extends JsonExtensionType<User> {
-  const UserTypeFactory();
+class _UserTypeFactory extends JsonExtensionType<User> {
+  const _UserTypeFactory();
 
   @override
   User parse(Object json) {
@@ -174,4 +174,4 @@ class UserTypeFactory extends JsonExtensionType<User> {
 }
 
 // ignore: constant_identifier_names
-const UserType = UserTypeFactory();
+const UserType = _UserTypeFactory();

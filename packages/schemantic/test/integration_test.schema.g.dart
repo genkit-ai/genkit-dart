@@ -64,8 +64,8 @@ extension type User(Map<String, dynamic> _json)
   }
 }
 
-class UserTypeFactory extends JsonExtensionType<User> {
-  const UserTypeFactory();
+class _UserTypeFactory extends JsonExtensionType<User> {
+  const _UserTypeFactory();
 
   @override
   User parse(Object json) {
@@ -88,7 +88,7 @@ class UserTypeFactory extends JsonExtensionType<User> {
 }
 
 // ignore: constant_identifier_names
-const UserType = UserTypeFactory();
+const UserType = _UserTypeFactory();
 
 extension type Group(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -141,8 +141,8 @@ extension type Group(Map<String, dynamic> _json)
   }
 }
 
-class GroupTypeFactory extends JsonExtensionType<Group> {
-  const GroupTypeFactory();
+class _GroupTypeFactory extends JsonExtensionType<Group> {
+  const _GroupTypeFactory();
 
   @override
   Group parse(Object json) {
@@ -167,7 +167,7 @@ class GroupTypeFactory extends JsonExtensionType<Group> {
 }
 
 // ignore: constant_identifier_names
-const GroupType = GroupTypeFactory();
+const GroupType = _GroupTypeFactory();
 
 extension type Node(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -206,8 +206,8 @@ extension type Node(Map<String, dynamic> _json)
   }
 }
 
-class NodeTypeFactory extends JsonExtensionType<Node> {
-  const NodeTypeFactory();
+class _NodeTypeFactory extends JsonExtensionType<Node> {
+  const _NodeTypeFactory();
 
   @override
   Node parse(Object json) {
@@ -231,4 +231,4 @@ class NodeTypeFactory extends JsonExtensionType<Node> {
 }
 
 // ignore: constant_identifier_names
-const NodeType = NodeTypeFactory();
+const NodeType = _NodeTypeFactory();

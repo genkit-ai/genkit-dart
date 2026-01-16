@@ -40,9 +40,9 @@ extension type TestCustomOptions(Map<String, dynamic> _json)
   }
 }
 
-class TestCustomOptionsTypeFactory
+class _TestCustomOptionsTypeFactory
     extends JsonExtensionType<TestCustomOptions> {
-  const TestCustomOptionsTypeFactory();
+  const _TestCustomOptionsTypeFactory();
 
   @override
   TestCustomOptions parse(Object json) {
@@ -61,4 +61,4 @@ class TestCustomOptionsTypeFactory
 }
 
 // ignore: constant_identifier_names
-const TestCustomOptionsType = TestCustomOptionsTypeFactory();
+const TestCustomOptionsType = _TestCustomOptionsTypeFactory();

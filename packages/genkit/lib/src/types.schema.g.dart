@@ -108,8 +108,8 @@ extension type Candidate(Map<String, dynamic> _json)
   }
 }
 
-class CandidateTypeFactory extends JsonExtensionType<Candidate> {
-  const CandidateTypeFactory();
+class _CandidateTypeFactory extends JsonExtensionType<Candidate> {
+  const _CandidateTypeFactory();
 
   @override
   Candidate parse(Object json) {
@@ -135,7 +135,7 @@ class CandidateTypeFactory extends JsonExtensionType<Candidate> {
 }
 
 // ignore: constant_identifier_names
-const CandidateType = CandidateTypeFactory();
+const CandidateType = _CandidateTypeFactory();
 
 extension type Message(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -186,8 +186,8 @@ extension type Message(Map<String, dynamic> _json)
   }
 }
 
-class MessageTypeFactory extends JsonExtensionType<Message> {
-  const MessageTypeFactory();
+class _MessageTypeFactory extends JsonExtensionType<Message> {
+  const _MessageTypeFactory();
 
   @override
   Message parse(Object json) {
@@ -212,7 +212,7 @@ class MessageTypeFactory extends JsonExtensionType<Message> {
 }
 
 // ignore: constant_identifier_names
-const MessageType = MessageTypeFactory();
+const MessageType = _MessageTypeFactory();
 
 extension type ToolDefinition(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -281,8 +281,8 @@ extension type ToolDefinition(Map<String, dynamic> _json)
   }
 }
 
-class ToolDefinitionTypeFactory extends JsonExtensionType<ToolDefinition> {
-  const ToolDefinitionTypeFactory();
+class _ToolDefinitionTypeFactory extends JsonExtensionType<ToolDefinition> {
+  const _ToolDefinitionTypeFactory();
 
   @override
   ToolDefinition parse(Object json) {
@@ -307,7 +307,7 @@ class ToolDefinitionTypeFactory extends JsonExtensionType<ToolDefinition> {
 }
 
 // ignore: constant_identifier_names
-const ToolDefinitionType = ToolDefinitionTypeFactory();
+const ToolDefinitionType = _ToolDefinitionTypeFactory();
 
 extension type Part(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -320,8 +320,8 @@ extension type Part(Map<String, dynamic> _json)
   }
 }
 
-class PartTypeFactory extends JsonExtensionType<Part> {
-  const PartTypeFactory();
+class _PartTypeFactory extends JsonExtensionType<Part> {
+  const _PartTypeFactory();
 
   @override
   Part parse(Object json) {
@@ -337,7 +337,7 @@ class PartTypeFactory extends JsonExtensionType<Part> {
 }
 
 // ignore: constant_identifier_names
-const PartType = PartTypeFactory();
+const PartType = _PartTypeFactory();
 
 extension type TextPart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -404,8 +404,8 @@ extension type TextPart(Map<String, dynamic> _json)
   }
 }
 
-class TextPartTypeFactory extends JsonExtensionType<TextPart> {
-  const TextPartTypeFactory();
+class _TextPartTypeFactory extends JsonExtensionType<TextPart> {
+  const _TextPartTypeFactory();
 
   @override
   TextPart parse(Object json) {
@@ -429,7 +429,7 @@ class TextPartTypeFactory extends JsonExtensionType<TextPart> {
 }
 
 // ignore: constant_identifier_names
-const TextPartType = TextPartTypeFactory();
+const TextPartType = _TextPartTypeFactory();
 
 extension type MediaPart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -496,8 +496,8 @@ extension type MediaPart(Map<String, dynamic> _json)
   }
 }
 
-class MediaPartTypeFactory extends JsonExtensionType<MediaPart> {
-  const MediaPartTypeFactory();
+class _MediaPartTypeFactory extends JsonExtensionType<MediaPart> {
+  const _MediaPartTypeFactory();
 
   @override
   MediaPart parse(Object json) {
@@ -521,7 +521,7 @@ class MediaPartTypeFactory extends JsonExtensionType<MediaPart> {
 }
 
 // ignore: constant_identifier_names
-const MediaPartType = MediaPartTypeFactory();
+const MediaPartType = _MediaPartTypeFactory();
 
 extension type ToolRequestPart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -588,8 +588,8 @@ extension type ToolRequestPart(Map<String, dynamic> _json)
   }
 }
 
-class ToolRequestPartTypeFactory extends JsonExtensionType<ToolRequestPart> {
-  const ToolRequestPartTypeFactory();
+class _ToolRequestPartTypeFactory extends JsonExtensionType<ToolRequestPart> {
+  const _ToolRequestPartTypeFactory();
 
   @override
   ToolRequestPart parse(Object json) {
@@ -613,7 +613,7 @@ class ToolRequestPartTypeFactory extends JsonExtensionType<ToolRequestPart> {
 }
 
 // ignore: constant_identifier_names
-const ToolRequestPartType = ToolRequestPartTypeFactory();
+const ToolRequestPartType = _ToolRequestPartTypeFactory();
 
 extension type ToolResponsePart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -680,8 +680,8 @@ extension type ToolResponsePart(Map<String, dynamic> _json)
   }
 }
 
-class ToolResponsePartTypeFactory extends JsonExtensionType<ToolResponsePart> {
-  const ToolResponsePartTypeFactory();
+class _ToolResponsePartTypeFactory extends JsonExtensionType<ToolResponsePart> {
+  const _ToolResponsePartTypeFactory();
 
   @override
   ToolResponsePart parse(Object json) {
@@ -705,7 +705,7 @@ class ToolResponsePartTypeFactory extends JsonExtensionType<ToolResponsePart> {
 }
 
 // ignore: constant_identifier_names
-const ToolResponsePartType = ToolResponsePartTypeFactory();
+const ToolResponsePartType = _ToolResponsePartTypeFactory();
 
 extension type DataPart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -762,8 +762,8 @@ extension type DataPart(Map<String, dynamic> _json)
   }
 }
 
-class DataPartTypeFactory extends JsonExtensionType<DataPart> {
-  const DataPartTypeFactory();
+class _DataPartTypeFactory extends JsonExtensionType<DataPart> {
+  const _DataPartTypeFactory();
 
   @override
   DataPart parse(Object json) {
@@ -786,7 +786,7 @@ class DataPartTypeFactory extends JsonExtensionType<DataPart> {
 }
 
 // ignore: constant_identifier_names
-const DataPartType = DataPartTypeFactory();
+const DataPartType = _DataPartTypeFactory();
 
 extension type CustomPart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -839,8 +839,8 @@ extension type CustomPart(Map<String, dynamic> _json)
   }
 }
 
-class CustomPartTypeFactory extends JsonExtensionType<CustomPart> {
-  const CustomPartTypeFactory();
+class _CustomPartTypeFactory extends JsonExtensionType<CustomPart> {
+  const _CustomPartTypeFactory();
 
   @override
   CustomPart parse(Object json) {
@@ -863,7 +863,7 @@ class CustomPartTypeFactory extends JsonExtensionType<CustomPart> {
 }
 
 // ignore: constant_identifier_names
-const CustomPartType = CustomPartTypeFactory();
+const CustomPartType = _CustomPartTypeFactory();
 
 extension type ReasoningPart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -930,8 +930,8 @@ extension type ReasoningPart(Map<String, dynamic> _json)
   }
 }
 
-class ReasoningPartTypeFactory extends JsonExtensionType<ReasoningPart> {
-  const ReasoningPartTypeFactory();
+class _ReasoningPartTypeFactory extends JsonExtensionType<ReasoningPart> {
+  const _ReasoningPartTypeFactory();
 
   @override
   ReasoningPart parse(Object json) {
@@ -955,7 +955,7 @@ class ReasoningPartTypeFactory extends JsonExtensionType<ReasoningPart> {
 }
 
 // ignore: constant_identifier_names
-const ReasoningPartType = ReasoningPartTypeFactory();
+const ReasoningPartType = _ReasoningPartTypeFactory();
 
 extension type ResourcePart(Map<String, dynamic> _json)
     implements Map<String, dynamic>, Part {
@@ -1022,8 +1022,8 @@ extension type ResourcePart(Map<String, dynamic> _json)
   }
 }
 
-class ResourcePartTypeFactory extends JsonExtensionType<ResourcePart> {
-  const ResourcePartTypeFactory();
+class _ResourcePartTypeFactory extends JsonExtensionType<ResourcePart> {
+  const _ResourcePartTypeFactory();
 
   @override
   ResourcePart parse(Object json) {
@@ -1047,7 +1047,7 @@ class ResourcePartTypeFactory extends JsonExtensionType<ResourcePart> {
 }
 
 // ignore: constant_identifier_names
-const ResourcePartType = ResourcePartTypeFactory();
+const ResourcePartType = _ResourcePartTypeFactory();
 
 extension type Media(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -1083,8 +1083,8 @@ extension type Media(Map<String, dynamic> _json)
   }
 }
 
-class MediaTypeFactory extends JsonExtensionType<Media> {
-  const MediaTypeFactory();
+class _MediaTypeFactory extends JsonExtensionType<Media> {
+  const _MediaTypeFactory();
 
   @override
   Media parse(Object json) {
@@ -1103,7 +1103,7 @@ class MediaTypeFactory extends JsonExtensionType<Media> {
 }
 
 // ignore: constant_identifier_names
-const MediaType = MediaTypeFactory();
+const MediaType = _MediaTypeFactory();
 
 extension type ToolRequest(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -1170,8 +1170,8 @@ extension type ToolRequest(Map<String, dynamic> _json)
   }
 }
 
-class ToolRequestTypeFactory extends JsonExtensionType<ToolRequest> {
-  const ToolRequestTypeFactory();
+class _ToolRequestTypeFactory extends JsonExtensionType<ToolRequest> {
+  const _ToolRequestTypeFactory();
 
   @override
   ToolRequest parse(Object json) {
@@ -1195,7 +1195,7 @@ class ToolRequestTypeFactory extends JsonExtensionType<ToolRequest> {
 }
 
 // ignore: constant_identifier_names
-const ToolRequestType = ToolRequestTypeFactory();
+const ToolRequestType = _ToolRequestTypeFactory();
 
 extension type ToolResponse(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -1258,8 +1258,8 @@ extension type ToolResponse(Map<String, dynamic> _json)
   }
 }
 
-class ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
-  const ToolResponseTypeFactory();
+class _ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
+  const _ToolResponseTypeFactory();
 
   @override
   ToolResponse parse(Object json) {
@@ -1283,7 +1283,7 @@ class ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
 }
 
 // ignore: constant_identifier_names
-const ToolResponseType = ToolResponseTypeFactory();
+const ToolResponseType = _ToolResponseTypeFactory();
 
 extension type ModelRequest(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -1386,8 +1386,8 @@ extension type ModelRequest(Map<String, dynamic> _json)
   }
 }
 
-class ModelRequestTypeFactory extends JsonExtensionType<ModelRequest> {
-  const ModelRequestTypeFactory();
+class _ModelRequestTypeFactory extends JsonExtensionType<ModelRequest> {
+  const _ModelRequestTypeFactory();
 
   @override
   ModelRequest parse(Object json) {
@@ -1424,7 +1424,7 @@ class ModelRequestTypeFactory extends JsonExtensionType<ModelRequest> {
 }
 
 // ignore: constant_identifier_names
-const ModelRequestType = ModelRequestTypeFactory();
+const ModelRequestType = _ModelRequestTypeFactory();
 
 extension type ModelResponse(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -1569,8 +1569,8 @@ extension type ModelResponse(Map<String, dynamic> _json)
   }
 }
 
-class ModelResponseTypeFactory extends JsonExtensionType<ModelResponse> {
-  const ModelResponseTypeFactory();
+class _ModelResponseTypeFactory extends JsonExtensionType<ModelResponse> {
+  const _ModelResponseTypeFactory();
 
   @override
   ModelResponse parse(Object json) {
@@ -1604,7 +1604,7 @@ class ModelResponseTypeFactory extends JsonExtensionType<ModelResponse> {
 }
 
 // ignore: constant_identifier_names
-const ModelResponseType = ModelResponseTypeFactory();
+const ModelResponseType = _ModelResponseTypeFactory();
 
 extension type ModelResponseChunk(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -1687,9 +1687,9 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
   }
 }
 
-class ModelResponseChunkTypeFactory
+class _ModelResponseChunkTypeFactory
     extends JsonExtensionType<ModelResponseChunk> {
-  const ModelResponseChunkTypeFactory();
+  const _ModelResponseChunkTypeFactory();
 
   @override
   ModelResponseChunk parse(Object json) {
@@ -1716,7 +1716,7 @@ class ModelResponseChunkTypeFactory
 }
 
 // ignore: constant_identifier_names
-const ModelResponseChunkType = ModelResponseChunkTypeFactory();
+const ModelResponseChunkType = _ModelResponseChunkTypeFactory();
 
 extension type GenerateRequest(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -1833,8 +1833,8 @@ extension type GenerateRequest(Map<String, dynamic> _json)
   }
 }
 
-class GenerateRequestTypeFactory extends JsonExtensionType<GenerateRequest> {
-  const GenerateRequestTypeFactory();
+class _GenerateRequestTypeFactory extends JsonExtensionType<GenerateRequest> {
+  const _GenerateRequestTypeFactory();
 
   @override
   GenerateRequest parse(Object json) {
@@ -1872,7 +1872,7 @@ class GenerateRequestTypeFactory extends JsonExtensionType<GenerateRequest> {
 }
 
 // ignore: constant_identifier_names
-const GenerateRequestType = GenerateRequestTypeFactory();
+const GenerateRequestType = _GenerateRequestTypeFactory();
 
 extension type GenerationUsage(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -2084,8 +2084,8 @@ extension type GenerationUsage(Map<String, dynamic> _json)
   }
 }
 
-class GenerationUsageTypeFactory extends JsonExtensionType<GenerationUsage> {
-  const GenerationUsageTypeFactory();
+class _GenerationUsageTypeFactory extends JsonExtensionType<GenerationUsage> {
+  const _GenerationUsageTypeFactory();
 
   @override
   GenerationUsage parse(Object json) {
@@ -2119,7 +2119,7 @@ class GenerationUsageTypeFactory extends JsonExtensionType<GenerationUsage> {
 }
 
 // ignore: constant_identifier_names
-const GenerationUsageType = GenerationUsageTypeFactory();
+const GenerationUsageType = _GenerationUsageTypeFactory();
 
 extension type Operation(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -2214,8 +2214,8 @@ extension type Operation(Map<String, dynamic> _json)
   }
 }
 
-class OperationTypeFactory extends JsonExtensionType<Operation> {
-  const OperationTypeFactory();
+class _OperationTypeFactory extends JsonExtensionType<Operation> {
+  const _OperationTypeFactory();
 
   @override
   Operation parse(Object json) {
@@ -2241,7 +2241,7 @@ class OperationTypeFactory extends JsonExtensionType<Operation> {
 }
 
 // ignore: constant_identifier_names
-const OperationType = OperationTypeFactory();
+const OperationType = _OperationTypeFactory();
 
 extension type OutputConfig(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -2312,8 +2312,8 @@ extension type OutputConfig(Map<String, dynamic> _json)
   }
 }
 
-class OutputConfigTypeFactory extends JsonExtensionType<OutputConfig> {
-  const OutputConfigTypeFactory();
+class _OutputConfigTypeFactory extends JsonExtensionType<OutputConfig> {
+  const _OutputConfigTypeFactory();
 
   @override
   OutputConfig parse(Object json) {
@@ -2337,7 +2337,7 @@ class OutputConfigTypeFactory extends JsonExtensionType<OutputConfig> {
 }
 
 // ignore: constant_identifier_names
-const OutputConfigType = OutputConfigTypeFactory();
+const OutputConfigType = _OutputConfigTypeFactory();
 
 extension type DocumentData(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -2378,8 +2378,8 @@ extension type DocumentData(Map<String, dynamic> _json)
   }
 }
 
-class DocumentDataTypeFactory extends JsonExtensionType<DocumentData> {
-  const DocumentDataTypeFactory();
+class _DocumentDataTypeFactory extends JsonExtensionType<DocumentData> {
+  const _DocumentDataTypeFactory();
 
   @override
   DocumentData parse(Object json) {
@@ -2403,7 +2403,7 @@ class DocumentDataTypeFactory extends JsonExtensionType<DocumentData> {
 }
 
 // ignore: constant_identifier_names
-const DocumentDataType = DocumentDataTypeFactory();
+const DocumentDataType = _DocumentDataTypeFactory();
 
 extension type GenerateActionOptions(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -2574,9 +2574,9 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
   }
 }
 
-class GenerateActionOptionsTypeFactory
+class _GenerateActionOptionsTypeFactory
     extends JsonExtensionType<GenerateActionOptions> {
-  const GenerateActionOptionsTypeFactory();
+  const _GenerateActionOptionsTypeFactory();
 
   @override
   GenerateActionOptions parse(Object json) {
@@ -2617,7 +2617,7 @@ class GenerateActionOptionsTypeFactory
 }
 
 // ignore: constant_identifier_names
-const GenerateActionOptionsType = GenerateActionOptionsTypeFactory();
+const GenerateActionOptionsType = _GenerateActionOptionsTypeFactory();
 
 extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -2702,9 +2702,9 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
   }
 }
 
-class GenerateActionOutputConfigTypeFactory
+class _GenerateActionOutputConfigTypeFactory
     extends JsonExtensionType<GenerateActionOutputConfig> {
-  const GenerateActionOutputConfigTypeFactory();
+  const _GenerateActionOutputConfigTypeFactory();
 
   @override
   GenerateActionOutputConfig parse(Object json) {
@@ -2729,4 +2729,4 @@ class GenerateActionOutputConfigTypeFactory
 }
 
 // ignore: constant_identifier_names
-const GenerateActionOutputConfigType = GenerateActionOutputConfigTypeFactory();
+const GenerateActionOutputConfigType = _GenerateActionOutputConfigTypeFactory();

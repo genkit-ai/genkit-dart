@@ -40,8 +40,8 @@ extension type TestToolInput(Map<String, dynamic> _json)
   }
 }
 
-class TestToolInputTypeFactory extends JsonExtensionType<TestToolInput> {
-  const TestToolInputTypeFactory();
+class _TestToolInputTypeFactory extends JsonExtensionType<TestToolInput> {
+  const _TestToolInputTypeFactory();
 
   @override
   TestToolInput parse(Object json) {
@@ -60,4 +60,4 @@ class TestToolInputTypeFactory extends JsonExtensionType<TestToolInput> {
 }
 
 // ignore: constant_identifier_names
-const TestToolInputType = TestToolInputTypeFactory();
+const TestToolInputType = _TestToolInputTypeFactory();
