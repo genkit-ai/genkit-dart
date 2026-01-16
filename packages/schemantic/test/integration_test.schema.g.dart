@@ -1,17 +1,3 @@
-// Copyright 2025 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
@@ -68,7 +54,7 @@ class _UserTypeFactory extends JsonExtensionType<User> {
   const _UserTypeFactory();
 
   @override
-  User parse(Object json) {
+  User parse(Object? json) {
     return User(json as Map<String, dynamic>);
   }
 
@@ -145,7 +131,7 @@ class _GroupTypeFactory extends JsonExtensionType<Group> {
   const _GroupTypeFactory();
 
   @override
-  Group parse(Object json) {
+  Group parse(Object? json) {
     return Group(json as Map<String, dynamic>);
   }
 
@@ -210,7 +196,7 @@ class _NodeTypeFactory extends JsonExtensionType<Node> {
   const _NodeTypeFactory();
 
   @override
-  Node parse(Object json) {
+  Node parse(Object? json) {
     return Node(json as Map<String, dynamic>);
   }
 
@@ -288,7 +274,7 @@ class _KeyedTypeFactory extends JsonExtensionType<Keyed> {
   const _KeyedTypeFactory();
 
   @override
-  Keyed parse(Object json) {
+  Keyed parse(Object? json) {
     return Keyed(json as Map<String, dynamic>);
   }
 
@@ -360,7 +346,7 @@ class _ComprehensiveTypeFactory extends JsonExtensionType<Comprehensive> {
   const _ComprehensiveTypeFactory();
 
   @override
-  Comprehensive parse(Object json) {
+  Comprehensive parse(Object? json) {
     return Comprehensive(json as Map<String, dynamic>);
   }
 
@@ -426,7 +412,7 @@ class _DescriptionTypeFactory extends JsonExtensionType<Description> {
   const _DescriptionTypeFactory();
 
   @override
-  Description parse(Object json) {
+  Description parse(Object? json) {
     return Description(json as Map<String, dynamic>);
   }
 

@@ -129,7 +129,7 @@ abstract class JsonExtensionType<T> {
   /// Parses the given [json] object into type [T].
   ///
   /// Throws if the JSON data does not match the expected structure.
-  T parse(Object json);
+  T parse(Object? json);
 
   // ignore: avoid_renaming_method_parameters
   /// Returns the [jsb.Schema] for this type.

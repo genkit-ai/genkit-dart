@@ -20,7 +20,7 @@ void main() {
   group('Enhanced Basic Types', () {
     test('listType with options', () {
       final t = listType(
-        StringType,
+        stringType(),
         description: 'My List',
         minItems: 1,
         maxItems: 5,
@@ -37,8 +37,8 @@ void main() {
 
     test('mapType with options', () {
       final t = mapType(
-        StringType,
-        IntType,
+        stringType(),
+        intType(),
         description: 'My Map',
         minProperties: 2,
         maxProperties: 10,
@@ -69,7 +69,7 @@ void main() {
 class _MockTypeWithDefs extends JsonExtensionType<int> {
   const _MockTypeWithDefs();
   @override
-  int parse(Object json) => json as int;
+  int parse(Object? json) => json as int;
 
   @override
   Schema jsonSchema({bool useRefs = false}) {

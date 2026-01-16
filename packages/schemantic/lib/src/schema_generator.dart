@@ -414,7 +414,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 Parameter(
                   (p) => p
                     ..name = 'json'
-                    ..type = refer('Object'),
+                    ..type = refer('Object?'),
                 ),
               )
               ..body = Code(parseBody),
@@ -431,7 +431,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 Parameter(
                   (p) => p
                     ..name = 'json'
-                    ..type = refer('Object'),
+                    ..type = refer('Object?'),
                 ),
               )
               ..body = Code('return $baseName(json as Map<String, dynamic>);'),

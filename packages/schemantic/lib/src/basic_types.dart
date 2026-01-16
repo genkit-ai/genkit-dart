@@ -16,138 +16,274 @@ import 'package:schemantic/schemantic.dart';
 import 'dart:convert';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
-class _StringTypeFactory extends JsonExtensionType<String> {
-  const _StringTypeFactory();
-
-  @override
-  String parse(Object json) => json as String;
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.string();
-}
-
 /// A string type.
 ///
 /// Example:
 /// ```dart
-/// StringType.parse('hello');
+/// stringType().parse('hello');
 /// ```
-// ignore: constant_identifier_names
-const StringType = _StringTypeFactory();
+JsonExtensionType<String> stringType({
+  String? description,
+  int? minLength,
+  int? maxLength,
+  String? pattern,
+  String? format,
+  List<String>? enumValues,
+}) {
+  return _StringTypeFactory(
+    description: description,
+    minLength: minLength,
+    maxLength: maxLength,
+    pattern: pattern,
+    format: format,
+    enumValues: enumValues,
+  );
+}
 
-class _IntTypeFactory extends JsonExtensionType<int> {
-  const _IntTypeFactory();
+class _StringTypeFactory extends JsonExtensionType<String> {
+  final String? description;
+  final int? minLength;
+  final int? maxLength;
+  final String? pattern;
+  final String? format;
+  final List<String>? enumValues;
+
+  const _StringTypeFactory({
+    this.description,
+    this.minLength,
+    this.maxLength,
+    this.pattern,
+    this.format,
+    this.enumValues,
+  });
 
   @override
-  int parse(Object json) => json as int;
+  String parse(Object? json) => json as String;
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.integer();
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    return jsb.Schema.fromMap({
+      'type': 'string',
+      if (description != null) 'description': description,
+      if (minLength != null) 'minLength': minLength,
+      if (maxLength != null) 'maxLength': maxLength,
+      if (pattern != null) 'pattern': pattern,
+      if (format != null) 'format': format,
+      if (enumValues != null) 'enum': enumValues,
+    });
+  }
 }
 
 /// An integer type.
 ///
 /// Example:
 /// ```dart
-/// IntType.parse(123);
+/// intType().parse(123);
 /// ```
-// ignore: constant_identifier_names
-const IntType = _IntTypeFactory();
+JsonExtensionType<int> intType({
+  String? description,
+  int? minimum,
+  int? maximum,
+  int? exclusiveMinimum,
+  int? exclusiveMaximum,
+  int? multipleOf,
+}) {
+  return _IntTypeFactory(
+    description: description,
+    minimum: minimum,
+    maximum: maximum,
+    exclusiveMinimum: exclusiveMinimum,
+    exclusiveMaximum: exclusiveMaximum,
+    multipleOf: multipleOf,
+  );
+}
 
-class _DoubleTypeFactory extends JsonExtensionType<double> {
-  const _DoubleTypeFactory();
+class _IntTypeFactory extends JsonExtensionType<int> {
+  final String? description;
+  final int? minimum;
+  final int? maximum;
+  final int? exclusiveMinimum;
+  final int? exclusiveMaximum;
+  final int? multipleOf;
+
+  const _IntTypeFactory({
+    this.description,
+    this.minimum,
+    this.maximum,
+    this.exclusiveMinimum,
+    this.exclusiveMaximum,
+    this.multipleOf,
+  });
 
   @override
-  double parse(Object json) {
-    if (json is int) return json.toDouble();
-    return json as double;
+  int parse(Object? json) => json as int;
+
+  @override
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    return jsb.Schema.fromMap({
+      'type': 'integer',
+      if (description != null) 'description': description,
+      if (minimum != null) 'minimum': minimum,
+      if (maximum != null) 'maximum': maximum,
+      if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
+      if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
+      if (multipleOf != null) 'multipleOf': multipleOf,
+    });
   }
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.number();
 }
 
 /// A double type.
 ///
 /// Example:
 /// ```dart
-/// DoubleType.parse(12.34);
+/// doubleType().parse(12.34);
 /// ```
-// ignore: constant_identifier_names
-const DoubleType = _DoubleTypeFactory();
+JsonExtensionType<double> doubleType({
+  String? description,
+  double? minimum,
+  double? maximum,
+  double? exclusiveMinimum,
+  double? exclusiveMaximum,
+  double? multipleOf,
+}) {
+  return _DoubleTypeFactory(
+    description: description,
+    minimum: minimum,
+    maximum: maximum,
+    exclusiveMinimum: exclusiveMinimum,
+    exclusiveMaximum: exclusiveMaximum,
+    multipleOf: multipleOf,
+  );
+}
 
-class _BoolTypeFactory extends JsonExtensionType<bool> {
-  const _BoolTypeFactory();
+class _DoubleTypeFactory extends JsonExtensionType<double> {
+  final String? description;
+  final double? minimum;
+  final double? maximum;
+  final double? exclusiveMinimum;
+  final double? exclusiveMaximum;
+  final double? multipleOf;
+
+  const _DoubleTypeFactory({
+    this.description,
+    this.minimum,
+    this.maximum,
+    this.exclusiveMinimum,
+    this.exclusiveMaximum,
+    this.multipleOf,
+  });
 
   @override
-  bool parse(Object json) => json as bool;
+  double parse(Object? json) {
+    if (json is int) return json.toDouble();
+    return json as double;
+  }
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.boolean();
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    return jsb.Schema.fromMap({
+      'type': 'number',
+      if (description != null) 'description': description,
+      if (minimum != null) 'minimum': minimum,
+      if (maximum != null) 'maximum': maximum,
+      if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
+      if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
+      if (multipleOf != null) 'multipleOf': multipleOf,
+    });
+  }
 }
 
 /// A boolean type.
 ///
 /// Example:
 /// ```dart
-/// BoolType.parse(true);
+/// boolType().parse(true);
 /// ```
-// ignore: constant_identifier_names
-const BoolType = _BoolTypeFactory();
+JsonExtensionType<bool> boolType({String? description}) {
+  return _BoolTypeFactory(description: description);
+}
+
+class _BoolTypeFactory extends JsonExtensionType<bool> {
+  final String? description;
+  const _BoolTypeFactory({this.description});
+
+  @override
+  bool parse(Object? json) => json as bool;
+
+  @override
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    return jsb.Schema.fromMap({
+      'type': 'boolean',
+      if (description != null) 'description': description,
+    });
+  }
+}
+
+/// A void type.
+///
+/// Example:
+/// ```dart
+/// voidType().parse(null);
+/// ```
+JsonExtensionType<void> voidType({String? description}) {
+  return _VoidTypeFactory(description: description);
+}
 
 class _VoidTypeFactory extends JsonExtensionType<void> {
-  const _VoidTypeFactory();
-
+  final String? description;
+  const _VoidTypeFactory({this.description});
   @override
   void parse(Object? json) {}
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.nil();
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    return jsb.Schema.fromMap({
+      'type': 'null',
+      if (description != null) 'description': description,
+    });
+  }
 }
 
-/// A void type, representing null in JSON.
+/// A dynamic type.
 ///
 /// Example:
 /// ```dart
-/// VoidType.parse(null);
-// ignore: constant_identifier_names
-const VoidType = _VoidTypeFactory();
-
-/// A dynamic type, representing any JSON value.
-///
-/// Example:
-/// ```dart
-/// DynamicType.parse(123);
-/// DynamicType.parse('hello');
+/// dynamicType().parse(anything);
 /// ```
-class _DynamicTypeFactory extends JsonExtensionType<dynamic> {
-  const _DynamicTypeFactory();
+JsonExtensionType<dynamic> dynamicType({String? description}) {
+  return _DynamicTypeFactory(description: description);
+}
 
+class _DynamicTypeFactory extends JsonExtensionType<dynamic> {
+  final String? description;
+  const _DynamicTypeFactory({this.description});
   @override
   dynamic parse(Object? json) => json;
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.any();
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    // Empty schema allows anything
+    return jsb.Schema.fromMap({
+      if (description != null) 'description': description,
+    });
+  }
 }
-
-// ignore: constant_identifier_names
-const DynamicType = _DynamicTypeFactory();
 
 class _BasicMapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
   const _BasicMapTypeFactory();
 
   @override
-  Map<String, dynamic> parse(Object json) => json as Map<String, dynamic>;
+  Map<String, dynamic> parse(Object? json) => json as Map<String, dynamic>;
 
   @override
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.object();
 }
 
-/// A simplified Map type for Map<String, dynamic>.
+/// A generic map type with String keys and dynamic values.
 ///
 /// Example:
 /// ```dart
-/// MapType.parse({'key': 'value'});
+/// MapType.parse({'a': 1});
 /// ```
 // ignore: constant_identifier_names
 const MapType = _BasicMapTypeFactory();
@@ -191,7 +327,7 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
   });
 
   @override
-  List<T> parse(Object json) =>
+  List<T> parse(Object? json) =>
       (json as List).map((e) => itemType.parse(e)).toList();
 
   @override
@@ -267,7 +403,7 @@ class _MapTypeFactory<K, V> extends JsonExtensionType<Map<K, V>> {
   });
 
   @override
-  Map<K, V> parse(Object json) {
+  Map<K, V> parse(Object? json) {
     return (json as Map).map((k, v) {
       return MapEntry(keyType.parse(k), valueType.parse(v));
     });
