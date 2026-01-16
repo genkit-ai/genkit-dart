@@ -1,3 +1,5 @@
+## 0.0.1-dev.3
+
 ## 0.0.1-dev.2
 
 > Note: This release has breaking changes.

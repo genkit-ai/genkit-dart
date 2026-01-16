@@ -11,6 +11,25 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`schemantic` - `v0.0.1-dev.3`](#schemantic---v001-dev3)
+
+---
+
+#### `schemantic` - `v0.0.1-dev.3`
+
+
+## 2026-01-15
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - [`genkit` - `v0.10.0-dev.3`](#genkit---v0100-dev3)
  - [`genkit_google_genai` - `v0.0.1-dev.3`](#genkit_google_genai---v001-dev3)
  - [`genkit_shelf` - `v0.0.1-dev.3`](#genkit_shelf---v001-dev3)
