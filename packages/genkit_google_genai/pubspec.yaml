@@ -1,7 +1,7 @@
 name: genkit_google_genai
 description: Google AI plugin for Genkit Dart.
 resolution: workspace
-version: 0.0.1-dev.3
+version: 0.0.1-dev.4
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
@@ -9,8 +9,8 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.10.0-dev.3
-  schemantic: ^0.0.1-dev.4
+  genkit: ^0.10.0-dev.4
+  schemantic: ^0.0.1-dev.5
   google_cloud_ai_generativelanguage_v1beta: ^0.4.0
   google_cloud_protobuf: ^0.4.0
   json_annotation: ^4.9.0

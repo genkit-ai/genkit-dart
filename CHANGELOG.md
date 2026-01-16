@@ -3,6 +3,47 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-01-16
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit` - `v0.10.0-dev.4`](#genkit---v0100-dev4)
+ - [`genkit_google_genai` - `v0.0.1-dev.4`](#genkit_google_genai---v001-dev4)
+ - [`schemantic` - `v0.0.1-dev.5`](#schemantic---v001-dev5)
+ - [`genkit_shelf` - `v0.0.1-dev.4`](#genkit_shelf---v001-dev4)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_shelf` - `v0.0.1-dev.4`
+
+---
+
+#### `genkit` - `v0.10.0-dev.4`
+
+ - **REFACTOR**: make generated JsonExtensionType factory classes (*TypeFactory) private (#29).
+ - **FEAT**: added support for defining listType and mapType in schemantic (#28).
+
+#### `genkit_google_genai` - `v0.0.1-dev.4`
+
+ - **REFACTOR**: make generated JsonExtensionType factory classes (*TypeFactory) private (#29).
+ - **FEAT**: added support for defining listType and mapType in schemantic (#28).
+
+#### `schemantic` - `v0.0.1-dev.5`
+
+ - **REFACTOR**: make generated JsonExtensionType factory classes (*TypeFactory) private (#29).
+ - **FEAT**: added support for defining listType and mapType in schemantic (#28).
+
+
 ## 2026-01-15
 
 ### Changes

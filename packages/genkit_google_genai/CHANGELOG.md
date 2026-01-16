@@ -1,3 +1,8 @@
+## 0.0.1-dev.4
+
+ - **REFACTOR**: make generated JsonExtensionType factory classes (*TypeFactory) private (#29).
+ - **FEAT**: added support for defining listType and mapType in schemantic (#28).
+
 ## 0.0.1-dev.3
 
 > Note: This release has breaking changes.
