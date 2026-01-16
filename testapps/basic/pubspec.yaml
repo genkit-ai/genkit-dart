@@ -7,11 +7,11 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.10.0-dev.2
-  genkit_google_genai: ^0.0.1-dev.2
-  genkit_shelf: ^0.0.1-dev.2
+  genkit: ^0.10.0-dev.3
+  genkit_google_genai: ^0.0.1-dev.3
+  genkit_shelf: ^0.0.1-dev.3
   json_annotation: ^4.9.0
-  schemantic: any
+  schemantic: ^0.0.1-dev.2
   shelf: ^1.4.2
   shelf_router: ^1.1.4
   shelf_cors_headers: ^0.1.5

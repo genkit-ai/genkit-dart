@@ -1,3 +1,11 @@
+## 0.10.0-dev.3
+
+> Note: This release has breaking changes.
+
+ - **FEAT**: bump analyzer dependency (#25).
+ - **FEAT**: added support for schema refs/defs in the schema generator (#22).
+ - **BREAKING** **REFACTOR**: renamed genkit_schema_builder package to schemantic (#26).
+
 ## 0.10.0-dev.2
 
  - **FIX**: register generate action with the correct name.

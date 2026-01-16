@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-01-15
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit` - `v0.10.0-dev.3`](#genkit---v0100-dev3)
+ - [`genkit_google_genai` - `v0.0.1-dev.3`](#genkit_google_genai---v001-dev3)
+ - [`genkit_shelf` - `v0.0.1-dev.3`](#genkit_shelf---v001-dev3)
+ - [`schemantic` - `v0.0.1-dev.2`](#schemantic---v001-dev2)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `genkit` - `v0.10.0-dev.3`
+
+ - **FEAT**: bump analyzer dependency (#25).
+ - **FEAT**: added support for schema refs/defs in the schema generator (#22).
+ - **BREAKING** **REFACTOR**: renamed genkit_schema_builder package to schemantic (#26).
+
+#### `genkit_google_genai` - `v0.0.1-dev.3`
+
+ - **FEAT**: bump analyzer dependency (#25).
+ - **FEAT**: added support for schema refs/defs in the schema generator (#22).
+ - **BREAKING** **REFACTOR**: renamed genkit_schema_builder package to schemantic (#26).
+
+#### `genkit_shelf` - `v0.0.1-dev.3`
+
+ - **FEAT**: bump analyzer dependency (#25).
+ - **FEAT**: added support for schema refs/defs in the schema generator (#22).
+ - **BREAKING** **REFACTOR**: renamed genkit_schema_builder package to schemantic (#26).
+
+#### `schemantic` - `v0.0.1-dev.2`
+
+ - **BREAKING** **REFACTOR**: renamed genkit_schema_builder package to schemantic (#26).
+
+
 ## 2026-01-14
 
 ### Changes
