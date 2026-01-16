@@ -114,8 +114,8 @@ Wrap your AI logic in flows for better observability, testing, and deployment:
 ```dart
 final jokeFlow = ai.defineFlow(
   name: 'tellJoke',
-  inputType: StringType,
-  outputType: StringType,
+  inputType: stringType(),
+  outputType: stringType(),
   fn: (topic, _) async {
     final response = await ai.generate(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -136,9 +136,9 @@ Stream data from your flows using `context.sendChunk`:
 ```dart
 final streamStory = ai.defineFlow(
   name: 'streamStory',
-  inputType: StringType,
-  outputType: StringType,
-  streamType: StringType,
+  inputType: stringType(),
+  outputType: stringType(),
+  streamType: stringType(),
   fn: (topic, context) async {
     final stream = ai.generateStream(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -194,15 +194,15 @@ Remote actions represent a remote Genkit action (like flows, models and prompts)
 #### Creating a remote action
 final stringAction = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
-  inputType: StringType,
-  outputType: StringType,
+  inputType: stringType(),
+  outputType: stringType(),
 );
 
 // Create a remote action for custom objects
 final customAction = defineRemoteAction(
   url: 'http://localhost:3400/custom-flow',
-  inputType: MyInputType,
-  outputType: MyOutputType,
+  inputType: myInputType(),
+  outputType: myOutputType(),
 );
 ```
 
@@ -215,8 +215,8 @@ The code assumes that you have `my-flow` and `custom-flow` deployed at those URL
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/echo-string',
-  inputType: StringType,
-  outputType: StringType,
+  inputType: stringType(),
+  outputType: stringType(),
 );
 
 try {
@@ -275,9 +275,9 @@ Use the `stream` method for flows that stream multiple chunks of data and then r
 ```dart
 final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-story',
-  inputType: StringType,
-  outputType: StringType,
-  streamType: StringType,
+  inputType: stringType(),
+  outputType: stringType(),
+  streamType: stringType(),
 );
 
 try {
@@ -354,8 +354,8 @@ You can also set default headers when creating the remote action:
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
-  inputType: StringType,
-  outputType: StringType,
+  inputType: stringType(),
+  outputType: stringType(),
   defaultHeaders: {'Authorization': 'Bearer your-token'},
 );
 ```

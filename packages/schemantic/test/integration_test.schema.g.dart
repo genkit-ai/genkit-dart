@@ -68,7 +68,7 @@ class _UserTypeFactory extends JsonExtensionType<User> {
   const _UserTypeFactory();
 
   @override
-  User parse(Object json) {
+  User parse(Object? json) {
     return User(json as Map<String, dynamic>);
   }
 
@@ -145,7 +145,7 @@ class _GroupTypeFactory extends JsonExtensionType<Group> {
   const _GroupTypeFactory();
 
   @override
-  Group parse(Object json) {
+  Group parse(Object? json) {
     return Group(json as Map<String, dynamic>);
   }
 
@@ -210,7 +210,7 @@ class _NodeTypeFactory extends JsonExtensionType<Node> {
   const _NodeTypeFactory();
 
   @override
-  Node parse(Object json) {
+  Node parse(Object? json) {
     return Node(json as Map<String, dynamic>);
   }
 
@@ -288,7 +288,7 @@ class _KeyedTypeFactory extends JsonExtensionType<Keyed> {
   const _KeyedTypeFactory();
 
   @override
-  Keyed parse(Object json) {
+  Keyed parse(Object? json) {
     return Keyed(json as Map<String, dynamic>);
   }
 
@@ -360,7 +360,7 @@ class _ComprehensiveTypeFactory extends JsonExtensionType<Comprehensive> {
   const _ComprehensiveTypeFactory();
 
   @override
-  Comprehensive parse(Object json) {
+  Comprehensive parse(Object? json) {
     return Comprehensive(json as Map<String, dynamic>);
   }
 
@@ -402,3 +402,45 @@ class _ComprehensiveTypeFactory extends JsonExtensionType<Comprehensive> {
 
 // ignore: constant_identifier_names
 const ComprehensiveType = _ComprehensiveTypeFactory();
+
+extension type Description(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory Description.from({required String name}) {
+    return Description({'name': name});
+  }
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _DescriptionTypeFactory extends JsonExtensionType<Description> {
+  const _DescriptionTypeFactory();
+
+  @override
+  Description parse(Object? json) {
+    return Description(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Description',
+    definition: Schema.object(
+      properties: {'name': Schema.string()},
+      required: ['name'],
+      description: 'A schema with description',
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const DescriptionType = _DescriptionTypeFactory();

@@ -44,7 +44,7 @@ class _WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
-  WeatherToolInput parse(Object json) {
+  WeatherToolInput parse(Object? json) {
     return WeatherToolInput(json as Map<String, dynamic>);
   }
 

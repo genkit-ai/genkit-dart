@@ -51,8 +51,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echo',
       fn: (input, _) async => 'Echo: $input',
-      inputType: StringType,
-      outputType: StringType,
+      inputType: stringType(),
+      outputType: stringType(),
     );
 
     server = await startFlowServer(flows: [echoFlow], port: 0);
@@ -76,9 +76,9 @@ void main() {
         ctx.sendChunk('Chunk 2');
         return 'Done';
       },
-      inputType: StringType,
-      outputType: StringType,
-      streamType: StringType,
+      inputType: stringType(),
+      outputType: stringType(),
+      streamType: stringType(),
     );
 
     server = await startFlowServer(flows: [streamFlow], port: 0);
@@ -108,8 +108,8 @@ void main() {
         if (user == null) throw Exception('Unauthorized');
         return 'Hello $user';
       },
-      inputType: StringType,
-      outputType: StringType,
+      inputType: stringType(),
+      outputType: stringType(),
     );
 
     final flowWithContext = FlowWithContextProvider(
@@ -154,8 +154,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echo',
       fn: (input, _) async => 'Echo: $input',
-      inputType: StringType,
-      outputType: StringType,
+      inputType: stringType(),
+      outputType: stringType(),
     );
 
     final handler = shelfHandler(echoFlow);
@@ -178,8 +178,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echoType',
       fn: (input, _) async => 'Echo: $input',
-      inputType: StringType,
-      outputType: StringType,
+      inputType: stringType(),
+      outputType: stringType(),
     );
 
     server = await startFlowServer(flows: [echoFlow], port: 0);
@@ -187,7 +187,7 @@ void main() {
 
     final action = defineRemoteAction(
       url: 'http://localhost:$port/echoType',
-      outputType: StringType,
+      outputType: stringType(),
     );
 
     final result = await action(input: 'typed');
@@ -203,7 +203,7 @@ void main() {
         ctx.sendChunk(ShelfTestStream.from(chunk: 'chunk2'));
         return ShelfTestOutput.from(greeting: 'done');
       },
-      inputType: StringType,
+      inputType: stringType(),
       outputType: ShelfTestOutputType,
       streamType: ShelfTestStreamType,
     );
@@ -241,9 +241,9 @@ void main() {
         ctx.sendChunk('Chunk 2');
         return 'Done';
       },
-      inputType: StringType,
-      outputType: StringType,
-      streamType: StringType,
+      inputType: stringType(),
+      outputType: stringType(),
+      streamType: stringType(),
     );
 
     server = await startFlowServer(flows: [streamFlow], port: 0);

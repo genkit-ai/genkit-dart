@@ -56,7 +56,7 @@ class _ProcessObjectInputTypeFactory
   const _ProcessObjectInputTypeFactory();
 
   @override
-  ProcessObjectInput parse(Object json) {
+  ProcessObjectInput parse(Object? json) {
     return ProcessObjectInput(json as Map<String, dynamic>);
   }
 
@@ -109,7 +109,7 @@ class _ProcessObjectOutputTypeFactory
   const _ProcessObjectOutputTypeFactory();
 
   @override
-  ProcessObjectOutput parse(Object json) {
+  ProcessObjectOutput parse(Object? json) {
     return ProcessObjectOutput(json as Map<String, dynamic>);
   }
 
@@ -151,7 +151,7 @@ class _StreamObjectsInputTypeFactory
   const _StreamObjectsInputTypeFactory();
 
   @override
-  StreamObjectsInput parse(Object json) {
+  StreamObjectsInput parse(Object? json) {
     return StreamObjectsInput(json as Map<String, dynamic>);
   }
 
@@ -204,7 +204,7 @@ class _StreamObjectsOutputTypeFactory
   const _StreamObjectsOutputTypeFactory();
 
   @override
-  StreamObjectsOutput parse(Object json) {
+  StreamObjectsOutput parse(Object? json) {
     return StreamObjectsOutput(json as Map<String, dynamic>);
   }
 
@@ -246,7 +246,7 @@ class _StreamyThrowyChunkTypeFactory
   const _StreamyThrowyChunkTypeFactory();
 
   @override
-  StreamyThrowyChunk parse(Object json) {
+  StreamyThrowyChunk parse(Object? json) {
     return StreamyThrowyChunk(json as Map<String, dynamic>);
   }
 

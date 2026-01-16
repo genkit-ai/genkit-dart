@@ -52,7 +52,7 @@ class _IngredientTypeFactory extends JsonExtensionType<Ingredient> {
   const _IngredientTypeFactory();
 
   @override
-  Ingredient parse(Object json) {
+  Ingredient parse(Object? json) {
     return Ingredient(json as Map<String, dynamic>);
   }
 
@@ -119,7 +119,7 @@ class _RecipeTypeFactory extends JsonExtensionType<Recipe> {
   const _RecipeTypeFactory();
 
   @override
-  Recipe parse(Object json) {
+  Recipe parse(Object? json) {
     return Recipe(json as Map<String, dynamic>);
   }
 
@@ -192,7 +192,7 @@ class _AnnotatedRecipeTypeFactory extends JsonExtensionType<AnnotatedRecipe> {
   const _AnnotatedRecipeTypeFactory();
 
   @override
-  AnnotatedRecipe parse(Object json) {
+  AnnotatedRecipe parse(Object? json) {
     return AnnotatedRecipe(json as Map<String, dynamic>);
   }
 
@@ -249,7 +249,7 @@ class _MealPlanTypeFactory extends JsonExtensionType<MealPlan> {
   const _MealPlanTypeFactory();
 
   @override
-  MealPlan parse(Object json) {
+  MealPlan parse(Object? json) {
     return MealPlan(json as Map<String, dynamic>);
   }
 
@@ -346,7 +346,7 @@ class _NullableFieldsTypeFactory extends JsonExtensionType<NullableFields> {
   const _NullableFieldsTypeFactory();
 
   @override
-  NullableFields parse(Object json) {
+  NullableFields parse(Object? json) {
     return NullableFields(json as Map<String, dynamic>);
   }
 
@@ -452,7 +452,7 @@ class _ComplexObjectTypeFactory extends JsonExtensionType<ComplexObject> {
   const _ComplexObjectTypeFactory();
 
   @override
-  ComplexObject parse(Object json) {
+  ComplexObject parse(Object? json) {
     return ComplexObject(json as Map<String, dynamic>);
   }
 
@@ -525,7 +525,7 @@ class _MenuTypeFactory extends JsonExtensionType<Menu> {
   const _MenuTypeFactory();
 
   @override
-  Menu parse(Object json) {
+  Menu parse(Object? json) {
     return Menu(json as Map<String, dynamic>);
   }
 

@@ -45,7 +45,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     final baseName = className.substring(0, className.length - 6);
 
     final extensionType = _generateExtensionType(baseName, element);
-    final factory = _generateFactory(baseName, element);
+    final factory = _generateFactory(baseName, element, annotation);
     final constInstance = _generateConstInstance(baseName);
 
     final library = Library(
@@ -368,7 +368,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     );
   }
 
-  Class _generateFactory(String baseName, ClassElement element) {
+  Class _generateFactory(
+    String baseName,
+    ClassElement element,
+    ConstantReader annotation,
+  ) {
     return Class((b) {
       b
         ..name = '_${baseName}TypeFactory'
@@ -410,7 +414,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 Parameter(
                   (p) => p
                     ..name = 'json'
-                    ..type = refer('Object'),
+                    ..type = refer('Object?'),
                 ),
               )
               ..body = Code(parseBody),
@@ -427,7 +431,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 Parameter(
                   (p) => p
                     ..name = 'json'
-                    ..type = refer('Object'),
+                    ..type = refer('Object?'),
                 ),
               )
               ..body = Code('return $baseName(json as Map<String, dynamic>);'),
@@ -436,11 +440,17 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       }
 
       // Generate schemaMetadata
-      b.methods.add(_generateSchemaMetadataGetter(baseName, element));
+      b.methods.add(
+        _generateSchemaMetadataGetter(baseName, element, annotation),
+      );
     });
   }
 
-  Method _generateSchemaMetadataGetter(String baseName, ClassElement element) {
+  Method _generateSchemaMetadataGetter(
+    String baseName,
+    ClassElement element,
+    ConstantReader annotation,
+  ) {
     // 1. Calculate properties for the "flat" definition.
     // 2. Calculate dependencies.
 
@@ -478,10 +488,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           getter,
           throwOnUnresolved: false,
         );
-        // Note: _jsonSchemaForType is now called with `useRef: true` implicitly because we want
-        // the definition to contain refs to children, NOT inlined children when we successfully resolve them.
-        // Wait, current _jsonSchemaForType logic in strict inline mode (old Logic) would recurse.
-        // We want _jsonSchemaForType to output refs if it sees a Schematic type.
         properties[jsonFieldName] = _jsonSchemaForType(
           getter.returnType,
           keyAnnotation,
@@ -497,6 +503,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
 
     Expression definitionExpression;
+    final description = annotation.peek('description')?.stringValue;
+    final descriptionExpr = description != null
+        ? literalString(description)
+        : null;
 
     if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
       final subtypes = element.interfaces
@@ -522,14 +532,34 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           .toList()
           .cast<Expression>();
 
-      definitionExpression = refer(
-        'Schema.anyOf',
-      ).call([literalList(subtypes)]);
+      // Wrapping anyOf in an object if we have a description, or just use anyOf.
+      // json_schema_builder's Schema.anyOf doesn't seem to support description directly in constructor usually?
+      // We'll use Schema.fromMap for full control if description is present, or just Schema.anyOf.
+      if (descriptionExpr != null) {
+        // Schema that is both anyOf and has description.
+        // In JSON Schema: { "description": "...", "anyOf": [...] }
+        definitionExpression = refer('Schema.fromMap').call([
+          literalMap({
+            literalString('description'): descriptionExpr,
+            literalString('anyOf'): literalList(
+              subtypes.map((s) => s.property('toJson').call([])).toList(),
+            ),
+          }),
+        ]);
+      } else {
+        definitionExpression = refer(
+          'Schema.anyOf',
+        ).call([literalList(subtypes)]);
+      }
     } else {
-      definitionExpression = refer('Schema.object').call([], {
+      final namedArgs = <String, Expression>{
         'properties': literalMap(properties),
         'required': literalList(required.map((r) => literalString(r))),
-      });
+      };
+      if (descriptionExpr != null) {
+        namedArgs['description'] = descriptionExpr;
+      }
+      definitionExpression = refer('Schema.object').call([], namedArgs);
     }
 
     return Method(
