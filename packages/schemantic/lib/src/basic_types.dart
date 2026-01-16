@@ -156,17 +156,39 @@ const MapType = _BasicMapTypeFactory();
 ///
 /// Example:
 /// ```dart
-/// final stringList = listType(StringType);
+/// final stringList = listType(StringType, description: 'List of strings');
 /// stringList.parse(['a', 'b']);
 /// ```
-JsonExtensionType<List<T>> listType<T>(JsonExtensionType<T> itemType) {
-  return _ListTypeFactory<T>(itemType);
+JsonExtensionType<List<T>> listType<T>(
+  JsonExtensionType<T> itemType, {
+  String? description,
+  int? minItems,
+  int? maxItems,
+  bool? uniqueItems,
+}) {
+  return _ListTypeFactory<T>(
+    itemType,
+    description: description,
+    minItems: minItems,
+    maxItems: maxItems,
+    uniqueItems: uniqueItems,
+  );
 }
 
 class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
   final JsonExtensionType<T> itemType;
+  final String? description;
+  final int? minItems;
+  final int? maxItems;
+  final bool? uniqueItems;
 
-  const _ListTypeFactory(this.itemType);
+  const _ListTypeFactory(
+    this.itemType, {
+    this.description,
+    this.minItems,
+    this.maxItems,
+    this.uniqueItems,
+  });
 
   @override
   List<T> parse(Object json) =>
@@ -175,8 +197,15 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
   @override
   jsb.Schema jsonSchema({bool useRefs = false}) {
     final itemSchema = itemType.jsonSchema(useRefs: useRefs);
+    var schema = jsb.Schema.list(
+      items: itemSchema,
+      description: description,
+      minItems: minItems,
+      maxItems: maxItems,
+      uniqueItems: uniqueItems,
+    );
     if (!useRefs) {
-      return jsb.Schema.list(items: itemSchema);
+      return schema;
     }
 
     // Check if item schema has $defs or ref that implies definitions
@@ -188,10 +217,14 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
         'type': 'array',
         'items': itemJson,
         r'$defs': defs,
+        if (description != null) 'description': description,
+        if (minItems != null) 'minItems': minItems,
+        if (maxItems != null) 'maxItems': maxItems,
+        if (uniqueItems != null) 'uniqueItems': uniqueItems,
       });
     }
 
-    return jsb.Schema.list(items: itemSchema);
+    return schema;
   }
 }
 
@@ -199,21 +232,39 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
 ///
 /// Example:
 /// ```dart
-/// final myMap = mapType(StringType, IntType);
+/// final myMap = mapType(StringType, IntType, description: 'My Map');
 /// myMap.parse({'a': 1, 'b': 2});
 /// ```
 JsonExtensionType<Map<K, V>> mapType<K, V>(
   JsonExtensionType<K> keyType,
-  JsonExtensionType<V> valueType,
-) {
-  return _MapTypeFactory<K, V>(keyType, valueType);
+  JsonExtensionType<V> valueType, {
+  String? description,
+  int? minProperties,
+  int? maxProperties,
+}) {
+  return _MapTypeFactory<K, V>(
+    keyType,
+    valueType,
+    description: description,
+    minProperties: minProperties,
+    maxProperties: maxProperties,
+  );
 }
 
 class _MapTypeFactory<K, V> extends JsonExtensionType<Map<K, V>> {
   final JsonExtensionType<K> keyType;
   final JsonExtensionType<V> valueType;
+  final String? description;
+  final int? minProperties;
+  final int? maxProperties;
 
-  const _MapTypeFactory(this.keyType, this.valueType);
+  const _MapTypeFactory(
+    this.keyType,
+    this.valueType, {
+    this.description,
+    this.minProperties,
+    this.maxProperties,
+  });
 
   @override
   Map<K, V> parse(Object json) {
@@ -225,8 +276,14 @@ class _MapTypeFactory<K, V> extends JsonExtensionType<Map<K, V>> {
   @override
   jsb.Schema jsonSchema({bool useRefs = false}) {
     final valueSchema = valueType.jsonSchema(useRefs: useRefs);
+    var schema = jsb.Schema.object(
+      additionalProperties: valueSchema,
+      description: description,
+      minProperties: minProperties,
+      maxProperties: maxProperties,
+    );
     if (!useRefs) {
-      return jsb.Schema.object(additionalProperties: valueSchema);
+      return schema;
     }
 
     // Check if value schema has $defs or ref that implies definitions
@@ -238,9 +295,12 @@ class _MapTypeFactory<K, V> extends JsonExtensionType<Map<K, V>> {
         'type': 'object',
         'additionalProperties': valueJson,
         r'$defs': defs,
+        if (description != null) 'description': description,
+        if (minProperties != null) 'minProperties': minProperties,
+        if (maxProperties != null) 'maxProperties': maxProperties,
       });
     }
 
-    return jsb.Schema.object(additionalProperties: valueSchema);
+    return schema;
   }
 }

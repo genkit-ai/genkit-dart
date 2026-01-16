@@ -402,3 +402,45 @@ class _ComprehensiveTypeFactory extends JsonExtensionType<Comprehensive> {
 
 // ignore: constant_identifier_names
 const ComprehensiveType = _ComprehensiveTypeFactory();
+
+extension type Description(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory Description.from({required String name}) {
+    return Description({'name': name});
+  }
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _DescriptionTypeFactory extends JsonExtensionType<Description> {
+  const _DescriptionTypeFactory();
+
+  @override
+  Description parse(Object json) {
+    return Description(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Description',
+    definition: Schema.object(
+      properties: {'name': Schema.string()},
+      required: ['name'],
+      description: 'A schema with description',
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const DescriptionType = _DescriptionTypeFactory();

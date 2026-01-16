@@ -144,9 +144,40 @@ void main() {
   print(scores.jsonSchema().toJson());
   // {type: object, additionalProperties: {type: integer}}
 }
+
+## Schema Metadata
+
+You can add a description to your generated schema using the `description` parameter in `@Schematic`:
+
+```dart
+@Schematic(description: 'Represents a user in the system')
+abstract class UserSchema {
+  // ...
+}
 ```
 
-### 4. Customizing Fields
+## Enhanced Collections
+
+The `listType` and `mapType` factories support standard JSON Schema constraints:
+
+```dart
+final list = listType(
+  StringType,
+  description: 'A list of unique tags',
+  minItems: 1,
+  maxItems: 10,
+  uniqueItems: true,
+);
+
+final map = mapType(
+  StringType,
+  IntType,
+  description: 'A map of scores',
+  minProperties: 1,
+);
+```
+
+## Customizing Fields
 
 You can use specialized annotations to apply JSON Schema constraints directly to your Dart fields.
 

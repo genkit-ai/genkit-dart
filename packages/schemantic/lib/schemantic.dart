@@ -25,7 +25,10 @@ export 'package:schemantic/src/basic_types.dart';
 /// This annotation triggers the generation of a counterpart `Schema.g.dart` file
 /// with a concrete implementation of the schema class and a type utility.
 class Schematic {
-  const Schematic();
+  /// A description of the schema, to be included in the generated JSON Schema.
+  final String? description;
+
+  const Schematic({this.description});
 }
 
 /// Annotation to customize valid JSON fields.
