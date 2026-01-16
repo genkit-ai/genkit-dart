@@ -76,8 +76,8 @@ void main() async {
       );
       return result.processedMessage;
     },
-    inputType: StringType,
-    outputType: StringType,
+    inputType: stringType(),
+    outputType: stringType(),
   );
 
   // Create a Shelf Router

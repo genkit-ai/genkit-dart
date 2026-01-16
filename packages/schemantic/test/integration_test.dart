@@ -90,6 +90,11 @@ abstract class ComprehensiveSchema {
   double get numberField;
 }
 
+@Schematic(description: 'A schema with description')
+abstract class DescriptionSchema {
+  String get name;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -314,6 +319,16 @@ void main() {
       expect(n['exclusiveMinimum'], 0.0);
       expect(n['exclusiveMaximum'], 100.0);
       expect(n['multipleOf'], 0.5);
+    });
+
+    test('DescriptionSchema has description', () {
+      final schemaMetadata = DescriptionType.schemaMetadata;
+      final definition = schemaMetadata.definition as Map<String, dynamic>;
+
+      // We expect the definition to have the description directly (if it's an object)
+      // The implementation uses Schema.object(description: ...) which produces
+      // { "type": "object", "description": "...", ... }
+      expect(definition['description'], 'A schema with description');
     });
   });
 }

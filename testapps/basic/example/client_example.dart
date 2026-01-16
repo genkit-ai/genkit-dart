@@ -38,7 +38,7 @@ Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
   final echoStringFlow = defineRemoteAction(
     url: '$baseUrl/echoString',
-    outputType: StringType,
+    outputType: stringType(),
   );
   final response = await echoStringFlow(input: 'Hello Genkit client for Dart!');
   print('Response: $response');
@@ -49,7 +49,7 @@ Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
   final throwy = defineRemoteAction(
     url: '$baseUrl/throwy',
-    outputType: StringType,
+    outputType: stringType(),
   );
   try {
     await throwy(input: 'Hello Genkit client for Dart!');
@@ -68,7 +68,7 @@ Future<void> _runThrowingStreamingFlow() async {
   print('\n--- Streaming Flow error handling ---');
   final streamyThrowy = defineRemoteAction(
     url: '$baseUrl/streamyThrowy',
-    outputType: StringType,
+    outputType: stringType(),
     streamType: StreamyThrowyChunkType,
   );
   try {
@@ -167,7 +167,7 @@ Future<void> _runPerformanceExample() async {
     final echoAction = defineRemoteAction(
       url: '$baseUrl/echoString',
       httpClient: client,
-      outputType: StringType,
+      outputType: stringType(),
     );
 
     final r1 = await echoAction(input: 'First call');

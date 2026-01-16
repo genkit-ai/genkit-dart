@@ -19,20 +19,20 @@ import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 void main() {
   group('Basic Types', () {
-    test('StringType', () {
-      expect(StringType.parse('hello'), 'hello');
-      final json = jsonDecode(StringType.jsonSchema().toJson());
+    test('stringType()', () {
+      expect(stringType().parse('hello'), 'hello');
+      final json = jsonDecode(stringType().jsonSchema().toJson());
       expect(json['type'], 'string');
     });
 
-    test('IntType', () {
-      expect(IntType.parse(123), 123);
-      final json = jsonDecode(IntType.jsonSchema().toJson());
+    test('intType()', () {
+      expect(intType().parse(123), 123);
+      final json = jsonDecode(intType().jsonSchema().toJson());
       expect(json['type'], 'integer');
     });
 
-    test('listType with StringType', () {
-      final stringListParams = listType(StringType);
+    test('listType with stringType()', () {
+      final stringListParams = listType(stringType());
       final json = ['a', 'b', 'c'];
       final parsed = stringListParams.parse(json);
 
@@ -49,7 +49,7 @@ void main() {
     });
 
     test('listType with complex objects', () {
-      final nestedList = listType(listType(IntType));
+      final nestedList = listType(listType(intType()));
       final json = [
         [1, 2],
         [3, 4],
@@ -70,56 +70,58 @@ void main() {
       expect(schemaJson['items']['items']['type'], 'integer');
     });
 
-    test('DoubleType', () {
-      expect(DoubleType.parse(12.34), 12.34);
-      expect(DoubleType.parse(10), 10.0); // Test int to double conversion
-      final json = jsonDecode(DoubleType.jsonSchema().toJson());
+    test('doubleType()', () {
+      expect(doubleType().parse(12.34), 12.34);
+      expect(doubleType().parse(10), 10.0); // Test int to double conversion
+      final json = jsonDecode(doubleType().jsonSchema().toJson());
       expect(json['type'], 'number');
     });
 
-    test('BoolType', () {
-      expect(BoolType.parse(true), true);
-      expect(BoolType.parse(false), false);
-      final json = jsonDecode(BoolType.jsonSchema().toJson());
+    test('boolType()', () {
+      expect(boolType().parse(true), true);
+      expect(boolType().parse(false), false);
+      final json = jsonDecode(boolType().jsonSchema().toJson());
       expect(json['type'], 'boolean');
     });
 
-    test('VoidType', () {
-      expect(() => VoidType.parse(null), returnsNormally);
-      expect(() => VoidType.parse('anything'), returnsNormally);
-      final json = jsonDecode(VoidType.jsonSchema().toJson());
+    test('voidType()', () {
+      expect(() => voidType().parse(null), returnsNormally);
+      expect(() => voidType().parse('anything'), returnsNormally);
+      final json = jsonDecode(voidType().jsonSchema().toJson());
       expect(json['type'], 'null');
     });
 
-    test('DynamicType', () {
-      expect(DynamicType.parse(123), 123);
-      expect(DynamicType.parse('hello'), 'hello');
-      expect(DynamicType.parse(true), true);
-      expect(DynamicType.parse(null), null);
+    test('dynamicType()', () {
+      expect(dynamicType().parse(123), 123);
+      expect(dynamicType().parse('hello'), 'hello');
+      expect(dynamicType().parse(true), true);
+      expect(dynamicType().parse(null), null);
       final list = [1, 2];
-      expect(DynamicType.parse(list), list);
+      expect(dynamicType().parse(list), list);
       final map = {'a': 1};
-      expect(DynamicType.parse(map), map);
+      expect(dynamicType().parse(map), map);
 
-      final json = jsonDecode(DynamicType.jsonSchema().toJson());
+      final json = jsonDecode(dynamicType().jsonSchema().toJson());
       // schema.any() typically returns an empty schema {} which allows everything
+      // In new impl we might return empty map or with description
       expect(json, isEmpty);
     });
 
-    test('MapType', () {
+    test('MapType replacement', () {
+      final mapT = mapType(stringType(), dynamicType());
       final json = {'key': 'value', 'a': 1};
-      expect(MapType.parse(json), json);
-      final schemaJson = jsonDecode(MapType.jsonSchema().toJson());
+      expect(mapT.parse(json), json);
+      final schemaJson = jsonDecode(mapT.jsonSchema().toJson());
       expect(schemaJson['type'], 'object');
     });
 
     test('Parsing errors', () {
-      expect(() => IntType.parse('not an int'), throwsA(isA<TypeError>()));
-      expect(() => listType(IntType).parse(['a']), throwsA(isA<TypeError>()));
+      expect(() => intType().parse('not an int'), throwsA(isA<TypeError>()));
+      expect(() => listType(intType()).parse(['a']), throwsA(isA<TypeError>()));
     });
 
     test('mapType with Strings and Ints', () {
-      final mapT = mapType(StringType, IntType);
+      final mapT = mapType(stringType(), intType());
       final json = {'a': 1, 'b': 2};
       final parsed = mapT.parse(json);
       expect(parsed, {'a': 1, 'b': 2});
@@ -154,7 +156,7 @@ void main() {
 
       test('mapType with useRefs=true handles nested defs', () {
         final type = _MockType();
-        final mapT = mapType(StringType, type);
+        final mapT = mapType(stringType(), type);
         final schema = mapT.jsonSchema(useRefs: true);
         final json = jsonDecode(schema.toJson());
 
@@ -177,7 +179,7 @@ void main() {
 
 class _MockType extends JsonExtensionType<String> {
   @override
-  String parse(Object json) => json as String;
+  String parse(Object? json) => json as String;
 
   @override
   JsonSchemaMetadata? get schemaMetadata =>

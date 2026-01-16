@@ -44,7 +44,7 @@ class _TestInputTypeFactory extends JsonExtensionType<TestInput> {
   const _TestInputTypeFactory();
 
   @override
-  TestInput parse(Object json) {
+  TestInput parse(Object? json) {
     return TestInput(json as Map<String, dynamic>);
   }
 
@@ -85,7 +85,7 @@ class _TestOutputTypeFactory extends JsonExtensionType<TestOutput> {
   const _TestOutputTypeFactory();
 
   @override
-  TestOutput parse(Object json) {
+  TestOutput parse(Object? json) {
     return TestOutput(json as Map<String, dynamic>);
   }
 

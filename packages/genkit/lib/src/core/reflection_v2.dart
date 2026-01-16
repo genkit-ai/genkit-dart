@@ -215,7 +215,7 @@ class ReflectionServerV2 {
 
     try {
       if (stream) {
-        final result = await action.run(
+        final result = await action.runRaw(
           input,
           onChunk: (chunk) {
             _sendNotification('streamChunk', {'requestId': id, 'chunk': chunk});
@@ -229,7 +229,7 @@ class ReflectionServerV2 {
           'telemetry': {'traceId': result.traceId},
         });
       } else {
-        final result = await action.run(
+        final result = await action.runRaw(
           input,
           context: context,
           inputStream: inputStream,

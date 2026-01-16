@@ -25,7 +25,10 @@ export 'package:schemantic/src/basic_types.dart';
 /// This annotation triggers the generation of a counterpart `Schema.g.dart` file
 /// with a concrete implementation of the schema class and a type utility.
 class Schematic {
-  const Schematic();
+  /// A description of the schema, to be included in the generated JSON Schema.
+  final String? description;
+
+  const Schematic({this.description});
 }
 
 /// Annotation to customize valid JSON fields.
@@ -126,7 +129,7 @@ abstract class JsonExtensionType<T> {
   /// Parses the given [json] object into type [T].
   ///
   /// Throws if the JSON data does not match the expected structure.
-  T parse(Object json);
+  T parse(Object? json);
 
   // ignore: avoid_renaming_method_parameters
   /// Returns the [jsb.Schema] for this type.

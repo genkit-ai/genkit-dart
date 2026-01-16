@@ -52,7 +52,7 @@ class _TestObjectTypeFactory extends JsonExtensionType<TestObject> {
   const _TestObjectTypeFactory();
 
   @override
-  TestObject parse(Object json) {
+  TestObject parse(Object? json) {
     return TestObject(json as Map<String, dynamic>);
   }
 

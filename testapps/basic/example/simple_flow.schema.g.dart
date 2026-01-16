@@ -52,7 +52,7 @@ class _IngredientTypeFactory extends JsonExtensionType<Ingredient> {
   const _IngredientTypeFactory();
 
   @override
-  Ingredient parse(Object json) {
+  Ingredient parse(Object? json) {
     return Ingredient(json as Map<String, dynamic>);
   }
 
@@ -119,7 +119,7 @@ class _RecipeTypeFactory extends JsonExtensionType<Recipe> {
   const _RecipeTypeFactory();
 
   @override
-  Recipe parse(Object json) {
+  Recipe parse(Object? json) {
     return Recipe(json as Map<String, dynamic>);
   }
 

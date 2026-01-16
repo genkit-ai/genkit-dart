@@ -21,7 +21,8 @@ part of 'shelf_handler_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type HandlerInput(Map<String, dynamic> _json) {
+extension type HandlerInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory HandlerInput.from({required String message}) {
     return HandlerInput({'message': message});
   }
@@ -39,11 +40,11 @@ extension type HandlerInput(Map<String, dynamic> _json) {
   }
 }
 
-class HandlerInputTypeFactory extends JsonExtensionType<HandlerInput> {
-  const HandlerInputTypeFactory();
+class _HandlerInputTypeFactory extends JsonExtensionType<HandlerInput> {
+  const _HandlerInputTypeFactory();
 
   @override
-  HandlerInput parse(Object json) {
+  HandlerInput parse(Object? json) {
     return HandlerInput(json as Map<String, dynamic>);
   }
 
@@ -59,9 +60,10 @@ class HandlerInputTypeFactory extends JsonExtensionType<HandlerInput> {
 }
 
 // ignore: constant_identifier_names
-const HandlerInputType = HandlerInputTypeFactory();
+const HandlerInputType = _HandlerInputTypeFactory();
 
-extension type HandlerOutput(Map<String, dynamic> _json) {
+extension type HandlerOutput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory HandlerOutput.from({required String processedMessage}) {
     return HandlerOutput({'processedMessage': processedMessage});
   }
@@ -79,11 +81,11 @@ extension type HandlerOutput(Map<String, dynamic> _json) {
   }
 }
 
-class HandlerOutputTypeFactory extends JsonExtensionType<HandlerOutput> {
-  const HandlerOutputTypeFactory();
+class _HandlerOutputTypeFactory extends JsonExtensionType<HandlerOutput> {
+  const _HandlerOutputTypeFactory();
 
   @override
-  HandlerOutput parse(Object json) {
+  HandlerOutput parse(Object? json) {
     return HandlerOutput(json as Map<String, dynamic>);
   }
 
@@ -99,4 +101,4 @@ class HandlerOutputTypeFactory extends JsonExtensionType<HandlerOutput> {
 }
 
 // ignore: constant_identifier_names
-const HandlerOutputType = HandlerOutputTypeFactory();
+const HandlerOutputType = _HandlerOutputTypeFactory();

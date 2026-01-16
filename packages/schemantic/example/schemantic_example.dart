@@ -129,7 +129,7 @@ void main() async {
   print('\n--- Dynamic Types ---');
 
   // List of Strings
-  final stringList = listType(UserType);
+  final stringList = listType(UserType); // UserType is generated so it's fine
   final parsedList = stringList.parse([
     {'name': 'Alice', 'isAdmin': true},
     {'name': 'Bob', 'isAdmin': false},
@@ -140,7 +140,7 @@ void main() async {
   print('List Schema: ${stringList.jsonSchema().toJson()}');
 
   // Map of String -> User
-  final scores = mapType(StringType, UserType);
+  final scores = mapType(stringType(), UserType);
   final parsedScores = scores.parse({
     'Alice': {'name': 'Alice', 'isAdmin': true},
     'Bob': {'name': 'Bob', 'isAdmin': false},

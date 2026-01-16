@@ -247,7 +247,7 @@ void main() {
     test('should create RemoteAction instance', () {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/helper',
-        inputType: StringType,
+        inputType: stringType(),
         fromResponse: (data) => data as String,
       );
 
@@ -269,9 +269,9 @@ void main() {
     test('should work with JsonExtensionType', () async {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/test',
-        inputType: StringType,
+        inputType: stringType(),
         httpClient: mockClient,
-        outputType: StringType,
+        outputType: stringType(),
       );
 
       when(
@@ -292,9 +292,9 @@ void main() {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/stream',
         httpClient: mockClient,
-        inputType: StringType,
-        outputType: StringType,
-        streamType: StringType,
+        inputType: stringType(),
+        outputType: stringType(),
+        streamType: stringType(),
       );
 
       final expectedChunks = ['chunk1', 'chunk2'];
@@ -322,9 +322,9 @@ void main() {
     test('should validate mutually exclusive options', () {
       expect(
         () => defineRemoteAction(
-          url: 'http://localhost:3400/test',
-          fromResponse: (d) => d as String,
-          outputType: StringType,
+          url: 'http://localhost:3400/helper',
+          fromResponse: (data) => data as String,
+          outputType: stringType(),
         ),
         throwsArgumentError,
       );
@@ -334,7 +334,7 @@ void main() {
           url: 'http://localhost:3400/test',
           fromResponse: (d) => d as String,
           fromStreamChunk: (d) => d as String,
-          streamType: StringType,
+          streamType: stringType(),
         ),
         throwsArgumentError,
       );
