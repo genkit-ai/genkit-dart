@@ -15,7 +15,7 @@
 import 'package:test/test.dart';
 import 'dart:convert';
 import 'package:schemantic/schemantic.dart';
-import 'package:schemantic/src/basic_types.dart';
+import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 void main() {
   group('Basic Types', () {
@@ -102,5 +102,37 @@ void main() {
       expect(() => IntType.parse('not an int'), throwsA(isA<TypeError>()));
       expect(() => listType(IntType).parse(['a']), throwsA(isA<TypeError>()));
     });
+
+    group('Reference Handling', () {
+      test('listType with useRefs=true handles nested defs', () {
+        final type = _MockType();
+        final list = listType(type);
+        final schema = list.jsonSchema(useRefs: true);
+        final json = jsonDecode(schema.toJson());
+
+        // We expect $defs to be at the root, not inside items
+        expect(json['type'], 'array');
+        expect(json[r'$defs'], isNotNull, reason: 'Root should have defs');
+        expect(
+          json['items'][r'$ref'],
+          isNotNull,
+          reason: 'Items should refer to def',
+        );
+        expect(
+          json['items'][r'$defs'],
+          isNull,
+          reason: 'Items should NOT have nested defs',
+        );
+      });
+    });
   });
+}
+
+class _MockType extends JsonExtensionType<String> {
+  @override
+  String parse(Object json) => json as String;
+
+  @override
+  JsonSchemaMetadata? get schemaMetadata =>
+      JsonSchemaMetadata(name: 'MockType', definition: jsb.Schema.string());
 }

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:schemantic/schemantic.dart';
+import 'dart:convert';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 class StringTypeFactory extends JsonExtensionType<String> {
@@ -110,6 +111,24 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
       (json as List).map((e) => itemType.parse(e)).toList();
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) =>
-      jsb.Schema.list(items: itemType.jsonSchema(useRefs: useRefs));
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    final itemSchema = itemType.jsonSchema(useRefs: useRefs);
+    if (!useRefs) {
+      return jsb.Schema.list(items: itemSchema);
+    }
+
+    // Check if item schema has $defs or ref that implies definitions
+    final itemJson = jsonDecode(itemSchema.toJson());
+    if (itemJson is Map<String, dynamic> && itemJson.containsKey(r'$defs')) {
+      final defs = itemJson.remove(r'$defs') as Map<String, dynamic>;
+
+      return jsb.Schema.fromMap({
+        'type': 'array',
+        'items': itemJson,
+        r'$defs': defs,
+      });
+    }
+
+    return jsb.Schema.list(items: itemSchema);
+  }
 }
