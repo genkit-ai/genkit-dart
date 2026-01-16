@@ -1,5 +1,5 @@
 name: schemantic
-description: A builder for generating Genkit schema extension types.
+description: A general-purpose builder for generating type-safe data classes and JSON schemas from abstract definitions.
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 resolution: workspace
