@@ -116,4 +116,29 @@ void main() async {
       print('  - $error');
     }
   }
+
+  // 6. Dynamic Types (listType & mapType)
+  print('\n--- Dynamic Types ---');
+
+  // List of Strings
+  final stringList = listType(UserType);
+  final parsedList = stringList.parse([
+    {'name': 'Alice', 'isAdmin': true},
+    {'name': 'Bob', 'isAdmin': false},
+  ]);
+  print(
+    'Parsed List: $parsedList',
+  ); // [{name: Alice, isAdmin: true}, {name: Bob, isAdmin: false}]
+  print('List Schema: ${stringList.jsonSchema().toJson()}');
+
+  // Map of String -> User
+  final scores = mapType(StringType, UserType);
+  final parsedScores = scores.parse({
+    'Alice': {'name': 'Alice', 'isAdmin': true},
+    'Bob': {'name': 'Bob', 'isAdmin': false},
+  });
+  print(
+    'Parsed Map: $parsedScores',
+  ); // {Alice: {name: Alice, isAdmin: true}, Bob: {name: Bob, isAdmin: false}}
+  print('Map Schema: ${scores.jsonSchema().toJson()}');
 }
