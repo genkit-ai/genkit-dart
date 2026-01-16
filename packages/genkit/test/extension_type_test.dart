@@ -32,7 +32,10 @@ abstract class RecipeSchema {
 
 @Schematic()
 abstract class AnnotatedRecipeSchema {
-  @Key(name: 'title_key_in_json', description: 'description set in json schema')
+  @Field(
+    name: 'title_key_in_json',
+    description: 'description set in json schema',
+  )
   String get title;
   List<IngredientSchema> get ingredients;
   int get servings;

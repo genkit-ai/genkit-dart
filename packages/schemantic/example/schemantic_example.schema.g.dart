@@ -96,7 +96,7 @@ extension type User(Map<String, dynamic> _json)
   }) {
     return User({
       'name': name,
-      if (age != null) 'age': age,
+      if (age != null) 'years_old': age,
       'isAdmin': isAdmin,
       if (address != null) 'address': address.toJson(),
     });
@@ -111,14 +111,14 @@ extension type User(Map<String, dynamic> _json)
   }
 
   int? get age {
-    return _json['age'] as int?;
+    return _json['years_old'] as int?;
   }
 
   set age(int? value) {
     if (value == null) {
-      _json.remove('age');
+      _json.remove('years_old');
     } else {
-      _json['age'] = value;
+      _json['years_old'] = value;
     }
   }
 
@@ -163,7 +163,7 @@ class _UserTypeFactory extends JsonExtensionType<User> {
     definition: Schema.object(
       properties: {
         'name': Schema.string(),
-        'age': Schema.integer(),
+        'years_old': Schema.integer(description: 'Age of the user'),
         'isAdmin': Schema.boolean(),
         'address': Schema.fromMap({'\$ref': r'#/$defs/Address'}),
       },

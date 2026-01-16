@@ -38,6 +38,12 @@ abstract class NodeSchema {
   List<NodeSchema>? get children;
 }
 
+@Schematic()
+abstract class KeyedSchema {
+  @Field(name: 'custom_name', description: 'A custom named field')
+  String get originalName;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -210,6 +216,21 @@ void main() {
           ],
         }),
         isNotEmpty,
+      );
+    });
+    test('KeyedSchema serialization and deserialization', () {
+      final keyed = Keyed.from(originalName: 'test');
+      final json = keyed.toJson();
+      expect(json, {'custom_name': 'test'});
+
+      final parsed = KeyedType.parse({'custom_name': 'parsed'});
+      expect(parsed.originalName, 'parsed');
+
+      final schema = KeyedType.jsonSchema();
+      final schemaJson = jsonDecode(schema.toJson());
+      expect(
+        schemaJson['properties']['custom_name']['description'],
+        'A custom named field',
       );
     });
   });

@@ -23,10 +23,10 @@ void main() {
 class Schematic {
   const Schematic();
 }
-class Key {
+class Field {
   final String? name;
   final String? description;
-  const Key({this.name, this.description});
+  const Field({this.name, this.description});
 }
 ''';
 
@@ -97,7 +97,7 @@ abstract class UserSchema {
       );
     });
 
-    test('generates schema with @Key annotation', () async {
+    test('generates schema with @Field annotation', () async {
       final builder = PartBuilder([SchemaGenerator()], '.schema.g.dart');
 
       await testBuilder(
@@ -111,7 +111,7 @@ part 'a.schema.g.dart';
 
 @Schematic()
 abstract class ProductSchema {
-  @Key(name: 'product_id', description: 'The unique identifier')
+  @Field(name: 'product_id', description: 'The unique identifier')
   String get id;
 }
 ''',

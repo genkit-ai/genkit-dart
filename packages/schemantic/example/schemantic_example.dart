@@ -28,6 +28,7 @@ abstract class AddressSchema {
 @Schematic()
 abstract class UserSchema {
   String get name;
+  @Field(name: 'years_old', description: 'Age of the user')
   int? get age;
   bool get isAdmin;
 
