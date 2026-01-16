@@ -30,7 +30,7 @@ jobs:
         run: melos bootstrap
 
       - name: Check Formatting
-        if: matrix.sdk == 'dev'
+        if: matrix.sdk == '3.10'
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Run Code Generation
