@@ -100,7 +100,6 @@ const BoolType = BoolTypeFactory();
 /// Example:
 /// ```dart
 /// VoidType.parse(null);
-/// ```
 class VoidTypeFactory extends JsonExtensionType<void> {
   const VoidTypeFactory();
 
@@ -124,7 +123,7 @@ class MapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
   const MapTypeFactory();
 
   @override
-  Map<String, dynamic> parse(Object? json) => json as Map<String, dynamic>;
+  Map<String, dynamic> parse(Object json) => json as Map<String, dynamic>;
 
   @override
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.object();
@@ -150,7 +149,7 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
   const _ListTypeFactory(this.itemType);
 
   @override
-  List<T> parse(Object? json) =>
+  List<T> parse(Object json) =>
       (json as List).map((e) => itemType.parse(e)).toList();
 
   @override
@@ -197,7 +196,7 @@ class _MapTypeFactory<K, V> extends JsonExtensionType<Map<K, V>> {
   const _MapTypeFactory(this.keyType, this.valueType);
 
   @override
-  Map<K, V> parse(Object? json) {
+  Map<K, V> parse(Object json) {
     return (json as Map).map((k, v) {
       return MapEntry(keyType.parse(k), valueType.parse(v));
     });
