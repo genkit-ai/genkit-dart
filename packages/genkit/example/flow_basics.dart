@@ -21,12 +21,12 @@ import 'package:genkit/genkit.dart';
 
 part 'flow_basics.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class SubjectSchema {
   String get subject;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class CountSchema {
   int get count;
 }

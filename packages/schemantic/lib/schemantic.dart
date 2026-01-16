@@ -18,8 +18,8 @@ import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 export 'package:json_schema_builder/json_schema_builder.dart'
     show Schema, SchemaValidation;
 
-class GenkitSchema {
-  const GenkitSchema();
+class Schematic {
+  const Schematic();
 }
 
 class Key {

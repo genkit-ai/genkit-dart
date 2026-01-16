@@ -82,7 +82,7 @@ class ClassGenerator {
         c
           ..name = '${className}Schema'
           ..abstract = true
-          ..annotations.add(refer('GenkitSchema').call([]));
+          ..annotations.add(refer('Schematic').call([]));
 
         if (extend != null) {
           c.implements.add(extend);
@@ -139,7 +139,7 @@ class ClassGenerator {
         c
           ..name = '${className}Schema'
           ..abstract = true
-          ..annotations.add(refer('GenkitSchema').call([]));
+          ..annotations.add(refer('Schematic').call([]));
         if (extend != null) {
           c.implements.add(extend);
         }

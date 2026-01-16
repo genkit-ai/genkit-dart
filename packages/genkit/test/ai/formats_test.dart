@@ -19,7 +19,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'formats_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class TestObjectSchema {
   String get foo;
   int get bar;

@@ -23,7 +23,7 @@ import 'package:meta/meta.dart';
 
 part 'genkit_google_genai.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class GeminiOptionsSchema {
   int get maxOutputTokens;
   int get temperature;

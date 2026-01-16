@@ -19,17 +19,17 @@ import 'package:genkit_shelf/genkit_shelf.dart';
 
 part 'shelf_server_example.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class HelloInputSchema {
   String get name;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class HelloOutputSchema {
   String get greeting;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class CountChunkSchema {
   int get count;
 }

@@ -24,12 +24,12 @@ import 'package:test/test.dart';
 
 part 'shelf_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class ShelfTestOutputSchema {
   String get greeting;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class ShelfTestStreamSchema {
   String get chunk;
 }
@@ -194,7 +194,7 @@ void main() {
     expect(result, 'Echo: typed');
   });
 
-  test('Client using GenkitSchema types and Streaming', () async {
+  test('Client using Schematic types and Streaming', () async {
     final complexStreamFlow = ai.defineFlow(
       name: 'complexStream',
       fn: (input, ctx) async {

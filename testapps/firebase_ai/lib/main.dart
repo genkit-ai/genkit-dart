@@ -28,7 +28,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'main.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class WeatherToolInputSchema {
   String get location;
 }

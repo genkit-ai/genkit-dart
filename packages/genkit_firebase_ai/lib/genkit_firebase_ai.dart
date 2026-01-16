@@ -24,7 +24,7 @@ part 'genkit_firebase_ai.schema.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
-@GenkitSchema()
+@Schematic()
 abstract class GeminiOptionsSchema {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
@@ -40,28 +40,28 @@ abstract class GeminiOptionsSchema {
   ThinkingConfigSchema? get thinkingConfig;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class ThinkingConfigSchema {
   int? get thinkingBudget;
   bool? get includeThoughts;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class PrebuiltVoiceConfigSchema {
   String? get voiceName;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class VoiceConfigSchema {
   PrebuiltVoiceConfigSchema? get prebuiltVoiceConfig;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class SpeechConfigSchema {
   VoiceConfigSchema? get voiceConfig;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class LiveGenerationConfigSchema {
   List<String>? get responseModalities;
   SpeechConfigSchema? get speechConfig;

@@ -19,9 +19,9 @@ import 'package:test/test.dart';
 
 void main() {
   group('SchemaGenerator', () {
-    const genkitSchemaBuilderLib = r'''
-class GenkitSchema {
-  const GenkitSchema();
+    const schematicBuilderLib = r'''
+class Schematic {
+  const Schematic();
 }
 class Key {
   final String? name;
@@ -36,13 +36,13 @@ class Key {
       await testBuilder(
         builder,
         {
-          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class UserSchema {
   String get name;
   int? get age;
@@ -63,19 +63,19 @@ abstract class UserSchema {
       await testBuilder(
         builder,
         {
-          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class AddressSchema {
   String get street;
   String? get city;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class UserSchema {
   String get name;
   List<AddressSchema> get addresses;
@@ -103,13 +103,13 @@ abstract class UserSchema {
       await testBuilder(
         builder,
         {
-          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class ProductSchema {
   @Key(name: 'product_id', description: 'The unique identifier')
   String get id;
@@ -135,7 +135,7 @@ abstract class ProductSchema {
       await testBuilder(
         builder,
         {
-          'schemantic|lib/schemantic.dart': genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
@@ -143,7 +143,7 @@ part 'a.schema.g.dart';
 
 enum Status { active, inactive }
 
-@GenkitSchema()
+@Schematic()
 abstract class ItemSchema {
   Status get status;
 }

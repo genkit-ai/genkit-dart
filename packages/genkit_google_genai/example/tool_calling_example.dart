@@ -18,7 +18,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'tool_calling_example.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class WeatherToolInputSchema {
   String get location;
 }

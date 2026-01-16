@@ -21,12 +21,12 @@ import '../test_util.dart';
 
 part 'action_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class TestInputSchema {
   String get name;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class TestOutputSchema {
   String get greeting;
 }

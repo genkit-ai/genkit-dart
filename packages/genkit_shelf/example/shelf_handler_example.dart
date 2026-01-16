@@ -24,12 +24,12 @@ import 'package:shelf_router/shelf_router.dart';
 
 part 'shelf_handler_example.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class HandlerInputSchema {
   String get message;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class HandlerOutputSchema {
   String get processedMessage;
 }

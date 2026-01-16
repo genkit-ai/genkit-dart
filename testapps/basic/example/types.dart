@@ -16,30 +16,30 @@ import 'package:schemantic/schemantic.dart';
 
 part 'types.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class ProcessObjectInputSchema {
   String get message;
   int get count;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class ProcessObjectOutputSchema {
   String get reply;
   int get newCount;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class StreamObjectsInputSchema {
   String get prompt;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class StreamObjectsOutputSchema {
   String get text;
   String get summary;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class StreamyThrowyChunkSchema {
   int get count;
 }

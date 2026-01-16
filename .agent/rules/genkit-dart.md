@@ -39,7 +39,7 @@ Genkit uses a custom schema framework via `package:genkit/schema.dart` (exported
 
 ## Definition
 
-Define schemas using the `@GenkitSchema()` annotation:
+Define schemas using the `@Schematic()` annotation:
 
 ```dart
 import 'package:genkit/genkit.dart';
@@ -47,13 +47,13 @@ import 'package:genkit/genkit.dart';
 
 part 'my_file.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class MyObjSchema {
   String get name;
   MySubObjSchema get subObj;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class MySubObjSchema {
   String get foo;
 }

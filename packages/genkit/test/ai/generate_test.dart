@@ -18,7 +18,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'generate_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class TestToolInputSchema {
   String get name;
 }

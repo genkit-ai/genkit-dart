@@ -19,7 +19,7 @@ import 'package:test/test.dart';
 
 part 'model_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class TestCustomOptionsSchema {
   String get customField;
 }
