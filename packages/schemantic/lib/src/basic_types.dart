@@ -113,16 +113,24 @@ class _VoidTypeFactory extends JsonExtensionType<void> {
 // ignore: constant_identifier_names
 const VoidType = _VoidTypeFactory();
 
+/// A dynamic type, representing any JSON value.
+///
+/// Example:
+/// ```dart
+/// DynamicType.parse(123);
+/// DynamicType.parse('hello');
+/// ```
 class _DynamicTypeFactory extends JsonExtensionType<dynamic> {
   const _DynamicTypeFactory();
 
   @override
-  dynamic parse(Object json) => json;
+  dynamic parse(Object? json) => json;
 
   @override
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.any();
 }
 
+// ignore: constant_identifier_names
 const DynamicType = _DynamicTypeFactory();
 
 class _BasicMapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
