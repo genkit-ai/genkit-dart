@@ -90,8 +90,8 @@ void main() async {
       }
       return 'Done counting to $count';
     },
-    inputType: intType(), // Changed from intType()
-    outputType: stringType(), // Changed from stringType()
+    inputType: intType(),
+    outputType: stringType(),
     streamType: CountChunkType,
   );
 
