@@ -148,14 +148,35 @@ void main() {
 
 ### 4. Customizing Fields
 
-You can use the `@Field` annotation to customize the JSON key name and add a description to the generated schema.
+You can use specialized annotations to apply JSON Schema constraints directly to your Dart fields.
+
+- `@Field`: Basic customization (name, description).
+- `@StringField`: Constraints for strings (minLength, maxLength, pattern, format, enumValues).
+- `@IntegerField`: Constraints for integers (minimum, maximum, multipleOf).
+- `@NumberField`: Constraints for doubles/numbers (minimum, maximum, multipleOf).
 
 ```dart
 @Schematic()
 abstract class UserSchema {
-  // Map 'age' to 'years_old' in JSON, and add a description
-  @Field(name: 'years_old', description: 'Age of the user')
+  // Map 'age' to 'years_old' in JSON, and add validation
+  @IntegerField(
+    name: 'years_old', 
+    description: 'Age of the user',
+    minimum: 0,
+    maximum: 120
+  )
   int? get age;
+
+  @StringField(
+    minLength: 2,
+    maxLength: 50,
+    pattern: r'^[a-zA-Z\s]+$',
+    enumValues: ['user', 'admin'] // Mapped to 'enum' in JSON Schema
+  )
+  String get role;
 }
 ```
+
+Validation matches the Dart type (e.g., using `@StringField` on an `int` getter will throw a build-time error).
+
 

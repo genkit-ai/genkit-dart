@@ -30,7 +30,8 @@ class Schematic {
 
 /// Annotation to customize valid JSON fields.
 ///
-/// Use this annotation on a getter to specify a custom JSON key name or description.
+/// Use this annotation (or a subclass like [StringField], [IntegerField]) on a getter
+/// to specify a custom JSON key name, description, and other schema constraints.
 class Field {
   /// The key name to use in the JSON map.
   final String? name;
@@ -39,6 +40,63 @@ class Field {
   final String? description;
 
   const Field({this.name, this.description});
+}
+
+/// Annotation for String fields with specific schema constraints.
+class StringField extends Field {
+  final int? minLength;
+  final int? maxLength;
+  final String? pattern;
+  final String? format;
+  final List<String>? enumValues;
+
+  const StringField({
+    super.name,
+    super.description,
+    this.minLength,
+    this.maxLength,
+    this.pattern,
+    this.format,
+    this.enumValues,
+  });
+}
+
+/// Annotation for Integer fields with specific schema constraints.
+class IntegerField extends Field {
+  final int? minimum;
+  final int? maximum;
+  final int? exclusiveMinimum;
+  final int? exclusiveMaximum;
+  final int? multipleOf;
+
+  const IntegerField({
+    super.name,
+    super.description,
+    this.minimum,
+    this.maximum,
+    this.exclusiveMinimum,
+    this.exclusiveMaximum,
+    this.multipleOf,
+  });
+}
+
+/// Annotation for Number (double) fields with specific schema constraints.
+class NumberField extends Field {
+  final num? minimum;
+  final num? maximum;
+  final num? exclusiveMinimum;
+  final num? exclusiveMaximum;
+  final num? multipleOf;
+
+  const NumberField({
+    super.name,
+    super.description,
+    this.minimum,
+    this.maximum,
+    this.exclusiveMinimum,
+    this.exclusiveMaximum,
+    this.multipleOf,
+  });
 }
 
 /// Metadata associated with a [JsonExtensionType], primarily used for schema generation.
