@@ -1,13 +1,6 @@
-# Genkit Firebase AI
+[![Pub](https://img.shields.io/pub/v/genkit_firebase_ai.svg)](https://pub.dev/packages/genkit_firebase_ai)
 
 Firebase AI plugin for Genkit Dart.
-
-## Installation
-
-```yaml
-dependencies:
-  genkit_firebase_ai: any
-```
 
 ## Usage
 

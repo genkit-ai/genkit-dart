@@ -1,13 +1,6 @@
-# Genkit Google AI
+[![Pub](https://img.shields.io/pub/v/genkit_google_genai.svg)](https://pub.dev/packages/genkit_google_genai)
 
 Google AI plugin for Genkit Dart.
-
-## Installation
-
-```yaml
-dependencies:
-  genkit_google_genai: any
-```
 
 ## Usage
 

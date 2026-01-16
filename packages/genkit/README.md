@@ -1,5 +1,3 @@
-# Genkit Dart
-
 [![Pub](https://img.shields.io/pub/v/genkit.svg)](https://pub.dev/packages/genkit)
 
 **AI SDK for Dart • LLM Framework • AI Agent Toolkit**

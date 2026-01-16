@@ -1,5 +1,3 @@
-# Genkit Firebase AI Sample
-
 This is a sample Flutter application demonstrating how to use the `genkit_firebase_ai` plugin.
 
 ## Prerequisites
