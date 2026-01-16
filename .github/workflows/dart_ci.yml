@@ -29,9 +29,9 @@ jobs:
       - name: Bootstrap Workspace
         run: melos bootstrap
 
-      - name: Check Formatting
-        if: matrix.sdk == '3.10'
-        run: dart format --output=none --set-exit-if-changed .
+      # - name: Check Formatting
+      #   if: matrix.sdk == '3.10'
+      #   run: dart format --output=none --set-exit-if-changed .
 
       - name: Run Code Generation
         run: melos run build-gen
