@@ -21,7 +21,8 @@ part of 'genkit_google_genai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type GeminiOptions(Map<String, dynamic> _json) {
+extension type GeminiOptions(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory GeminiOptions.from({
     required int maxOutputTokens,
     required int temperature,

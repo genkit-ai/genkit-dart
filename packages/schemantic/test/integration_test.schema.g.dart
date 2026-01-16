@@ -21,7 +21,8 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type User(Map<String, dynamic> _json) {
+extension type User(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory User.from({required String name, int? age, required bool isAdmin}) {
     return User({
       'name': name,
@@ -89,7 +90,8 @@ class UserTypeFactory extends JsonExtensionType<User> {
 // ignore: constant_identifier_names
 const UserType = UserTypeFactory();
 
-extension type Group(Map<String, dynamic> _json) {
+extension type Group(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Group.from({
     required String groupName,
     required List<User> members,
@@ -98,7 +100,7 @@ extension type Group(Map<String, dynamic> _json) {
     return Group({
       'groupName': groupName,
       'members': members.map((e) => e.toJson()).toList(),
-      if (leader != null) 'leader': leader?.toJson(),
+      if (leader != null) 'leader': leader.toJson(),
     });
   }
 
@@ -167,7 +169,8 @@ class GroupTypeFactory extends JsonExtensionType<Group> {
 // ignore: constant_identifier_names
 const GroupType = GroupTypeFactory();
 
-extension type Node(Map<String, dynamic> _json) {
+extension type Node(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Node.from({required String id, List<Node>? children}) {
     return Node({
       'id': id,

@@ -21,7 +21,8 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type ProcessObjectInput(Map<String, dynamic> _json) {
+extension type ProcessObjectInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ProcessObjectInput.from({
     required String message,
     required int count,
@@ -73,7 +74,8 @@ class ProcessObjectInputTypeFactory
 // ignore: constant_identifier_names
 const ProcessObjectInputType = ProcessObjectInputTypeFactory();
 
-extension type ProcessObjectOutput(Map<String, dynamic> _json) {
+extension type ProcessObjectOutput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ProcessObjectOutput.from({
     required String reply,
     required int newCount,
@@ -125,7 +127,8 @@ class ProcessObjectOutputTypeFactory
 // ignore: constant_identifier_names
 const ProcessObjectOutputType = ProcessObjectOutputTypeFactory();
 
-extension type StreamObjectsInput(Map<String, dynamic> _json) {
+extension type StreamObjectsInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory StreamObjectsInput.from({required String prompt}) {
     return StreamObjectsInput({'prompt': prompt});
   }
@@ -166,7 +169,8 @@ class StreamObjectsInputTypeFactory
 // ignore: constant_identifier_names
 const StreamObjectsInputType = StreamObjectsInputTypeFactory();
 
-extension type StreamObjectsOutput(Map<String, dynamic> _json) {
+extension type StreamObjectsOutput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory StreamObjectsOutput.from({
     required String text,
     required String summary,
@@ -218,7 +222,8 @@ class StreamObjectsOutputTypeFactory
 // ignore: constant_identifier_names
 const StreamObjectsOutputType = StreamObjectsOutputTypeFactory();
 
-extension type StreamyThrowyChunk(Map<String, dynamic> _json) {
+extension type StreamyThrowyChunk(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory StreamyThrowyChunk.from({required int count}) {
     return StreamyThrowyChunk({'count': count});
   }

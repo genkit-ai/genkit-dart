@@ -18,6 +18,8 @@ import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 export 'package:json_schema_builder/json_schema_builder.dart'
     show Schema, SchemaValidation;
 
+export 'package:schemantic/src/basic_types.dart';
+
 class Schematic {
   const Schematic();
 }
@@ -176,84 +178,3 @@ class SchemaHelpers {
     return result;
   }
 }
-
-class StringTypeFactory extends JsonExtensionType<String> {
-  const StringTypeFactory();
-
-  @override
-  String parse(Object json) => json as String;
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.string();
-}
-
-// ignore: constant_identifier_names
-const StringType = StringTypeFactory();
-
-class IntTypeFactory extends JsonExtensionType<int> {
-  const IntTypeFactory();
-
-  @override
-  int parse(Object json) => json as int;
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.integer();
-}
-
-// ignore: constant_identifier_names
-const IntType = IntTypeFactory();
-
-class DoubleTypeFactory extends JsonExtensionType<double> {
-  const DoubleTypeFactory();
-
-  @override
-  double parse(Object json) {
-    if (json is int) return json.toDouble();
-    return json as double;
-  }
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.number();
-}
-
-// ignore: constant_identifier_names
-const DoubleType = DoubleTypeFactory();
-
-class BoolTypeFactory extends JsonExtensionType<bool> {
-  const BoolTypeFactory();
-
-  @override
-  bool parse(Object json) => json as bool;
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.boolean();
-}
-
-// ignore: constant_identifier_names
-const BoolType = BoolTypeFactory();
-
-class VoidTypeFactory extends JsonExtensionType<void> {
-  const VoidTypeFactory();
-
-  @override
-  void parse(Object? json) {}
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.nil();
-}
-
-// ignore: constant_identifier_names
-const VoidType = VoidTypeFactory();
-
-class MapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
-  const MapTypeFactory();
-
-  @override
-  Map<String, dynamic> parse(Object? json) => json as Map<String, dynamic>;
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.object();
-}
-
-// ignore: constant_identifier_names
-const MapType = MapTypeFactory();

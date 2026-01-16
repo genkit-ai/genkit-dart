@@ -21,7 +21,8 @@ part of 'simple_flow.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Ingredient(Map<String, dynamic> _json) {
+extension type Ingredient(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Ingredient.from({required String name, required String quantity}) {
     return Ingredient({'name': name, 'quantity': quantity});
   }
@@ -69,7 +70,8 @@ class IngredientTypeFactory extends JsonExtensionType<Ingredient> {
 // ignore: constant_identifier_names
 const IngredientType = IngredientTypeFactory();
 
-extension type Recipe(Map<String, dynamic> _json) {
+extension type Recipe(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory Recipe.from({
     required String title,
     required List<Ingredient> ingredients,

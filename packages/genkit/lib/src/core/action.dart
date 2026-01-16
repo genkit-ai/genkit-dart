@@ -118,6 +118,22 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     return (await run(input, onChunk: onChunk, context: context)).result;
   }
 
+  Future<RunResult<O>> runRaw(
+    dynamic input, {
+    StreamingCallback<S>? onChunk,
+    Map<String, dynamic>? context,
+    Stream<I>? inputStream,
+    dynamic init,
+  }) async {
+    return await run(
+      inputType != null ? inputType!.parse(input) : input,
+      onChunk: onChunk,
+      context: context,
+      inputStream: inputStream,
+      init: initType != null ? initType!.parse(init) : init,
+    );
+  }
+
   Future<RunResult<O>> run(
     I? input, {
     StreamingCallback<S>? onChunk,

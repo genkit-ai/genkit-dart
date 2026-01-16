@@ -110,3 +110,38 @@ void main() {
   // Generates schema with "$ref": "#/$defs/Node"
 }
 ```
+
+### Basic & Dynamic Types
+
+Schemantic provides a set of basic types and helpers for creating dynamic schemas without generating code.
+
+#### Primitives
+- `StringType`
+- `IntType`
+- `DoubleType`
+- `BoolType`
+- `VoidType`
+
+#### `listType` and `mapType`
+
+You can create strongly typed Lists and Maps dynamically:
+
+```dart
+void main() {
+  // Define a List of Strings
+  final stringList = listType(StringType);
+  print(stringList.parse(['a', 'b'])); // ['a', 'b']
+
+  // Define a Map with String keys and Integer values
+  final scores = mapType(StringType, IntType);
+  print(scores.parse({'Alice': 100, 'Bob': 80})); // {'Alice': 100, 'Bob': 80}
+
+  // Nesting types
+  final matrix = listType(listType(IntType));
+  print(matrix.parse([[1, 2], [3, 4]])); // [[1, 2], [3, 4]]
+  
+  // JSON Schema generation works as expected
+  print(scores.jsonSchema().toJson());
+  // {type: object, additionalProperties: {type: integer}}
+}
+```

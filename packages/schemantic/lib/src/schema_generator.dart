@@ -62,6 +62,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     return ExtensionType((b) {
       b
         ..name = baseName
+        ..implements.add(refer('Map<String, dynamic>'))
         ..representationDeclaration =
             (RepresentationDeclarationBuilder()
                   ..declaredRepresentationType = refer('Map<String, dynamic>')
@@ -126,15 +127,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                   valueExpression = refer(paramName!);
                 }
               } else if (isExtensionType) {
-                if (getter.returnType.isNullable) {
-                  valueExpression = refer(
-                    paramName!,
-                  ).nullSafeProperty('toJson').call([]);
-                } else {
-                  valueExpression = refer(
-                    paramName!,
-                  ).property('toJson').call([]);
-                }
+                // don't need need to worry about nullability here, because
+                // further down we check if the value is null and add
+                // `if (paramName != null)`.
+                valueExpression = refer(paramName!).property('toJson').call([]);
               } else {
                 valueExpression = refer(paramName!);
               }

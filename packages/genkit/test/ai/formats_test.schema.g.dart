@@ -21,7 +21,8 @@ part of 'formats_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestObject(Map<String, dynamic> _json) {
+extension type TestObject(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory TestObject.from({required String foo, required int bar}) {
     return TestObject({'foo': foo, 'bar': bar});
   }
