@@ -21,7 +21,8 @@ part of 'genkit_firebase_ai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type GeminiOptions(Map<String, dynamic> _json) {
+extension type GeminiOptions(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory GeminiOptions.from({
     List<String>? stopSequences,
     int? maxOutputTokens,
@@ -48,7 +49,7 @@ extension type GeminiOptions(Map<String, dynamic> _json) {
       if (responseMimeType != null) 'responseMimeType': responseMimeType,
       if (responseSchema != null) 'responseSchema': responseSchema,
       if (responseJsonSchema != null) 'responseJsonSchema': responseJsonSchema,
-      if (thinkingConfig != null) 'thinkingConfig': thinkingConfig?.toJson(),
+      if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
     });
   }
 
@@ -203,11 +204,11 @@ extension type GeminiOptions(Map<String, dynamic> _json) {
   }
 }
 
-class GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
-  const GeminiOptionsTypeFactory();
+class _GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
+  const _GeminiOptionsTypeFactory();
 
   @override
-  GeminiOptions parse(Object json) {
+  GeminiOptions parse(Object? json) {
     return GeminiOptions(json as Map<String, dynamic>);
   }
 
@@ -236,9 +237,10 @@ class GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
 }
 
 // ignore: constant_identifier_names
-const GeminiOptionsType = GeminiOptionsTypeFactory();
+const GeminiOptionsType = _GeminiOptionsTypeFactory();
 
-extension type ThinkingConfig(Map<String, dynamic> _json) {
+extension type ThinkingConfig(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory ThinkingConfig.from({int? thinkingBudget, bool? includeThoughts}) {
     return ThinkingConfig({
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
@@ -275,11 +277,11 @@ extension type ThinkingConfig(Map<String, dynamic> _json) {
   }
 }
 
-class ThinkingConfigTypeFactory extends JsonExtensionType<ThinkingConfig> {
-  const ThinkingConfigTypeFactory();
+class _ThinkingConfigTypeFactory extends JsonExtensionType<ThinkingConfig> {
+  const _ThinkingConfigTypeFactory();
 
   @override
-  ThinkingConfig parse(Object json) {
+  ThinkingConfig parse(Object? json) {
     return ThinkingConfig(json as Map<String, dynamic>);
   }
 
@@ -298,9 +300,10 @@ class ThinkingConfigTypeFactory extends JsonExtensionType<ThinkingConfig> {
 }
 
 // ignore: constant_identifier_names
-const ThinkingConfigType = ThinkingConfigTypeFactory();
+const ThinkingConfigType = _ThinkingConfigTypeFactory();
 
-extension type PrebuiltVoiceConfig(Map<String, dynamic> _json) {
+extension type PrebuiltVoiceConfig(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory PrebuiltVoiceConfig.from({String? voiceName}) {
     return PrebuiltVoiceConfig({if (voiceName != null) 'voiceName': voiceName});
   }
@@ -322,12 +325,12 @@ extension type PrebuiltVoiceConfig(Map<String, dynamic> _json) {
   }
 }
 
-class PrebuiltVoiceConfigTypeFactory
+class _PrebuiltVoiceConfigTypeFactory
     extends JsonExtensionType<PrebuiltVoiceConfig> {
-  const PrebuiltVoiceConfigTypeFactory();
+  const _PrebuiltVoiceConfigTypeFactory();
 
   @override
-  PrebuiltVoiceConfig parse(Object json) {
+  PrebuiltVoiceConfig parse(Object? json) {
     return PrebuiltVoiceConfig(json as Map<String, dynamic>);
   }
 
@@ -343,13 +346,14 @@ class PrebuiltVoiceConfigTypeFactory
 }
 
 // ignore: constant_identifier_names
-const PrebuiltVoiceConfigType = PrebuiltVoiceConfigTypeFactory();
+const PrebuiltVoiceConfigType = _PrebuiltVoiceConfigTypeFactory();
 
-extension type VoiceConfig(Map<String, dynamic> _json) {
+extension type VoiceConfig(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory VoiceConfig.from({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
     return VoiceConfig({
       if (prebuiltVoiceConfig != null)
-        'prebuiltVoiceConfig': prebuiltVoiceConfig?.toJson(),
+        'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
     });
   }
 
@@ -374,11 +378,11 @@ extension type VoiceConfig(Map<String, dynamic> _json) {
   }
 }
 
-class VoiceConfigTypeFactory extends JsonExtensionType<VoiceConfig> {
-  const VoiceConfigTypeFactory();
+class _VoiceConfigTypeFactory extends JsonExtensionType<VoiceConfig> {
+  const _VoiceConfigTypeFactory();
 
   @override
-  VoiceConfig parse(Object json) {
+  VoiceConfig parse(Object? json) {
     return VoiceConfig(json as Map<String, dynamic>);
   }
 
@@ -398,12 +402,13 @@ class VoiceConfigTypeFactory extends JsonExtensionType<VoiceConfig> {
 }
 
 // ignore: constant_identifier_names
-const VoiceConfigType = VoiceConfigTypeFactory();
+const VoiceConfigType = _VoiceConfigTypeFactory();
 
-extension type SpeechConfig(Map<String, dynamic> _json) {
+extension type SpeechConfig(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory SpeechConfig.from({VoiceConfig? voiceConfig}) {
     return SpeechConfig({
-      if (voiceConfig != null) 'voiceConfig': voiceConfig?.toJson(),
+      if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
     });
   }
 
@@ -426,11 +431,11 @@ extension type SpeechConfig(Map<String, dynamic> _json) {
   }
 }
 
-class SpeechConfigTypeFactory extends JsonExtensionType<SpeechConfig> {
-  const SpeechConfigTypeFactory();
+class _SpeechConfigTypeFactory extends JsonExtensionType<SpeechConfig> {
+  const _SpeechConfigTypeFactory();
 
   @override
-  SpeechConfig parse(Object json) {
+  SpeechConfig parse(Object? json) {
     return SpeechConfig(json as Map<String, dynamic>);
   }
 
@@ -448,9 +453,10 @@ class SpeechConfigTypeFactory extends JsonExtensionType<SpeechConfig> {
 }
 
 // ignore: constant_identifier_names
-const SpeechConfigType = SpeechConfigTypeFactory();
+const SpeechConfigType = _SpeechConfigTypeFactory();
 
-extension type LiveGenerationConfig(Map<String, dynamic> _json) {
+extension type LiveGenerationConfig(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory LiveGenerationConfig.from({
     List<String>? responseModalities,
     SpeechConfig? speechConfig,
@@ -464,7 +470,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json) {
   }) {
     return LiveGenerationConfig({
       if (responseModalities != null) 'responseModalities': responseModalities,
-      if (speechConfig != null) 'speechConfig': speechConfig?.toJson(),
+      if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
       if (stopSequences != null) 'stopSequences': stopSequences,
       if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
       if (temperature != null) 'temperature': temperature,
@@ -590,12 +596,12 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json) {
   }
 }
 
-class LiveGenerationConfigTypeFactory
+class _LiveGenerationConfigTypeFactory
     extends JsonExtensionType<LiveGenerationConfig> {
-  const LiveGenerationConfigTypeFactory();
+  const _LiveGenerationConfigTypeFactory();
 
   @override
-  LiveGenerationConfig parse(Object json) {
+  LiveGenerationConfig parse(Object? json) {
     return LiveGenerationConfig(json as Map<String, dynamic>);
   }
 
@@ -621,4 +627,4 @@ class LiveGenerationConfigTypeFactory
 }
 
 // ignore: constant_identifier_names
-const LiveGenerationConfigType = LiveGenerationConfigTypeFactory();
+const LiveGenerationConfigType = _LiveGenerationConfigTypeFactory();
