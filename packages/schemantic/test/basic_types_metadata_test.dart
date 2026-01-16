@@ -1,4 +1,3 @@
-
 import 'package:test/test.dart';
 import 'dart:convert';
 import 'package:schemantic/schemantic.dart';
@@ -14,9 +13,9 @@ void main() {
         format: 'email',
         enumValues: ['a', 'b'],
       );
-      
+
       final json = jsonDecode(t.jsonSchema().toJson());
-      
+
       expect(json['type'], 'string');
       expect(json['description'], 'A test string');
       expect(json['minLength'], 5);
@@ -67,19 +66,19 @@ void main() {
       expect(json['exclusiveMaximum'], 90.5);
       expect(json['multipleOf'], 0.5);
     });
-    
+
     test('boolType() metadata', () {
       final t = boolType(description: 'A test bool');
       final json = jsonDecode(t.jsonSchema().toJson());
       expect(json['type'], 'boolean');
       expect(json['description'], 'A test bool');
     });
-    
+
     test('voidType() metadata', () {
-        final t = voidType(description: 'A test void');
-        final json = jsonDecode(t.jsonSchema().toJson());
-        expect(json['type'], 'null');
-        expect(json['description'], 'A test void');
+      final t = voidType(description: 'A test void');
+      final json = jsonDecode(t.jsonSchema().toJson());
+      expect(json['type'], 'null');
+      expect(json['description'], 'A test void');
     });
 
     test('dynamicType() metadata', () {
@@ -90,31 +89,34 @@ void main() {
     });
 
     test('listType metadata', () {
-       final t = listType(stringType(),
-         description: 'A test list',
-         minItems: 1,
-         maxItems: 5,
-         uniqueItems: true,
-       );
-       
-       final json = jsonDecode(t.jsonSchema().toJson());
-       
-       expect(json['type'], 'array');
-       expect(json['description'], 'A test list');
-       expect(json['minItems'], 1);
-       expect(json['maxItems'], 5);
-       expect(json['uniqueItems'], true);
+      final t = listType(
+        stringType(),
+        description: 'A test list',
+        minItems: 1,
+        maxItems: 5,
+        uniqueItems: true,
+      );
+
+      final json = jsonDecode(t.jsonSchema().toJson());
+
+      expect(json['type'], 'array');
+      expect(json['description'], 'A test list');
+      expect(json['minItems'], 1);
+      expect(json['maxItems'], 5);
+      expect(json['uniqueItems'], true);
     });
 
     test('mapType metadata', () {
-      final t = mapType(stringType(), intType(),
+      final t = mapType(
+        stringType(),
+        intType(),
         description: 'A test map',
         minProperties: 2,
         maxProperties: 10,
       );
-      
+
       final json = jsonDecode(t.jsonSchema().toJson());
-      
+
       expect(json['type'], 'object');
       expect(json['description'], 'A test map');
       expect(json['minProperties'], 2);
