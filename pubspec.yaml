@@ -6,6 +6,7 @@ environment:
   sdk: ^3.10.0
 
 workspace:
+  - packages/_schema_generator
   - packages/genkit
   - packages/genkit_google_genai
   - packages/genkit_shelf
@@ -14,6 +15,7 @@ workspace:
 
 dev_dependencies:
   melos: ^7.0.0
+  lints: ^6.0.0
   
 melos:
   name: genkit_workspace

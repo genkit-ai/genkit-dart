@@ -1,8 +1,9 @@
-name: schema_generator
-description: A generator that creates Dart classes from a JSON schema.
-version: 1.0.0
+name: _schema_generator
+description: Tool for updating Dart clases in pkg:genkit
+publish_to: none
 environment:
   sdk: ^3.10.0
+resolution: workspace
 
 dependencies:
   build: '>=3.0.0 <5.0.0'
@@ -11,6 +12,3 @@ dependencies:
   code_builder: ^4.10.0
   dart_style: ^3.0.0
   json_annotation: ^4.9.0
-
-dev_dependencies:
-  lints: ^3.0.0
