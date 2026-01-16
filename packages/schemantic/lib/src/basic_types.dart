@@ -269,25 +269,6 @@ class _DynamicTypeFactory extends JsonExtensionType<dynamic> {
   }
 }
 
-class _BasicMapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
-  const _BasicMapTypeFactory();
-
-  @override
-  Map<String, dynamic> parse(Object? json) => json as Map<String, dynamic>;
-
-  @override
-  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.object();
-}
-
-/// A generic map type with String keys and dynamic values.
-///
-/// Example:
-/// ```dart
-/// MapType.parse({'a': 1});
-/// ```
-// ignore: constant_identifier_names
-const MapType = _BasicMapTypeFactory();
-
 /// Creates a strongly typed List type schema.
 ///
 /// Example:

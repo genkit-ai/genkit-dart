@@ -82,7 +82,7 @@ void main() {
         inputType: stringType(),
         outputType: stringType(),
         streamType: stringType(),
-        initType: MapType,
+        initType: mapType(stringType(), stringType()),
         fn: (inputStream, context) async {
           final prefix = context.init?['prefix'] ?? '';
           await for (final chunk in inputStream) {

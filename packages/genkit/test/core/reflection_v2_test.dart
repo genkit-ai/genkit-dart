@@ -69,7 +69,7 @@ void main() {
     test('should handle listActions', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputType: MapType,
+        inputType: mapType(stringType(), stringType()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
         metadata: {'description': 'A test action'},
@@ -109,7 +109,7 @@ void main() {
     test('should handle runAction', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputType: MapType,
+        inputType: mapType(stringType(), stringType()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
       );
