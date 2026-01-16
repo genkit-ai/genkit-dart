@@ -607,11 +607,13 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
         if (minLength != null) properties['minLength'] = literalNum(minLength);
         if (maxLength != null) properties['maxLength'] = literalNum(maxLength);
-        if (pattern != null)
+        if (pattern != null) {
           properties['pattern'] = literalString(pattern, raw: true);
+        }
         if (format != null) properties['format'] = literalString(format);
-        if (enumValues != null)
+        if (enumValues != null) {
           properties['enumValues'] = literalList(enumValues);
+        }
       } else if (_integerFieldChecker.isAssignableFromType(annotationType)) {
         final minimum = reader.peek('minimum')?.intValue;
         final maximum = reader.peek('maximum')?.intValue;
@@ -627,8 +629,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (exclusiveMaximum != null) {
           properties['exclusiveMaximum'] = literalNum(exclusiveMaximum);
         }
-        if (multipleOf != null)
+        if (multipleOf != null) {
           properties['multipleOf'] = literalNum(multipleOf);
+        }
       } else if (_numberFieldChecker.isAssignableFromType(annotationType)) {
         final minimum =
             reader.peek('minimum')?.doubleValue ??
@@ -654,8 +657,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (exclusiveMaximum != null) {
           properties['exclusiveMaximum'] = literalNum(exclusiveMaximum);
         }
-        if (multipleOf != null)
+        if (multipleOf != null) {
           properties['multipleOf'] = literalNum(multipleOf);
+        }
       }
     }
 

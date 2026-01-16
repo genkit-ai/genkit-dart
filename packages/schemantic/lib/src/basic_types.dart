@@ -143,7 +143,7 @@ class _BasicMapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.object();
 }
 
-/// A simplified Map type for Map<String, dynamic>.
+/// A simplified Map type for `Map<String, dynamic>`.
 ///
 /// Example:
 /// ```dart
