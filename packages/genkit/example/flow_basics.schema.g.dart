@@ -40,8 +40,8 @@ extension type Subject(Map<String, dynamic> _json)
   }
 }
 
-class SubjectTypeFactory extends JsonExtensionType<Subject> {
-  const SubjectTypeFactory();
+class _SubjectTypeFactory extends JsonExtensionType<Subject> {
+  const _SubjectTypeFactory();
 
   @override
   Subject parse(Object json) {
@@ -60,7 +60,7 @@ class SubjectTypeFactory extends JsonExtensionType<Subject> {
 }
 
 // ignore: constant_identifier_names
-const SubjectType = SubjectTypeFactory();
+const SubjectType = _SubjectTypeFactory();
 
 extension type Count(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -81,8 +81,8 @@ extension type Count(Map<String, dynamic> _json)
   }
 }
 
-class CountTypeFactory extends JsonExtensionType<Count> {
-  const CountTypeFactory();
+class _CountTypeFactory extends JsonExtensionType<Count> {
+  const _CountTypeFactory();
 
   @override
   Count parse(Object json) {
@@ -101,4 +101,4 @@ class CountTypeFactory extends JsonExtensionType<Count> {
 }
 
 // ignore: constant_identifier_names
-const CountType = CountTypeFactory();
+const CountType = _CountTypeFactory();

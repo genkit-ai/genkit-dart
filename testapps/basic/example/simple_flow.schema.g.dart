@@ -48,8 +48,8 @@ extension type Ingredient(Map<String, dynamic> _json)
   }
 }
 
-class IngredientTypeFactory extends JsonExtensionType<Ingredient> {
-  const IngredientTypeFactory();
+class _IngredientTypeFactory extends JsonExtensionType<Ingredient> {
+  const _IngredientTypeFactory();
 
   @override
   Ingredient parse(Object json) {
@@ -68,7 +68,7 @@ class IngredientTypeFactory extends JsonExtensionType<Ingredient> {
 }
 
 // ignore: constant_identifier_names
-const IngredientType = IngredientTypeFactory();
+const IngredientType = _IngredientTypeFactory();
 
 extension type Recipe(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -115,8 +115,8 @@ extension type Recipe(Map<String, dynamic> _json)
   }
 }
 
-class RecipeTypeFactory extends JsonExtensionType<Recipe> {
-  const RecipeTypeFactory();
+class _RecipeTypeFactory extends JsonExtensionType<Recipe> {
+  const _RecipeTypeFactory();
 
   @override
   Recipe parse(Object json) {
@@ -141,4 +141,4 @@ class RecipeTypeFactory extends JsonExtensionType<Recipe> {
 }
 
 // ignore: constant_identifier_names
-const RecipeType = RecipeTypeFactory();
+const RecipeType = _RecipeTypeFactory();

@@ -91,6 +91,21 @@ void main() {
       expect(json['type'], 'null');
     });
 
+    test('DynamicType', () {
+      expect(DynamicType.parse(123), 123);
+      expect(DynamicType.parse('hello'), 'hello');
+      expect(DynamicType.parse(true), true);
+      expect(DynamicType.parse(null), null);
+      final list = [1, 2];
+      expect(DynamicType.parse(list), list);
+      final map = {'a': 1};
+      expect(DynamicType.parse(map), map);
+
+      final json = jsonDecode(DynamicType.jsonSchema().toJson());
+      // schema.any() typically returns an empty schema {} which allows everything
+      expect(json, isEmpty);
+    });
+
     test('MapType', () {
       final json = {'key': 'value', 'a': 1};
       expect(MapType.parse(json), json);

@@ -16,14 +16,8 @@ import 'package:schemantic/schemantic.dart';
 import 'dart:convert';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
-/// A string type.
-///
-/// Example:
-/// ```dart
-/// StringType.parse('hello');
-/// ```
-class StringTypeFactory extends JsonExtensionType<String> {
-  const StringTypeFactory();
+class _StringTypeFactory extends JsonExtensionType<String> {
+  const _StringTypeFactory();
 
   @override
   String parse(Object json) => json as String;
@@ -32,17 +26,17 @@ class StringTypeFactory extends JsonExtensionType<String> {
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.string();
 }
 
-// ignore: constant_identifier_names
-const StringType = StringTypeFactory();
-
-/// An integer type.
+/// A string type.
 ///
 /// Example:
 /// ```dart
-/// IntType.parse(123);
+/// StringType.parse('hello');
 /// ```
-class IntTypeFactory extends JsonExtensionType<int> {
-  const IntTypeFactory();
+// ignore: constant_identifier_names
+const StringType = _StringTypeFactory();
+
+class _IntTypeFactory extends JsonExtensionType<int> {
+  const _IntTypeFactory();
 
   @override
   int parse(Object json) => json as int;
@@ -51,17 +45,17 @@ class IntTypeFactory extends JsonExtensionType<int> {
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.integer();
 }
 
-// ignore: constant_identifier_names
-const IntType = IntTypeFactory();
-
-/// A double type.
+/// An integer type.
 ///
 /// Example:
 /// ```dart
-/// DoubleType.parse(12.34);
+/// IntType.parse(123);
 /// ```
-class DoubleTypeFactory extends JsonExtensionType<double> {
-  const DoubleTypeFactory();
+// ignore: constant_identifier_names
+const IntType = _IntTypeFactory();
+
+class _DoubleTypeFactory extends JsonExtensionType<double> {
+  const _DoubleTypeFactory();
 
   @override
   double parse(Object json) {
@@ -73,17 +67,17 @@ class DoubleTypeFactory extends JsonExtensionType<double> {
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.number();
 }
 
-// ignore: constant_identifier_names
-const DoubleType = DoubleTypeFactory();
-
-/// A boolean type.
+/// A double type.
 ///
 /// Example:
 /// ```dart
-/// BoolType.parse(true);
+/// DoubleType.parse(12.34);
 /// ```
-class BoolTypeFactory extends JsonExtensionType<bool> {
-  const BoolTypeFactory();
+// ignore: constant_identifier_names
+const DoubleType = _DoubleTypeFactory();
+
+class _BoolTypeFactory extends JsonExtensionType<bool> {
+  const _BoolTypeFactory();
 
   @override
   bool parse(Object json) => json as bool;
@@ -92,16 +86,17 @@ class BoolTypeFactory extends JsonExtensionType<bool> {
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.boolean();
 }
 
-// ignore: constant_identifier_names
-const BoolType = BoolTypeFactory();
-
-/// A void type, representing null in JSON.
+/// A boolean type.
 ///
 /// Example:
 /// ```dart
-/// VoidType.parse(null);
-class VoidTypeFactory extends JsonExtensionType<void> {
-  const VoidTypeFactory();
+/// BoolType.parse(true);
+/// ```
+// ignore: constant_identifier_names
+const BoolType = _BoolTypeFactory();
+
+class _VoidTypeFactory extends JsonExtensionType<void> {
+  const _VoidTypeFactory();
 
   @override
   void parse(Object? json) {}
@@ -110,17 +105,36 @@ class VoidTypeFactory extends JsonExtensionType<void> {
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.nil();
 }
 
-// ignore: constant_identifier_names
-const VoidType = VoidTypeFactory();
-
-/// A simplified Map type for Map<String, dynamic>.
+/// A void type, representing null in JSON.
 ///
 /// Example:
 /// ```dart
-/// MapType.parse({'key': 'value'});
+/// VoidType.parse(null);
+// ignore: constant_identifier_names
+const VoidType = _VoidTypeFactory();
+
+/// A dynamic type, representing any JSON value.
+///
+/// Example:
+/// ```dart
+/// DynamicType.parse(123);
+/// DynamicType.parse('hello');
 /// ```
-class MapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
-  const MapTypeFactory();
+class _DynamicTypeFactory extends JsonExtensionType<dynamic> {
+  const _DynamicTypeFactory();
+
+  @override
+  dynamic parse(Object? json) => json;
+
+  @override
+  jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.any();
+}
+
+// ignore: constant_identifier_names
+const DynamicType = _DynamicTypeFactory();
+
+class _BasicMapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
+  const _BasicMapTypeFactory();
 
   @override
   Map<String, dynamic> parse(Object json) => json as Map<String, dynamic>;
@@ -129,8 +143,14 @@ class MapTypeFactory extends JsonExtensionType<Map<String, dynamic>> {
   jsb.Schema jsonSchema({bool useRefs = false}) => jsb.Schema.object();
 }
 
+/// A simplified Map type for Map<String, dynamic>.
+///
+/// Example:
+/// ```dart
+/// MapType.parse({'key': 'value'});
+/// ```
 // ignore: constant_identifier_names
-const MapType = MapTypeFactory();
+const MapType = _BasicMapTypeFactory();
 
 /// Creates a strongly typed List type schema.
 ///

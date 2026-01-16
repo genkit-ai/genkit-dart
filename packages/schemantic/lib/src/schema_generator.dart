@@ -371,7 +371,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   Class _generateFactory(String baseName, ClassElement element) {
     return Class((b) {
       b
-        ..name = '${baseName}TypeFactory'
+        ..name = '_${baseName}TypeFactory'
         ..extend = refer('JsonExtensionType<$baseName>')
         ..constructors.add(Constructor((c) => c..constant = true));
 
@@ -658,7 +658,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         ..name = '${baseName}Type'
         ..docs.add('// ignore: constant_identifier_names')
         ..modifier = FieldModifier.constant
-        ..assignment = refer('${baseName}TypeFactory').constInstance([]).code,
+        ..assignment = refer('_${baseName}TypeFactory').constInstance([]).code,
     );
   }
 }

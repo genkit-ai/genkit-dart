@@ -48,8 +48,8 @@ extension type TestObject(Map<String, dynamic> _json)
   }
 }
 
-class TestObjectTypeFactory extends JsonExtensionType<TestObject> {
-  const TestObjectTypeFactory();
+class _TestObjectTypeFactory extends JsonExtensionType<TestObject> {
+  const _TestObjectTypeFactory();
 
   @override
   TestObject parse(Object json) {
@@ -68,4 +68,4 @@ class TestObjectTypeFactory extends JsonExtensionType<TestObject> {
 }
 
 // ignore: constant_identifier_names
-const TestObjectType = TestObjectTypeFactory();
+const TestObjectType = _TestObjectTypeFactory();

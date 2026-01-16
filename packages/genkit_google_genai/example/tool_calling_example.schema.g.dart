@@ -40,8 +40,8 @@ extension type WeatherToolInput(Map<String, dynamic> _json)
   }
 }
 
-class WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
-  const WeatherToolInputTypeFactory();
+class _WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
+  const _WeatherToolInputTypeFactory();
 
   @override
   WeatherToolInput parse(Object json) {
@@ -60,4 +60,4 @@ class WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
 }
 
 // ignore: constant_identifier_names
-const WeatherToolInputType = WeatherToolInputTypeFactory();
+const WeatherToolInputType = _WeatherToolInputTypeFactory();

@@ -40,8 +40,8 @@ extension type TestInput(Map<String, dynamic> _json)
   }
 }
 
-class TestInputTypeFactory extends JsonExtensionType<TestInput> {
-  const TestInputTypeFactory();
+class _TestInputTypeFactory extends JsonExtensionType<TestInput> {
+  const _TestInputTypeFactory();
 
   @override
   TestInput parse(Object json) {
@@ -60,7 +60,7 @@ class TestInputTypeFactory extends JsonExtensionType<TestInput> {
 }
 
 // ignore: constant_identifier_names
-const TestInputType = TestInputTypeFactory();
+const TestInputType = _TestInputTypeFactory();
 
 extension type TestOutput(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -81,8 +81,8 @@ extension type TestOutput(Map<String, dynamic> _json)
   }
 }
 
-class TestOutputTypeFactory extends JsonExtensionType<TestOutput> {
-  const TestOutputTypeFactory();
+class _TestOutputTypeFactory extends JsonExtensionType<TestOutput> {
+  const _TestOutputTypeFactory();
 
   @override
   TestOutput parse(Object json) {
@@ -101,4 +101,4 @@ class TestOutputTypeFactory extends JsonExtensionType<TestOutput> {
 }
 
 // ignore: constant_identifier_names
-const TestOutputType = TestOutputTypeFactory();
+const TestOutputType = _TestOutputTypeFactory();

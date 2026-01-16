@@ -51,9 +51,9 @@ extension type ProcessObjectInput(Map<String, dynamic> _json)
   }
 }
 
-class ProcessObjectInputTypeFactory
+class _ProcessObjectInputTypeFactory
     extends JsonExtensionType<ProcessObjectInput> {
-  const ProcessObjectInputTypeFactory();
+  const _ProcessObjectInputTypeFactory();
 
   @override
   ProcessObjectInput parse(Object json) {
@@ -72,7 +72,7 @@ class ProcessObjectInputTypeFactory
 }
 
 // ignore: constant_identifier_names
-const ProcessObjectInputType = ProcessObjectInputTypeFactory();
+const ProcessObjectInputType = _ProcessObjectInputTypeFactory();
 
 extension type ProcessObjectOutput(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -104,9 +104,9 @@ extension type ProcessObjectOutput(Map<String, dynamic> _json)
   }
 }
 
-class ProcessObjectOutputTypeFactory
+class _ProcessObjectOutputTypeFactory
     extends JsonExtensionType<ProcessObjectOutput> {
-  const ProcessObjectOutputTypeFactory();
+  const _ProcessObjectOutputTypeFactory();
 
   @override
   ProcessObjectOutput parse(Object json) {
@@ -125,7 +125,7 @@ class ProcessObjectOutputTypeFactory
 }
 
 // ignore: constant_identifier_names
-const ProcessObjectOutputType = ProcessObjectOutputTypeFactory();
+const ProcessObjectOutputType = _ProcessObjectOutputTypeFactory();
 
 extension type StreamObjectsInput(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -146,9 +146,9 @@ extension type StreamObjectsInput(Map<String, dynamic> _json)
   }
 }
 
-class StreamObjectsInputTypeFactory
+class _StreamObjectsInputTypeFactory
     extends JsonExtensionType<StreamObjectsInput> {
-  const StreamObjectsInputTypeFactory();
+  const _StreamObjectsInputTypeFactory();
 
   @override
   StreamObjectsInput parse(Object json) {
@@ -167,7 +167,7 @@ class StreamObjectsInputTypeFactory
 }
 
 // ignore: constant_identifier_names
-const StreamObjectsInputType = StreamObjectsInputTypeFactory();
+const StreamObjectsInputType = _StreamObjectsInputTypeFactory();
 
 extension type StreamObjectsOutput(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -199,9 +199,9 @@ extension type StreamObjectsOutput(Map<String, dynamic> _json)
   }
 }
 
-class StreamObjectsOutputTypeFactory
+class _StreamObjectsOutputTypeFactory
     extends JsonExtensionType<StreamObjectsOutput> {
-  const StreamObjectsOutputTypeFactory();
+  const _StreamObjectsOutputTypeFactory();
 
   @override
   StreamObjectsOutput parse(Object json) {
@@ -220,7 +220,7 @@ class StreamObjectsOutputTypeFactory
 }
 
 // ignore: constant_identifier_names
-const StreamObjectsOutputType = StreamObjectsOutputTypeFactory();
+const StreamObjectsOutputType = _StreamObjectsOutputTypeFactory();
 
 extension type StreamyThrowyChunk(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -241,9 +241,9 @@ extension type StreamyThrowyChunk(Map<String, dynamic> _json)
   }
 }
 
-class StreamyThrowyChunkTypeFactory
+class _StreamyThrowyChunkTypeFactory
     extends JsonExtensionType<StreamyThrowyChunk> {
-  const StreamyThrowyChunkTypeFactory();
+  const _StreamyThrowyChunkTypeFactory();
 
   @override
   StreamyThrowyChunk parse(Object json) {
@@ -262,4 +262,4 @@ class StreamyThrowyChunkTypeFactory
 }
 
 // ignore: constant_identifier_names
-const StreamyThrowyChunkType = StreamyThrowyChunkTypeFactory();
+const StreamyThrowyChunkType = _StreamyThrowyChunkTypeFactory();

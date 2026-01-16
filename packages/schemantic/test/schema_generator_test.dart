@@ -51,7 +51,7 @@ abstract class UserSchema {
         },
         outputs: {
           'a|lib/a.schema.g.dart': decodedMatches(
-            contains('class UserTypeFactory'),
+            contains('class _UserTypeFactory'),
           ),
         },
       );
@@ -87,8 +87,8 @@ abstract class UserSchema {
         outputs: {
           'a|lib/a.schema.g.dart': decodedMatches(
             allOf(
-              contains('class AddressTypeFactory'),
-              contains('class UserTypeFactory'),
+              contains('class _AddressTypeFactory'),
+              contains('class _UserTypeFactory'),
               contains('List<Address> get addresses {'),
               contains('Address? get primaryAddress {'),
             ),
