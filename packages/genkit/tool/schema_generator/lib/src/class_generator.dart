@@ -30,7 +30,7 @@ class ClassGenerator {
     final library = Library((b) {
       b.directives.addAll([
         Directive.import(
-          'package:genkit_schema_builder/genkit_schema_builder.dart',
+          'package:schemantic/schemantic.dart',
         ),
         Directive.part('types.schema.g.dart'),
       ]);
@@ -74,15 +74,15 @@ class ClassGenerator {
     Reference? extend,
   }) {
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
-    final required = (schema['required'] as List<dynamic>? ?? [])
-        .cast<String>();
+    final required =
+        (schema['required'] as List<dynamic>? ?? []).cast<String>();
 
     b.body.add(
       Class((c) {
         c
           ..name = '${className}Schema'
           ..abstract = true
-          ..annotations.add(refer('GenkitSchema').call([]));
+          ..annotations.add(refer('Schematic').call([]));
 
         if (extend != null) {
           c.implements.add(extend);
@@ -92,19 +92,19 @@ class ClassGenerator {
           properties.entries
               .where((e) => !_isNotType(e.value as Map<String, dynamic>))
               .map((e) {
-                final isRequired = required.contains(e.key);
-                return Method((m) {
-                  m
-                    ..name = _sanitizeFieldName(e.key)
-                    ..type = MethodType.getter
-                    ..returns = _mapType(
-                      className,
-                      e.key,
-                      e.value,
-                      isRequired: isRequired,
-                    );
-                });
-              }),
+            final isRequired = required.contains(e.key);
+            return Method((m) {
+              m
+                ..name = _sanitizeFieldName(e.key)
+                ..type = MethodType.getter
+                ..returns = _mapType(
+                  className,
+                  e.key,
+                  e.value,
+                  isRequired: isRequired,
+                );
+            });
+          }),
         );
       }),
     );
@@ -139,7 +139,7 @@ class ClassGenerator {
         c
           ..name = '${className}Schema'
           ..abstract = true
-          ..annotations.add(refer('GenkitSchema').call([]));
+          ..annotations.add(refer('Schematic').call([]));
         if (extend != null) {
           c.implements.add(extend);
         }

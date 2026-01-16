@@ -24,11 +24,11 @@ import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:logging/logging.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'main.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class WeatherToolInputSchema {
   String get location;
 }

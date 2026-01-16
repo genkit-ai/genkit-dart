@@ -1,4 +1,4 @@
-# Genkit Schema Builder
+# Schemantic
 
 A builder for generating Genkit schema extension types.
 
@@ -6,20 +6,20 @@ A builder for generating Genkit schema extension types.
 
 ```yaml
 dev_dependencies:
-  genkit_schema_builder: any
+  schemantic: any
   build_runner: ^2.8.0
 ```
 
 ## Usage
 
-Annotate your schemas with `@GenkitSchema()` and run `dart run build_runner build`.
+Annotate your schemas with `@Schematic()` and run `dart run build_runner build`.
 
 ```dart
 import 'package:genkit/genkit.dart';
 
 part 'my_schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class MyInput {
   String get name;
   int? get age;

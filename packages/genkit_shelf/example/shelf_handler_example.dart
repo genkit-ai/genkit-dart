@@ -16,7 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -24,12 +24,12 @@ import 'package:shelf_router/shelf_router.dart';
 
 part 'shelf_handler_example.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class HandlerInputSchema {
   String get message;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class HandlerOutputSchema {
   String get processedMessage;
 }

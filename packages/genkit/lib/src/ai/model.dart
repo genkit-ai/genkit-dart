@@ -15,7 +15,7 @@
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/types.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 ModelRef<C> modelRef<C>(String name, {JsonExtensionType<C>? customOptions}) {
   return _ModelRef<C>(name, customOptions);

@@ -15,11 +15,11 @@
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:test/test.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'formats_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class TestObjectSchema {
   String get foo;
   int get bar;

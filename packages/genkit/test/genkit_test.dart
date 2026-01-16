@@ -14,19 +14,19 @@
 
 import 'dart:io';
 
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:http/http.dart' as http;
 
 part 'genkit_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class TestCustomOptionsSchema {
   String get customField;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class TestToolInputSchema {
   String get name;
 }

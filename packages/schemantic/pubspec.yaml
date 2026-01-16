@@ -1,4 +1,4 @@
-name: genkit_schema_builder
+name: schemantic
 description: A builder for generating Genkit schema extension types.
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0

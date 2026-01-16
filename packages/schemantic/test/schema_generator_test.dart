@@ -13,15 +13,15 @@
 // limitations under the License.
 
 import 'package:build_test/build_test.dart';
-import 'package:genkit_schema_builder/src/schema_generator.dart';
+import 'package:schemantic/src/schema_generator.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('SchemaGenerator', () {
-    const genkitSchemaBuilderLib = r'''
-class GenkitSchema {
-  const GenkitSchema();
+    const schematicBuilderLib = r'''
+class Schematic {
+  const Schematic();
 }
 class Key {
   final String? name;
@@ -36,14 +36,13 @@ class Key {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class UserSchema {
   String get name;
   int? get age;
@@ -64,20 +63,19 @@ abstract class UserSchema {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class AddressSchema {
   String get street;
   String? get city;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class UserSchema {
   String get name;
   List<AddressSchema> get addresses;
@@ -105,14 +103,13 @@ abstract class UserSchema {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class ProductSchema {
   @Key(name: 'product_id', description: 'The unique identifier')
   String get id;
@@ -138,16 +135,15 @@ abstract class ProductSchema {
       await testBuilder(
         builder,
         {
-          'genkit_schema_builder|lib/genkit_schema_builder.dart':
-              genkitSchemaBuilderLib,
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'a.schema.g.dart';
 
 enum Status { active, inactive }
 
-@GenkitSchema()
+@Schematic()
 abstract class ItemSchema {
   Status get status;
 }

@@ -16,7 +16,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:genkit/client.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mockito/annotations.dart';

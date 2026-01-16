@@ -14,25 +14,25 @@
 
 import 'dart:convert';
 import 'package:test/test.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'integration_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class UserSchema {
   String get name;
   int? get age;
   bool get isAdmin;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class GroupSchema {
   String get groupName;
   List<UserSchema> get members;
   UserSchema? get leader;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class NodeSchema {
   String get id;
   List<NodeSchema>? get children;

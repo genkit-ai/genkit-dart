@@ -11,7 +11,7 @@ dependencies:
   genkit_google_genai: ^0.0.1-dev.2
   genkit_shelf: ^0.0.1-dev.2
   json_annotation: ^4.9.0
-  genkit_schema_builder: any
+  schemantic: any
   shelf: ^1.4.2
   shelf_router: ^1.1.4
   shelf_cors_headers: ^0.1.5

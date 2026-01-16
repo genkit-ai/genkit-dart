@@ -12,25 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 part 'extension_type_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class IngredientSchema {
   String get name;
   String get quantity;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class RecipeSchema {
   String get title;
   List<IngredientSchema> get ingredients;
   int get servings;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class AnnotatedRecipeSchema {
   @Key(name: 'title_key_in_json', description: 'description set in json schema')
   String get title;
@@ -40,13 +40,13 @@ abstract class AnnotatedRecipeSchema {
 
 enum MealType { breakfast, lunch, dinner }
 
-@GenkitSchema()
+@Schematic()
 abstract class MealPlanSchema {
   String get day;
   MealType get mealType;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class NullableFieldsSchema {
   String? get optionalString;
   int? get optionalInt;
@@ -54,7 +54,7 @@ abstract class NullableFieldsSchema {
   IngredientSchema? get optionalIngredient;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class ComplexObjectSchema {
   String get id;
   DateTime get createdAt;
@@ -64,7 +64,7 @@ abstract class ComplexObjectSchema {
   NullableFieldsSchema? get nestedNullable;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class MenuSchema {
   List<RecipeSchema> get recipes;
   List<IngredientSchema>? get optionalIngredients;

@@ -14,22 +14,22 @@
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 
 part 'shelf_server_example.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class HelloInputSchema {
   String get name;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class HelloOutputSchema {
   String get greeting;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class CountChunkSchema {
   int get count;
 }

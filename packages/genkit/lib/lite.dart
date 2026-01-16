@@ -18,7 +18,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/generate.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 export 'package:genkit/src/types.dart';
 export 'package:genkit/src/schema_extensions.dart';

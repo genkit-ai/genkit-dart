@@ -14,17 +14,17 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'simple_flow.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class IngredientSchema {
   String get name;
   String get quantity;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class RecipeSchema {
   String get title;
   List<IngredientSchema> get ingredients;

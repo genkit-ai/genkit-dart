@@ -14,11 +14,11 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'tool_calling_example.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class WeatherToolInputSchema {
   String get location;
 }

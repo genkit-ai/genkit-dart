@@ -96,7 +96,7 @@ Give models the ability to take actions and access external data:
 
 ```dart
 // Define schemas for tool input
-@GenkitSchema()
+@Schematic()
 abstract class WeatherInput {
   String get location;
 }

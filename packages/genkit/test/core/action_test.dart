@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 import 'package:opentelemetry/api.dart' as api;
 import 'package:genkit/src/core/action.dart';
@@ -21,12 +21,12 @@ import '../test_util.dart';
 
 part 'action_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class TestInputSchema {
   String get name;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class TestOutputSchema {
   String get greeting;
 }

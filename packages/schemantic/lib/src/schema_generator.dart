@@ -18,10 +18,10 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:source_gen/source_gen.dart';
 
-class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
+class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   @override
   String generateForAnnotatedElement(
     Element element,
@@ -30,7 +30,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
   ) {
     if (element is! ClassElement || !element.isAbstract) {
       throw InvalidGenerationSourceError(
-        '`@GenkitSchema` can only be used on abstract classes.',
+        '`@Schematic` can only be used on abstract classes.',
         element: element,
       );
     }
@@ -485,7 +485,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         // Note: _jsonSchemaForType is now called with `useRef: true` implicitly because we want
         // the definition to contain refs to children, NOT inlined children when we successfully resolve them.
         // Wait, current _jsonSchemaForType logic in strict inline mode (old Logic) would recurse.
-        // We want _jsonSchemaForType to output refs if it sees a GenkitSchema type.
+        // We want _jsonSchemaForType to output refs if it sees a Schematic type.
         properties[jsonFieldName] = _jsonSchemaForType(
           getter.returnType,
           keyAnnotation,
@@ -607,7 +607,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
         // If we are building the "definition" for the metadata, we want to use refs for children.
         // If we were building strict inline schema, we would call jsonSchema().
         // BUT here we are only building schemaDefinition (which is used for metadata).
-        // So we should ALWAYS use refs here if it's a known GenkitSchema type.
+        // So we should ALWAYS use refs here if it's a known Schematic type.
         // The old behavior "inline everything" is achieved by traversing schemaMetadata.
 
         if (useRefs) {
@@ -668,7 +668,7 @@ class SchemaGenerator extends GeneratorForAnnotation<GenkitSchema> {
 }
 
 const _keyChecker = TypeChecker.fromUrl(
-  'package:genkit_schema_builder/genkit_schema_builder.dart#Key',
+  'package:schemantic/schemantic.dart#Key',
 );
 
 extension on DartType {

@@ -1,6 +1,6 @@
 builders:
-  genkit_schema_builder:
-    import: "package:genkit_schema_builder/builder.dart"
+  schemantic:
+    import: "package:schemantic/builder.dart"
     builder_factories: ["schemaBuilder"]
     build_extensions: {".dart": [".schema.g.dart"]}
     auto_apply: dependents
@@ -9,5 +9,5 @@ builders:
 targets:
   $default:
     builders:
-      genkit_schema_builder:
+      schemantic:
         enabled: true

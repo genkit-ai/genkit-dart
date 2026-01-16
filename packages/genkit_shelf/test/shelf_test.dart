@@ -16,7 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:http/http.dart' as http;
 import 'package:shelf/shelf.dart';
@@ -24,12 +24,12 @@ import 'package:test/test.dart';
 
 part 'shelf_test.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class ShelfTestOutputSchema {
   String get greeting;
 }
 
-@GenkitSchema()
+@Schematic()
 abstract class ShelfTestStreamSchema {
   String get chunk;
 }
@@ -194,7 +194,7 @@ void main() {
     expect(result, 'Echo: typed');
   });
 
-  test('Client using GenkitSchema types and Streaming', () async {
+  test('Client using Schematic types and Streaming', () async {
     final complexStreamFlow = ai.defineFlow(
       name: 'complexStream',
       fn: (input, ctx) async {

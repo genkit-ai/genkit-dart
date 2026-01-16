@@ -37,7 +37,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 part 'main.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class WeatherToolInputSchema {
   String get location;
 }

@@ -14,7 +14,7 @@
 
 import 'dart:convert';
 
-import 'package:genkit_schema_builder/genkit_schema_builder.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
 import 'package:genkit/genkit.dart';
@@ -23,7 +23,7 @@ import 'package:meta/meta.dart';
 
 part 'genkit_google_genai.schema.g.dart';
 
-@GenkitSchema()
+@Schematic()
 abstract class GeminiOptionsSchema {
   int get maxOutputTokens;
   int get temperature;
