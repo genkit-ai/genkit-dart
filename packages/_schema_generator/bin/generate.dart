@@ -78,6 +78,7 @@ const _allowlist = {
   'Media',
   'ToolRequest',
   'ToolResponse',
+  'ModelInfo',
   'ModelRequest',
   'ModelResponse',
   'ModelResponseChunk',

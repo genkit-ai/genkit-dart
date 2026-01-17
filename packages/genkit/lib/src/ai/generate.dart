@@ -74,7 +74,7 @@ class GenerateResponseChunk<O> {
   });
 
   // Delegate properties to _chunk
-  double? get index => _chunk.index;
+  int? get index => _chunk.index;
   Role? get role => _chunk.role;
   List<Part> get content => _chunk.content;
   Map<String, dynamic>? get custom => _chunk.custom;

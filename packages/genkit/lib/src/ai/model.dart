@@ -53,10 +53,17 @@ class Model<C>
          streamType: ModelResponseChunkType,
        ) {
     metadata['description'] = name;
-    metadata['model'] = <String, dynamic>{};
-    metadata['model']['label'] = name;
+    if (metadata['model'] == null) {
+      metadata['model'] = <String, dynamic>{};
+    }
+    if (metadata['model']['label'] == null) {
+      metadata['model']['label'] = name;
+    }
     if (customOptions != null) {
-      metadata['model']['customOptions'] = toJsonSchema(type: customOptions);
+      metadata['model']['customOptions'] = toJsonSchema(
+        type: customOptions,
+        useRefs: false,
+      );
     }
   }
 }

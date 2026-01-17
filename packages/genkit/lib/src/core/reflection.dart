@@ -234,6 +234,7 @@ class ReflectionServer {
     print('Reflection server running on http://localhost:${_server!.port}');
 
     _server!.listen((HttpRequest request) async {
+      request.response.encoding = utf8;
       request.response.headers.add('x-genkit-version', genkitVersion);
       try {
         if (request.method == 'GET' && request.uri.path == '/api/__health') {
@@ -305,14 +306,17 @@ class ReflectionServer {
     final stream = request.uri.queryParameters['stream'] == 'true';
 
     final parts = key.split('/');
-    if (parts.length != 3 || parts[0] != '') {
+    if (parts.length < 3 || parts[0] != '') {
       request.response
         ..statusCode = HttpStatus.notFound
         ..write('Invalid action key format')
         ..close();
       return;
     }
-    final action = await registry.lookupAction(parts[1], parts[2]);
+    final action = await registry.lookupAction(
+      parts[1],
+      parts.sublist(2).join('/'),
+    );
 
     if (action == null) {
       request.response
@@ -333,7 +337,10 @@ class ReflectionServer {
         final result = await action.runRaw(
           input,
           onChunk: (chunk) {
-            request.response.write('${jsonEncode(chunk)}\n');
+            print(
+              'writing chunk:\n------------\n${jsonEncode(chunk)}\n------------',
+            );
+            request.response.writeln(jsonEncode(chunk));
           },
         );
         final response = RunActionResponse(

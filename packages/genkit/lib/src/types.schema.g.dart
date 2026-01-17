@@ -1285,6 +1285,117 @@ class _ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
 // ignore: constant_identifier_names
 const ToolResponseType = _ToolResponseTypeFactory();
 
+extension type ModelInfo(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory ModelInfo.from({
+    List<String>? versions,
+    String? label,
+    Map<String, dynamic>? configSchema,
+    Map<String, dynamic>? supports,
+    String? stage,
+  }) {
+    return ModelInfo({
+      if (versions != null) 'versions': versions,
+      if (label != null) 'label': label,
+      if (configSchema != null) 'configSchema': configSchema,
+      if (supports != null) 'supports': supports,
+      if (stage != null) 'stage': stage,
+    });
+  }
+
+  List<String>? get versions {
+    return (_json['versions'] as List?)?.cast<String>();
+  }
+
+  set versions(List<String>? value) {
+    if (value == null) {
+      _json.remove('versions');
+    } else {
+      _json['versions'] = value;
+    }
+  }
+
+  String? get label {
+    return _json['label'] as String?;
+  }
+
+  set label(String? value) {
+    if (value == null) {
+      _json.remove('label');
+    } else {
+      _json['label'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get configSchema {
+    return _json['configSchema'] as Map<String, dynamic>?;
+  }
+
+  set configSchema(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('configSchema');
+    } else {
+      _json['configSchema'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get supports {
+    return _json['supports'] as Map<String, dynamic>?;
+  }
+
+  set supports(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('supports');
+    } else {
+      _json['supports'] = value;
+    }
+  }
+
+  String? get stage {
+    return _json['stage'] as String?;
+  }
+
+  set stage(String? value) {
+    if (value == null) {
+      _json.remove('stage');
+    } else {
+      _json['stage'] = value;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _ModelInfoTypeFactory extends JsonExtensionType<ModelInfo> {
+  const _ModelInfoTypeFactory();
+
+  @override
+  ModelInfo parse(Object? json) {
+    return ModelInfo(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ModelInfo',
+    definition: Schema.object(
+      properties: {
+        'versions': Schema.list(items: Schema.string()),
+        'label': Schema.string(),
+        'configSchema': Schema.object(additionalProperties: Schema.any()),
+        'supports': Schema.object(additionalProperties: Schema.any()),
+        'stage': Schema.string(),
+      },
+      required: [],
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const ModelInfoType = _ModelInfoTypeFactory();
+
 extension type ModelRequest(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
   factory ModelRequest.from({
@@ -1610,7 +1721,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
   factory ModelResponseChunk.from({
     Role? role,
-    double? index,
+    int? index,
     required List<Part> content,
     Map<String, dynamic>? custom,
     bool? aggregated,
@@ -1636,11 +1747,11 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     }
   }
 
-  double? get index {
-    return _json['index'] as double?;
+  int? get index {
+    return _json['index'] as int?;
   }
 
-  set index(double? value) {
+  set index(int? value) {
     if (value == null) {
       _json.remove('index');
     } else {
@@ -1702,7 +1813,7 @@ class _ModelResponseChunkTypeFactory
     definition: Schema.object(
       properties: {
         'role': Schema.any(),
-        'index': Schema.number(),
+        'index': Schema.integer(),
         'content': Schema.list(
           items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
         ),
