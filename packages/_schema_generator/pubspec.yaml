@@ -6,9 +6,9 @@ environment:
 resolution: workspace
 
 dependencies:
-  build: '>=3.0.0 <5.0.0'
-  source_gen: '>=3.1.0 <5.0.0'
-  http: ^1.2.1
+  build: ^4.0.4
+  source_gen: ^4.1.2
+  http: ^1.6.0
   code_builder: ^4.10.0
-  dart_style: ^3.0.0
+  dart_style: ^3.1.4
   json_annotation: ^4.9.0
