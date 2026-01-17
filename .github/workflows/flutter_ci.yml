@@ -30,6 +30,19 @@ jobs:
       - name: Run Code Generation
         run: melos run build-gen
 
+      - name: Run genkit_firebase_ai build_runner
+        working-directory: packages/genkit_firebase_ai
+        run: dart run build_runner build
+
       - name: Run genkit_firebase_ai Tests
         working-directory: packages/genkit_firebase_ai
         run: flutter test
+
+      - name: Verify clean git tree
+        run: |
+          git diff --exit-code
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Git directory is not clean. Working tree:"
+            git status
+            exit 1
+          fi
