@@ -234,7 +234,6 @@ class ReflectionServer {
     print('Reflection server running on http://localhost:${_server!.port}');
 
     _server!.listen((HttpRequest request) async {
-      request.response.encoding = utf8;
       request.response.headers.add('x-genkit-version', genkitVersion);
       try {
         if (request.method == 'GET' && request.uri.path == '/api/__health') {
@@ -330,6 +329,7 @@ class ReflectionServer {
       request.response.headers.contentType = ContentType(
         'application',
         'x-ndjson',
+        charset: 'utf-8',
       );
       request.response.bufferOutput = false;
 
@@ -337,9 +337,6 @@ class ReflectionServer {
         final result = await action.runRaw(
           input,
           onChunk: (chunk) {
-            print(
-              'writing chunk:\n------------\n${jsonEncode(chunk)}\n------------',
-            );
             request.response.writeln(jsonEncode(chunk));
           },
         );

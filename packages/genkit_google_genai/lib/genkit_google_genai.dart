@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:convert';
+import 'package:genkit_google_genai/src/aggregation.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
@@ -158,17 +159,26 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
 
           if (ctx.streamingRequested) {
             final stream = service.streamGenerateContent(generateRequest);
+            final chunks = <gcl.GenerateContentResponse>[];
             await for (final chunk in stream) {
-              final (message, finishReason) = _fromGeminiCandidate(
-                chunk.candidates.first,
-              );
-              ctx.sendChunk(
-                ModelResponseChunk.from(index: 0, content: message.content),
-              );
+              chunks.add(chunk);
+              if (chunk.candidates.isNotEmpty) {
+                final (message, finishReason) = _fromGeminiCandidate(
+                  chunk.candidates.first,
+                );
+                ctx.sendChunk(
+                  ModelResponseChunk.from(index: 0, content: message.content),
+                );
+              }
             }
+            final aggregated = aggregateResponses(chunks);
+            final (message, finishReason) = _fromGeminiCandidate(
+              aggregated.candidates.first,
+            );
             return ModelResponse.from(
-              finishReason: FinishReason.stop,
-              message: Message.from(role: Role.model, content: []),
+              finishReason: finishReason,
+              message: message,
+              raw: aggregated.toJson() as Map<String, dynamic>,
             );
           } else {
             final response = await service.generateContent(generateRequest);
@@ -202,7 +212,9 @@ gcl.GenerationConfig toGeminiSettings(
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
-    responseMimeType: isJsonMode ? 'application/json' : '',
+    responseMimeType: isJsonMode
+        ? 'application/json'
+        : (options.responseMimeType ?? ''),
     responseJsonSchema: switch (outputSchema) {
       null => null,
       Map<String, Object?> $1 => pb.Value.fromJson($1),
