@@ -26,4 +26,4 @@ dev_dependencies:
   mockito: ^5.6.3
   json_serializable: ^6.11.4
   code_builder: ^4.10.0
-  dart_style: ^3.1.4
+  dart_style: ^3.1.0
