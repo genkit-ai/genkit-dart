@@ -16,6 +16,8 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 void main() async {
+  configureCollectorExporter();
+
   final ai = Genkit(plugins: [googleAI()]);
 
   final response = await ai.generate(
