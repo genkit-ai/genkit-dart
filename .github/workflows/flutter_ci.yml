@@ -30,6 +30,6 @@ jobs:
       - name: Run Code Generation
         run: melos run build-gen
 
-      - name: Run Flutter Tests
+      - name: Run genkit_firebase_ai Tests
         working-directory: packages/genkit_firebase_ai
         run: flutter test
