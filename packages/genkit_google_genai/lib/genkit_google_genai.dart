@@ -428,7 +428,9 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
       gcl.FunctionDeclaration(
         name: tool.name,
         description: tool.description,
-        parametersJsonSchema: pb.Value.fromJson(tool.inputSchema),
+        parametersJsonSchema: tool.inputSchema == null
+            ? null
+            : pb.Value.fromJson(tool.inputSchema),
       ),
     ],
   );
