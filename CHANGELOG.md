@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-01-18
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit` - `v0.10.0-dev.7`](#genkit---v0100-dev7)
+ - [`genkit_google_genai` - `v0.0.1-dev.7`](#genkit_google_genai---v001-dev7)
+ - [`genkit_shelf` - `v0.0.1-dev.7`](#genkit_shelf---v001-dev7)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_shelf` - `v0.0.1-dev.7`
+
+---
+
+#### `genkit` - `v0.10.0-dev.7`
+
+ - **REFACTOR**: Consolidate Google GenAI examples into a single file, fixed tools calling, and schema flattening helper (#43).
+ - **FEAT**: implemented streaming and various config options for genkit_google_genai plugin (#42).
+
+#### `genkit_google_genai` - `v0.0.1-dev.7`
+
+ - **REFACTOR**: Consolidate Google GenAI examples into a single file, fixed tools calling, and schema flattening helper (#43).
+ - **FEAT**: implemented streaming and various config options for genkit_google_genai plugin (#42).
+
+
 ## 2026-01-16
 
 ### Changes

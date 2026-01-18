@@ -1,7 +1,7 @@
 name: genkit
 description: A type-safe Dart client library for calling Google Genkit flows with streaming support, authentication, and comprehensive error handling.
 resolution: workspace
-version: 0.10.0-dev.6
+version: 0.10.0-dev.7
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
