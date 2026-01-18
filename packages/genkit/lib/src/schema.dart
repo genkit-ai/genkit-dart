@@ -39,22 +39,18 @@ Map<String, dynamic> toJsonSchema({
 Map<String, dynamic> flattenSchema(Map<String, dynamic> schema) {
   // 1. Identify definitions
   final defs = <String, Map<String, dynamic>>{};
-  if (schema.containsKey('\$defs')) {
-    final rawDefs = schema['\$defs'] as Map;
-    rawDefs.forEach((k, v) {
-      if (k is String && v is Map<String, dynamic>) {
-        defs[k] = v;
+  // Check for both $defs (modern) and definitions (legacy)
+  for (final key in const ['\$defs', 'definitions']) {
+    if (schema.containsKey(key)) {
+      final rawDefs = schema[key];
+      if (rawDefs is Map) {
+        rawDefs.forEach((k, v) {
+          if (k is String && v is Map<String, dynamic>) {
+            defs[k] = v;
+          }
+        });
       }
-    });
-  }
-  // Also check for 'definitions' just in case, though $defs is preferred in newer drafts
-  if (schema.containsKey('definitions')) {
-    final rawDefs = schema['definitions'] as Map;
-    rawDefs.forEach((k, v) {
-      if (k is String && v is Map<String, dynamic>) {
-        defs[k] = v;
-      }
-    });
+    }
   }
 
   // 2. Recursive flatten with cycle detection
