@@ -15,6 +15,25 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`schemantic` - `v0.0.1-dev.8`](#schemantic---v001-dev8)
+
+---
+
+#### `schemantic` - `v0.0.1-dev.8`
+
+
+## 2026-01-18
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`genkit` - `v0.10.0-dev.7`](#genkit---v0100-dev7)
  - [`genkit_google_genai` - `v0.0.1-dev.7`](#genkit_google_genai---v001-dev7)
  - [`genkit_shelf` - `v0.0.1-dev.7`](#genkit_shelf---v001-dev7)
