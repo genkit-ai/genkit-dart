@@ -15,8 +15,11 @@
 import 'dart:convert';
 import 'package:genkit/src/utils.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:opentelemetry/api.dart' as api;
 import 'package:opentelemetry/sdk.dart' as sdk;
+
+final _logger = Logger('CollectorHttpExporter');
 
 class CollectorHttpExporter implements sdk.SpanExporter {
   final Uri _uri;
@@ -40,11 +43,18 @@ class CollectorHttpExporter implements sdk.SpanExporter {
 
     final body = {'resourceSpans': _translateSpans(spans)};
 
-    _client.post(
-      _uri,
-      headers: {'Content-Type': 'application/json', ..._headers},
-      body: jsonEncode(body),
-    );
+    _client
+        .post(
+          _uri,
+          headers: {'Content-Type': 'application/json', ..._headers},
+          body: jsonEncode(body),
+        )
+        .then(
+          (_) {},
+          onError: (e, stackTrace) {
+            _logger.severe('Failed to export spans: $e', stackTrace);
+          },
+        );
   }
 
   @override

@@ -13,10 +13,24 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/lite.dart' as lite;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'structured_streaming.schema.g.dart';
+part 'example.schema.g.dart';
+
+// --- Schemas for Tool Calling Example ---
+
+@Schematic()
+abstract class WeatherToolInputSchema {
+  @Field(
+    description:
+        'The location (ex. city, state, country) to get the weather for',
+  )
+  String get location;
+}
+
+// --- Schemas for Structured Streaming Example ---
 
 @Schematic()
 abstract class CategorySchema {
@@ -50,13 +64,69 @@ abstract class RpgCharacterSchema {
   String? get affiliation;
 }
 
-void main() async {
+void main(List<String> args) async {
   configureCollectorExporter();
-
   final ai = Genkit(plugins: [googleAI()]);
 
+  // --- Basic Generate Flow ---
   ai.defineFlow(
-    name: 'structured-output',
+    name: 'basicGenerate',
+    inputType: stringType(),
+    outputType: stringType(),
+    fn: (input, context) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-2.5-flash'),
+        prompt: input,
+      );
+      return response.text;
+    },
+  );
+
+  // --- Lite Generate Flow (Wrapped) ---
+  ai.defineFlow(
+    name: 'liteGenerate',
+    inputType: stringType(),
+    outputType: stringType(),
+    fn: (input, context) async {
+      final gemini = googleAI();
+      final response = await lite.generate(
+        model: gemini.model('gemini-2.5-flash'),
+        prompt: input,
+      );
+      return response.text;
+    },
+  );
+
+  // --- Tool Calling Flow ---
+  ai.defineTool(
+    name: 'getWeather',
+    description: 'Get the weather for a location',
+    inputType: WeatherToolInputType,
+    fn: (input, context) async {
+      if (input.location.toLowerCase().contains('boston')) {
+        return 'The weather in Boston is 72 and sunny.';
+      }
+      return 'The weather in ${input.location} is 75 and cloudy.';
+    },
+  );
+
+  ai.defineFlow(
+    name: 'weatherFlow',
+    inputType: stringType(),
+    outputType: stringType(),
+    fn: (prompt, context) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-2.5-flash'),
+        prompt: prompt,
+        tools: ['getWeather'],
+      );
+      return response.text;
+    },
+  );
+
+  // --- Structured Streaming Flow ---
+  ai.defineFlow(
+    name: 'structuredStreaming',
     inputType: stringType(),
     streamType: RpgCharacterType,
     outputType: RpgCharacterType,
@@ -71,9 +141,6 @@ void main() async {
       await for (final chunk in stream) {
         if (ctx.streamingRequested) {
           ctx.sendChunk(chunk.output);
-        } else {
-          // For local run only
-          print(chunk.output);
         }
       }
 

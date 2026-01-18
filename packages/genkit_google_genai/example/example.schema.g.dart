@@ -15,11 +15,57 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'structured_streaming.dart';
+part of 'example.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
+
+extension type WeatherToolInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory WeatherToolInput.from({required String location}) {
+    return WeatherToolInput({'location': location});
+  }
+
+  String get location {
+    return _json['location'] as String;
+  }
+
+  set location(String value) {
+    _json['location'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
+  const _WeatherToolInputTypeFactory();
+
+  @override
+  WeatherToolInput parse(Object? json) {
+    return WeatherToolInput(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'WeatherToolInput',
+    definition: Schema.object(
+      properties: {
+        'location': Schema.string(
+          description:
+              'The location (ex. city, state, country) to get the weather for',
+        ),
+      },
+      required: ['location'],
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const WeatherToolInputType = _WeatherToolInputTypeFactory();
 
 extension type Category(Map<String, dynamic> _json)
     implements Map<String, dynamic> {

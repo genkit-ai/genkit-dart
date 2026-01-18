@@ -428,12 +428,9 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
       gcl.FunctionDeclaration(
         name: tool.name,
         description: tool.description,
-        parameters: tool.inputSchema == null
+        parametersJsonSchema: tool.inputSchema == null
             ? null
-            : gcl.Schema.fromJson(
-                jsonDecode(jsonEncode(tool.inputSchema))
-                    as Map<String, dynamic>,
-              ),
+            : pb.Value.fromJson(tool.inputSchema),
       ),
     ],
   );
