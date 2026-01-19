@@ -14,8 +14,17 @@
 
 import 'package:test/test.dart';
 import 'package:schemantic/schemantic.dart';
+import 'schemas/shared_test_schema.dart';
 
 part 'integration_schema_test.schema.g.dart';
+
+@Schematic()
+final Schema crossFileRefSchema = Schema.object(
+  properties: {
+    'child': sharedChildSchema,
+    // 'childViaType': sharedChildSchemaType.jsonSchema(),
+  },
+);
 
 @Schematic()
 final Schema simpleObject = Schema.object(
@@ -221,6 +230,28 @@ void main() {
       final obj2 = requiredFieldsSchemaType.parse(jsonMissingOptional);
       expect(obj2.reqString, 'required');
       expect(obj2.optString, null);
+    });
+  });
+
+  group('Cross File References', () {
+    test('parses valid json with cross-file reference', () {
+      final json = {
+        'child': {'childId': '123'},
+        // 'childViaType': {'childId': '456'},
+      };
+      final obj = crossFileRefSchemaType.parse(json);
+      expect(obj.child?.childId, '123');
+      // expect(obj.childViaType?.childId, '456');
+    });
+
+    test('validates nested cross-file schema', () {
+      // Check type safety (dynamic check since we are in test)
+      final json = {
+        'child': {'childId': 123}, // Invalid type (int instead of String)
+      };
+      // Schema parsing is lazy, so we check access
+      final obj = crossFileRefSchemaType.parse(json);
+      expect(() => obj.child?.childId, throwsA(isA<TypeError>()));
     });
   });
 }

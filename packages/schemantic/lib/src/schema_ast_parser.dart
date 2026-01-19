@@ -16,6 +16,8 @@ import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart';
+import 'package:source_gen/source_gen.dart';
 
 /// Intermediate representation of a Schema for generation purposes.
 class SchemaInfo {
@@ -86,33 +88,42 @@ class SchemaInfo {
   }
 }
 
+const _schematicChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#Schematic',
+);
+
 class SchemaParser {
   static Future<SchemaInfo> parseFromElement(Element element) async {
     final library = element.library;
-    if (library == null) throw StateError('Element has no library');
-
-    final session = library.session;
-    final result = session.getParsedLibraryByElement(library);
-    if (result is! ParsedLibraryResult) {
-      throw StateError('Could not parse library');
+    if (library == null) {
+      throw StateError('Element has no library: $element');
     }
 
-    VariableDeclaration? varDecl;
+    // Use ResolvedLibraryResult to access AST
+    final session = library.session;
+    final result = await session.getResolvedLibraryByElement(library);
+    if (result is! ResolvedLibraryResult) {
+      throw StateError('Could not resolve library for $element');
+    }
 
-    // Naive search for now (improve with element location if needed)
+    // Find the variable declaration in AST
+    VariableDeclaration? variableNode;
+    // Naive search for now
     for (final part in result.units) {
       final declaration = _findVariableDeclaration(part.unit, element.name!);
       if (declaration != null) {
-        varDecl = declaration;
+        variableNode = declaration;
         break;
       }
     }
 
-    if (varDecl == null) {
-      throw StateError('Could not find AST for ${element.name}');
+    if (variableNode == null) {
+      throw StateError(
+        'Could not find AST node for variable ${element.name}. ensure it is a top-level const or static const.',
+      );
     }
 
-    final initializer = varDecl.initializer;
+    final initializer = variableNode.initializer;
     if (initializer == null) {
       throw StateError('Variable ${element.name} has no initializer');
     }
@@ -124,10 +135,12 @@ class SchemaParser {
     CompilationUnit unit,
     String name,
   ) {
-    for (final decl in unit.declarations) {
-      if (decl is TopLevelVariableDeclaration) {
-        for (final v in decl.variables.variables) {
-          if (v.name.lexeme == name) return v;
+    for (final declaration in unit.declarations) {
+      if (declaration is TopLevelVariableDeclaration) {
+        for (final variable in declaration.variables.variables) {
+          if (variable.name.lexeme == name) {
+            return variable;
+          }
         }
       }
     }
@@ -154,11 +167,119 @@ class SchemaParser {
         final methodName = expression.methodName.name;
         return _parseSchemaConstructor(methodName, expression.argumentList);
       }
+      
+      // Handle `.jsonSchema()` calls on generated types
+      if (expression.methodName.name == 'jsonSchema') {
+        if (target != null) {
+          return _resolveSchemaReference(target);
+        }
+      }
+    } else if (expression is Identifier) {
+      return _resolveSchemaReference(expression);
     }
+    
     // Handle internal references or other factories if necessary
     throw UnsupportedError(
       'Unsupported expression in Schema definition: ${expression.toSource()}. Only Schema.* constructors and factories are supported.',
     );
+  }
+
+  static SchemaInfo _resolveSchemaReference(Expression expression) {
+    // Resolve the element
+    Element? element;
+
+    // Access staticElement or element via dynamic to bypass version differences
+    dynamic getElement(dynamic expr) {
+      try {
+        return expr.staticElement;
+      } catch (_) {
+        try {
+          return expr.element;
+        } catch (_) {
+          return null;
+        }
+      }
+    }
+
+    if (expression is Identifier) {
+      element = getElement(expression);
+    } else if (expression is PropertyAccess) {
+      element = getElement(expression.propertyName);
+    }
+
+    // For simpleObject reference
+    if (element is PropertyAccessorElement) {
+      // Getter for a variable
+      final variable = element.variable;
+      if (_hasSchematicAnnotation(variable)) {
+        // It's a Schema variable assignment (const or final)
+        final name = variable.name;
+        if (name != null) {
+          return SchemaInfo(definitionName: _capitalize(name));
+        }
+      }
+    } else if (element is VariableElement) {
+      if (_hasSchematicAnnotation(element)) {
+        final name = element.name;
+        if (name != null) {
+          return SchemaInfo(definitionName: _capitalize(name));
+        }
+      }
+      // Also check if it's the specific generated Type const instance
+      final name = element.name;
+      if (name != null && name.endsWith('Type')) {
+        final baseName = name.substring(0, name.length - 4);
+        return SchemaInfo(definitionName: _capitalize(baseName));
+      }
+    }
+
+    // Fallback: Check static type
+    final type = expression.staticType;
+    if (type != null && !(type is DynamicType)) {
+      final typeName = type.getDisplayString();
+      if (typeName.startsWith('SchemanticType<')) {
+        final generic = typeName.substring(
+          'SchemanticType<'.length,
+          typeName.length - 1,
+        );
+        return SchemaInfo(definitionName: generic);
+      }
+
+      if (typeName.endsWith('TypeFactory')) {
+        final element = type.element;
+        if (element is ClassElement) {
+          final supertypes = element.allSupertypes;
+          // Find SchemanticType<T>
+          for (final s in supertypes) {
+            if (s.element.name == 'SchemanticType' &&
+                s.typeArguments.isNotEmpty) {
+              final generic = s.typeArguments.first.getDisplayString();
+              return SchemaInfo(definitionName: generic);
+            }
+          }
+        }
+      }
+    }
+
+    throw UnsupportedError(
+      'Could not resolve schema reference for: ${expression.toSource()}. '
+      'Ensure it is a variable annotated with @Schematic() or a generated SchemanticType.',
+    );
+  }
+
+  static bool _hasSchematicAnnotation(Element? element) {
+    if (element == null) return false;
+    try {
+      if (_schematicChecker.hasAnnotationOf(element)) {
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  static String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
   }
 
   static SchemaInfo _parseSchemaConstructor(String? name, ArgumentList args) {

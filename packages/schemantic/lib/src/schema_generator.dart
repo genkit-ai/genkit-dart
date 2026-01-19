@@ -797,28 +797,34 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     // 1. Try generic evaluation (works for const)
     SchemaInfo? schemaInfo;
 
-    // Try constant evaluation first
+    // 1. Try AST parsing (preserves references)
+    // We prioritize this because constant evaluation inlines everything, losing "references" to other Schema definitions.
     try {
-      if (element is VariableElement) {
-        final constValue = element.computeConstantValue();
-        if (constValue != null) {
-          schemaInfo = SchemaInfo.fromDartObject(constValue);
-        }
-      }
-    } catch (e) {
-      // Ignore, fallback to AST
+      schemaInfo = await SchemaParser.parseFromElement(element);
+    } catch (e, st) {
+      print('AST Parsing exception for $name: $e\n$st');
+      // Ignore, fallback to constant evaluation
     }
 
-    // 2. Fallback to AST parsing
+    // 2. Fallback to generic evaluation (works for const)
     if (schemaInfo == null) {
       try {
-        schemaInfo = await SchemaParser.parseFromElement(element);
+        if (element is VariableElement) {
+          final constValue = element.computeConstantValue();
+          if (constValue != null) {
+            schemaInfo = SchemaInfo.fromDartObject(constValue);
+          }
+        }
       } catch (e) {
-        throw InvalidGenerationSourceError(
-          'Could not parse Schema definition: $e',
-          element: element,
-        );
+        // Ignore
       }
+    }
+
+    if (schemaInfo == null) {
+      throw InvalidGenerationSourceError(
+        'Could not parse Schema definition. Ensure it is a valid const Schema or follows supported AST patterns.',
+        element: element,
+      );
     }
 
     return _generateFromSchemaInfo(name, schemaInfo);
@@ -827,9 +833,15 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   String _generateFromSchemaInfo(String name, SchemaInfo schemaInfo) {
     final baseName = _capitalize(name);
     final specs = <Spec>[];
+    final dependencies = <String>{};
 
     // Generate Types
-    final typeRef = _analyzeAndGenerateTypes(schemaInfo, baseName, specs);
+    final typeRef = _analyzeAndGenerateTypes(
+      schemaInfo,
+      baseName,
+      specs,
+      dependencies,
+    );
 
     // Generate Type Factory
     final factoryClass = _generateFactoryForSchema(
@@ -837,6 +849,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       name,
       typeRef,
       specs,
+      dependencies,
     );
 
     // Generate constant instance
@@ -863,7 +876,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     SchemaInfo schema,
     String name,
     List<Spec> specs,
+    Set<String> dependencies,
   ) {
+    // Check if it's a reference
+    if (schema.definitionName != null) {
+      dependencies.add(schema.definitionName!);
+      return refer(schema.definitionName!);
+    }
+
     // Check type
     final type = schema.type;
     final items = schema.items;
@@ -885,6 +905,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           valueObject,
           '$name${_capitalize(propName)}',
           specs,
+          dependencies,
         );
 
         // Apply nullability based on required list
@@ -905,7 +926,12 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       return refer(name);
     } else if (items != null) {
       // Array
-      final itemType = _analyzeAndGenerateTypes(items, '${name}Item', specs);
+      final itemType = _analyzeAndGenerateTypes(
+        items,
+        '${name}Item',
+        specs,
+        dependencies,
+      );
       return TypeReference(
         (b) => b
           ..symbol = 'List'
@@ -1078,6 +1104,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     String variableName,
     Reference typeRef,
     List<Spec> specs,
+    Set<String> dependencies,
   ) {
     return Class((b) {
       b
@@ -1144,7 +1171,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             ..body = refer('JsonSchemaMetadata').call([], {
               'name': literalString(baseName),
               'definition': refer(variableName),
-              'dependencies': literalList([]),
+              'dependencies': literalList(
+                dependencies
+                    .map((d) => refer('${_toCamelCase(d)}Type'))
+                    .toList(),
+              ),
             }).code,
         ),
       );
@@ -1167,6 +1198,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     if (s.isEmpty) return s;
     final parts = s.split('_');
     var result = parts[0];
+    if (result.isNotEmpty) {
+      result = result[0].toLowerCase() + result.substring(1);
+    }
     for (var i = 1; i < parts.length; i++) {
       result += _capitalize(parts[i]);
     }
