@@ -190,7 +190,11 @@ class SchemaParser {
           if (keyExpr is SimpleStringLiteral) {
             final key = keyExpr.value;
             result[key] = _parseExpression(element.value);
-          } else {}
+          } else {
+            throw UnsupportedError(
+              'Only string literals are supported as property keys in Schema definitions. Found: ${keyExpr.toSource()}',
+            );
+          }
         }
       }
     }
