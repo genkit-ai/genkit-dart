@@ -142,7 +142,9 @@ class SchemaParser {
       }
     }
     // Handle internal references or other factories if necessary
-    return SchemaInfo(type: 'dynamic');
+    throw UnsupportedError(
+      'Unsupported expression in Schema definition: ${expression.toSource()}. Only Schema.* constructors and factories are supported.',
+    );
   }
 
   static SchemaInfo _parseSchemaConstructor(String? name, ArgumentList args) {
@@ -153,7 +155,7 @@ class SchemaParser {
     } else if (['string', 'integer', 'number', 'boolean'].contains(name)) {
       return SchemaInfo(type: name);
     }
-    return SchemaInfo(type: 'dynamic');
+    throw UnsupportedError('Unsupported Schema constructor: Schema.$name');
   }
 
   static SchemaInfo _parseSchemaObject(ArgumentList args) {
@@ -170,6 +172,10 @@ class SchemaParser {
           if (arg.expression is BooleanLiteral) {
             additionalProperties = (arg.expression as BooleanLiteral).value;
           }
+        } else {
+          throw UnsupportedError(
+            "Unsupported argument '$name' in Schema.object",
+          );
         }
       }
     }
@@ -208,6 +214,10 @@ class SchemaParser {
         final name = arg.name.label.name;
         if (name == 'items') {
           items = _parseExpression(arg.expression);
+        } else {
+          throw UnsupportedError(
+            "Unsupported argument '$name' in Schema.list/array",
+          );
         }
       }
     }
