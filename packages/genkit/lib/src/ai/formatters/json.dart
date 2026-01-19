@@ -14,10 +14,10 @@
 
 import 'dart:convert';
 
-import 'package:genkit/src/ai/formatters/types.dart';
-import 'package:genkit/src/extract.dart';
-import 'package:genkit/src/schema_extensions.dart';
-import 'package:genkit/src/types.dart';
+import '../../extract.dart';
+import '../../schema_extensions.dart';
+import '../../types.dart';
+import 'types.dart';
 
 final jsonFormatter = Formatter(
   name: 'json',

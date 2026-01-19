@@ -14,22 +14,23 @@
 
 import 'dart:async';
 
-import 'package:genkit/src/ai/formatters/formatters.dart';
-import 'package:genkit/src/ai/generate.dart';
-import 'package:genkit/src/ai/model.dart';
-import 'package:genkit/src/ai/tool.dart';
-import 'package:genkit/src/core/action.dart';
-import 'package:genkit/src/core/flow.dart';
-import 'package:genkit/src/core/plugin.dart';
-import 'package:genkit/src/core/reflection.dart';
-import 'package:genkit/src/core/reflection_v2.dart';
-import 'package:genkit/src/core/registry.dart';
-import 'package:genkit/src/exception.dart';
-import 'package:genkit/src/o11y/instrumentation.dart';
-import 'package:genkit/src/schema.dart';
-import 'package:genkit/src/types.dart';
-import 'package:genkit/src/utils.dart';
 import 'package:schemantic/schemantic.dart';
+
+import 'src/ai/formatters/formatters.dart';
+import 'src/ai/generate.dart';
+import 'src/ai/model.dart';
+import 'src/ai/tool.dart';
+import 'src/core/action.dart';
+import 'src/core/flow.dart';
+import 'src/core/plugin.dart';
+import 'src/core/reflection.dart';
+import 'src/core/reflection_v2.dart';
+import 'src/core/registry.dart';
+import 'src/exception.dart';
+import 'src/o11y/instrumentation.dart';
+import 'src/schema.dart';
+import 'src/types.dart';
+import 'src/utils.dart';
 
 export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'

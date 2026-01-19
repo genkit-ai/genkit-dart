@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/src/ai/generate.dart';
-import 'package:genkit/src/types.dart';
+import '../../types.dart';
+import '../generate.dart';
 
 /// Function type for parsing a message.
 typedef MessageParser<O> = O Function(Message message);

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/src/core/action.dart';
+import '../core/action.dart';
 
 class Tool<I, O> extends Action<I, O, void, void> {
   Tool({
