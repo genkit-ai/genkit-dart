@@ -945,7 +945,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
       fields.forEach((jsonKey, typeRef) {
         final fieldName = _toCamelCase(jsonKey);
-        
+
         // Determine if parameter should be required
         bool isRequiredWrapper = true;
         if (typeRef is TypeReference) {
