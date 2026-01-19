@@ -18,7 +18,7 @@ import 'package:schemantic/schemantic.dart';
 part 'integration_schema_test.schema.g.dart';
 
 @Schematic()
-final Schema simpleObjectSchema = Schema.object(
+final Schema simpleObject = Schema.object(
   properties: {
     'name': Schema.string(),
     'count': Schema.integer(),
@@ -27,7 +27,7 @@ final Schema simpleObjectSchema = Schema.object(
 );
 
 @Schematic()
-final Schema nestedObjectSchema = Schema.object(
+final Schema nestedObject = Schema.object(
   properties: {
     'id': Schema.string(),
     'metadata': Schema.object(
@@ -64,22 +64,33 @@ final Schema complexCollectionsSchema = Schema.object(
   },
 );
 
+@Schematic()
+final Schema deeplyNestedObject = Schema.object(
+  properties: {
+    'level1': Schema.object(
+      properties: {
+        'level2': Schema.object(
+          properties: {
+            'level3': Schema.object(properties: {'name': Schema.string()}),
+          },
+        ),
+      },
+    ),
+  },
+);
+
 void main() {
   group('Simple Object Schema', () {
     test('parses valid json', () {
       final json = {'name': 'test', 'count': 10, 'isActive': true};
-      final obj = simpleObjectSchemaType.parse(json);
+      final obj = simpleObjectType.parse(json);
       expect(obj.name, 'test');
       expect(obj.count, 10);
       expect(obj.isActive, true);
     });
 
     test('toJson returns correct map', () {
-      final obj = SimpleObjectSchema.from(
-        name: 'test',
-        count: 10,
-        isActive: false,
-      );
+      final obj = SimpleObject.from(name: 'test', count: 10, isActive: false);
       expect(obj.toJson(), {'name': 'test', 'count': 10, 'isActive': false});
     });
   });
@@ -93,7 +104,7 @@ void main() {
           'tags': ['a', 'b'],
         },
       };
-      final obj = nestedObjectSchemaType.parse(json);
+      final obj = nestedObjectType.parse(json);
       expect(obj.id, '123');
       expect(obj.metadata.created, '2025-01-01');
       expect(obj.metadata.tags, ['a', 'b']);
@@ -174,6 +185,20 @@ void main() {
       expect(obj.objectList.length, 2);
       expect(obj.objectList[0].id, '1');
       expect(obj.objectList[1].id, '2');
+    });
+  });
+
+  group('Deeply Nested Object Schema', () {
+    test('parses deeply nested structure', () {
+      final json = {
+        'level1': {
+          'level2': {
+            'level3': {'name': 'deep'},
+          },
+        },
+      };
+      final obj = deeplyNestedObjectType.parse(json);
+      expect(obj.level1.level2.level3.name, 'deep');
     });
   });
 }

@@ -21,18 +21,14 @@ part of 'integration_schema_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type SimpleObjectSchema(Map<String, dynamic> _json)
+extension type SimpleObject(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory SimpleObjectSchema.from({
+  factory SimpleObject.from({
     required String name,
     required int count,
     required bool isActive,
   }) {
-    return SimpleObjectSchema({
-      'name': name,
-      'count': count,
-      'isActive': isActive,
-    });
+    return SimpleObject({'name': name, 'count': count, 'isActive': isActive});
   }
 
   String get name {
@@ -64,32 +60,31 @@ extension type SimpleObjectSchema(Map<String, dynamic> _json)
   }
 }
 
-class _SimpleObjectSchemaTypeFactory
-    extends SchemanticType<SimpleObjectSchema> {
-  const _SimpleObjectSchemaTypeFactory();
+class _SimpleObjectTypeFactory extends SchemanticType<SimpleObject> {
+  const _SimpleObjectTypeFactory();
 
   @override
-  SimpleObjectSchema parse(Object? json) {
-    return SimpleObjectSchema(json as Map<String, dynamic>);
+  SimpleObject parse(Object? json) {
+    return SimpleObject(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'SimpleObjectSchema',
-    definition: simpleObjectSchema,
+    name: 'SimpleObject',
+    definition: simpleObject,
     dependencies: [],
   );
 }
 
-const simpleObjectSchemaType = _SimpleObjectSchemaTypeFactory();
+const simpleObjectType = _SimpleObjectTypeFactory();
 
-extension type NestedObjectSchemaMetadata(Map<String, dynamic> _json)
+extension type NestedObjectMetadata(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory NestedObjectSchemaMetadata.from({
+  factory NestedObjectMetadata.from({
     required String created,
     required List<String> tags,
   }) {
-    return NestedObjectSchemaMetadata({'created': created, 'tags': tags});
+    return NestedObjectMetadata({'created': created, 'tags': tags});
   }
 
   String get created {
@@ -112,13 +107,13 @@ extension type NestedObjectSchemaMetadata(Map<String, dynamic> _json)
     return _json;
   }
 }
-extension type NestedObjectSchema(Map<String, dynamic> _json)
+extension type NestedObject(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory NestedObjectSchema.from({
+  factory NestedObject.from({
     required String id,
-    required NestedObjectSchemaMetadata metadata,
+    required NestedObjectMetadata metadata,
   }) {
-    return NestedObjectSchema({'id': id, 'metadata': metadata});
+    return NestedObject({'id': id, 'metadata': metadata});
   }
 
   String get id {
@@ -129,11 +124,11 @@ extension type NestedObjectSchema(Map<String, dynamic> _json)
     _json['id'] = value;
   }
 
-  NestedObjectSchemaMetadata get metadata {
-    return _json['metadata'] as NestedObjectSchemaMetadata;
+  NestedObjectMetadata get metadata {
+    return _json['metadata'] as NestedObjectMetadata;
   }
 
-  set metadata(NestedObjectSchemaMetadata value) {
+  set metadata(NestedObjectMetadata value) {
     _json['metadata'] = value;
   }
 
@@ -142,24 +137,23 @@ extension type NestedObjectSchema(Map<String, dynamic> _json)
   }
 }
 
-class _NestedObjectSchemaTypeFactory
-    extends SchemanticType<NestedObjectSchema> {
-  const _NestedObjectSchemaTypeFactory();
+class _NestedObjectTypeFactory extends SchemanticType<NestedObject> {
+  const _NestedObjectTypeFactory();
 
   @override
-  NestedObjectSchema parse(Object? json) {
-    return NestedObjectSchema(json as Map<String, dynamic>);
+  NestedObject parse(Object? json) {
+    return NestedObject(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'NestedObjectSchema',
-    definition: nestedObjectSchema,
+    name: 'NestedObject',
+    definition: nestedObject,
     dependencies: [],
   );
 }
 
-const nestedObjectSchemaType = _NestedObjectSchemaTypeFactory();
+const nestedObjectType = _NestedObjectTypeFactory();
 
 extension type ArraySchemaItem(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
@@ -347,3 +341,99 @@ class _ComplexCollectionsSchemaTypeFactory
 }
 
 const complexCollectionsSchemaType = _ComplexCollectionsSchemaTypeFactory();
+
+extension type DeeplyNestedObjectLevel1Level2Level3(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory DeeplyNestedObjectLevel1Level2Level3.from({required String name}) {
+    return DeeplyNestedObjectLevel1Level2Level3({'name': name});
+  }
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+extension type DeeplyNestedObjectLevel1Level2(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory DeeplyNestedObjectLevel1Level2.from({
+    required DeeplyNestedObjectLevel1Level2Level3 level3,
+  }) {
+    return DeeplyNestedObjectLevel1Level2({'level3': level3});
+  }
+
+  DeeplyNestedObjectLevel1Level2Level3 get level3 {
+    return _json['level3'] as DeeplyNestedObjectLevel1Level2Level3;
+  }
+
+  set level3(DeeplyNestedObjectLevel1Level2Level3 value) {
+    _json['level3'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+extension type DeeplyNestedObjectLevel1(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory DeeplyNestedObjectLevel1.from({
+    required DeeplyNestedObjectLevel1Level2 level2,
+  }) {
+    return DeeplyNestedObjectLevel1({'level2': level2});
+  }
+
+  DeeplyNestedObjectLevel1Level2 get level2 {
+    return _json['level2'] as DeeplyNestedObjectLevel1Level2;
+  }
+
+  set level2(DeeplyNestedObjectLevel1Level2 value) {
+    _json['level2'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+extension type DeeplyNestedObject(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory DeeplyNestedObject.from({required DeeplyNestedObjectLevel1 level1}) {
+    return DeeplyNestedObject({'level1': level1});
+  }
+
+  DeeplyNestedObjectLevel1 get level1 {
+    return _json['level1'] as DeeplyNestedObjectLevel1;
+  }
+
+  set level1(DeeplyNestedObjectLevel1 value) {
+    _json['level1'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _DeeplyNestedObjectTypeFactory
+    extends SchemanticType<DeeplyNestedObject> {
+  const _DeeplyNestedObjectTypeFactory();
+
+  @override
+  DeeplyNestedObject parse(Object? json) {
+    return DeeplyNestedObject(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'DeeplyNestedObject',
+    definition: deeplyNestedObject,
+    dependencies: [],
+  );
+}
+
+const deeplyNestedObjectType = _DeeplyNestedObjectTypeFactory();
