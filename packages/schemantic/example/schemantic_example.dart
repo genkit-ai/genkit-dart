@@ -43,6 +43,19 @@ abstract class UserSchema {
   AddressSchema? get address;
 }
 
+/// Define a schema using the Schema class directly.
+/// This works for top-level variables.
+@Schematic()
+final Schema productSchema = Schema.object(
+  properties: {
+    'id': Schema.string(),
+    'name': Schema.string(),
+    'price': Schema.number(),
+    'tags': Schema.list(items: Schema.string()),
+  },
+  required: ['id', 'name', 'price'],
+);
+
 void main() async {
   // 1. Create an instance using the generated class
   final address = Address.from(
@@ -149,4 +162,25 @@ void main() async {
     'Parsed Map: $parsedScores',
   ); // {Alice: {name: Alice, isAdmin: true}, Bob: {name: Bob, isAdmin: false}}
   print('Map Schema: ${scores.jsonSchema().toJson()}');
+
+  // 7. Schema from Variable (ProductSchema)
+  print('\n--- Schema from Variable (ProductSchema) ---');
+  final productJson = {
+    'id': 'p123',
+    'name': 'Super Widget',
+    'price': 19.99,
+    'tags': ['gadget', 'new'],
+  };
+  final product = productSchemaType.parse(productJson);
+  print('Product: ${product.name} costs \$${product.price}');
+  print('Tags: ${product.tags}');
+
+  // Validation check
+  final productValidation = await productSchemaType.jsonSchema().validate({
+    'id': 'p124',
+    // Missing name and price
+  });
+  if (productValidation.isNotEmpty) {
+    print('Validation correctly failed: $productValidation');
+  }
 }
