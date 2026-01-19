@@ -1,3 +1,10 @@
+## 0.0.1-dev.9
+
+> Note: This release has breaking changes.
+
+ - **FEAT**: Enable schema generation from final Schema variables (#45).
+ - **BREAKING** **REFACTOR**: renamed JsonExtensionType to SchemanticType (#44).
+
 ## 0.0.1-dev.8
 
 ## 0.0.1-dev.7

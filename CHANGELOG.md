@@ -11,6 +11,43 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - [`genkit` - `v0.10.0-dev.8`](#genkit---v0100-dev8)
+ - [`genkit_google_genai` - `v0.0.1-dev.8`](#genkit_google_genai---v001-dev8)
+ - [`genkit_shelf` - `v0.0.1-dev.8`](#genkit_shelf---v001-dev8)
+ - [`schemantic` - `v0.0.1-dev.9`](#schemantic---v001-dev9)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `genkit` - `v0.10.0-dev.8`
+
+ - **BREAKING** **REFACTOR**: renamed JsonExtensionType to SchemanticType (#44).
+
+#### `genkit_google_genai` - `v0.0.1-dev.8`
+
+ - **BREAKING** **REFACTOR**: renamed JsonExtensionType to SchemanticType (#44).
+
+#### `genkit_shelf` - `v0.0.1-dev.8`
+
+ - **BREAKING** **REFACTOR**: renamed JsonExtensionType to SchemanticType (#44).
+
+#### `schemantic` - `v0.0.1-dev.9`
+
+ - **FEAT**: Enable schema generation from final Schema variables (#45).
+ - **BREAKING** **REFACTOR**: renamed JsonExtensionType to SchemanticType (#44).
+
+
+## 2026-01-18
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - There are no breaking changes in this release.
 
 Packages with other changes:
