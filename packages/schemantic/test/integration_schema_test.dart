@@ -79,6 +79,12 @@ final Schema deeplyNestedObject = Schema.object(
   },
 );
 
+@Schematic()
+final Schema requiredFieldsSchema = Schema.object(
+  properties: {'reqString': Schema.string(), 'optString': Schema.string()},
+  required: ['reqString'],
+);
+
 void main() {
   group('Simple Object Schema', () {
     test('parses valid json', () {
@@ -106,8 +112,8 @@ void main() {
       };
       final obj = nestedObjectType.parse(json);
       expect(obj.id, '123');
-      expect(obj.metadata.created, '2025-01-01');
-      expect(obj.metadata.tags, ['a', 'b']);
+      expect(obj.metadata?.created, '2025-01-01');
+      expect(obj.metadata?.tags, ['a', 'b']);
     });
   });
 
@@ -165,8 +171,8 @@ void main() {
       };
       final obj = complexCollectionsSchemaType.parse(json);
       expect(obj.matrix, isA<List<List<String>>>());
-      expect(obj.matrix[0], ['a', 'b']);
-      expect(obj.matrix[1], ['c', 'd']);
+      expect(obj.matrix?[0], ['a', 'b']);
+      expect(obj.matrix?[1], ['c', 'd']);
     });
 
     test('parses object list', () {
@@ -182,9 +188,9 @@ void main() {
         obj.objectList,
         isA<List<ComplexCollectionsSchemaObjectListItem>>(),
       );
-      expect(obj.objectList.length, 2);
-      expect(obj.objectList[0].id, '1');
-      expect(obj.objectList[1].id, '2');
+      expect(obj.objectList?.length, 2);
+      expect(obj.objectList?[0].id, '1');
+      expect(obj.objectList?[1].id, '2');
     });
   });
 
@@ -198,7 +204,23 @@ void main() {
         },
       };
       final obj = deeplyNestedObjectType.parse(json);
-      expect(obj.level1.level2.level3.name, 'deep');
+      expect(obj.level1?.level2?.level3?.name, 'deep');
+    });
+  });
+
+  group('Required Fields Schema', () {
+    test('enforces nullability based on required list', () {
+      final json = {'reqString': 'required', 'optString': 'optional'};
+      final obj = requiredFieldsSchemaType.parse(json);
+      expect(obj.reqString, 'required');
+      expect(obj.optString, 'optional');
+
+      // Verify strict types via runtime checks
+
+      final jsonMissingOptional = {'reqString': 'required'};
+      final obj2 = requiredFieldsSchemaType.parse(jsonMissingOptional);
+      expect(obj2.reqString, 'required');
+      expect(obj2.optString, null);
     });
   });
 }

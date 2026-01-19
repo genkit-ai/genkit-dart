@@ -881,11 +881,24 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
       properties.forEach((key, valueObject) {
         final propName = _toCamelCase(key);
-        fields[key] = _analyzeAndGenerateTypes(
+        var fieldType = _analyzeAndGenerateTypes(
           valueObject,
           '$name${_capitalize(propName)}',
           specs,
         );
+
+        // Apply nullability based on required list
+        final isRequired = schema.required?.contains(key) ?? false;
+        if (!isRequired) {
+          if (fieldType is TypeReference) {
+            fieldType = fieldType.rebuild((b) => b..isNullable = true);
+          } else if (fieldType.symbol != null &&
+              !fieldType.symbol!.endsWith('?')) {
+            fieldType = refer('${fieldType.symbol}?');
+          }
+        }
+
+        fields[key] = fieldType;
       });
 
       _generateExtensionTypeForSchema(name, fields, specs);
@@ -932,6 +945,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
       fields.forEach((jsonKey, typeRef) {
         final fieldName = _toCamelCase(jsonKey);
+        
+        // Determine if parameter should be required
+        bool isRequiredWrapper = true;
+        if (typeRef is TypeReference) {
+          isRequiredWrapper = !(typeRef.isNullable ?? false);
+        } else if (typeRef.symbol != null) {
+          isRequiredWrapper = !typeRef.symbol!.endsWith('?');
+        }
 
         params.add(
           Parameter(
@@ -939,7 +960,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
               ..name = fieldName
               ..type = typeRef
               ..named = true
-              ..required = true,
+              ..required = isRequiredWrapper,
           ),
         );
         bodyEntries.add("'$jsonKey': $fieldName");

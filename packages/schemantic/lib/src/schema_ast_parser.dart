@@ -24,6 +24,7 @@ class SchemaInfo {
   final Map<String, SchemaInfo>? properties;
   final bool? additionalProperties;
   final String? definitionName;
+  final List<String>? required;
 
   SchemaInfo({
     this.type,
@@ -31,6 +32,7 @@ class SchemaInfo {
     this.properties,
     this.additionalProperties,
     this.definitionName,
+    this.required,
   });
 
   factory SchemaInfo.fromDartObject(DartObject object) {
@@ -63,11 +65,23 @@ class SchemaInfo {
       additionalProperties = apObj.toBoolValue();
     }
 
+    // required
+    List<String>? required;
+    final reqObj = object.getField('required')?.toListValue();
+    if (reqObj != null) {
+      required = [];
+      for (final req in reqObj) {
+        final s = req.toStringValue();
+        if (s != null) required.add(s);
+      }
+    }
+
     return SchemaInfo(
       type: type,
       items: items,
       properties: properties,
       additionalProperties: additionalProperties,
+      required: required,
     );
   }
 }
@@ -161,6 +175,7 @@ class SchemaParser {
   static SchemaInfo _parseSchemaObject(ArgumentList args) {
     Map<String, SchemaInfo>? properties;
     bool? additionalProperties;
+    List<String>? required;
 
     for (final arg in args.arguments) {
       if (arg is NamedExpression) {
@@ -172,6 +187,8 @@ class SchemaParser {
           if (arg.expression is BooleanLiteral) {
             additionalProperties = (arg.expression as BooleanLiteral).value;
           }
+        } else if (name == 'required') {
+          required = _parseRequired(arg.expression);
         } else {
           throw UnsupportedError(
             "Unsupported argument '$name' in Schema.object",
@@ -184,6 +201,7 @@ class SchemaParser {
       type: 'object',
       properties: properties,
       additionalProperties: additionalProperties,
+      required: required,
     );
   }
 
@@ -205,6 +223,18 @@ class SchemaParser {
       }
     }
     return result;
+  }
+
+  static List<String> _parseRequired(Expression expression) {
+    if (expression is ListLiteral) {
+      return expression.elements
+          .whereType<SimpleStringLiteral>()
+          .map((e) => e.value)
+          .toList();
+    }
+    throw UnsupportedError(
+      'Schema.object(required: ...) must be a list literal of strings',
+    );
   }
 
   static SchemaInfo _parseSchemaArray(ArgumentList args) {

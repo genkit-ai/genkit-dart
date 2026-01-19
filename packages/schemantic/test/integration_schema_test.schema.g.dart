@@ -23,35 +23,31 @@ part of 'integration_schema_test.dart';
 
 extension type SimpleObject(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory SimpleObject.from({
-    required String name,
-    required int count,
-    required bool isActive,
-  }) {
+  factory SimpleObject.from({String? name, int? count, bool? isActive}) {
     return SimpleObject({'name': name, 'count': count, 'isActive': isActive});
   }
 
-  String get name {
-    return _json['name'] as String;
+  String? get name {
+    return _json['name'] as String?;
   }
 
-  set name(String value) {
+  set name(String? value) {
     _json['name'] = value;
   }
 
-  int get count {
-    return _json['count'] as int;
+  int? get count {
+    return _json['count'] as int?;
   }
 
-  set count(int value) {
+  set count(int? value) {
     _json['count'] = value;
   }
 
-  bool get isActive {
-    return _json['isActive'] as bool;
+  bool? get isActive {
+    return _json['isActive'] as bool?;
   }
 
-  set isActive(bool value) {
+  set isActive(bool? value) {
     _json['isActive'] = value;
   }
 
@@ -80,26 +76,23 @@ const simpleObjectType = _SimpleObjectTypeFactory();
 
 extension type NestedObjectMetadata(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory NestedObjectMetadata.from({
-    required String created,
-    required List<String> tags,
-  }) {
+  factory NestedObjectMetadata.from({String? created, List<String>? tags}) {
     return NestedObjectMetadata({'created': created, 'tags': tags});
   }
 
-  String get created {
-    return _json['created'] as String;
+  String? get created {
+    return _json['created'] as String?;
   }
 
-  set created(String value) {
+  set created(String? value) {
     _json['created'] = value;
   }
 
-  List<String> get tags {
+  List<String>? get tags {
     return (_json['tags'] as List).cast<String>();
   }
 
-  set tags(List<String> value) {
+  set tags(List<String>? value) {
     _json['tags'] = value;
   }
 
@@ -109,26 +102,25 @@ extension type NestedObjectMetadata(Map<String, dynamic> _json)
 }
 extension type NestedObject(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory NestedObject.from({
-    required String id,
-    required NestedObjectMetadata metadata,
-  }) {
+  factory NestedObject.from({String? id, NestedObjectMetadata? metadata}) {
     return NestedObject({'id': id, 'metadata': metadata});
   }
 
-  String get id {
-    return _json['id'] as String;
+  String? get id {
+    return _json['id'] as String?;
   }
 
-  set id(String value) {
+  set id(String? value) {
     _json['id'] = value;
   }
 
-  NestedObjectMetadata get metadata {
-    return NestedObjectMetadata(_json['metadata'] as Map<String, dynamic>);
+  NestedObjectMetadata? get metadata {
+    return _json['metadata'] == null
+        ? null
+        : NestedObjectMetadata(_json['metadata'] as Map<String, dynamic>);
   }
 
-  set metadata(NestedObjectMetadata value) {
+  set metadata(NestedObjectMetadata? value) {
     _json['metadata'] = value;
   }
 
@@ -157,15 +149,15 @@ const nestedObjectType = _NestedObjectTypeFactory();
 
 extension type ArraySchemaItem(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory ArraySchemaItem.from({required int value}) {
+  factory ArraySchemaItem.from({int? value}) {
     return ArraySchemaItem({'value': value});
   }
 
-  int get value {
-    return _json['value'] as int;
+  int? get value {
+    return _json['value'] as int?;
   }
 
-  set value(int value) {
+  set value(int? value) {
     _json['value'] = value;
   }
 
@@ -198,10 +190,10 @@ const arraySchemaType = _ArraySchemaTypeFactory();
 extension type AllPrimitivesSchema(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
   factory AllPrimitivesSchema.from({
-    required String str,
-    required int intNum,
-    required num dblNum,
-    required bool isTruth,
+    String? str,
+    int? intNum,
+    num? dblNum,
+    bool? isTruth,
   }) {
     return AllPrimitivesSchema({
       'str': str,
@@ -211,35 +203,35 @@ extension type AllPrimitivesSchema(Map<String, dynamic> _json)
     });
   }
 
-  String get str {
-    return _json['str'] as String;
+  String? get str {
+    return _json['str'] as String?;
   }
 
-  set str(String value) {
+  set str(String? value) {
     _json['str'] = value;
   }
 
-  int get intNum {
-    return _json['intNum'] as int;
+  int? get intNum {
+    return _json['intNum'] as int?;
   }
 
-  set intNum(int value) {
+  set intNum(int? value) {
     _json['intNum'] = value;
   }
 
-  num get dblNum {
-    return _json['dblNum'] as num;
+  num? get dblNum {
+    return _json['dblNum'] as num?;
   }
 
-  set dblNum(num value) {
+  set dblNum(num? value) {
     _json['dblNum'] = value;
   }
 
-  bool get isTruth {
-    return _json['isTruth'] as bool;
+  bool? get isTruth {
+    return _json['isTruth'] as bool?;
   }
 
-  set isTruth(bool value) {
+  set isTruth(bool? value) {
     _json['isTruth'] = value;
   }
 
@@ -271,15 +263,15 @@ extension type ComplexCollectionsSchemaObjectListItem(
   Map<String, dynamic> _json
 )
     implements Map<String, dynamic> {
-  factory ComplexCollectionsSchemaObjectListItem.from({required String id}) {
+  factory ComplexCollectionsSchemaObjectListItem.from({String? id}) {
     return ComplexCollectionsSchemaObjectListItem({'id': id});
   }
 
-  String get id {
-    return _json['id'] as String;
+  String? get id {
+    return _json['id'] as String?;
   }
 
-  set id(String value) {
+  set id(String? value) {
     _json['id'] = value;
   }
 
@@ -290,8 +282,8 @@ extension type ComplexCollectionsSchemaObjectListItem(
 extension type ComplexCollectionsSchema(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
   factory ComplexCollectionsSchema.from({
-    required List<List<String>> matrix,
-    required List<ComplexCollectionsSchemaObjectListItem> objectList,
+    List<List<String>>? matrix,
+    List<ComplexCollectionsSchemaObjectListItem>? objectList,
   }) {
     return ComplexCollectionsSchema({
       'matrix': matrix,
@@ -299,24 +291,24 @@ extension type ComplexCollectionsSchema(Map<String, dynamic> _json)
     });
   }
 
-  List<List<String>> get matrix {
+  List<List<String>>? get matrix {
     return (_json['matrix'] as List)
         .map((e) => (e as List).cast<String>().toList())
         .toList();
   }
 
-  set matrix(List<List<String>> value) {
+  set matrix(List<List<String>>? value) {
     _json['matrix'] = value;
   }
 
-  List<ComplexCollectionsSchemaObjectListItem> get objectList {
+  List<ComplexCollectionsSchemaObjectListItem>? get objectList {
     return (_json['objectList'] as List)
         .cast<Map<String, dynamic>>()
         .map((e) => ComplexCollectionsSchemaObjectListItem(e))
         .toList();
   }
 
-  set objectList(List<ComplexCollectionsSchemaObjectListItem> value) {
+  set objectList(List<ComplexCollectionsSchemaObjectListItem>? value) {
     _json['objectList'] = value;
   }
 
@@ -346,15 +338,15 @@ const complexCollectionsSchemaType = _ComplexCollectionsSchemaTypeFactory();
 
 extension type DeeplyNestedObjectLevel1Level2Level3(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory DeeplyNestedObjectLevel1Level2Level3.from({required String name}) {
+  factory DeeplyNestedObjectLevel1Level2Level3.from({String? name}) {
     return DeeplyNestedObjectLevel1Level2Level3({'name': name});
   }
 
-  String get name {
-    return _json['name'] as String;
+  String? get name {
+    return _json['name'] as String?;
   }
 
-  set name(String value) {
+  set name(String? value) {
     _json['name'] = value;
   }
 
@@ -365,18 +357,20 @@ extension type DeeplyNestedObjectLevel1Level2Level3(Map<String, dynamic> _json)
 extension type DeeplyNestedObjectLevel1Level2(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
   factory DeeplyNestedObjectLevel1Level2.from({
-    required DeeplyNestedObjectLevel1Level2Level3 level3,
+    DeeplyNestedObjectLevel1Level2Level3? level3,
   }) {
     return DeeplyNestedObjectLevel1Level2({'level3': level3});
   }
 
-  DeeplyNestedObjectLevel1Level2Level3 get level3 {
-    return DeeplyNestedObjectLevel1Level2Level3(
-      _json['level3'] as Map<String, dynamic>,
-    );
+  DeeplyNestedObjectLevel1Level2Level3? get level3 {
+    return _json['level3'] == null
+        ? null
+        : DeeplyNestedObjectLevel1Level2Level3(
+            _json['level3'] as Map<String, dynamic>,
+          );
   }
 
-  set level3(DeeplyNestedObjectLevel1Level2Level3 value) {
+  set level3(DeeplyNestedObjectLevel1Level2Level3? value) {
     _json['level3'] = value;
   }
 
@@ -387,18 +381,20 @@ extension type DeeplyNestedObjectLevel1Level2(Map<String, dynamic> _json)
 extension type DeeplyNestedObjectLevel1(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
   factory DeeplyNestedObjectLevel1.from({
-    required DeeplyNestedObjectLevel1Level2 level2,
+    DeeplyNestedObjectLevel1Level2? level2,
   }) {
     return DeeplyNestedObjectLevel1({'level2': level2});
   }
 
-  DeeplyNestedObjectLevel1Level2 get level2 {
-    return DeeplyNestedObjectLevel1Level2(
-      _json['level2'] as Map<String, dynamic>,
-    );
+  DeeplyNestedObjectLevel1Level2? get level2 {
+    return _json['level2'] == null
+        ? null
+        : DeeplyNestedObjectLevel1Level2(
+            _json['level2'] as Map<String, dynamic>,
+          );
   }
 
-  set level2(DeeplyNestedObjectLevel1Level2 value) {
+  set level2(DeeplyNestedObjectLevel1Level2? value) {
     _json['level2'] = value;
   }
 
@@ -408,15 +404,17 @@ extension type DeeplyNestedObjectLevel1(Map<String, dynamic> _json)
 }
 extension type DeeplyNestedObject(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory DeeplyNestedObject.from({required DeeplyNestedObjectLevel1 level1}) {
+  factory DeeplyNestedObject.from({DeeplyNestedObjectLevel1? level1}) {
     return DeeplyNestedObject({'level1': level1});
   }
 
-  DeeplyNestedObjectLevel1 get level1 {
-    return DeeplyNestedObjectLevel1(_json['level1'] as Map<String, dynamic>);
+  DeeplyNestedObjectLevel1? get level1 {
+    return _json['level1'] == null
+        ? null
+        : DeeplyNestedObjectLevel1(_json['level1'] as Map<String, dynamic>);
   }
 
-  set level1(DeeplyNestedObjectLevel1 value) {
+  set level1(DeeplyNestedObjectLevel1? value) {
     _json['level1'] = value;
   }
 
@@ -443,3 +441,55 @@ class _DeeplyNestedObjectTypeFactory
 }
 
 const deeplyNestedObjectType = _DeeplyNestedObjectTypeFactory();
+
+extension type RequiredFieldsSchema(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory RequiredFieldsSchema.from({
+    required String reqString,
+    String? optString,
+  }) {
+    return RequiredFieldsSchema({
+      'reqString': reqString,
+      'optString': optString,
+    });
+  }
+
+  String get reqString {
+    return _json['reqString'] as String;
+  }
+
+  set reqString(String value) {
+    _json['reqString'] = value;
+  }
+
+  String? get optString {
+    return _json['optString'] as String?;
+  }
+
+  set optString(String? value) {
+    _json['optString'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _RequiredFieldsSchemaTypeFactory
+    extends SchemanticType<RequiredFieldsSchema> {
+  const _RequiredFieldsSchemaTypeFactory();
+
+  @override
+  RequiredFieldsSchema parse(Object? json) {
+    return RequiredFieldsSchema(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'RequiredFieldsSchema',
+    definition: requiredFieldsSchema,
+    dependencies: [],
+  );
+}
+
+const requiredFieldsSchemaType = _RequiredFieldsSchemaTypeFactory();
