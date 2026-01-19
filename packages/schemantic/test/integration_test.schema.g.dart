@@ -444,3 +444,46 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
 
 // ignore: constant_identifier_names
 const DescriptionType = _DescriptionTypeFactory();
+
+extension type CrossFileParent(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory CrossFileParent.from({required SharedChild child}) {
+    return CrossFileParent({'child': child.toJson()});
+  }
+
+  SharedChild get child {
+    return SharedChild(_json['child'] as Map<String, dynamic>);
+  }
+
+  set child(SharedChild value) {
+    _json['child'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
+  const _CrossFileParentTypeFactory();
+
+  @override
+  CrossFileParent parse(Object? json) {
+    return CrossFileParent(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'CrossFileParent',
+    definition: Schema.object(
+      properties: {
+        'child': Schema.fromMap({'\$ref': r'#/$defs/SharedChild'}),
+      },
+      required: ['child'],
+    ),
+    dependencies: [SharedChildType],
+  );
+}
+
+// ignore: constant_identifier_names
+const CrossFileParentType = _CrossFileParentTypeFactory();

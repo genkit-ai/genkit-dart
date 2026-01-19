@@ -231,36 +231,3 @@ abstract class UserSchema {
 
 Validation matches the Dart type (e.g., using `@StringField` on an `int` getter will throw a build-time error).
 
-## Schema-based Definition
-
-Alternatively, you can define your schema using the `Schema` class directly. This is useful when you want to define the schema structure explicitly without an abstract class.
-
-```dart
-import 'package:schemantic/schemantic.dart';
-
-part 'config.schema.g.dart';
-
-// The variable name determines the generated class name (e.g. 'myConfig' -> 'MyConfig').
-const myConfig = Schema.object(
-  properties: {
-    'host': Schema.string(),
-    'port': Schema.integer(minimum: 1, maximum: 65535),
-    'tags': Schema.list(items: Schema.string()),
-    'meta': Schema.map(valueType: Schema.string()), // or Schema.object(additionalProperties: Schema.string())
-  },
-  required: ['host', 'port'],
-);
-```
-
-Run build_runner, and it will generate:
-- `MyConfig` class (extension type)
-- `myConfigType` factory and utility
-
-### Strict Generation
-
-The generator enforces strict validation for `Schema` definitions:
-- You must use `Schema.*` static methods (e.g., `Schema.object`, `Schema.string`).
-- Property keys must be string literals.
-- Unknown arguments will throw an error during generation.
-
-
