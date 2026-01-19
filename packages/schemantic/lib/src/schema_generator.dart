@@ -21,17 +21,6 @@ import 'package:dart_style/dart_style.dart';
 import 'package:schemantic/schemantic.dart' hide Field;
 import 'package:source_gen/source_gen.dart';
 
-const _castableTypes = {
-  'String',
-  'int',
-  'num',
-  'bool',
-  'double',
-  'DateTime',
-  'dynamic',
-  'Object',
-};
-
 class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   @override
   Future<String> generateForAnnotatedElement(
