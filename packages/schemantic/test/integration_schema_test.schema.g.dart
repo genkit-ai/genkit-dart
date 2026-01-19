@@ -21,6 +21,64 @@ part of 'integration_schema_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
+extension type CrossFileRefSchema(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory CrossFileRefSchema.from({
+    SharedChildSchema? child,
+    SharedChildSchema? childViaType,
+  }) {
+    return CrossFileRefSchema({'child': child, 'childViaType': childViaType});
+  }
+
+  SharedChildSchema? get child {
+    return _json['child'] == null
+        ? null
+        : SharedChildSchema(_json['child'] as Map<String, dynamic>);
+  }
+
+  set child(SharedChildSchema? value) {
+    _json['child'] = value;
+  }
+
+  SharedChildSchema? get childViaType {
+    return _json['childViaType'] == null
+        ? null
+        : SharedChildSchema(_json['childViaType'] as Map<String, dynamic>);
+  }
+
+  set childViaType(SharedChildSchema? value) {
+    _json['childViaType'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _CrossFileRefSchemaTypeFactory
+    extends SchemanticType<CrossFileRefSchema> {
+  const _CrossFileRefSchemaTypeFactory();
+
+  @override
+  CrossFileRefSchema parse(Object? json) {
+    return CrossFileRefSchema(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'CrossFileRefSchema',
+    definition: Schema.object(
+      properties: {
+        'child': Schema.fromMap({r'$ref': r'#/$defs/SharedChildSchema'}),
+        'childViaType': Schema.fromMap({r'$ref': r'#/$defs/SharedChildSchema'}),
+      },
+    ),
+    dependencies: [sharedChildSchemaType],
+  );
+}
+
+const crossFileRefSchemaType = _CrossFileRefSchemaTypeFactory();
+
 extension type SimpleObject(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
   factory SimpleObject.from({String? name, int? count, bool? isActive}) {
@@ -67,7 +125,13 @@ class _SimpleObjectTypeFactory extends SchemanticType<SimpleObject> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SimpleObject',
-    definition: simpleObject,
+    definition: Schema.object(
+      properties: {
+        'name': Schema.string(),
+        'count': Schema.integer(),
+        'isActive': Schema.boolean(),
+      },
+    ),
     dependencies: [],
   );
 }
@@ -140,7 +204,17 @@ class _NestedObjectTypeFactory extends SchemanticType<NestedObject> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'NestedObject',
-    definition: nestedObject,
+    definition: Schema.object(
+      properties: {
+        'id': Schema.string(),
+        'metadata': Schema.object(
+          properties: {
+            'created': Schema.string(),
+            'tags': Schema.list(items: Schema.string()),
+          },
+        ),
+      },
+    ),
     dependencies: [],
   );
 }
@@ -180,7 +254,9 @@ class _ArraySchemaTypeFactory extends SchemanticType<List<ArraySchemaItem>> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ArraySchema',
-    definition: arraySchema,
+    definition: Schema.list(
+      items: Schema.object(properties: {'value': Schema.integer()}),
+    ),
     dependencies: [],
   );
 }
@@ -252,7 +328,14 @@ class _AllPrimitivesSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AllPrimitivesSchema',
-    definition: allPrimitivesSchema,
+    definition: Schema.object(
+      properties: {
+        'str': Schema.string(),
+        'intNum': Schema.integer(),
+        'dblNum': Schema.number(),
+        'isTruth': Schema.boolean(),
+      },
+    ),
     dependencies: [],
   );
 }
@@ -329,7 +412,14 @@ class _ComplexCollectionsSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ComplexCollectionsSchema',
-    definition: complexCollectionsSchema,
+    definition: Schema.object(
+      properties: {
+        'matrix': Schema.list(items: Schema.list(items: Schema.string())),
+        'objectList': Schema.list(
+          items: Schema.object(properties: {'id': Schema.string()}),
+        ),
+      },
+    ),
     dependencies: [],
   );
 }
@@ -435,7 +525,19 @@ class _DeeplyNestedObjectTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DeeplyNestedObject',
-    definition: deeplyNestedObject,
+    definition: Schema.object(
+      properties: {
+        'level1': Schema.object(
+          properties: {
+            'level2': Schema.object(
+              properties: {
+                'level3': Schema.object(properties: {'name': Schema.string()}),
+              },
+            ),
+          },
+        ),
+      },
+    ),
     dependencies: [],
   );
 }
@@ -487,7 +589,10 @@ class _RequiredFieldsSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RequiredFieldsSchema',
-    definition: requiredFieldsSchema,
+    definition: Schema.object(
+      properties: {'reqString': Schema.string(), 'optString': Schema.string()},
+      required: ['reqString'],
+    ),
     dependencies: [],
   );
 }

@@ -12,10 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:schemantic/schemantic.dart';
+import 'schemas/shared_test_schema.dart';
 
 part 'integration_schema_test.schema.g.dart';
+
+@Schematic()
+final Schema crossFileRefSchema = Schema.object(
+  properties: {
+    'child': sharedChildSchema,
+    'childViaType': sharedChildSchemaType.jsonSchema(),
+  },
+);
 
 @Schematic()
 final Schema simpleObject = Schema.object(
@@ -221,6 +231,52 @@ void main() {
       final obj2 = requiredFieldsSchemaType.parse(jsonMissingOptional);
       expect(obj2.reqString, 'required');
       expect(obj2.optString, null);
+    });
+  });
+
+  group('Cross File References', () {
+    test('parses valid json with cross-file reference', () {
+      final json = {
+        'child': {'childId': '123'},
+        'childViaType': {'childId': '456'},
+      };
+      final obj = crossFileRefSchemaType.parse(json);
+      expect(obj.child?.childId, '123');
+      expect(obj.childViaType?.childId, '456');
+    });
+
+    test('validates nested cross-file schema', () {
+      // Check type safety (dynamic check since we are in test)
+      final json = {
+        'child': {'childId': 123}, // Invalid type (int instead of String)
+      };
+      // Schema parsing is lazy, so we check access
+      final obj = crossFileRefSchemaType.parse(json);
+      expect(() => obj.child?.childId, throwsA(isA<TypeError>()));
+    });
+
+    test('generates correct JSON Schema with refs', () {
+      final schema = crossFileRefSchemaType.jsonSchema(useRefs: true);
+      final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
+
+      // Root should be a ref to CrossFileRefSchema because it has a name
+      expect(json[r'$ref'], '#/\$defs/CrossFileRefSchema');
+
+      final defs = json[r'$defs'] as Map<String, dynamic>;
+      expect(defs, contains('CrossFileRefSchema'));
+      expect(defs, contains('SharedChildSchema'));
+
+      final crossFileDef = defs['CrossFileRefSchema'] as Map<String, dynamic>;
+      final properties = crossFileDef['properties'] as Map<String, dynamic>;
+
+      expect(properties['child'], {r'$ref': '#/\$defs/SharedChildSchema'});
+      expect(properties['childViaType'], {
+        r'$ref': '#/\$defs/SharedChildSchema',
+      });
+
+      final sharedDef = defs['SharedChildSchema'] as Map<String, dynamic>;
+      expect(sharedDef['type'], 'object');
+      expect((sharedDef['properties'] as Map)['childId']['type'], 'string');
     });
   });
 }

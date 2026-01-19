@@ -731,11 +731,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       } else if (typeName.endsWith('Schema')) {
         final nestedBaseName = _stripSchemaSuffix(typeName);
         // If we are building the "definition" for the metadata, we want to use refs for children.
-        // If we were building strict inline schema, we would call jsonSchema().
-        // BUT here we are only building schemaDefinition (which is used for metadata).
-        // So we should ALWAYS use refs here if it's a known Schematic type.
-        // The old behavior "inline everything" is achieved by traversing schemaMetadata.
-
         if (useRefs) {
           schemaExpression = refer('Schema.fromMap').call([
             literalMap({
@@ -794,31 +789,34 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     Element element,
     ConstantReader annotation,
   ) async {
-    // 1. Try generic evaluation (works for const)
     SchemaInfo? schemaInfo;
 
-    // Try constant evaluation first
+    // 1. Try AST parsing (preserves references)
     try {
-      if (element is VariableElement) {
-        final constValue = element.computeConstantValue();
-        if (constValue != null) {
-          schemaInfo = SchemaInfo.fromDartObject(constValue);
-        }
-      }
-    } catch (e) {
-      // Ignore, fallback to AST
+      schemaInfo = await SchemaParser.parseFromElement(element);
+    } catch (_) {
+      // Ignore, fallback to constant evaluation
     }
 
-    // 2. Fallback to AST parsing
+    // 2. Fallback to generic evaluation (works for const)
     if (schemaInfo == null) {
       try {
-        schemaInfo = await SchemaParser.parseFromElement(element);
+        if (element is VariableElement) {
+          final constValue = element.computeConstantValue();
+          if (constValue != null) {
+            schemaInfo = SchemaInfo.fromDartObject(constValue);
+          }
+        }
       } catch (e) {
-        throw InvalidGenerationSourceError(
-          'Could not parse Schema definition: $e',
-          element: element,
-        );
+        // Ignore
       }
+    }
+
+    if (schemaInfo == null) {
+      throw InvalidGenerationSourceError(
+        'Could not parse Schema definition. Ensure it is a valid const Schema or follows supported AST patterns.',
+        element: element,
+      );
     }
 
     return _generateFromSchemaInfo(name, schemaInfo);
@@ -827,16 +825,30 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   String _generateFromSchemaInfo(String name, SchemaInfo schemaInfo) {
     final baseName = _capitalize(name);
     final specs = <Spec>[];
+    final dependencies = <String>{};
 
     // Generate Types
-    final typeRef = _analyzeAndGenerateTypes(schemaInfo, baseName, specs);
+    final typeRef = _analyzeAndGenerateTypes(
+      schemaInfo,
+      baseName,
+      specs,
+      dependencies,
+    );
 
     // Generate Type Factory
+    // Use the schema info to reconstruct the expression, ensuring refs are used.
+    final definitionExpr = _generateExpressionFromInfo(
+      schemaInfo,
+      useRefs: true,
+    );
+
     final factoryClass = _generateFactoryForSchema(
       baseName,
       name,
       typeRef,
       specs,
+      dependencies,
+      definitionExpr,
     );
 
     // Generate constant instance
@@ -863,16 +875,21 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     SchemaInfo schema,
     String name,
     List<Spec> specs,
+    Set<String> dependencies,
   ) {
+    // Check if it's a reference
+    if (schema.definitionName != null) {
+      dependencies.add(schema.definitionName!);
+      return refer(schema.definitionName!);
+    }
+
     // Check type
     final type = schema.type;
     final items = schema.items;
     final properties = schema.properties;
     final additionalProperties = schema.additionalProperties;
 
-    // Default to true if not specified, unless properties are present?
-    // In JSON Dictionary: "additionalProperties defaults to true"
-    // In our `SchemaInfo`, null means unspecified.
+    // Default to true if not specified
     final isExplicitlyOpen = additionalProperties == true;
 
     if (properties != null && !isExplicitlyOpen) {
@@ -885,6 +902,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           valueObject,
           '$name${_capitalize(propName)}',
           specs,
+          dependencies,
         );
 
         // Apply nullability based on required list
@@ -905,7 +923,12 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       return refer(name);
     } else if (items != null) {
       // Array
-      final itemType = _analyzeAndGenerateTypes(items, '${name}Item', specs);
+      final itemType = _analyzeAndGenerateTypes(
+        items,
+        '${name}Item',
+        specs,
+        dependencies,
+      );
       return TypeReference(
         (b) => b
           ..symbol = 'List'
@@ -1073,11 +1096,76 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     specs.add(extType);
   }
 
+  Expression _generateExpressionFromInfo(
+    SchemaInfo info, {
+    bool useRefs = true,
+  }) {
+    if (useRefs && info.definitionName != null) {
+      // Use Schema.fromMap to generate the $ref
+      return refer('Schema.fromMap').call([
+        literalMap({
+          CodeExpression(Code("r'\$ref'")): CodeExpression(
+            Code("r'#/\$defs/${info.definitionName}'"),
+          ),
+        }),
+      ]);
+    }
+
+    if (['string', 'integer', 'number', 'boolean'].contains(info.type)) {
+      final named = <String, Expression>{};
+      if (info.description != null) {
+        named['description'] = literalString(info.description!);
+      }
+      return refer('Schema.${info.type}').call([], named);
+    }
+
+    if (info.type == 'array') {
+      final named = <String, Expression>{};
+      if (info.description != null) {
+        named['description'] = literalString(info.description!);
+      }
+      if (info.items != null) {
+        named['items'] = _generateExpressionFromInfo(
+          info.items!,
+          useRefs: useRefs,
+        );
+      }
+      return refer('Schema.list').call([], named);
+    }
+
+    if (info.type == 'object') {
+      final named = <String, Expression>{};
+      if (info.description != null) {
+        named['description'] = literalString(info.description!);
+      }
+      if (info.properties != null) {
+        final propsMap = <String, Expression>{};
+        info.properties!.forEach((k, v) {
+          propsMap[k] = _generateExpressionFromInfo(v, useRefs: useRefs);
+        });
+        named['properties'] = literalMap(propsMap);
+      }
+      if (info.required != null) {
+        named['required'] = literalList(
+          info.required!.map((e) => literalString(e)).toList(),
+        );
+      }
+      if (info.additionalProperties != null) {
+        named['additionalProperties'] = literalBool(info.additionalProperties!);
+      }
+      return refer('Schema.object').call([], named);
+    }
+
+    return refer('Schema.any').call([]);
+  }
+
   Class _generateFactoryForSchema(
     String baseName,
     String variableName,
     Reference typeRef,
     List<Spec> specs,
+    Set<String> dependencies,
+    Expression definitionExpression,
   ) {
     return Class((b) {
       b
@@ -1143,8 +1231,12 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             ..returns = refer('JsonSchemaMetadata')
             ..body = refer('JsonSchemaMetadata').call([], {
               'name': literalString(baseName),
-              'definition': refer(variableName),
-              'dependencies': literalList([]),
+              'definition': definitionExpression,
+              'dependencies': literalList(
+                dependencies
+                    .map((d) => refer('${_toCamelCase(d)}Type'))
+                    .toList(),
+              ),
             }).code,
         ),
       );
@@ -1167,6 +1259,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     if (s.isEmpty) return s;
     final parts = s.split('_');
     var result = parts[0];
+    if (result.isNotEmpty) {
+      result = result[0].toLowerCase() + result.substring(1);
+    }
     for (var i = 1; i < parts.length; i++) {
       result += _capitalize(parts[i]);
     }
