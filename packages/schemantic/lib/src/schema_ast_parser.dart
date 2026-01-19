@@ -40,7 +40,7 @@ class SchemaInfo {
   });
 
   factory SchemaInfo.fromDartObject(DartObject object) {
-    String? type = object.getField('type')?.toStringValue();
+    var type = object.getField('type')?.toStringValue();
 
     // items
     SchemaInfo? items;

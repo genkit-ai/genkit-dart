@@ -15,11 +15,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection.dart';
 import 'package:genkit/src/core/registry.dart';
-import 'package:genkit/src/core/action.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -115,7 +115,7 @@ void main() {
       final chunks = await response.stream
           .transform(utf8.decoder)
           .transform(const LineSplitter())
-          .map((line) => jsonDecode(line))
+          .map(jsonDecode)
           .toList();
 
       expect(chunks.length, 3);

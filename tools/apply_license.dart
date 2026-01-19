@@ -103,8 +103,8 @@ Future<bool> _processFile(File file, bool checkMode) async {
     final content = await file.readAsString();
 
     // Check for shebang
-    bool hasShebang = content.startsWith('#!');
-    String contentToCheck = content;
+    var hasShebang = content.startsWith('#!');
+    var contentToCheck = content;
     String? shebangLine;
 
     if (hasShebang) {

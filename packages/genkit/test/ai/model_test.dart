@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:schemantic/schemantic.dart';
 import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/types.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 part 'model_test.schema.g.dart';

@@ -23,7 +23,7 @@ gcl.GenerateContentResponse aggregateResponses(
 
   gcl.GenerateContentResponse_PromptFeedback? promptFeedback;
   gcl.GenerateContentResponse_UsageMetadata? usageMetadata;
-  final Map<int, _CandidateState> candidateStates = {};
+  final candidateStates = <int, _CandidateState>{};
 
   for (final response in responses) {
     if (response.promptFeedback != null) {

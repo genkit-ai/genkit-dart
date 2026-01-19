@@ -54,7 +54,7 @@ extension ModelResponseExtension on ModelResponse {
 
   /// The tool requests in the response.
   List<ToolRequest> get toolRequests {
-    return (message)?.content
+    return message?.content
             .where((c) => c.isToolRequest)
             .map((c) => c.toolRequest!)
             .toList() ??

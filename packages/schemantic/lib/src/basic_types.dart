@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:schemantic/schemantic.dart';
 import 'dart:convert';
+
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
+import 'package:schemantic/schemantic.dart';
 
 /// A string type.
 ///
@@ -309,7 +310,7 @@ class _ListTypeFactory<T> extends SchemanticType<List<T>> {
 
   @override
   List<T> parse(Object? json) =>
-      (json as List).map((e) => itemType.parse(e)).toList();
+      (json as List).map(itemType.parse).toList();
 
   @override
   jsb.Schema jsonSchema({bool useRefs = false}) {

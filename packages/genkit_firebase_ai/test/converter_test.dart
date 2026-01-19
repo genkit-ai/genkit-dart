@@ -13,10 +13,11 @@
 // limitations under the License.
 
 import 'dart:convert';
+
 import 'package:firebase_ai/firebase_ai.dart' as m;
+import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
-import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('toGeminiPart', () {

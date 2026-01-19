@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:genkit/client.dart';
-import 'package:schemantic/schemantic.dart';
-import 'package:test/test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
 
-import 'schemas/my_schemas.dart';
-import 'schemas/stream_schemas.dart';
 @GenerateMocks([http.Client])
 import 'client_test.mocks.dart';
+import 'schemas/my_schemas.dart';
+import 'schemas/stream_schemas.dart';
 
 void main() {
   late MockClient mockClient;

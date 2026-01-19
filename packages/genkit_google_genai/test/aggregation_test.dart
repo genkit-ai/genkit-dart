@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:test/test.dart';
 import 'package:genkit_google_genai/src/aggregation.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
+import 'package:test/test.dart';
 
 void main() {
   group('aggregateResponses', () {

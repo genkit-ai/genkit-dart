@@ -37,7 +37,7 @@ void main() {
       );
       expect(model.name, 'myBidiModel');
       expect(
-        (await genkit.registry.lookupAction('bidi-model', 'myBidiModel')),
+        await genkit.registry.lookupAction('bidi-model', 'myBidiModel'),
         isNotNull,
       );
     });

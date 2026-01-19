@@ -15,9 +15,10 @@
 
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:genkit/src/core/action.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
 
 import '../exception.dart';
 
@@ -60,7 +61,7 @@ Future<O?> streamFlow<O, S>({
     );
   }
 
-  bool errorOccurred = false;
+  var errorOccurred = false;
 
   void handleError(Object error, [StackTrace? stackTrace]) {
     if (errorOccurred) return;

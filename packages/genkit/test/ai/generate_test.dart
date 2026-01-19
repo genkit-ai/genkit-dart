@@ -13,8 +13,8 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:test/test.dart';
 import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
 
 part 'generate_test.schema.g.dart';
 
