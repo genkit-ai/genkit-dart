@@ -224,10 +224,8 @@ class SchemaHelpers {
     List<SchemanticType> dependencies,
     Set<String> visited,
   ) {
-    if (json.containsKey(r'$ref') ||
-        json.containsKey('ref') ||
-        json.containsKey(r'$ref')) {
-      final ref = (json[r'$ref'] ?? json['ref'] ?? json[r'$ref']) as String;
+    if (json.containsKey(r'$ref') || json.containsKey('ref')) {
+      final ref = (json[r'$ref'] ?? json['ref']) as String;
       if (ref.startsWith('#/\$defs/')) {
         final name = ref.replaceFirst('#/\$defs/', '');
         if (visited.contains(name)) {
