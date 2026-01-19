@@ -22,7 +22,7 @@ part 'integration_schema_test.schema.g.dart';
 final Schema crossFileRefSchema = Schema.object(
   properties: {
     'child': sharedChildSchema,
-    // 'childViaType': sharedChildSchemaType.jsonSchema(),
+    'childViaType': sharedChildSchemaType.jsonSchema(),
   },
 );
 
@@ -237,11 +237,11 @@ void main() {
     test('parses valid json with cross-file reference', () {
       final json = {
         'child': {'childId': '123'},
-        // 'childViaType': {'childId': '456'},
+        'childViaType': {'childId': '456'},
       };
       final obj = crossFileRefSchemaType.parse(json);
       expect(obj.child?.childId, '123');
-      // expect(obj.childViaType?.childId, '456');
+      expect(obj.childViaType?.childId, '456');
     });
 
     test('validates nested cross-file schema', () {

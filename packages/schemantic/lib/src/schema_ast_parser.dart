@@ -167,7 +167,7 @@ class SchemaParser {
         final methodName = expression.methodName.name;
         return _parseSchemaConstructor(methodName, expression.argumentList);
       }
-      
+
       // Handle `.jsonSchema()` calls on generated types
       if (expression.methodName.name == 'jsonSchema') {
         if (target != null) {
@@ -177,7 +177,7 @@ class SchemaParser {
     } else if (expression is Identifier) {
       return _resolveSchemaReference(expression);
     }
-    
+
     // Handle internal references or other factories if necessary
     throw UnsupportedError(
       'Unsupported expression in Schema definition: ${expression.toSource()}. Only Schema.* constructors and factories are supported.',
@@ -258,6 +258,15 @@ class SchemaParser {
             }
           }
         }
+      }
+    }
+
+    // Optimistic fallback for identifiers (e.g. generated types not yet visible)
+    if (expression is Identifier) {
+      final name = expression.name;
+      if (name.endsWith('Type')) {
+        final baseName = name.substring(0, name.length - 4);
+        return SchemaInfo(definitionName: _capitalize(baseName));
       }
     }
 
