@@ -22,6 +22,17 @@ import 'package:schemantic/schemantic.dart' hide Field;
 import 'package:source_gen/source_gen.dart';
 import 'schema_ast_parser.dart';
 
+const _castableTypes = {
+  'String',
+  'int',
+  'num',
+  'bool',
+  'double',
+  'DateTime',
+  'dynamic',
+  'Object',
+};
+
 class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   @override
   Future<String> generateForAnnotatedElement(
@@ -59,7 +70,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         element: element,
       );
     }
-    final baseName = className.substring(0, className.length - 6);
+    final baseName = _stripSchemaSuffix(className);
 
     final extensionType = _generateExtensionType(baseName, element);
     final factory = _generateFactory(baseName, element, annotation);
@@ -144,9 +155,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                   valueExpression = refer(paramName!);
                 }
               } else if (isExtensionType) {
-                // don't need need to worry about nullability here, because
-                // further down we check if the value is null and add
-                // `if (paramName != null)`.
                 valueExpression = refer(paramName!).property('toJson').call([]);
               } else {
                 valueExpression = refer(paramName!);
@@ -174,10 +182,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       for (final interface in element.interfaces) {
         final interfaceName = interface.getDisplayString().replaceAll('?', '');
         if (interfaceName.endsWith('Schema')) {
-          final interfaceBaseName = interfaceName.substring(
-            0,
-            interfaceName.length - 6,
-          );
+          final interfaceBaseName = _stripSchemaSuffix(interfaceName);
           b.implements.add(refer(interfaceBaseName));
         }
       }
@@ -206,10 +211,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final itemType = (type as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       if (itemTypeName.endsWith('Schema')) {
-        final nestedBaseName = itemTypeName.substring(
-          0,
-          itemTypeName.length - 6,
-        );
+        final nestedBaseName = _stripSchemaSuffix(itemTypeName);
         final nullability = itemType.getDisplayString().endsWith('?')
             ? '?'
             : '';
@@ -219,10 +221,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
     final nonNullableTypeName = type.getDisplayString().replaceAll('?', '');
     if (nonNullableTypeName.endsWith('Schema')) {
-      final nestedBaseName = nonNullableTypeName.substring(
-        0,
-        nonNullableTypeName.length - 6,
-      );
+      final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
       final nullability = typeName.endsWith('?') ? '?' : '';
       return '$nestedBaseName$nullability';
     }
@@ -249,10 +248,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         final itemIsNullable = itemType.isNullable;
         if (itemTypeName.endsWith('Schema')) {
-          final nestedBaseName = itemTypeName.substring(
-            0,
-            itemTypeName.length - 6,
-          );
+          final nestedBaseName = _stripSchemaSuffix(itemTypeName);
           if (itemIsNullable) {
             getterBody =
                 "return (_json['$jsonFieldName'] as List?)?.map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
@@ -265,10 +261,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
               "return (_json['$jsonFieldName'] as List?)?.cast<$itemTypeName>();";
         }
       } else if (nonNullableTypeName.endsWith('Schema')) {
-        final nestedBaseName = nonNullableTypeName.substring(
-          0,
-          nonNullableTypeName.length - 6,
-        );
+        final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
       } else if (nonNullableTypeName == 'DateTime') {
@@ -284,10 +277,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       final itemIsNullable = itemType.isNullable;
       if (itemTypeName.endsWith('Schema')) {
-        final nestedBaseName = itemTypeName.substring(
-          0,
-          itemTypeName.length - 6,
-        );
+        final nestedBaseName = _stripSchemaSuffix(itemTypeName);
         if (itemIsNullable) {
           getterBody =
               "return (_json['$jsonFieldName'] as List).map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
@@ -302,10 +292,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     } else if (nonNullableTypeName == 'DateTime') {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
     } else if (nonNullableTypeName.endsWith('Schema')) {
-      final nestedBaseName = nonNullableTypeName.substring(
-        0,
-        nonNullableTypeName.length - 6,
-      );
+      final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
       getterBody =
           "return $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
     }
@@ -401,7 +388,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             .map((i) {
               final interfaceName = i.getDisplayString().replaceAll('?', '');
               if (interfaceName.endsWith('Schema')) {
-                return interfaceName.substring(0, interfaceName.length - 6);
+                return _stripSchemaSuffix(interfaceName);
               }
               return null;
             })
@@ -411,11 +398,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             'final Map<String, dynamic> jsonMap = json as Map<String, dynamic>;';
         for (final subtype in subtypes) {
           // This parse logic implies that we need to check validity.
-          // Note: validate() might need useRefs argument if it deals with refs?
-          // But validate() is on jsb.Schema, which doesn't take args.
-          // We assume validate() works on expanded schema or we use the non-ref one for validation?
-          // Actually, typical usage for validation is just checking structure.
-          // We should use the default schema (useRefs=false or flattened) for validation if possible.
+          // Validate JSON structure using the schema before parsing.
           parseBody +=
               'if (${subtype}Type.jsonSchema(useRefs: true).validate(jsonMap)) { return $subtype(jsonMap); }';
         }
@@ -477,7 +460,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
     void addDependency(String typeName) {
       if (typeName.endsWith('Schema')) {
-        final nestedBaseName = typeName.substring(0, typeName.length - 6);
+        final nestedBaseName = _stripSchemaSuffix(typeName);
         dependencies.add(refer('${nestedBaseName}Type'));
       }
     }
@@ -531,10 +514,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             final interfaceName = i.getDisplayString().replaceAll('?', '');
             if (interfaceName.endsWith('Schema')) {
               addDependency(interfaceName);
-              final nestedBaseName = interfaceName.substring(
-                0,
-                interfaceName.length - 6,
-              );
+              final nestedBaseName = _stripSchemaSuffix(interfaceName);
               return refer('Schema.fromMap').call([
                 literalMap({
                   literalString(r'\$ref'): CodeExpression(
@@ -749,7 +729,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         properties['format'] = literalString('date-time');
         schemaExpression = refer('Schema.string').call([], properties);
       } else if (typeName.endsWith('Schema')) {
-        final nestedBaseName = typeName.substring(0, typeName.length - 6);
+        final nestedBaseName = _stripSchemaSuffix(typeName);
         // If we are building the "definition" for the metadata, we want to use refs for children.
         // If we were building strict inline schema, we would call jsonSchema().
         // BUT here we are only building schemaDefinition (which is used for metadata).
@@ -765,17 +745,13 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             }),
           ]);
         } else {
-          // Fallback for some reason? Actually, we should only be calling this for metadata generation now.
-          // But if we wanted to support "inline" generation inside here, we would call .jsonSchema() on the type.
-          // However, since we are generating code, we can't call .jsonSchema() at runtime here easily without emitting code.
-          // We can emit `${nestedBaseName}Type.jsonSchema()`.
+          // For metadata generation, we can emit a direct call to the nested type's jsonSchema.
           schemaExpression = refer('${nestedBaseName}Type.jsonSchema').call([]);
         }
 
         if (properties.isNotEmpty) {
           // If there are extra properties (like description), we need to wrap the ref/schema.
-          // For a ref, we usually can't add properties directly effectively in all JSON Schema versions,
-          // but wrapping in allOf is safer.
+          // Wrap the schema in allOf to allow adding extra properties like description.
           final mergedProperties = {
             ...properties,
             'allOf': literalList([schemaExpression]),
@@ -826,21 +802,15 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (element is VariableElement) {
         final constValue = element.computeConstantValue();
         if (constValue != null) {
-          print('Create SchemaInfo from DartObject for ${element.name}');
           schemaInfo = SchemaInfo.fromDartObject(constValue);
-          print(
-            'SchemaInfo from DartObject: properties=${schemaInfo.properties?.keys.toList()}',
-          );
         }
       }
     } catch (e) {
-      print('Constant evaluation failed: $e');
       // Ignore, fallback to AST
     }
 
     // 2. Fallback to AST parsing
     if (schemaInfo == null) {
-      print('Fallback to AST parsing for ${element.name}');
       try {
         schemaInfo = await SchemaParser.parseFromElement(element);
       } catch (e) {
@@ -997,14 +967,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             typeRef.types.isNotEmpty) {
           final itemType = typeRef.types.first;
           final itemSymbol = itemType.symbol;
-          if ([
-            'String',
-            'int',
-            'num',
-            'bool',
-            'double',
-            'DateTime',
-          ].contains(itemSymbol)) {
+          if (_castableTypes.contains(itemSymbol)) {
             body = "return (_json['$jsonKey'] as List).cast<$itemSymbol>();";
           } else if (itemSymbol == 'List') {
             // Nested list: (e as List).cast<T>()
@@ -1096,80 +1059,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
               ),
             );
 
-          // Check if typeRef is List
-          // Since typeRef is Reference, we check symbol.
-          // BUT TypeReference structure is complex.
-          // If we generated TypeReference for List, symbol is List.
-          // Refer('List<..>') might have symbol 'List<...>'.
-          // Simplest check: if string contains List< or starts with List.
-
+          // Special handling for List types to ensure correct runtime casting.
           final symbol = typeRef.symbol ?? '';
-          // If typeRef is TypeReference, we need to handle it.
-          // But we passed it as Reference earlier.
-          // Let's rely on simple string check or better yet, check if it was generated as List in _analyzeAndGenerateTypes.
-
-          // Actually, we can just check if the type name starts with List.
-          // Or we can just use `dynamic` cast and let standard Dart runtime checks handle it implies:
-          // return ... (json as ...);
-          // BUT `(json as Map)` throws if json is List.
-
           if (symbol.startsWith('List') ||
               (typeRef is TypeReference && typeRef.symbol == 'List')) {
-            m.body = Code(
-              'return ${typeRef.symbol ?? 'List'}.from(json as List);',
-            );
-            // Wait, List.from might not be deep enough for strong types?
-            // If we have List<ItemType>, `json as List` is `List<dynamic>`.
-            // `List<ItemType>.from(json as List)` works if ItemType is primitive.
-            // If ItemType is custom, we need conversion?
-
-            // `_analyzeAndGenerateTypes` for array returns:
-            /*
-                   TypeReference((b) => b
-                     ..symbol = 'List'
-                     ..types.add(itemType))
-                 */
-            // which renders as `List<ItemType>`.
-            // So `List<ItemType>.from(json as List)` only works if items are already ItemType?
-            // No, they are Maps.
-
-            // If we want robust parsing, we need a mapper.
-            // BUT `SchemanticType< List<T> >` means `parse` returns `List<T>`.
-
-            // For now, let's just fix the cast to `json as List` if it looks like a list.
-            // The "parsing" of children happens ... where?
-            // In `extension type` getters, we do `map(...)`.
-            // But here we are at the top level. `parse` receives raw JSON.
-            // If it is an array schema, we return `List<...>` directly?
-            // If so, who converts `List<Map>` to `List<ItemType>`?
-            // If we just return `json as List`, it is `List<dynamic>`, checking against `List<ItemType>` might fail if we cast strictly.
-
-            // Ideally `parse` should recurse.
-            // But for `const Schema`, we generated `List<ItemType>`.
-            // If `ItemType` is a primitive, `List.from` is fine.
-            // If `ItemType` is an extension type, `List.from` might assume items are castable.
-            // Extension types around Map are castable from Map.
-            // So `List<ExtensionType>.from(json as List)` ?
-            // `ExtensionType(map)` constructor is checked.
-            // But `List.from` doesn't call constructor automatically?
-            // No, it just copies.
-            // If `ItemType` is extension type `MyItem`, then `MyItem` IS `Map<String,dynamic>`.
-            // So `List<Map>` IS `List<MyItem>` at runtime (mostly, due to extension type erasure).
-            // So `(json as List).cast<Map<String, dynamic>>()` should work?
-
             if (typeRef is TypeReference && typeRef.types.isNotEmpty) {
               final itemSymbol = typeRef.types.first.symbol;
               // Handle primitives and Maps directly via cast
-              if ([
-                    'String',
-                    'int',
-                    'num',
-                    'bool',
-                    'dynamic',
-                    'Object',
-                    'double',
-                    'DateTime',
-                  ].contains(itemSymbol) ||
+              if (_castableTypes.contains(itemSymbol) ||
                   (itemSymbol?.startsWith('Map') ?? false)) {
                 m.body = Code('return (json as List).cast<$itemSymbol>();');
               } else {
@@ -1207,6 +1104,13 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         ),
       );
     });
+  }
+
+  String _stripSchemaSuffix(String s) {
+    if (s.endsWith('Schema')) {
+      return s.substring(0, s.length - 6);
+    }
+    return s;
   }
 
   String _capitalize(String s) {
