@@ -180,18 +180,21 @@ class Schema {
   final Map<String, Schema>? properties;
   final bool? additionalProperties;
   final Schema? items;
+  final List<String>? required;
   
   const Schema({
     this.type,
     this.properties,
     this.additionalProperties,
     this.items,
+    this.required,
   });
 
   const Schema.object({
     Map<String, Schema>? properties,
     bool? additionalProperties,
-  }) : this(type: 'object', properties: properties, additionalProperties: additionalProperties);
+    List<String>? required,
+  }) : this(type: 'object', properties: properties, additionalProperties: additionalProperties, required: required);
 
   const Schema.string() : this(type: 'string');
   const Schema.integer() : this(type: 'integer');
@@ -231,6 +234,7 @@ const Schema mySimpleSchema = Schema.object(
     'name': Schema.string(),
     'age': Schema.integer(),
   },
+  required: ['name', 'age'],
 );
 ''',
         },
