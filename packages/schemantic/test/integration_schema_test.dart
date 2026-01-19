@@ -24,7 +24,6 @@ final Schema simpleObjectSchema = Schema.object(
     'count': Schema.integer(),
     'isActive': Schema.boolean(),
   },
-  additionalProperties: false,
 );
 
 @Schematic()
@@ -36,18 +35,33 @@ final Schema nestedObjectSchema = Schema.object(
         'created': Schema.string(),
         'tags': Schema.list(items: Schema.string()),
       },
-      additionalProperties: false,
     ),
   },
-  additionalProperties: false,
 );
 
 @Schematic()
 final Schema arraySchema = Schema.list(
-  items: Schema.object(
-    properties: {'value': Schema.integer()},
-    additionalProperties: false,
-  ),
+  items: Schema.object(properties: {'value': Schema.integer()}),
+);
+
+@Schematic()
+final Schema allPrimitivesSchema = Schema.object(
+  properties: {
+    'str': Schema.string(),
+    'intNum': Schema.integer(),
+    'dblNum': Schema.number(),
+    'isTruth': Schema.boolean(),
+  },
+);
+
+@Schematic()
+final Schema complexCollectionsSchema = Schema.object(
+  properties: {
+    'matrix': Schema.list(items: Schema.list(items: Schema.string())),
+    'objectList': Schema.list(
+      items: Schema.object(properties: {'id': Schema.string()}),
+    ),
+  },
 );
 
 void main() {
@@ -98,6 +112,68 @@ void main() {
       expect(list.first, isA<ArraySchemaItem>());
       expect(list[0].value, 1);
       expect(list[1].value, 2);
+    });
+  });
+
+  group('All Primitives Schema', () {
+    test('parses all primitives', () {
+      final json = {
+        'str': 'hello',
+        'intNum': 42,
+        'dblNum': 3.14,
+        'isTruth': true,
+      };
+      final obj = allPrimitivesSchemaType.parse(json);
+      expect(obj.str, 'hello');
+      expect(obj.intNum, 42);
+      expect(obj.dblNum, 3.14);
+      expect(obj.isTruth, true);
+    });
+
+    test('validates types strictly (runtime)', () {
+      final json = {
+        'str': 123, // Invalid
+        'intNum': 42,
+        'dblNum': 3.14,
+        'isTruth': true,
+      };
+      // Expect type error on access because properties cast on access
+      final obj = allPrimitivesSchemaType.parse(json);
+      expect(() => obj.str, throwsA(isA<TypeError>()));
+    });
+  });
+
+  group('Complex Collections Schema', () {
+    test('parses matrix (List<List<String>>)', () {
+      final json = {
+        'matrix': [
+          ['a', 'b'],
+          ['c', 'd'],
+        ],
+        'objectList': [],
+      };
+      final obj = complexCollectionsSchemaType.parse(json);
+      expect(obj.matrix, isA<List<List<String>>>());
+      expect(obj.matrix[0], ['a', 'b']);
+      expect(obj.matrix[1], ['c', 'd']);
+    });
+
+    test('parses object list', () {
+      final json = {
+        'matrix': [],
+        'objectList': [
+          {'id': '1'},
+          {'id': '2'},
+        ],
+      };
+      final obj = complexCollectionsSchemaType.parse(json);
+      expect(
+        obj.objectList,
+        isA<List<ComplexCollectionsSchemaObjectListItem>>(),
+      );
+      expect(obj.objectList.length, 2);
+      expect(obj.objectList[0].id, '1');
+      expect(obj.objectList[1].id, '2');
     });
   });
 }

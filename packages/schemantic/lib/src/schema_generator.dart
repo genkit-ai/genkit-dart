@@ -1006,10 +1006,23 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             'DateTime',
           ].contains(itemSymbol)) {
             body = "return (_json['$jsonKey'] as List).cast<$itemSymbol>();";
+          } else if (itemSymbol == 'List') {
+            // Nested list: (e as List).cast<T>()
+            // We need to know inner type of the nested list.
+            // itemType is List<T>. itemType.types.first is T.
+            if (itemType is TypeReference && itemType.types.isNotEmpty) {
+              final innerType = itemType.types.first.symbol;
+              // Simple map for 2D arrays
+              body =
+                  "return (_json['$jsonKey'] as List).map((e) => (e as List).cast<$innerType>().toList()).toList();";
+            } else {
+              body =
+                  "return (_json['$jsonKey'] as List).cast<List<dynamic>>();";
+            }
           } else {
-            // For Extension Types on Map, casting to List<Map> is sufficient runtime check
-            body =
-                "return (_json['$jsonKey'] as List).cast<Map<String, dynamic>>();";
+            // For Extension Types, cast to the specific type.
+            // At runtime this is cast<Map>, but statically it satisfies List<ExtensionType>.
+            body = "return (_json['$jsonKey'] as List).cast<$itemSymbol>();";
           }
         } else {
           body = "return _json['$jsonKey'] as $typeSymbol;";
