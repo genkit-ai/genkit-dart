@@ -125,7 +125,7 @@ extension type NestedObject(Map<String, dynamic> _json)
   }
 
   NestedObjectMetadata get metadata {
-    return _json['metadata'] as NestedObjectMetadata;
+    return NestedObjectMetadata(_json['metadata'] as Map<String, dynamic>);
   }
 
   set metadata(NestedObjectMetadata value) {
@@ -311,7 +311,9 @@ extension type ComplexCollectionsSchema(Map<String, dynamic> _json)
 
   List<ComplexCollectionsSchemaObjectListItem> get objectList {
     return (_json['objectList'] as List)
-        .cast<ComplexCollectionsSchemaObjectListItem>();
+        .cast<Map<String, dynamic>>()
+        .map((e) => ComplexCollectionsSchemaObjectListItem(e))
+        .toList();
   }
 
   set objectList(List<ComplexCollectionsSchemaObjectListItem> value) {
@@ -369,7 +371,9 @@ extension type DeeplyNestedObjectLevel1Level2(Map<String, dynamic> _json)
   }
 
   DeeplyNestedObjectLevel1Level2Level3 get level3 {
-    return _json['level3'] as DeeplyNestedObjectLevel1Level2Level3;
+    return DeeplyNestedObjectLevel1Level2Level3(
+      _json['level3'] as Map<String, dynamic>,
+    );
   }
 
   set level3(DeeplyNestedObjectLevel1Level2Level3 value) {
@@ -389,7 +393,9 @@ extension type DeeplyNestedObjectLevel1(Map<String, dynamic> _json)
   }
 
   DeeplyNestedObjectLevel1Level2 get level2 {
-    return _json['level2'] as DeeplyNestedObjectLevel1Level2;
+    return DeeplyNestedObjectLevel1Level2(
+      _json['level2'] as Map<String, dynamic>,
+    );
   }
 
   set level2(DeeplyNestedObjectLevel1Level2 value) {
@@ -407,7 +413,7 @@ extension type DeeplyNestedObject(Map<String, dynamic> _json)
   }
 
   DeeplyNestedObjectLevel1 get level1 {
-    return _json['level1'] as DeeplyNestedObjectLevel1;
+    return DeeplyNestedObjectLevel1(_json['level1'] as Map<String, dynamic>);
   }
 
   set level1(DeeplyNestedObjectLevel1 value) {

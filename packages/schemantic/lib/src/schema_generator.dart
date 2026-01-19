@@ -983,12 +983,32 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                   "return (_json['$jsonKey'] as List).cast<List<dynamic>>();";
             }
           } else {
-            // For Extension Types, cast to the specific type.
-            // At runtime this is cast<Map>, but statically it satisfies List<ExtensionType>.
-            body = "return (_json['$jsonKey'] as List).cast<$itemSymbol>();";
+            // For Extension Types, map over the list to wrap elements.
+            // This prevents runtime type errors with casts and ensures correct wrapping.
+            body =
+                "return (_json['$jsonKey'] as List).cast<Map<String, dynamic>>().map((e) => $itemSymbol(e)).toList();";
           }
         } else {
-          body = "return _json['$jsonKey'] as $typeSymbol;";
+          // Handle nullable types
+          final isNullable = typeSymbol?.endsWith('?') ?? false;
+          final baseSymbol = isNullable
+              ? typeSymbol!.substring(0, typeSymbol.length - 1)
+              : typeSymbol!;
+
+          if (_castableTypes.contains(baseSymbol) ||
+              baseSymbol == 'dynamic' ||
+              baseSymbol == 'Object') {
+            body = "return _json['$jsonKey'] as $typeSymbol;";
+          } else {
+            // Extension type or class wrapper
+            if (isNullable) {
+              body =
+                  "return _json['$jsonKey'] == null ? null : $baseSymbol(_json['$jsonKey'] as Map<String, dynamic>);";
+            } else {
+              body =
+                  "return $baseSymbol(_json['$jsonKey'] as Map<String, dynamic>);";
+            }
+          }
         }
 
         b.methods.add(
