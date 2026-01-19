@@ -174,7 +174,7 @@ extension type ArraySchemaItem(Map<String, dynamic> _json)
   }
 }
 
-class _ArraySchemaTypeFactory extends SchemanticType<List> {
+class _ArraySchemaTypeFactory extends SchemanticType<List<ArraySchemaItem>> {
   const _ArraySchemaTypeFactory();
 
   @override

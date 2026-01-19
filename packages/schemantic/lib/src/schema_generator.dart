@@ -1041,7 +1041,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     return Class((b) {
       b
         ..name = '_${baseName}TypeFactory'
-        ..extend = refer('SchemanticType<${typeRef.symbol}>')
+        ..extend = TypeReference(
+          (b) => b
+            ..symbol = 'SchemanticType'
+            ..types.add(typeRef),
+        )
         ..constructors.add(Constructor((c) => c..constant = true));
 
       // parse
