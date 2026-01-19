@@ -13,10 +13,11 @@
 // limitations under the License.
 
 import 'dart:convert';
+
 import 'package:genkit/src/ai/formatters/types.dart';
 import 'package:genkit/src/extract.dart';
-import 'package:genkit/src/types.dart';
 import 'package:genkit/src/schema_extensions.dart';
+import 'package:genkit/src/types.dart';
 
 final jsonFormatter = Formatter(
   name: 'json',

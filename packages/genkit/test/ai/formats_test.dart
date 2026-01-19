@@ -14,8 +14,8 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
-import 'package:test/test.dart';
 import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
 
 part 'formats_test.schema.g.dart';
 

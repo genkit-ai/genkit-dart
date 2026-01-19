@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:io';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:io';
+
 import 'package:_schema_generator/src/class_generator.dart';
+import 'package:http/http.dart' as http;
 
 void main() async {
   final response = await http.get(

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 import 'package:genkit/client.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
 
 import 'types.dart';
 

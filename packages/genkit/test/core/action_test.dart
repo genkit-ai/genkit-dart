@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:genkit/src/core/action.dart';
+import 'package:opentelemetry/api.dart' as api;
+import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
-import 'package:opentelemetry/api.dart' as api;
-import 'package:genkit/src/core/action.dart';
-import 'package:opentelemetry/sdk.dart' as sdk;
+
 import '../test_util.dart';
 
 part 'action_test.schema.g.dart';
@@ -38,13 +39,9 @@ void main() {
   api.registerGlobalTracerProvider(provider);
 
   group('Action', () {
-    setUp(() {
-      exporter.reset();
-    });
+    setUp(exporter.reset);
 
-    tearDown(() {
-      processor.forceFlush();
-    });
+    tearDown(processor.forceFlush);
 
     test('should start and end a span when run', () async {
       final action = Action(

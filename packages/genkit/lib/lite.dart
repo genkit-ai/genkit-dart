@@ -20,8 +20,8 @@ import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:schemantic/schemantic.dart';
 
-export 'package:genkit/src/types.dart';
 export 'package:genkit/src/schema_extensions.dart';
+export 'package:genkit/src/types.dart';
 
 Future<GenerateResponse> generate<C>({
   String? prompt,
@@ -49,7 +49,7 @@ Future<GenerateResponse> generate<C>({
 
   final registry = Registry();
   registry.register(model);
-  tools?.forEach((t) => registry.register(t));
+  tools?.forEach(registry.register);
   GenerateActionOutputConfig? outputConfig;
   if (outputSchema != null ||
       outputFormat != null ||

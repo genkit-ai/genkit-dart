@@ -16,9 +16,9 @@ import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 

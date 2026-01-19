@@ -13,9 +13,10 @@
 // limitations under the License.
 
 import 'dart:async';
+
 import 'package:genkit/genkit.dart';
-import 'package:test/test.dart';
 import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('Bidi Flow', () {

@@ -14,11 +14,11 @@
 
 import 'dart:convert';
 
-import 'package:schemantic/schemantic.dart';
-import 'package:meta/meta.dart';
 import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:genkit/genkit.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'genkit_firebase_ai.schema.g.dart';
 
@@ -308,7 +308,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   Future<void> _sendToSession(m.LiveSession session, Message msg) async {
     _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
 
-    final contentParts = msg.content.map((p) => toGeminiPart(p)).toList();
+    final contentParts = msg.content.map(toGeminiPart).toList();
 
     for (final part in contentParts) {
       try {

@@ -13,9 +13,10 @@
 // limitations under the License.
 
 import 'dart:async';
+
 import 'package:genkit/client.dart';
-import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:genkit/src/exception.dart';
+import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:schemantic/schemantic.dart';
 
 const _genkitContextKey = #genkitContext;
@@ -152,8 +153,8 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
 
     final executionContext = context ?? Zone.current[_genkitContextKey];
     Future<RunResult<O>> runner() async {
-      String traceId = '';
-      String spanId = '';
+      var traceId = '';
+      var spanId = '';
       final result = await runInNewSpan(
         name,
         (telemetryContext) async {
@@ -293,6 +294,7 @@ class ActionStream<S, F> extends StreamView<S> {
       throw GenkitException('Stream not consumed yet');
     }
     if (_streamError != null) {
+      // ignore: only_throw_errors
       throw _streamError!;
     }
     return _result as F;

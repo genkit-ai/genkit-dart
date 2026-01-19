@@ -13,8 +13,9 @@
 // limitations under the License.
 
 import 'dart:convert';
-import 'package:test/test.dart';
+
 import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
 
 part 'integration_test.schema.g.dart';
 

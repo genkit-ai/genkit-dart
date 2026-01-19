@@ -551,7 +551,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     } else {
       final namedArgs = <String, Expression>{
         'properties': literalMap(properties),
-        'required': literalList(required.map((r) => literalString(r))),
+        'required': literalList(required.map(literalString)),
       };
       if (descriptionExpr != null) {
         namedArgs['description'] = descriptionExpr;
@@ -970,7 +970,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         final fieldName = _toCamelCase(jsonKey);
 
         // Determine if parameter should be required
-        bool isRequiredWrapper = true;
+        var isRequiredWrapper = true;
         if (typeRef is TypeReference) {
           isRequiredWrapper = !(typeRef.isNullable ?? false);
         } else if (typeRef.symbol != null) {
@@ -1147,7 +1147,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       }
       if (info.required != null) {
         named['required'] = literalList(
-          info.required!.map((e) => literalString(e)).toList(),
+          info.required!.map(literalString).toList(),
         );
       }
       if (info.additionalProperties != null) {

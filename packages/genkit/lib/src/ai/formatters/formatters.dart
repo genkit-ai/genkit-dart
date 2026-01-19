@@ -15,8 +15,8 @@
 import 'package:genkit/src/ai/formatters/json.dart';
 import 'package:genkit/src/ai/formatters/types.dart';
 import 'package:genkit/src/core/registry.dart';
-import 'package:genkit/src/types.dart';
 import 'package:genkit/src/schema_extensions.dart';
+import 'package:genkit/src/types.dart';
 
 export 'package:genkit/src/ai/formatters/json.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
@@ -68,7 +68,7 @@ GenerateActionOptions applyFormat(
     outputConfig?.toJson()['instructions'],
   );
 
-  List<Message> messages = request.messages;
+  var messages = request.messages;
 
   if (formatter != null) {
     if (shouldInjectFormatInstructions(formatter.config, outputConfig)) {
@@ -153,7 +153,7 @@ List<Message> injectInstructions(List<Message> messages, String? instructions) {
   );
 
   // Find last user message or system message
-  int targetIndex = messages.lastIndexWhere((m) => m.role == Role.system);
+  var targetIndex = messages.lastIndexWhere((m) => m.role == Role.system);
   if (targetIndex < 0) {
     targetIndex = messages.lastIndexWhere((m) => m.role == Role.user);
   }

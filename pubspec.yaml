@@ -14,8 +14,8 @@ workspace:
   - testapps/basic
 
 dev_dependencies:
+  dart_flutter_team_lints: ^3.0.0
   melos: ^7.0.0
-  lints: ^6.0.0
   
 melos:
   name: genkit_workspace

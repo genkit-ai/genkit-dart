@@ -16,9 +16,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:genkit/client.dart';
-import 'package:test/test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mockito/mockito.dart';
+import 'package:test/test.dart';
 
 import 'client_test.mocks.dart';
 import 'schemas/stream_schemas.dart';
@@ -121,7 +121,7 @@ void main() {
       final finalResponse = await stream.onResult;
 
       expect(chunks.length, expectedChunks.length);
-      for (int i = 0; i < chunks.length; i++) {
+      for (var i = 0; i < chunks.length; i++) {
         expect(chunks[i].chunk, expectedChunks[i].chunk);
       }
       expect(finalResponse, expectedResponse);
@@ -270,9 +270,7 @@ void main() {
       final stream = stringStreamAction.stream(input: 'test');
       final receivedChunks = <String>[];
 
-      stream.listen((chunk) {
-        receivedChunks.add(chunk);
-      });
+      stream.listen(receivedChunks.add);
 
       // Send chunks progressively
       for (final chunk in chunks) {

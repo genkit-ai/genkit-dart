@@ -247,7 +247,7 @@ class _ArraySchemaTypeFactory extends SchemanticType<List<ArraySchemaItem>> {
   List<ArraySchemaItem> parse(Object? json) {
     return (json as List)
         .cast<Map<String, dynamic>>()
-        .map((e) => ArraySchemaItem(e))
+        .map(ArraySchemaItem.new)
         .toList();
   }
 
@@ -387,7 +387,7 @@ extension type ComplexCollectionsSchema(Map<String, dynamic> _json)
   List<ComplexCollectionsSchemaObjectListItem>? get objectList {
     return (_json['objectList'] as List)
         .cast<Map<String, dynamic>>()
-        .map((e) => ComplexCollectionsSchemaObjectListItem(e))
+        .map(ComplexCollectionsSchemaObjectListItem.new)
         .toList();
   }
 

@@ -16,8 +16,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:schemantic/schemantic.dart';
 import 'package:genkit/genkit.dart';
+import 'package:schemantic/schemantic.dart';
 
 part 'flow_basics.schema.g.dart';
 

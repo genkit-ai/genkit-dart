@@ -14,10 +14,10 @@
 
 import 'dart:io';
 
-import 'package:schemantic/schemantic.dart';
-import 'package:test/test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
 
 part 'genkit_test.schema.g.dart';
 
@@ -239,9 +239,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef(modelName),
         prompt: prompt,
-        onChunk: (chunk) {
-          receivedChunks.add(chunk);
-        },
+        onChunk: receivedChunks.add,
       );
 
       expect(receivedChunks.length, 2);

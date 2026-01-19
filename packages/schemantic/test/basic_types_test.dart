@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:test/test.dart';
 import 'dart:convert';
-import 'package:schemantic/schemantic.dart';
+
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
+import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('Basic Types', () {

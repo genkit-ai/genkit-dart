@@ -11,4 +11,18 @@
 # (the recommended set includes the core lints).
 # The core lints are also what is used by pub.dev for scoring packages.
 
-include: package:lints/recommended.yaml
+include: package:dart_flutter_team_lints/analysis_options.yaml
+
+analyzer:
+  language:
+    strict-casts: false
+    strict-inference: false
+
+  errors:
+    avoid_dynamic_calls: ignore
+    lines_longer_than_80_chars: ignore
+    prefer_const_constructors: ignore
+    prefer_relative_imports: ignore
+    prefer_single_quotes: ignore
+    unawaited_futures: ignore
+    unreachable_from_main: ignore
