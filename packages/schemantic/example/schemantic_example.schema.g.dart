@@ -60,7 +60,7 @@ extension type Address(Map<String, dynamic> _json)
   }
 }
 
-class _AddressTypeFactory extends JsonExtensionType<Address> {
+class _AddressTypeFactory extends SchemanticType<Address> {
   const _AddressTypeFactory();
 
   @override
@@ -149,7 +149,7 @@ extension type User(Map<String, dynamic> _json)
   }
 }
 
-class _UserTypeFactory extends JsonExtensionType<User> {
+class _UserTypeFactory extends SchemanticType<User> {
   const _UserTypeFactory();
 
   @override

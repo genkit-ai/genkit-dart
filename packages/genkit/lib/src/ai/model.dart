@@ -17,20 +17,20 @@ import 'package:genkit/src/schema.dart';
 import 'package:genkit/src/types.dart';
 import 'package:schemantic/schemantic.dart';
 
-ModelRef<C> modelRef<C>(String name, {JsonExtensionType<C>? customOptions}) {
+ModelRef<C> modelRef<C>(String name, {SchemanticType<C>? customOptions}) {
   return _ModelRef<C>(name, customOptions);
 }
 
 abstract class ModelRef<C> {
   String get name;
-  JsonExtensionType<C>? get customOptions;
+  SchemanticType<C>? get customOptions;
 }
 
 class _ModelRef<C> implements ModelRef<C> {
   @override
   final String name;
   @override
-  final JsonExtensionType<C>? customOptions;
+  final SchemanticType<C>? customOptions;
 
   _ModelRef(this.name, this.customOptions);
 }
@@ -39,7 +39,7 @@ class Model<C>
     extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
     implements ModelRef<C> {
   @override
-  JsonExtensionType<C>? customOptions;
+  SchemanticType<C>? customOptions;
 
   Model({
     required super.name,
@@ -70,21 +70,21 @@ class Model<C>
 
 BidiModelRef<C> bidiModelRef<C>(
   String name, {
-  JsonExtensionType<C>? customOptions,
+  SchemanticType<C>? customOptions,
 }) {
   return _BidiModelRef<C>(name, customOptions);
 }
 
 abstract class BidiModelRef<C> {
   String get name;
-  JsonExtensionType<C>? get customOptions;
+  SchemanticType<C>? get customOptions;
 }
 
 class _BidiModelRef<C> implements BidiModelRef<C> {
   @override
   final String name;
   @override
-  final JsonExtensionType<C>? customOptions;
+  final SchemanticType<C>? customOptions;
 
   _BidiModelRef(this.name, this.customOptions);
 }
@@ -94,7 +94,7 @@ class BidiModel<C>
         Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
     implements BidiModelRef<C> {
   @override
-  JsonExtensionType<C>? customOptions;
+  SchemanticType<C>? customOptions;
 
   BidiModel({
     required super.name,

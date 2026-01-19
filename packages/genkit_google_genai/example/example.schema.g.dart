@@ -40,7 +40,7 @@ extension type WeatherToolInput(Map<String, dynamic> _json)
   }
 }
 
-class _WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
+class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
@@ -104,7 +104,7 @@ extension type Category(Map<String, dynamic> _json)
   }
 }
 
-class _CategoryTypeFactory extends JsonExtensionType<Category> {
+class _CategoryTypeFactory extends SchemanticType<Category> {
   const _CategoryTypeFactory();
 
   @override
@@ -174,7 +174,7 @@ extension type Weapon(Map<String, dynamic> _json)
   }
 }
 
-class _WeaponTypeFactory extends JsonExtensionType<Weapon> {
+class _WeaponTypeFactory extends SchemanticType<Weapon> {
   const _WeaponTypeFactory();
 
   @override
@@ -269,7 +269,7 @@ extension type RpgCharacter(Map<String, dynamic> _json)
   }
 }
 
-class _RpgCharacterTypeFactory extends JsonExtensionType<RpgCharacter> {
+class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   const _RpgCharacterTypeFactory();
 
   @override

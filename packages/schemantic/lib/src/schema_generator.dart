@@ -376,7 +376,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     return Class((b) {
       b
         ..name = '_${baseName}TypeFactory'
-        ..extend = refer('JsonExtensionType<$baseName>')
+        ..extend = refer('SchemanticType<$baseName>')
         ..constructors.add(Constructor((c) => c..constant = true));
 
       if (element.fields.isEmpty && element.interfaces.isNotEmpty) {

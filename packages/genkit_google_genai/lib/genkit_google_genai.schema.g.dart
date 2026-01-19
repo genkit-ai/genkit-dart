@@ -331,7 +331,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
   }
 }
 
-class _GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
+class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   const _GeminiOptionsTypeFactory();
 
   @override
@@ -424,7 +424,7 @@ extension type SafetySettings(Map<String, dynamic> _json)
   }
 }
 
-class _SafetySettingsTypeFactory extends JsonExtensionType<SafetySettings> {
+class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   const _SafetySettingsTypeFactory();
 
   @override
@@ -511,7 +511,7 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
   }
 }
 
-class _ThinkingConfigTypeFactory extends JsonExtensionType<ThinkingConfig> {
+class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   const _ThinkingConfigTypeFactory();
 
   @override
@@ -579,7 +579,7 @@ extension type FunctionCallingConfig(Map<String, dynamic> _json)
 }
 
 class _FunctionCallingConfigTypeFactory
-    extends JsonExtensionType<FunctionCallingConfig> {
+    extends SchemanticType<FunctionCallingConfig> {
   const _FunctionCallingConfigTypeFactory();
 
   @override
@@ -645,7 +645,7 @@ extension type GoogleSearchRetrieval(Map<String, dynamic> _json)
 }
 
 class _GoogleSearchRetrievalTypeFactory
-    extends JsonExtensionType<GoogleSearchRetrieval> {
+    extends SchemanticType<GoogleSearchRetrieval> {
   const _GoogleSearchRetrievalTypeFactory();
 
   @override
@@ -696,7 +696,7 @@ extension type FileSearch(Map<String, dynamic> _json)
   }
 }
 
-class _FileSearchTypeFactory extends JsonExtensionType<FileSearch> {
+class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
   const _FileSearchTypeFactory();
 
   @override

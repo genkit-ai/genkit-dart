@@ -48,7 +48,7 @@ extension type Ingredient(Map<String, dynamic> _json)
   }
 }
 
-class _IngredientTypeFactory extends JsonExtensionType<Ingredient> {
+class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   const _IngredientTypeFactory();
 
   @override
@@ -115,7 +115,7 @@ extension type Recipe(Map<String, dynamic> _json)
   }
 }
 
-class _RecipeTypeFactory extends JsonExtensionType<Recipe> {
+class _RecipeTypeFactory extends SchemanticType<Recipe> {
   const _RecipeTypeFactory();
 
   @override

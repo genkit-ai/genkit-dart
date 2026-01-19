@@ -40,7 +40,7 @@ extension type ShelfTestOutput(Map<String, dynamic> _json)
   }
 }
 
-class _ShelfTestOutputTypeFactory extends JsonExtensionType<ShelfTestOutput> {
+class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
   const _ShelfTestOutputTypeFactory();
 
   @override
@@ -81,7 +81,7 @@ extension type ShelfTestStream(Map<String, dynamic> _json)
   }
 }
 
-class _ShelfTestStreamTypeFactory extends JsonExtensionType<ShelfTestStream> {
+class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
   const _ShelfTestStreamTypeFactory();
 
   @override

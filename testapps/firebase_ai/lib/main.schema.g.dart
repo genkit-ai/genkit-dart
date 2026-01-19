@@ -39,7 +39,7 @@ extension type WeatherToolInput(Map<String, dynamic> _json) {
   }
 }
 
-class WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
+class WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   const WeatherToolInputTypeFactory();
 
   @override

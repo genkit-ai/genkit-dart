@@ -40,7 +40,7 @@ extension type Subject(Map<String, dynamic> _json)
   }
 }
 
-class _SubjectTypeFactory extends JsonExtensionType<Subject> {
+class _SubjectTypeFactory extends SchemanticType<Subject> {
   const _SubjectTypeFactory();
 
   @override
@@ -81,7 +81,7 @@ extension type Count(Map<String, dynamic> _json)
   }
 }
 
-class _CountTypeFactory extends JsonExtensionType<Count> {
+class _CountTypeFactory extends SchemanticType<Count> {
   const _CountTypeFactory();
 
   @override

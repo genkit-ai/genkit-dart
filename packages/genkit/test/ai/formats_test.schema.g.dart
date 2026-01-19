@@ -48,7 +48,7 @@ extension type TestObject(Map<String, dynamic> _json)
   }
 }
 
-class _TestObjectTypeFactory extends JsonExtensionType<TestObject> {
+class _TestObjectTypeFactory extends SchemanticType<TestObject> {
   const _TestObjectTypeFactory();
 
   @override

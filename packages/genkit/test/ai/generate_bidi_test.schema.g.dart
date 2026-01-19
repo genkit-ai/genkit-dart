@@ -40,7 +40,7 @@ extension type MyToolInput(Map<String, dynamic> _json)
   }
 }
 
-class _MyToolInputTypeFactory extends JsonExtensionType<MyToolInput> {
+class _MyToolInputTypeFactory extends SchemanticType<MyToolInput> {
   const _MyToolInputTypeFactory();
 
   @override
