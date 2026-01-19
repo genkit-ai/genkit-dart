@@ -21,17 +21,17 @@ part of 'shared_test_schema.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type SharedChildSchema(Map<String, dynamic> _json)
+extension type SharedChild(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory SharedChildSchema.from({String? childId}) {
-    return SharedChildSchema({'childId': childId});
+  factory SharedChild.from({required String childId}) {
+    return SharedChild({'childId': childId});
   }
 
-  String? get childId {
-    return _json['childId'] as String?;
+  String get childId {
+    return _json['childId'] as String;
   }
 
-  set childId(String? value) {
+  set childId(String value) {
     _json['childId'] = value;
   }
 
@@ -40,20 +40,24 @@ extension type SharedChildSchema(Map<String, dynamic> _json)
   }
 }
 
-class _SharedChildSchemaTypeFactory extends SchemanticType<SharedChildSchema> {
-  const _SharedChildSchemaTypeFactory();
+class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
+  const _SharedChildTypeFactory();
 
   @override
-  SharedChildSchema parse(Object? json) {
-    return SharedChildSchema(json as Map<String, dynamic>);
+  SharedChild parse(Object? json) {
+    return SharedChild(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'SharedChildSchema',
-    definition: Schema.object(properties: {'childId': Schema.string()}),
+    name: 'SharedChild',
+    definition: Schema.object(
+      properties: {'childId': Schema.string()},
+      required: ['childId'],
+    ),
     dependencies: [],
   );
 }
 
-const sharedChildSchemaType = _SharedChildSchemaTypeFactory();
+// ignore: constant_identifier_names
+const SharedChildType = _SharedChildTypeFactory();

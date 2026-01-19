@@ -184,19 +184,19 @@ class _UserTypeFactory extends SchemanticType<User> {
 // ignore: constant_identifier_names
 const UserType = _UserTypeFactory();
 
-extension type ProductSchema(Map<String, dynamic> _json)
+extension type Product(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory ProductSchema.from({
+  factory Product.from({
     required String id,
     required String name,
-    required num price,
+    required double price,
     List<String>? tags,
   }) {
-    return ProductSchema({
+    return Product({
       'id': id,
       'name': name,
       'price': price,
-      'tags': tags,
+      if (tags != null) 'tags': tags,
     });
   }
 
@@ -216,20 +216,24 @@ extension type ProductSchema(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
-  num get price {
-    return _json['price'] as num;
+  double get price {
+    return _json['price'] as double;
   }
 
-  set price(num value) {
+  set price(double value) {
     _json['price'] = value;
   }
 
   List<String>? get tags {
-    return (_json['tags'] as List).cast<String>();
+    return (_json['tags'] as List?)?.cast<String>();
   }
 
   set tags(List<String>? value) {
-    _json['tags'] = value;
+    if (value == null) {
+      _json.remove('tags');
+    } else {
+      _json['tags'] = value;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -237,17 +241,17 @@ extension type ProductSchema(Map<String, dynamic> _json)
   }
 }
 
-class _ProductSchemaTypeFactory extends SchemanticType<ProductSchema> {
-  const _ProductSchemaTypeFactory();
+class _ProductTypeFactory extends SchemanticType<Product> {
+  const _ProductTypeFactory();
 
   @override
-  ProductSchema parse(Object? json) {
-    return ProductSchema(json as Map<String, dynamic>);
+  Product parse(Object? json) {
+    return Product(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ProductSchema',
+    name: 'Product',
     definition: Schema.object(
       properties: {
         'id': Schema.string(),
@@ -261,4 +265,5 @@ class _ProductSchemaTypeFactory extends SchemanticType<ProductSchema> {
   );
 }
 
-const productSchemaType = _ProductSchemaTypeFactory();
+// ignore: constant_identifier_names
+const ProductType = _ProductTypeFactory();

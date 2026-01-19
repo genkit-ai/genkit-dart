@@ -16,6 +16,7 @@ import 'dart:convert';
 
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
+import 'schemas/shared_test_schema.dart';
 
 part 'integration_test.schema.g.dart';
 
@@ -94,6 +95,11 @@ abstract class ComprehensiveSchema {
 @Schematic(description: 'A schema with description')
 abstract class DescriptionSchema {
   String get name;
+}
+
+@Schematic()
+abstract class CrossFileParentSchema {
+  SharedChildSchema get child;
 }
 
 void main() {
@@ -330,6 +336,20 @@ void main() {
       // The implementation uses Schema.object(description: ...) which produces
       // { "type": "object", "description": "...", ... }
       expect(definition['description'], 'A schema with description');
+    });
+
+    test('Cross-file schema reference', () {
+      final child = SharedChild.from(childId: 'c1');
+      final parent = CrossFileParent.from(child: child);
+
+      expect(parent.child.childId, 'c1');
+      final json = parent.toJson();
+      expect(json, {
+        'child': {'childId': 'c1'},
+      });
+
+      final parsed = CrossFileParentType.parse(json);
+      expect(parsed.child.childId, 'c1');
     });
   });
 }

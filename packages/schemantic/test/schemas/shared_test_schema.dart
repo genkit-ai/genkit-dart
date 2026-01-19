@@ -17,6 +17,6 @@ import 'package:schemantic/schemantic.dart';
 part 'shared_test_schema.schema.g.dart';
 
 @Schematic()
-final Schema sharedChildSchema = Schema.object(
-  properties: {'childId': Schema.string()},
-);
+abstract class SharedChildSchema {
+  String get childId;
+}
