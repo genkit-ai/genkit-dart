@@ -51,7 +51,7 @@ class _SharedChildSchemaTypeFactory extends SchemanticType<SharedChildSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SharedChildSchema',
-    definition: sharedChildSchema,
+    definition: Schema.object(properties: {'childId': Schema.string()}),
     dependencies: [],
   );
 }

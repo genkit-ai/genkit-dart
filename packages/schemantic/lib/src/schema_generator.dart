@@ -844,12 +844,19 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     );
 
     // Generate Type Factory
+    // Use the schema info to reconstruct the expression, ensuring refs are used.
+    final definitionExpr = _generateExpressionFromInfo(
+      schemaInfo,
+      useRefs: true,
+    );
+    
     final factoryClass = _generateFactoryForSchema(
       baseName,
       name,
       typeRef,
       specs,
       dependencies,
+      definitionExpr,
     );
 
     // Generate constant instance
@@ -1099,12 +1106,76 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     specs.add(extType);
   }
 
+  Expression _generateExpressionFromInfo(
+    SchemaInfo info, {
+    bool useRefs = true,
+  }) {
+    if (useRefs && info.definitionName != null) {
+      // Use Schema.fromMap to generate the $ref
+      return refer('Schema.fromMap').call([
+        literalMap({
+          CodeExpression(Code("r'\$ref'")): CodeExpression(
+            Code("r'#/\$defs/${info.definitionName}'"),
+          ),
+        }),
+      ]);
+    }
+
+    if (['string', 'integer', 'number', 'boolean'].contains(info.type)) {
+      final named = <String, Expression>{};
+      if (info.description != null) {
+        named['description'] = literalString(info.description!);
+      }
+      return refer('Schema.${info.type}').call([], named);
+    }
+
+    if (info.type == 'array') {
+      final named = <String, Expression>{};
+      if (info.description != null) {
+        named['description'] = literalString(info.description!);
+      }
+      if (info.items != null) {
+        named['items'] = _generateExpressionFromInfo(
+          info.items!,
+          useRefs: useRefs,
+        );
+      }
+      return refer('Schema.list').call([], named);
+    }
+
+    if (info.type == 'object') {
+      final named = <String, Expression>{};
+      if (info.description != null) {
+        named['description'] = literalString(info.description!);
+      }
+      if (info.properties != null) {
+        final propsMap = <String, Expression>{};
+        info.properties!.forEach((k, v) {
+          propsMap[k] = _generateExpressionFromInfo(v, useRefs: useRefs);
+        });
+        named['properties'] = literalMap(propsMap);
+      }
+      if (info.required != null) {
+        named['required'] = literalList(
+          info.required!.map((e) => literalString(e)).toList(),
+        );
+      }
+      if (info.additionalProperties != null) {
+        named['additionalProperties'] = literalBool(info.additionalProperties!);
+      }
+      return refer('Schema.object').call([], named);
+    }
+
+    return refer('Schema.any').call([]);
+  }
+
   Class _generateFactoryForSchema(
     String baseName,
     String variableName,
     Reference typeRef,
     List<Spec> specs,
     Set<String> dependencies,
+    Expression definitionExpression,
   ) {
     return Class((b) {
       b
@@ -1170,7 +1241,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             ..returns = refer('JsonSchemaMetadata')
             ..body = refer('JsonSchemaMetadata').call([], {
               'name': literalString(baseName),
-              'definition': refer(variableName),
+              'definition': definitionExpression,
               'dependencies': literalList(
                 dependencies
                     .map((d) => refer('${_toCamelCase(d)}Type'))

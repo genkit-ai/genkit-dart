@@ -27,6 +27,7 @@ class SchemaInfo {
   final bool? additionalProperties;
   final String? definitionName;
   final List<String>? required;
+  final String? description;
 
   SchemaInfo({
     this.type,
@@ -35,6 +36,7 @@ class SchemaInfo {
     this.additionalProperties,
     this.definitionName,
     this.required,
+    this.description,
   });
 
   factory SchemaInfo.fromDartObject(DartObject object) {
@@ -78,12 +80,15 @@ class SchemaInfo {
       }
     }
 
+    final description = object.getField('description')?.toStringValue();
+
     return SchemaInfo(
       type: type,
       items: items,
       properties: properties,
       additionalProperties: additionalProperties,
       required: required,
+      description: description,
     );
   }
 }
@@ -297,7 +302,15 @@ class SchemaParser {
     } else if (name == 'array' || name == 'list') {
       return _parseSchemaArray(args);
     } else if (['string', 'integer', 'number', 'boolean'].contains(name)) {
-      return SchemaInfo(type: name);
+      String? description;
+      for (final arg in args.arguments) {
+        if (arg is NamedExpression && arg.name.label.name == 'description') {
+          if (arg.expression is SimpleStringLiteral) {
+            description = (arg.expression as SimpleStringLiteral).value;
+          }
+        }
+      }
+      return SchemaInfo(type: name, description: description);
     }
     throw UnsupportedError('Unsupported Schema constructor: Schema.$name');
   }
@@ -306,6 +319,7 @@ class SchemaParser {
     Map<String, SchemaInfo>? properties;
     bool? additionalProperties;
     List<String>? required;
+    String? description;
 
     for (final arg in args.arguments) {
       if (arg is NamedExpression) {
@@ -319,6 +333,10 @@ class SchemaParser {
           }
         } else if (name == 'required') {
           required = _parseRequired(arg.expression);
+        } else if (name == 'description') {
+          if (arg.expression is SimpleStringLiteral) {
+            description = (arg.expression as SimpleStringLiteral).value;
+          }
         } else {
           throw UnsupportedError(
             "Unsupported argument '$name' in Schema.object",
@@ -332,6 +350,7 @@ class SchemaParser {
       properties: properties,
       additionalProperties: additionalProperties,
       required: required,
+      description: description,
     );
   }
 
@@ -369,11 +388,17 @@ class SchemaParser {
 
   static SchemaInfo _parseSchemaArray(ArgumentList args) {
     SchemaInfo? items;
+    String? description;
+
     for (final arg in args.arguments) {
       if (arg is NamedExpression) {
         final name = arg.name.label.name;
         if (name == 'items') {
           items = _parseExpression(arg.expression);
+        } else if (name == 'description') {
+          if (arg.expression is SimpleStringLiteral) {
+            description = (arg.expression as SimpleStringLiteral).value;
+          }
         } else {
           throw UnsupportedError(
             "Unsupported argument '$name' in Schema.list/array",
@@ -381,6 +406,6 @@ class SchemaParser {
         }
       }
     }
-    return SchemaInfo(type: 'array', items: items);
+    return SchemaInfo(type: 'array', items: items, description: description);
   }
 }
