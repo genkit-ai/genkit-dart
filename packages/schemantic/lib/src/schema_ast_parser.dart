@@ -239,7 +239,7 @@ class SchemaParser {
 
     // Fallback: Check static type
     final type = expression.staticType;
-    if (type != null && !(type is DynamicType)) {
+    if (type != null && type is! DynamicType) {
       final typeName = type.getDisplayString();
       if (typeName.startsWith('SchemanticType<')) {
         final generic = typeName.substring(

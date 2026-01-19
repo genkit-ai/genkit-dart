@@ -794,7 +794,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     // 1. Try AST parsing (preserves references)
     try {
       schemaInfo = await SchemaParser.parseFromElement(element);
-    } catch (e, st) {
+    } catch (_) {
       // Ignore, fallback to constant evaluation
     }
 
