@@ -22,7 +22,7 @@ import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 /// ```dart
 /// stringType().parse('hello');
 /// ```
-JsonExtensionType<String> stringType({
+SchemanticType<String> stringType({
   String? description,
   int? minLength,
   int? maxLength,
@@ -40,7 +40,7 @@ JsonExtensionType<String> stringType({
   );
 }
 
-class _StringTypeFactory extends JsonExtensionType<String> {
+class _StringTypeFactory extends SchemanticType<String> {
   final String? description;
   final int? minLength;
   final int? maxLength;
@@ -80,7 +80,7 @@ class _StringTypeFactory extends JsonExtensionType<String> {
 /// ```dart
 /// intType().parse(123);
 /// ```
-JsonExtensionType<int> intType({
+SchemanticType<int> intType({
   String? description,
   int? minimum,
   int? maximum,
@@ -98,7 +98,7 @@ JsonExtensionType<int> intType({
   );
 }
 
-class _IntTypeFactory extends JsonExtensionType<int> {
+class _IntTypeFactory extends SchemanticType<int> {
   final String? description;
   final int? minimum;
   final int? maximum;
@@ -138,7 +138,7 @@ class _IntTypeFactory extends JsonExtensionType<int> {
 /// ```dart
 /// doubleType().parse(12.34);
 /// ```
-JsonExtensionType<double> doubleType({
+SchemanticType<double> doubleType({
   String? description,
   double? minimum,
   double? maximum,
@@ -156,7 +156,7 @@ JsonExtensionType<double> doubleType({
   );
 }
 
-class _DoubleTypeFactory extends JsonExtensionType<double> {
+class _DoubleTypeFactory extends SchemanticType<double> {
   final String? description;
   final double? minimum;
   final double? maximum;
@@ -199,11 +199,11 @@ class _DoubleTypeFactory extends JsonExtensionType<double> {
 /// ```dart
 /// boolType().parse(true);
 /// ```
-JsonExtensionType<bool> boolType({String? description}) {
+SchemanticType<bool> boolType({String? description}) {
   return _BoolTypeFactory(description: description);
 }
 
-class _BoolTypeFactory extends JsonExtensionType<bool> {
+class _BoolTypeFactory extends SchemanticType<bool> {
   final String? description;
   const _BoolTypeFactory({this.description});
 
@@ -225,11 +225,11 @@ class _BoolTypeFactory extends JsonExtensionType<bool> {
 /// ```dart
 /// voidType().parse(null);
 /// ```
-JsonExtensionType<void> voidType({String? description}) {
+SchemanticType<void> voidType({String? description}) {
   return _VoidTypeFactory(description: description);
 }
 
-class _VoidTypeFactory extends JsonExtensionType<void> {
+class _VoidTypeFactory extends SchemanticType<void> {
   final String? description;
   const _VoidTypeFactory({this.description});
   @override
@@ -250,11 +250,11 @@ class _VoidTypeFactory extends JsonExtensionType<void> {
 /// ```dart
 /// dynamicType().parse(anything);
 /// ```
-JsonExtensionType<dynamic> dynamicType({String? description}) {
+SchemanticType<dynamic> dynamicType({String? description}) {
   return _DynamicTypeFactory(description: description);
 }
 
-class _DynamicTypeFactory extends JsonExtensionType<dynamic> {
+class _DynamicTypeFactory extends SchemanticType<dynamic> {
   final String? description;
   const _DynamicTypeFactory({this.description});
   @override
@@ -276,8 +276,8 @@ class _DynamicTypeFactory extends JsonExtensionType<dynamic> {
 /// final stringList = listType(StringType, description: 'List of strings');
 /// stringList.parse(['a', 'b']);
 /// ```
-JsonExtensionType<List<T>> listType<T>(
-  JsonExtensionType<T> itemType, {
+SchemanticType<List<T>> listType<T>(
+  SchemanticType<T> itemType, {
   String? description,
   int? minItems,
   int? maxItems,
@@ -292,8 +292,8 @@ JsonExtensionType<List<T>> listType<T>(
   );
 }
 
-class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
-  final JsonExtensionType<T> itemType;
+class _ListTypeFactory<T> extends SchemanticType<List<T>> {
+  final SchemanticType<T> itemType;
   final String? description;
   final int? minItems;
   final int? maxItems;
@@ -352,9 +352,9 @@ class _ListTypeFactory<T> extends JsonExtensionType<List<T>> {
 /// final myMap = mapType(StringType, IntType, description: 'My Map');
 /// myMap.parse({'a': 1, 'b': 2});
 /// ```
-JsonExtensionType<Map<K, V>> mapType<K, V>(
-  JsonExtensionType<K> keyType,
-  JsonExtensionType<V> valueType, {
+SchemanticType<Map<K, V>> mapType<K, V>(
+  SchemanticType<K> keyType,
+  SchemanticType<V> valueType, {
   String? description,
   int? minProperties,
   int? maxProperties,
@@ -368,9 +368,9 @@ JsonExtensionType<Map<K, V>> mapType<K, V>(
   );
 }
 
-class _MapTypeFactory<K, V> extends JsonExtensionType<Map<K, V>> {
-  final JsonExtensionType<K> keyType;
-  final JsonExtensionType<V> valueType;
+class _MapTypeFactory<K, V> extends SchemanticType<Map<K, V>> {
+  final SchemanticType<K> keyType;
+  final SchemanticType<V> valueType;
   final String? description;
   final int? minProperties;
   final int? maxProperties;

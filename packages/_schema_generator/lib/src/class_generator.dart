@@ -18,6 +18,7 @@ import 'package:dart_style/dart_style.dart';
 const typeOverrides = {
   'ToolResponse': {'output': 'dynamic'},
   'GenerateActionOptions': {'maxTurns': 'int'},
+  'ModelResponseChunk': {'index': 'int'},
 };
 
 class ClassGenerator {

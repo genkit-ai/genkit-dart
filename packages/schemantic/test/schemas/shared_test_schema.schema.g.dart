@@ -15,24 +15,24 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'tool_calling_example.dart';
+part of 'shared_test_schema.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-extension type WeatherToolInput(Map<String, dynamic> _json)
+extension type SharedChildSchema(Map<String, dynamic> _json)
     implements Map<String, dynamic> {
-  factory WeatherToolInput.from({required String location}) {
-    return WeatherToolInput({'location': location});
+  factory SharedChildSchema.from({String? childId}) {
+    return SharedChildSchema({'childId': childId});
   }
 
-  String get location {
-    return _json['location'] as String;
+  String? get childId {
+    return _json['childId'] as String?;
   }
 
-  set location(String value) {
-    _json['location'] = value;
+  set childId(String? value) {
+    _json['childId'] = value;
   }
 
   Map<String, dynamic> toJson() {
@@ -40,24 +40,20 @@ extension type WeatherToolInput(Map<String, dynamic> _json)
   }
 }
 
-class _WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
-  const _WeatherToolInputTypeFactory();
+class _SharedChildSchemaTypeFactory extends SchemanticType<SharedChildSchema> {
+  const _SharedChildSchemaTypeFactory();
 
   @override
-  WeatherToolInput parse(Object? json) {
-    return WeatherToolInput(json as Map<String, dynamic>);
+  SharedChildSchema parse(Object? json) {
+    return SharedChildSchema(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'WeatherToolInput',
-    definition: Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
-    ),
+    name: 'SharedChildSchema',
+    definition: Schema.object(properties: {'childId': Schema.string()}),
     dependencies: [],
   );
 }
 
-// ignore: constant_identifier_names
-const WeatherToolInputType = _WeatherToolInputTypeFactory();
+const sharedChildSchemaType = _SharedChildSchemaTypeFactory();

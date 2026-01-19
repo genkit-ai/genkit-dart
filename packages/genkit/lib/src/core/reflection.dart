@@ -305,14 +305,17 @@ class ReflectionServer {
     final stream = request.uri.queryParameters['stream'] == 'true';
 
     final parts = key.split('/');
-    if (parts.length != 3 || parts[0] != '') {
+    if (parts.length < 3 || parts[0] != '') {
       request.response
         ..statusCode = HttpStatus.notFound
         ..write('Invalid action key format')
         ..close();
       return;
     }
-    final action = await registry.lookupAction(parts[1], parts[2]);
+    final action = await registry.lookupAction(
+      parts[1],
+      parts.sublist(2).join('/'),
+    );
 
     if (action == null) {
       request.response
@@ -326,6 +329,7 @@ class ReflectionServer {
       request.response.headers.contentType = ContentType(
         'application',
         'x-ndjson',
+        charset: 'utf-8',
       );
       request.response.bufferOutput = false;
 
@@ -333,7 +337,7 @@ class ReflectionServer {
         final result = await action.runRaw(
           input,
           onChunk: (chunk) {
-            request.response.write('${jsonEncode(chunk)}\n');
+            request.response.writeln(jsonEncode(chunk));
           },
         );
         final response = RunActionResponse(

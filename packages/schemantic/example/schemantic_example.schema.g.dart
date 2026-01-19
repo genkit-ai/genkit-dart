@@ -60,7 +60,7 @@ extension type Address(Map<String, dynamic> _json)
   }
 }
 
-class _AddressTypeFactory extends JsonExtensionType<Address> {
+class _AddressTypeFactory extends SchemanticType<Address> {
   const _AddressTypeFactory();
 
   @override
@@ -149,7 +149,7 @@ extension type User(Map<String, dynamic> _json)
   }
 }
 
-class _UserTypeFactory extends JsonExtensionType<User> {
+class _UserTypeFactory extends SchemanticType<User> {
   const _UserTypeFactory();
 
   @override
@@ -183,3 +183,82 @@ class _UserTypeFactory extends JsonExtensionType<User> {
 
 // ignore: constant_identifier_names
 const UserType = _UserTypeFactory();
+
+extension type ProductSchema(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
+  factory ProductSchema.from({
+    required String id,
+    required String name,
+    required num price,
+    List<String>? tags,
+  }) {
+    return ProductSchema({
+      'id': id,
+      'name': name,
+      'price': price,
+      'tags': tags,
+    });
+  }
+
+  String get id {
+    return _json['id'] as String;
+  }
+
+  set id(String value) {
+    _json['id'] = value;
+  }
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  num get price {
+    return _json['price'] as num;
+  }
+
+  set price(num value) {
+    _json['price'] = value;
+  }
+
+  List<String>? get tags {
+    return (_json['tags'] as List).cast<String>();
+  }
+
+  set tags(List<String>? value) {
+    _json['tags'] = value;
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _ProductSchemaTypeFactory extends SchemanticType<ProductSchema> {
+  const _ProductSchemaTypeFactory();
+
+  @override
+  ProductSchema parse(Object? json) {
+    return ProductSchema(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ProductSchema',
+    definition: Schema.object(
+      properties: {
+        'id': Schema.string(),
+        'name': Schema.string(),
+        'price': Schema.number(),
+        'tags': Schema.list(items: Schema.string()),
+      },
+      required: ['id', 'name', 'price'],
+    ),
+    dependencies: [],
+  );
+}
+
+const productSchemaType = _ProductSchemaTypeFactory();

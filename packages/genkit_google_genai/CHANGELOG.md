@@ -1,3 +1,14 @@
+## 0.0.1-dev.8
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **REFACTOR**: renamed JsonExtensionType to SchemanticType (#44).
+
+## 0.0.1-dev.7
+
+ - **REFACTOR**: Consolidate Google GenAI examples into a single file, fixed tools calling, and schema flattening helper (#43).
+ - **FEAT**: implemented streaming and various config options for genkit_google_genai plugin (#42).
+
 ## 0.0.1-dev.6
 
 > Note: This release has breaking changes.

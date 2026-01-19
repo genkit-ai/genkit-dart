@@ -40,8 +40,7 @@ extension type TestCustomOptions(Map<String, dynamic> _json)
   }
 }
 
-class _TestCustomOptionsTypeFactory
-    extends JsonExtensionType<TestCustomOptions> {
+class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
   const _TestCustomOptionsTypeFactory();
 
   @override

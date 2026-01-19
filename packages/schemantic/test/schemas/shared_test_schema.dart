@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:schemantic/schemantic.dart';
 
-void main() async {
-  final ai = Genkit(plugins: [googleAI()]);
+part 'shared_test_schema.schema.g.dart';
 
-  final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
-    prompt:
-        'Tell me a joke about a developer who is trying to learn a new language.',
-  );
-
-  print(response.text);
-}
+@Schematic()
+final Schema sharedChildSchema = Schema.object(
+  properties: {'childId': Schema.string()},
+);

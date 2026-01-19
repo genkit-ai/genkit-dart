@@ -174,7 +174,7 @@ void main() {
     expect(body, contains('"result":"Echo: direct"'));
   });
 
-  test('Client using JsonExtensionType', () async {
+  test('Client using SchemanticType', () async {
     final echoFlow = ai.defineFlow(
       name: 'echoType',
       fn: (input, _) async => 'Echo: $input',

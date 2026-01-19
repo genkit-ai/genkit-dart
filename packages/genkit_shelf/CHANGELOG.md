@@ -1,3 +1,13 @@
+## 0.0.1-dev.8
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **REFACTOR**: renamed JsonExtensionType to SchemanticType (#44).
+
+## 0.0.1-dev.7
+
+ - Update a dependency to the latest release.
+
 ## 0.0.1-dev.6
 
 > Note: This release has breaking changes.

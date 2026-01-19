@@ -132,6 +132,15 @@ abstract class ToolResponseSchema {
 }
 
 @Schematic()
+abstract class ModelInfoSchema {
+  List<String>? get versions;
+  String? get label;
+  Map<String, dynamic>? get configSchema;
+  Map<String, dynamic>? get supports;
+  String? get stage;
+}
+
+@Schematic()
 abstract class ModelRequestSchema {
   List<MessageSchema> get messages;
   Map<String, dynamic>? get config;
@@ -157,7 +166,7 @@ abstract class ModelResponseSchema {
 @Schematic()
 abstract class ModelResponseChunkSchema {
   Role? get role;
-  double? get index;
+  int? get index;
   List<PartSchema> get content;
   Map<String, dynamic>? get custom;
   bool? get aggregated;

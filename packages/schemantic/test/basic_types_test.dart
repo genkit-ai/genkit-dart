@@ -177,7 +177,7 @@ void main() {
   });
 }
 
-class _MockType extends JsonExtensionType<String> {
+class _MockType extends SchemanticType<String> {
   @override
   String parse(Object? json) => json as String;
 

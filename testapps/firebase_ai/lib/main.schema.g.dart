@@ -21,7 +21,8 @@ part of 'main.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type WeatherToolInput(Map<String, dynamic> _json) {
+extension type WeatherToolInput(Map<String, dynamic> _json)
+    implements Map<String, dynamic> {
   factory WeatherToolInput.from({required String location}) {
     return WeatherToolInput({'location': location});
   }
@@ -39,11 +40,11 @@ extension type WeatherToolInput(Map<String, dynamic> _json) {
   }
 }
 
-class WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
-  const WeatherToolInputTypeFactory();
+class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
+  const _WeatherToolInputTypeFactory();
 
   @override
-  WeatherToolInput parse(Object json) {
+  WeatherToolInput parse(Object? json) {
     return WeatherToolInput(json as Map<String, dynamic>);
   }
 
@@ -59,4 +60,4 @@ class WeatherToolInputTypeFactory extends JsonExtensionType<WeatherToolInput> {
 }
 
 // ignore: constant_identifier_names
-const WeatherToolInputType = WeatherToolInputTypeFactory();
+const WeatherToolInputType = _WeatherToolInputTypeFactory();

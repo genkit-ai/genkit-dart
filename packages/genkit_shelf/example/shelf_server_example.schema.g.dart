@@ -40,7 +40,7 @@ extension type HelloInput(Map<String, dynamic> _json)
   }
 }
 
-class _HelloInputTypeFactory extends JsonExtensionType<HelloInput> {
+class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   const _HelloInputTypeFactory();
 
   @override
@@ -81,7 +81,7 @@ extension type HelloOutput(Map<String, dynamic> _json)
   }
 }
 
-class _HelloOutputTypeFactory extends JsonExtensionType<HelloOutput> {
+class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   const _HelloOutputTypeFactory();
 
   @override
@@ -122,7 +122,7 @@ extension type CountChunk(Map<String, dynamic> _json)
   }
 }
 
-class _CountChunkTypeFactory extends JsonExtensionType<CountChunk> {
+class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
   const _CountChunkTypeFactory();
 
   @override
