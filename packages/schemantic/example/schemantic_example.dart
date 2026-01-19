@@ -106,7 +106,6 @@ void main() async {
   print('\n--- Validation ---');
 
   // Valid data
-  // Valid data
   final validData = <String, dynamic>{
     'name': 'Charlie',
     'isAdmin': true,

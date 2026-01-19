@@ -113,7 +113,6 @@ class SchemaParser {
 
     // Find the variable declaration in AST
     VariableDeclaration? variableNode;
-    // Naive search for now
     for (final part in result.units) {
       final declaration = _findVariableDeclaration(part.unit, element.name!);
       if (declaration != null) {

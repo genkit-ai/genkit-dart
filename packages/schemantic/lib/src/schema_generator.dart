@@ -731,11 +731,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       } else if (typeName.endsWith('Schema')) {
         final nestedBaseName = _stripSchemaSuffix(typeName);
         // If we are building the "definition" for the metadata, we want to use refs for children.
-        // If we were building strict inline schema, we would call jsonSchema().
-        // BUT here we are only building schemaDefinition (which is used for metadata).
-        // So we should ALWAYS use refs here if it's a known Schematic type.
-        // The old behavior "inline everything" is achieved by traversing schemaMetadata.
-
         if (useRefs) {
           schemaExpression = refer('Schema.fromMap').call([
             literalMap({
@@ -794,15 +789,12 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     Element element,
     ConstantReader annotation,
   ) async {
-    // 1. Try generic evaluation (works for const)
     SchemaInfo? schemaInfo;
 
     // 1. Try AST parsing (preserves references)
-    // We prioritize this because constant evaluation inlines everything, losing "references" to other Schema definitions.
     try {
       schemaInfo = await SchemaParser.parseFromElement(element);
     } catch (e, st) {
-      print('AST Parsing exception for $name: $e\n$st');
       // Ignore, fallback to constant evaluation
     }
 
@@ -849,7 +841,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       schemaInfo,
       useRefs: true,
     );
-    
+
     final factoryClass = _generateFactoryForSchema(
       baseName,
       name,
@@ -897,9 +889,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     final properties = schema.properties;
     final additionalProperties = schema.additionalProperties;
 
-    // Default to true if not specified, unless properties are present?
-    // In JSON Dictionary: "additionalProperties defaults to true"
-    // In our `SchemaInfo`, null means unspecified.
+    // Default to true if not specified
     final isExplicitlyOpen = additionalProperties == true;
 
     if (properties != null && !isExplicitlyOpen) {
