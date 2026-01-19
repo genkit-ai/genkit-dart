@@ -286,7 +286,13 @@ class SchemaParser {
       if (_schematicChecker.hasAnnotationOf(element)) {
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      // Swallowing exceptions here makes the generator resilient to analyzer errors,
+      // but we log it for debugging purposes.
+      print(
+        'Schemantic Warning: Failed to check annotation for element "${element.name}": $e',
+      );
+    }
     return false;
   }
 
