@@ -20,17 +20,34 @@ import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
 import 'package:schemantic/schemantic.dart' hide Field;
 import 'package:source_gen/source_gen.dart';
+import 'schema_ast_parser.dart';
 
 class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   @override
-  String generateForAnnotatedElement(
+  Future<String> generateForAnnotatedElement(
     Element element,
     ConstantReader annotation,
     BuildStep buildStep,
-  ) {
-    if (element is! ClassElement || !element.isAbstract) {
+  ) async {
+    if (element is TopLevelVariableElement) {
+      if (element.name == null) {
+        throw InvalidGenerationSourceError(
+          'Variable name cannot be null',
+          element: element,
+        );
+      }
+      return _generateFromSchemaInstance(element.name!, element, annotation);
+    } else if (element is FieldElement) {
+      if (element.name == null) {
+        throw InvalidGenerationSourceError(
+          'Field name cannot be null',
+          element: element,
+        );
+      }
+      return _generateFromSchemaInstance(element.name!, element, annotation);
+    } else if (element is! ClassElement || !element.isAbstract) {
       throw InvalidGenerationSourceError(
-        '`@Schematic` can only be used on abstract classes.',
+        '`@Schematic` can only be used on abstract classes or const/final Schema variables.',
         element: element,
       );
     }
@@ -794,6 +811,404 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         ..modifier = FieldModifier.constant
         ..assignment = refer('_${baseName}TypeFactory').constInstance([]).code,
     );
+  }
+
+  Future<String> _generateFromSchemaInstance(
+    String name,
+    Element element,
+    ConstantReader annotation,
+  ) async {
+    // 1. Try generic evaluation (works for const)
+    SchemaInfo? schemaInfo;
+
+    // Try constant evaluation first
+    try {
+      if (element is VariableElement) {
+        final constValue = element.computeConstantValue();
+        if (constValue != null) {
+          print('Create SchemaInfo from DartObject for ${element.name}');
+          schemaInfo = SchemaInfo.fromDartObject(constValue);
+          print(
+            'SchemaInfo from DartObject: properties=${schemaInfo.properties?.keys.toList()}',
+          );
+        }
+      }
+    } catch (e) {
+      print('Constant evaluation failed: $e');
+      // Ignore, fallback to AST
+    }
+
+    // 2. Fallback to AST parsing
+    if (schemaInfo == null) {
+      print('Fallback to AST parsing for ${element.name}');
+      try {
+        schemaInfo = await SchemaParser.parseFromElement(element);
+      } catch (e) {
+        throw InvalidGenerationSourceError(
+          'Could not parse Schema definition: $e',
+          element: element,
+        );
+      }
+    }
+
+    return _generateFromSchemaInfo(name, schemaInfo);
+  }
+
+  String _generateFromSchemaInfo(String name, SchemaInfo schemaInfo) {
+    final baseName = _capitalize(name);
+    final specs = <Spec>[];
+
+    // Generate Types
+    final typeRef = _analyzeAndGenerateTypes(schemaInfo, baseName, specs);
+
+    // Generate Type Factory
+    final factoryClass = _generateFactoryForSchema(
+      baseName,
+      name,
+      typeRef,
+      specs,
+    );
+
+    // Generate constant instance
+    final constInstance = Field(
+      (b) => b
+        ..name = '${name}Type'
+        ..modifier = FieldModifier.constant
+        ..assignment = refer('_${baseName}TypeFactory').constInstance([]).code,
+    );
+
+    final library = Library(
+      (b) => b..body.addAll([...specs, factoryClass, constInstance]),
+    );
+
+    final emitter = DartEmitter(useNullSafetySyntax: true);
+    return DartFormatter(
+      languageVersion: DartFormatter.latestLanguageVersion,
+    ).format('${library.accept(emitter)}');
+  }
+
+  /// Analyzes the [schema] object and generates necessary types (e.g. Extension Types).
+  /// Returns the [Reference] to the type that should be used.
+  Reference _analyzeAndGenerateTypes(
+    SchemaInfo schema,
+    String name,
+    List<Spec> specs,
+  ) {
+    // Check type
+    final type = schema.type;
+    final items = schema.items;
+    final properties = schema.properties;
+    final additionalProperties = schema.additionalProperties;
+
+    // Default to true if not specified, unless properties are present?
+    // In JSON Dictionary: "additionalProperties defaults to true"
+    // In our `SchemaInfo`, null means unspecified.
+    final isExplicitlyOpen = additionalProperties == true;
+
+    if (properties != null && !isExplicitlyOpen) {
+      // Generate Extension Type
+      final fields = <String, Reference>{};
+
+      properties.forEach((key, valueObject) {
+        final propName = _toCamelCase(key);
+        fields[key] = _analyzeAndGenerateTypes(
+          valueObject,
+          '$name${_capitalize(propName)}',
+          specs,
+        );
+      });
+
+      _generateExtensionTypeForSchema(name, fields, specs);
+      return refer(name);
+    } else if (items != null) {
+      // Array
+      final itemType = _analyzeAndGenerateTypes(items, '${name}Item', specs);
+      return TypeReference(
+        (b) => b
+          ..symbol = 'List'
+          ..types.add(itemType),
+      );
+    } else {
+      // Primitives
+      if (type == 'string') return refer('String');
+      if (type == 'integer') return refer('int');
+      if (type == 'number') return refer('num');
+      if (type == 'boolean') return refer('bool');
+      if (type == 'object') return refer('Map<String, dynamic>');
+      if (type == 'array') return refer('List<dynamic>');
+    }
+
+    return refer('Map<String, dynamic>');
+  }
+
+  void _generateExtensionTypeForSchema(
+    String name,
+    Map<String, Reference> fields,
+    List<Spec> specs,
+  ) {
+    final extType = ExtensionType((b) {
+      b
+        ..name = name
+        ..implements.add(refer('Map<String, dynamic>'))
+        ..representationDeclaration =
+            (RepresentationDeclarationBuilder()
+                  ..declaredRepresentationType = refer('Map<String, dynamic>')
+                  ..name = '_json')
+                .build();
+
+      // Factory from
+      final params = <Parameter>[];
+      final bodyEntries = <String>[];
+
+      fields.forEach((jsonKey, typeRef) {
+        final fieldName = _toCamelCase(jsonKey);
+
+        params.add(
+          Parameter(
+            (p) => p
+              ..name = fieldName
+              ..type = typeRef
+              ..named = true
+              ..required = true,
+          ),
+        );
+        bodyEntries.add("'$jsonKey': $fieldName");
+      });
+
+      b.constructors.add(
+        Constructor((c) {
+          c.name = 'from';
+          c.factory = true;
+          c.optionalParameters.addAll(params);
+          c.body = Code('return $name({${bodyEntries.join(', ')}});');
+        }),
+      );
+
+      // Getters
+      fields.forEach((jsonKey, typeRef) {
+        final fieldName = _toCamelCase(jsonKey);
+
+        // Helper to get cast for type
+        final typeSymbol = typeRef.symbol;
+        String body;
+
+        if (typeRef is TypeReference &&
+            typeRef.symbol == 'List' &&
+            typeRef.types.isNotEmpty) {
+          final itemType = typeRef.types.first;
+          final itemSymbol = itemType.symbol;
+          if ([
+            'String',
+            'int',
+            'num',
+            'bool',
+            'double',
+            'DateTime',
+          ].contains(itemSymbol)) {
+            body = "return (_json['$jsonKey'] as List).cast<$itemSymbol>();";
+          } else {
+            // For Extension Types on Map, casting to List<Map> is sufficient runtime check
+            body =
+                "return (_json['$jsonKey'] as List).cast<Map<String, dynamic>>();";
+          }
+        } else {
+          body = "return _json['$jsonKey'] as $typeSymbol;";
+        }
+
+        b.methods.add(
+          Method(
+            (m) => m
+              ..name = fieldName
+              ..type = MethodType.getter
+              ..returns = typeRef
+              ..body = Code(body),
+          ),
+        );
+
+        // setter
+        b.methods.add(
+          Method(
+            (m) => m
+              ..name = fieldName
+              ..type = MethodType.setter
+              ..requiredParameters.add(
+                Parameter(
+                  (p) => p
+                    ..name = 'value'
+                    ..type = typeRef,
+                ),
+              )
+              ..body = Code("_json['$jsonKey'] = value;"),
+          ),
+        );
+      });
+
+      b.methods.add(
+        Method(
+          (m) => m
+            ..name = 'toJson'
+            ..returns = refer('Map<String, dynamic>')
+            ..body = Code('return _json;'),
+        ),
+      );
+    });
+
+    specs.add(extType);
+  }
+
+  Class _generateFactoryForSchema(
+    String baseName,
+    String variableName,
+    Reference typeRef,
+    List<Spec> specs,
+  ) {
+    return Class((b) {
+      b
+        ..name = '_${baseName}TypeFactory'
+        ..extend = refer('SchemanticType<${typeRef.symbol}>')
+        ..constructors.add(Constructor((c) => c..constant = true));
+
+      // parse
+      b.methods.add(
+        Method((m) {
+          m
+            ..annotations.add(refer('override'))
+            ..name = 'parse'
+            ..returns = typeRef
+            ..requiredParameters.add(
+              Parameter(
+                (p) => p
+                  ..name = 'json'
+                  ..type = refer('Object?'),
+              ),
+            );
+
+          // Check if typeRef is List
+          // Since typeRef is Reference, we check symbol.
+          // BUT TypeReference structure is complex.
+          // If we generated TypeReference for List, symbol is List.
+          // Refer('List<..>') might have symbol 'List<...>'.
+          // Simplest check: if string contains List< or starts with List.
+
+          final symbol = typeRef.symbol ?? '';
+          // If typeRef is TypeReference, we need to handle it.
+          // But we passed it as Reference earlier.
+          // Let's rely on simple string check or better yet, check if it was generated as List in _analyzeAndGenerateTypes.
+
+          // Actually, we can just check if the type name starts with List.
+          // Or we can just use `dynamic` cast and let standard Dart runtime checks handle it implies:
+          // return ... (json as ...);
+          // BUT `(json as Map)` throws if json is List.
+
+          if (symbol.startsWith('List') ||
+              (typeRef is TypeReference && typeRef.symbol == 'List')) {
+            m.body = Code(
+              'return ${typeRef.symbol ?? 'List'}.from(json as List);',
+            );
+            // Wait, List.from might not be deep enough for strong types?
+            // If we have List<ItemType>, `json as List` is `List<dynamic>`.
+            // `List<ItemType>.from(json as List)` works if ItemType is primitive.
+            // If ItemType is custom, we need conversion?
+
+            // `_analyzeAndGenerateTypes` for array returns:
+            /*
+                   TypeReference((b) => b
+                     ..symbol = 'List'
+                     ..types.add(itemType))
+                 */
+            // which renders as `List<ItemType>`.
+            // So `List<ItemType>.from(json as List)` only works if items are already ItemType?
+            // No, they are Maps.
+
+            // If we want robust parsing, we need a mapper.
+            // BUT `SchemanticType< List<T> >` means `parse` returns `List<T>`.
+
+            // For now, let's just fix the cast to `json as List` if it looks like a list.
+            // The "parsing" of children happens ... where?
+            // In `extension type` getters, we do `map(...)`.
+            // But here we are at the top level. `parse` receives raw JSON.
+            // If it is an array schema, we return `List<...>` directly?
+            // If so, who converts `List<Map>` to `List<ItemType>`?
+            // If we just return `json as List`, it is `List<dynamic>`, checking against `List<ItemType>` might fail if we cast strictly.
+
+            // Ideally `parse` should recurse.
+            // But for `const Schema`, we generated `List<ItemType>`.
+            // If `ItemType` is a primitive, `List.from` is fine.
+            // If `ItemType` is an extension type, `List.from` might assume items are castable.
+            // Extension types around Map are castable from Map.
+            // So `List<ExtensionType>.from(json as List)` ?
+            // `ExtensionType(map)` constructor is checked.
+            // But `List.from` doesn't call constructor automatically?
+            // No, it just copies.
+            // If `ItemType` is extension type `MyItem`, then `MyItem` IS `Map<String,dynamic>`.
+            // So `List<Map>` IS `List<MyItem>` at runtime (mostly, due to extension type erasure).
+            // So `(json as List).cast<Map<String, dynamic>>()` should work?
+
+            if (typeRef is TypeReference && typeRef.types.isNotEmpty) {
+              final itemSymbol = typeRef.types.first.symbol;
+              // Handle primitives and Maps directly via cast
+              if ([
+                    'String',
+                    'int',
+                    'num',
+                    'bool',
+                    'dynamic',
+                    'Object',
+                    'double',
+                    'DateTime',
+                  ].contains(itemSymbol) ||
+                  (itemSymbol?.startsWith('Map') ?? false)) {
+                m.body = Code('return (json as List).cast<$itemSymbol>();');
+              } else {
+                // Assume extension type or class that accepts Map as primary representation
+                m.body = Code(
+                  'return (json as List).cast<Map<String, dynamic>>().map((e) => $itemSymbol(e)).toList();',
+                );
+              }
+            } else {
+              m.body = Code('return (json as List).cast<dynamic>();');
+            }
+          } else if (symbol.startsWith('Map') ||
+              symbol == 'dynamic' ||
+              symbol == 'Object') {
+            m.body = Code('return json as $symbol;');
+          } else {
+            m.body = Code('return $symbol(json as Map<String, dynamic>);');
+          }
+        }),
+      );
+
+      // schemaMetadata
+      b.methods.add(
+        Method(
+          (m) => m
+            ..annotations.add(refer('override'))
+            ..name = 'schemaMetadata'
+            ..type = MethodType.getter
+            ..returns = refer('JsonSchemaMetadata')
+            ..body = refer('JsonSchemaMetadata').call([], {
+              'name': literalString(baseName),
+              'definition': refer(variableName),
+              'dependencies': literalList([]),
+            }).code,
+        ),
+      );
+    });
+  }
+
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
+  String _toCamelCase(String s) {
+    if (s.isEmpty) return s;
+    final parts = s.split('_');
+    var result = parts[0];
+    for (var i = 1; i < parts.length; i++) {
+      result += _capitalize(parts[i]);
+    }
+    return result;
   }
 }
 
