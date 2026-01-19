@@ -102,7 +102,7 @@ class NumberField extends Field {
   });
 }
 
-/// Metadata associated with a [JsonExtensionType], primarily used for schema generation.
+/// Metadata associated with a [SchemanticType], primarily used for schema generation.
 class JsonSchemaMetadata {
   /// The name of the type in the schema (e.g. for $defs).
   final String? name;
@@ -111,7 +111,7 @@ class JsonSchemaMetadata {
   final jsb.Schema definition;
 
   /// Other types that this type depends on (for referencing via $defs).
-  final List<JsonExtensionType> dependencies;
+  final List<SchemanticType> dependencies;
 
   const JsonSchemaMetadata({
     this.name,
@@ -123,8 +123,8 @@ class JsonSchemaMetadata {
 /// Base class for all runtime type utilities.
 ///
 /// Provides methods to parse JSON and retrieve the JSON Schema.
-abstract class JsonExtensionType<T> {
-  const JsonExtensionType();
+abstract class SchemanticType<T> {
+  const SchemanticType();
 
   /// Parses the given [json] object into type [T].
   ///
@@ -162,7 +162,7 @@ abstract class JsonExtensionType<T> {
 /// Internal utilities for building JSON Schemas.
 class SchemaHelpers {
   /// Builds a complete [jsb.Schema] for the [root] type, including all `$defs`.
-  static jsb.Schema buildSchema(JsonExtensionType root) {
+  static jsb.Schema buildSchema(SchemanticType root) {
     if (root.schemaMetadata == null) {
       return root.jsonSchema(useRefs: false);
     }
@@ -189,9 +189,9 @@ class SchemaHelpers {
   }
 
   static void _collectDefinitions(
-    JsonExtensionType node,
+    SchemanticType node,
     Map<String, jsb.Schema> definitions,
-    Set<JsonExtensionType> visited,
+    Set<SchemanticType> visited,
   ) {
     if (visited.contains(node)) return;
     visited.add(node);
@@ -212,7 +212,7 @@ class SchemaHelpers {
 
   static Map<String, dynamic> _inlineSchema(
     jsb.Schema schema,
-    List<JsonExtensionType> dependencies,
+    List<SchemanticType> dependencies,
     Set<String> visited,
   ) {
     final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
@@ -221,7 +221,7 @@ class SchemaHelpers {
 
   static Map<String, dynamic> _traverseAndInline(
     Map<String, dynamic> json,
-    List<JsonExtensionType> dependencies,
+    List<SchemanticType> dependencies,
     Set<String> visited,
   ) {
     if (json.containsKey(r'$ref') ||

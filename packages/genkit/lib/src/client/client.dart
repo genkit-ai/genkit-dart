@@ -184,9 +184,9 @@ RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
   http.Client? httpClient,
   O Function(dynamic jsonData)? fromResponse,
   S Function(dynamic jsonData)? fromStreamChunk,
-  JsonExtensionType<I>? inputType,
-  JsonExtensionType<O>? outputType,
-  JsonExtensionType<S>? streamType,
+  SchemanticType<I>? inputType,
+  SchemanticType<O>? outputType,
+  SchemanticType<S>? streamType,
 }) {
   if (fromResponse != null && outputType != null) {
     throw ArgumentError(

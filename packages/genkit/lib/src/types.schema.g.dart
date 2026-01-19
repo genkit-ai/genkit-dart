@@ -108,7 +108,7 @@ extension type Candidate(Map<String, dynamic> _json)
   }
 }
 
-class _CandidateTypeFactory extends JsonExtensionType<Candidate> {
+class _CandidateTypeFactory extends SchemanticType<Candidate> {
   const _CandidateTypeFactory();
 
   @override
@@ -186,7 +186,7 @@ extension type Message(Map<String, dynamic> _json)
   }
 }
 
-class _MessageTypeFactory extends JsonExtensionType<Message> {
+class _MessageTypeFactory extends SchemanticType<Message> {
   const _MessageTypeFactory();
 
   @override
@@ -281,7 +281,7 @@ extension type ToolDefinition(Map<String, dynamic> _json)
   }
 }
 
-class _ToolDefinitionTypeFactory extends JsonExtensionType<ToolDefinition> {
+class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   const _ToolDefinitionTypeFactory();
 
   @override
@@ -320,7 +320,7 @@ extension type Part(Map<String, dynamic> _json)
   }
 }
 
-class _PartTypeFactory extends JsonExtensionType<Part> {
+class _PartTypeFactory extends SchemanticType<Part> {
   const _PartTypeFactory();
 
   @override
@@ -404,7 +404,7 @@ extension type TextPart(Map<String, dynamic> _json)
   }
 }
 
-class _TextPartTypeFactory extends JsonExtensionType<TextPart> {
+class _TextPartTypeFactory extends SchemanticType<TextPart> {
   const _TextPartTypeFactory();
 
   @override
@@ -496,7 +496,7 @@ extension type MediaPart(Map<String, dynamic> _json)
   }
 }
 
-class _MediaPartTypeFactory extends JsonExtensionType<MediaPart> {
+class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
   const _MediaPartTypeFactory();
 
   @override
@@ -588,7 +588,7 @@ extension type ToolRequestPart(Map<String, dynamic> _json)
   }
 }
 
-class _ToolRequestPartTypeFactory extends JsonExtensionType<ToolRequestPart> {
+class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
   const _ToolRequestPartTypeFactory();
 
   @override
@@ -680,7 +680,7 @@ extension type ToolResponsePart(Map<String, dynamic> _json)
   }
 }
 
-class _ToolResponsePartTypeFactory extends JsonExtensionType<ToolResponsePart> {
+class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
   const _ToolResponsePartTypeFactory();
 
   @override
@@ -762,7 +762,7 @@ extension type DataPart(Map<String, dynamic> _json)
   }
 }
 
-class _DataPartTypeFactory extends JsonExtensionType<DataPart> {
+class _DataPartTypeFactory extends SchemanticType<DataPart> {
   const _DataPartTypeFactory();
 
   @override
@@ -839,7 +839,7 @@ extension type CustomPart(Map<String, dynamic> _json)
   }
 }
 
-class _CustomPartTypeFactory extends JsonExtensionType<CustomPart> {
+class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   const _CustomPartTypeFactory();
 
   @override
@@ -930,7 +930,7 @@ extension type ReasoningPart(Map<String, dynamic> _json)
   }
 }
 
-class _ReasoningPartTypeFactory extends JsonExtensionType<ReasoningPart> {
+class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   const _ReasoningPartTypeFactory();
 
   @override
@@ -1022,7 +1022,7 @@ extension type ResourcePart(Map<String, dynamic> _json)
   }
 }
 
-class _ResourcePartTypeFactory extends JsonExtensionType<ResourcePart> {
+class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   const _ResourcePartTypeFactory();
 
   @override
@@ -1083,7 +1083,7 @@ extension type Media(Map<String, dynamic> _json)
   }
 }
 
-class _MediaTypeFactory extends JsonExtensionType<Media> {
+class _MediaTypeFactory extends SchemanticType<Media> {
   const _MediaTypeFactory();
 
   @override
@@ -1170,7 +1170,7 @@ extension type ToolRequest(Map<String, dynamic> _json)
   }
 }
 
-class _ToolRequestTypeFactory extends JsonExtensionType<ToolRequest> {
+class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   const _ToolRequestTypeFactory();
 
   @override
@@ -1258,7 +1258,7 @@ extension type ToolResponse(Map<String, dynamic> _json)
   }
 }
 
-class _ToolResponseTypeFactory extends JsonExtensionType<ToolResponse> {
+class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   const _ToolResponseTypeFactory();
 
   @override
@@ -1368,7 +1368,7 @@ extension type ModelInfo(Map<String, dynamic> _json)
   }
 }
 
-class _ModelInfoTypeFactory extends JsonExtensionType<ModelInfo> {
+class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   const _ModelInfoTypeFactory();
 
   @override
@@ -1497,7 +1497,7 @@ extension type ModelRequest(Map<String, dynamic> _json)
   }
 }
 
-class _ModelRequestTypeFactory extends JsonExtensionType<ModelRequest> {
+class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   const _ModelRequestTypeFactory();
 
   @override
@@ -1680,7 +1680,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
   }
 }
 
-class _ModelResponseTypeFactory extends JsonExtensionType<ModelResponse> {
+class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   const _ModelResponseTypeFactory();
 
   @override
@@ -1799,7 +1799,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
 }
 
 class _ModelResponseChunkTypeFactory
-    extends JsonExtensionType<ModelResponseChunk> {
+    extends SchemanticType<ModelResponseChunk> {
   const _ModelResponseChunkTypeFactory();
 
   @override
@@ -1944,7 +1944,7 @@ extension type GenerateRequest(Map<String, dynamic> _json)
   }
 }
 
-class _GenerateRequestTypeFactory extends JsonExtensionType<GenerateRequest> {
+class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   const _GenerateRequestTypeFactory();
 
   @override
@@ -2195,7 +2195,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
   }
 }
 
-class _GenerationUsageTypeFactory extends JsonExtensionType<GenerationUsage> {
+class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   const _GenerationUsageTypeFactory();
 
   @override
@@ -2325,7 +2325,7 @@ extension type Operation(Map<String, dynamic> _json)
   }
 }
 
-class _OperationTypeFactory extends JsonExtensionType<Operation> {
+class _OperationTypeFactory extends SchemanticType<Operation> {
   const _OperationTypeFactory();
 
   @override
@@ -2423,7 +2423,7 @@ extension type OutputConfig(Map<String, dynamic> _json)
   }
 }
 
-class _OutputConfigTypeFactory extends JsonExtensionType<OutputConfig> {
+class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   const _OutputConfigTypeFactory();
 
   @override
@@ -2489,7 +2489,7 @@ extension type DocumentData(Map<String, dynamic> _json)
   }
 }
 
-class _DocumentDataTypeFactory extends JsonExtensionType<DocumentData> {
+class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
   const _DocumentDataTypeFactory();
 
   @override
@@ -2686,7 +2686,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
 }
 
 class _GenerateActionOptionsTypeFactory
-    extends JsonExtensionType<GenerateActionOptions> {
+    extends SchemanticType<GenerateActionOptions> {
   const _GenerateActionOptionsTypeFactory();
 
   @override
@@ -2814,7 +2814,7 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
 }
 
 class _GenerateActionOutputConfigTypeFactory
-    extends JsonExtensionType<GenerateActionOutputConfig> {
+    extends SchemanticType<GenerateActionOutputConfig> {
   const _GenerateActionOutputConfigTypeFactory();
 
   @override

@@ -15,7 +15,7 @@
 import 'package:schemantic/schemantic.dart';
 
 Map<String, dynamic> toJsonSchema({
-  JsonExtensionType? type,
+  SchemanticType? type,
   Map<String, dynamic>? jsonSchema,
   bool useRefs = true,
 }) {

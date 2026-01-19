@@ -101,10 +101,10 @@ class Genkit {
   Flow<I, O, S, Init> defineFlow<I, O, S, Init>({
     required String name,
     required ActionFn<I, O, S, Init> fn,
-    JsonExtensionType<I>? inputType,
-    JsonExtensionType<O>? outputType,
-    JsonExtensionType<S>? streamType,
-    JsonExtensionType<Init>? initType,
+    SchemanticType<I>? inputType,
+    SchemanticType<O>? outputType,
+    SchemanticType<S>? streamType,
+    SchemanticType<Init>? initType,
   }) {
     final flow = Flow(
       name: name,
@@ -126,10 +126,10 @@ class Genkit {
   Flow<I, O, S, Init> defineBidiFlow<I, O, S, Init>({
     required String name,
     required BidiActionFn<I, O, S, Init> fn,
-    JsonExtensionType<I>? inputType,
-    JsonExtensionType<O>? outputType,
-    JsonExtensionType<S>? streamType,
-    JsonExtensionType<Init>? initType,
+    SchemanticType<I>? inputType,
+    SchemanticType<O>? outputType,
+    SchemanticType<S>? streamType,
+    SchemanticType<Init>? initType,
   }) {
     final flow = Flow(
       name: name,
@@ -152,9 +152,9 @@ class Genkit {
     required String name,
     required String description,
     required ActionFn<I, O, S, void> fn,
-    JsonExtensionType<I>? inputType,
-    JsonExtensionType<O>? outputType,
-    JsonExtensionType<S>? streamType,
+    SchemanticType<I>? inputType,
+    SchemanticType<O>? outputType,
+    SchemanticType<S>? streamType,
   }) {
     final tool = Tool(
       name: name,
@@ -236,7 +236,7 @@ class Genkit {
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    JsonExtensionType? outputSchema,
+    SchemanticType? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
@@ -293,7 +293,7 @@ class Genkit {
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    JsonExtensionType? outputSchema,
+    SchemanticType? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,

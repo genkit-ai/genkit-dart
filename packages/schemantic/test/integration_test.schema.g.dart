@@ -64,7 +64,7 @@ extension type User(Map<String, dynamic> _json)
   }
 }
 
-class _UserTypeFactory extends JsonExtensionType<User> {
+class _UserTypeFactory extends SchemanticType<User> {
   const _UserTypeFactory();
 
   @override
@@ -141,7 +141,7 @@ extension type Group(Map<String, dynamic> _json)
   }
 }
 
-class _GroupTypeFactory extends JsonExtensionType<Group> {
+class _GroupTypeFactory extends SchemanticType<Group> {
   const _GroupTypeFactory();
 
   @override
@@ -206,7 +206,7 @@ extension type Node(Map<String, dynamic> _json)
   }
 }
 
-class _NodeTypeFactory extends JsonExtensionType<Node> {
+class _NodeTypeFactory extends SchemanticType<Node> {
   const _NodeTypeFactory();
 
   @override
@@ -284,7 +284,7 @@ extension type Keyed(Map<String, dynamic> _json)
   }
 }
 
-class _KeyedTypeFactory extends JsonExtensionType<Keyed> {
+class _KeyedTypeFactory extends SchemanticType<Keyed> {
   const _KeyedTypeFactory();
 
   @override
@@ -356,7 +356,7 @@ extension type Comprehensive(Map<String, dynamic> _json)
   }
 }
 
-class _ComprehensiveTypeFactory extends JsonExtensionType<Comprehensive> {
+class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   const _ComprehensiveTypeFactory();
 
   @override
@@ -422,7 +422,7 @@ extension type Description(Map<String, dynamic> _json)
   }
 }
 
-class _DescriptionTypeFactory extends JsonExtensionType<Description> {
+class _DescriptionTypeFactory extends SchemanticType<Description> {
   const _DescriptionTypeFactory();
 
   @override

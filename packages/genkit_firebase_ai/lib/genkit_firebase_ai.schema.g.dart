@@ -204,7 +204,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
   }
 }
 
-class _GeminiOptionsTypeFactory extends JsonExtensionType<GeminiOptions> {
+class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   const _GeminiOptionsTypeFactory();
 
   @override
@@ -277,7 +277,7 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
   }
 }
 
-class _ThinkingConfigTypeFactory extends JsonExtensionType<ThinkingConfig> {
+class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   const _ThinkingConfigTypeFactory();
 
   @override
@@ -326,7 +326,7 @@ extension type PrebuiltVoiceConfig(Map<String, dynamic> _json)
 }
 
 class _PrebuiltVoiceConfigTypeFactory
-    extends JsonExtensionType<PrebuiltVoiceConfig> {
+    extends SchemanticType<PrebuiltVoiceConfig> {
   const _PrebuiltVoiceConfigTypeFactory();
 
   @override
@@ -378,7 +378,7 @@ extension type VoiceConfig(Map<String, dynamic> _json)
   }
 }
 
-class _VoiceConfigTypeFactory extends JsonExtensionType<VoiceConfig> {
+class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   const _VoiceConfigTypeFactory();
 
   @override
@@ -431,7 +431,7 @@ extension type SpeechConfig(Map<String, dynamic> _json)
   }
 }
 
-class _SpeechConfigTypeFactory extends JsonExtensionType<SpeechConfig> {
+class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   const _SpeechConfigTypeFactory();
 
   @override
@@ -597,7 +597,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
 }
 
 class _LiveGenerationConfigTypeFactory
-    extends JsonExtensionType<LiveGenerationConfig> {
+    extends SchemanticType<LiveGenerationConfig> {
   const _LiveGenerationConfigTypeFactory();
 
   @override

@@ -266,7 +266,7 @@ void main() {
       expect(action, isA<RemoteAction<dynamic, String, dynamic, dynamic>>());
     });
 
-    test('should work with JsonExtensionType', () async {
+    test('should work with SchemanticType', () async {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/test',
         inputType: stringType(),
@@ -288,7 +288,7 @@ void main() {
       expect(result, 'success');
     });
 
-    test('should work with JsonExtensionType for streaming', () async {
+    test('should work with SchemanticType for streaming', () async {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/stream',
         httpClient: mockClient,

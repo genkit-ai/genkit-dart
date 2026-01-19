@@ -52,7 +52,7 @@ extension type ProcessObjectInput(Map<String, dynamic> _json)
 }
 
 class _ProcessObjectInputTypeFactory
-    extends JsonExtensionType<ProcessObjectInput> {
+    extends SchemanticType<ProcessObjectInput> {
   const _ProcessObjectInputTypeFactory();
 
   @override
@@ -105,7 +105,7 @@ extension type ProcessObjectOutput(Map<String, dynamic> _json)
 }
 
 class _ProcessObjectOutputTypeFactory
-    extends JsonExtensionType<ProcessObjectOutput> {
+    extends SchemanticType<ProcessObjectOutput> {
   const _ProcessObjectOutputTypeFactory();
 
   @override
@@ -147,7 +147,7 @@ extension type StreamObjectsInput(Map<String, dynamic> _json)
 }
 
 class _StreamObjectsInputTypeFactory
-    extends JsonExtensionType<StreamObjectsInput> {
+    extends SchemanticType<StreamObjectsInput> {
   const _StreamObjectsInputTypeFactory();
 
   @override
@@ -200,7 +200,7 @@ extension type StreamObjectsOutput(Map<String, dynamic> _json)
 }
 
 class _StreamObjectsOutputTypeFactory
-    extends JsonExtensionType<StreamObjectsOutput> {
+    extends SchemanticType<StreamObjectsOutput> {
   const _StreamObjectsOutputTypeFactory();
 
   @override
@@ -242,7 +242,7 @@ extension type StreamyThrowyChunk(Map<String, dynamic> _json)
 }
 
 class _StreamyThrowyChunkTypeFactory
-    extends JsonExtensionType<StreamyThrowyChunk> {
+    extends SchemanticType<StreamyThrowyChunk> {
   const _StreamyThrowyChunkTypeFactory();
 
   @override

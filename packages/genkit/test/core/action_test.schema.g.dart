@@ -40,7 +40,7 @@ extension type TestInput(Map<String, dynamic> _json)
   }
 }
 
-class _TestInputTypeFactory extends JsonExtensionType<TestInput> {
+class _TestInputTypeFactory extends SchemanticType<TestInput> {
   const _TestInputTypeFactory();
 
   @override
@@ -81,7 +81,7 @@ extension type TestOutput(Map<String, dynamic> _json)
   }
 }
 
-class _TestOutputTypeFactory extends JsonExtensionType<TestOutput> {
+class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
   const _TestOutputTypeFactory();
 
   @override

@@ -59,10 +59,10 @@ class ActionMetadata<I, O, S, Init> {
   String name;
   String? description;
   String actionType;
-  JsonExtensionType<I>? inputType;
-  JsonExtensionType<O>? outputType;
-  JsonExtensionType<S>? streamType;
-  JsonExtensionType<Init>? initType;
+  SchemanticType<I>? inputType;
+  SchemanticType<O>? outputType;
+  SchemanticType<S>? streamType;
+  SchemanticType<Init>? initType;
   Map<String, dynamic> metadata;
 
   ActionMetadata({

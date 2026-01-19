@@ -40,7 +40,7 @@ extension type HandlerInput(Map<String, dynamic> _json)
   }
 }
 
-class _HandlerInputTypeFactory extends JsonExtensionType<HandlerInput> {
+class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
   const _HandlerInputTypeFactory();
 
   @override
@@ -81,7 +81,7 @@ extension type HandlerOutput(Map<String, dynamic> _json)
   }
 }
 
-class _HandlerOutputTypeFactory extends JsonExtensionType<HandlerOutput> {
+class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
   const _HandlerOutputTypeFactory();
 
   @override

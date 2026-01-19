@@ -48,7 +48,7 @@ extension type Ingredient(Map<String, dynamic> _json)
   }
 }
 
-class _IngredientTypeFactory extends JsonExtensionType<Ingredient> {
+class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   const _IngredientTypeFactory();
 
   @override
@@ -115,7 +115,7 @@ extension type Recipe(Map<String, dynamic> _json)
   }
 }
 
-class _RecipeTypeFactory extends JsonExtensionType<Recipe> {
+class _RecipeTypeFactory extends SchemanticType<Recipe> {
   const _RecipeTypeFactory();
 
   @override
@@ -188,7 +188,7 @@ extension type AnnotatedRecipe(Map<String, dynamic> _json)
   }
 }
 
-class _AnnotatedRecipeTypeFactory extends JsonExtensionType<AnnotatedRecipe> {
+class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
   const _AnnotatedRecipeTypeFactory();
 
   @override
@@ -245,7 +245,7 @@ extension type MealPlan(Map<String, dynamic> _json)
   }
 }
 
-class _MealPlanTypeFactory extends JsonExtensionType<MealPlan> {
+class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
   const _MealPlanTypeFactory();
 
   @override
@@ -342,7 +342,7 @@ extension type NullableFields(Map<String, dynamic> _json)
   }
 }
 
-class _NullableFieldsTypeFactory extends JsonExtensionType<NullableFields> {
+class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
   const _NullableFieldsTypeFactory();
 
   @override
@@ -448,7 +448,7 @@ extension type ComplexObject(Map<String, dynamic> _json)
   }
 }
 
-class _ComplexObjectTypeFactory extends JsonExtensionType<ComplexObject> {
+class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
   const _ComplexObjectTypeFactory();
 
   @override
@@ -521,7 +521,7 @@ extension type Menu(Map<String, dynamic> _json)
   }
 }
 
-class _MenuTypeFactory extends JsonExtensionType<Menu> {
+class _MenuTypeFactory extends SchemanticType<Menu> {
   const _MenuTypeFactory();
 
   @override
