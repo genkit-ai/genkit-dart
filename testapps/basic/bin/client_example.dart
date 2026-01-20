@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:basic_sample/types.dart';
 import 'package:genkit/client.dart';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
-
-import 'types.dart';
 
 const baseUrl = 'http://localhost:8080';
 
 // A simple flow that takes a string and returns a string.
 void printServerInstructions() {
-  print(
-    '-------------------------------------------------------------------\n'
-    '| Before running these examples, make sure the server is running. |\n'
-    '| The server is using a fake model, so does not require API keys. |\n'
-    '| In a separate terminal run:                                     |\n'
-    '|                                                                 |\n'
-    '| \$ cd packages/testapps                                          |\n'
-    '| \$ dart run example/server_dart.dart                             |\n'
-    '-------------------------------------------------------------------\n',
-  );
+  print(r'''
+-------------------------------------------------------------------
+| Before running these examples, make sure the server is running. |
+| The server is using a fake model, so does not require API keys. |
+| In a separate terminal, from the `testapps/basic` directory run:|
+|                                                                 |
+| $ dart run bin/server_dart.dart                                 |
+|                                                                 |
+-------------------------------------------------------------------
+''');
 }
 
 Future<void> _runStringFlow() async {
