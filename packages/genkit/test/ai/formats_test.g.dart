@@ -21,12 +21,16 @@ part of 'formats_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestObject(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class TestObject implements TestObjectSchema {
+  TestObject(this._json);
+
   factory TestObject.from({required String foo, required int bar}) {
     return TestObject({'foo': foo, 'bar': bar});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get foo {
     return _json['foo'] as String;
   }
@@ -35,12 +39,18 @@ extension type TestObject(Map<String, dynamic> _json)
     _json['foo'] = value;
   }
 
+  @override
   int get bar {
     return _json['bar'] as int;
   }
 
   set bar(int value) {
     _json['bar'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

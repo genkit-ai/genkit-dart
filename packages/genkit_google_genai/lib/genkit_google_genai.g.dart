@@ -21,8 +21,9 @@ part of 'genkit_google_genai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type GeminiOptions(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class GeminiOptions implements GeminiOptionsSchema {
+  GeminiOptions(this._json);
+
   factory GeminiOptions.from({
     String? apiKey,
     List<SafetySettings>? safetySettings,
@@ -72,6 +73,9 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get apiKey {
     return _json['apiKey'] as String?;
   }
@@ -84,6 +88,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<SafetySettings>? get safetySettings {
     return (_json['safetySettings'] as List?)
         ?.map((e) => SafetySettings(e as Map<String, dynamic>))
@@ -98,6 +103,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get codeExecution {
     return _json['codeExecution'] as bool?;
   }
@@ -110,6 +116,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   FunctionCallingConfig? get functionCallingConfig {
     return _json['functionCallingConfig'] == null
         ? null
@@ -126,6 +133,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
@@ -140,6 +148,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -152,6 +161,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   GoogleSearchRetrieval? get googleSearchRetrieval {
     return _json['googleSearchRetrieval'] == null
         ? null
@@ -168,6 +178,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   FileSearch? get fileSearch {
     return _json['fileSearch'] == null
         ? null
@@ -182,6 +193,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -194,6 +206,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -206,6 +219,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -218,6 +232,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get candidateCount {
     return _json['candidateCount'] as int?;
   }
@@ -230,6 +245,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -242,6 +258,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -254,6 +271,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get responseMimeType {
     return _json['responseMimeType'] as String?;
   }
@@ -266,6 +284,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get responseLogprobs {
     return _json['responseLogprobs'] as bool?;
   }
@@ -278,6 +297,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get logprobs {
     return _json['logprobs'] as int?;
   }
@@ -290,6 +310,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -302,6 +323,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -314,6 +336,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get seed {
     return _json['seed'] as int?;
   }
@@ -324,6 +347,11 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     } else {
       _json['seed'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -386,8 +414,9 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 // ignore: constant_identifier_names
 const GeminiOptionsType = _GeminiOptionsTypeFactory();
 
-extension type SafetySettings(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class SafetySettings implements SafetySettingsSchema {
+  SafetySettings(this._json);
+
   factory SafetySettings.from({String? category, String? threshold}) {
     return SafetySettings({
       if (category != null) 'category': category,
@@ -395,6 +424,9 @@ extension type SafetySettings(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get category {
     return _json['category'] as String?;
   }
@@ -407,6 +439,7 @@ extension type SafetySettings(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get threshold {
     return _json['threshold'] as String?;
   }
@@ -417,6 +450,11 @@ extension type SafetySettings(Map<String, dynamic> _json)
     } else {
       _json['threshold'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -473,8 +511,9 @@ class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
 // ignore: constant_identifier_names
 const SafetySettingsType = _SafetySettingsTypeFactory();
 
-extension type ThinkingConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ThinkingConfig implements ThinkingConfigSchema {
+  ThinkingConfig(this._json);
+
   factory ThinkingConfig.from({bool? includeThoughts, int? thinkingBudget}) {
     return ThinkingConfig({
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
@@ -482,6 +521,9 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   bool? get includeThoughts {
     return _json['includeThoughts'] as bool?;
   }
@@ -494,6 +536,7 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get thinkingBudget {
     return _json['thinkingBudget'] as int?;
   }
@@ -504,6 +547,11 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
     } else {
       _json['thinkingBudget'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -536,8 +584,9 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
 // ignore: constant_identifier_names
 const ThinkingConfigType = _ThinkingConfigTypeFactory();
 
-extension type FunctionCallingConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class FunctionCallingConfig implements FunctionCallingConfigSchema {
+  FunctionCallingConfig(this._json);
+
   factory FunctionCallingConfig.from({
     String? mode,
     List<String>? allowedFunctionNames,
@@ -549,6 +598,9 @@ extension type FunctionCallingConfig(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get mode {
     return _json['mode'] as String?;
   }
@@ -561,6 +613,7 @@ extension type FunctionCallingConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<String>? get allowedFunctionNames {
     return (_json['allowedFunctionNames'] as List?)?.cast<String>();
   }
@@ -571,6 +624,11 @@ extension type FunctionCallingConfig(Map<String, dynamic> _json)
     } else {
       _json['allowedFunctionNames'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -606,8 +664,9 @@ class _FunctionCallingConfigTypeFactory
 // ignore: constant_identifier_names
 const FunctionCallingConfigType = _FunctionCallingConfigTypeFactory();
 
-extension type GoogleSearchRetrieval(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class GoogleSearchRetrieval implements GoogleSearchRetrievalSchema {
+  GoogleSearchRetrieval(this._json);
+
   factory GoogleSearchRetrieval.from({String? mode, double? dynamicThreshold}) {
     return GoogleSearchRetrieval({
       if (mode != null) 'mode': mode,
@@ -615,6 +674,9 @@ extension type GoogleSearchRetrieval(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get mode {
     return _json['mode'] as String?;
   }
@@ -627,6 +689,7 @@ extension type GoogleSearchRetrieval(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get dynamicThreshold {
     return _json['dynamicThreshold'] as double?;
   }
@@ -637,6 +700,11 @@ extension type GoogleSearchRetrieval(Map<String, dynamic> _json)
     } else {
       _json['dynamicThreshold'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -670,8 +738,9 @@ class _GoogleSearchRetrievalTypeFactory
 // ignore: constant_identifier_names
 const GoogleSearchRetrievalType = _GoogleSearchRetrievalTypeFactory();
 
-extension type FileSearch(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class FileSearch implements FileSearchSchema {
+  FileSearch(this._json);
+
   factory FileSearch.from({List<String>? fileSearchStoreNames}) {
     return FileSearch({
       if (fileSearchStoreNames != null)
@@ -679,6 +748,9 @@ extension type FileSearch(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<String>? get fileSearchStoreNames {
     return (_json['fileSearchStoreNames'] as List?)?.cast<String>();
   }
@@ -689,6 +761,11 @@ extension type FileSearch(Map<String, dynamic> _json)
     } else {
       _json['fileSearchStoreNames'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

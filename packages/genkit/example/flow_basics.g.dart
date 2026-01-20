@@ -21,18 +21,27 @@ part of 'flow_basics.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Subject(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Subject implements SubjectSchema {
+  Subject(this._json);
+
   factory Subject.from({required String subject}) {
     return Subject({'subject': subject});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get subject {
     return _json['subject'] as String;
   }
 
   set subject(String value) {
     _json['subject'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -62,18 +71,27 @@ class _SubjectTypeFactory extends SchemanticType<Subject> {
 // ignore: constant_identifier_names
 const SubjectType = _SubjectTypeFactory();
 
-extension type Count(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Count implements CountSchema {
+  Count(this._json);
+
   factory Count.from({required int count}) {
     return Count({'count': count});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   int get count {
     return _json['count'] as int;
   }
 
   set count(int value) {
     _json['count'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

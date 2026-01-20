@@ -140,7 +140,7 @@ void main(List<String> args) async {
 
       await for (final chunk in stream) {
         if (ctx.streamingRequested) {
-          ctx.sendChunk(chunk.output);
+          ctx.sendChunk(chunk.output!);
         }
       }
 

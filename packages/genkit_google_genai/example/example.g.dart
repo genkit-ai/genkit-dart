@@ -21,18 +21,27 @@ part of 'example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type WeatherToolInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class WeatherToolInput implements WeatherToolInputSchema {
+  WeatherToolInput(this._json);
+
   factory WeatherToolInput.from({required String location}) {
     return WeatherToolInput({'location': location});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get location {
     return _json['location'] as String;
   }
 
   set location(String value) {
     _json['location'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -67,8 +76,9 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
 // ignore: constant_identifier_names
 const WeatherToolInputType = _WeatherToolInputTypeFactory();
 
-extension type Category(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Category implements CategorySchema {
+  Category(this._json);
+
   factory Category.from({required String name, List<Category>? subcategories}) {
     return Category({
       'name': name,
@@ -77,6 +87,9 @@ extension type Category(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -85,6 +98,7 @@ extension type Category(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   List<Category>? get subcategories {
     return (_json['subcategories'] as List?)
         ?.map((e) => Category(e as Map<String, dynamic>))
@@ -97,6 +111,11 @@ extension type Category(Map<String, dynamic> _json)
     } else {
       _json['subcategories'] = value.toList();
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -131,8 +150,9 @@ class _CategoryTypeFactory extends SchemanticType<Category> {
 // ignore: constant_identifier_names
 const CategoryType = _CategoryTypeFactory();
 
-extension type Weapon(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Weapon implements WeaponSchema {
+  Weapon(this._json);
+
   factory Weapon.from({
     required String name,
     required double damage,
@@ -145,6 +165,9 @@ extension type Weapon(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -153,6 +176,7 @@ extension type Weapon(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   double get damage {
     return _json['damage'] as double;
   }
@@ -161,12 +185,18 @@ extension type Weapon(Map<String, dynamic> _json)
     _json['damage'] = value;
   }
 
+  @override
   Category get category {
     return Category(_json['category'] as Map<String, dynamic>);
   }
 
   set category(Category value) {
     _json['category'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -200,8 +230,9 @@ class _WeaponTypeFactory extends SchemanticType<Weapon> {
 // ignore: constant_identifier_names
 const WeaponType = _WeaponTypeFactory();
 
-extension type RpgCharacter(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class RpgCharacter implements RpgCharacterSchema {
+  RpgCharacter(this._json);
+
   factory RpgCharacter.from({
     required String name,
     required String backstory,
@@ -218,6 +249,9 @@ extension type RpgCharacter(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -226,6 +260,7 @@ extension type RpgCharacter(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   String get backstory {
     return _json['backstory'] as String;
   }
@@ -234,6 +269,7 @@ extension type RpgCharacter(Map<String, dynamic> _json)
     _json['backstory'] = value;
   }
 
+  @override
   List<Weapon> get weapons {
     return (_json['weapons'] as List)
         .map((e) => Weapon(e as Map<String, dynamic>))
@@ -244,6 +280,7 @@ extension type RpgCharacter(Map<String, dynamic> _json)
     _json['weapons'] = value.toList();
   }
 
+  @override
   String get classType {
     return _json['classType'] as String;
   }
@@ -252,6 +289,7 @@ extension type RpgCharacter(Map<String, dynamic> _json)
     _json['classType'] = value;
   }
 
+  @override
   String? get affiliation {
     return _json['affiliation'] as String?;
   }
@@ -262,6 +300,11 @@ extension type RpgCharacter(Map<String, dynamic> _json)
     } else {
       _json['affiliation'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

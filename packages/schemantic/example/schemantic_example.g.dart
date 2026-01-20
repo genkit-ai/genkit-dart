@@ -21,8 +21,9 @@ part of 'schemantic_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Address(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Address implements AddressSchema {
+  Address(this._json);
+
   factory Address.from({
     required String street,
     required String city,
@@ -31,6 +32,9 @@ extension type Address(Map<String, dynamic> _json)
     return Address({'street': street, 'city': city, 'zipCode': zipCode});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get street {
     return _json['street'] as String;
   }
@@ -39,6 +43,7 @@ extension type Address(Map<String, dynamic> _json)
     _json['street'] = value;
   }
 
+  @override
   String get city {
     return _json['city'] as String;
   }
@@ -47,12 +52,18 @@ extension type Address(Map<String, dynamic> _json)
     _json['city'] = value;
   }
 
+  @override
   String get zipCode {
     return _json['zipCode'] as String;
   }
 
   set zipCode(String value) {
     _json['zipCode'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -86,8 +97,9 @@ class _AddressTypeFactory extends SchemanticType<Address> {
 // ignore: constant_identifier_names
 const AddressType = _AddressTypeFactory();
 
-extension type User(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class User implements UserSchema {
+  User(this._json);
+
   factory User.from({
     required String name,
     int? age,
@@ -102,6 +114,9 @@ extension type User(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -110,6 +125,7 @@ extension type User(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   int? get age {
     return _json['years_old'] as int?;
   }
@@ -122,6 +138,7 @@ extension type User(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool get isAdmin {
     return _json['isAdmin'] as bool;
   }
@@ -130,6 +147,7 @@ extension type User(Map<String, dynamic> _json)
     _json['isAdmin'] = value;
   }
 
+  @override
   Address? get address {
     return _json['address'] == null
         ? null
@@ -142,6 +160,11 @@ extension type User(Map<String, dynamic> _json)
     } else {
       _json['address'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -184,8 +207,9 @@ class _UserTypeFactory extends SchemanticType<User> {
 // ignore: constant_identifier_names
 const UserType = _UserTypeFactory();
 
-extension type Product(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Product implements ProductSchema {
+  Product(this._json);
+
   factory Product.from({
     required String id,
     required String name,
@@ -200,6 +224,9 @@ extension type Product(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get id {
     return _json['id'] as String;
   }
@@ -208,6 +235,7 @@ extension type Product(Map<String, dynamic> _json)
     _json['id'] = value;
   }
 
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -216,6 +244,7 @@ extension type Product(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   double get price {
     return _json['price'] as double;
   }
@@ -224,6 +253,7 @@ extension type Product(Map<String, dynamic> _json)
     _json['price'] = value;
   }
 
+  @override
   List<String>? get tags {
     return (_json['tags'] as List?)?.cast<String>();
   }
@@ -234,6 +264,11 @@ extension type Product(Map<String, dynamic> _json)
     } else {
       _json['tags'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

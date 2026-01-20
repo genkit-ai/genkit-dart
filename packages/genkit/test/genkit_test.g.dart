@@ -21,18 +21,27 @@ part of 'genkit_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestCustomOptions(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class TestCustomOptions implements TestCustomOptionsSchema {
+  TestCustomOptions(this._json);
+
   factory TestCustomOptions.from({required String customField}) {
     return TestCustomOptions({'customField': customField});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get customField {
     return _json['customField'] as String;
   }
 
   set customField(String value) {
     _json['customField'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -62,18 +71,27 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
 // ignore: constant_identifier_names
 const TestCustomOptionsType = _TestCustomOptionsTypeFactory();
 
-extension type TestToolInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class TestToolInput implements TestToolInputSchema {
+  TestToolInput(this._json);
+
   factory TestToolInput.from({required String name}) {
     return TestToolInput({'name': name});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
 
   set name(String value) {
     _json['name'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
