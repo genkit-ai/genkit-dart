@@ -25,10 +25,10 @@ void printServerInstructions() {
 -------------------------------------------------------------------
 | Before running these examples, make sure the server is running. |
 | The server is using a fake model, so does not require API keys. |
-| In a separate terminal run:                                     |
+| In a separate terminal, from the `testapps/basic` directory run:|
 |                                                                 |
-| $ cd packages/testapps                                          |
-| $ dart run example/server_dart.dart                             |
+| $ dart run bin/server_dart.dart                                 |
+|                                                                 |
 -------------------------------------------------------------------
 ''');
 }
