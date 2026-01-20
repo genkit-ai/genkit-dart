@@ -14,6 +14,7 @@
 
 import 'dart:io';
 
+import 'package:basic_sample/types.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:schemantic/schemantic.dart';
@@ -21,8 +22,6 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_router/shelf_router.dart';
-
-import 'types.dart';
 
 // Removed local schema definitions in favor of values from types.dart
 

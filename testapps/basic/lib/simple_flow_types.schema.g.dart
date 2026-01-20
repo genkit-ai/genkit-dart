@@ -15,7 +15,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'simple_flow.dart';
+part of 'simple_flow_types.dart';
 
 // **************************************************************************
 // SchemaGenerator

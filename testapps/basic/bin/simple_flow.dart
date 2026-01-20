@@ -12,24 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:basic_sample/simple_flow_types.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'simple_flow.schema.g.dart';
-
-@Schematic()
-abstract class IngredientSchema {
-  String get name;
-  String get quantity;
-}
-
-@Schematic()
-abstract class RecipeSchema {
-  String get title;
-  List<IngredientSchema> get ingredients;
-  int get servings;
-}
 
 void main() async {
   configureCollectorExporter();

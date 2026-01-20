@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:basic_sample/types.dart';
 import 'package:genkit/client.dart';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
-
-import 'types.dart';
 
 const baseUrl = 'http://localhost:8080';
 
