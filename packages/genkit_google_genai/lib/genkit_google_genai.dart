@@ -23,7 +23,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'src/aggregation.dart';
 
-part 'genkit_google_genai.schema.g.dart';
+part 'genkit_google_genai.g.dart';
 
 @Schematic()
 abstract class GeminiOptionsSchema {
