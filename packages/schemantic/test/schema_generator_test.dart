@@ -13,8 +13,8 @@
 // limitations under the License.
 
 import 'package:build_test/build_test.dart';
-import 'package:schemantic/src/schema_generator.dart';
-import 'package:source_gen/source_gen.dart';
+import 'package:logging/logging.dart';
+import 'package:schemantic/builder.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -31,10 +31,7 @@ class Field {
 ''';
 
     test('generates simple schema', () async {
-      final builder = PartBuilder([SchemaGenerator()], '.schema.g.dart');
-
-      await testBuilder(
-        builder,
+      await _testBuilderWithNoFail(
         {
           'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
@@ -49,8 +46,8 @@ abstract class UserSchema {
 }
 ''',
         },
-        outputs: {
-          'a|lib/a.schema.g.dart': decodedMatches(
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
             contains('class _UserTypeFactory'),
           ),
         },
@@ -58,10 +55,7 @@ abstract class UserSchema {
     });
 
     test('generates nested schema with lists and nullable types', () async {
-      final builder = PartBuilder([SchemaGenerator()], '.schema.g.dart');
-
-      await testBuilder(
-        builder,
+      await _testBuilderWithNoFail(
         {
           'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
@@ -84,8 +78,8 @@ abstract class UserSchema {
 }
 ''',
         },
-        outputs: {
-          'a|lib/a.schema.g.dart': decodedMatches(
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
               contains('class _AddressTypeFactory'),
               contains('class _UserTypeFactory'),
@@ -98,10 +92,7 @@ abstract class UserSchema {
     });
 
     test('generates schema with @Field annotation', () async {
-      final builder = PartBuilder([SchemaGenerator()], '.schema.g.dart');
-
-      await testBuilder(
-        builder,
+      await _testBuilderWithNoFail(
         {
           'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
@@ -116,8 +107,8 @@ abstract class ProductSchema {
 }
 ''',
         },
-        outputs: {
-          'a|lib/a.schema.g.dart': decodedMatches(
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
               contains("return _json['product_id'] as String;"),
               contains(
@@ -130,10 +121,7 @@ abstract class ProductSchema {
     });
 
     test('generates schema with enums', () async {
-      final builder = PartBuilder([SchemaGenerator()], '.schema.g.dart');
-
-      await testBuilder(
-        builder,
+      await _testBuilderWithNoFail(
         {
           'schemantic|lib/schemantic.dart': schematicBuilderLib,
           'a|lib/a.dart': r'''
@@ -149,8 +137,8 @@ abstract class ItemSchema {
 }
 ''',
         },
-        outputs: {
-          'a|lib/a.schema.g.dart': decodedMatches(
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
               contains(
                 "return Status.values.byName(_json['status'] as String);",
@@ -161,7 +149,23 @@ abstract class ItemSchema {
         },
       );
     });
-
-
   });
+}
+
+Future<void> _testBuilderWithNoFail(
+  Map<String, String> inputs,
+  Map<String, Matcher> outputs,
+) async {
+  await testBuilder(
+    schemaBuilder(),
+    inputs,
+    outputs: outputs,
+    onLog: (log) {
+      if (log.level >= Level.WARNING) {
+        addTearDown(() {
+          fail('Unexpected log: $log');
+        });
+      }
+    },
+  );
 }
