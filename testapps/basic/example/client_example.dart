@@ -22,16 +22,16 @@ const baseUrl = 'http://localhost:8080';
 
 // A simple flow that takes a string and returns a string.
 void printServerInstructions() {
-  print(
-    '-------------------------------------------------------------------\n'
-    '| Before running these examples, make sure the server is running. |\n'
-    '| The server is using a fake model, so does not require API keys. |\n'
-    '| In a separate terminal run:                                     |\n'
-    '|                                                                 |\n'
-    '| \$ cd packages/testapps                                          |\n'
-    '| \$ dart run example/server_dart.dart                             |\n'
-    '-------------------------------------------------------------------\n',
-  );
+  print(r'''
+-------------------------------------------------------------------
+| Before running these examples, make sure the server is running. |
+| The server is using a fake model, so does not require API keys. |
+| In a separate terminal run:                                     |
+|                                                                 |
+| $ cd packages/testapps                                          |
+| $ dart run example/server_dart.dart                             |
+-------------------------------------------------------------------
+''');
 }
 
 Future<void> _runStringFlow() async {
