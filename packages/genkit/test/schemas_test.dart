@@ -86,7 +86,7 @@ void main() {
           MediaPart.from(media: media),
         ],
       );
-      expect(message.media, same(media));
+      expect(message.media!.toJson(), same(media.toJson()));
     });
 
     test('Message media getter with no media part', () {
@@ -114,7 +114,7 @@ void main() {
           ],
         ),
       );
-      expect(response.media, same(media));
+      expect(response.media!.toJson(), same(media.toJson()));
     });
 
     test('GenerateResponse media getter with null message', () {
@@ -133,7 +133,7 @@ void main() {
           MediaPart.from(media: media),
         ],
       );
-      expect(chunk.media, same(media));
+      expect(chunk.media!.toJson(), media.toJson());
     });
   });
 
@@ -141,7 +141,7 @@ void main() {
     test('deserializes TextPart', () {
       final json = {'text': 'hello'};
       final part = PartType.parse(json);
-      expect((part as TextPart).text, 'hello');
+      expect(part.text, 'hello');
     });
 
     test('deserializes MediaPart', () {
@@ -149,7 +149,7 @@ void main() {
         'media': {'url': 'http://example.com/image.png'},
       };
       final part = PartType.parse(json);
-      expect((part as MediaPart).media.url, 'http://example.com/image.png');
+      expect(part.media!.url, 'http://example.com/image.png');
     });
 
     test('deserializes ToolRequestPart', () {
@@ -157,8 +157,9 @@ void main() {
         'toolRequest': {'name': 'testTool'},
       };
       final part = PartType.parse(json);
-      expect(part, isA<ToolRequestPart>());
-      expect((part as ToolRequestPart).toolRequest.name, 'testTool');
+      expect(part, isA<Part>());
+      expect(part.isToolRequest, isTrue);
+      expect(part.toolRequest!.name, 'testTool');
     });
 
     test('deserializes ToolResponsePart', () {
@@ -166,8 +167,9 @@ void main() {
         'toolResponse': {'name': 'testTool'},
       };
       final part = PartType.parse(json);
-      expect(part, isA<ToolResponsePart>());
-      expect((part as ToolResponsePart).toolResponse.name, 'testTool');
+      expect(part, isA<Part>());
+      expect(part.isToolResponse, isTrue);
+      expect(part.toolResponse!.name, 'testTool');
     });
   });
 }

@@ -229,7 +229,7 @@ class Genkit {
     );
   }
 
-  Future<GenerateResponse> generate<C>({
+  Future<GenerateResponse<S>> generate<C, S>({
     String? prompt,
     List<Message>? messages,
     required ModelRef<C> model,
@@ -238,7 +238,7 @@ class Genkit {
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    SchemanticType? outputSchema,
+    SchemanticType<S>? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
@@ -270,7 +270,7 @@ class Genkit {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    return generateHelper(
+    final rawResponse = await generateHelper(
       registry,
       prompt: prompt,
       messages: messages,
@@ -282,11 +282,32 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
-      onChunk: onChunk,
+      onChunk: (c) {
+        if (outputSchema != null) {
+          onChunk?.call(
+            GenerateResponseChunk<S>(
+              c.rawChunk,
+              previousChunks: c.previousChunks,
+              output: outputSchema.parse(c.output),
+            ),
+          );
+        } else {
+          onChunk?.call(c);
+        }
+      },
     );
+    if (outputSchema != null) {
+      return GenerateResponse(
+        rawResponse.rawResponse,
+        output: outputSchema.parse(rawResponse.output),
+      );
+    } else {
+      return rawResponse as GenerateResponse<S>;
+    }
   }
 
-  ActionStream<GenerateResponseChunk, GenerateResponse> generateStream<C>({
+  ActionStream<GenerateResponseChunk<S>, GenerateResponse<S>>
+  generateStream<C, S>({
     String? prompt,
     List<Message>? messages,
     required ModelRef<C> model,
@@ -295,7 +316,7 @@ class Genkit {
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    SchemanticType? outputSchema,
+    SchemanticType<S>? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
@@ -303,10 +324,11 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
   }) {
-    final streamController = StreamController<GenerateResponseChunk>();
-    final actionStream = ActionStream<GenerateResponseChunk, GenerateResponse>(
-      streamController.stream,
-    );
+    final streamController = StreamController<GenerateResponseChunk<S>>();
+    final actionStream =
+        ActionStream<GenerateResponseChunk<S>, GenerateResponse<S>>(
+          streamController.stream,
+        );
 
     generate(
           prompt: prompt,
@@ -326,7 +348,7 @@ class Genkit {
           context: context,
           onChunk: (chunk) {
             if (streamController.isClosed) return;
-            streamController.add(chunk);
+            streamController.add(chunk as GenerateResponseChunk<S>);
           },
         )
         .then((result) {

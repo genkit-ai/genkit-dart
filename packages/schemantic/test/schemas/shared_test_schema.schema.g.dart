@@ -21,18 +21,27 @@ part of 'shared_test_schema.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type SharedChild(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class SharedChild implements SharedChildSchema {
+  SharedChild(this._json);
+
   factory SharedChild.from({required String childId}) {
     return SharedChild({'childId': childId});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get childId {
     return _json['childId'] as String;
   }
 
   set childId(String value) {
     _json['childId'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

@@ -21,18 +21,27 @@ part of 'generate_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestToolInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class TestToolInput implements TestToolInputSchema {
+  TestToolInput(this._json);
+
   factory TestToolInput.from({required String name}) {
     return TestToolInput({'name': name});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
 
   set name(String value) {
     _json['name'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

@@ -21,8 +21,9 @@ part of 'genkit_firebase_ai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type GeminiOptions(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class GeminiOptions implements GeminiOptionsSchema {
+  GeminiOptions(this._json);
+
   factory GeminiOptions.from({
     List<String>? stopSequences,
     int? maxOutputTokens,
@@ -53,6 +54,9 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -65,6 +69,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -77,6 +82,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -89,6 +95,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -101,6 +108,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -113,6 +121,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -125,6 +134,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -137,6 +147,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -149,6 +160,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get responseMimeType {
     return _json['responseMimeType'] as String?;
   }
@@ -161,6 +173,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get responseSchema {
     return _json['responseSchema'] as Map<String, dynamic>?;
   }
@@ -173,6 +186,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get responseJsonSchema {
     return _json['responseJsonSchema'] as Map<String, dynamic>?;
   }
@@ -185,6 +199,7 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
@@ -197,6 +212,11 @@ extension type GeminiOptions(Map<String, dynamic> _json)
     } else {
       _json['thinkingConfig'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -239,8 +259,9 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 // ignore: constant_identifier_names
 const GeminiOptionsType = _GeminiOptionsTypeFactory();
 
-extension type ThinkingConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ThinkingConfig implements ThinkingConfigSchema {
+  ThinkingConfig(this._json);
+
   factory ThinkingConfig.from({int? thinkingBudget, bool? includeThoughts}) {
     return ThinkingConfig({
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
@@ -248,6 +269,9 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   int? get thinkingBudget {
     return _json['thinkingBudget'] as int?;
   }
@@ -260,6 +284,7 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get includeThoughts {
     return _json['includeThoughts'] as bool?;
   }
@@ -270,6 +295,11 @@ extension type ThinkingConfig(Map<String, dynamic> _json)
     } else {
       _json['includeThoughts'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -302,12 +332,16 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
 // ignore: constant_identifier_names
 const ThinkingConfigType = _ThinkingConfigTypeFactory();
 
-extension type PrebuiltVoiceConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class PrebuiltVoiceConfig implements PrebuiltVoiceConfigSchema {
+  PrebuiltVoiceConfig(this._json);
+
   factory PrebuiltVoiceConfig.from({String? voiceName}) {
     return PrebuiltVoiceConfig({if (voiceName != null) 'voiceName': voiceName});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get voiceName {
     return _json['voiceName'] as String?;
   }
@@ -318,6 +352,11 @@ extension type PrebuiltVoiceConfig(Map<String, dynamic> _json)
     } else {
       _json['voiceName'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -348,8 +387,9 @@ class _PrebuiltVoiceConfigTypeFactory
 // ignore: constant_identifier_names
 const PrebuiltVoiceConfigType = _PrebuiltVoiceConfigTypeFactory();
 
-extension type VoiceConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class VoiceConfig implements VoiceConfigSchema {
+  VoiceConfig(this._json);
+
   factory VoiceConfig.from({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
     return VoiceConfig({
       if (prebuiltVoiceConfig != null)
@@ -357,6 +397,9 @@ extension type VoiceConfig(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   PrebuiltVoiceConfig? get prebuiltVoiceConfig {
     return _json['prebuiltVoiceConfig'] == null
         ? null
@@ -371,6 +414,11 @@ extension type VoiceConfig(Map<String, dynamic> _json)
     } else {
       _json['prebuiltVoiceConfig'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -404,14 +452,18 @@ class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
 // ignore: constant_identifier_names
 const VoiceConfigType = _VoiceConfigTypeFactory();
 
-extension type SpeechConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class SpeechConfig implements SpeechConfigSchema {
+  SpeechConfig(this._json);
+
   factory SpeechConfig.from({VoiceConfig? voiceConfig}) {
     return SpeechConfig({
       if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   VoiceConfig? get voiceConfig {
     return _json['voiceConfig'] == null
         ? null
@@ -424,6 +476,11 @@ extension type SpeechConfig(Map<String, dynamic> _json)
     } else {
       _json['voiceConfig'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -455,8 +512,9 @@ class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
 // ignore: constant_identifier_names
 const SpeechConfigType = _SpeechConfigTypeFactory();
 
-extension type LiveGenerationConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class LiveGenerationConfig implements LiveGenerationConfigSchema {
+  LiveGenerationConfig(this._json);
+
   factory LiveGenerationConfig.from({
     List<String>? responseModalities,
     SpeechConfig? speechConfig,
@@ -481,6 +539,9 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -493,6 +554,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   SpeechConfig? get speechConfig {
     return _json['speechConfig'] == null
         ? null
@@ -507,6 +569,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -519,6 +582,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -531,6 +595,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -543,6 +608,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -555,6 +621,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -567,6 +634,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -579,6 +647,7 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -589,6 +658,11 @@ extension type LiveGenerationConfig(Map<String, dynamic> _json)
     } else {
       _json['frequencyPenalty'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

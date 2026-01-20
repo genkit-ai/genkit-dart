@@ -21,18 +21,27 @@ part of 'model_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestCustomOptions(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class TestCustomOptions implements TestCustomOptionsSchema {
+  TestCustomOptions(this._json);
+
   factory TestCustomOptions.from({required String customField}) {
     return TestCustomOptions({'customField': customField});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get customField {
     return _json['customField'] as String;
   }
 
   set customField(String value) {
     _json['customField'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

@@ -21,18 +21,27 @@ part of 'action_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type TestInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class TestInput implements TestInputSchema {
+  TestInput(this._json);
+
   factory TestInput.from({required String name}) {
     return TestInput({'name': name});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
 
   set name(String value) {
     _json['name'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -62,18 +71,27 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
 // ignore: constant_identifier_names
 const TestInputType = _TestInputTypeFactory();
 
-extension type TestOutput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class TestOutput implements TestOutputSchema {
+  TestOutput(this._json);
+
   factory TestOutput.from({required String greeting}) {
     return TestOutput({'greeting': greeting});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get greeting {
     return _json['greeting'] as String;
   }
 
   set greeting(String value) {
     _json['greeting'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

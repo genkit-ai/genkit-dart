@@ -56,7 +56,7 @@ void main() {
           await for (final request in input) {
             final msg = request.messages.first;
             if (msg.role == Role.tool) {
-              final toolResponse = msg.content.first as ToolResponsePart;
+              final toolResponse = ToolResponsePart(msg.content.first.toJson());
               context.sendChunk(
                 ModelResponseChunk.from(
                   content: [
