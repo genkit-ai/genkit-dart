@@ -14,10 +14,10 @@
 
 import 'dart:async';
 
-import 'package:genkit/client.dart';
-import 'package:genkit/src/exception.dart';
-import 'package:genkit/src/o11y/instrumentation.dart';
 import 'package:schemantic/schemantic.dart';
+
+import '../exception.dart';
+import '../o11y/instrumentation.dart';
 
 const _genkitContextKey = #genkitContext;
 

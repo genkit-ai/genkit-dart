@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/src/core/action.dart';
-import 'package:genkit/src/schema.dart';
-import 'package:genkit/src/types.dart';
 import 'package:schemantic/schemantic.dart';
+
+import '../core/action.dart';
+import '../schema.dart';
+import '../types.dart';
 
 ModelRef<C> modelRef<C>(String name, {SchemanticType<C>? customOptions}) {
   return _ModelRef<C>(name, customOptions);

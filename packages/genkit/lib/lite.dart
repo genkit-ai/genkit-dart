@@ -14,11 +14,12 @@
 
 import 'dart:async';
 
-import 'package:genkit/genkit.dart';
-import 'package:genkit/src/ai/generate.dart';
-import 'package:genkit/src/core/action.dart';
-import 'package:genkit/src/core/registry.dart';
 import 'package:schemantic/schemantic.dart';
+
+import 'genkit.dart';
+import 'src/ai/generate.dart';
+import 'src/core/action.dart';
+import 'src/core/registry.dart';
 
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';

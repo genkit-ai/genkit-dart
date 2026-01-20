@@ -16,10 +16,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:genkit/src/core/action.dart';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
+import '../core/action.dart';
 import '../exception.dart';
 
 const _flowStreamDelimiter = '\n\n';

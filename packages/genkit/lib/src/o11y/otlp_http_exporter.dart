@@ -13,11 +13,13 @@
 // limitations under the License.
 
 import 'dart:convert';
-import 'package:genkit/src/utils.dart';
+
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:opentelemetry/api.dart' as api;
 import 'package:opentelemetry/sdk.dart' as sdk;
+
+import '../utils.dart';
 
 final _logger = Logger('CollectorHttpExporter');
 

@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'action.dart';
+import 'package:schemantic/schemantic.dart';
 
-class Flow<I, O, S, Init> extends Action<I, O, S, Init> {
-  Flow({
-    required super.name,
-    required super.fn,
-    super.inputType,
-    super.outputType,
-    super.streamType,
-    super.initType,
-    super.metadata,
-  }) : super(actionType: 'flow');
+part 'simple_flow_types.schema.g.dart';
+
+@Schematic()
+abstract class IngredientSchema {
+  String get name;
+  String get quantity;
+}
+
+@Schematic()
+abstract class RecipeSchema {
+  String get title;
+  List<IngredientSchema> get ingredients;
+  int get servings;
 }

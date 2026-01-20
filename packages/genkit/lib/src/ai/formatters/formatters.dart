@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/src/ai/formatters/json.dart';
-import 'package:genkit/src/ai/formatters/types.dart';
-import 'package:genkit/src/core/registry.dart';
-import 'package:genkit/src/schema_extensions.dart';
-import 'package:genkit/src/types.dart';
+import '../../core/registry.dart';
+import '../../schema_extensions.dart';
+import '../../types.dart';
+import 'json.dart';
+import 'types.dart';
 
 export 'package:genkit/src/ai/formatters/json.dart';
 export 'package:genkit/src/ai/formatters/types.dart';
