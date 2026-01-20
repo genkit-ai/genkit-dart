@@ -21,8 +21,9 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Candidate(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Candidate implements CandidateSchema {
+  Candidate(this._json);
+
   factory Candidate.from({
     required double index,
     required Message message,
@@ -41,6 +42,9 @@ extension type Candidate(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   double get index {
     return _json['index'] as double;
   }
@@ -49,6 +53,7 @@ extension type Candidate(Map<String, dynamic> _json)
     _json['index'] = value;
   }
 
+  @override
   Message get message {
     return Message(_json['message'] as Map<String, dynamic>);
   }
@@ -57,6 +62,7 @@ extension type Candidate(Map<String, dynamic> _json)
     _json['message'] = value;
   }
 
+  @override
   GenerationUsage? get usage {
     return _json['usage'] == null
         ? null
@@ -71,6 +77,7 @@ extension type Candidate(Map<String, dynamic> _json)
     }
   }
 
+  @override
   FinishReason get finishReason {
     return _json['finishReason'] as FinishReason;
   }
@@ -79,6 +86,7 @@ extension type Candidate(Map<String, dynamic> _json)
     _json['finishReason'] = value;
   }
 
+  @override
   String? get finishMessage {
     return _json['finishMessage'] as String?;
   }
@@ -91,6 +99,7 @@ extension type Candidate(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -101,6 +110,11 @@ extension type Candidate(Map<String, dynamic> _json)
     } else {
       _json['custom'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -137,8 +151,9 @@ class _CandidateTypeFactory extends SchemanticType<Candidate> {
 // ignore: constant_identifier_names
 const CandidateType = _CandidateTypeFactory();
 
-extension type Message(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Message implements MessageSchema {
+  Message(this._json);
+
   factory Message.from({
     required Role role,
     required List<Part> content,
@@ -151,6 +166,9 @@ extension type Message(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Role get role {
     return _json['role'] as Role;
   }
@@ -159,6 +177,7 @@ extension type Message(Map<String, dynamic> _json)
     _json['role'] = value;
   }
 
+  @override
   List<Part> get content {
     return (_json['content'] as List)
         .map((e) => Part(e as Map<String, dynamic>))
@@ -169,6 +188,7 @@ extension type Message(Map<String, dynamic> _json)
     _json['content'] = value.toList();
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -179,6 +199,11 @@ extension type Message(Map<String, dynamic> _json)
     } else {
       _json['metadata'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -214,8 +239,9 @@ class _MessageTypeFactory extends SchemanticType<Message> {
 // ignore: constant_identifier_names
 const MessageType = _MessageTypeFactory();
 
-extension type ToolDefinition(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ToolDefinition implements ToolDefinitionSchema {
+  ToolDefinition(this._json);
+
   factory ToolDefinition.from({
     required String name,
     required String description,
@@ -232,6 +258,9 @@ extension type ToolDefinition(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -240,6 +269,7 @@ extension type ToolDefinition(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   String get description {
     return _json['description'] as String;
   }
@@ -248,6 +278,7 @@ extension type ToolDefinition(Map<String, dynamic> _json)
     _json['description'] = value;
   }
 
+  @override
   dynamic get inputSchema {
     return _json['inputSchema'] as dynamic;
   }
@@ -256,6 +287,7 @@ extension type ToolDefinition(Map<String, dynamic> _json)
     _json['inputSchema'] = value;
   }
 
+  @override
   dynamic get outputSchema {
     return _json['outputSchema'] as dynamic;
   }
@@ -264,6 +296,7 @@ extension type ToolDefinition(Map<String, dynamic> _json)
     _json['outputSchema'] = value;
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -274,6 +307,11 @@ extension type ToolDefinition(Map<String, dynamic> _json)
     } else {
       _json['metadata'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -309,10 +347,18 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
 // ignore: constant_identifier_names
 const ToolDefinitionType = _ToolDefinitionTypeFactory();
 
-extension type Part(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Part implements PartSchema {
+  Part(this._json);
+
   factory Part.from() {
     return Part({});
+  }
+
+  Map<String, dynamic> _json;
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -339,8 +385,9 @@ class _PartTypeFactory extends SchemanticType<Part> {
 // ignore: constant_identifier_names
 const PartType = _PartTypeFactory();
 
-extension type TextPart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class TextPart implements TextPartSchema, Part {
+  TextPart(this._json);
+
   factory TextPart.from({
     required String text,
     Map<String, dynamic>? data,
@@ -355,6 +402,9 @@ extension type TextPart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get text {
     return _json['text'] as String;
   }
@@ -363,6 +413,7 @@ extension type TextPart(Map<String, dynamic> _json)
     _json['text'] = value;
   }
 
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -375,6 +426,7 @@ extension type TextPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -387,6 +439,7 @@ extension type TextPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -397,6 +450,11 @@ extension type TextPart(Map<String, dynamic> _json)
     } else {
       _json['custom'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -431,8 +489,9 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
 // ignore: constant_identifier_names
 const TextPartType = _TextPartTypeFactory();
 
-extension type MediaPart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class MediaPart implements MediaPartSchema, Part {
+  MediaPart(this._json);
+
   factory MediaPart.from({
     required Media media,
     Map<String, dynamic>? data,
@@ -447,6 +506,9 @@ extension type MediaPart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Media get media {
     return Media(_json['media'] as Map<String, dynamic>);
   }
@@ -455,6 +517,7 @@ extension type MediaPart(Map<String, dynamic> _json)
     _json['media'] = value;
   }
 
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -467,6 +530,7 @@ extension type MediaPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -479,6 +543,7 @@ extension type MediaPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -489,6 +554,11 @@ extension type MediaPart(Map<String, dynamic> _json)
     } else {
       _json['custom'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -523,8 +593,9 @@ class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
 // ignore: constant_identifier_names
 const MediaPartType = _MediaPartTypeFactory();
 
-extension type ToolRequestPart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class ToolRequestPart implements ToolRequestPartSchema, Part {
+  ToolRequestPart(this._json);
+
   factory ToolRequestPart.from({
     required ToolRequest toolRequest,
     Map<String, dynamic>? data,
@@ -539,6 +610,9 @@ extension type ToolRequestPart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   ToolRequest get toolRequest {
     return ToolRequest(_json['toolRequest'] as Map<String, dynamic>);
   }
@@ -547,6 +621,7 @@ extension type ToolRequestPart(Map<String, dynamic> _json)
     _json['toolRequest'] = value;
   }
 
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -559,6 +634,7 @@ extension type ToolRequestPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -571,6 +647,7 @@ extension type ToolRequestPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -581,6 +658,11 @@ extension type ToolRequestPart(Map<String, dynamic> _json)
     } else {
       _json['custom'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -615,8 +697,9 @@ class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
 // ignore: constant_identifier_names
 const ToolRequestPartType = _ToolRequestPartTypeFactory();
 
-extension type ToolResponsePart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class ToolResponsePart implements ToolResponsePartSchema, Part {
+  ToolResponsePart(this._json);
+
   factory ToolResponsePart.from({
     required ToolResponse toolResponse,
     Map<String, dynamic>? data,
@@ -631,6 +714,9 @@ extension type ToolResponsePart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   ToolResponse get toolResponse {
     return ToolResponse(_json['toolResponse'] as Map<String, dynamic>);
   }
@@ -639,6 +725,7 @@ extension type ToolResponsePart(Map<String, dynamic> _json)
     _json['toolResponse'] = value;
   }
 
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -651,6 +738,7 @@ extension type ToolResponsePart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -663,6 +751,7 @@ extension type ToolResponsePart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -673,6 +762,11 @@ extension type ToolResponsePart(Map<String, dynamic> _json)
     } else {
       _json['custom'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -707,8 +801,9 @@ class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
 // ignore: constant_identifier_names
 const ToolResponsePartType = _ToolResponsePartTypeFactory();
 
-extension type DataPart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class DataPart implements DataPartSchema, Part {
+  DataPart(this._json);
+
   factory DataPart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -721,6 +816,9 @@ extension type DataPart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -733,6 +831,7 @@ extension type DataPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -745,6 +844,7 @@ extension type DataPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -755,6 +855,11 @@ extension type DataPart(Map<String, dynamic> _json)
     } else {
       _json['custom'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -788,8 +893,9 @@ class _DataPartTypeFactory extends SchemanticType<DataPart> {
 // ignore: constant_identifier_names
 const DataPartType = _DataPartTypeFactory();
 
-extension type CustomPart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class CustomPart implements CustomPartSchema, Part {
+  CustomPart(this._json);
+
   factory CustomPart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -802,6 +908,9 @@ extension type CustomPart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -814,6 +923,7 @@ extension type CustomPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -826,12 +936,18 @@ extension type CustomPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic> get custom {
     return _json['custom'] as Map<String, dynamic>;
   }
 
   set custom(Map<String, dynamic> value) {
     _json['custom'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -865,8 +981,9 @@ class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
 // ignore: constant_identifier_names
 const CustomPartType = _CustomPartTypeFactory();
 
-extension type ReasoningPart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class ReasoningPart implements ReasoningPartSchema, Part {
+  ReasoningPart(this._json);
+
   factory ReasoningPart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -881,6 +998,9 @@ extension type ReasoningPart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -893,6 +1013,7 @@ extension type ReasoningPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -905,6 +1026,7 @@ extension type ReasoningPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -917,12 +1039,18 @@ extension type ReasoningPart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String get reasoning {
     return _json['reasoning'] as String;
   }
 
   set reasoning(String value) {
     _json['reasoning'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -957,8 +1085,9 @@ class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
 // ignore: constant_identifier_names
 const ReasoningPartType = _ReasoningPartTypeFactory();
 
-extension type ResourcePart(Map<String, dynamic> _json)
-    implements Map<String, dynamic>, Part {
+class ResourcePart implements ResourcePartSchema, Part {
+  ResourcePart(this._json);
+
   factory ResourcePart.from({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
@@ -973,6 +1102,9 @@ extension type ResourcePart(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -985,6 +1117,7 @@ extension type ResourcePart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -997,6 +1130,7 @@ extension type ResourcePart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -1009,12 +1143,18 @@ extension type ResourcePart(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic> get resource {
     return _json['resource'] as Map<String, dynamic>;
   }
 
   set resource(Map<String, dynamic> value) {
     _json['resource'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1049,8 +1189,9 @@ class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
 // ignore: constant_identifier_names
 const ResourcePartType = _ResourcePartTypeFactory();
 
-extension type Media(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Media implements MediaSchema {
+  Media(this._json);
+
   factory Media.from({String? contentType, required String url}) {
     return Media({
       if (contentType != null) 'contentType': contentType,
@@ -1058,6 +1199,9 @@ extension type Media(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get contentType {
     return _json['contentType'] as String?;
   }
@@ -1070,12 +1214,18 @@ extension type Media(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String get url {
     return _json['url'] as String;
   }
 
   set url(String value) {
     _json['url'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1105,8 +1255,9 @@ class _MediaTypeFactory extends SchemanticType<Media> {
 // ignore: constant_identifier_names
 const MediaType = _MediaTypeFactory();
 
-extension type ToolRequest(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ToolRequest implements ToolRequestSchema {
+  ToolRequest(this._json);
+
   factory ToolRequest.from({
     String? ref,
     required String name,
@@ -1121,6 +1272,9 @@ extension type ToolRequest(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get ref {
     return _json['ref'] as String?;
   }
@@ -1133,6 +1287,7 @@ extension type ToolRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -1141,6 +1296,7 @@ extension type ToolRequest(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   Map<String, dynamic>? get input {
     return _json['input'] as Map<String, dynamic>?;
   }
@@ -1153,6 +1309,7 @@ extension type ToolRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get partial {
     return _json['partial'] as bool?;
   }
@@ -1163,6 +1320,11 @@ extension type ToolRequest(Map<String, dynamic> _json)
     } else {
       _json['partial'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1197,8 +1359,9 @@ class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
 // ignore: constant_identifier_names
 const ToolRequestType = _ToolRequestTypeFactory();
 
-extension type ToolResponse(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ToolResponse implements ToolResponseSchema {
+  ToolResponse(this._json);
+
   factory ToolResponse.from({
     String? ref,
     required String name,
@@ -1213,6 +1376,9 @@ extension type ToolResponse(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get ref {
     return _json['ref'] as String?;
   }
@@ -1225,6 +1391,7 @@ extension type ToolResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -1233,6 +1400,7 @@ extension type ToolResponse(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   dynamic get output {
     return _json['output'] as dynamic;
   }
@@ -1241,6 +1409,7 @@ extension type ToolResponse(Map<String, dynamic> _json)
     _json['output'] = value;
   }
 
+  @override
   List<dynamic>? get content {
     return (_json['content'] as List?)?.cast<dynamic>();
   }
@@ -1251,6 +1420,11 @@ extension type ToolResponse(Map<String, dynamic> _json)
     } else {
       _json['content'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1285,8 +1459,9 @@ class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
 // ignore: constant_identifier_names
 const ToolResponseType = _ToolResponseTypeFactory();
 
-extension type ModelInfo(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ModelInfo implements ModelInfoSchema {
+  ModelInfo(this._json);
+
   factory ModelInfo.from({
     List<String>? versions,
     String? label,
@@ -1303,6 +1478,9 @@ extension type ModelInfo(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<String>? get versions {
     return (_json['versions'] as List?)?.cast<String>();
   }
@@ -1315,6 +1493,7 @@ extension type ModelInfo(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get label {
     return _json['label'] as String?;
   }
@@ -1327,6 +1506,7 @@ extension type ModelInfo(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get configSchema {
     return _json['configSchema'] as Map<String, dynamic>?;
   }
@@ -1339,6 +1519,7 @@ extension type ModelInfo(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get supports {
     return _json['supports'] as Map<String, dynamic>?;
   }
@@ -1351,6 +1532,7 @@ extension type ModelInfo(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get stage {
     return _json['stage'] as String?;
   }
@@ -1361,6 +1543,11 @@ extension type ModelInfo(Map<String, dynamic> _json)
     } else {
       _json['stage'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1396,8 +1583,9 @@ class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
 // ignore: constant_identifier_names
 const ModelInfoType = _ModelInfoTypeFactory();
 
-extension type ModelRequest(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ModelRequest implements ModelRequestSchema {
+  ModelRequest(this._json);
+
   factory ModelRequest.from({
     required List<Message> messages,
     Map<String, dynamic>? config,
@@ -1416,6 +1604,9 @@ extension type ModelRequest(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<Message> get messages {
     return (_json['messages'] as List)
         .map((e) => Message(e as Map<String, dynamic>))
@@ -1426,6 +1617,7 @@ extension type ModelRequest(Map<String, dynamic> _json)
     _json['messages'] = value.toList();
   }
 
+  @override
   Map<String, dynamic>? get config {
     return _json['config'] as Map<String, dynamic>?;
   }
@@ -1438,6 +1630,7 @@ extension type ModelRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<ToolDefinition>? get tools {
     return (_json['tools'] as List?)
         ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
@@ -1452,6 +1645,7 @@ extension type ModelRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get toolChoice {
     return _json['toolChoice'] as String?;
   }
@@ -1464,6 +1658,7 @@ extension type ModelRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   OutputConfig? get output {
     return _json['output'] == null
         ? null
@@ -1478,6 +1673,7 @@ extension type ModelRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
         ?.map((e) => DocumentData(e as Map<String, dynamic>))
@@ -1490,6 +1686,11 @@ extension type ModelRequest(Map<String, dynamic> _json)
     } else {
       _json['docs'] = value.toList();
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1537,8 +1738,9 @@ class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
 // ignore: constant_identifier_names
 const ModelRequestType = _ModelRequestTypeFactory();
 
-extension type ModelResponse(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ModelResponse implements ModelResponseSchema {
+  ModelResponse(this._json);
+
   factory ModelResponse.from({
     Message? message,
     required FinishReason finishReason,
@@ -1563,6 +1765,9 @@ extension type ModelResponse(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Message? get message {
     return _json['message'] == null
         ? null
@@ -1577,6 +1782,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   FinishReason get finishReason {
     return _json['finishReason'] as FinishReason;
   }
@@ -1585,6 +1791,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     _json['finishReason'] = value;
   }
 
+  @override
   String? get finishMessage {
     return _json['finishMessage'] as String?;
   }
@@ -1597,6 +1804,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get latencyMs {
     return _json['latencyMs'] as double?;
   }
@@ -1609,6 +1817,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   GenerationUsage? get usage {
     return _json['usage'] == null
         ? null
@@ -1623,6 +1832,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -1635,6 +1845,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get raw {
     return _json['raw'] as Map<String, dynamic>?;
   }
@@ -1647,6 +1858,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   GenerateRequest? get request {
     return _json['request'] == null
         ? null
@@ -1661,6 +1873,7 @@ extension type ModelResponse(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Operation? get operation {
     return _json['operation'] == null
         ? null
@@ -1673,6 +1886,11 @@ extension type ModelResponse(Map<String, dynamic> _json)
     } else {
       _json['operation'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1717,8 +1935,9 @@ class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
 // ignore: constant_identifier_names
 const ModelResponseType = _ModelResponseTypeFactory();
 
-extension type ModelResponseChunk(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ModelResponseChunk implements ModelResponseChunkSchema {
+  ModelResponseChunk(this._json);
+
   factory ModelResponseChunk.from({
     Role? role,
     int? index,
@@ -1735,6 +1954,9 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   Role? get role {
     return _json['role'] as Role?;
   }
@@ -1747,6 +1969,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get index {
     return _json['index'] as int?;
   }
@@ -1759,6 +1982,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<Part> get content {
     return (_json['content'] as List)
         .map((e) => Part(e as Map<String, dynamic>))
@@ -1769,6 +1993,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     _json['content'] = value.toList();
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -1781,6 +2006,7 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get aggregated {
     return _json['aggregated'] as bool?;
   }
@@ -1791,6 +2017,11 @@ extension type ModelResponseChunk(Map<String, dynamic> _json)
     } else {
       _json['aggregated'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1829,8 +2060,9 @@ class _ModelResponseChunkTypeFactory
 // ignore: constant_identifier_names
 const ModelResponseChunkType = _ModelResponseChunkTypeFactory();
 
-extension type GenerateRequest(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class GenerateRequest implements GenerateRequestSchema {
+  GenerateRequest(this._json);
+
   factory GenerateRequest.from({
     required List<Message> messages,
     Map<String, dynamic>? config,
@@ -1851,6 +2083,9 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<Message> get messages {
     return (_json['messages'] as List)
         .map((e) => Message(e as Map<String, dynamic>))
@@ -1861,6 +2096,7 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     _json['messages'] = value.toList();
   }
 
+  @override
   Map<String, dynamic>? get config {
     return _json['config'] as Map<String, dynamic>?;
   }
@@ -1873,6 +2109,7 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<ToolDefinition>? get tools {
     return (_json['tools'] as List?)
         ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
@@ -1887,6 +2124,7 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get toolChoice {
     return _json['toolChoice'] as String?;
   }
@@ -1899,6 +2137,7 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   OutputConfig? get output {
     return _json['output'] == null
         ? null
@@ -1913,6 +2152,7 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
         ?.map((e) => DocumentData(e as Map<String, dynamic>))
@@ -1927,6 +2167,7 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get candidates {
     return _json['candidates'] as double?;
   }
@@ -1937,6 +2178,11 @@ extension type GenerateRequest(Map<String, dynamic> _json)
     } else {
       _json['candidates'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -1985,8 +2231,9 @@ class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
 // ignore: constant_identifier_names
 const GenerateRequestType = _GenerateRequestTypeFactory();
 
-extension type GenerationUsage(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class GenerationUsage implements GenerationUsageSchema {
+  GenerationUsage(this._json);
+
   factory GenerationUsage.from({
     double? inputTokens,
     double? outputTokens,
@@ -2022,6 +2269,9 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   double? get inputTokens {
     return _json['inputTokens'] as double?;
   }
@@ -2034,6 +2284,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get outputTokens {
     return _json['outputTokens'] as double?;
   }
@@ -2046,6 +2297,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get totalTokens {
     return _json['totalTokens'] as double?;
   }
@@ -2058,6 +2310,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get inputCharacters {
     return _json['inputCharacters'] as double?;
   }
@@ -2070,6 +2323,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get outputCharacters {
     return _json['outputCharacters'] as double?;
   }
@@ -2082,6 +2336,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get inputImages {
     return _json['inputImages'] as double?;
   }
@@ -2094,6 +2349,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get outputImages {
     return _json['outputImages'] as double?;
   }
@@ -2106,6 +2362,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get inputVideos {
     return _json['inputVideos'] as double?;
   }
@@ -2118,6 +2375,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get outputVideos {
     return _json['outputVideos'] as double?;
   }
@@ -2130,6 +2388,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get inputAudioFiles {
     return _json['inputAudioFiles'] as double?;
   }
@@ -2142,6 +2401,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get outputAudioFiles {
     return _json['outputAudioFiles'] as double?;
   }
@@ -2154,6 +2414,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -2166,6 +2427,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get thoughtsTokens {
     return _json['thoughtsTokens'] as double?;
   }
@@ -2178,6 +2440,7 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get cachedContentTokens {
     return _json['cachedContentTokens'] as double?;
   }
@@ -2188,6 +2451,11 @@ extension type GenerationUsage(Map<String, dynamic> _json)
     } else {
       _json['cachedContentTokens'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -2232,8 +2500,9 @@ class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
 // ignore: constant_identifier_names
 const GenerationUsageType = _GenerationUsageTypeFactory();
 
-extension type Operation(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Operation implements OperationSchema {
+  Operation(this._json);
+
   factory Operation.from({
     String? action,
     required String id,
@@ -2252,6 +2521,9 @@ extension type Operation(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get action {
     return _json['action'] as String?;
   }
@@ -2264,6 +2536,7 @@ extension type Operation(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String get id {
     return _json['id'] as String;
   }
@@ -2272,6 +2545,7 @@ extension type Operation(Map<String, dynamic> _json)
     _json['id'] = value;
   }
 
+  @override
   bool? get done {
     return _json['done'] as bool?;
   }
@@ -2284,6 +2558,7 @@ extension type Operation(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get output {
     return _json['output'] as Map<String, dynamic>?;
   }
@@ -2296,6 +2571,7 @@ extension type Operation(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get error {
     return _json['error'] as Map<String, dynamic>?;
   }
@@ -2308,6 +2584,7 @@ extension type Operation(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -2318,6 +2595,11 @@ extension type Operation(Map<String, dynamic> _json)
     } else {
       _json['metadata'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -2354,8 +2636,9 @@ class _OperationTypeFactory extends SchemanticType<Operation> {
 // ignore: constant_identifier_names
 const OperationType = _OperationTypeFactory();
 
-extension type OutputConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class OutputConfig implements OutputConfigSchema {
+  OutputConfig(this._json);
+
   factory OutputConfig.from({
     String? format,
     Map<String, dynamic>? schema,
@@ -2370,6 +2653,9 @@ extension type OutputConfig(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get format {
     return _json['format'] as String?;
   }
@@ -2382,6 +2668,7 @@ extension type OutputConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get schema {
     return _json['schema'] as Map<String, dynamic>?;
   }
@@ -2394,6 +2681,7 @@ extension type OutputConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get constrained {
     return _json['constrained'] as bool?;
   }
@@ -2406,6 +2694,7 @@ extension type OutputConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get contentType {
     return _json['contentType'] as String?;
   }
@@ -2416,6 +2705,11 @@ extension type OutputConfig(Map<String, dynamic> _json)
     } else {
       _json['contentType'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -2450,8 +2744,9 @@ class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
 // ignore: constant_identifier_names
 const OutputConfigType = _OutputConfigTypeFactory();
 
-extension type DocumentData(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class DocumentData implements DocumentDataSchema {
+  DocumentData(this._json);
+
   factory DocumentData.from({
     required List<Part> content,
     Map<String, dynamic>? metadata,
@@ -2462,6 +2757,9 @@ extension type DocumentData(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<Part> get content {
     return (_json['content'] as List)
         .map((e) => Part(e as Map<String, dynamic>))
@@ -2472,6 +2770,7 @@ extension type DocumentData(Map<String, dynamic> _json)
     _json['content'] = value.toList();
   }
 
+  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -2482,6 +2781,11 @@ extension type DocumentData(Map<String, dynamic> _json)
     } else {
       _json['metadata'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -2516,8 +2820,9 @@ class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
 // ignore: constant_identifier_names
 const DocumentDataType = _DocumentDataTypeFactory();
 
-extension type GenerateActionOptions(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class GenerateActionOptions implements GenerateActionOptionsSchema {
+  GenerateActionOptions(this._json);
+
   factory GenerateActionOptions.from({
     String? model,
     List<DocumentData>? docs,
@@ -2546,6 +2851,9 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get model {
     return _json['model'] as String?;
   }
@@ -2558,6 +2866,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
         ?.map((e) => DocumentData(e as Map<String, dynamic>))
@@ -2572,6 +2881,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<Message> get messages {
     return (_json['messages'] as List)
         .map((e) => Message(e as Map<String, dynamic>))
@@ -2582,6 +2892,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     _json['messages'] = value.toList();
   }
 
+  @override
   List<String>? get tools {
     return (_json['tools'] as List?)?.cast<String>();
   }
@@ -2594,6 +2905,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get toolChoice {
     return _json['toolChoice'] as String?;
   }
@@ -2606,6 +2918,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get config {
     return _json['config'] as Map<String, dynamic>?;
   }
@@ -2618,6 +2931,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   GenerateActionOutputConfig? get output {
     return _json['output'] == null
         ? null
@@ -2632,6 +2946,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get resume {
     return _json['resume'] as Map<String, dynamic>?;
   }
@@ -2644,6 +2959,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get returnToolRequests {
     return _json['returnToolRequests'] as bool?;
   }
@@ -2656,6 +2972,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get maxTurns {
     return _json['maxTurns'] as int?;
   }
@@ -2668,6 +2985,7 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get stepName {
     return _json['stepName'] as String?;
   }
@@ -2678,6 +2996,11 @@ extension type GenerateActionOptions(Map<String, dynamic> _json)
     } else {
       _json['stepName'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -2730,8 +3053,9 @@ class _GenerateActionOptionsTypeFactory
 // ignore: constant_identifier_names
 const GenerateActionOptionsType = _GenerateActionOptionsTypeFactory();
 
-extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class GenerateActionOutputConfig implements GenerateActionOutputConfigSchema {
+  GenerateActionOutputConfig(this._json);
+
   factory GenerateActionOutputConfig.from({
     String? format,
     String? contentType,
@@ -2748,6 +3072,9 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get format {
     return _json['format'] as String?;
   }
@@ -2760,6 +3087,7 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   String? get contentType {
     return _json['contentType'] as String?;
   }
@@ -2772,6 +3100,7 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get instructions {
     return _json['instructions'] as bool?;
   }
@@ -2784,6 +3113,7 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Map<String, dynamic>? get jsonSchema {
     return _json['jsonSchema'] as Map<String, dynamic>?;
   }
@@ -2796,6 +3126,7 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool? get constrained {
     return _json['constrained'] as bool?;
   }
@@ -2806,6 +3137,11 @@ extension type GenerateActionOutputConfig(Map<String, dynamic> _json)
     } else {
       _json['constrained'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

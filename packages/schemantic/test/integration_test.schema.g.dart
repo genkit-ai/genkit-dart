@@ -21,8 +21,9 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type User(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class User implements UserSchema {
+  User(this._json);
+
   factory User.from({required String name, int? age, required bool isAdmin}) {
     return User({
       'name': name,
@@ -31,6 +32,9 @@ extension type User(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -39,6 +43,7 @@ extension type User(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   int? get age {
     return _json['age'] as int?;
   }
@@ -51,12 +56,18 @@ extension type User(Map<String, dynamic> _json)
     }
   }
 
+  @override
   bool get isAdmin {
     return _json['isAdmin'] as bool;
   }
 
   set isAdmin(bool value) {
     _json['isAdmin'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -90,8 +101,9 @@ class _UserTypeFactory extends SchemanticType<User> {
 // ignore: constant_identifier_names
 const UserType = _UserTypeFactory();
 
-extension type Group(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Group implements GroupSchema {
+  Group(this._json);
+
   factory Group.from({
     required String groupName,
     required List<User> members,
@@ -104,6 +116,9 @@ extension type Group(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get groupName {
     return _json['groupName'] as String;
   }
@@ -112,6 +127,7 @@ extension type Group(Map<String, dynamic> _json)
     _json['groupName'] = value;
   }
 
+  @override
   List<User> get members {
     return (_json['members'] as List)
         .map((e) => User(e as Map<String, dynamic>))
@@ -122,6 +138,7 @@ extension type Group(Map<String, dynamic> _json)
     _json['members'] = value.toList();
   }
 
+  @override
   User? get leader {
     return _json['leader'] == null
         ? null
@@ -134,6 +151,11 @@ extension type Group(Map<String, dynamic> _json)
     } else {
       _json['leader'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -169,8 +191,9 @@ class _GroupTypeFactory extends SchemanticType<Group> {
 // ignore: constant_identifier_names
 const GroupType = _GroupTypeFactory();
 
-extension type Node(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Node implements NodeSchema {
+  Node(this._json);
+
   factory Node.from({required String id, List<Node>? children}) {
     return Node({
       'id': id,
@@ -179,6 +202,9 @@ extension type Node(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get id {
     return _json['id'] as String;
   }
@@ -187,6 +213,7 @@ extension type Node(Map<String, dynamic> _json)
     _json['id'] = value;
   }
 
+  @override
   List<Node>? get children {
     return (_json['children'] as List?)
         ?.map((e) => Node(e as Map<String, dynamic>))
@@ -199,6 +226,11 @@ extension type Node(Map<String, dynamic> _json)
     } else {
       _json['children'] = value.toList();
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -233,8 +265,9 @@ class _NodeTypeFactory extends SchemanticType<Node> {
 // ignore: constant_identifier_names
 const NodeType = _NodeTypeFactory();
 
-extension type Keyed(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Keyed implements KeyedSchema {
+  Keyed(this._json);
+
   factory Keyed.from({
     required String originalName,
     int? score,
@@ -247,6 +280,9 @@ extension type Keyed(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get originalName {
     return _json['custom_name'] as String;
   }
@@ -255,6 +291,7 @@ extension type Keyed(Map<String, dynamic> _json)
     _json['custom_name'] = value;
   }
 
+  @override
   int? get score {
     return _json['score'] as int?;
   }
@@ -267,6 +304,7 @@ extension type Keyed(Map<String, dynamic> _json)
     }
   }
 
+  @override
   double? get rating {
     return _json['rating'] as double?;
   }
@@ -277,6 +315,11 @@ extension type Keyed(Map<String, dynamic> _json)
     } else {
       _json['rating'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -313,8 +356,9 @@ class _KeyedTypeFactory extends SchemanticType<Keyed> {
 // ignore: constant_identifier_names
 const KeyedType = _KeyedTypeFactory();
 
-extension type Comprehensive(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Comprehensive implements ComprehensiveSchema {
+  Comprehensive(this._json);
+
   factory Comprehensive.from({
     required String stringField,
     required int intField,
@@ -327,6 +371,9 @@ extension type Comprehensive(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get stringField {
     return _json['s_field'] as String;
   }
@@ -335,6 +382,7 @@ extension type Comprehensive(Map<String, dynamic> _json)
     _json['s_field'] = value;
   }
 
+  @override
   int get intField {
     return _json['i_field'] as int;
   }
@@ -343,12 +391,18 @@ extension type Comprehensive(Map<String, dynamic> _json)
     _json['i_field'] = value;
   }
 
+  @override
   double get numberField {
     return _json['n_field'] as double;
   }
 
   set numberField(double value) {
     _json['n_field'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -403,18 +457,27 @@ class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
 // ignore: constant_identifier_names
 const ComprehensiveType = _ComprehensiveTypeFactory();
 
-extension type Description(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Description implements DescriptionSchema {
+  Description(this._json);
+
   factory Description.from({required String name}) {
     return Description({'name': name});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
 
   set name(String value) {
     _json['name'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -445,18 +508,27 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
 // ignore: constant_identifier_names
 const DescriptionType = _DescriptionTypeFactory();
 
-extension type CrossFileParent(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class CrossFileParent implements CrossFileParentSchema {
+  CrossFileParent(this._json);
+
   factory CrossFileParent.from({required SharedChild child}) {
     return CrossFileParent({'child': child.toJson()});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   SharedChild get child {
     return SharedChild(_json['child'] as Map<String, dynamic>);
   }
 
   set child(SharedChild value) {
     _json['child'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

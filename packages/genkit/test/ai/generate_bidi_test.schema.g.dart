@@ -21,18 +21,27 @@ part of 'generate_bidi_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type MyToolInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class MyToolInput implements MyToolInputSchema {
+  MyToolInput(this._json);
+
   factory MyToolInput.from({required String location}) {
     return MyToolInput({'location': location});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get location {
     return _json['location'] as String;
   }
 
   set location(String value) {
     _json['location'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

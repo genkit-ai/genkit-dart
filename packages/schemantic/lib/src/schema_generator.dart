@@ -44,7 +44,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
     final baseName = _stripSchemaSuffix(className);
 
-    final extensionType = _generateExtensionType(baseName, element);
+    final extensionType = _generateClass(baseName, element);
     final factory = _generateFactory(baseName, element, annotation);
     final constInstance = _generateConstInstance(baseName);
 
@@ -58,16 +58,32 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     ).format('${library.accept(emitter)}');
   }
 
-  ExtensionType _generateExtensionType(String baseName, ClassElement element) {
-    return ExtensionType((b) {
+  Class _generateClass(String baseName, ClassElement element) {
+    return Class((b) {
       b
         ..name = baseName
-        ..implements.add(refer('Map<String, dynamic>'))
-        ..representationDeclaration =
-            (RepresentationDeclarationBuilder()
-                  ..declaredRepresentationType = refer('Map<String, dynamic>')
-                  ..name = '_json')
-                .build();
+        ..implements.add(refer(element.name!));
+
+      b.fields.add(
+        Field(
+          (f) => f
+            ..name = '_json'
+            ..type = refer('Map<String, dynamic>'),
+        ),
+      );
+
+      b.constructors.add(
+        Constructor(
+          (c) => c
+            ..requiredParameters.add(
+              Parameter(
+                (p) => p
+                  ..name = '_json'
+                  ..toThis = true,
+              ),
+            ),
+        ),
+      );
 
       b.constructors.add(
         Constructor((c) {
@@ -165,6 +181,16 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           b.methods.addAll([_generateGetter(getter), _generateSetter(getter)]);
         }
       }
+
+      b.methods.add(
+        Method(
+          (m) => m
+            ..annotations.add(refer('override'))
+            ..name = 'toString'
+            ..returns = refer('String')
+            ..body = Code('return _json.toString();'),
+        ),
+      );
 
       b.methods.add(
         Method(
@@ -271,6 +297,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
     return Method(
       (b) => b
+        ..annotations.add(refer('override'))
         ..type = MethodType.getter
         ..name = fieldName
         ..returns = refer(convertedTypeName)

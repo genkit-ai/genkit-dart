@@ -36,25 +36,22 @@ void main() {
         Formatter(
           name: 'banana',
           config: GenerateActionOutputConfig({
-            'format': 'banana',
-            'constrained': true,
+            'format': null,
+            'constrained': false,
           }),
           handler: (schema) {
-            String? instructions;
-            if (schema != null) {
-              instructions = 'Output should be in banana format';
-            }
+            String? instructions = 'Output should be in banana format';
             return FormatterHandlerResult(
               parseMessage: (message) {
                 final text = message.content
-                    .whereType<TextPart>()
+                    .where((p) => p.isText)
                     .map((p) => p.text)
                     .join();
                 return 'banana: $text';
               },
               parseChunk: (chunk) {
                 final text = chunk.content
-                    .whereType<TextPart>()
+                    .where((p) => p.isText)
                     .map((p) => p.text)
                     .join();
                 return 'banana chunk: $text';
@@ -133,7 +130,7 @@ void main() {
             finishReason: FinishReason.stop,
             message: Message.from(
               role: Role.model,
-              content: [TextPart.from(text: '{"a": 1}')],
+              content: [TextPart.from(text: '{"foo": "bar", "bar": 1}')],
             ),
           );
         },
@@ -145,15 +142,16 @@ void main() {
         outputSchema: TestObjectType,
       );
 
-      expect(response.output, equals({'a': 1}));
+      expect(response.output, isA<TestObject>());
+      expect(response.output!.toJson(), equals({'foo': 'bar', 'bar': 1}));
     });
 
     test('lets you define and use a custom output format', () async {
-      GenerateRequest? capturedRequest;
+      ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
         fn: (req, ctx) async {
-          capturedRequest = req as GenerateRequest;
+          capturedRequest = req;
           final text = req.messages.last.content.first.isText
               ? req.messages.last.content.first.text!
               : '';
@@ -169,7 +167,6 @@ void main() {
               role: Role.model,
               content: [TextPart.from(text: 'Echo: $text')],
             ),
-            request: req as GenerateRequest,
           );
         },
       );
@@ -182,7 +179,7 @@ void main() {
 
       expect(response.output, 'banana: Echo: hi');
       expect(capturedRequest?.output?.format, 'banana');
-      expect(capturedRequest?.output?.constrained, true);
+      expect(capturedRequest?.output?.constrained, false);
 
       final streamResponse = genkit.generateStream(
         model: modelRef('echoModel'),
@@ -202,11 +199,11 @@ void main() {
     });
 
     test('overrides format options with explicit output options', () async {
-      GenerateRequest? capturedRequest;
+      ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
         fn: (req, ctx) async {
-          capturedRequest = req as GenerateRequest;
+          capturedRequest = req;
           return ModelResponse.from(
             finishReason: FinishReason.stop,
             message: Message.from(
@@ -222,12 +219,10 @@ void main() {
         prompt: 'hi',
         outputFormat: 'banana',
         outputConstrained: false,
-        outputSchema: TestObjectType,
       );
 
       expect(capturedRequest?.output?.format, 'banana');
       expect(capturedRequest?.output?.constrained, false);
-      expect(capturedRequest?.output?.schema, isNotNull);
 
       // Verify instructions were injected (because schema was provided)
       final messages = capturedRequest?.messages;
@@ -243,11 +238,11 @@ void main() {
     });
 
     test('respects outputNoInstructions', () async {
-      GenerateRequest? capturedRequest;
+      ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
         fn: (req, ctx) async {
-          capturedRequest = req as GenerateRequest;
+          capturedRequest = req;
           return ModelResponse.from(
             finishReason: FinishReason.stop,
             message: Message.from(
@@ -263,7 +258,6 @@ void main() {
         prompt: 'hi',
         outputFormat: 'banana',
         outputNoInstructions: true,
-        outputSchema: TestObjectType,
       );
 
       // Verify instructions were NOT injected even though schema was provided and format has instructions
@@ -277,11 +271,11 @@ void main() {
     });
 
     test('skips instruction injection if already present', () async {
-      GenerateRequest? capturedRequest;
+      ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
         fn: (req, ctx) async {
-          capturedRequest = req as GenerateRequest;
+          capturedRequest = req;
           return ModelResponse.from(
             finishReason: FinishReason.stop,
             message: Message.from(

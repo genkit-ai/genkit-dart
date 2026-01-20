@@ -21,12 +21,16 @@ part of 'extension_type_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Ingredient(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Ingredient implements IngredientSchema {
+  Ingredient(this._json);
+
   factory Ingredient.from({required String name, required String quantity}) {
     return Ingredient({'name': name, 'quantity': quantity});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -35,12 +39,18 @@ extension type Ingredient(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   String get quantity {
     return _json['quantity'] as String;
   }
 
   set quantity(String value) {
     _json['quantity'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -70,8 +80,9 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 // ignore: constant_identifier_names
 const IngredientType = _IngredientTypeFactory();
 
-extension type Recipe(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Recipe implements RecipeSchema {
+  Recipe(this._json);
+
   factory Recipe.from({
     required String title,
     required List<Ingredient> ingredients,
@@ -84,6 +95,9 @@ extension type Recipe(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get title {
     return _json['title'] as String;
   }
@@ -92,6 +106,7 @@ extension type Recipe(Map<String, dynamic> _json)
     _json['title'] = value;
   }
 
+  @override
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
         .map((e) => Ingredient(e as Map<String, dynamic>))
@@ -102,12 +117,18 @@ extension type Recipe(Map<String, dynamic> _json)
     _json['ingredients'] = value.toList();
   }
 
+  @override
   int get servings {
     return _json['servings'] as int;
   }
 
   set servings(int value) {
     _json['servings'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -143,8 +164,9 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
 // ignore: constant_identifier_names
 const RecipeType = _RecipeTypeFactory();
 
-extension type AnnotatedRecipe(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class AnnotatedRecipe implements AnnotatedRecipeSchema {
+  AnnotatedRecipe(this._json);
+
   factory AnnotatedRecipe.from({
     required String title,
     required List<Ingredient> ingredients,
@@ -157,6 +179,9 @@ extension type AnnotatedRecipe(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get title {
     return _json['title_key_in_json'] as String;
   }
@@ -165,6 +190,7 @@ extension type AnnotatedRecipe(Map<String, dynamic> _json)
     _json['title_key_in_json'] = value;
   }
 
+  @override
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
         .map((e) => Ingredient(e as Map<String, dynamic>))
@@ -175,12 +201,18 @@ extension type AnnotatedRecipe(Map<String, dynamic> _json)
     _json['ingredients'] = value.toList();
   }
 
+  @override
   int get servings {
     return _json['servings'] as int;
   }
 
   set servings(int value) {
     _json['servings'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -218,12 +250,16 @@ class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
 // ignore: constant_identifier_names
 const AnnotatedRecipeType = _AnnotatedRecipeTypeFactory();
 
-extension type MealPlan(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class MealPlan implements MealPlanSchema {
+  MealPlan(this._json);
+
   factory MealPlan.from({required String day, required MealType mealType}) {
     return MealPlan({'day': day, 'mealType': mealType});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get day {
     return _json['day'] as String;
   }
@@ -232,12 +268,18 @@ extension type MealPlan(Map<String, dynamic> _json)
     _json['day'] = value;
   }
 
+  @override
   MealType get mealType {
     return MealType.values.byName(_json['mealType'] as String);
   }
 
   set mealType(MealType value) {
     _json['mealType'] = value.name;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -270,8 +312,9 @@ class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
 // ignore: constant_identifier_names
 const MealPlanType = _MealPlanTypeFactory();
 
-extension type NullableFields(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class NullableFields implements NullableFieldsSchema {
+  NullableFields(this._json);
+
   factory NullableFields.from({
     String? optionalString,
     int? optionalInt,
@@ -287,6 +330,9 @@ extension type NullableFields(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String? get optionalString {
     return _json['optionalString'] as String?;
   }
@@ -299,6 +345,7 @@ extension type NullableFields(Map<String, dynamic> _json)
     }
   }
 
+  @override
   int? get optionalInt {
     return _json['optionalInt'] as int?;
   }
@@ -311,6 +358,7 @@ extension type NullableFields(Map<String, dynamic> _json)
     }
   }
 
+  @override
   List<String>? get optionalList {
     return (_json['optionalList'] as List?)?.cast<String>();
   }
@@ -323,6 +371,7 @@ extension type NullableFields(Map<String, dynamic> _json)
     }
   }
 
+  @override
   Ingredient? get optionalIngredient {
     return _json['optionalIngredient'] == null
         ? null
@@ -335,6 +384,11 @@ extension type NullableFields(Map<String, dynamic> _json)
     } else {
       _json['optionalIngredient'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -369,8 +423,9 @@ class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
 // ignore: constant_identifier_names
 const NullableFieldsType = _NullableFieldsTypeFactory();
 
-extension type ComplexObject(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ComplexObject implements ComplexObjectSchema {
+  ComplexObject(this._json);
+
   factory ComplexObject.from({
     required String id,
     required DateTime createdAt,
@@ -389,6 +444,9 @@ extension type ComplexObject(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get id {
     return _json['id'] as String;
   }
@@ -397,6 +455,7 @@ extension type ComplexObject(Map<String, dynamic> _json)
     _json['id'] = value;
   }
 
+  @override
   DateTime get createdAt {
     return DateTime.parse(_json['createdAt'] as String);
   }
@@ -405,6 +464,7 @@ extension type ComplexObject(Map<String, dynamic> _json)
     _json['createdAt'] = value.toIso8601String();
   }
 
+  @override
   double get price {
     return _json['price'] as double;
   }
@@ -413,6 +473,7 @@ extension type ComplexObject(Map<String, dynamic> _json)
     _json['price'] = value;
   }
 
+  @override
   Map<String, String> get metadata {
     return _json['metadata'] as Map<String, String>;
   }
@@ -421,6 +482,7 @@ extension type ComplexObject(Map<String, dynamic> _json)
     _json['metadata'] = value;
   }
 
+  @override
   List<int> get ratings {
     return (_json['ratings'] as List).cast<int>();
   }
@@ -429,6 +491,7 @@ extension type ComplexObject(Map<String, dynamic> _json)
     _json['ratings'] = value;
   }
 
+  @override
   NullableFields? get nestedNullable {
     return _json['nestedNullable'] == null
         ? null
@@ -441,6 +504,11 @@ extension type ComplexObject(Map<String, dynamic> _json)
     } else {
       _json['nestedNullable'] = value;
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -477,8 +545,9 @@ class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
 // ignore: constant_identifier_names
 const ComplexObjectType = _ComplexObjectTypeFactory();
 
-extension type Menu(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Menu implements MenuSchema {
+  Menu(this._json);
+
   factory Menu.from({
     required List<Recipe> recipes,
     List<Ingredient>? optionalIngredients,
@@ -492,6 +561,9 @@ extension type Menu(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   List<Recipe> get recipes {
     return (_json['recipes'] as List)
         .map((e) => Recipe(e as Map<String, dynamic>))
@@ -502,6 +574,7 @@ extension type Menu(Map<String, dynamic> _json)
     _json['recipes'] = value.toList();
   }
 
+  @override
   List<Ingredient>? get optionalIngredients {
     return (_json['optionalIngredients'] as List?)
         ?.map((e) => Ingredient(e as Map<String, dynamic>))
@@ -514,6 +587,11 @@ extension type Menu(Map<String, dynamic> _json)
     } else {
       _json['optionalIngredients'] = value.toList();
     }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

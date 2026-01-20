@@ -111,7 +111,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
             'systemRole': true,
             'constrained': true,
           },
-        ),
+        ).toJson(),
       },
       fn: (req, ctx) async {
         final options = req!.config == null
@@ -331,33 +331,29 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
 @visibleForTesting
 gcl.Part toGeminiPart(Part p) {
   if (p.isText) {
-    p as TextPart;
     return gcl.Part(text: p.text);
   }
   if (p.isToolRequest) {
-    p as ToolRequestPart;
     return gcl.Part(
       functionCall: gcl.FunctionCall(
-        name: p.toolRequest.name,
-        args: p.toolRequest.input == null
+        name: p.toolRequest!.name,
+        args: p.toolRequest!.input == null
             ? null
-            : pb.Struct.fromJson(p.toolRequest.input!),
+            : pb.Struct.fromJson(p.toolRequest!.input!),
       ),
     );
   }
   if (p.isToolResponse) {
-    p as ToolResponsePart;
     return gcl.Part(
       functionResponse: gcl.FunctionResponse(
-        name: p.toolResponse.name,
-        response: pb.Struct.fromJson({'output': p.toolResponse.output}),
+        name: p.toolResponse!.name,
+        response: pb.Struct.fromJson({'output': p.toolResponse!.output}),
       ),
     );
   }
   if (p.isMedia) {
-    p as MediaPart;
     final media = p.media;
-    if (media.url.startsWith('data:')) {
+    if (media!.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
         return gcl.Part(

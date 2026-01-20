@@ -161,7 +161,7 @@ class GenerateResponse<O> {
   ModelResponse get rawResponse => _response;
 }
 
-Future<GenerateResponse<O>> runGenerateAction<O>(
+Future<GenerateResponse> runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
@@ -216,15 +216,15 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
         .parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
-      return GenerateResponse<O>(response, output: null);
+      return GenerateResponse(response, output: null);
     }
 
     final toolRequests = response.message?.content
-        .where((c) => c.isToolRequest)
-        .map((c) => c as ToolRequestPart)
+        .map((c) => c.toolRequestPart)
+        .nonNulls
         .toList();
     if (toolRequests == null || toolRequests.isEmpty) {
-      return GenerateResponse<O>(
+      return GenerateResponse(
         response,
         output: _parseOutput(response.message, parser),
       );
@@ -241,13 +241,13 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
           statusCode: 404,
         );
       }
-      final output = await tool(toolRequest.toolRequest.input);
+      final output = await tool.runRaw(toolRequest.toolRequest.input);
       toolResponses.add(
         ToolResponsePart.from(
           toolResponse: ToolResponse.from(
             ref: toolRequest.toolRequest.ref,
             name: toolRequest.toolRequest.name,
-            output: output,
+            output: output.result,
           ),
         ),
       );
@@ -272,7 +272,7 @@ Future<GenerateResponse<O>> runGenerateAction<O>(
   );
 }
 
-Future<GenerateResponse<O>> generateHelper<C, O>(
+Future<GenerateResponse> generateHelper<C>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
@@ -434,7 +434,7 @@ Future<GenerateBidiSession> runGenerateBidi(
 
         final toolRequests = chunk.content
             .where((p) => p.isToolRequest)
-            .map((p) => p as ToolRequestPart)
+            .map((p) => ToolRequestPart(p.toJson()))
             .toList();
 
         if (toolRequests.isNotEmpty) {
@@ -450,13 +450,13 @@ Future<GenerateBidiSession> runGenerateBidi(
             );
 
             try {
-              final output = await tool(toolRequest.toolRequest.input);
+              final output = await tool.runRaw(toolRequest.toolRequest.input);
               toolResponses.add(
                 ToolResponsePart.from(
                   toolResponse: ToolResponse.from(
                     ref: toolRequest.toolRequest.ref,
                     name: toolRequest.toolRequest.name,
-                    output: output,
+                    output: output.result,
                   ),
                 ),
               );
@@ -494,7 +494,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   return GenerateBidiSession._(session, outputController.stream);
 }
 
-O? _parseOutput<O>(Message? message, MessageParser? parser) {
+dynamic _parseOutput<O>(Message? message, MessageParser? parser) {
   if (parser != null && message != null) {
     return parser(message);
   }
