@@ -15,10 +15,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:genkit/src/schema.dart';
-import 'package:genkit/src/utils.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../schema.dart';
+import '../utils.dart';
 import 'registry.dart';
 
 const genkitVersion = '0.9.0';

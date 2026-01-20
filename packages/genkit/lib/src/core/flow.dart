@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/src/core/action.dart';
+import 'action.dart';
 
 class Flow<I, O, S, Init> extends Action<I, O, S, Init> {
   Flow({

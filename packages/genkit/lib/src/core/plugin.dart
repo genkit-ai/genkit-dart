@@ -14,8 +14,8 @@
 
 import 'dart:async';
 
-import 'package:genkit/src/ai/model.dart';
-import 'package:genkit/src/core/action.dart';
+import '../ai/model.dart';
+import 'action.dart';
 
 /// A plugin for Genkit.
 ///

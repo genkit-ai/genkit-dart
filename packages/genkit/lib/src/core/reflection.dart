@@ -15,9 +15,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:genkit/src/schema.dart';
-import 'package:genkit/src/utils.dart';
+
 import 'package:path/path.dart' as p;
+
+import '../schema.dart';
+import '../utils.dart';
 import 'registry.dart';
 
 const genkitVersion = '0.1.0';

@@ -15,12 +15,13 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/src/aggregation.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
 import 'package:google_cloud_protobuf/protobuf.dart' as pb;
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
+
+import 'src/aggregation.dart';
 
 part 'genkit_google_genai.schema.g.dart';
 
