@@ -20,3 +20,14 @@ part 'shared_test_schema.schema.g.dart';
 abstract class SharedChildSchema {
   String get childId;
 }
+
+@Schematic()
+abstract class PartSchema {}
+
+@Schematic()
+abstract class TextPartSchema implements PartSchema {
+  String get text;
+  Map<String, dynamic>? get data;
+  Map<String, dynamic>? get metadata;
+  Map<String, dynamic>? get custom;
+}

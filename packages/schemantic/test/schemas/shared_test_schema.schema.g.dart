@@ -70,3 +70,147 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
 
 // ignore: constant_identifier_names
 const SharedChildType = _SharedChildTypeFactory();
+
+class Part implements PartSchema {
+  Part(this._json);
+
+  factory Part.from() {
+    return Part({});
+  }
+
+  Map<String, dynamic> _json;
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _PartTypeFactory extends SchemanticType<Part> {
+  const _PartTypeFactory();
+
+  @override
+  Part parse(Object? json) {
+    return Part(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Part',
+    definition: Schema.object(properties: {}, required: []),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const PartType = _PartTypeFactory();
+
+class TextPart implements TextPartSchema, Part {
+  TextPart(this._json);
+
+  factory TextPart.from({
+    required String text,
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? metadata,
+    Map<String, dynamic>? custom,
+  }) {
+    return TextPart({
+      'text': text,
+      if (data != null) 'data': data,
+      if (metadata != null) 'metadata': metadata,
+      if (custom != null) 'custom': custom,
+    });
+  }
+
+  @override
+  Map<String, dynamic> _json;
+
+  @override
+  String get text {
+    return _json['text'] as String;
+  }
+
+  set text(String value) {
+    _json['text'] = value;
+  }
+
+  @override
+  Map<String, dynamic>? get data {
+    return _json['data'] as Map<String, dynamic>?;
+  }
+
+  set data(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('data');
+    } else {
+      _json['data'] = value;
+    }
+  }
+
+  @override
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
+  }
+
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
+  }
+
+  @override
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
+  }
+
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _TextPartTypeFactory extends SchemanticType<TextPart> {
+  const _TextPartTypeFactory();
+
+  @override
+  TextPart parse(Object? json) {
+    return TextPart(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TextPart',
+    definition: Schema.object(
+      properties: {
+        'text': Schema.string(),
+        'data': Schema.object(additionalProperties: Schema.any()),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+        'custom': Schema.object(additionalProperties: Schema.any()),
+      },
+      required: ['text'],
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const TextPartType = _TextPartTypeFactory();
