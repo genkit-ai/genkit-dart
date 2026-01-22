@@ -21,18 +21,27 @@ part of 'shelf_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type ShelfTestOutput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ShelfTestOutput implements ShelfTestOutputSchema {
+  ShelfTestOutput(this._json);
+
   factory ShelfTestOutput.from({required String greeting}) {
     return ShelfTestOutput({'greeting': greeting});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get greeting {
     return _json['greeting'] as String;
   }
 
   set greeting(String value) {
     _json['greeting'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -62,18 +71,27 @@ class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
 // ignore: constant_identifier_names
 const ShelfTestOutputType = _ShelfTestOutputTypeFactory();
 
-extension type ShelfTestStream(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ShelfTestStream implements ShelfTestStreamSchema {
+  ShelfTestStream(this._json);
+
   factory ShelfTestStream.from({required String chunk}) {
     return ShelfTestStream({'chunk': chunk});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get chunk {
     return _json['chunk'] as String;
   }
 
   set chunk(String value) {
     _json['chunk'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

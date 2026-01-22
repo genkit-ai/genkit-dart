@@ -21,18 +21,27 @@ part of 'main.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type WeatherToolInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class WeatherToolInput implements WeatherToolInputSchema {
+  WeatherToolInput(this._json);
+
   factory WeatherToolInput.from({required String location}) {
     return WeatherToolInput({'location': location});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get location {
     return _json['location'] as String;
   }
 
   set location(String value) {
     _json['location'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
