@@ -14,7 +14,7 @@
 
 import 'package:schemantic/schemantic.dart';
 
-part 'simple_flow_types.schema.g.dart';
+part 'simple_flow_types.g.dart';
 
 @Schematic()
 abstract class IngredientSchema {

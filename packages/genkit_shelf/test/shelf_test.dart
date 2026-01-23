@@ -22,7 +22,7 @@ import 'package:schemantic/schemantic.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
-part 'shelf_test.schema.g.dart';
+part 'shelf_test.g.dart';
 
 @Schematic()
 abstract class ShelfTestOutputSchema {

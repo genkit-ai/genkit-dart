@@ -28,7 +28,7 @@ Create a Dart file (e.g., `user.dart`) and define your schema as an abstract cla
 ```dart
 import 'package:schemantic/schemantic.dart';
 
-part 'user.schema.g.dart';
+part 'user.g.dart';
 
 @Schematic()
 abstract class UserSchema {

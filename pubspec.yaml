@@ -43,18 +43,17 @@ melos:
     build-gen-core:
       run: |
         melos exec --scope="genkit" -- dart run build_runner build
+        # For mockito generated files
         dart run tools/apply_license.dart
       description: Run build_runner for genkit.
 
     build-gen-plugins:
       run: |
         melos exec --scope="genkit_google_genai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
-        dart run tools/apply_license.dart
       description: Run build_runner for plugins.
 
     build-gen-testapps:
       run: |
         melos exec --scope="basic-sample,firebase_ai_testapp" -- dart run build_runner build
-        dart run tools/apply_license.dart
       description: Run build_runner for testapps.
       

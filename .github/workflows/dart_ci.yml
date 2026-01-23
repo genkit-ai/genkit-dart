@@ -37,9 +37,6 @@ jobs:
       - name: Run Code Generation
         run: melos run build-gen
 
-      - name: Apply license headers
-        run: dart run tools/apply_license.dart
-
       - name: Analyze Project Source
         run: melos run analyze
 

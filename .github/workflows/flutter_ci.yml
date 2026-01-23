@@ -34,9 +34,6 @@ jobs:
         working-directory: packages/genkit_firebase_ai
         run: dart run build_runner build
 
-      - name: Apply license headers
-        run: dart run tools/apply_license.dart
-
       - name: Run genkit_firebase_ai Tests
         working-directory: packages/genkit_firebase_ai
         run: flutter test
