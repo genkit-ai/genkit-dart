@@ -242,22 +242,15 @@ class ClassGenerator {
     } else if (typeValue is List) {
       type = typeValue.firstWhere((e) => e != 'null', orElse: () => null);
     }
-    switch (type) {
-      case 'string':
-        return refer('String');
-      case 'number':
-        return refer('double');
-      case 'integer':
-        return refer('int');
-      case 'boolean':
-        return refer('bool');
-      case 'array':
-        return _mapArrayType(parentType, schema);
-      case 'object':
-        return refer('Map<String, dynamic>');
-      default:
-        return refer('dynamic');
-    }
+    return switch (type) {
+      'string' => refer('String'),
+      'number' => refer('double'),
+      'integer' => refer('int'),
+      'boolean' => refer('bool'),
+      'array' => _mapArrayType(parentType, schema),
+      'object' => refer('Map<String, dynamic>'),
+      _ => refer('dynamic')
+    };
   }
 
   Reference _mapRefType(String parentType, Map<String, dynamic> schema) {

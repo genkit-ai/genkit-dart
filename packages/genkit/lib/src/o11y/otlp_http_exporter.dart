@@ -128,18 +128,13 @@ class CollectorHttpExporter implements sdk.SpanExporter {
   }
 
   int _translateSpanKind(api.SpanKind kind) {
-    switch (kind) {
-      case api.SpanKind.internal:
-        return 1;
-      case api.SpanKind.server:
-        return 2;
-      case api.SpanKind.client:
-        return 3;
-      case api.SpanKind.producer:
-        return 4;
-      case api.SpanKind.consumer:
-        return 5;
-    }
+    return switch (kind) {
+      api.SpanKind.internal => 1,
+      api.SpanKind.server => 2,
+      api.SpanKind.client => 3,
+      api.SpanKind.producer => 4,
+      api.SpanKind.consumer => 5
+    };
   }
 
   List<Map<String, dynamic>> _translateAttributes(sdk.Attributes attributes) {
