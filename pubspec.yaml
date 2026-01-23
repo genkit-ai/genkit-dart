@@ -29,7 +29,7 @@ melos:
         dirExists: test
 
     analyze:
-      exec: dart analyze .
+      exec: dart analyze --fatal-infos .
 
 
     build-gen:

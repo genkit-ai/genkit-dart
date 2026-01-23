@@ -60,17 +60,24 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   }
 
   Class _generateClass(String baseName, ClassElement element) {
+    // If `element` is a type annotated with `@Schematic`, then it should
+    // inherit the `json` field.
+    final isSubclass = _implementsAnnotatedType(element);
     return Class((b) {
       b
         ..name = baseName
         ..implements.add(refer(element.name!));
 
       b.fields.add(
-        Field(
-          (f) => f
+        Field((f) {
+          f
             ..name = '_json'
-            ..type = refer('Map<String, dynamic>'),
-        ),
+            ..type = refer('Map<String, dynamic>');
+
+          if (isSubclass) {
+            f.annotations.add(refer('override'));
+          }
+        }),
       );
 
       b.constructors.add(
@@ -194,12 +201,16 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       );
 
       b.methods.add(
-        Method(
-          (m) => m
+        Method((m) {
+          m
             ..name = 'toJson'
             ..returns = refer('Map<String, dynamic>')
-            ..body = Code('return _json;'),
-        ),
+            ..body = Code('return _json;');
+
+          if (isSubclass) {
+            m.annotations.add(refer('override'));
+          }
+        }),
       );
     });
   }
@@ -808,6 +819,10 @@ const _numberFieldChecker = TypeChecker.fromUrl(
   'package:schemantic/schemantic.dart#NumberField',
 );
 
+const _schematicChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#Schematic',
+);
+
 extension on DartType {
   bool get isNullable {
     return getDisplayString().endsWith('?');
@@ -816,4 +831,15 @@ extension on DartType {
   bool get isDynamic {
     return getDisplayString() == 'dynamic';
   }
+}
+
+/// Returns `true` if the given [element] is a subclass of a type annotated with
+/// [Schematic].
+bool _implementsAnnotatedType(ClassElement element) =>
+    _annotatedInterfaces(element).isNotEmpty;
+
+Iterable<InterfaceType> _annotatedInterfaces(ClassElement element) {
+  return element.interfaces.where(
+    (s) => _schematicChecker.hasAnnotationOf(s.element),
+  );
 }

@@ -402,6 +402,7 @@ class TextPart implements TextPartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -457,6 +458,7 @@ class TextPart implements TextPartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -506,6 +508,7 @@ class MediaPart implements MediaPartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -561,6 +564,7 @@ class MediaPart implements MediaPartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -610,6 +614,7 @@ class ToolRequestPart implements ToolRequestPartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -665,6 +670,7 @@ class ToolRequestPart implements ToolRequestPartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -714,6 +720,7 @@ class ToolResponsePart implements ToolResponsePartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -769,6 +776,7 @@ class ToolResponsePart implements ToolResponsePartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -816,6 +824,7 @@ class DataPart implements DataPartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -862,6 +871,7 @@ class DataPart implements DataPartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -908,6 +918,7 @@ class CustomPart implements CustomPartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -950,6 +961,7 @@ class CustomPart implements CustomPartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -998,6 +1010,7 @@ class ReasoningPart implements ReasoningPartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -1053,6 +1066,7 @@ class ReasoningPart implements ReasoningPartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1102,6 +1116,7 @@ class ResourcePart implements ResourcePartSchema, Part {
     });
   }
 
+  @override
   Map<String, dynamic> _json;
 
   @override
@@ -1157,6 +1172,7 @@ class ResourcePart implements ResourcePartSchema, Part {
     return _json.toString();
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return _json;
   }
