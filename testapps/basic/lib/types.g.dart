@@ -21,8 +21,9 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type ProcessObjectInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ProcessObjectInput implements ProcessObjectInputSchema {
+  ProcessObjectInput(this._json);
+
   factory ProcessObjectInput.from({
     required String message,
     required int count,
@@ -30,6 +31,9 @@ extension type ProcessObjectInput(Map<String, dynamic> _json)
     return ProcessObjectInput({'message': message, 'count': count});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get message {
     return _json['message'] as String;
   }
@@ -38,12 +42,18 @@ extension type ProcessObjectInput(Map<String, dynamic> _json)
     _json['message'] = value;
   }
 
+  @override
   int get count {
     return _json['count'] as int;
   }
 
   set count(int value) {
     _json['count'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -74,8 +84,9 @@ class _ProcessObjectInputTypeFactory
 // ignore: constant_identifier_names
 const ProcessObjectInputType = _ProcessObjectInputTypeFactory();
 
-extension type ProcessObjectOutput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class ProcessObjectOutput implements ProcessObjectOutputSchema {
+  ProcessObjectOutput(this._json);
+
   factory ProcessObjectOutput.from({
     required String reply,
     required int newCount,
@@ -83,6 +94,9 @@ extension type ProcessObjectOutput(Map<String, dynamic> _json)
     return ProcessObjectOutput({'reply': reply, 'newCount': newCount});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get reply {
     return _json['reply'] as String;
   }
@@ -91,12 +105,18 @@ extension type ProcessObjectOutput(Map<String, dynamic> _json)
     _json['reply'] = value;
   }
 
+  @override
   int get newCount {
     return _json['newCount'] as int;
   }
 
   set newCount(int value) {
     _json['newCount'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -127,18 +147,27 @@ class _ProcessObjectOutputTypeFactory
 // ignore: constant_identifier_names
 const ProcessObjectOutputType = _ProcessObjectOutputTypeFactory();
 
-extension type StreamObjectsInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class StreamObjectsInput implements StreamObjectsInputSchema {
+  StreamObjectsInput(this._json);
+
   factory StreamObjectsInput.from({required String prompt}) {
     return StreamObjectsInput({'prompt': prompt});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get prompt {
     return _json['prompt'] as String;
   }
 
   set prompt(String value) {
     _json['prompt'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -169,8 +198,9 @@ class _StreamObjectsInputTypeFactory
 // ignore: constant_identifier_names
 const StreamObjectsInputType = _StreamObjectsInputTypeFactory();
 
-extension type StreamObjectsOutput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class StreamObjectsOutput implements StreamObjectsOutputSchema {
+  StreamObjectsOutput(this._json);
+
   factory StreamObjectsOutput.from({
     required String text,
     required String summary,
@@ -178,6 +208,9 @@ extension type StreamObjectsOutput(Map<String, dynamic> _json)
     return StreamObjectsOutput({'text': text, 'summary': summary});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get text {
     return _json['text'] as String;
   }
@@ -186,12 +219,18 @@ extension type StreamObjectsOutput(Map<String, dynamic> _json)
     _json['text'] = value;
   }
 
+  @override
   String get summary {
     return _json['summary'] as String;
   }
 
   set summary(String value) {
     _json['summary'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -222,18 +261,27 @@ class _StreamObjectsOutputTypeFactory
 // ignore: constant_identifier_names
 const StreamObjectsOutputType = _StreamObjectsOutputTypeFactory();
 
-extension type StreamyThrowyChunk(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class StreamyThrowyChunk implements StreamyThrowyChunkSchema {
+  StreamyThrowyChunk(this._json);
+
   factory StreamyThrowyChunk.from({required int count}) {
     return StreamyThrowyChunk({'count': count});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   int get count {
     return _json['count'] as int;
   }
 
   set count(int value) {
     _json['count'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

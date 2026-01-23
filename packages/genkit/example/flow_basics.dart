@@ -19,7 +19,7 @@ import 'dart:math';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'flow_basics.schema.g.dart';
+part 'flow_basics.g.dart';
 
 @Schematic()
 abstract class SubjectSchema {

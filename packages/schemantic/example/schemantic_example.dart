@@ -14,7 +14,7 @@
 
 import 'package:schemantic/schemantic.dart';
 
-part 'schemantic_example.schema.g.dart';
+part 'schemantic_example.g.dart';
 
 @Schematic()
 abstract class AddressSchema {
