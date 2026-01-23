@@ -31,7 +31,7 @@ class ClassGenerator {
     final library = Library((b) {
       b.directives.addAll([
         Directive.import('package:schemantic/schemantic.dart'),
-        Directive.part('types.schema.g.dart'),
+        Directive.part('types.g.dart'),
       ]);
       for (final className in allowlist) {
         if (definitions.containsKey(className)) {

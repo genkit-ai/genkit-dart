@@ -16,7 +16,7 @@ import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
-part 'generate_test.schema.g.dart';
+part 'generate_test.g.dart';
 
 @Schematic()
 abstract class TestToolInputSchema {

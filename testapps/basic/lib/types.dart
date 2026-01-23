@@ -14,7 +14,7 @@
 
 import 'package:schemantic/schemantic.dart';
 
-part 'types.schema.g.dart';
+part 'types.g.dart';
 
 @Schematic()
 abstract class ProcessObjectInputSchema {

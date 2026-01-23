@@ -21,18 +21,27 @@ part of 'shelf_server_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type HelloInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class HelloInput implements HelloInputSchema {
+  HelloInput(this._json);
+
   factory HelloInput.from({required String name}) {
     return HelloInput({'name': name});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
 
   set name(String value) {
     _json['name'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -62,18 +71,27 @@ class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
 // ignore: constant_identifier_names
 const HelloInputType = _HelloInputTypeFactory();
 
-extension type HelloOutput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class HelloOutput implements HelloOutputSchema {
+  HelloOutput(this._json);
+
   factory HelloOutput.from({required String greeting}) {
     return HelloOutput({'greeting': greeting});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get greeting {
     return _json['greeting'] as String;
   }
 
   set greeting(String value) {
     _json['greeting'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -103,18 +121,27 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
 // ignore: constant_identifier_names
 const HelloOutputType = _HelloOutputTypeFactory();
 
-extension type CountChunk(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class CountChunk implements CountChunkSchema {
+  CountChunk(this._json);
+
   factory CountChunk.from({required int count}) {
     return CountChunk({'count': count});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   int get count {
     return _json['count'] as int;
   }
 
   set count(int value) {
     _json['count'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
