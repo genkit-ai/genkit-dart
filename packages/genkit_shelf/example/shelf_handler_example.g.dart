@@ -21,18 +21,27 @@ part of 'shelf_handler_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type HandlerInput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class HandlerInput implements HandlerInputSchema {
+  HandlerInput(this._json);
+
   factory HandlerInput.from({required String message}) {
     return HandlerInput({'message': message});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get message {
     return _json['message'] as String;
   }
 
   set message(String value) {
     _json['message'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -62,18 +71,27 @@ class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
 // ignore: constant_identifier_names
 const HandlerInputType = _HandlerInputTypeFactory();
 
-extension type HandlerOutput(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class HandlerOutput implements HandlerOutputSchema {
+  HandlerOutput(this._json);
+
   factory HandlerOutput.from({required String processedMessage}) {
     return HandlerOutput({'processedMessage': processedMessage});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get processedMessage {
     return _json['processedMessage'] as String;
   }
 
   set processedMessage(String value) {
     _json['processedMessage'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

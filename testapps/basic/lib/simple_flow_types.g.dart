@@ -21,12 +21,16 @@ part of 'simple_flow_types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-extension type Ingredient(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Ingredient implements IngredientSchema {
+  Ingredient(this._json);
+
   factory Ingredient.from({required String name, required String quantity}) {
     return Ingredient({'name': name, 'quantity': quantity});
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get name {
     return _json['name'] as String;
   }
@@ -35,12 +39,18 @@ extension type Ingredient(Map<String, dynamic> _json)
     _json['name'] = value;
   }
 
+  @override
   String get quantity {
     return _json['quantity'] as String;
   }
 
   set quantity(String value) {
     _json['quantity'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -70,8 +80,9 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 // ignore: constant_identifier_names
 const IngredientType = _IngredientTypeFactory();
 
-extension type Recipe(Map<String, dynamic> _json)
-    implements Map<String, dynamic> {
+class Recipe implements RecipeSchema {
+  Recipe(this._json);
+
   factory Recipe.from({
     required String title,
     required List<Ingredient> ingredients,
@@ -84,6 +95,9 @@ extension type Recipe(Map<String, dynamic> _json)
     });
   }
 
+  Map<String, dynamic> _json;
+
+  @override
   String get title {
     return _json['title'] as String;
   }
@@ -92,6 +106,7 @@ extension type Recipe(Map<String, dynamic> _json)
     _json['title'] = value;
   }
 
+  @override
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
         .map((e) => Ingredient(e as Map<String, dynamic>))
@@ -102,12 +117,18 @@ extension type Recipe(Map<String, dynamic> _json)
     _json['ingredients'] = value.toList();
   }
 
+  @override
   int get servings {
     return _json['servings'] as int;
   }
 
   set servings(int value) {
     _json['servings'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
   }
 
   Map<String, dynamic> toJson() {

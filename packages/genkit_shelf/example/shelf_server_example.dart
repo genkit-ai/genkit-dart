@@ -17,7 +17,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'shelf_server_example.schema.g.dart';
+part 'shelf_server_example.g.dart';
 
 @Schematic()
 abstract class HelloInputSchema {
