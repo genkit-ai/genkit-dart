@@ -59,7 +59,10 @@ abstract class $Product {
 
 // This should be a warning.
 @Schematic()
-abstract class $Testclass {}
+abstract class Testclass {}
+
+@Schematic()
+class $Testclass2 {}
 
 void main() async {
   // 1. Create an instance using the generated class

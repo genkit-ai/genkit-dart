@@ -10,31 +10,43 @@ class MyRuleTest extends AnalysisRuleTest {
   void setUp() {
     rule = SchemanticNamingRule();
     newPackage('schemantic').addFile('lib/schemantic.dart', r'''
-class Schemantic {
-  const Schemantic();
+class Schematic {
+  const Schematic();
 }
 ''');
     super.setUp();
   }
 
-  void test_has_await() async {
+  void test_no_dollar() async {
     await assertDiagnostics(
       r'''
 import 'package:schemantic/schemantic.dart';
 
-@Schemantic()
-class A {}
+@Schematic()
+abstract class A {}
 ''',
-      [lint(66, 1)],
+      [lint(74, 1)],
     );
   }
 
-  void test_no_await() async {
+  void test_is_not_abstract() async {
+    await assertDiagnostics(
+      r'''
+import 'package:schemantic/schemantic.dart';
+
+@Schematic()
+class $A {}
+''',
+      [lint(65, 2)],
+    );
+  }
+
+  void test_has_dollar() async {
     await assertNoDiagnostics(r'''
 import 'package:schemantic/schemantic.dart';
 
-@Schemantic()
-class $A {}
+@Schematic()
+abstract class $A {}
 ''');
   }
 }
