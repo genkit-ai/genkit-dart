@@ -17,6 +17,7 @@ import 'package:source_gen/source_gen.dart';
 
 import 'src/schema_generator.dart';
 
-Builder schemaBuilder([BuilderOptions? options]) {
-  return SharedPartBuilder([SchemaGenerator()], 'schemantic');
+Builder schemaBuilder(BuilderOptions options) {
+  final header = options.config['header'] as String?;
+  return PartBuilder([SchemaGenerator()], '.g.dart', header: header);
 }

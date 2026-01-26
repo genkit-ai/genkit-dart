@@ -1,0 +1,17 @@
+name: schemantic_analyzer_plugin
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  analysis_server_plugin: ^0.3.7
+  analyzer: ^10.0.1
+  analyzer_plugin: ^0.14.1
+
+dev_dependencies:
+  analyzer_testing: ^0.1.9
+  lints: ^6.0.0
+  test: ^1.25.6
+  test_reflective_loader: ^0.4.0

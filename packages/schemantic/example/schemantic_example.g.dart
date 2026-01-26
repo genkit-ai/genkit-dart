@@ -1,3 +1,4 @@
+// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,9 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// GENERATED CODE - DO NOT MODIFY BY HAND
-// dart format width=80
+//
+// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
+// To regenerate, run `dart run build_runner build -d`
 
 part of 'schemantic_example.dart';
 
@@ -21,20 +22,19 @@ part of 'schemantic_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Address implements AddressSchema {
+class Address {
   Address(this._json);
 
   factory Address.from({
     required String street,
     required String city,
-    required String zipCode,
+    required ZipCode zipCode,
   }) {
-    return Address({'street': street, 'city': city, 'zipCode': zipCode});
+    return Address({'street': street, 'city': city, 'zipCode': zipCode.value});
   }
 
   Map<String, dynamic> _json;
 
-  @override
   String get street {
     return _json['street'] as String;
   }
@@ -43,7 +43,6 @@ class Address implements AddressSchema {
     _json['street'] = value;
   }
 
-  @override
   String get city {
     return _json['city'] as String;
   }
@@ -52,13 +51,17 @@ class Address implements AddressSchema {
     _json['city'] = value;
   }
 
-  @override
-  String get zipCode {
-    return _json['zipCode'] as String;
+  set zipCodeAsInt(int value) {
+    _json['zipCode'] = value;
   }
 
-  set zipCode(String value) {
+  set zipCodeAsString(String value) {
     _json['zipCode'] = value;
+  }
+
+  // Possible return values are `int`, `String`
+  Object? get zipCode {
+    return _json['zipCode'] as Object?;
   }
 
   @override
@@ -69,6 +72,14 @@ class Address implements AddressSchema {
   Map<String, dynamic> toJson() {
     return _json;
   }
+}
+
+class ZipCode {
+  ZipCode.int(int this.value);
+
+  ZipCode.string(String this.value);
+
+  final Object? value;
 }
 
 class _AddressTypeFactory extends SchemanticType<Address> {
@@ -86,7 +97,7 @@ class _AddressTypeFactory extends SchemanticType<Address> {
       properties: {
         'street': Schema.string(),
         'city': Schema.string(),
-        'zipCode': Schema.string(),
+        'zipCode': Schema.combined(anyOf: [Schema.integer(), Schema.string()]),
       },
       required: ['street', 'city', 'zipCode'],
     ),
@@ -97,7 +108,7 @@ class _AddressTypeFactory extends SchemanticType<Address> {
 // ignore: constant_identifier_names
 const AddressType = _AddressTypeFactory();
 
-class User implements UserSchema {
+class User {
   User(this._json);
 
   factory User.from({
@@ -116,7 +127,6 @@ class User implements UserSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -125,7 +135,6 @@ class User implements UserSchema {
     _json['name'] = value;
   }
 
-  @override
   int? get age {
     return _json['years_old'] as int?;
   }
@@ -138,7 +147,6 @@ class User implements UserSchema {
     }
   }
 
-  @override
   bool get isAdmin {
     return _json['isAdmin'] as bool;
   }
@@ -147,7 +155,6 @@ class User implements UserSchema {
     _json['isAdmin'] = value;
   }
 
-  @override
   Address? get address {
     return _json['address'] == null
         ? null
@@ -186,14 +193,14 @@ class _UserTypeFactory extends SchemanticType<User> {
     definition: Schema.object(
       properties: {
         'name': Schema.string(
-          minLength: 2,
-          maxLength: 50,
+          minLength: 1,
+          maxLength: 250,
           pattern: r'^[a-zA-Z\s]+$',
         ),
         'years_old': Schema.integer(
           description: 'Age of the user',
           minimum: 0,
-          maximum: 120,
+          maximum: 150,
         ),
         'isAdmin': Schema.boolean(description: 'Is this user an admin?'),
         'address': Schema.fromMap({'\$ref': r'#/$defs/Address'}),
@@ -207,7 +214,7 @@ class _UserTypeFactory extends SchemanticType<User> {
 // ignore: constant_identifier_names
 const UserType = _UserTypeFactory();
 
-class Product implements ProductSchema {
+class Product {
   Product(this._json);
 
   factory Product.from({
@@ -226,7 +233,6 @@ class Product implements ProductSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get id {
     return _json['id'] as String;
   }
@@ -235,7 +241,6 @@ class Product implements ProductSchema {
     _json['id'] = value;
   }
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -244,7 +249,6 @@ class Product implements ProductSchema {
     _json['name'] = value;
   }
 
-  @override
   double get price {
     return _json['price'] as double;
   }
@@ -253,7 +257,6 @@ class Product implements ProductSchema {
     _json['price'] = value;
   }
 
-  @override
   List<String>? get tags {
     return (_json['tags'] as List?)?.cast<String>();
   }
@@ -302,3 +305,41 @@ class _ProductTypeFactory extends SchemanticType<Product> {
 
 // ignore: constant_identifier_names
 const ProductType = _ProductTypeFactory();
+
+class Testclass {
+  Testclass(this._json);
+
+  factory Testclass.from() {
+    return Testclass({});
+  }
+
+  Map<String, dynamic> _json;
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _TestclassTypeFactory extends SchemanticType<Testclass> {
+  const _TestclassTypeFactory();
+
+  @override
+  Testclass parse(Object? json) {
+    return Testclass(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Testclass',
+    definition: Schema.object(properties: {}, required: []),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const TestclassType = _TestclassTypeFactory();

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: unused_element
+
 import 'dart:convert';
 
 import 'package:schemantic/schemantic.dart';
@@ -21,27 +23,27 @@ import 'schemas/shared_test_schema.dart';
 part 'integration_test.g.dart';
 
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   String get name;
   int? get age;
   bool get isAdmin;
 }
 
 @Schematic()
-abstract class GroupSchema {
+abstract class $Group {
   String get groupName;
-  List<UserSchema> get members;
-  UserSchema? get leader;
+  List<$User> get members;
+  $User? get leader;
 }
 
 @Schematic()
-abstract class NodeSchema {
+abstract class $Node {
   String get id;
-  List<NodeSchema>? get children;
+  List<$Node>? get children;
 }
 
 @Schematic()
-abstract class KeyedSchema {
+abstract class $Keyed {
   @StringField(
     name: 'custom_name',
     description: 'A custom named field',
@@ -57,7 +59,7 @@ abstract class KeyedSchema {
 }
 
 @Schematic()
-abstract class ComprehensiveSchema {
+abstract class $Comprehensive {
   @StringField(
     name: 's_field',
     description: 'A string field',
@@ -93,13 +95,13 @@ abstract class ComprehensiveSchema {
 }
 
 @Schematic(description: 'A schema with description')
-abstract class DescriptionSchema {
+abstract class $Description {
   String get name;
 }
 
 @Schematic()
-abstract class CrossFileParentSchema {
-  SharedChildSchema get child;
+abstract class $CrossFileParent {
+  $SharedChild get child;
 }
 
 void main() {

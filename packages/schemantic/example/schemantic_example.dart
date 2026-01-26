@@ -12,52 +12,61 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:schemantic/schemantic.dart';
+// ignore_for_file: strict_top_level_inference, always_declare_return_types, type_annotate_public_apis, unused_element
 
+import 'package:schemantic/schemantic.dart';
 part 'schemantic_example.g.dart';
 
 @Schematic()
-abstract class AddressSchema {
+abstract class $Address {
   String get street;
   String get city;
-  String get zipCode;
+
+  @AnyOf([int, String])
+  get zipCode;
 }
 
 /// Define a schema using the @Schematic annotation.
 /// This will generate a concrete [User] class and a [UserType] utility.
 @Schematic()
-abstract class UserSchema {
-  @StringField(minLength: 2, maxLength: 50, pattern: r'^[a-zA-Z\s]+$')
+abstract class $User {
+  @StringField(minLength: 1, maxLength: 250, pattern: r'^[a-zA-Z\s]+$')
   String get name;
+
   @IntegerField(
     name: 'years_old',
     description: 'Age of the user',
     minimum: 0,
-    maximum: 120,
+    maximum: 150,
   )
   int? get age;
+
   @Field(description: 'Is this user an admin?')
   bool get isAdmin;
 
   // Nested schema
-  AddressSchema? get address;
+  $Address? get address;
 }
 
 /// Define another schema for Products.
 @Schematic()
-abstract class ProductSchema {
+abstract class $Product {
   String get id;
   String get name;
   double get price;
   List<String>? get tags;
 }
 
+// This should be a warning.
+@Schematic()
+abstract class $Testclass {}
+
 void main() async {
   // 1. Create an instance using the generated class
   final address = Address.from(
     street: '123 Main St',
     city: 'Springfield',
-    zipCode: '62704',
+    zipCode: ZipCode.int(62704),
   );
 
   final user = User.from(
