@@ -35,22 +35,30 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         element: element,
       );
     }
+    final className = element.name!;
 
-    final className = element.name;
-    if (className == null || !className.endsWith('Schema')) {
+    if (!className.startsWith('\$')) {
       throw InvalidGenerationSourceError(
-        'Schema class names must end with "Schema".',
+        'Schematic classes must start with "\$".',
         element: element,
       );
     }
-    final baseName = _stripSchemaSuffix(className);
 
+    final baseName = _stripPrivatePrefix(className);
+
+    final helperClasses = _generateHelperClasses(element);
     final extensionType = _generateClass(baseName, element);
     final factory = _generateFactory(baseName, element, annotation);
     final constInstance = _generateConstInstance(baseName);
 
     final library = Library(
-      (b) => b..body.addAll([extensionType, factory, constInstance]),
+      (b) => b
+        ..body.addAll([
+          extensionType,
+          ...helperClasses,
+          factory,
+          constInstance,
+        ]),
     );
 
     final emitter = DartEmitter(useNullSafetySyntax: true);
@@ -59,14 +67,73 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     ).format('${library.accept(emitter)}');
   }
 
+  RegExp alphaNumeric = RegExp(r'[^a-zA-Z0-9]');
+
+  List<Class> _generateHelperClasses(ClassElement element) {
+    final classes = <Class>[];
+    for (final field in element.fields) {
+      if (field.getter == null) continue;
+      final anyOfAnnotation = _anyOfChecker.firstAnnotationOf(
+        field.getter!,
+        throwOnUnresolved: false,
+      );
+      if (anyOfAnnotation == null) {
+        continue;
+      }
+      var fieldName = field.name;
+      if (fieldName == null) {
+        throw ArgumentError('Field $field in $element has no name');
+      }
+      classes.add(
+        Class((c) {
+          c.name = _capitalize(fieldName);
+          c.fields.add(
+            Field(
+              (f) => f
+                ..name = 'value'
+                ..type = refer('Object?')
+                ..modifier = FieldModifier.final$,
+            ),
+          );
+
+          final reader = ConstantReader(anyOfAnnotation);
+          final types = reader.peek('anyOf')?.listValue ?? [];
+          for (final typeObj in types) {
+            final type = typeObj.toTypeValue();
+            if (type != null) {
+              final typeName = _convertSchemaType(type);
+              // Constructor name logic: lowercase first letter of simple type name.
+              var sanitizedName = typeName.replaceAll(alphaNumeric, '');
+              final ctorName = _decapitalize(sanitizedName);
+
+              c.constructors.add(
+                Constructor(
+                  (ctor) => ctor
+                    ..name = ctorName
+                    ..requiredParameters.add(
+                      Parameter(
+                        (p) => p
+                          ..name = 'value'
+                          ..toThis = true
+                          ..type = refer(typeName),
+                      ),
+                    ),
+                ),
+              );
+            }
+          }
+        }),
+      );
+    }
+    return classes;
+  }
+
   Class _generateClass(String baseName, ClassElement element) {
     // If `element` is a type annotated with `@Schematic`, then it should
     // inherit the `json` field.
     final isSubclass = _implementsAnnotatedType(element);
     return Class((b) {
-      b
-        ..name = baseName
-        ..implements.add(refer(element.name!));
+      b.name = baseName;
 
       b.fields.add(
         Field((f) {
@@ -99,71 +166,93 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           c.name = 'from';
           final params = <Parameter>[];
           final jsonMapEntries = <String>[];
+
           for (final field in element.fields) {
             final getter = field.getter;
             if (getter != null) {
               final paramName = getter.name;
-              final paramType = refer(_convertSchemaType(getter.returnType));
-              final isExtensionType = getter.returnType
-                  .getDisplayString()
-                  .replaceAll('?', '')
-                  .endsWith('Schema');
-              final isNullable =
-                  getter.returnType.isNullable ||
-                  getter.returnType.isDartCoreObject ||
-                  getter.returnType.isDynamic;
-              params.add(
-                Parameter(
-                  (p) => p
-                    ..name = paramName!
-                    ..type = paramType
-                    ..named = true
-                    ..required = !isNullable,
-                ),
+              final anyOfAnnotation = _anyOfChecker.firstAnnotationOf(
+                getter,
+                throwOnUnresolved: false,
               );
-              Expression valueExpression;
-              if (getter.returnType.isDartCoreList) {
-                final itemType =
-                    (getter.returnType as InterfaceType).typeArguments.first;
-                if (itemType
+
+              if (anyOfAnnotation != null) {
+                // Handle AnyOf parameter using Helper Class
+                final helperClassName = _capitalize(paramName!);
+                params.add(
+                  Parameter(
+                    (p) => p
+                      ..name = paramName
+                      ..type = refer(helperClassName)
+                      ..named = true
+                      // Assuming required for AnyOf based on user example
+                      ..required = true,
+                  ),
+                );
+
+                final key = _getJsonKey(getter);
+                // Assign helper.value to map
+                jsonMapEntries.add("'$key': $paramName.value");
+              } else {
+                // Standard Field Handling
+                final paramType = refer(_convertSchemaType(getter.returnType));
+                // UPDATED: Check for private prefix
+                final isExtensionType = getter.returnType
                     .getDisplayString()
                     .replaceAll('?', '')
-                    .endsWith('Schema')) {
-                  final toJsonLambda = Method(
-                    (m) => m
-                      ..requiredParameters.add(Parameter((p) => p.name = 'e'))
-                      ..body = refer('e').property('toJson').call([]).code,
-                  ).closure;
-                  if (getter.returnType.isNullable) {
+                    .isSchema;
+                final isNullable =
+                    getter.returnType.isNullable ||
+                    getter.returnType.isDartCoreObject ||
+                    getter.returnType.isDynamic;
+                params.add(
+                  Parameter(
+                    (p) => p
+                      ..name = paramName!
+                      ..type = paramType
+                      ..named = true
+                      ..required = !isNullable,
+                  ),
+                );
+                Expression valueExpression;
+                if (getter.returnType.isDartCoreList) {
+                  final itemType =
+                      (getter.returnType as InterfaceType).typeArguments.first;
+                  // UPDATED: Check for private prefix in List items
+                  if (itemType
+                      .getDisplayString()
+                      .replaceAll('?', '')
+                      .isSchema) {
+                    final toJsonLambda = Method(
+                      (m) => m
+                        ..requiredParameters.add(Parameter((p) => p.name = 'e'))
+                        ..body = refer('e').property('toJson').call([]).code,
+                    ).closure;
                     valueExpression = refer(paramName!)
                         .property('map')
                         .call([toJsonLambda])
                         .property('toList')
                         .call([]);
                   } else {
-                    valueExpression = refer(paramName!)
-                        .property('map')
-                        .call([toJsonLambda])
-                        .property('toList')
-                        .call([]);
+                    valueExpression = refer(paramName!);
                   }
+                } else if (isExtensionType) {
+                  valueExpression = refer(
+                    paramName!,
+                  ).property('toJson').call([]);
                 } else {
                   valueExpression = refer(paramName!);
                 }
-              } else if (isExtensionType) {
-                valueExpression = refer(paramName!).property('toJson').call([]);
-              } else {
-                valueExpression = refer(paramName!);
-              }
-              final key = _getJsonKey(getter);
-              final emitter = DartEmitter(useNullSafetySyntax: true);
-              final valueString = valueExpression.accept(emitter);
-              if (isNullable) {
-                jsonMapEntries.add(
-                  "if ($paramName != null) '$key': $valueString",
-                );
-              } else {
-                jsonMapEntries.add("'$key': $valueString");
+                final key = _getJsonKey(getter);
+                final emitter = DartEmitter(useNullSafetySyntax: true);
+                final valueString = valueExpression.accept(emitter);
+                if (isNullable) {
+                  jsonMapEntries.add(
+                    "if ($paramName != null) '$key': $valueString",
+                  );
+                } else {
+                  jsonMapEntries.add("'$key': $valueString");
+                }
               }
             }
           }
@@ -177,8 +266,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
       for (final interface in element.interfaces) {
         final interfaceName = interface.getDisplayString().replaceAll('?', '');
-        if (interfaceName.endsWith('Schema')) {
-          final interfaceBaseName = _stripSchemaSuffix(interfaceName);
+        // UPDATED: Check for private prefix on interfaces
+        if (interfaceName.isSchema) {
+          final interfaceBaseName = _stripPrivatePrefix(interfaceName);
           b.implements.add(refer(interfaceBaseName));
         }
       }
@@ -186,7 +276,28 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       for (final field in element.fields) {
         final getter = field.getter;
         if (getter != null) {
-          b.methods.addAll([_generateGetter(getter), _generateSetter(getter)]);
+          final anyOfAnnotation = _anyOfChecker.firstAnnotationOf(
+            getter,
+            throwOnUnresolved: false,
+          );
+
+          if (anyOfAnnotation != null) {
+            final types =
+                ConstantReader(anyOfAnnotation).peek('anyOf')?.listValue ?? [];
+            for (final typeObject in types) {
+              final type = typeObject.toTypeValue();
+              if (type != null) {
+                b.methods.add(_generateAnyOfSetter(getter, type));
+              }
+            }
+            b.methods.add(_generateAnyOfGetter(getter, types));
+          } else {
+            // Generate standard accessors
+            b.methods.addAll([
+              _generateGetter(getter),
+              _generateSetter(getter),
+            ]);
+          }
         }
       }
 
@@ -215,13 +326,62 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     });
   }
 
+  Method _generateAnyOfGetter(
+    PropertyAccessorElement mainGetter,
+    List<DartObject> types,
+  ) {
+    return Method(
+      (m) => m
+        ..name = mainGetter.name
+        ..docs.add(
+          '// Possible return values are ${types.map((e) => e.toTypeValue()).map((e) => '`$e`').join(', ')}',
+        )
+        ..type = MethodType.getter
+        ..returns = refer('Object?')
+        ..body = Code("return _json['${_getJsonKey(mainGetter)}'] as Object?;"),
+    );
+  }
+
+  Method _generateAnyOfSetter(
+    PropertyAccessorElement mainGetter,
+    DartType type,
+  ) {
+    final mainName = mainGetter.name;
+    final jsonFieldName = _getJsonKey(mainGetter);
+
+    final typeName = _convertSchemaType(type);
+    final suffix = _capitalize(typeName.replaceAll(alphaNumeric, ''));
+    final accessorName = '${mainName}As$suffix';
+
+    return Method(
+      (m) => m
+        ..name = accessorName
+        ..type = MethodType.setter
+        ..requiredParameters.add(
+          Parameter(
+            (p) => p
+              ..name = 'value'
+              ..type = refer(typeName),
+          ),
+        )
+        ..body = Code("_json['$jsonFieldName'] = value;"),
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s.substring(0, 1).toUpperCase() + s.substring(1);
+
+  String _decapitalize(String s) =>
+      s.isEmpty ? s : s.substring(0, 1).toLowerCase() + s.substring(1);
+
   String _convertSchemaType(DartType type) {
     final typeName = type.getDisplayString();
     if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
-      if (itemTypeName.endsWith('Schema')) {
-        final nestedBaseName = _stripSchemaSuffix(itemTypeName);
+      // UPDATED: Check for private prefix
+      if (itemTypeName.isSchema) {
+        final nestedBaseName = _stripPrivatePrefix(itemTypeName);
         final nullability = itemType.getDisplayString().endsWith('?')
             ? '?'
             : '';
@@ -230,8 +390,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       }
     }
     final nonNullableTypeName = type.getDisplayString().replaceAll('?', '');
-    if (nonNullableTypeName.endsWith('Schema')) {
-      final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
+    // UPDATED: Check for private prefix
+    if (nonNullableTypeName.isSchema) {
+      final nestedBaseName = _stripPrivatePrefix(nonNullableTypeName);
       final nullability = typeName.endsWith('?') ? '?' : '';
       return '$nestedBaseName$nullability';
     }
@@ -257,8 +418,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         final itemType = (returnType as InterfaceType).typeArguments.first;
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         final itemIsNullable = itemType.isNullable;
-        if (itemTypeName.endsWith('Schema')) {
-          final nestedBaseName = _stripSchemaSuffix(itemTypeName);
+        // UPDATED: Check for private prefix
+        if (itemTypeName.isSchema) {
+          final nestedBaseName = _stripPrivatePrefix(itemTypeName);
           if (itemIsNullable) {
             getterBody =
                 "return (_json['$jsonFieldName'] as List?)?.map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
@@ -270,8 +432,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           getterBody =
               "return (_json['$jsonFieldName'] as List?)?.cast<$itemTypeName>();";
         }
-      } else if (nonNullableTypeName.endsWith('Schema')) {
-        final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
+      } else if (nonNullableTypeName.isSchema) {
+        // UPDATED: Check for private prefix
+        final nestedBaseName = _stripPrivatePrefix(nonNullableTypeName);
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
       } else if (nonNullableTypeName == 'DateTime') {
@@ -286,8 +449,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final itemType = (returnType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       final itemIsNullable = itemType.isNullable;
-      if (itemTypeName.endsWith('Schema')) {
-        final nestedBaseName = _stripSchemaSuffix(itemTypeName);
+      // UPDATED: Check for private prefix
+      if (itemTypeName.isSchema) {
+        final nestedBaseName = _stripPrivatePrefix(itemTypeName);
         if (itemIsNullable) {
           getterBody =
               "return (_json['$jsonFieldName'] as List).map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
@@ -301,15 +465,15 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       }
     } else if (nonNullableTypeName == 'DateTime') {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
-    } else if (nonNullableTypeName.endsWith('Schema')) {
-      final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
+    } else if (nonNullableTypeName.isSchema) {
+      // UPDATED: Check for private prefix
+      final nestedBaseName = _stripPrivatePrefix(nonNullableTypeName);
       getterBody =
           "return $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
     }
 
     return Method(
       (b) => b
-        ..annotations.add(refer('override'))
         ..type = MethodType.getter
         ..name = fieldName
         ..returns = refer(convertedTypeName)
@@ -331,20 +495,17 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
     if (paramType.isNullable) {
       var valueExpression = 'value';
-      if (nonNullableTypeName.endsWith('Schema')) {
+      // UPDATED: Check for private prefix
+      if (nonNullableTypeName.isSchema) {
         valueExpression = 'value';
       } else if (nonNullableTypeName == 'DateTime') {
         valueExpression = 'value.toIso8601String()';
       } else if (paramType.isDartCoreList) {
         final itemType = (paramType as InterfaceType).typeArguments.first;
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
-        final itemIsNullable = itemType.isNullable;
-        if (itemTypeName.endsWith('Schema')) {
-          if (itemIsNullable) {
-            valueExpression = 'value.toList()';
-          } else {
-            valueExpression = 'value.toList()';
-          }
+        // UPDATED: Check for private prefix
+        if (itemTypeName.isSchema) {
+          valueExpression = 'value.toList()';
         }
       }
       setterBody =
@@ -354,17 +515,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     } else if (paramType.isDartCoreList) {
       final itemType = (paramType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
-      final itemIsNullable = itemType.isNullable;
-      if (itemTypeName.endsWith('Schema')) {
-        if (itemIsNullable) {
-          setterBody = "_json['$jsonFieldName'] = value.toList();";
-        } else {
-          setterBody = "_json['$jsonFieldName'] = value.toList();";
-        }
+      // UPDATED: Check for private prefix
+      if (itemTypeName.isSchema) {
+        setterBody = "_json['$jsonFieldName'] = value.toList();";
       }
     } else if (nonNullableTypeName == 'DateTime') {
       setterBody = "_json['$jsonFieldName'] = value.toIso8601String();";
-    } else if (nonNullableTypeName.endsWith('Schema')) {
+    } else if (nonNullableTypeName.isSchema) {
+      // UPDATED: Check for private prefix
       setterBody = "_json['$jsonFieldName'] = value;";
     }
 
@@ -398,8 +556,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         final subtypes = element.interfaces
             .map((i) {
               final interfaceName = i.getDisplayString().replaceAll('?', '');
-              if (interfaceName.endsWith('Schema')) {
-                return _stripSchemaSuffix(interfaceName);
+              if (interfaceName.isSchema) {
+                return _stripPrivatePrefix(interfaceName);
               }
               return null;
             })
@@ -408,8 +566,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         var parseBody =
             'final Map<String, dynamic> jsonMap = json as Map<String, dynamic>;';
         for (final subtype in subtypes) {
-          // This parse logic implies that we need to check validity.
-          // Validate JSON structure using the schema before parsing.
           parseBody +=
               'if (${subtype}Type.jsonSchema(useRefs: true).validate(jsonMap)) { return $subtype(jsonMap); }';
         }
@@ -470,8 +626,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     final dependencies = <Expression>{};
 
     void addDependency(String typeName) {
-      if (typeName.endsWith('Schema')) {
-        final nestedBaseName = _stripSchemaSuffix(typeName);
+      // UPDATED: Check for private prefix
+      if (typeName.isSchema) {
+        final nestedBaseName = _stripPrivatePrefix(typeName);
         dependencies.add(refer('${nestedBaseName}Type'));
       }
     }
@@ -485,7 +642,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         processType(valueType);
       } else {
         final typeName = type.getDisplayString().replaceAll('?', '');
-        if (typeName.endsWith('Schema')) {
+        // UPDATED: Check for private prefix
+        if (typeName.isSchema) {
           addDependency(typeName);
         }
       }
@@ -499,9 +657,26 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           getter,
           throwOnUnresolved: false,
         );
+        final anyOfAnnotation = _anyOfChecker.firstAnnotationOf(
+          getter,
+          throwOnUnresolved: false,
+        );
+
+        if (anyOfAnnotation != null) {
+          final types =
+              ConstantReader(anyOfAnnotation).peek('anyOf')?.listValue ?? [];
+          for (final typeObject in types) {
+            final type = typeObject.toTypeValue();
+            if (type != null) {
+              processType(type);
+            }
+          }
+        }
+
         properties[jsonFieldName] = _jsonSchemaForType(
           getter.returnType,
           keyAnnotation,
+          anyOfAnnotation: anyOfAnnotation,
           useRefs: true,
         );
 
@@ -523,9 +698,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final subtypes = element.interfaces
           .map((i) {
             final interfaceName = i.getDisplayString().replaceAll('?', '');
-            if (interfaceName.endsWith('Schema')) {
+            // UPDATED: Check for private prefix
+            if (interfaceName.isSchema) {
               addDependency(interfaceName);
-              final nestedBaseName = _stripSchemaSuffix(interfaceName);
+              final nestedBaseName = _stripPrivatePrefix(interfaceName);
               return refer('Schema.fromMap').call([
                 literalMap({
                   literalString(r'\$ref'): CodeExpression(
@@ -540,12 +716,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           .toList()
           .cast<Expression>();
 
-      // Wrapping anyOf in an object if we have a description, or just use anyOf.
-      // json_schema_builder's Schema.anyOf doesn't seem to support description directly in constructor usually?
-      // We'll use Schema.fromMap for full control if description is present, or just Schema.anyOf.
       if (descriptionExpr != null) {
-        // Schema that is both anyOf and has description.
-        // In JSON Schema: { "description": "...", "anyOf": [...] }
         definitionExpression = refer('Schema.fromMap').call([
           literalMap({
             literalString('description'): descriptionExpr,
@@ -587,22 +758,17 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   Expression _jsonSchemaForType(
     DartType type,
     DartObject? keyAnnotation, {
+    DartObject? anyOfAnnotation,
     bool useRefs = false,
   }) {
     final properties = <String, Expression>{};
     if (keyAnnotation != null) {
-      // Validate annotation usage
       final annotationType = keyAnnotation.type!;
       if (_stringFieldChecker.isAssignableFromType(annotationType) &&
           !type.isDartCoreString &&
           !type.isDynamic) {
-        // Allow dynamic? Maybe no. But let's be strict as requested.
-        // Wait, enums might use StringField (if we allow custom enum schema constraints? probably not supported yet for enums via StringField)
-        // For now, strict check.
         throw InvalidGenerationSourceError(
           '@StringField can only be used on String types.',
-          todo:
-              'Change the field type to String or use a different annotation.',
         );
       }
       if (_integerFieldChecker.isAssignableFromType(annotationType) &&
@@ -610,7 +776,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           !type.isDynamic) {
         throw InvalidGenerationSourceError(
           '@IntegerField can only be used on int types.',
-          todo: 'Change the field type to int or use a different annotation.',
         );
       }
       if (_numberFieldChecker.isAssignableFromType(annotationType) &&
@@ -618,11 +783,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           !type.isDartCoreNum &&
           !type.isDartCoreInt &&
           !type.isDynamic) {
-        // NumberField can be used on double, num, or int (since int is num)
         throw InvalidGenerationSourceError(
           '@NumberField can only be used on num, double, or int types.',
-          todo:
-              'Change the field type to num/double or use a different annotation.',
         );
       }
 
@@ -701,6 +863,23 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       }
     }
 
+    if (anyOfAnnotation != null) {
+      final types =
+          ConstantReader(anyOfAnnotation).peek('anyOf')?.listValue ?? [];
+      final schemas = types
+          .map((t) => t.toTypeValue())
+          .where((t) => t != null)
+          .map((t) => _jsonSchemaForType(t!, null, useRefs: useRefs))
+          .toList();
+
+      final namedArgs = <String, Expression>{'anyOf': literalList(schemas)};
+      if (properties.containsKey('description')) {
+        namedArgs['description'] = properties['description']!;
+      }
+
+      return refer('Schema.combined').call([], namedArgs);
+    }
+
     Expression schemaExpression;
     if (type.element is EnumElement) {
       final enumElement = type.element as EnumElement;
@@ -739,9 +918,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (typeName == 'DateTime') {
         properties['format'] = literalString('date-time');
         schemaExpression = refer('Schema.string').call([], properties);
-      } else if (typeName.endsWith('Schema')) {
-        final nestedBaseName = _stripSchemaSuffix(typeName);
-        // If we are building the "definition" for the metadata, we want to use refs for children.
+      } else if (typeName.isSchema) {
+        // UPDATED: Check for private prefix
+        final nestedBaseName = _stripPrivatePrefix(typeName);
         if (useRefs) {
           schemaExpression = refer('Schema.fromMap').call([
             literalMap({
@@ -751,13 +930,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             }),
           ]);
         } else {
-          // For metadata generation, we can emit a direct call to the nested type's jsonSchema.
           schemaExpression = refer('${nestedBaseName}Type.jsonSchema').call([]);
         }
 
         if (properties.isNotEmpty) {
-          // If there are extra properties (like description), we need to wrap the ref/schema.
-          // Wrap the schema in allOf to allow adding extra properties like description.
           final mergedProperties = {
             ...properties,
             'allOf': literalList([schemaExpression]),
@@ -795,11 +971,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     );
   }
 
-  String _stripSchemaSuffix(String s) {
-    if (s.endsWith('Schema')) {
-      return s.substring(0, s.length - 6);
+  String _stripPrivatePrefix(String s) {
+    if (s.startsWith('\$')) {
+      return s.substring(1);
     }
-    return s;
+    throw ArgumentError('Name $s does not start with \$');
   }
 }
 
@@ -823,6 +999,10 @@ const _schematicChecker = TypeChecker.fromUrl(
   'package:schemantic/schemantic.dart#Schematic',
 );
 
+const _anyOfChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#AnyOf',
+);
+
 extension on DartType {
   bool get isNullable {
     return getDisplayString().endsWith('?');
@@ -842,4 +1022,8 @@ Iterable<InterfaceType> _annotatedInterfaces(ClassElement element) {
   return element.interfaces.where(
     (s) => _schematicChecker.hasAnnotationOf(s.element),
   );
+}
+
+extension on String {
+  bool get isSchema => startsWith('\$');
 }

@@ -31,6 +31,12 @@ class Schematic {
   const Schematic({this.description});
 }
 
+class AnyOf {
+  final List<Type> anyOf;
+
+  const AnyOf(this.anyOf);
+}
+
 /// Annotation to customize valid JSON fields.
 ///
 /// Use this annotation (or a subclass like [StringField], [IntegerField]) on a getter

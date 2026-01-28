@@ -1,3 +1,4 @@
+// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,9 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// GENERATED CODE - DO NOT MODIFY BY HAND
-// dart format width=80
+//
+// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
+// To regenerate, run `dart run build_runner build -d`
 
 part of 'shared_test_schema.dart';
 
@@ -21,7 +22,7 @@ part of 'shared_test_schema.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class SharedChild implements SharedChildSchema {
+class SharedChild {
   SharedChild(this._json);
 
   factory SharedChild.from({required String childId}) {
@@ -30,7 +31,6 @@ class SharedChild implements SharedChildSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get childId {
     return _json['childId'] as String;
   }
@@ -71,11 +71,11 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
 // ignore: constant_identifier_names
 const SharedChildType = _SharedChildTypeFactory();
 
-class Part implements PartSchema {
-  Part(this._json);
+class PartSchema {
+  PartSchema(this._json);
 
-  factory Part.from() {
-    return Part({});
+  factory PartSchema.from() {
+    return PartSchema({});
   }
 
   Map<String, dynamic> _json;
@@ -90,35 +90,35 @@ class Part implements PartSchema {
   }
 }
 
-class _PartTypeFactory extends SchemanticType<Part> {
-  const _PartTypeFactory();
+class _PartSchemaTypeFactory extends SchemanticType<PartSchema> {
+  const _PartSchemaTypeFactory();
 
   @override
-  Part parse(Object? json) {
-    return Part(json as Map<String, dynamic>);
+  PartSchema parse(Object? json) {
+    return PartSchema(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'Part',
+    name: 'PartSchema',
     definition: Schema.object(properties: {}, required: []),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const PartType = _PartTypeFactory();
+const PartSchemaType = _PartSchemaTypeFactory();
 
-class TextPart implements TextPartSchema, Part {
-  TextPart(this._json);
+class TextPartSchema implements PartSchema {
+  TextPartSchema(this._json);
 
-  factory TextPart.from({
+  factory TextPartSchema.from({
     required String text,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return TextPart({
+    return TextPartSchema({
       'text': text,
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
@@ -129,7 +129,6 @@ class TextPart implements TextPartSchema, Part {
   @override
   Map<String, dynamic> _json;
 
-  @override
   String get text {
     return _json['text'] as String;
   }
@@ -138,7 +137,6 @@ class TextPart implements TextPartSchema, Part {
     _json['text'] = value;
   }
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -151,7 +149,6 @@ class TextPart implements TextPartSchema, Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -164,7 +161,6 @@ class TextPart implements TextPartSchema, Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -188,17 +184,17 @@ class TextPart implements TextPartSchema, Part {
   }
 }
 
-class _TextPartTypeFactory extends SchemanticType<TextPart> {
-  const _TextPartTypeFactory();
+class _TextPartSchemaTypeFactory extends SchemanticType<TextPartSchema> {
+  const _TextPartSchemaTypeFactory();
 
   @override
-  TextPart parse(Object? json) {
-    return TextPart(json as Map<String, dynamic>);
+  TextPartSchema parse(Object? json) {
+    return TextPartSchema(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TextPart',
+    name: 'TextPartSchema',
     definition: Schema.object(
       properties: {
         'text': Schema.string(),
@@ -213,4 +209,4 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
 }
 
 // ignore: constant_identifier_names
-const TextPartType = _TextPartTypeFactory();
+const TextPartSchemaType = _TextPartSchemaTypeFactory();

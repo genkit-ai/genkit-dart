@@ -1,3 +1,4 @@
+// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,9 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// GENERATED CODE - DO NOT MODIFY BY HAND
-// dart format width=80
+//
+// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
+// To regenerate, run `dart run build_runner build -d`
 
 part of 'integration_test.dart';
 
@@ -21,7 +22,7 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class User implements UserSchema {
+class User {
   User(this._json);
 
   factory User.from({required String name, int? age, required bool isAdmin}) {
@@ -34,7 +35,6 @@ class User implements UserSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -43,7 +43,6 @@ class User implements UserSchema {
     _json['name'] = value;
   }
 
-  @override
   int? get age {
     return _json['age'] as int?;
   }
@@ -56,7 +55,6 @@ class User implements UserSchema {
     }
   }
 
-  @override
   bool get isAdmin {
     return _json['isAdmin'] as bool;
   }
@@ -101,7 +99,7 @@ class _UserTypeFactory extends SchemanticType<User> {
 // ignore: constant_identifier_names
 const UserType = _UserTypeFactory();
 
-class Group implements GroupSchema {
+class Group {
   Group(this._json);
 
   factory Group.from({
@@ -118,7 +116,6 @@ class Group implements GroupSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get groupName {
     return _json['groupName'] as String;
   }
@@ -127,7 +124,6 @@ class Group implements GroupSchema {
     _json['groupName'] = value;
   }
 
-  @override
   List<User> get members {
     return (_json['members'] as List)
         .map((e) => User(e as Map<String, dynamic>))
@@ -138,7 +134,6 @@ class Group implements GroupSchema {
     _json['members'] = value.toList();
   }
 
-  @override
   User? get leader {
     return _json['leader'] == null
         ? null
@@ -191,7 +186,7 @@ class _GroupTypeFactory extends SchemanticType<Group> {
 // ignore: constant_identifier_names
 const GroupType = _GroupTypeFactory();
 
-class Node implements NodeSchema {
+class Node {
   Node(this._json);
 
   factory Node.from({required String id, List<Node>? children}) {
@@ -204,7 +199,6 @@ class Node implements NodeSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get id {
     return _json['id'] as String;
   }
@@ -213,7 +207,6 @@ class Node implements NodeSchema {
     _json['id'] = value;
   }
 
-  @override
   List<Node>? get children {
     return (_json['children'] as List?)
         ?.map((e) => Node(e as Map<String, dynamic>))
@@ -265,7 +258,7 @@ class _NodeTypeFactory extends SchemanticType<Node> {
 // ignore: constant_identifier_names
 const NodeType = _NodeTypeFactory();
 
-class Keyed implements KeyedSchema {
+class Keyed {
   Keyed(this._json);
 
   factory Keyed.from({
@@ -282,7 +275,6 @@ class Keyed implements KeyedSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get originalName {
     return _json['custom_name'] as String;
   }
@@ -291,7 +283,6 @@ class Keyed implements KeyedSchema {
     _json['custom_name'] = value;
   }
 
-  @override
   int? get score {
     return _json['score'] as int?;
   }
@@ -304,7 +295,6 @@ class Keyed implements KeyedSchema {
     }
   }
 
-  @override
   double? get rating {
     return _json['rating'] as double?;
   }
@@ -356,7 +346,7 @@ class _KeyedTypeFactory extends SchemanticType<Keyed> {
 // ignore: constant_identifier_names
 const KeyedType = _KeyedTypeFactory();
 
-class Comprehensive implements ComprehensiveSchema {
+class Comprehensive {
   Comprehensive(this._json);
 
   factory Comprehensive.from({
@@ -373,7 +363,6 @@ class Comprehensive implements ComprehensiveSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get stringField {
     return _json['s_field'] as String;
   }
@@ -382,7 +371,6 @@ class Comprehensive implements ComprehensiveSchema {
     _json['s_field'] = value;
   }
 
-  @override
   int get intField {
     return _json['i_field'] as int;
   }
@@ -391,7 +379,6 @@ class Comprehensive implements ComprehensiveSchema {
     _json['i_field'] = value;
   }
 
-  @override
   double get numberField {
     return _json['n_field'] as double;
   }
@@ -457,7 +444,7 @@ class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
 // ignore: constant_identifier_names
 const ComprehensiveType = _ComprehensiveTypeFactory();
 
-class Description implements DescriptionSchema {
+class Description {
   Description(this._json);
 
   factory Description.from({required String name}) {
@@ -466,7 +453,6 @@ class Description implements DescriptionSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -508,7 +494,7 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
 // ignore: constant_identifier_names
 const DescriptionType = _DescriptionTypeFactory();
 
-class CrossFileParent implements CrossFileParentSchema {
+class CrossFileParent {
   CrossFileParent(this._json);
 
   factory CrossFileParent.from({required SharedChild child}) {
@@ -517,7 +503,6 @@ class CrossFileParent implements CrossFileParentSchema {
 
   Map<String, dynamic> _json;
 
-  @override
   SharedChild get child {
     return SharedChild(_json['child'] as Map<String, dynamic>);
   }

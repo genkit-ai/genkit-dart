@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
 import 'package:logging/logging.dart';
 import 'package:schemantic/builder.dart';
@@ -40,17 +41,13 @@ import 'package:schemantic/schemantic.dart';
 part 'a.g.dart';
 
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   String get name;
   int? get age;
 }
 ''',
         },
-        {
-          'a|lib/a.schemantic.g.part': decodedMatches(
-            contains('class _UserTypeFactory'),
-          ),
-        },
+        {'a|lib/a.g.dart': decodedMatches(contains('class _UserTypeFactory'))},
       );
     });
 
@@ -64,22 +61,22 @@ import 'package:schemantic/schemantic.dart';
 part 'a.g.dart';
 
 @Schematic()
-abstract class AddressSchema {
+abstract class $Address {
   String get street;
   String? get city;
 }
 
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   String get name;
-  List<AddressSchema> get addresses;
-  AddressSchema? get primaryAddress;
+  List<$Address> get addresses;
+  $Address? get primaryAddress;
   List<int>? get scores;
 }
 ''',
         },
         {
-          'a|lib/a.schemantic.g.part': decodedMatches(
+          'a|lib/a.g.dart': decodedMatches(
             allOf(
               contains('class _AddressTypeFactory'),
               contains('class _UserTypeFactory'),
@@ -101,14 +98,14 @@ import 'package:schemantic/schemantic.dart';
 part 'a.g.dart';
 
 @Schematic()
-abstract class ProductSchema {
+abstract class $Product {
   @Field(name: 'product_id', description: 'The unique identifier')
   String get id;
 }
 ''',
         },
         {
-          'a|lib/a.schemantic.g.part': decodedMatches(
+          'a|lib/a.g.dart': decodedMatches(
             allOf(
               contains("return _json['product_id'] as String;"),
               contains(
@@ -132,13 +129,13 @@ part 'a.g.dart';
 enum Status { active, inactive }
 
 @Schematic()
-abstract class ItemSchema {
+abstract class $Item {
   Status get status;
 }
 ''',
         },
         {
-          'a|lib/a.schemantic.g.part': decodedMatches(
+          'a|lib/a.g.dart': decodedMatches(
             allOf(
               contains(
                 "return Status.values.byName(_json['status'] as String);",
@@ -157,7 +154,7 @@ Future<void> _testBuilderWithNoFail(
   Map<String, Matcher> outputs,
 ) async {
   await testBuilder(
-    schemaBuilder(),
+    schemaBuilder(BuilderOptions({})),
     inputs,
     outputs: outputs,
     onLog: (log) {

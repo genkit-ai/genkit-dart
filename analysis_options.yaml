@@ -25,3 +25,7 @@ analyzer:
     prefer_single_quotes: ignore
     unawaited_futures: ignore
     unreachable_from_main: ignore
+
+plugins:
+  # schemantic_analyzer_plugin:
+  #   path: packages/schemantic_analyzer_plugin/
