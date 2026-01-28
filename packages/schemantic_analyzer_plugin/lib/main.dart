@@ -109,20 +109,14 @@ class AddSchematicPrefix extends ResolvedCorrectionProducer {
       await builder.addDartFileEdit(file, (builder) {
         // 1. Handle the '$' prefix
         if (!name.startsWith(r'$')) {
-          builder.addInsertion(
-            nameToken.offset,
-            (builder) => builder.write(r'$'),
-          );
+          builder.addSimpleInsertion(nameToken.offset, r'$');
         }
 
         // 2. Handle the 'abstract' keyword
         // The lint enforces both. If 'abstract' is missing, we insert it.
         if (classDeclaration.abstractKeyword == null) {
           final classKeyword = classDeclaration.classKeyword;
-          builder.addInsertion(
-            classKeyword.offset,
-            (builder) => builder.write('abstract '),
-          );
+          builder.addSimpleInsertion(classKeyword.offset, 'abstract ');
         }
       });
     }
