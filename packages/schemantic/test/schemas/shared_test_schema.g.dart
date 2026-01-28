@@ -1,3 +1,4 @@
+// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,9 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// GENERATED CODE - DO NOT MODIFY BY HAND
-// dart format width=80
+//
+// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
+// To regenerate, run `dart run build_runner build -d`
 
 part of 'shared_test_schema.dart';
 
