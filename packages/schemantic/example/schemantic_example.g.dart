@@ -1,3 +1,4 @@
+// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,9 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// GENERATED CODE - DO NOT MODIFY BY HAND
-// dart format width=80
+//
+// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
+// To regenerate, run `dart run build_runner build -d`
 
 part of 'schemantic_example.dart';
 
@@ -27,9 +28,9 @@ class Address implements AddressSchema {
   factory Address.from({
     required String street,
     required String city,
-    required String zipCode,
+    required ZipCode zipCode,
   }) {
-    return Address({'street': street, 'city': city, 'zipCode': zipCode});
+    return Address({'street': street, 'city': city, 'zipCode': zipCode.value});
   }
 
   Map<String, dynamic> _json;
@@ -52,13 +53,18 @@ class Address implements AddressSchema {
     _json['city'] = value;
   }
 
-  @override
-  String get zipCode {
-    return _json['zipCode'] as String;
+  set zipCodeAsInt(int value) {
+    _json['zipCode'] = value;
   }
 
-  set zipCode(String value) {
+  set zipCodeAsString(String value) {
     _json['zipCode'] = value;
+  }
+
+  // Possible return values are `int`, `String`
+  @override
+  Object? get zipCode {
+    return _json['zipCode'] as Object?;
   }
 
   @override
@@ -69,6 +75,14 @@ class Address implements AddressSchema {
   Map<String, dynamic> toJson() {
     return _json;
   }
+}
+
+class ZipCode {
+  ZipCode.int(int this.value);
+
+  ZipCode.string(String this.value);
+
+  final Object? value;
 }
 
 class _AddressTypeFactory extends SchemanticType<Address> {
@@ -86,7 +100,7 @@ class _AddressTypeFactory extends SchemanticType<Address> {
       properties: {
         'street': Schema.string(),
         'city': Schema.string(),
-        'zipCode': Schema.string(),
+        'zipCode': Schema.combined(anyOf: [Schema.integer(), Schema.string()]),
       },
       required: ['street', 'city', 'zipCode'],
     ),
@@ -186,14 +200,14 @@ class _UserTypeFactory extends SchemanticType<User> {
     definition: Schema.object(
       properties: {
         'name': Schema.string(
-          minLength: 2,
-          maxLength: 50,
+          minLength: 1,
+          maxLength: 150,
           pattern: r'^[a-zA-Z\s]+$',
         ),
         'years_old': Schema.integer(
           description: 'Age of the user',
           minimum: 0,
-          maximum: 120,
+          maximum: 200,
         ),
         'isAdmin': Schema.boolean(description: 'Is this user an admin?'),
         'address': Schema.fromMap({'\$ref': r'#/$defs/Address'}),
