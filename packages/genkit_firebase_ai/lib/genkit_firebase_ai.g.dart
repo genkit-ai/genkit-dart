@@ -25,7 +25,7 @@ class GeminiOptions {
   factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GeminiOptions(this._json);
+  GeminiOptions._(this._json);
 
   factory GeminiOptions({
     List<String>? stopSequences,
@@ -41,7 +41,7 @@ class GeminiOptions {
     Map<String, dynamic>? responseJsonSchema,
     ThinkingConfig? thinkingConfig,
   }) {
-    return GeminiOptions({
+    return GeminiOptions._({
       if (stopSequences != null) 'stopSequences': stopSequences,
       if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
       if (temperature != null) 'temperature': temperature,
@@ -197,7 +197,9 @@ class GeminiOptions {
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
-        : ThinkingConfig(_json['thinkingConfig'] as Map<String, dynamic>);
+        : ThinkingConfig.fromJson(
+            _json['thinkingConfig'] as Map<String, dynamic>,
+          );
   }
 
   set thinkingConfig(ThinkingConfig? value) {
@@ -223,7 +225,7 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 
   @override
   GeminiOptions parse(Object? json) {
-    return GeminiOptions(json as Map<String, dynamic>);
+    return GeminiOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -254,10 +256,10 @@ class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ThinkingConfig(this._json);
+  ThinkingConfig._(this._json);
 
   factory ThinkingConfig({int? thinkingBudget, bool? includeThoughts}) {
-    return ThinkingConfig({
+    return ThinkingConfig._({
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
     });
@@ -307,7 +309,7 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
 
   @override
   ThinkingConfig parse(Object? json) {
-    return ThinkingConfig(json as Map<String, dynamic>);
+    return ThinkingConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -328,10 +330,12 @@ class PrebuiltVoiceConfig {
   factory PrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  PrebuiltVoiceConfig(this._json);
+  PrebuiltVoiceConfig._(this._json);
 
   factory PrebuiltVoiceConfig({String? voiceName}) {
-    return PrebuiltVoiceConfig({if (voiceName != null) 'voiceName': voiceName});
+    return PrebuiltVoiceConfig._({
+      if (voiceName != null) 'voiceName': voiceName,
+    });
   }
 
   Map<String, dynamic> _json;
@@ -367,7 +371,7 @@ class _PrebuiltVoiceConfigTypeFactory
 
   @override
   PrebuiltVoiceConfig parse(Object? json) {
-    return PrebuiltVoiceConfig(json as Map<String, dynamic>);
+    return PrebuiltVoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -385,10 +389,10 @@ class VoiceConfig {
   factory VoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  VoiceConfig(this._json);
+  VoiceConfig._(this._json);
 
   factory VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
-    return VoiceConfig({
+    return VoiceConfig._({
       if (prebuiltVoiceConfig != null)
         'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
     });
@@ -401,7 +405,7 @@ class VoiceConfig {
   PrebuiltVoiceConfig? get prebuiltVoiceConfig {
     return _json['prebuiltVoiceConfig'] == null
         ? null
-        : PrebuiltVoiceConfig(
+        : PrebuiltVoiceConfig.fromJson(
             _json['prebuiltVoiceConfig'] as Map<String, dynamic>,
           );
   }
@@ -429,7 +433,7 @@ class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
 
   @override
   VoiceConfig parse(Object? json) {
-    return VoiceConfig(json as Map<String, dynamic>);
+    return VoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -451,10 +455,10 @@ class SpeechConfig {
   factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  SpeechConfig(this._json);
+  SpeechConfig._(this._json);
 
   factory SpeechConfig({VoiceConfig? voiceConfig}) {
-    return SpeechConfig({
+    return SpeechConfig._({
       if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
     });
   }
@@ -467,7 +471,7 @@ class SpeechConfig {
   VoiceConfig? get voiceConfig {
     return _json['voiceConfig'] == null
         ? null
-        : VoiceConfig(_json['voiceConfig'] as Map<String, dynamic>);
+        : VoiceConfig.fromJson(_json['voiceConfig'] as Map<String, dynamic>);
   }
 
   set voiceConfig(VoiceConfig? value) {
@@ -493,7 +497,7 @@ class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
 
   @override
   SpeechConfig parse(Object? json) {
-    return SpeechConfig(json as Map<String, dynamic>);
+    return SpeechConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -513,7 +517,7 @@ class LiveGenerationConfig {
   factory LiveGenerationConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  LiveGenerationConfig(this._json);
+  LiveGenerationConfig._(this._json);
 
   factory LiveGenerationConfig({
     List<String>? responseModalities,
@@ -526,7 +530,7 @@ class LiveGenerationConfig {
     double? presencePenalty,
     double? frequencyPenalty,
   }) {
-    return LiveGenerationConfig({
+    return LiveGenerationConfig._({
       if (responseModalities != null) 'responseModalities': responseModalities,
       if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
       if (stopSequences != null) 'stopSequences': stopSequences,
@@ -559,7 +563,7 @@ class LiveGenerationConfig {
   SpeechConfig? get speechConfig {
     return _json['speechConfig'] == null
         ? null
-        : SpeechConfig(_json['speechConfig'] as Map<String, dynamic>);
+        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
   }
 
   set speechConfig(SpeechConfig? value) {
@@ -670,7 +674,7 @@ class _LiveGenerationConfigTypeFactory
 
   @override
   LiveGenerationConfig parse(Object? json) {
-    return LiveGenerationConfig(json as Map<String, dynamic>);
+    return LiveGenerationConfig._(json as Map<String, dynamic>);
   }
 
   @override
