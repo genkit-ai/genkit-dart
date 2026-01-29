@@ -25,10 +25,10 @@ class WeatherToolInput {
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  WeatherToolInput(this._json);
+  WeatherToolInput._(this._json);
 
-  factory WeatherToolInput.from({required String location}) {
-    return WeatherToolInput({'location': location});
+  factory WeatherToolInput({required String location}) {
+    return WeatherToolInput._({'location': location});
   }
 
   Map<String, dynamic> _json;
@@ -59,7 +59,7 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
 
   @override
   WeatherToolInput parse(Object? json) {
-    return WeatherToolInput(json as Map<String, dynamic>);
+    return WeatherToolInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -81,10 +81,10 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
 class Category {
   factory Category.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Category(this._json);
+  Category._(this._json);
 
-  factory Category.from({required String name, List<Category>? subcategories}) {
-    return Category({
+  factory Category({required String name, List<Category>? subcategories}) {
+    return Category._({
       'name': name,
       if (subcategories != null)
         'subcategories': subcategories.map((e) => e.toJson()).toList(),
@@ -105,7 +105,7 @@ class Category {
 
   List<Category>? get subcategories {
     return (_json['subcategories'] as List?)
-        ?.map((e) => Category(e as Map<String, dynamic>))
+        ?.map((e) => Category.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -132,7 +132,7 @@ class _CategoryTypeFactory extends SchemanticType<Category> {
 
   @override
   Category parse(Object? json) {
-    return Category(json as Map<String, dynamic>);
+    return Category._(json as Map<String, dynamic>);
   }
 
   @override
@@ -154,14 +154,14 @@ class _CategoryTypeFactory extends SchemanticType<Category> {
 class Weapon {
   factory Weapon.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Weapon(this._json);
+  Weapon._(this._json);
 
-  factory Weapon.from({
+  factory Weapon({
     required String name,
     required double damage,
     required Category category,
   }) {
-    return Weapon({
+    return Weapon._({
       'name': name,
       'damage': damage,
       'category': category.toJson(),
@@ -189,7 +189,7 @@ class Weapon {
   }
 
   Category get category {
-    return Category(_json['category'] as Map<String, dynamic>);
+    return Category.fromJson(_json['category'] as Map<String, dynamic>);
   }
 
   set category(Category value) {
@@ -211,7 +211,7 @@ class _WeaponTypeFactory extends SchemanticType<Weapon> {
 
   @override
   Weapon parse(Object? json) {
-    return Weapon(json as Map<String, dynamic>);
+    return Weapon._(json as Map<String, dynamic>);
   }
 
   @override
@@ -233,16 +233,16 @@ class RpgCharacter {
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  RpgCharacter(this._json);
+  RpgCharacter._(this._json);
 
-  factory RpgCharacter.from({
+  factory RpgCharacter({
     required String name,
     required String backstory,
     required List<Weapon> weapons,
     required String classType,
     String? affiliation,
   }) {
-    return RpgCharacter({
+    return RpgCharacter._({
       'name': name,
       'backstory': backstory,
       'weapons': weapons.map((e) => e.toJson()).toList(),
@@ -274,7 +274,7 @@ class RpgCharacter {
 
   List<Weapon> get weapons {
     return (_json['weapons'] as List)
-        .map((e) => Weapon(e as Map<String, dynamic>))
+        .map((e) => Weapon.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -317,7 +317,7 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
 
   @override
   RpgCharacter parse(Object? json) {
-    return RpgCharacter(json as Map<String, dynamic>);
+    return RpgCharacter._(json as Map<String, dynamic>);
   }
 
   @override

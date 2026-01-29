@@ -21,7 +21,7 @@ import 'types.dart';
 
 final jsonFormatter = Formatter(
   name: 'json',
-  config: GenerateActionOutputConfig.from(
+  config: GenerateActionOutputConfig(
     format: 'json',
     contentType: 'application/json',
   ),

@@ -24,10 +24,10 @@ part of 'formats_test.dart';
 class TestObject {
   factory TestObject.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  TestObject(this._json);
+  TestObject._(this._json);
 
-  factory TestObject.from({required String foo, required int bar}) {
-    return TestObject({'foo': foo, 'bar': bar});
+  factory TestObject({required String foo, required int bar}) {
+    return TestObject._({'foo': foo, 'bar': bar});
   }
 
   Map<String, dynamic> _json;
@@ -65,7 +65,7 @@ class _TestObjectTypeFactory extends SchemanticType<TestObject> {
 
   @override
   TestObject parse(Object? json) {
-    return TestObject(json as Map<String, dynamic>);
+    return TestObject._(json as Map<String, dynamic>);
   }
 
   @override

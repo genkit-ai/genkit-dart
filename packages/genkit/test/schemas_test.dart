@@ -18,14 +18,14 @@ import 'package:test/test.dart';
 void main() {
   group('Schema Extensions', () {
     test('Message text getter', () {
-      final message = Message.from(
+      final message = Message(
         role: Role.user,
         content: [
-          TextPart.from(text: 'Hello, '),
-          TextPart.from(text: 'world!'),
+          TextPart(text: 'Hello, '),
+          TextPart(text: 'world!'),
           // ignore: unnecessary_type_check
-          MediaPart.from(
-            media: Media.from(url: 'http://example.com/image.png'),
+          MediaPart(
+            media: Media(url: 'http://example.com/image.png'),
           ),
         ],
       );
@@ -33,12 +33,12 @@ void main() {
     });
 
     test('Message text getter with no text parts', () {
-      final message = Message.from(
+      final message = Message(
         role: Role.user,
         content: [
           // ignore: unnecessary_type_check
-          MediaPart.from(
-            media: Media.from(url: 'http://example.com/image.png'),
+          MediaPart(
+            media: Media(url: 'http://example.com/image.png'),
           ),
         ],
       );
@@ -46,23 +46,23 @@ void main() {
     });
 
     test('Message text getter with empty content', () {
-      final message = Message.from(role: Role.user, content: []);
+      final message = Message(role: Role.user, content: []);
       expect(message.text, '');
     });
 
     test('GenerateResponse text getter', () {
-      final response = ModelResponse.from(
+      final response = ModelResponse(
         finishReason: FinishReason.stop,
-        message: Message.from(
+        message: Message(
           role: Role.model,
-          content: [TextPart.from(text: 'Response text')],
+          content: [TextPart(text: 'Response text')],
         ),
       );
       expect(response.text, 'Response text');
     });
 
     test('GenerateResponse text getter with null message', () {
-      final response = ModelResponse.from(
+      final response = ModelResponse(
         finishReason: FinishReason.stop,
         message: null,
       );
@@ -70,47 +70,47 @@ void main() {
     });
 
     test('GenerateResponseChunk text getter', () {
-      final chunk = ModelResponseChunk.from(
-        content: [TextPart.from(text: 'Chunk text')],
+      final chunk = ModelResponseChunk(
+        content: [TextPart(text: 'Chunk text')],
       );
       expect(chunk.text, 'Chunk text');
     });
 
     test('Message media getter', () {
-      final media = Media.from(url: 'http://example.com/image.png');
-      final message = Message.from(
+      final media = Media(url: 'http://example.com/image.png');
+      final message = Message(
         role: Role.user,
         content: [
-          TextPart.from(text: 'Hello, '),
+          TextPart(text: 'Hello, '),
           // ignore: unnecessary_type_check
-          MediaPart.from(media: media),
+          MediaPart(media: media),
         ],
       );
       expect(message.media!.toJson(), same(media.toJson()));
     });
 
     test('Message media getter with no media part', () {
-      final message = Message.from(
+      final message = Message(
         role: Role.user,
-        content: [TextPart.from(text: 'Hello, ')],
+        content: [TextPart(text: 'Hello, ')],
       );
       expect(message.media, isNull);
     });
 
     test('Message media getter with null content', () {
-      final message = Message.from(role: Role.user, content: []);
+      final message = Message(role: Role.user, content: []);
       expect(message.media, isNull);
     });
 
     test('GenerateResponse media getter', () {
-      final media = Media.from(url: 'http://example.com/image.png');
-      final response = ModelResponse.from(
+      final media = Media(url: 'http://example.com/image.png');
+      final response = ModelResponse(
         finishReason: FinishReason.stop,
-        message: Message.from(
+        message: Message(
           role: Role.model,
           content: [
             // ignore: unnecessary_type_check
-            MediaPart.from(media: media),
+            MediaPart(media: media),
           ],
         ),
       );
@@ -118,7 +118,7 @@ void main() {
     });
 
     test('GenerateResponse media getter with null message', () {
-      final response = ModelResponse.from(
+      final response = ModelResponse(
         finishReason: FinishReason.stop,
         message: null,
       );
@@ -126,11 +126,11 @@ void main() {
     });
 
     test('GenerateResponseChunk media getter', () {
-      final media = Media.from(url: 'http://example.com/image.png');
-      final chunk = ModelResponseChunk.from(
+      final media = Media(url: 'http://example.com/image.png');
+      final chunk = ModelResponseChunk(
         content: [
           // ignore: unnecessary_type_check
-          MediaPart.from(media: media),
+          MediaPart(media: media),
         ],
       );
       expect(chunk.media!.toJson(), media.toJson());

@@ -25,10 +25,10 @@ class TestCustomOptions {
   factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  TestCustomOptions(this._json);
+  TestCustomOptions._(this._json);
 
-  factory TestCustomOptions.from({required String customField}) {
-    return TestCustomOptions({'customField': customField});
+  factory TestCustomOptions({required String customField}) {
+    return TestCustomOptions._({'customField': customField});
   }
 
   Map<String, dynamic> _json;
@@ -59,7 +59,7 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
 
   @override
   TestCustomOptions parse(Object? json) {
-    return TestCustomOptions(json as Map<String, dynamic>);
+    return TestCustomOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -77,10 +77,10 @@ class TestToolInput {
   factory TestToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  TestToolInput(this._json);
+  TestToolInput._(this._json);
 
-  factory TestToolInput.from({required String name}) {
-    return TestToolInput({'name': name});
+  factory TestToolInput({required String name}) {
+    return TestToolInput._({'name': name});
   }
 
   Map<String, dynamic> _json;
@@ -111,7 +111,7 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
 
   @override
   TestToolInput parse(Object? json) {
-    return TestToolInput(json as Map<String, dynamic>);
+    return TestToolInput._(json as Map<String, dynamic>);
   }
 
   @override

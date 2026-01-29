@@ -30,11 +30,11 @@ void main() {
       final model = Model(
         name: 'testModel',
         fn: (request, context) async {
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: 'hi')],
+              content: [TextPart(text: 'hi')],
             ),
           );
         },

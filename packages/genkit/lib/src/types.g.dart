@@ -24,9 +24,9 @@ part of 'types.dart';
 class Candidate {
   factory Candidate.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Candidate(this._json);
+  Candidate._(this._json);
 
-  factory Candidate.from({
+  factory Candidate({
     required double index,
     required Message message,
     GenerationUsage? usage,
@@ -34,7 +34,7 @@ class Candidate {
     String? finishMessage,
     Map<String, dynamic>? custom,
   }) {
-    return Candidate({
+    return Candidate._({
       'index': index,
       'message': message.toJson(),
       if (usage != null) 'usage': usage.toJson(),
@@ -57,7 +57,7 @@ class Candidate {
   }
 
   Message get message {
-    return Message(_json['message'] as Map<String, dynamic>);
+    return Message.fromJson(_json['message'] as Map<String, dynamic>);
   }
 
   set message(Message value) {
@@ -67,7 +67,7 @@ class Candidate {
   GenerationUsage? get usage {
     return _json['usage'] == null
         ? null
-        : GenerationUsage(_json['usage'] as Map<String, dynamic>);
+        : GenerationUsage.fromJson(_json['usage'] as Map<String, dynamic>);
   }
 
   set usage(GenerationUsage? value) {
@@ -125,7 +125,7 @@ class _CandidateTypeFactory extends SchemanticType<Candidate> {
 
   @override
   Candidate parse(Object? json) {
-    return Candidate(json as Map<String, dynamic>);
+    return Candidate._(json as Map<String, dynamic>);
   }
 
   @override
@@ -149,14 +149,14 @@ class _CandidateTypeFactory extends SchemanticType<Candidate> {
 class Message {
   factory Message.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Message(this._json);
+  Message._(this._json);
 
-  factory Message.from({
+  factory Message({
     required Role role,
     required List<Part> content,
     Map<String, dynamic>? metadata,
   }) {
-    return Message({
+    return Message._({
       'role': role,
       'content': content.map((e) => e.toJson()).toList(),
       if (metadata != null) 'metadata': metadata,
@@ -177,7 +177,7 @@ class Message {
 
   List<Part> get content {
     return (_json['content'] as List)
-        .map((e) => Part(e as Map<String, dynamic>))
+        .map((e) => Part.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -212,7 +212,7 @@ class _MessageTypeFactory extends SchemanticType<Message> {
 
   @override
   Message parse(Object? json) {
-    return Message(json as Map<String, dynamic>);
+    return Message._(json as Map<String, dynamic>);
   }
 
   @override
@@ -236,16 +236,16 @@ class ToolDefinition {
   factory ToolDefinition.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ToolDefinition(this._json);
+  ToolDefinition._(this._json);
 
-  factory ToolDefinition.from({
+  factory ToolDefinition({
     required String name,
     required String description,
     dynamic inputSchema,
     dynamic outputSchema,
     Map<String, dynamic>? metadata,
   }) {
-    return ToolDefinition({
+    return ToolDefinition._({
       'name': name,
       'description': description,
       if (inputSchema != null) 'inputSchema': inputSchema,
@@ -318,7 +318,7 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
 
   @override
   ToolDefinition parse(Object? json) {
-    return ToolDefinition(json as Map<String, dynamic>);
+    return ToolDefinition._(json as Map<String, dynamic>);
   }
 
   @override
@@ -341,10 +341,10 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
 class Part {
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Part(this._json);
+  Part._(this._json);
 
-  factory Part.from() {
-    return Part({});
+  factory Part() {
+    return Part._({});
   }
 
   Map<String, dynamic> _json;
@@ -366,7 +366,7 @@ class _PartTypeFactory extends SchemanticType<Part> {
 
   @override
   Part parse(Object? json) {
-    return Part(json as Map<String, dynamic>);
+    return Part._(json as Map<String, dynamic>);
   }
 
   @override
@@ -380,15 +380,15 @@ class _PartTypeFactory extends SchemanticType<Part> {
 class TextPart implements Part {
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  TextPart(this._json);
+  TextPart._(this._json);
 
-  factory TextPart.from({
+  factory TextPart({
     required String text,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return TextPart({
+    return TextPart._({
       'text': text,
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
@@ -461,7 +461,7 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
 
   @override
   TextPart parse(Object? json) {
-    return TextPart(json as Map<String, dynamic>);
+    return TextPart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -483,15 +483,15 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
 class MediaPart implements Part {
   factory MediaPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  MediaPart(this._json);
+  MediaPart._(this._json);
 
-  factory MediaPart.from({
+  factory MediaPart({
     required Media media,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return MediaPart({
+    return MediaPart._({
       'media': media.toJson(),
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
@@ -505,7 +505,7 @@ class MediaPart implements Part {
   static const SchemanticType<MediaPart> $schema = _MediaPartTypeFactory();
 
   Media get media {
-    return Media(_json['media'] as Map<String, dynamic>);
+    return Media.fromJson(_json['media'] as Map<String, dynamic>);
   }
 
   set media(Media value) {
@@ -564,7 +564,7 @@ class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
 
   @override
   MediaPart parse(Object? json) {
-    return MediaPart(json as Map<String, dynamic>);
+    return MediaPart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -587,15 +587,15 @@ class ToolRequestPart implements Part {
   factory ToolRequestPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ToolRequestPart(this._json);
+  ToolRequestPart._(this._json);
 
-  factory ToolRequestPart.from({
+  factory ToolRequestPart({
     required ToolRequest toolRequest,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return ToolRequestPart({
+    return ToolRequestPart._({
       'toolRequest': toolRequest.toJson(),
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
@@ -610,7 +610,7 @@ class ToolRequestPart implements Part {
       _ToolRequestPartTypeFactory();
 
   ToolRequest get toolRequest {
-    return ToolRequest(_json['toolRequest'] as Map<String, dynamic>);
+    return ToolRequest.fromJson(_json['toolRequest'] as Map<String, dynamic>);
   }
 
   set toolRequest(ToolRequest value) {
@@ -669,7 +669,7 @@ class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
 
   @override
   ToolRequestPart parse(Object? json) {
-    return ToolRequestPart(json as Map<String, dynamic>);
+    return ToolRequestPart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -692,15 +692,15 @@ class ToolResponsePart implements Part {
   factory ToolResponsePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ToolResponsePart(this._json);
+  ToolResponsePart._(this._json);
 
-  factory ToolResponsePart.from({
+  factory ToolResponsePart({
     required ToolResponse toolResponse,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return ToolResponsePart({
+    return ToolResponsePart._({
       'toolResponse': toolResponse.toJson(),
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
@@ -715,7 +715,7 @@ class ToolResponsePart implements Part {
       _ToolResponsePartTypeFactory();
 
   ToolResponse get toolResponse {
-    return ToolResponse(_json['toolResponse'] as Map<String, dynamic>);
+    return ToolResponse.fromJson(_json['toolResponse'] as Map<String, dynamic>);
   }
 
   set toolResponse(ToolResponse value) {
@@ -774,7 +774,7 @@ class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
 
   @override
   ToolResponsePart parse(Object? json) {
-    return ToolResponsePart(json as Map<String, dynamic>);
+    return ToolResponsePart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -796,14 +796,14 @@ class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
 class DataPart implements Part {
   factory DataPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  DataPart(this._json);
+  DataPart._(this._json);
 
-  factory DataPart.from({
+  factory DataPart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return DataPart({
+    return DataPart._({
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
@@ -867,7 +867,7 @@ class _DataPartTypeFactory extends SchemanticType<DataPart> {
 
   @override
   DataPart parse(Object? json) {
-    return DataPart(json as Map<String, dynamic>);
+    return DataPart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -888,14 +888,14 @@ class _DataPartTypeFactory extends SchemanticType<DataPart> {
 class CustomPart implements Part {
   factory CustomPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  CustomPart(this._json);
+  CustomPart._(this._json);
 
-  factory CustomPart.from({
+  factory CustomPart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     required Map<String, dynamic> custom,
   }) {
-    return CustomPart({
+    return CustomPart._({
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       'custom': custom,
@@ -955,7 +955,7 @@ class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
 
   @override
   CustomPart parse(Object? json) {
-    return CustomPart(json as Map<String, dynamic>);
+    return CustomPart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -977,15 +977,15 @@ class ReasoningPart implements Part {
   factory ReasoningPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ReasoningPart(this._json);
+  ReasoningPart._(this._json);
 
-  factory ReasoningPart.from({
+  factory ReasoningPart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
     required String reasoning,
   }) {
-    return ReasoningPart({
+    return ReasoningPart._({
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
@@ -1059,7 +1059,7 @@ class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
 
   @override
   ReasoningPart parse(Object? json) {
-    return ReasoningPart(json as Map<String, dynamic>);
+    return ReasoningPart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1082,15 +1082,15 @@ class ResourcePart implements Part {
   factory ResourcePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ResourcePart(this._json);
+  ResourcePart._(this._json);
 
-  factory ResourcePart.from({
+  factory ResourcePart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
     required Map<String, dynamic> resource,
   }) {
-    return ResourcePart({
+    return ResourcePart._({
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
@@ -1164,7 +1164,7 @@ class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
 
   @override
   ResourcePart parse(Object? json) {
-    return ResourcePart(json as Map<String, dynamic>);
+    return ResourcePart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1186,10 +1186,10 @@ class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
 class Media {
   factory Media.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Media(this._json);
+  Media._(this._json);
 
-  factory Media.from({String? contentType, required String url}) {
-    return Media({
+  factory Media({String? contentType, required String url}) {
+    return Media._({
       if (contentType != null) 'contentType': contentType,
       'url': url,
     });
@@ -1234,7 +1234,7 @@ class _MediaTypeFactory extends SchemanticType<Media> {
 
   @override
   Media parse(Object? json) {
-    return Media(json as Map<String, dynamic>);
+    return Media._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1252,15 +1252,15 @@ class ToolRequest {
   factory ToolRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ToolRequest(this._json);
+  ToolRequest._(this._json);
 
-  factory ToolRequest.from({
+  factory ToolRequest({
     String? ref,
     required String name,
     Map<String, dynamic>? input,
     bool? partial,
   }) {
-    return ToolRequest({
+    return ToolRequest._({
       if (ref != null) 'ref': ref,
       'name': name,
       if (input != null) 'input': input,
@@ -1331,7 +1331,7 @@ class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
 
   @override
   ToolRequest parse(Object? json) {
-    return ToolRequest(json as Map<String, dynamic>);
+    return ToolRequest._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1354,15 +1354,15 @@ class ToolResponse {
   factory ToolResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ToolResponse(this._json);
+  ToolResponse._(this._json);
 
-  factory ToolResponse.from({
+  factory ToolResponse({
     String? ref,
     required String name,
     dynamic output,
     List<dynamic>? content,
   }) {
-    return ToolResponse({
+    return ToolResponse._({
       if (ref != null) 'ref': ref,
       'name': name,
       if (output != null) 'output': output,
@@ -1430,7 +1430,7 @@ class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
 
   @override
   ToolResponse parse(Object? json) {
-    return ToolResponse(json as Map<String, dynamic>);
+    return ToolResponse._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1452,16 +1452,16 @@ class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
 class ModelInfo {
   factory ModelInfo.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  ModelInfo(this._json);
+  ModelInfo._(this._json);
 
-  factory ModelInfo.from({
+  factory ModelInfo({
     List<String>? versions,
     String? label,
     Map<String, dynamic>? configSchema,
     Map<String, dynamic>? supports,
     String? stage,
   }) {
-    return ModelInfo({
+    return ModelInfo._({
       if (versions != null) 'versions': versions,
       if (label != null) 'label': label,
       if (configSchema != null) 'configSchema': configSchema,
@@ -1549,7 +1549,7 @@ class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
 
   @override
   ModelInfo parse(Object? json) {
-    return ModelInfo(json as Map<String, dynamic>);
+    return ModelInfo._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1573,9 +1573,9 @@ class ModelRequest {
   factory ModelRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ModelRequest(this._json);
+  ModelRequest._(this._json);
 
-  factory ModelRequest.from({
+  factory ModelRequest({
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
@@ -1583,7 +1583,7 @@ class ModelRequest {
     OutputConfig? output,
     List<DocumentData>? docs,
   }) {
-    return ModelRequest({
+    return ModelRequest._({
       'messages': messages.map((e) => e.toJson()).toList(),
       if (config != null) 'config': config,
       if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
@@ -1600,7 +1600,7 @@ class ModelRequest {
 
   List<Message> get messages {
     return (_json['messages'] as List)
-        .map((e) => Message(e as Map<String, dynamic>))
+        .map((e) => Message.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -1622,7 +1622,7 @@ class ModelRequest {
 
   List<ToolDefinition>? get tools {
     return (_json['tools'] as List?)
-        ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
+        ?.map((e) => ToolDefinition.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -1649,7 +1649,7 @@ class ModelRequest {
   OutputConfig? get output {
     return _json['output'] == null
         ? null
-        : OutputConfig(_json['output'] as Map<String, dynamic>);
+        : OutputConfig.fromJson(_json['output'] as Map<String, dynamic>);
   }
 
   set output(OutputConfig? value) {
@@ -1662,7 +1662,7 @@ class ModelRequest {
 
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
-        ?.map((e) => DocumentData(e as Map<String, dynamic>))
+        ?.map((e) => DocumentData.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -1689,7 +1689,7 @@ class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
 
   @override
   ModelRequest parse(Object? json) {
-    return ModelRequest(json as Map<String, dynamic>);
+    return ModelRequest._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1725,9 +1725,9 @@ class ModelResponse {
   factory ModelResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ModelResponse(this._json);
+  ModelResponse._(this._json);
 
-  factory ModelResponse.from({
+  factory ModelResponse({
     Message? message,
     required FinishReason finishReason,
     String? finishMessage,
@@ -1738,7 +1738,7 @@ class ModelResponse {
     GenerateRequest? request,
     Operation? operation,
   }) {
-    return ModelResponse({
+    return ModelResponse._({
       if (message != null) 'message': message.toJson(),
       'finishReason': finishReason,
       if (finishMessage != null) 'finishMessage': finishMessage,
@@ -1759,7 +1759,7 @@ class ModelResponse {
   Message? get message {
     return _json['message'] == null
         ? null
-        : Message(_json['message'] as Map<String, dynamic>);
+        : Message.fromJson(_json['message'] as Map<String, dynamic>);
   }
 
   set message(Message? value) {
@@ -1805,7 +1805,7 @@ class ModelResponse {
   GenerationUsage? get usage {
     return _json['usage'] == null
         ? null
-        : GenerationUsage(_json['usage'] as Map<String, dynamic>);
+        : GenerationUsage.fromJson(_json['usage'] as Map<String, dynamic>);
   }
 
   set usage(GenerationUsage? value) {
@@ -1843,7 +1843,7 @@ class ModelResponse {
   GenerateRequest? get request {
     return _json['request'] == null
         ? null
-        : GenerateRequest(_json['request'] as Map<String, dynamic>);
+        : GenerateRequest.fromJson(_json['request'] as Map<String, dynamic>);
   }
 
   set request(GenerateRequest? value) {
@@ -1857,7 +1857,7 @@ class ModelResponse {
   Operation? get operation {
     return _json['operation'] == null
         ? null
-        : Operation(_json['operation'] as Map<String, dynamic>);
+        : Operation.fromJson(_json['operation'] as Map<String, dynamic>);
   }
 
   set operation(Operation? value) {
@@ -1883,7 +1883,7 @@ class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
 
   @override
   ModelResponse parse(Object? json) {
-    return ModelResponse(json as Map<String, dynamic>);
+    return ModelResponse._(json as Map<String, dynamic>);
   }
 
   @override
@@ -1916,16 +1916,16 @@ class ModelResponseChunk {
   factory ModelResponseChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ModelResponseChunk(this._json);
+  ModelResponseChunk._(this._json);
 
-  factory ModelResponseChunk.from({
+  factory ModelResponseChunk({
     Role? role,
     int? index,
     required List<Part> content,
     Map<String, dynamic>? custom,
     bool? aggregated,
   }) {
-    return ModelResponseChunk({
+    return ModelResponseChunk._({
       if (role != null) 'role': role,
       if (index != null) 'index': index,
       'content': content.map((e) => e.toJson()).toList(),
@@ -1965,7 +1965,7 @@ class ModelResponseChunk {
 
   List<Part> get content {
     return (_json['content'] as List)
-        .map((e) => Part(e as Map<String, dynamic>))
+        .map((e) => Part.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2013,7 +2013,7 @@ class _ModelResponseChunkTypeFactory
 
   @override
   ModelResponseChunk parse(Object? json) {
-    return ModelResponseChunk(json as Map<String, dynamic>);
+    return ModelResponseChunk._(json as Map<String, dynamic>);
   }
 
   @override
@@ -2039,9 +2039,9 @@ class GenerateRequest {
   factory GenerateRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GenerateRequest(this._json);
+  GenerateRequest._(this._json);
 
-  factory GenerateRequest.from({
+  factory GenerateRequest({
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
@@ -2050,7 +2050,7 @@ class GenerateRequest {
     List<DocumentData>? docs,
     double? candidates,
   }) {
-    return GenerateRequest({
+    return GenerateRequest._({
       'messages': messages.map((e) => e.toJson()).toList(),
       if (config != null) 'config': config,
       if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
@@ -2068,7 +2068,7 @@ class GenerateRequest {
 
   List<Message> get messages {
     return (_json['messages'] as List)
-        .map((e) => Message(e as Map<String, dynamic>))
+        .map((e) => Message.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2090,7 +2090,7 @@ class GenerateRequest {
 
   List<ToolDefinition>? get tools {
     return (_json['tools'] as List?)
-        ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
+        ?.map((e) => ToolDefinition.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2117,7 +2117,7 @@ class GenerateRequest {
   OutputConfig? get output {
     return _json['output'] == null
         ? null
-        : OutputConfig(_json['output'] as Map<String, dynamic>);
+        : OutputConfig.fromJson(_json['output'] as Map<String, dynamic>);
   }
 
   set output(OutputConfig? value) {
@@ -2130,7 +2130,7 @@ class GenerateRequest {
 
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
-        ?.map((e) => DocumentData(e as Map<String, dynamic>))
+        ?.map((e) => DocumentData.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2169,7 +2169,7 @@ class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
 
   @override
   GenerateRequest parse(Object? json) {
-    return GenerateRequest(json as Map<String, dynamic>);
+    return GenerateRequest._(json as Map<String, dynamic>);
   }
 
   @override
@@ -2206,9 +2206,9 @@ class GenerationUsage {
   factory GenerationUsage.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GenerationUsage(this._json);
+  GenerationUsage._(this._json);
 
-  factory GenerationUsage.from({
+  factory GenerationUsage({
     double? inputTokens,
     double? outputTokens,
     double? totalTokens,
@@ -2224,7 +2224,7 @@ class GenerationUsage {
     double? thoughtsTokens,
     double? cachedContentTokens,
   }) {
-    return GenerationUsage({
+    return GenerationUsage._({
       if (inputTokens != null) 'inputTokens': inputTokens,
       if (outputTokens != null) 'outputTokens': outputTokens,
       if (totalTokens != null) 'totalTokens': totalTokens,
@@ -2431,7 +2431,7 @@ class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
 
   @override
   GenerationUsage parse(Object? json) {
-    return GenerationUsage(json as Map<String, dynamic>);
+    return GenerationUsage._(json as Map<String, dynamic>);
   }
 
   @override
@@ -2463,9 +2463,9 @@ class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
 class Operation {
   factory Operation.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Operation(this._json);
+  Operation._(this._json);
 
-  factory Operation.from({
+  factory Operation({
     String? action,
     required String id,
     bool? done,
@@ -2473,7 +2473,7 @@ class Operation {
     Map<String, dynamic>? error,
     Map<String, dynamic>? metadata,
   }) {
-    return Operation({
+    return Operation._({
       if (action != null) 'action': action,
       'id': id,
       if (done != null) 'done': done,
@@ -2570,7 +2570,7 @@ class _OperationTypeFactory extends SchemanticType<Operation> {
 
   @override
   Operation parse(Object? json) {
-    return Operation(json as Map<String, dynamic>);
+    return Operation._(json as Map<String, dynamic>);
   }
 
   @override
@@ -2595,15 +2595,15 @@ class OutputConfig {
   factory OutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  OutputConfig(this._json);
+  OutputConfig._(this._json);
 
-  factory OutputConfig.from({
+  factory OutputConfig({
     String? format,
     Map<String, dynamic>? schema,
     bool? constrained,
     String? contentType,
   }) {
-    return OutputConfig({
+    return OutputConfig._({
       if (format != null) 'format': format,
       if (schema != null) 'schema': schema,
       if (constrained != null) 'constrained': constrained,
@@ -2679,7 +2679,7 @@ class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
 
   @override
   OutputConfig parse(Object? json) {
-    return OutputConfig(json as Map<String, dynamic>);
+    return OutputConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -2702,13 +2702,13 @@ class DocumentData {
   factory DocumentData.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  DocumentData(this._json);
+  DocumentData._(this._json);
 
-  factory DocumentData.from({
+  factory DocumentData({
     required List<Part> content,
     Map<String, dynamic>? metadata,
   }) {
-    return DocumentData({
+    return DocumentData._({
       'content': content.map((e) => e.toJson()).toList(),
       if (metadata != null) 'metadata': metadata,
     });
@@ -2721,7 +2721,7 @@ class DocumentData {
 
   List<Part> get content {
     return (_json['content'] as List)
-        .map((e) => Part(e as Map<String, dynamic>))
+        .map((e) => Part.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2756,7 +2756,7 @@ class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
 
   @override
   DocumentData parse(Object? json) {
-    return DocumentData(json as Map<String, dynamic>);
+    return DocumentData._(json as Map<String, dynamic>);
   }
 
   @override
@@ -2779,9 +2779,9 @@ class GenerateActionOptions {
   factory GenerateActionOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GenerateActionOptions(this._json);
+  GenerateActionOptions._(this._json);
 
-  factory GenerateActionOptions.from({
+  factory GenerateActionOptions({
     String? model,
     List<DocumentData>? docs,
     required List<Message> messages,
@@ -2794,7 +2794,7 @@ class GenerateActionOptions {
     int? maxTurns,
     String? stepName,
   }) {
-    return GenerateActionOptions({
+    return GenerateActionOptions._({
       if (model != null) 'model': model,
       if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
       'messages': messages.map((e) => e.toJson()).toList(),
@@ -2828,7 +2828,7 @@ class GenerateActionOptions {
 
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
-        ?.map((e) => DocumentData(e as Map<String, dynamic>))
+        ?.map((e) => DocumentData.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2842,7 +2842,7 @@ class GenerateActionOptions {
 
   List<Message> get messages {
     return (_json['messages'] as List)
-        .map((e) => Message(e as Map<String, dynamic>))
+        .map((e) => Message.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -2889,7 +2889,9 @@ class GenerateActionOptions {
   GenerateActionOutputConfig? get output {
     return _json['output'] == null
         ? null
-        : GenerateActionOutputConfig(_json['output'] as Map<String, dynamic>);
+        : GenerateActionOutputConfig.fromJson(
+            _json['output'] as Map<String, dynamic>,
+          );
   }
 
   set output(GenerateActionOutputConfig? value) {
@@ -2964,7 +2966,7 @@ class _GenerateActionOptionsTypeFactory
 
   @override
   GenerateActionOptions parse(Object? json) {
-    return GenerateActionOptions(json as Map<String, dynamic>);
+    return GenerateActionOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -3004,16 +3006,16 @@ class GenerateActionOutputConfig {
   factory GenerateActionOutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GenerateActionOutputConfig(this._json);
+  GenerateActionOutputConfig._(this._json);
 
-  factory GenerateActionOutputConfig.from({
+  factory GenerateActionOutputConfig({
     String? format,
     String? contentType,
     bool? instructions,
     Map<String, dynamic>? jsonSchema,
     bool? constrained,
   }) {
-    return GenerateActionOutputConfig({
+    return GenerateActionOutputConfig._({
       if (format != null) 'format': format,
       if (contentType != null) 'contentType': contentType,
       if (instructions != null) 'instructions': instructions,
@@ -3103,7 +3105,7 @@ class _GenerateActionOutputConfigTypeFactory
 
   @override
   GenerateActionOutputConfig parse(Object? json) {
-    return GenerateActionOutputConfig(json as Map<String, dynamic>);
+    return GenerateActionOutputConfig._(json as Map<String, dynamic>);
   }
 
   @override

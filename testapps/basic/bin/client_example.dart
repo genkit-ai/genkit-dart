@@ -95,7 +95,7 @@ Future<void> _runObjectFlow() async {
     outputType: ProcessObjectOutput.$schema,
   );
   final response = await processObjectFlow(
-    input: ProcessObjectInput.from(message: 'Hello Genkit!', count: 20),
+    input: ProcessObjectInput(message: 'Hello Genkit!', count: 20),
   );
   print('Response: ${response.reply}');
 }
@@ -109,7 +109,7 @@ Future<void> _runStreamingFlow() async {
     streamType: StreamObjectsOutput.$schema,
   );
   final stream = streamObjectsFlow.stream(
-    input: StreamObjectsInput.from(prompt: 'What is Genkit?'),
+    input: StreamObjectsInput(prompt: 'What is Genkit?'),
   );
 
   print('Streaming chunks:');
@@ -130,19 +130,19 @@ Future<void> _runStreamingGenerateFlow() async {
     streamType: ModelResponseChunk.$schema,
   );
   final stream = generateFlow.stream(
-    input: ModelRequest.from(
+    input: ModelRequest(
       messages: [
-        Message.from(
+        Message(
           role: Role.user,
-          content: [TextPart.from(text: "hello")],
+          content: [TextPart(text: "hello")],
         ),
-        Message.from(
+        Message(
           role: Role.model,
-          content: [TextPart.from(text: "Hello, how can I help you?")],
+          content: [TextPart(text: "Hello, how can I help you?")],
         ),
-        Message.from(
+        Message(
           role: Role.user,
-          content: [TextPart.from(text: "Sing me a song.")],
+          content: [TextPart(text: "Sing me a song.")],
         ),
       ],
     ),

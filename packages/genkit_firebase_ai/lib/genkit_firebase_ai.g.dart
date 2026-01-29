@@ -27,7 +27,7 @@ class GeminiOptions {
 
   GeminiOptions(this._json);
 
-  factory GeminiOptions.from({
+  factory GeminiOptions({
     List<String>? stopSequences,
     int? maxOutputTokens,
     double? temperature,
@@ -256,7 +256,7 @@ class ThinkingConfig {
 
   ThinkingConfig(this._json);
 
-  factory ThinkingConfig.from({int? thinkingBudget, bool? includeThoughts}) {
+  factory ThinkingConfig({int? thinkingBudget, bool? includeThoughts}) {
     return ThinkingConfig({
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
@@ -330,7 +330,7 @@ class PrebuiltVoiceConfig {
 
   PrebuiltVoiceConfig(this._json);
 
-  factory PrebuiltVoiceConfig.from({String? voiceName}) {
+  factory PrebuiltVoiceConfig({String? voiceName}) {
     return PrebuiltVoiceConfig({if (voiceName != null) 'voiceName': voiceName});
   }
 
@@ -387,7 +387,7 @@ class VoiceConfig {
 
   VoiceConfig(this._json);
 
-  factory VoiceConfig.from({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
+  factory VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
     return VoiceConfig({
       if (prebuiltVoiceConfig != null)
         'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
@@ -453,7 +453,7 @@ class SpeechConfig {
 
   SpeechConfig(this._json);
 
-  factory SpeechConfig.from({VoiceConfig? voiceConfig}) {
+  factory SpeechConfig({VoiceConfig? voiceConfig}) {
     return SpeechConfig({
       if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
     });
@@ -515,7 +515,7 @@ class LiveGenerationConfig {
 
   LiveGenerationConfig(this._json);
 
-  factory LiveGenerationConfig.from({
+  factory LiveGenerationConfig({
     List<String>? responseModalities,
     SpeechConfig? speechConfig,
     List<String>? stopSequences,

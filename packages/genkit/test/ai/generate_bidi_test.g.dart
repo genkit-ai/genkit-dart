@@ -25,10 +25,10 @@ class MyToolInput {
   factory MyToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  MyToolInput(this._json);
+  MyToolInput._(this._json);
 
-  factory MyToolInput.from({required String location}) {
-    return MyToolInput({'location': location});
+  factory MyToolInput({required String location}) {
+    return MyToolInput._({'location': location});
   }
 
   Map<String, dynamic> _json;
@@ -58,7 +58,7 @@ class _MyToolInputTypeFactory extends SchemanticType<MyToolInput> {
 
   @override
   MyToolInput parse(Object? json) {
-    return MyToolInput(json as Map<String, dynamic>);
+    return MyToolInput._(json as Map<String, dynamic>);
   }
 
   @override

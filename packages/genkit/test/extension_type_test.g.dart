@@ -24,10 +24,10 @@ part of 'extension_type_test.dart';
 class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Ingredient(this._json);
+  Ingredient._(this._json);
 
-  factory Ingredient.from({required String name, required String quantity}) {
-    return Ingredient({'name': name, 'quantity': quantity});
+  factory Ingredient({required String name, required String quantity}) {
+    return Ingredient._({'name': name, 'quantity': quantity});
   }
 
   Map<String, dynamic> _json;
@@ -65,7 +65,7 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 
   @override
   Ingredient parse(Object? json) {
-    return Ingredient(json as Map<String, dynamic>);
+    return Ingredient._(json as Map<String, dynamic>);
   }
 
   @override
@@ -82,14 +82,14 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 class Recipe {
   factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Recipe(this._json);
+  Recipe._(this._json);
 
-  factory Recipe.from({
+  factory Recipe({
     required String title,
     required List<Ingredient> ingredients,
     required int servings,
   }) {
-    return Recipe({
+    return Recipe._({
       'title': title,
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'servings': servings,
@@ -110,7 +110,7 @@ class Recipe {
 
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
-        .map((e) => Ingredient(e as Map<String, dynamic>))
+        .map((e) => Ingredient.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -141,7 +141,7 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
 
   @override
   Recipe parse(Object? json) {
-    return Recipe(json as Map<String, dynamic>);
+    return Recipe._(json as Map<String, dynamic>);
   }
 
   @override
@@ -165,14 +165,14 @@ class AnnotatedRecipe {
   factory AnnotatedRecipe.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  AnnotatedRecipe(this._json);
+  AnnotatedRecipe._(this._json);
 
-  factory AnnotatedRecipe.from({
+  factory AnnotatedRecipe({
     required String title,
     required List<Ingredient> ingredients,
     required int servings,
   }) {
-    return AnnotatedRecipe({
+    return AnnotatedRecipe._({
       'title_key_in_json': title,
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'servings': servings,
@@ -194,7 +194,7 @@ class AnnotatedRecipe {
 
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
-        .map((e) => Ingredient(e as Map<String, dynamic>))
+        .map((e) => Ingredient.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -225,7 +225,7 @@ class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
 
   @override
   AnnotatedRecipe parse(Object? json) {
-    return AnnotatedRecipe(json as Map<String, dynamic>);
+    return AnnotatedRecipe._(json as Map<String, dynamic>);
   }
 
   @override
@@ -250,10 +250,10 @@ class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
 class MealPlan {
   factory MealPlan.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  MealPlan(this._json);
+  MealPlan._(this._json);
 
-  factory MealPlan.from({required String day, required MealType mealType}) {
-    return MealPlan({'day': day, 'mealType': mealType});
+  factory MealPlan({required String day, required MealType mealType}) {
+    return MealPlan._({'day': day, 'mealType': mealType});
   }
 
   Map<String, dynamic> _json;
@@ -291,7 +291,7 @@ class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
 
   @override
   MealPlan parse(Object? json) {
-    return MealPlan(json as Map<String, dynamic>);
+    return MealPlan._(json as Map<String, dynamic>);
   }
 
   @override
@@ -312,15 +312,15 @@ class NullableFields {
   factory NullableFields.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  NullableFields(this._json);
+  NullableFields._(this._json);
 
-  factory NullableFields.from({
+  factory NullableFields({
     String? optionalString,
     int? optionalInt,
     List<String>? optionalList,
     Ingredient? optionalIngredient,
   }) {
-    return NullableFields({
+    return NullableFields._({
       if (optionalString != null) 'optionalString': optionalString,
       if (optionalInt != null) 'optionalInt': optionalInt,
       if (optionalList != null) 'optionalList': optionalList,
@@ -373,7 +373,9 @@ class NullableFields {
   Ingredient? get optionalIngredient {
     return _json['optionalIngredient'] == null
         ? null
-        : Ingredient(_json['optionalIngredient'] as Map<String, dynamic>);
+        : Ingredient.fromJson(
+            _json['optionalIngredient'] as Map<String, dynamic>,
+          );
   }
 
   set optionalIngredient(Ingredient? value) {
@@ -399,7 +401,7 @@ class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
 
   @override
   NullableFields parse(Object? json) {
-    return NullableFields(json as Map<String, dynamic>);
+    return NullableFields._(json as Map<String, dynamic>);
   }
 
   @override
@@ -422,9 +424,9 @@ class ComplexObject {
   factory ComplexObject.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ComplexObject(this._json);
+  ComplexObject._(this._json);
 
-  factory ComplexObject.from({
+  factory ComplexObject({
     required String id,
     required DateTime createdAt,
     required double price,
@@ -432,7 +434,7 @@ class ComplexObject {
     required List<int> ratings,
     NullableFields? nestedNullable,
   }) {
-    return ComplexObject({
+    return ComplexObject._({
       'id': id,
       'createdAt': createdAt,
       'price': price,
@@ -490,7 +492,9 @@ class ComplexObject {
   NullableFields? get nestedNullable {
     return _json['nestedNullable'] == null
         ? null
-        : NullableFields(_json['nestedNullable'] as Map<String, dynamic>);
+        : NullableFields.fromJson(
+            _json['nestedNullable'] as Map<String, dynamic>,
+          );
   }
 
   set nestedNullable(NullableFields? value) {
@@ -516,7 +520,7 @@ class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
 
   @override
   ComplexObject parse(Object? json) {
-    return ComplexObject(json as Map<String, dynamic>);
+    return ComplexObject._(json as Map<String, dynamic>);
   }
 
   @override
@@ -540,13 +544,13 @@ class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
 class Menu {
   factory Menu.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Menu(this._json);
+  Menu._(this._json);
 
-  factory Menu.from({
+  factory Menu({
     required List<Recipe> recipes,
     List<Ingredient>? optionalIngredients,
   }) {
-    return Menu({
+    return Menu._({
       'recipes': recipes.map((e) => e.toJson()).toList(),
       if (optionalIngredients != null)
         'optionalIngredients': optionalIngredients
@@ -561,7 +565,7 @@ class Menu {
 
   List<Recipe> get recipes {
     return (_json['recipes'] as List)
-        .map((e) => Recipe(e as Map<String, dynamic>))
+        .map((e) => Recipe.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -571,7 +575,7 @@ class Menu {
 
   List<Ingredient>? get optionalIngredients {
     return (_json['optionalIngredients'] as List?)
-        ?.map((e) => Ingredient(e as Map<String, dynamic>))
+        ?.map((e) => Ingredient.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -598,7 +602,7 @@ class _MenuTypeFactory extends SchemanticType<Menu> {
 
   @override
   Menu parse(Object? json) {
-    return Menu(json as Map<String, dynamic>);
+    return Menu._(json as Map<String, dynamic>);
   }
 
   @override

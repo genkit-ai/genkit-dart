@@ -25,10 +25,10 @@ class HandlerInput {
   factory HandlerInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  HandlerInput(this._json);
+  HandlerInput._(this._json);
 
-  factory HandlerInput.from({required String message}) {
-    return HandlerInput({'message': message});
+  factory HandlerInput({required String message}) {
+    return HandlerInput._({'message': message});
   }
 
   Map<String, dynamic> _json;
@@ -59,7 +59,7 @@ class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
 
   @override
   HandlerInput parse(Object? json) {
-    return HandlerInput(json as Map<String, dynamic>);
+    return HandlerInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -77,10 +77,10 @@ class HandlerOutput {
   factory HandlerOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  HandlerOutput(this._json);
+  HandlerOutput._(this._json);
 
-  factory HandlerOutput.from({required String processedMessage}) {
-    return HandlerOutput({'processedMessage': processedMessage});
+  factory HandlerOutput({required String processedMessage}) {
+    return HandlerOutput._({'processedMessage': processedMessage});
   }
 
   Map<String, dynamic> _json;
@@ -111,7 +111,7 @@ class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
 
   @override
   HandlerOutput parse(Object? json) {
-    return HandlerOutput(json as Map<String, dynamic>);
+    return HandlerOutput._(json as Map<String, dynamic>);
   }
 
   @override

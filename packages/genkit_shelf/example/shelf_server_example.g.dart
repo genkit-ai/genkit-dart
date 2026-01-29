@@ -24,10 +24,10 @@ part of 'shelf_server_example.dart';
 class HelloInput {
   factory HelloInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  HelloInput(this._json);
+  HelloInput._(this._json);
 
-  factory HelloInput.from({required String name}) {
-    return HelloInput({'name': name});
+  factory HelloInput({required String name}) {
+    return HelloInput._({'name': name});
   }
 
   Map<String, dynamic> _json;
@@ -57,7 +57,7 @@ class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
 
   @override
   HelloInput parse(Object? json) {
-    return HelloInput(json as Map<String, dynamic>);
+    return HelloInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -75,10 +75,10 @@ class HelloOutput {
   factory HelloOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  HelloOutput(this._json);
+  HelloOutput._(this._json);
 
-  factory HelloOutput.from({required String greeting}) {
-    return HelloOutput({'greeting': greeting});
+  factory HelloOutput({required String greeting}) {
+    return HelloOutput._({'greeting': greeting});
   }
 
   Map<String, dynamic> _json;
@@ -108,7 +108,7 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
 
   @override
   HelloOutput parse(Object? json) {
-    return HelloOutput(json as Map<String, dynamic>);
+    return HelloOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -125,10 +125,10 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
 class CountChunk {
   factory CountChunk.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  CountChunk(this._json);
+  CountChunk._(this._json);
 
-  factory CountChunk.from({required int count}) {
-    return CountChunk({'count': count});
+  factory CountChunk({required int count}) {
+    return CountChunk._({'count': count});
   }
 
   Map<String, dynamic> _json;
@@ -158,7 +158,7 @@ class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
 
   @override
   CountChunk parse(Object? json) {
-    return CountChunk(json as Map<String, dynamic>);
+    return CountChunk._(json as Map<String, dynamic>);
   }
 
   @override

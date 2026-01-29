@@ -25,10 +25,10 @@ class SharedChild {
   factory SharedChild.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  SharedChild(this._json);
+  SharedChild._(this._json);
 
-  factory SharedChild.from({required String childId}) {
-    return SharedChild({'childId': childId});
+  factory SharedChild({required String childId}) {
+    return SharedChild._({'childId': childId});
   }
 
   Map<String, dynamic> _json;
@@ -58,7 +58,7 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
 
   @override
   SharedChild parse(Object? json) {
-    return SharedChild(json as Map<String, dynamic>);
+    return SharedChild._(json as Map<String, dynamic>);
   }
 
   @override
@@ -75,10 +75,10 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
 class Part {
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Part(this._json);
+  Part._(this._json);
 
-  factory Part.from() {
-    return Part({});
+  factory Part() {
+    return Part._({});
   }
 
   Map<String, dynamic> _json;
@@ -100,7 +100,7 @@ class _PartTypeFactory extends SchemanticType<Part> {
 
   @override
   Part parse(Object? json) {
-    return Part(json as Map<String, dynamic>);
+    return Part._(json as Map<String, dynamic>);
   }
 
   @override
@@ -114,15 +114,15 @@ class _PartTypeFactory extends SchemanticType<Part> {
 class TextPart implements Part {
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  TextPart(this._json);
+  TextPart._(this._json);
 
-  factory TextPart.from({
+  factory TextPart({
     required String text,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return TextPart({
+    return TextPart._({
       'text': text,
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
@@ -195,7 +195,7 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
 
   @override
   TextPart parse(Object? json) {
-    return TextPart(json as Map<String, dynamic>);
+    return TextPart._(json as Map<String, dynamic>);
   }
 
   @override

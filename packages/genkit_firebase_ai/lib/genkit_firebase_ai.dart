@@ -185,7 +185,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               .toList(),
         };
 
-        return ModelResponse.from(
+        return ModelResponse(
           finishReason: finishReason,
           message: message,
           raw: raw,
@@ -300,7 +300,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         // If receive loop finishes, we might want to stop input stream?
         // Usually Bidi sessions end when input ends OR model ends.
 
-        return ModelResponse.from(finishReason: FinishReason.stop);
+        return ModelResponse(finishReason: FinishReason.stop);
       },
     );
   }
@@ -383,7 +383,7 @@ m.Part toGeminiPart(Part p) {
 @visibleForTesting
 (Message, FinishReason) fromGeminiCandidate(m.Candidate candidate) {
   final finishReason = FinishReason(candidate.finishReason?.name ?? 'unknown');
-  final message = Message.from(
+  final message = Message(
     role: Role(candidate.content.role ?? 'model'),
     content: candidate.content.parts.map(fromGeminiPart).toList(),
   );
@@ -394,17 +394,17 @@ m.Part toGeminiPart(Part p) {
 @visibleForTesting
 Part fromGeminiPart(m.Part p) {
   if (p is m.TextPart) {
-    return TextPart.from(text: p.text);
+    return TextPart(text: p.text);
   }
   if (p is m.FunctionCall) {
-    return ToolRequestPart.from(
-      toolRequest: ToolRequest.from(name: p.name, input: p.args),
+    return ToolRequestPart(
+      toolRequest: ToolRequest(name: p.name, input: p.args),
     );
   }
   if (p is m.InlineDataPart) {
     final base64 = base64Encode(p.bytes);
-    return MediaPart.from(
-      media: Media.from(
+    return MediaPart(
+      media: Media(
         url: 'data:${p.mimeType};base64,$base64',
         contentType: p.mimeType,
       ),
@@ -423,7 +423,7 @@ ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
   // We only care about content updates for now
   final parts = liveParts.map(fromGeminiPart).toList();
 
-  return ModelResponseChunk.from(index: 0, content: parts);
+  return ModelResponseChunk(index: 0, content: parts);
 }
 
 @visibleForTesting

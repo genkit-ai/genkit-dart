@@ -25,12 +25,12 @@ void main() async {
   ai.defineModel(
     name: 'echo',
     fn: (req, ctx) async {
-      return ModelResponse.from(
+      return ModelResponse(
         finishReason: FinishReason.stop,
-        message: Message.from(
+        message: Message(
           role: Role.model,
           content: [
-            TextPart.from(
+            TextPart(
               text: 'echo: ${req.messages.map((m) => m.text).join()}',
             ),
           ],
@@ -77,12 +77,12 @@ void main() async {
       if (hasSalt) {
         return recipe;
       }
-      return Recipe.from(
+      return Recipe(
         title: recipe.title,
         servings: recipe.servings,
         ingredients: [
           ...recipe.ingredients,
-          Ingredient.from(name: 'salt', quantity: 'a pinch'),
+          Ingredient(name: 'salt', quantity: 'a pinch'),
         ],
       );
     },

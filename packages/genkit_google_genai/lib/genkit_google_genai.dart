@@ -102,7 +102,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
       name: 'googleai/$modelName',
       customOptions: GeminiOptions.$schema,
       metadata: {
-        'model': ModelInfo.from(
+        'model': ModelInfo(
           label: modelName,
           supports: {
             'multiturn': true,
@@ -116,7 +116,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
       },
       fn: (req, ctx) async {
         final options = req!.config == null
-            ? GeminiOptions.from()
+            ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
         final service = gcl.GenerativeService.fromApiKey(
@@ -169,7 +169,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
                   chunk.candidates.first,
                 );
                 ctx.sendChunk(
-                  ModelResponseChunk.from(index: 0, content: message.content),
+                  ModelResponseChunk(index: 0, content: message.content),
                 );
               }
             }
@@ -177,7 +177,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
             final (message, finishReason) = _fromGeminiCandidate(
               aggregated.candidates.first,
             );
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: finishReason,
               message: message,
               raw: aggregated.toJson() as Map<String, dynamic>,
@@ -187,7 +187,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
             final (message, finishReason) = _fromGeminiCandidate(
               response.candidates.first,
             );
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: finishReason,
               message: message,
               raw: jsonDecode(jsonEncode(response)),
@@ -322,7 +322,7 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
 
 (Message, FinishReason) _fromGeminiCandidate(gcl.Candidate candidate) {
   final finishReason = FinishReason(candidate.finishReason.value.toLowerCase());
-  final message = Message.from(
+  final message = Message(
     role: Role(candidate.content!.role),
     content: candidate.content?.parts.map(_fromGeminiPart).toList() ?? [],
   );
@@ -392,18 +392,18 @@ gcl.Part toGeminiPart(Part p) {
 
 Part _fromGeminiPart(gcl.Part p) {
   if (p.text != null) {
-    return TextPart.from(text: p.text!);
+    return TextPart(text: p.text!);
   }
   if (p.functionCall != null) {
-    return ToolRequestPart.from(
-      toolRequest: ToolRequest.from(
+    return ToolRequestPart(
+      toolRequest: ToolRequest(
         name: p.functionCall!.name,
         input: p.functionCall!.args?.toJson() as Map<String, dynamic>?,
       ),
     );
   }
   if (p.codeExecutionResult != null) {
-    return CustomPart.from(
+    return CustomPart(
       custom: {
         'codeExecutionResult':
             p.codeExecutionResult!.toJson() as Map<String, dynamic>,
@@ -411,7 +411,7 @@ Part _fromGeminiPart(gcl.Part p) {
     );
   }
   if (p.executableCode != null) {
-    return CustomPart.from(
+    return CustomPart(
       custom: {
         'executableCode': p.executableCode!.toJson() as Map<String, dynamic>,
       },

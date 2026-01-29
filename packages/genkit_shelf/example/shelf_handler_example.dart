@@ -60,7 +60,7 @@ void main() async {
   // Define a flow
   final customFlow = ai.defineFlow(
     name: 'customFlow',
-    fn: (HandlerInput input, _) async => HandlerOutput.from(
+    fn: (HandlerInput input, _) async => HandlerOutput(
       processedMessage: 'Processed by custom handler: ${input.message}',
     ),
     inputType: HandlerInput.$schema,
@@ -72,7 +72,7 @@ void main() async {
     name: 'client',
     fn: (String input, _) async {
       final result = await customAction(
-        input: HandlerInput.from(message: 'Client via $input'),
+        input: HandlerInput(message: 'Client via $input'),
       );
       return result.processedMessage;
     },

@@ -25,13 +25,10 @@ class ProcessObjectInput {
   factory ProcessObjectInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ProcessObjectInput(this._json);
+  ProcessObjectInput._(this._json);
 
-  factory ProcessObjectInput.from({
-    required String message,
-    required int count,
-  }) {
-    return ProcessObjectInput({'message': message, 'count': count});
+  factory ProcessObjectInput({required String message, required int count}) {
+    return ProcessObjectInput._({'message': message, 'count': count});
   }
 
   Map<String, dynamic> _json;
@@ -71,7 +68,7 @@ class _ProcessObjectInputTypeFactory
 
   @override
   ProcessObjectInput parse(Object? json) {
-    return ProcessObjectInput(json as Map<String, dynamic>);
+    return ProcessObjectInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -89,13 +86,10 @@ class ProcessObjectOutput {
   factory ProcessObjectOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ProcessObjectOutput(this._json);
+  ProcessObjectOutput._(this._json);
 
-  factory ProcessObjectOutput.from({
-    required String reply,
-    required int newCount,
-  }) {
-    return ProcessObjectOutput({'reply': reply, 'newCount': newCount});
+  factory ProcessObjectOutput({required String reply, required int newCount}) {
+    return ProcessObjectOutput._({'reply': reply, 'newCount': newCount});
   }
 
   Map<String, dynamic> _json;
@@ -135,7 +129,7 @@ class _ProcessObjectOutputTypeFactory
 
   @override
   ProcessObjectOutput parse(Object? json) {
-    return ProcessObjectOutput(json as Map<String, dynamic>);
+    return ProcessObjectOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -153,10 +147,10 @@ class StreamObjectsInput {
   factory StreamObjectsInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  StreamObjectsInput(this._json);
+  StreamObjectsInput._(this._json);
 
-  factory StreamObjectsInput.from({required String prompt}) {
-    return StreamObjectsInput({'prompt': prompt});
+  factory StreamObjectsInput({required String prompt}) {
+    return StreamObjectsInput._({'prompt': prompt});
   }
 
   Map<String, dynamic> _json;
@@ -188,7 +182,7 @@ class _StreamObjectsInputTypeFactory
 
   @override
   StreamObjectsInput parse(Object? json) {
-    return StreamObjectsInput(json as Map<String, dynamic>);
+    return StreamObjectsInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -206,13 +200,10 @@ class StreamObjectsOutput {
   factory StreamObjectsOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  StreamObjectsOutput(this._json);
+  StreamObjectsOutput._(this._json);
 
-  factory StreamObjectsOutput.from({
-    required String text,
-    required String summary,
-  }) {
-    return StreamObjectsOutput({'text': text, 'summary': summary});
+  factory StreamObjectsOutput({required String text, required String summary}) {
+    return StreamObjectsOutput._({'text': text, 'summary': summary});
   }
 
   Map<String, dynamic> _json;
@@ -252,7 +243,7 @@ class _StreamObjectsOutputTypeFactory
 
   @override
   StreamObjectsOutput parse(Object? json) {
-    return StreamObjectsOutput(json as Map<String, dynamic>);
+    return StreamObjectsOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -270,10 +261,10 @@ class StreamyThrowyChunk {
   factory StreamyThrowyChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  StreamyThrowyChunk(this._json);
+  StreamyThrowyChunk._(this._json);
 
-  factory StreamyThrowyChunk.from({required int count}) {
-    return StreamyThrowyChunk({'count': count});
+  factory StreamyThrowyChunk({required int count}) {
+    return StreamyThrowyChunk._({'count': count});
   }
 
   Map<String, dynamic> _json;
@@ -305,7 +296,7 @@ class _StreamyThrowyChunkTypeFactory
 
   @override
   StreamyThrowyChunk parse(Object? json) {
-    return StreamyThrowyChunk(json as Map<String, dynamic>);
+    return StreamyThrowyChunk._(json as Map<String, dynamic>);
   }
 
   @override

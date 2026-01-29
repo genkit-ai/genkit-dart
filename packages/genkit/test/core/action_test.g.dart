@@ -24,10 +24,10 @@ part of 'action_test.dart';
 class TestInput {
   factory TestInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  TestInput(this._json);
+  TestInput._(this._json);
 
-  factory TestInput.from({required String name}) {
-    return TestInput({'name': name});
+  factory TestInput({required String name}) {
+    return TestInput._({'name': name});
   }
 
   Map<String, dynamic> _json;
@@ -57,7 +57,7 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
 
   @override
   TestInput parse(Object? json) {
-    return TestInput(json as Map<String, dynamic>);
+    return TestInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -74,10 +74,10 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
 class TestOutput {
   factory TestOutput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  TestOutput(this._json);
+  TestOutput._(this._json);
 
-  factory TestOutput.from({required String greeting}) {
-    return TestOutput({'greeting': greeting});
+  factory TestOutput({required String greeting}) {
+    return TestOutput._({'greeting': greeting});
   }
 
   Map<String, dynamic> _json;
@@ -107,7 +107,7 @@ class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
 
   @override
   TestOutput parse(Object? json) {
-    return TestOutput(json as Map<String, dynamic>);
+    return TestOutput._(json as Map<String, dynamic>);
   }
 
   @override

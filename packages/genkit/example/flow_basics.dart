@@ -113,7 +113,7 @@ void main() async {
       var i = 0;
       for (; i < count; i++) {
         await Future.delayed(Duration(seconds: 1));
-        context.sendChunk(Count.from(count: i));
+        context.sendChunk(Count(count: i));
       }
       return 'done: $count, streamed: $i times';
     },
@@ -132,7 +132,7 @@ void main() async {
           throw Exception('whoops');
         }
         await Future.delayed(Duration(seconds: 1));
-        context.sendChunk(Count.from(count: i));
+        context.sendChunk(Count(count: i));
       }
       return 'done: $count, streamed: $i times';
     },

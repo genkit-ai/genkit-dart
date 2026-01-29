@@ -24,10 +24,10 @@ part of 'simple_flow_types.dart';
 class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Ingredient(this._json);
+  Ingredient._(this._json);
 
-  factory Ingredient.from({required String name, required String quantity}) {
-    return Ingredient({'name': name, 'quantity': quantity});
+  factory Ingredient({required String name, required String quantity}) {
+    return Ingredient._({'name': name, 'quantity': quantity});
   }
 
   Map<String, dynamic> _json;
@@ -65,7 +65,7 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 
   @override
   Ingredient parse(Object? json) {
-    return Ingredient(json as Map<String, dynamic>);
+    return Ingredient._(json as Map<String, dynamic>);
   }
 
   @override
@@ -82,14 +82,14 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 class Recipe {
   factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Recipe(this._json);
+  Recipe._(this._json);
 
-  factory Recipe.from({
+  factory Recipe({
     required String title,
     required List<Ingredient> ingredients,
     required int servings,
   }) {
-    return Recipe({
+    return Recipe._({
       'title': title,
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'servings': servings,
@@ -110,7 +110,7 @@ class Recipe {
 
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
-        .map((e) => Ingredient(e as Map<String, dynamic>))
+        .map((e) => Ingredient.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -141,7 +141,7 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
 
   @override
   Recipe parse(Object? json) {
-    return Recipe(json as Map<String, dynamic>);
+    return Recipe._(json as Map<String, dynamic>);
   }
 
   @override

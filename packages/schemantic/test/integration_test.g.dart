@@ -24,10 +24,10 @@ part of 'integration_test.dart';
 class User {
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  User(this._json);
+  User._(this._json);
 
-  factory User.from({required String name, int? age, required bool isAdmin}) {
-    return User({
+  factory User({required String name, int? age, required bool isAdmin}) {
+    return User._({
       'name': name,
       if (age != null) 'age': age,
       'isAdmin': isAdmin,
@@ -81,7 +81,7 @@ class _UserTypeFactory extends SchemanticType<User> {
 
   @override
   User parse(Object? json) {
-    return User(json as Map<String, dynamic>);
+    return User._(json as Map<String, dynamic>);
   }
 
   @override
@@ -102,14 +102,14 @@ class _UserTypeFactory extends SchemanticType<User> {
 class Group {
   factory Group.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Group(this._json);
+  Group._(this._json);
 
-  factory Group.from({
+  factory Group({
     required String groupName,
     required List<User> members,
     User? leader,
   }) {
-    return Group({
+    return Group._({
       'groupName': groupName,
       'members': members.map((e) => e.toJson()).toList(),
       if (leader != null) 'leader': leader.toJson(),
@@ -130,7 +130,7 @@ class Group {
 
   List<User> get members {
     return (_json['members'] as List)
-        .map((e) => User(e as Map<String, dynamic>))
+        .map((e) => User.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -141,7 +141,7 @@ class Group {
   User? get leader {
     return _json['leader'] == null
         ? null
-        : User(_json['leader'] as Map<String, dynamic>);
+        : User.fromJson(_json['leader'] as Map<String, dynamic>);
   }
 
   set leader(User? value) {
@@ -167,7 +167,7 @@ class _GroupTypeFactory extends SchemanticType<Group> {
 
   @override
   Group parse(Object? json) {
-    return Group(json as Map<String, dynamic>);
+    return Group._(json as Map<String, dynamic>);
   }
 
   @override
@@ -190,10 +190,10 @@ class _GroupTypeFactory extends SchemanticType<Group> {
 class Node {
   factory Node.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Node(this._json);
+  Node._(this._json);
 
-  factory Node.from({required String id, List<Node>? children}) {
-    return Node({
+  factory Node({required String id, List<Node>? children}) {
+    return Node._({
       'id': id,
       if (children != null)
         'children': children.map((e) => e.toJson()).toList(),
@@ -214,7 +214,7 @@ class Node {
 
   List<Node>? get children {
     return (_json['children'] as List?)
-        ?.map((e) => Node(e as Map<String, dynamic>))
+        ?.map((e) => Node.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -241,7 +241,7 @@ class _NodeTypeFactory extends SchemanticType<Node> {
 
   @override
   Node parse(Object? json) {
-    return Node(json as Map<String, dynamic>);
+    return Node._(json as Map<String, dynamic>);
   }
 
   @override
@@ -263,14 +263,10 @@ class _NodeTypeFactory extends SchemanticType<Node> {
 class Keyed {
   factory Keyed.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Keyed(this._json);
+  Keyed._(this._json);
 
-  factory Keyed.from({
-    required String originalName,
-    int? score,
-    double? rating,
-  }) {
-    return Keyed({
+  factory Keyed({required String originalName, int? score, double? rating}) {
+    return Keyed._({
       'custom_name': originalName,
       if (score != null) 'score': score,
       if (rating != null) 'rating': rating,
@@ -328,7 +324,7 @@ class _KeyedTypeFactory extends SchemanticType<Keyed> {
 
   @override
   Keyed parse(Object? json) {
-    return Keyed(json as Map<String, dynamic>);
+    return Keyed._(json as Map<String, dynamic>);
   }
 
   @override
@@ -353,14 +349,14 @@ class Comprehensive {
   factory Comprehensive.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  Comprehensive(this._json);
+  Comprehensive._(this._json);
 
-  factory Comprehensive.from({
+  factory Comprehensive({
     required String stringField,
     required int intField,
     required double numberField,
   }) {
-    return Comprehensive({
+    return Comprehensive._({
       's_field': stringField,
       'i_field': intField,
       'n_field': numberField,
@@ -411,7 +407,7 @@ class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
 
   @override
   Comprehensive parse(Object? json) {
-    return Comprehensive(json as Map<String, dynamic>);
+    return Comprehensive._(json as Map<String, dynamic>);
   }
 
   @override
@@ -454,10 +450,10 @@ class Description {
   factory Description.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  Description(this._json);
+  Description._(this._json);
 
-  factory Description.from({required String name}) {
-    return Description({'name': name});
+  factory Description({required String name}) {
+    return Description._({'name': name});
   }
 
   Map<String, dynamic> _json;
@@ -487,7 +483,7 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
 
   @override
   Description parse(Object? json) {
-    return Description(json as Map<String, dynamic>);
+    return Description._(json as Map<String, dynamic>);
   }
 
   @override
@@ -506,10 +502,10 @@ class CrossFileParent {
   factory CrossFileParent.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  CrossFileParent(this._json);
+  CrossFileParent._(this._json);
 
-  factory CrossFileParent.from({required SharedChild child}) {
-    return CrossFileParent({'child': child.toJson()});
+  factory CrossFileParent({required SharedChild child}) {
+    return CrossFileParent._({'child': child.toJson()});
   }
 
   Map<String, dynamic> _json;
@@ -518,7 +514,7 @@ class CrossFileParent {
       _CrossFileParentTypeFactory();
 
   SharedChild get child {
-    return SharedChild(_json['child'] as Map<String, dynamic>);
+    return SharedChild.fromJson(_json['child'] as Map<String, dynamic>);
   }
 
   set child(SharedChild value) {
@@ -540,7 +536,7 @@ class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
 
   @override
   CrossFileParent parse(Object? json) {
-    return CrossFileParent(json as Map<String, dynamic>);
+    return CrossFileParent._(json as Map<String, dynamic>);
   }
 
   @override

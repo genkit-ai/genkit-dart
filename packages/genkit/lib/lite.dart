@@ -58,7 +58,7 @@ Future<GenerateResponse> generate<C>({
       outputInstructions != null ||
       outputNoInstructions != null ||
       outputContentType != null) {
-    outputConfig = GenerateActionOutputConfig({
+    outputConfig = GenerateActionOutputConfig.fromJson({
       if (outputFormat != null) 'format': outputFormat,
       if (outputSchema != null)
         'jsonSchema': outputSchema.jsonSchema as Map<String, dynamic>,

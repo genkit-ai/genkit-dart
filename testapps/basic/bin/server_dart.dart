@@ -34,16 +34,16 @@ void main() async {
       final input = request;
       for (var i = 0; i < 3; i++) {
         context.sendChunk(
-          ModelResponseChunk.from(content: [TextPart.from(text: 'chunk $i')]),
+          ModelResponseChunk(content: [TextPart(text: 'chunk $i')]),
         );
         await Future.delayed(Duration(seconds: 1));
       }
 
       final text = input.messages.map((m) => m.text).join();
-      return ModelResponse.from(
-        message: Message.from(
+      return ModelResponse(
+        message: Message(
           role: Role.model,
-          content: [TextPart.from(text: 'Echo: $text')],
+          content: [TextPart(text: 'Echo: $text')],
         ),
         finishReason: FinishReason.stop,
       );
@@ -62,7 +62,7 @@ void main() async {
     inputType: ProcessObjectInput.$schema,
     outputType: ProcessObjectOutput.$schema,
     fn: (input, _) async {
-      return ProcessObjectOutput.from(
+      return ProcessObjectOutput(
         reply: 'reply: ${input.message}',
         newCount: input.count + 1,
       );
@@ -77,11 +77,11 @@ void main() async {
     fn: (input, context) async {
       for (var i = 0; i < 5; i++) {
         context.sendChunk(
-          StreamObjectsOutput.from(text: 'input: $i', summary: 'summary $i'),
+          StreamObjectsOutput(text: 'input: $i', summary: 'summary $i'),
         );
         await Future.delayed(Duration(seconds: 1));
       }
-      return StreamObjectsOutput.from(
+      return StreamObjectsOutput(
         text: 'input: ${input.prompt}',
         summary: 'summary is summary',
       );
@@ -123,7 +123,7 @@ void main() async {
           throw GenkitException('whoops', statusCode: 500);
         }
         await Future.delayed(Duration(seconds: 1));
-        context.sendChunk(StreamyThrowyChunk.from(count: i));
+        context.sendChunk(StreamyThrowyChunk(count: i));
       }
       return 'done: $count, streamed: $i times';
     },

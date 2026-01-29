@@ -35,7 +35,7 @@ void main() {
         genkit.registry,
         Formatter(
           name: 'banana',
-          config: GenerateActionOutputConfig({
+          config: GenerateActionOutputConfig.fromJson({
             'format': null,
             'constrained': false,
           }),
@@ -71,11 +71,11 @@ void main() {
       genkit.defineModel(
         name: 'jsonModel',
         fn: (req, ctx) async {
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: '{"foo": "baz", "bar": 123}')],
+              content: [TextPart(text: '{"foo": "baz", "bar": 123}')],
             ),
           );
         },
@@ -102,11 +102,11 @@ void main() {
               }
             }
           }
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: '{}')],
+              content: [TextPart(text: '{}')],
             ),
           );
         },
@@ -126,11 +126,11 @@ void main() {
       genkit.defineModel(
         name: 'defaultJsonModel',
         fn: (req, ctx) async {
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: '{"foo": "bar", "bar": 1}')],
+              content: [TextPart(text: '{"foo": "bar", "bar": 1}')],
             ),
           );
         },
@@ -156,16 +156,16 @@ void main() {
               ? req.messages.last.content.first.text!
               : '';
           ctx.sendChunk(
-            ModelResponseChunk.from(content: [TextPart.from(text: 'chunk 1')]),
+            ModelResponseChunk(content: [TextPart(text: 'chunk 1')]),
           );
           ctx.sendChunk(
-            ModelResponseChunk.from(content: [TextPart.from(text: 'chunk 2')]),
+            ModelResponseChunk(content: [TextPart(text: 'chunk 2')]),
           );
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: 'Echo: $text')],
+              content: [TextPart(text: 'Echo: $text')],
             ),
           );
         },
@@ -204,11 +204,11 @@ void main() {
         name: 'echoModel',
         fn: (req, ctx) async {
           capturedRequest = req;
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: 'Echo: hi')],
+              content: [TextPart(text: 'Echo: hi')],
             ),
           );
         },
@@ -243,11 +243,11 @@ void main() {
         name: 'echoModel',
         fn: (req, ctx) async {
           capturedRequest = req;
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: 'Echo: hi')],
+              content: [TextPart(text: 'Echo: hi')],
             ),
           );
         },
@@ -276,20 +276,20 @@ void main() {
         name: 'echoModel',
         fn: (req, ctx) async {
           capturedRequest = req;
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: '{}')],
+              content: [TextPart(text: '{}')],
             ),
           );
         },
       );
 
-      final manualInstructions = Message.from(
+      final manualInstructions = Message(
         role: Role.user,
         content: [
-          TextPart.from(
+          TextPart(
             text: 'Manual instructions',
             metadata: {'purpose': 'output'},
           ),
@@ -299,9 +299,9 @@ void main() {
       await genkit.generate(
         model: modelRef('echoModel'),
         messages: [
-          Message.from(
+          Message(
             role: Role.user,
-            content: [TextPart.from(text: 'hi')],
+            content: [TextPart(text: 'hi')],
           ),
           manualInstructions,
         ],
@@ -323,19 +323,19 @@ void main() {
         name: 'streamingJsonModel',
         fn: (req, ctx) async {
           ctx.sendChunk(
-            ModelResponseChunk.from(content: [TextPart.from(text: '{"a":')]),
+            ModelResponseChunk(content: [TextPart(text: '{"a":')]),
           );
           ctx.sendChunk(
-            ModelResponseChunk.from(content: [TextPart.from(text: ' 1,')]),
+            ModelResponseChunk(content: [TextPart(text: ' 1,')]),
           );
           ctx.sendChunk(
-            ModelResponseChunk.from(content: [TextPart.from(text: '"b": 2}')]),
+            ModelResponseChunk(content: [TextPart(text: '"b": 2}')]),
           );
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: '{"a": 1, "b": 2}')],
+              content: [TextPart(text: '{"a": 1, "b": 2}')],
             ),
           );
         },

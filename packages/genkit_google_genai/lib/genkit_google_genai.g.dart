@@ -25,9 +25,9 @@ class GeminiOptions {
   factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GeminiOptions(this._json);
+  GeminiOptions._(this._json);
 
-  factory GeminiOptions.from({
+  factory GeminiOptions({
     String? apiKey,
     List<SafetySettings>? safetySettings,
     bool? codeExecution,
@@ -49,7 +49,7 @@ class GeminiOptions {
     double? frequencyPenalty,
     int? seed,
   }) {
-    return GeminiOptions({
+    return GeminiOptions._({
       if (apiKey != null) 'apiKey': apiKey,
       if (safetySettings != null)
         'safetySettings': safetySettings.map((e) => e.toJson()).toList(),
@@ -95,7 +95,7 @@ class GeminiOptions {
 
   List<SafetySettings>? get safetySettings {
     return (_json['safetySettings'] as List?)
-        ?.map((e) => SafetySettings(e as Map<String, dynamic>))
+        ?.map((e) => SafetySettings.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -122,7 +122,7 @@ class GeminiOptions {
   FunctionCallingConfig? get functionCallingConfig {
     return _json['functionCallingConfig'] == null
         ? null
-        : FunctionCallingConfig(
+        : FunctionCallingConfig.fromJson(
             _json['functionCallingConfig'] as Map<String, dynamic>,
           );
   }
@@ -138,7 +138,9 @@ class GeminiOptions {
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
-        : ThinkingConfig(_json['thinkingConfig'] as Map<String, dynamic>);
+        : ThinkingConfig.fromJson(
+            _json['thinkingConfig'] as Map<String, dynamic>,
+          );
   }
 
   set thinkingConfig(ThinkingConfig? value) {
@@ -164,7 +166,7 @@ class GeminiOptions {
   GoogleSearchRetrieval? get googleSearchRetrieval {
     return _json['googleSearchRetrieval'] == null
         ? null
-        : GoogleSearchRetrieval(
+        : GoogleSearchRetrieval.fromJson(
             _json['googleSearchRetrieval'] as Map<String, dynamic>,
           );
   }
@@ -180,7 +182,7 @@ class GeminiOptions {
   FileSearch? get fileSearch {
     return _json['fileSearch'] == null
         ? null
-        : FileSearch(_json['fileSearch'] as Map<String, dynamic>);
+        : FileSearch.fromJson(_json['fileSearch'] as Map<String, dynamic>);
   }
 
   set fileSearch(FileSearch? value) {
@@ -350,7 +352,7 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 
   @override
   GeminiOptions parse(Object? json) {
-    return GeminiOptions(json as Map<String, dynamic>);
+    return GeminiOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -401,10 +403,10 @@ class SafetySettings {
   factory SafetySettings.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  SafetySettings(this._json);
+  SafetySettings._(this._json);
 
-  factory SafetySettings.from({String? category, String? threshold}) {
-    return SafetySettings({
+  factory SafetySettings({String? category, String? threshold}) {
+    return SafetySettings._({
       if (category != null) 'category': category,
       if (threshold != null) 'threshold': threshold,
     });
@@ -454,7 +456,7 @@ class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
 
   @override
   SafetySettings parse(Object? json) {
-    return SafetySettings(json as Map<String, dynamic>);
+    return SafetySettings._(json as Map<String, dynamic>);
   }
 
   @override
@@ -499,10 +501,10 @@ class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ThinkingConfig(this._json);
+  ThinkingConfig._(this._json);
 
-  factory ThinkingConfig.from({bool? includeThoughts, int? thinkingBudget}) {
-    return ThinkingConfig({
+  factory ThinkingConfig({bool? includeThoughts, int? thinkingBudget}) {
+    return ThinkingConfig._({
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
     });
@@ -552,7 +554,7 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
 
   @override
   ThinkingConfig parse(Object? json) {
-    return ThinkingConfig(json as Map<String, dynamic>);
+    return ThinkingConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -573,13 +575,13 @@ class FunctionCallingConfig {
   factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  FunctionCallingConfig(this._json);
+  FunctionCallingConfig._(this._json);
 
-  factory FunctionCallingConfig.from({
+  factory FunctionCallingConfig({
     String? mode,
     List<String>? allowedFunctionNames,
   }) {
-    return FunctionCallingConfig({
+    return FunctionCallingConfig._({
       if (mode != null) 'mode': mode,
       if (allowedFunctionNames != null)
         'allowedFunctionNames': allowedFunctionNames,
@@ -631,7 +633,7 @@ class _FunctionCallingConfigTypeFactory
 
   @override
   FunctionCallingConfig parse(Object? json) {
-    return FunctionCallingConfig(json as Map<String, dynamic>);
+    return FunctionCallingConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -654,10 +656,10 @@ class GoogleSearchRetrieval {
   factory GoogleSearchRetrieval.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GoogleSearchRetrieval(this._json);
+  GoogleSearchRetrieval._(this._json);
 
-  factory GoogleSearchRetrieval.from({String? mode, double? dynamicThreshold}) {
-    return GoogleSearchRetrieval({
+  factory GoogleSearchRetrieval({String? mode, double? dynamicThreshold}) {
+    return GoogleSearchRetrieval._({
       if (mode != null) 'mode': mode,
       if (dynamicThreshold != null) 'dynamicThreshold': dynamicThreshold,
     });
@@ -708,7 +710,7 @@ class _GoogleSearchRetrievalTypeFactory
 
   @override
   GoogleSearchRetrieval parse(Object? json) {
-    return GoogleSearchRetrieval(json as Map<String, dynamic>);
+    return GoogleSearchRetrieval._(json as Map<String, dynamic>);
   }
 
   @override
@@ -728,10 +730,10 @@ class _GoogleSearchRetrievalTypeFactory
 class FileSearch {
   factory FileSearch.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  FileSearch(this._json);
+  FileSearch._(this._json);
 
-  factory FileSearch.from({List<String>? fileSearchStoreNames}) {
-    return FileSearch({
+  factory FileSearch({List<String>? fileSearchStoreNames}) {
+    return FileSearch._({
       if (fileSearchStoreNames != null)
         'fileSearchStoreNames': fileSearchStoreNames,
     });
@@ -768,7 +770,7 @@ class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
 
   @override
   FileSearch parse(Object? json) {
-    return FileSearch(json as Map<String, dynamic>);
+    return FileSearch._(json as Map<String, dynamic>);
   }
 
   @override

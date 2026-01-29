@@ -107,7 +107,7 @@ abstract class $CrossFileParent {
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
-      final user = User.from(name: 'Alice', age: 30, isAdmin: true);
+      final user = User(name: 'Alice', age: 30, isAdmin: true);
 
       expect(user.name, 'Alice');
       expect(user.age, 30);
@@ -123,7 +123,7 @@ void main() {
     });
 
     test('User with null optional field', () {
-      final user = User.from(name: 'Bob', isAdmin: false);
+      final user = User(name: 'Bob', isAdmin: false);
 
       expect(user.name, 'Bob');
       expect(user.age, isNull);
@@ -139,9 +139,9 @@ void main() {
     });
 
     test('Group serialization with nested objects', () {
-      final u1 = User.from(name: 'A', isAdmin: false);
-      final u2 = User.from(name: 'B', isAdmin: true);
-      final group = Group.from(
+      final u1 = User(name: 'A', isAdmin: false);
+      final u2 = User(name: 'B', isAdmin: true);
+      final group = Group(
         groupName: 'Engineering',
         members: [u1, u2],
         leader: u2,
@@ -279,7 +279,7 @@ void main() {
       );
     });
     test('KeyedSchema serialization and deserialization', () {
-      final keyed = Keyed.from(originalName: 'test');
+      final keyed = Keyed(originalName: 'test');
       final json = keyed.toJson();
       expect(json, {'custom_name': 'test'});
 
@@ -341,8 +341,8 @@ void main() {
     });
 
     test('Cross-file schema reference', () {
-      final child = SharedChild.from(childId: 'c1');
-      final parent = CrossFileParent.from(child: child);
+      final child = SharedChild(childId: 'c1');
+      final parent = CrossFileParent(child: child);
 
       expect(parent.child.childId, 'c1');
       final json = parent.toJson();

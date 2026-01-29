@@ -46,21 +46,21 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           if (request.messages.last.role == Role.tool) {
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: FinishReason.stop,
-              message: Message.from(
+              message: Message(
                 role: Role.model,
-                content: [TextPart.from(text: 'Done')],
+                content: [TextPart(text: 'Done')],
               ),
             );
           }
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
               content: [
-                ToolRequestPart.from(
-                  toolRequest: ToolRequest.from(
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
                     name: tool1Name,
                     input: {'name': 'world'},
                   ),
@@ -112,13 +112,13 @@ void main() {
         genkit.defineModel(
           name: modelName,
           fn: (request, context) async {
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: FinishReason.stop,
-              message: Message.from(
+              message: Message(
                 role: Role.model,
                 content: [
-                  ToolRequestPart.from(
-                    toolRequest: ToolRequest.from(
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
                       name: toolName,
                       input: {'name': 'world'},
                     ),
@@ -159,13 +159,13 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
               content: [
-                ToolRequestPart.from(
-                  toolRequest: ToolRequest.from(
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
                     name: toolName,
                     input: {'name': 'world'},
                   ),

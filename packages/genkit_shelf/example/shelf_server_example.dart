@@ -74,7 +74,7 @@ void main() async {
   final helloFlow = ai.defineFlow(
     name: 'hello',
     fn: (HelloInput input, _) async {
-      return HelloOutput.from(greeting: 'Hello, ${input.name}!');
+      return HelloOutput(greeting: 'Hello, ${input.name}!');
     },
     inputType: HelloInput.$schema,
     outputType: HelloOutput.$schema,
@@ -86,7 +86,7 @@ void main() async {
     fn: (int count, ctx) async {
       for (var i = 1; i <= count; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
-        ctx.sendChunk(CountChunk.from(count: i));
+        ctx.sendChunk(CountChunk(count: i));
       }
       return 'Done counting to $count';
     },
@@ -119,7 +119,7 @@ void main() async {
       // Call 'hello' flow
       try {
         final helloRes = await helloAction(
-          input: HelloInput.from(name: 'Client'),
+          input: HelloInput(name: 'Client'),
         );
         results.add('Hello Flow: ${helloRes.greeting}');
       } catch (e) {

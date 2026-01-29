@@ -260,7 +260,7 @@ class Genkit {
         outputInstructions != null ||
         outputNoInstructions != null ||
         outputContentType != null) {
-      outputConfig = GenerateActionOutputConfig({
+      outputConfig = GenerateActionOutputConfig.fromJson({
         if (outputFormat != null) 'format': outputFormat,
         if (outputSchema != null)
           'jsonSchema': toJsonSchema(type: outputSchema),

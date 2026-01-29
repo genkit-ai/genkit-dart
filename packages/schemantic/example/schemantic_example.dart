@@ -57,13 +57,13 @@ abstract class $Product {
 
 void main() async {
   // 1. Create an instance using the generated class
-  final address = Address.from(
+  final address = Address(
     street: '123 Main St',
     city: 'Springfield',
     zipCode: ZipCode.int(62704),
   );
 
-  final user = User.from(
+  final user = User(
     name: 'Alice',
     age: 30,
     isAdmin: true,

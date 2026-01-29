@@ -133,7 +133,7 @@ void main(List<String> args) async {
     fn: (name, ctx) async {
       final stream = ai.generateStream(
         model: googleAI.gemini('gemini-2.5-flash'),
-        config: GeminiOptions.from(temperature: 2.0),
+        config: GeminiOptions(temperature: 2.0),
         outputSchema: RpgCharacter.$schema,
         prompt: 'Generate an RPC character called $name',
       );

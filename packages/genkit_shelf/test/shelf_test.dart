@@ -198,10 +198,10 @@ void main() {
     final complexStreamFlow = ai.defineFlow(
       name: 'complexStream',
       fn: (input, ctx) async {
-        ctx.sendChunk(ShelfTestStream.from(chunk: 'chunk1'));
+        ctx.sendChunk(ShelfTestStream(chunk: 'chunk1'));
         await Future.delayed(const Duration(milliseconds: 10));
-        ctx.sendChunk(ShelfTestStream.from(chunk: 'chunk2'));
-        return ShelfTestOutput.from(greeting: 'done');
+        ctx.sendChunk(ShelfTestStream(chunk: 'chunk2'));
+        return ShelfTestOutput(greeting: 'done');
       },
       inputType: stringType(),
       outputType: ShelfTestOutput.$schema,

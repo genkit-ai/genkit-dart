@@ -25,10 +25,10 @@ class ShelfTestOutput {
   factory ShelfTestOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ShelfTestOutput(this._json);
+  ShelfTestOutput._(this._json);
 
-  factory ShelfTestOutput.from({required String greeting}) {
-    return ShelfTestOutput({'greeting': greeting});
+  factory ShelfTestOutput({required String greeting}) {
+    return ShelfTestOutput._({'greeting': greeting});
   }
 
   Map<String, dynamic> _json;
@@ -59,7 +59,7 @@ class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
 
   @override
   ShelfTestOutput parse(Object? json) {
-    return ShelfTestOutput(json as Map<String, dynamic>);
+    return ShelfTestOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -77,10 +77,10 @@ class ShelfTestStream {
   factory ShelfTestStream.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ShelfTestStream(this._json);
+  ShelfTestStream._(this._json);
 
-  factory ShelfTestStream.from({required String chunk}) {
-    return ShelfTestStream({'chunk': chunk});
+  factory ShelfTestStream({required String chunk}) {
+    return ShelfTestStream._({'chunk': chunk});
   }
 
   Map<String, dynamic> _json;
@@ -111,7 +111,7 @@ class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
 
   @override
   ShelfTestStream parse(Object? json) {
-    return ShelfTestStream(json as Map<String, dynamic>);
+    return ShelfTestStream._(json as Map<String, dynamic>);
   }
 
   @override

@@ -24,14 +24,18 @@ part of 'schemantic_example.dart';
 class Address {
   factory Address.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Address(this._json);
+  Address._(this._json);
 
-  factory Address.from({
+  factory Address({
     required String street,
     required String city,
     required ZipCode zipCode,
   }) {
-    return Address({'street': street, 'city': city, 'zipCode': zipCode.value});
+    return Address._({
+      'street': street,
+      'city': city,
+      'zipCode': zipCode.value,
+    });
   }
 
   Map<String, dynamic> _json;
@@ -90,7 +94,7 @@ class _AddressTypeFactory extends SchemanticType<Address> {
 
   @override
   Address parse(Object? json) {
-    return Address(json as Map<String, dynamic>);
+    return Address._(json as Map<String, dynamic>);
   }
 
   @override
@@ -111,15 +115,15 @@ class _AddressTypeFactory extends SchemanticType<Address> {
 class User {
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  User(this._json);
+  User._(this._json);
 
-  factory User.from({
+  factory User({
     required String name,
     int? age,
     required bool isAdmin,
     Address? address,
   }) {
-    return User({
+    return User._({
       'name': name,
       if (age != null) 'years_old': age,
       'isAdmin': isAdmin,
@@ -162,7 +166,7 @@ class User {
   Address? get address {
     return _json['address'] == null
         ? null
-        : Address(_json['address'] as Map<String, dynamic>);
+        : Address.fromJson(_json['address'] as Map<String, dynamic>);
   }
 
   set address(Address? value) {
@@ -188,7 +192,7 @@ class _UserTypeFactory extends SchemanticType<User> {
 
   @override
   User parse(Object? json) {
-    return User(json as Map<String, dynamic>);
+    return User._(json as Map<String, dynamic>);
   }
 
   @override
@@ -218,15 +222,15 @@ class _UserTypeFactory extends SchemanticType<User> {
 class Product {
   factory Product.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  Product(this._json);
+  Product._(this._json);
 
-  factory Product.from({
+  factory Product({
     required String id,
     required String name,
     required double price,
     List<String>? tags,
   }) {
-    return Product({
+    return Product._({
       'id': id,
       'name': name,
       'price': price,
@@ -289,7 +293,7 @@ class _ProductTypeFactory extends SchemanticType<Product> {
 
   @override
   Product parse(Object? json) {
-    return Product(json as Map<String, dynamic>);
+    return Product._(json as Map<String, dynamic>);
   }
 
   @override
