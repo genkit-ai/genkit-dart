@@ -31,7 +31,8 @@ import 'package:schemantic/schemantic.dart';
 part 'user.g.dart';
 
 @Schematic()
-abstract class UserSchema {
+@Schematic()
+abstract class $User {
   String get name;
   int? get age;
   bool get isAdmin;
@@ -46,18 +47,17 @@ Run the build runner to generate the implementation:
 dart run build_runner build
 ```
 
-This will generate a `user.schema.g.dart` file containing:
-- `User`: The concrete data class.
-- `UserType`: A utility class for parsing, schema access, and validation.
+This will generate a `user.g.dart` file containing:
+- `User`: The concrete data class, which includes a static `$schema` field for accessing schema information.
 
 ### 3. Use the Generated Types
 
-You can now use the generated `User` class and `UserType` utility:
+You can now use the generated `User` class:
 
 ```dart
 void main() async {
   // Create an instance using the generated class
-  final user = User.from(
+  final user = User(
     name: 'Alice',
     age: 30,
     isAdmin: true,
@@ -68,14 +68,14 @@ void main() async {
   // Output: {name: Alice, age: 30, isAdmin: true}
 
   // Parse from JSON
-  final parsed = UserType.parse({
+  final parsed = User.fromJson({
     'name': 'Bob',
     'isAdmin': false,
   });
   print(parsed.name); // Bob
 
   // Access JSON Schema at runtime
-  final schema = UserType.jsonSchema();
+  final schema = User.$schema.jsonSchema;
   print(schema.toJson()); 
   // Output: {type: object, properties: {name: {type: string}, ...}, required: [name, isAdmin]}
   
@@ -95,16 +95,16 @@ For recursive structures like trees, use the `useRefs: true` option when generat
 
 ```dart
 @Schematic()
-abstract class NodeSchema {
+abstract class $Node {
   String get id;
-  List<NodeSchema>? get children;
+  List<$Node>? get children;
 }
 ```
 
 ```dart
 void main() {
   // Must use useRefs: true for recursive schemas
-  final schema = NodeType.jsonSchema(useRefs: true);
+  final schema = Node.$schema.jsonSchema;
   
   print(schema.toJson());
   // Generates schema with "$ref": "#/$defs/Node"
@@ -151,7 +151,7 @@ You can add a description to your generated schema using the `description` param
 
 ```dart
 @Schematic(description: 'Represents a user in the system')
-abstract class UserSchema {
+abstract class $User {
   // ...
 }
 ```
@@ -209,7 +209,7 @@ You can use specialized annotations to apply JSON Schema constraints directly to
 
 ```dart
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   // Map 'age' to 'years_old' in JSON, and add validation
   @IntegerField(
     name: 'years_old', 

@@ -81,7 +81,7 @@ Give models the ability to take actions and access external data:
 ```dart
 // Define schemas for tool input
 @Schematic()
-abstract class WeatherInput {
+abstract class $WeatherInput {
   String get location;
 }
 
@@ -90,7 +90,7 @@ abstract class WeatherInput {
 final weatherTool = ai.defineTool(
   name: 'getWeather',
   description: 'Gets the current weather for a location',
-  inputType: WeatherInputType,
+  inputType: WeatherInput.$schema,
   fn: (input, _) async {
     // Call your weather API here
     return 'Weather in ${input.location}: 72°F and sunny';
@@ -231,13 +231,13 @@ First, define your schemas and run `build_runner` to generate the types.
 
 ```dart
 @Schematic()
-abstract class MyInput {
+abstract class $MyInput {
   String get message;
   int get count;
 }
 
 @Schematic()
-abstract class MyOutput {
+abstract class $MyOutput {
   String get reply;
   int get newCount;
 }
@@ -250,11 +250,11 @@ Then define and call the action:
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/process-object',
-  inputType: MyInputType,
-  outputType: MyOutputType,
+  inputType: MyInput.$schema,
+  outputType: MyOutput.$schema,
 );
 
-final input = MyInput.from(message: 'Process this data', count: 10);
+final input = MyInput(message: 'Process this data', count: 10);
 
 try {
   final output = await action(input: input);
@@ -300,7 +300,7 @@ try {
 
 ```dart
 @Schematic()
-abstract class StreamChunk {
+abstract class $StreamChunk {
   String get content;
 }
 
@@ -308,12 +308,12 @@ abstract class StreamChunk {
 
 final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-process',
-  inputType: MyInputType,
-  outputType: MyOutputType,
-  streamType: StreamChunkType,
+  inputType: MyInput.$schema,
+  outputType: MyOutput.$schema,
+  streamType: StreamChunk.$schema,
 );
 
-final input = MyInput.from(message: 'Stream this data', count: 5);
+final input = MyInput(message: 'Stream this data', count: 5);
 
 try {
   final stream = streamAction.stream(input: input);
@@ -396,14 +396,14 @@ import 'package:genkit/client.dart';
 
 final generateFlow = defineRemoteAction(
   url: 'http://localhost:3400/generate',
-  inputType: ModelRequestType,
-  outputType: ModelResponseType,
-  streamType: ModelResponseChunkType,
+  inputType: ModelRequest.$schema,
+  outputType: ModelResponse.$schema,
+  streamType: ModelResponseChunk.$schema,
 );
 
 final stream = generateFlow.stream(
-  input: ModelRequest.from(
-    messages: [Message.from(role: Role.user, content: [TextPart.from(text: "hello")])],
+  input: ModelRequest(
+    messages: [Message(role: Role.user, content: [TextPart(text: "hello")])],
   ),
 );
 
