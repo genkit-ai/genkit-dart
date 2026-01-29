@@ -32,7 +32,7 @@ jobs:
 
       - name: Run genkit_firebase_ai build_runner
         working-directory: packages/genkit_firebase_ai
-        run: dart run build_runner build
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Run genkit_firebase_ai Tests
         working-directory: packages/genkit_firebase_ai

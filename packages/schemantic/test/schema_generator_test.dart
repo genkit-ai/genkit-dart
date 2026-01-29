@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
 import 'package:logging/logging.dart';
 import 'package:schemantic/builder.dart';
@@ -46,11 +47,7 @@ abstract class UserSchema {
 }
 ''',
         },
-        {
-          'a|lib/a.schemantic.g.part': decodedMatches(
-            contains('class _UserTypeFactory'),
-          ),
-        },
+        {'a|lib/a.schemantic.g.part': decodedMatches(contains('class _UserTypeFactory'))},
       );
     });
 
@@ -157,7 +154,7 @@ Future<void> _testBuilderWithNoFail(
   Map<String, Matcher> outputs,
 ) async {
   await testBuilder(
-    schemaBuilder(),
+    schemaBuilder(BuilderOptions({})),
     inputs,
     outputs: outputs,
     onLog: (log) {
