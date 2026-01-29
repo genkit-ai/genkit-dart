@@ -49,20 +49,20 @@ jobs:
           if [ ! -f "$FILE" ]; then
             echo "Creating $FILE"
             cat <<'EOF' > $FILE
-            import 'package:firebase_core/firebase_core.dart';
+          import 'package:firebase_core/firebase_core.dart';
 
-            abstract final class DefaultFirebaseOptions {
-              static const FirebaseOptions currentPlatform = FirebaseOptions(
-                apiKey: 'place-holder',
-                appId: 'place-holder',
-                messagingSenderId: 'place-holder',
-                projectId: 'place-holder',
-              );
-            }
-            EOF
-          else
-            echo "$FILE already exists"
-          fi
+          abstract final class DefaultFirebaseOptions {
+            static const FirebaseOptions currentPlatform = FirebaseOptions(
+              apiKey: 'place-holder',
+              appId: 'place-holder',
+              messagingSenderId: 'place-holder',
+              projectId: 'place-holder',
+            );
+          }
+          EOF
+        else
+          echo "$FILE already exists"
+        fi
 
       - name: Run testapps/firebase_ai Analyzer
         working-directory: testapps/firebase_ai
