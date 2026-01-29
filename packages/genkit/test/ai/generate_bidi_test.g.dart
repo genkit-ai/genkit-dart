@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,31 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
-// To regenerate, run `dart run build_runner build -d`
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
 
-part of 'model_test.dart';
+part of 'generate_bidi_test.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions implements TestCustomOptionsSchema {
-  TestCustomOptions(this._json);
+class MyToolInput implements MyToolInputSchema {
+  MyToolInput(this._json);
 
-  factory TestCustomOptions.from({required String customField}) {
-    return TestCustomOptions({'customField': customField});
+  factory MyToolInput.from({required String location}) {
+    return MyToolInput({'location': location});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get customField {
-    return _json['customField'] as String;
+  String get location {
+    return _json['location'] as String;
   }
 
-  set customField(String value) {
-    _json['customField'] = value;
+  set location(String value) {
+    _json['location'] = value;
   }
 
   @override
@@ -50,24 +49,24 @@ class TestCustomOptions implements TestCustomOptionsSchema {
   }
 }
 
-class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
-  const _TestCustomOptionsTypeFactory();
+class _MyToolInputTypeFactory extends SchemanticType<MyToolInput> {
+  const _MyToolInputTypeFactory();
 
   @override
-  TestCustomOptions parse(Object? json) {
-    return TestCustomOptions(json as Map<String, dynamic>);
+  MyToolInput parse(Object? json) {
+    return MyToolInput(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TestCustomOptions',
+    name: 'MyToolInput',
     definition: Schema.object(
-      properties: {'customField': Schema.string()},
-      required: ['customField'],
+      properties: {'location': Schema.string()},
+      required: ['location'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const TestCustomOptionsType = _TestCustomOptionsTypeFactory();
+const MyToolInputType = _MyToolInputTypeFactory();

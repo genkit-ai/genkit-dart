@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,28 +15,28 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'shelf_handler_example.dart';
+part of 'genkit_test.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-class HandlerInput implements HandlerInputSchema {
-  HandlerInput(this._json);
+class TestCustomOptions implements TestCustomOptionsSchema {
+  TestCustomOptions(this._json);
 
-  factory HandlerInput.from({required String message}) {
-    return HandlerInput({'message': message});
+  factory TestCustomOptions.from({required String customField}) {
+    return TestCustomOptions({'customField': customField});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get message {
-    return _json['message'] as String;
+  String get customField {
+    return _json['customField'] as String;
   }
 
-  set message(String value) {
-    _json['message'] = value;
+  set customField(String value) {
+    _json['customField'] = value;
   }
 
   @override
@@ -50,44 +49,44 @@ class HandlerInput implements HandlerInputSchema {
   }
 }
 
-class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
-  const _HandlerInputTypeFactory();
+class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
+  const _TestCustomOptionsTypeFactory();
 
   @override
-  HandlerInput parse(Object? json) {
-    return HandlerInput(json as Map<String, dynamic>);
+  TestCustomOptions parse(Object? json) {
+    return TestCustomOptions(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'HandlerInput',
+    name: 'TestCustomOptions',
     definition: Schema.object(
-      properties: {'message': Schema.string()},
-      required: ['message'],
+      properties: {'customField': Schema.string()},
+      required: ['customField'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const HandlerInputType = _HandlerInputTypeFactory();
+const TestCustomOptionsType = _TestCustomOptionsTypeFactory();
 
-class HandlerOutput implements HandlerOutputSchema {
-  HandlerOutput(this._json);
+class TestToolInput implements TestToolInputSchema {
+  TestToolInput(this._json);
 
-  factory HandlerOutput.from({required String processedMessage}) {
-    return HandlerOutput({'processedMessage': processedMessage});
+  factory TestToolInput.from({required String name}) {
+    return TestToolInput({'name': name});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get processedMessage {
-    return _json['processedMessage'] as String;
+  String get name {
+    return _json['name'] as String;
   }
 
-  set processedMessage(String value) {
-    _json['processedMessage'] = value;
+  set name(String value) {
+    _json['name'] = value;
   }
 
   @override
@@ -100,24 +99,24 @@ class HandlerOutput implements HandlerOutputSchema {
   }
 }
 
-class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
-  const _HandlerOutputTypeFactory();
+class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
+  const _TestToolInputTypeFactory();
 
   @override
-  HandlerOutput parse(Object? json) {
-    return HandlerOutput(json as Map<String, dynamic>);
+  TestToolInput parse(Object? json) {
+    return TestToolInput(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'HandlerOutput',
+    name: 'TestToolInput',
     definition: Schema.object(
-      properties: {'processedMessage': Schema.string()},
-      required: ['processedMessage'],
+      properties: {'name': Schema.string()},
+      required: ['name'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const HandlerOutputType = _HandlerOutputTypeFactory();
+const TestToolInputType = _TestToolInputTypeFactory();

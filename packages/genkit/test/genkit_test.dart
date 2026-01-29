@@ -19,7 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
-part 'genkit_test.schema.g.dart';
+part 'genkit_test.g.dart';
 
 @Schematic()
 abstract class TestCustomOptionsSchema {

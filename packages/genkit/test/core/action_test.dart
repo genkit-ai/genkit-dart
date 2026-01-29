@@ -20,7 +20,7 @@ import 'package:test/test.dart';
 
 import '../test_util.dart';
 
-part 'action_test.schema.g.dart';
+part 'action_test.g.dart';
 
 @Schematic()
 abstract class TestInputSchema {

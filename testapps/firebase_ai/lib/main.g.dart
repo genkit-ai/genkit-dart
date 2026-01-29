@@ -12,8 +12,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
+//
+// GENERATED CODE BY schemantic- DO NOT MODIFY BY HAND
 // To regenerate, run `dart run build_runner build -d`
 
 part of 'main.dart';

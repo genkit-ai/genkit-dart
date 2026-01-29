@@ -38,7 +38,7 @@ class Field {
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
-part 'a.schema.g.dart';
+part 'a.g.dart';
 
 @Schematic()
 abstract class UserSchema {
@@ -58,7 +58,7 @@ abstract class UserSchema {
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
-part 'a.schema.g.dart';
+part 'a.g.dart';
 
 @Schematic()
 abstract class AddressSchema {
@@ -95,7 +95,7 @@ abstract class UserSchema {
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
-part 'a.schema.g.dart';
+part 'a.g.dart';
 
 @Schematic()
 abstract class ProductSchema {
@@ -124,7 +124,7 @@ abstract class ProductSchema {
           'a|lib/a.dart': r'''
 import 'package:schemantic/schemantic.dart';
 
-part 'a.schema.g.dart';
+part 'a.g.dart';
 
 enum Status { active, inactive }
 

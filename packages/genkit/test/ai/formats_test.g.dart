@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,31 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
-// To regenerate, run `dart run build_runner build -d`
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
 
-part of 'generate_bidi_test.dart';
+part of 'formats_test.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-class MyToolInput implements MyToolInputSchema {
-  MyToolInput(this._json);
+class TestObject implements TestObjectSchema {
+  TestObject(this._json);
 
-  factory MyToolInput.from({required String location}) {
-    return MyToolInput({'location': location});
+  factory TestObject.from({required String foo, required int bar}) {
+    return TestObject({'foo': foo, 'bar': bar});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get location {
-    return _json['location'] as String;
+  String get foo {
+    return _json['foo'] as String;
   }
 
-  set location(String value) {
-    _json['location'] = value;
+  set foo(String value) {
+    _json['foo'] = value;
+  }
+
+  @override
+  int get bar {
+    return _json['bar'] as int;
+  }
+
+  set bar(int value) {
+    _json['bar'] = value;
   }
 
   @override
@@ -50,24 +58,24 @@ class MyToolInput implements MyToolInputSchema {
   }
 }
 
-class _MyToolInputTypeFactory extends SchemanticType<MyToolInput> {
-  const _MyToolInputTypeFactory();
+class _TestObjectTypeFactory extends SchemanticType<TestObject> {
+  const _TestObjectTypeFactory();
 
   @override
-  MyToolInput parse(Object? json) {
-    return MyToolInput(json as Map<String, dynamic>);
+  TestObject parse(Object? json) {
+    return TestObject(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'MyToolInput',
+    name: 'TestObject',
     definition: Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
+      properties: {'foo': Schema.string(), 'bar': Schema.integer()},
+      required: ['foo', 'bar'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const MyToolInputType = _MyToolInputTypeFactory();
+const TestObjectType = _TestObjectTypeFactory();

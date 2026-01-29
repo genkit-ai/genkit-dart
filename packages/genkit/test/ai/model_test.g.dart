@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,40 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
-// To regenerate, run `dart run build_runner build -d`
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
 
-part of 'formats_test.dart';
+part of 'model_test.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-class TestObject implements TestObjectSchema {
-  TestObject(this._json);
+class TestCustomOptions implements TestCustomOptionsSchema {
+  TestCustomOptions(this._json);
 
-  factory TestObject.from({required String foo, required int bar}) {
-    return TestObject({'foo': foo, 'bar': bar});
+  factory TestCustomOptions.from({required String customField}) {
+    return TestCustomOptions({'customField': customField});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get foo {
-    return _json['foo'] as String;
+  String get customField {
+    return _json['customField'] as String;
   }
 
-  set foo(String value) {
-    _json['foo'] = value;
-  }
-
-  @override
-  int get bar {
-    return _json['bar'] as int;
-  }
-
-  set bar(int value) {
-    _json['bar'] = value;
+  set customField(String value) {
+    _json['customField'] = value;
   }
 
   @override
@@ -59,24 +49,24 @@ class TestObject implements TestObjectSchema {
   }
 }
 
-class _TestObjectTypeFactory extends SchemanticType<TestObject> {
-  const _TestObjectTypeFactory();
+class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
+  const _TestCustomOptionsTypeFactory();
 
   @override
-  TestObject parse(Object? json) {
-    return TestObject(json as Map<String, dynamic>);
+  TestCustomOptions parse(Object? json) {
+    return TestCustomOptions(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TestObject',
+    name: 'TestCustomOptions',
     definition: Schema.object(
-      properties: {'foo': Schema.string(), 'bar': Schema.integer()},
-      required: ['foo', 'bar'],
+      properties: {'customField': Schema.string()},
+      required: ['customField'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const TestObjectType = _TestObjectTypeFactory();
+const TestCustomOptionsType = _TestCustomOptionsTypeFactory();

@@ -2,7 +2,7 @@
 targets:
   $default:
     builders:
-      schemantic:
+      source_gen|combining_builder:
         options:
           header: |-
             // Copyright 2025 Google LLC
@@ -19,5 +19,5 @@ targets:
             // See the License for the specific language governing permissions and
             // limitations under the License.
            
-            // GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
-            // To regenerate, run `dart run build_runner build -d`
+            // GENERATED CODE - DO NOT MODIFY BY HAND
+            // dart format width=80

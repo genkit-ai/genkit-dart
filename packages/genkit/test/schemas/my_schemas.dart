@@ -14,7 +14,7 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-part 'my_schemas.schema.g.dart';
+part 'my_schemas.g.dart';
 
 @JsonSerializable()
 class MyInput {

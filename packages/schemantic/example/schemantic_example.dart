@@ -15,7 +15,7 @@
 // ignore_for_file: strict_top_level_inference, always_declare_return_types, type_annotate_public_apis, unused_element
 
 import 'package:schemantic/schemantic.dart';
-part 'schemantic_example.schema.g.dart';
+part 'schemantic_example.g.dart';
 
 @Schematic()
 abstract class AddressSchema {
