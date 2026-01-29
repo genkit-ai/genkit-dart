@@ -62,7 +62,6 @@ class GeminiOptions {
   static const SchemanticType<GeminiOptions> $schema =
       _GeminiOptionsTypeFactory();
 
-  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -75,7 +74,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -88,7 +86,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -101,7 +98,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -114,7 +110,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -127,7 +122,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -140,7 +134,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -153,7 +146,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -166,7 +158,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   String? get responseMimeType {
     return _json['responseMimeType'] as String?;
   }
@@ -179,7 +170,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   Map<String, dynamic>? get responseSchema {
     return _json['responseSchema'] as Map<String, dynamic>?;
   }
@@ -192,7 +182,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   Map<String, dynamic>? get responseJsonSchema {
     return _json['responseJsonSchema'] as Map<String, dynamic>?;
   }
@@ -205,7 +194,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
@@ -280,7 +268,6 @@ class ThinkingConfig {
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
 
-  @override
   int? get thinkingBudget {
     return _json['thinkingBudget'] as int?;
   }
@@ -293,7 +280,6 @@ class ThinkingConfig {
     }
   }
 
-  @override
   bool? get includeThoughts {
     return _json['includeThoughts'] as bool?;
   }
@@ -353,7 +339,6 @@ class PrebuiltVoiceConfig {
   static const SchemanticType<PrebuiltVoiceConfig> $schema =
       _PrebuiltVoiceConfigTypeFactory();
 
-  @override
   String? get voiceName {
     return _json['voiceName'] as String?;
   }
@@ -413,7 +398,6 @@ class VoiceConfig {
 
   static const SchemanticType<VoiceConfig> $schema = _VoiceConfigTypeFactory();
 
-  @override
   PrebuiltVoiceConfig? get prebuiltVoiceConfig {
     return _json['prebuiltVoiceConfig'] == null
         ? null
@@ -480,7 +464,6 @@ class SpeechConfig {
   static const SchemanticType<SpeechConfig> $schema =
       _SpeechConfigTypeFactory();
 
-  @override
   VoiceConfig? get voiceConfig {
     return _json['voiceConfig'] == null
         ? null
@@ -561,7 +544,6 @@ class LiveGenerationConfig {
   static const SchemanticType<LiveGenerationConfig> $schema =
       _LiveGenerationConfigTypeFactory();
 
-  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -574,7 +556,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   SpeechConfig? get speechConfig {
     return _json['speechConfig'] == null
         ? null
@@ -589,7 +570,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -602,7 +582,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -615,7 +594,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -628,7 +606,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -641,7 +618,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -654,7 +630,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -667,7 +642,6 @@ class LiveGenerationConfig {
     }
   }
 
-  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
