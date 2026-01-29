@@ -17,15 +17,15 @@ import 'package:schemantic/schemantic.dart';
 part 'shared_test_schema.g.dart';
 
 @Schematic()
-abstract class SharedChildSchema {
+abstract class $SharedChild {
   String get childId;
 }
 
 @Schematic()
-abstract class PartSchema {}
+abstract class $Part {}
 
 @Schematic()
-abstract class TextPartSchema implements PartSchema {
+abstract class $TextPart implements $Part {
   String get text;
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;

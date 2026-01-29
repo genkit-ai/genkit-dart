@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +21,9 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class User implements UserSchema {
+class User {
+  factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   User(this._json);
 
   factory User.from({required String name, int? age, required bool isAdmin}) {
@@ -34,6 +35,8 @@ class User implements UserSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<User> $schema = _UserTypeFactory();
 
   @override
   String get name {
@@ -99,10 +102,9 @@ class _UserTypeFactory extends SchemanticType<User> {
   );
 }
 
-// ignore: constant_identifier_names
-const UserType = _UserTypeFactory();
+class Group {
+  factory Group.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Group implements GroupSchema {
   Group(this._json);
 
   factory Group.from({
@@ -118,6 +120,8 @@ class Group implements GroupSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Group> $schema = _GroupTypeFactory();
 
   @override
   String get groupName {
@@ -185,14 +189,13 @@ class _GroupTypeFactory extends SchemanticType<Group> {
       },
       required: ['groupName', 'members'],
     ),
-    dependencies: [UserType],
+    dependencies: [User.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const GroupType = _GroupTypeFactory();
+class Node {
+  factory Node.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Node implements NodeSchema {
   Node(this._json);
 
   factory Node.from({required String id, List<Node>? children}) {
@@ -204,6 +207,8 @@ class Node implements NodeSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Node> $schema = _NodeTypeFactory();
 
   @override
   String get id {
@@ -259,14 +264,13 @@ class _NodeTypeFactory extends SchemanticType<Node> {
       },
       required: ['id'],
     ),
-    dependencies: [NodeType],
+    dependencies: [Node.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const NodeType = _NodeTypeFactory();
+class Keyed {
+  factory Keyed.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Keyed implements KeyedSchema {
   Keyed(this._json);
 
   factory Keyed.from({
@@ -282,6 +286,8 @@ class Keyed implements KeyedSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Keyed> $schema = _KeyedTypeFactory();
 
   @override
   String get originalName {
@@ -354,10 +360,10 @@ class _KeyedTypeFactory extends SchemanticType<Keyed> {
   );
 }
 
-// ignore: constant_identifier_names
-const KeyedType = _KeyedTypeFactory();
+class Comprehensive {
+  factory Comprehensive.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class Comprehensive implements ComprehensiveSchema {
   Comprehensive(this._json);
 
   factory Comprehensive.from({
@@ -373,6 +379,9 @@ class Comprehensive implements ComprehensiveSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Comprehensive> $schema =
+      _ComprehensiveTypeFactory();
 
   @override
   String get stringField {
@@ -455,10 +464,10 @@ class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   );
 }
 
-// ignore: constant_identifier_names
-const ComprehensiveType = _ComprehensiveTypeFactory();
+class Description {
+  factory Description.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class Description implements DescriptionSchema {
   Description(this._json);
 
   factory Description.from({required String name}) {
@@ -466,6 +475,8 @@ class Description implements DescriptionSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Description> $schema = _DescriptionTypeFactory();
 
   @override
   String get name {
@@ -506,10 +517,10 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
   );
 }
 
-// ignore: constant_identifier_names
-const DescriptionType = _DescriptionTypeFactory();
+class CrossFileParent {
+  factory CrossFileParent.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class CrossFileParent implements CrossFileParentSchema {
   CrossFileParent(this._json);
 
   factory CrossFileParent.from({required SharedChild child}) {
@@ -517,6 +528,9 @@ class CrossFileParent implements CrossFileParentSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<CrossFileParent> $schema =
+      _CrossFileParentTypeFactory();
 
   @override
   SharedChild get child {
@@ -554,9 +568,6 @@ class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
       },
       required: ['child'],
     ),
-    dependencies: [SharedChildType],
+    dependencies: [SharedChild.$schema],
   );
 }
-
-// ignore: constant_identifier_names
-const CrossFileParentType = _CrossFileParentTypeFactory();

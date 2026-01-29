@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +21,10 @@ part of 'shared_test_schema.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class SharedChild implements SharedChildSchema {
+class SharedChild {
+  factory SharedChild.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   SharedChild(this._json);
 
   factory SharedChild.from({required String childId}) {
@@ -30,6 +32,8 @@ class SharedChild implements SharedChildSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<SharedChild> $schema = _SharedChildTypeFactory();
 
   @override
   String get childId {
@@ -69,10 +73,9 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
   );
 }
 
-// ignore: constant_identifier_names
-const SharedChildType = _SharedChildTypeFactory();
+class Part {
+  factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Part implements PartSchema {
   Part(this._json);
 
   factory Part.from() {
@@ -80,6 +83,8 @@ class Part implements PartSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Part> $schema = _PartTypeFactory();
 
   @override
   String toString() {
@@ -107,10 +112,9 @@ class _PartTypeFactory extends SchemanticType<Part> {
   );
 }
 
-// ignore: constant_identifier_names
-const PartType = _PartTypeFactory();
+class TextPart implements Part {
+  factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class TextPart implements TextPartSchema, Part {
   TextPart(this._json);
 
   factory TextPart.from({
@@ -129,6 +133,8 @@ class TextPart implements TextPartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
   @override
   String get text {
@@ -212,6 +218,3 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TextPartType = _TextPartTypeFactory();

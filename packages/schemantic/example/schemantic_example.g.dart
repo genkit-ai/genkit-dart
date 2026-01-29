@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +21,9 @@ part of 'schemantic_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Address implements AddressSchema {
+class Address {
+  factory Address.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   Address(this._json);
 
   factory Address.from({
@@ -34,6 +35,8 @@ class Address implements AddressSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Address> $schema = _AddressTypeFactory();
 
   @override
   String get street {
@@ -108,10 +111,9 @@ class _AddressTypeFactory extends SchemanticType<Address> {
   );
 }
 
-// ignore: constant_identifier_names
-const AddressType = _AddressTypeFactory();
+class User {
+  factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class User implements UserSchema {
   User(this._json);
 
   factory User.from({
@@ -129,6 +131,8 @@ class User implements UserSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<User> $schema = _UserTypeFactory();
 
   @override
   String get name {
@@ -214,14 +218,13 @@ class _UserTypeFactory extends SchemanticType<User> {
       },
       required: ['name', 'isAdmin'],
     ),
-    dependencies: [AddressType],
+    dependencies: [Address.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const UserType = _UserTypeFactory();
+class Product {
+  factory Product.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Product implements ProductSchema {
   Product(this._json);
 
   factory Product.from({
@@ -239,6 +242,8 @@ class Product implements ProductSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Product> $schema = _ProductTypeFactory();
 
   @override
   String get id {
@@ -313,6 +318,3 @@ class _ProductTypeFactory extends SchemanticType<Product> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const ProductType = _ProductTypeFactory();

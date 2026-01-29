@@ -41,7 +41,7 @@ import 'package:schemantic/schemantic.dart';
 part 'a.g.dart';
 
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   String get name;
   int? get age;
 }
@@ -61,16 +61,16 @@ import 'package:schemantic/schemantic.dart';
 part 'a.g.dart';
 
 @Schematic()
-abstract class AddressSchema {
+abstract class $Address {
   String get street;
   String? get city;
 }
 
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   String get name;
-  List<AddressSchema> get addresses;
-  AddressSchema? get primaryAddress;
+  List<$Address> get addresses;
+  $Address? get primaryAddress;
   List<int>? get scores;
 }
 ''',
@@ -98,7 +98,7 @@ import 'package:schemantic/schemantic.dart';
 part 'a.g.dart';
 
 @Schematic()
-abstract class ProductSchema {
+abstract class $Product {
   @Field(name: 'product_id', description: 'The unique identifier')
   String get id;
 }
@@ -129,7 +129,7 @@ part 'a.g.dart';
 enum Status { active, inactive }
 
 @Schematic()
-abstract class ItemSchema {
+abstract class $Item {
   Status get status;
 }
 ''',

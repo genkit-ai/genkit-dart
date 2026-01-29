@@ -18,7 +18,7 @@ import 'package:schemantic/schemantic.dart';
 part 'schemantic_example.g.dart';
 
 @Schematic()
-abstract class AddressSchema {
+abstract class $Address {
   String get street;
   String get city;
 
@@ -27,9 +27,9 @@ abstract class AddressSchema {
 }
 
 /// Define a schema using the @Schematic annotation.
-/// This will generate a concrete [User] class and a [UserType] utility.
+/// This will generate a concrete [User] class with a static $schema field.
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   @StringField(minLength: 1, maxLength: 150, pattern: r'^[a-zA-Z\s]+$')
   String get name;
   @IntegerField(
@@ -43,12 +43,12 @@ abstract class UserSchema {
   bool get isAdmin;
 
   // Nested schema
-  AddressSchema? get address;
+  $Address? get address;
 }
 
 /// Define another schema for Products.
 @Schematic()
-abstract class ProductSchema {
+abstract class $Product {
   String get id;
   String get name;
   double get price;
@@ -83,7 +83,7 @@ void main() async {
   // Output: {name: Alice, age: 30, isAdmin: true, address: {street: 123 Main St, city: Springfield, zipCode: 62704}}
 
   // 3. Parse from JSON
-  final parsed = UserType.parse({
+  final parsed = User.$schema.parse({
     'name': 'Bob',
     'isAdmin': false,
     'address': {
@@ -97,7 +97,7 @@ void main() async {
   print('Parsed City: ${parsed.address?.city}'); // Shelbyville
 
   // 4. Access JSON Schema at runtime
-  final schema = UserType.jsonSchema();
+  final schema = User.$schema.jsonSchema();
   print('\n--- JSON Schema ---');
   print(schema.toJson());
 
@@ -140,7 +140,7 @@ void main() async {
   print('\n--- Dynamic Types ---');
 
   // List of Strings
-  final stringList = listType(UserType); // UserType is generated so it's fine
+  final stringList = listType(User.$schema); // UserType is generated so it's fine
   final parsedList = stringList.parse([
     {'name': 'Alice', 'isAdmin': true},
     {'name': 'Bob', 'isAdmin': false},
@@ -151,7 +151,7 @@ void main() async {
   print('List Schema: ${stringList.jsonSchema().toJson()}');
 
   // Map of String -> User
-  final scores = mapType(stringType(), UserType);
+  final scores = mapType(stringType(), User.$schema);
   final parsedScores = scores.parse({
     'Alice': {'name': 'Alice', 'isAdmin': true},
     'Bob': {'name': 'Bob', 'isAdmin': false},
@@ -169,12 +169,12 @@ void main() async {
     'price': 19.99,
     'tags': ['gadget', 'new'],
   };
-  final product = ProductType.parse(productJson);
+  final product = Product.$schema.parse(productJson);
   print('Product: ${product.name} costs \$${product.price}');
   print('Tags: ${product.tags}');
 
   // Validation check
-  final productValidation = await ProductType.jsonSchema().validate({
+  final productValidation = await Product.$schema.jsonSchema().validate({
     'id': 'p124',
     // Missing name and price
   });
