@@ -1008,10 +1008,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   }
 
   String _resolveBaseName(String s) {
-    if (s.startsWith(r'$')) return s.substring(1);
-    // Legacy support removed, but we might want to fail gracefully or just return s if not matching?
-    // User wants strictly required.
-    return s.startsWith(r'$') ? s.substring(1) : s;
+    if (s.startsWith(r'$')) {
+      return s.substring(1);
+    }
+    // This path should not be taken if call sites are guarded by `isSchema`.
+    // Throwing an error makes the contract stricter.
+    throw ArgumentError(
+      'Invalid schema name "$s". Schema names must start with a "\$".',
+    );
   }
 }
 
