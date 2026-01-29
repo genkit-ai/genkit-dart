@@ -36,7 +36,6 @@ class WeatherToolInput {
   static const SchemanticType<WeatherToolInput> $schema =
       _WeatherToolInputTypeFactory();
 
-  @override
   String get location {
     return _json['location'] as String;
   }
@@ -96,7 +95,6 @@ class Category {
 
   static const SchemanticType<Category> $schema = _CategoryTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -105,7 +103,6 @@ class Category {
     _json['name'] = value;
   }
 
-  @override
   List<Category>? get subcategories {
     return (_json['subcategories'] as List?)
         ?.map((e) => Category(e as Map<String, dynamic>))
@@ -175,7 +172,6 @@ class Weapon {
 
   static const SchemanticType<Weapon> $schema = _WeaponTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -184,7 +180,6 @@ class Weapon {
     _json['name'] = value;
   }
 
-  @override
   double get damage {
     return _json['damage'] as double;
   }
@@ -193,7 +188,6 @@ class Weapon {
     _json['damage'] = value;
   }
 
-  @override
   Category get category {
     return Category(_json['category'] as Map<String, dynamic>);
   }
@@ -262,7 +256,6 @@ class RpgCharacter {
   static const SchemanticType<RpgCharacter> $schema =
       _RpgCharacterTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -271,7 +264,6 @@ class RpgCharacter {
     _json['name'] = value;
   }
 
-  @override
   String get backstory {
     return _json['backstory'] as String;
   }
@@ -280,7 +272,6 @@ class RpgCharacter {
     _json['backstory'] = value;
   }
 
-  @override
   List<Weapon> get weapons {
     return (_json['weapons'] as List)
         .map((e) => Weapon(e as Map<String, dynamic>))
@@ -291,7 +282,6 @@ class RpgCharacter {
     _json['weapons'] = value.toList();
   }
 
-  @override
   String get classType {
     return _json['classType'] as String;
   }
@@ -300,7 +290,6 @@ class RpgCharacter {
     _json['classType'] = value;
   }
 
-  @override
   String? get affiliation {
     return _json['affiliation'] as String?;
   }

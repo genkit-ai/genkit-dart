@@ -81,7 +81,6 @@ class GeminiOptions {
   static const SchemanticType<GeminiOptions> $schema =
       _GeminiOptionsTypeFactory();
 
-  @override
   String? get apiKey {
     return _json['apiKey'] as String?;
   }
@@ -94,7 +93,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   List<SafetySettings>? get safetySettings {
     return (_json['safetySettings'] as List?)
         ?.map((e) => SafetySettings(e as Map<String, dynamic>))
@@ -109,7 +107,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   bool? get codeExecution {
     return _json['codeExecution'] as bool?;
   }
@@ -122,7 +119,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   FunctionCallingConfig? get functionCallingConfig {
     return _json['functionCallingConfig'] == null
         ? null
@@ -139,7 +135,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
@@ -154,7 +149,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -167,7 +161,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   GoogleSearchRetrieval? get googleSearchRetrieval {
     return _json['googleSearchRetrieval'] == null
         ? null
@@ -184,7 +177,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   FileSearch? get fileSearch {
     return _json['fileSearch'] == null
         ? null
@@ -199,7 +191,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -212,7 +203,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -225,7 +215,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -238,7 +227,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   int? get candidateCount {
     return _json['candidateCount'] as int?;
   }
@@ -251,7 +239,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -264,7 +251,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -277,7 +263,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   String? get responseMimeType {
     return _json['responseMimeType'] as String?;
   }
@@ -290,7 +275,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   bool? get responseLogprobs {
     return _json['responseLogprobs'] as bool?;
   }
@@ -303,7 +287,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   int? get logprobs {
     return _json['logprobs'] as int?;
   }
@@ -316,7 +299,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -329,7 +311,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -342,7 +323,6 @@ class GeminiOptions {
     }
   }
 
-  @override
   int? get seed {
     return _json['seed'] as int?;
   }
@@ -435,7 +415,6 @@ class SafetySettings {
   static const SchemanticType<SafetySettings> $schema =
       _SafetySettingsTypeFactory();
 
-  @override
   String? get category {
     return _json['category'] as String?;
   }
@@ -448,7 +427,6 @@ class SafetySettings {
     }
   }
 
-  @override
   String? get threshold {
     return _json['threshold'] as String?;
   }
@@ -535,7 +513,6 @@ class ThinkingConfig {
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
 
-  @override
   bool? get includeThoughts {
     return _json['includeThoughts'] as bool?;
   }
@@ -548,7 +525,6 @@ class ThinkingConfig {
     }
   }
 
-  @override
   int? get thinkingBudget {
     return _json['thinkingBudget'] as int?;
   }
@@ -615,7 +591,6 @@ class FunctionCallingConfig {
   static const SchemanticType<FunctionCallingConfig> $schema =
       _FunctionCallingConfigTypeFactory();
 
-  @override
   String? get mode {
     return _json['mode'] as String?;
   }
@@ -628,7 +603,6 @@ class FunctionCallingConfig {
     }
   }
 
-  @override
   List<String>? get allowedFunctionNames {
     return (_json['allowedFunctionNames'] as List?)?.cast<String>();
   }
@@ -694,7 +668,6 @@ class GoogleSearchRetrieval {
   static const SchemanticType<GoogleSearchRetrieval> $schema =
       _GoogleSearchRetrievalTypeFactory();
 
-  @override
   String? get mode {
     return _json['mode'] as String?;
   }
@@ -707,7 +680,6 @@ class GoogleSearchRetrieval {
     }
   }
 
-  @override
   double? get dynamicThreshold {
     return _json['dynamicThreshold'] as double?;
   }
@@ -769,7 +741,6 @@ class FileSearch {
 
   static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
 
-  @override
   List<String>? get fileSearchStoreNames {
     return (_json['fileSearchStoreNames'] as List?)?.cast<String>();
   }

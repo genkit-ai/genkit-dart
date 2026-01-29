@@ -35,7 +35,6 @@ class MyToolInput {
 
   static const SchemanticType<MyToolInput> $schema = _MyToolInputTypeFactory();
 
-  @override
   String get location {
     return _json['location'] as String;
   }

@@ -68,7 +68,7 @@ Future<void> _runThrowingStreamingFlow() async {
   final streamyThrowy = defineRemoteAction(
     url: '$baseUrl/streamyThrowy',
     outputType: stringType(),
-    streamType: StreamyThrowyChunkType,
+    streamType: StreamyThrowyChunk.$schema,
   );
   try {
     final stream = streamyThrowy.stream(input: 5);
@@ -92,7 +92,7 @@ Future<void> _runObjectFlow() async {
   print('\n--- Object to Object flow ---');
   final processObjectFlow = defineRemoteAction(
     url: '$baseUrl/processObject',
-    outputType: ProcessObjectOutputType,
+    outputType: ProcessObjectOutput.$schema,
   );
   final response = await processObjectFlow(
     input: ProcessObjectInput.from(message: 'Hello Genkit!', count: 20),
@@ -105,8 +105,8 @@ Future<void> _runStreamingFlow() async {
   print('\n--- Stream Objects ---');
   final streamObjectsFlow = defineRemoteAction(
     url: '$baseUrl/streamObjects',
-    outputType: StreamObjectsOutputType,
-    streamType: StreamObjectsOutputType,
+    outputType: StreamObjectsOutput.$schema,
+    streamType: StreamObjectsOutput.$schema,
   );
   final stream = streamObjectsFlow.stream(
     input: StreamObjectsInput.from(prompt: 'What is Genkit?'),
@@ -126,8 +126,8 @@ Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
     url: '$baseUrl/generate',
-    outputType: ModelResponseType,
-    streamType: ModelResponseChunkType,
+    outputType: ModelResponse.$schema,
+    streamType: ModelResponseChunk.$schema,
   );
   final stream = generateFlow.stream(
     input: ModelRequest.from(

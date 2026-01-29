@@ -36,7 +36,6 @@ class TestCustomOptions {
   static const SchemanticType<TestCustomOptions> $schema =
       _TestCustomOptionsTypeFactory();
 
-  @override
   String get customField {
     return _json['customField'] as String;
   }

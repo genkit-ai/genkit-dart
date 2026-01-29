@@ -34,7 +34,6 @@ class TestObject {
 
   static const SchemanticType<TestObject> $schema = _TestObjectTypeFactory();
 
-  @override
   String get foo {
     return _json['foo'] as String;
   }
@@ -43,7 +42,6 @@ class TestObject {
     _json['foo'] = value;
   }
 
-  @override
   int get bar {
     return _json['bar'] as int;
   }

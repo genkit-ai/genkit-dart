@@ -17,29 +17,29 @@ import 'package:schemantic/schemantic.dart';
 part 'types.g.dart';
 
 @Schematic()
-abstract class ProcessObjectInputSchema {
+abstract class $ProcessObjectInput {
   String get message;
   int get count;
 }
 
 @Schematic()
-abstract class ProcessObjectOutputSchema {
+abstract class $ProcessObjectOutput {
   String get reply;
   int get newCount;
 }
 
 @Schematic()
-abstract class StreamObjectsInputSchema {
+abstract class $StreamObjectsInput {
   String get prompt;
 }
 
 @Schematic()
-abstract class StreamObjectsOutputSchema {
+abstract class $StreamObjectsOutput {
   String get text;
   String get summary;
 }
 
 @Schematic()
-abstract class StreamyThrowyChunkSchema {
+abstract class $StreamyThrowyChunk {
   int get count;
 }

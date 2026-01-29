@@ -38,7 +38,6 @@ class Address {
 
   static const SchemanticType<Address> $schema = _AddressTypeFactory();
 
-  @override
   String get street {
     return _json['street'] as String;
   }
@@ -47,7 +46,6 @@ class Address {
     _json['street'] = value;
   }
 
-  @override
   String get city {
     return _json['city'] as String;
   }
@@ -65,7 +63,6 @@ class Address {
   }
 
   // Possible return values are `int`, `String`
-  @override
   Object? get zipCode {
     return _json['zipCode'] as Object?;
   }
@@ -134,7 +131,6 @@ class User {
 
   static const SchemanticType<User> $schema = _UserTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -143,7 +139,6 @@ class User {
     _json['name'] = value;
   }
 
-  @override
   int? get age {
     return _json['years_old'] as int?;
   }
@@ -156,7 +151,6 @@ class User {
     }
   }
 
-  @override
   bool get isAdmin {
     return _json['isAdmin'] as bool;
   }
@@ -165,7 +159,6 @@ class User {
     _json['isAdmin'] = value;
   }
 
-  @override
   Address? get address {
     return _json['address'] == null
         ? null
@@ -245,7 +238,6 @@ class Product {
 
   static const SchemanticType<Product> $schema = _ProductTypeFactory();
 
-  @override
   String get id {
     return _json['id'] as String;
   }
@@ -254,7 +246,6 @@ class Product {
     _json['id'] = value;
   }
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -263,7 +254,6 @@ class Product {
     _json['name'] = value;
   }
 
-  @override
   double get price {
     return _json['price'] as double;
   }
@@ -272,7 +262,6 @@ class Product {
     _json['price'] = value;
   }
 
-  @override
   List<String>? get tags {
     return (_json['tags'] as List?)?.cast<String>();
   }

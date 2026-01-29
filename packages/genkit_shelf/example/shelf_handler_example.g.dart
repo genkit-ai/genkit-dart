@@ -36,7 +36,6 @@ class HandlerInput {
   static const SchemanticType<HandlerInput> $schema =
       _HandlerInputTypeFactory();
 
-  @override
   String get message {
     return _json['message'] as String;
   }
@@ -89,7 +88,6 @@ class HandlerOutput {
   static const SchemanticType<HandlerOutput> $schema =
       _HandlerOutputTypeFactory();
 
-  @override
   String get processedMessage {
     return _json['processedMessage'] as String;
   }

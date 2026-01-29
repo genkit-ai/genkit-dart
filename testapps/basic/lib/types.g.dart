@@ -21,7 +21,10 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ProcessObjectInput implements ProcessObjectInputSchema {
+class ProcessObjectInput {
+  factory ProcessObjectInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   ProcessObjectInput(this._json);
 
   factory ProcessObjectInput.from({
@@ -33,7 +36,9 @@ class ProcessObjectInput implements ProcessObjectInputSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<ProcessObjectInput> $schema =
+      _ProcessObjectInputTypeFactory();
+
   String get message {
     return _json['message'] as String;
   }
@@ -42,7 +47,6 @@ class ProcessObjectInput implements ProcessObjectInputSchema {
     _json['message'] = value;
   }
 
-  @override
   int get count {
     return _json['count'] as int;
   }
@@ -81,10 +85,10 @@ class _ProcessObjectInputTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const ProcessObjectInputType = _ProcessObjectInputTypeFactory();
+class ProcessObjectOutput {
+  factory ProcessObjectOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ProcessObjectOutput implements ProcessObjectOutputSchema {
   ProcessObjectOutput(this._json);
 
   factory ProcessObjectOutput.from({
@@ -96,7 +100,9 @@ class ProcessObjectOutput implements ProcessObjectOutputSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<ProcessObjectOutput> $schema =
+      _ProcessObjectOutputTypeFactory();
+
   String get reply {
     return _json['reply'] as String;
   }
@@ -105,7 +111,6 @@ class ProcessObjectOutput implements ProcessObjectOutputSchema {
     _json['reply'] = value;
   }
 
-  @override
   int get newCount {
     return _json['newCount'] as int;
   }
@@ -144,10 +149,10 @@ class _ProcessObjectOutputTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const ProcessObjectOutputType = _ProcessObjectOutputTypeFactory();
+class StreamObjectsInput {
+  factory StreamObjectsInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class StreamObjectsInput implements StreamObjectsInputSchema {
   StreamObjectsInput(this._json);
 
   factory StreamObjectsInput.from({required String prompt}) {
@@ -156,7 +161,9 @@ class StreamObjectsInput implements StreamObjectsInputSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<StreamObjectsInput> $schema =
+      _StreamObjectsInputTypeFactory();
+
   String get prompt {
     return _json['prompt'] as String;
   }
@@ -195,10 +202,10 @@ class _StreamObjectsInputTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const StreamObjectsInputType = _StreamObjectsInputTypeFactory();
+class StreamObjectsOutput {
+  factory StreamObjectsOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class StreamObjectsOutput implements StreamObjectsOutputSchema {
   StreamObjectsOutput(this._json);
 
   factory StreamObjectsOutput.from({
@@ -210,7 +217,9 @@ class StreamObjectsOutput implements StreamObjectsOutputSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<StreamObjectsOutput> $schema =
+      _StreamObjectsOutputTypeFactory();
+
   String get text {
     return _json['text'] as String;
   }
@@ -219,7 +228,6 @@ class StreamObjectsOutput implements StreamObjectsOutputSchema {
     _json['text'] = value;
   }
 
-  @override
   String get summary {
     return _json['summary'] as String;
   }
@@ -258,10 +266,10 @@ class _StreamObjectsOutputTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const StreamObjectsOutputType = _StreamObjectsOutputTypeFactory();
+class StreamyThrowyChunk {
+  factory StreamyThrowyChunk.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class StreamyThrowyChunk implements StreamyThrowyChunkSchema {
   StreamyThrowyChunk(this._json);
 
   factory StreamyThrowyChunk.from({required int count}) {
@@ -270,7 +278,9 @@ class StreamyThrowyChunk implements StreamyThrowyChunkSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<StreamyThrowyChunk> $schema =
+      _StreamyThrowyChunkTypeFactory();
+
   int get count {
     return _json['count'] as int;
   }
@@ -308,6 +318,3 @@ class _StreamyThrowyChunkTypeFactory
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const StreamyThrowyChunkType = _StreamyThrowyChunkTypeFactory();

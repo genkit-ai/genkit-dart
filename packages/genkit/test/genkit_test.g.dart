@@ -36,7 +36,6 @@ class TestCustomOptions {
   static const SchemanticType<TestCustomOptions> $schema =
       _TestCustomOptionsTypeFactory();
 
-  @override
   String get customField {
     return _json['customField'] as String;
   }
@@ -89,7 +88,6 @@ class TestToolInput {
   static const SchemanticType<TestToolInput> $schema =
       _TestToolInputTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }

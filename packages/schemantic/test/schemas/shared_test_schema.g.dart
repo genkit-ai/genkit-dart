@@ -35,7 +35,6 @@ class SharedChild {
 
   static const SchemanticType<SharedChild> $schema = _SharedChildTypeFactory();
 
-  @override
   String get childId {
     return _json['childId'] as String;
   }
@@ -136,7 +135,6 @@ class TextPart implements Part {
 
   static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
-  @override
   String get text {
     return _json['text'] as String;
   }
@@ -145,7 +143,6 @@ class TextPart implements Part {
     _json['text'] = value;
   }
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -158,7 +155,6 @@ class TextPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -171,7 +167,6 @@ class TextPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }

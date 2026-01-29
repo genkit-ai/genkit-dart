@@ -34,7 +34,6 @@ class HelloInput {
 
   static const SchemanticType<HelloInput> $schema = _HelloInputTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -86,7 +85,6 @@ class HelloOutput {
 
   static const SchemanticType<HelloOutput> $schema = _HelloOutputTypeFactory();
 
-  @override
   String get greeting {
     return _json['greeting'] as String;
   }
@@ -137,7 +135,6 @@ class CountChunk {
 
   static const SchemanticType<CountChunk> $schema = _CountChunkTypeFactory();
 
-  @override
   int get count {
     return _json['count'] as int;
   }

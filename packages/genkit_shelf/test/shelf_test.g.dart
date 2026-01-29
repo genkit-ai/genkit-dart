@@ -36,7 +36,6 @@ class ShelfTestOutput {
   static const SchemanticType<ShelfTestOutput> $schema =
       _ShelfTestOutputTypeFactory();
 
-  @override
   String get greeting {
     return _json['greeting'] as String;
   }
@@ -89,7 +88,6 @@ class ShelfTestStream {
   static const SchemanticType<ShelfTestStream> $schema =
       _ShelfTestStreamTypeFactory();
 
-  @override
   String get chunk {
     return _json['chunk'] as String;
   }

@@ -364,7 +364,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           '// Possible return values are ${types.map((e) => e.toTypeValue()).map((e) => '`$e`').join(', ')}',
         )
         ..type = MethodType.getter
-        ..annotations.add(refer('override'))
         ..returns = refer('Object?')
         ..body = Code("return _json['${_getJsonKey(mainGetter)}'] as Object?;"),
     );
@@ -503,7 +502,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
     return Method(
       (b) => b
-        ..annotations.add(refer('override'))
         ..type = MethodType.getter
         ..name = fieldName
         ..returns = refer(convertedTypeName)

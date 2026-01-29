@@ -34,7 +34,6 @@ class TestInput {
 
   static const SchemanticType<TestInput> $schema = _TestInputTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -85,7 +84,6 @@ class TestOutput {
 
   static const SchemanticType<TestOutput> $schema = _TestOutputTypeFactory();
 
-  @override
   String get greeting {
     return _json['greeting'] as String;
   }

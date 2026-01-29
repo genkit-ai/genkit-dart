@@ -38,7 +38,6 @@ class User {
 
   static const SchemanticType<User> $schema = _UserTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -47,7 +46,6 @@ class User {
     _json['name'] = value;
   }
 
-  @override
   int? get age {
     return _json['age'] as int?;
   }
@@ -60,7 +58,6 @@ class User {
     }
   }
 
-  @override
   bool get isAdmin {
     return _json['isAdmin'] as bool;
   }
@@ -123,7 +120,6 @@ class Group {
 
   static const SchemanticType<Group> $schema = _GroupTypeFactory();
 
-  @override
   String get groupName {
     return _json['groupName'] as String;
   }
@@ -132,7 +128,6 @@ class Group {
     _json['groupName'] = value;
   }
 
-  @override
   List<User> get members {
     return (_json['members'] as List)
         .map((e) => User(e as Map<String, dynamic>))
@@ -143,7 +138,6 @@ class Group {
     _json['members'] = value.toList();
   }
 
-  @override
   User? get leader {
     return _json['leader'] == null
         ? null
@@ -210,7 +204,6 @@ class Node {
 
   static const SchemanticType<Node> $schema = _NodeTypeFactory();
 
-  @override
   String get id {
     return _json['id'] as String;
   }
@@ -219,7 +212,6 @@ class Node {
     _json['id'] = value;
   }
 
-  @override
   List<Node>? get children {
     return (_json['children'] as List?)
         ?.map((e) => Node(e as Map<String, dynamic>))
@@ -289,7 +281,6 @@ class Keyed {
 
   static const SchemanticType<Keyed> $schema = _KeyedTypeFactory();
 
-  @override
   String get originalName {
     return _json['custom_name'] as String;
   }
@@ -298,7 +289,6 @@ class Keyed {
     _json['custom_name'] = value;
   }
 
-  @override
   int? get score {
     return _json['score'] as int?;
   }
@@ -311,7 +301,6 @@ class Keyed {
     }
   }
 
-  @override
   double? get rating {
     return _json['rating'] as double?;
   }
@@ -383,7 +372,6 @@ class Comprehensive {
   static const SchemanticType<Comprehensive> $schema =
       _ComprehensiveTypeFactory();
 
-  @override
   String get stringField {
     return _json['s_field'] as String;
   }
@@ -392,7 +380,6 @@ class Comprehensive {
     _json['s_field'] = value;
   }
 
-  @override
   int get intField {
     return _json['i_field'] as int;
   }
@@ -401,7 +388,6 @@ class Comprehensive {
     _json['i_field'] = value;
   }
 
-  @override
   double get numberField {
     return _json['n_field'] as double;
   }
@@ -478,7 +464,6 @@ class Description {
 
   static const SchemanticType<Description> $schema = _DescriptionTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -532,7 +517,6 @@ class CrossFileParent {
   static const SchemanticType<CrossFileParent> $schema =
       _CrossFileParentTypeFactory();
 
-  @override
   SharedChild get child {
     return SharedChild(_json['child'] as Map<String, dynamic>);
   }

@@ -36,7 +36,6 @@ class TestToolInput {
   static const SchemanticType<TestToolInput> $schema =
       _TestToolInputTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }

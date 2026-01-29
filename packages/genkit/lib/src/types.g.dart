@@ -48,7 +48,6 @@ class Candidate {
 
   static const SchemanticType<Candidate> $schema = _CandidateTypeFactory();
 
-  @override
   double get index {
     return _json['index'] as double;
   }
@@ -57,7 +56,6 @@ class Candidate {
     _json['index'] = value;
   }
 
-  @override
   Message get message {
     return Message(_json['message'] as Map<String, dynamic>);
   }
@@ -66,7 +64,6 @@ class Candidate {
     _json['message'] = value;
   }
 
-  @override
   GenerationUsage? get usage {
     return _json['usage'] == null
         ? null
@@ -81,7 +78,6 @@ class Candidate {
     }
   }
 
-  @override
   FinishReason get finishReason {
     return _json['finishReason'] as FinishReason;
   }
@@ -90,7 +86,6 @@ class Candidate {
     _json['finishReason'] = value;
   }
 
-  @override
   String? get finishMessage {
     return _json['finishMessage'] as String?;
   }
@@ -103,7 +98,6 @@ class Candidate {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -173,7 +167,6 @@ class Message {
 
   static const SchemanticType<Message> $schema = _MessageTypeFactory();
 
-  @override
   Role get role {
     return _json['role'] as Role;
   }
@@ -182,7 +175,6 @@ class Message {
     _json['role'] = value;
   }
 
-  @override
   List<Part> get content {
     return (_json['content'] as List)
         .map((e) => Part(e as Map<String, dynamic>))
@@ -193,7 +185,6 @@ class Message {
     _json['content'] = value.toList();
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -268,7 +259,6 @@ class ToolDefinition {
   static const SchemanticType<ToolDefinition> $schema =
       _ToolDefinitionTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -277,7 +267,6 @@ class ToolDefinition {
     _json['name'] = value;
   }
 
-  @override
   String get description {
     return _json['description'] as String;
   }
@@ -286,7 +275,6 @@ class ToolDefinition {
     _json['description'] = value;
   }
 
-  @override
   dynamic get inputSchema {
     return _json['inputSchema'] as dynamic;
   }
@@ -295,7 +283,6 @@ class ToolDefinition {
     _json['inputSchema'] = value;
   }
 
-  @override
   dynamic get outputSchema {
     return _json['outputSchema'] as dynamic;
   }
@@ -304,7 +291,6 @@ class ToolDefinition {
     _json['outputSchema'] = value;
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -415,7 +401,6 @@ class TextPart implements Part {
 
   static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
-  @override
   String get text {
     return _json['text'] as String;
   }
@@ -424,7 +409,6 @@ class TextPart implements Part {
     _json['text'] = value;
   }
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -437,7 +421,6 @@ class TextPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -450,7 +433,6 @@ class TextPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -522,7 +504,6 @@ class MediaPart implements Part {
 
   static const SchemanticType<MediaPart> $schema = _MediaPartTypeFactory();
 
-  @override
   Media get media {
     return Media(_json['media'] as Map<String, dynamic>);
   }
@@ -531,7 +512,6 @@ class MediaPart implements Part {
     _json['media'] = value;
   }
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -544,7 +524,6 @@ class MediaPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -557,7 +536,6 @@ class MediaPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -631,7 +609,6 @@ class ToolRequestPart implements Part {
   static const SchemanticType<ToolRequestPart> $schema =
       _ToolRequestPartTypeFactory();
 
-  @override
   ToolRequest get toolRequest {
     return ToolRequest(_json['toolRequest'] as Map<String, dynamic>);
   }
@@ -640,7 +617,6 @@ class ToolRequestPart implements Part {
     _json['toolRequest'] = value;
   }
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -653,7 +629,6 @@ class ToolRequestPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -666,7 +641,6 @@ class ToolRequestPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -740,7 +714,6 @@ class ToolResponsePart implements Part {
   static const SchemanticType<ToolResponsePart> $schema =
       _ToolResponsePartTypeFactory();
 
-  @override
   ToolResponse get toolResponse {
     return ToolResponse(_json['toolResponse'] as Map<String, dynamic>);
   }
@@ -749,7 +722,6 @@ class ToolResponsePart implements Part {
     _json['toolResponse'] = value;
   }
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -762,7 +734,6 @@ class ToolResponsePart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -775,7 +746,6 @@ class ToolResponsePart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -845,7 +815,6 @@ class DataPart implements Part {
 
   static const SchemanticType<DataPart> $schema = _DataPartTypeFactory();
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -858,7 +827,6 @@ class DataPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -871,7 +839,6 @@ class DataPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -940,7 +907,6 @@ class CustomPart implements Part {
 
   static const SchemanticType<CustomPart> $schema = _CustomPartTypeFactory();
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -953,7 +919,6 @@ class CustomPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -966,7 +931,6 @@ class CustomPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic> get custom {
     return _json['custom'] as Map<String, dynamic>;
   }
@@ -1035,7 +999,6 @@ class ReasoningPart implements Part {
   static const SchemanticType<ReasoningPart> $schema =
       _ReasoningPartTypeFactory();
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -1048,7 +1011,6 @@ class ReasoningPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -1061,7 +1023,6 @@ class ReasoningPart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -1074,7 +1035,6 @@ class ReasoningPart implements Part {
     }
   }
 
-  @override
   String get reasoning {
     return _json['reasoning'] as String;
   }
@@ -1144,7 +1104,6 @@ class ResourcePart implements Part {
   static const SchemanticType<ResourcePart> $schema =
       _ResourcePartTypeFactory();
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -1157,7 +1116,6 @@ class ResourcePart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -1170,7 +1128,6 @@ class ResourcePart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -1183,7 +1140,6 @@ class ResourcePart implements Part {
     }
   }
 
-  @override
   Map<String, dynamic> get resource {
     return _json['resource'] as Map<String, dynamic>;
   }
@@ -1243,7 +1199,6 @@ class Media {
 
   static const SchemanticType<Media> $schema = _MediaTypeFactory();
 
-  @override
   String? get contentType {
     return _json['contentType'] as String?;
   }
@@ -1256,7 +1211,6 @@ class Media {
     }
   }
 
-  @override
   String get url {
     return _json['url'] as String;
   }
@@ -1318,7 +1272,6 @@ class ToolRequest {
 
   static const SchemanticType<ToolRequest> $schema = _ToolRequestTypeFactory();
 
-  @override
   String? get ref {
     return _json['ref'] as String?;
   }
@@ -1331,7 +1284,6 @@ class ToolRequest {
     }
   }
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -1340,7 +1292,6 @@ class ToolRequest {
     _json['name'] = value;
   }
 
-  @override
   Map<String, dynamic>? get input {
     return _json['input'] as Map<String, dynamic>?;
   }
@@ -1353,7 +1304,6 @@ class ToolRequest {
     }
   }
 
-  @override
   bool? get partial {
     return _json['partial'] as bool?;
   }
@@ -1425,7 +1375,6 @@ class ToolResponse {
   static const SchemanticType<ToolResponse> $schema =
       _ToolResponseTypeFactory();
 
-  @override
   String? get ref {
     return _json['ref'] as String?;
   }
@@ -1438,7 +1387,6 @@ class ToolResponse {
     }
   }
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -1447,7 +1395,6 @@ class ToolResponse {
     _json['name'] = value;
   }
 
-  @override
   dynamic get output {
     return _json['output'] as dynamic;
   }
@@ -1456,7 +1403,6 @@ class ToolResponse {
     _json['output'] = value;
   }
 
-  @override
   List<dynamic>? get content {
     return (_json['content'] as List?)?.cast<dynamic>();
   }
@@ -1528,7 +1474,6 @@ class ModelInfo {
 
   static const SchemanticType<ModelInfo> $schema = _ModelInfoTypeFactory();
 
-  @override
   List<String>? get versions {
     return (_json['versions'] as List?)?.cast<String>();
   }
@@ -1541,7 +1486,6 @@ class ModelInfo {
     }
   }
 
-  @override
   String? get label {
     return _json['label'] as String?;
   }
@@ -1554,7 +1498,6 @@ class ModelInfo {
     }
   }
 
-  @override
   Map<String, dynamic>? get configSchema {
     return _json['configSchema'] as Map<String, dynamic>?;
   }
@@ -1567,7 +1510,6 @@ class ModelInfo {
     }
   }
 
-  @override
   Map<String, dynamic>? get supports {
     return _json['supports'] as Map<String, dynamic>?;
   }
@@ -1580,7 +1522,6 @@ class ModelInfo {
     }
   }
 
-  @override
   String? get stage {
     return _json['stage'] as String?;
   }
@@ -1657,7 +1598,6 @@ class ModelRequest {
   static const SchemanticType<ModelRequest> $schema =
       _ModelRequestTypeFactory();
 
-  @override
   List<Message> get messages {
     return (_json['messages'] as List)
         .map((e) => Message(e as Map<String, dynamic>))
@@ -1668,7 +1608,6 @@ class ModelRequest {
     _json['messages'] = value.toList();
   }
 
-  @override
   Map<String, dynamic>? get config {
     return _json['config'] as Map<String, dynamic>?;
   }
@@ -1681,7 +1620,6 @@ class ModelRequest {
     }
   }
 
-  @override
   List<ToolDefinition>? get tools {
     return (_json['tools'] as List?)
         ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
@@ -1696,7 +1634,6 @@ class ModelRequest {
     }
   }
 
-  @override
   String? get toolChoice {
     return _json['toolChoice'] as String?;
   }
@@ -1709,7 +1646,6 @@ class ModelRequest {
     }
   }
 
-  @override
   OutputConfig? get output {
     return _json['output'] == null
         ? null
@@ -1724,7 +1660,6 @@ class ModelRequest {
     }
   }
 
-  @override
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
         ?.map((e) => DocumentData(e as Map<String, dynamic>))
@@ -1821,7 +1756,6 @@ class ModelResponse {
   static const SchemanticType<ModelResponse> $schema =
       _ModelResponseTypeFactory();
 
-  @override
   Message? get message {
     return _json['message'] == null
         ? null
@@ -1836,7 +1770,6 @@ class ModelResponse {
     }
   }
 
-  @override
   FinishReason get finishReason {
     return _json['finishReason'] as FinishReason;
   }
@@ -1845,7 +1778,6 @@ class ModelResponse {
     _json['finishReason'] = value;
   }
 
-  @override
   String? get finishMessage {
     return _json['finishMessage'] as String?;
   }
@@ -1858,7 +1790,6 @@ class ModelResponse {
     }
   }
 
-  @override
   double? get latencyMs {
     return _json['latencyMs'] as double?;
   }
@@ -1871,7 +1802,6 @@ class ModelResponse {
     }
   }
 
-  @override
   GenerationUsage? get usage {
     return _json['usage'] == null
         ? null
@@ -1886,7 +1816,6 @@ class ModelResponse {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -1899,7 +1828,6 @@ class ModelResponse {
     }
   }
 
-  @override
   Map<String, dynamic>? get raw {
     return _json['raw'] as Map<String, dynamic>?;
   }
@@ -1912,7 +1840,6 @@ class ModelResponse {
     }
   }
 
-  @override
   GenerateRequest? get request {
     return _json['request'] == null
         ? null
@@ -1927,7 +1854,6 @@ class ModelResponse {
     }
   }
 
-  @override
   Operation? get operation {
     return _json['operation'] == null
         ? null
@@ -2013,7 +1939,6 @@ class ModelResponseChunk {
   static const SchemanticType<ModelResponseChunk> $schema =
       _ModelResponseChunkTypeFactory();
 
-  @override
   Role? get role {
     return _json['role'] as Role?;
   }
@@ -2026,7 +1951,6 @@ class ModelResponseChunk {
     }
   }
 
-  @override
   int? get index {
     return _json['index'] as int?;
   }
@@ -2039,7 +1963,6 @@ class ModelResponseChunk {
     }
   }
 
-  @override
   List<Part> get content {
     return (_json['content'] as List)
         .map((e) => Part(e as Map<String, dynamic>))
@@ -2050,7 +1973,6 @@ class ModelResponseChunk {
     _json['content'] = value.toList();
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -2063,7 +1985,6 @@ class ModelResponseChunk {
     }
   }
 
-  @override
   bool? get aggregated {
     return _json['aggregated'] as bool?;
   }
@@ -2145,7 +2066,6 @@ class GenerateRequest {
   static const SchemanticType<GenerateRequest> $schema =
       _GenerateRequestTypeFactory();
 
-  @override
   List<Message> get messages {
     return (_json['messages'] as List)
         .map((e) => Message(e as Map<String, dynamic>))
@@ -2156,7 +2076,6 @@ class GenerateRequest {
     _json['messages'] = value.toList();
   }
 
-  @override
   Map<String, dynamic>? get config {
     return _json['config'] as Map<String, dynamic>?;
   }
@@ -2169,7 +2088,6 @@ class GenerateRequest {
     }
   }
 
-  @override
   List<ToolDefinition>? get tools {
     return (_json['tools'] as List?)
         ?.map((e) => ToolDefinition(e as Map<String, dynamic>))
@@ -2184,7 +2102,6 @@ class GenerateRequest {
     }
   }
 
-  @override
   String? get toolChoice {
     return _json['toolChoice'] as String?;
   }
@@ -2197,7 +2114,6 @@ class GenerateRequest {
     }
   }
 
-  @override
   OutputConfig? get output {
     return _json['output'] == null
         ? null
@@ -2212,7 +2128,6 @@ class GenerateRequest {
     }
   }
 
-  @override
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
         ?.map((e) => DocumentData(e as Map<String, dynamic>))
@@ -2227,7 +2142,6 @@ class GenerateRequest {
     }
   }
 
-  @override
   double? get candidates {
     return _json['candidates'] as double?;
   }
@@ -2334,7 +2248,6 @@ class GenerationUsage {
   static const SchemanticType<GenerationUsage> $schema =
       _GenerationUsageTypeFactory();
 
-  @override
   double? get inputTokens {
     return _json['inputTokens'] as double?;
   }
@@ -2347,7 +2260,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get outputTokens {
     return _json['outputTokens'] as double?;
   }
@@ -2360,7 +2272,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get totalTokens {
     return _json['totalTokens'] as double?;
   }
@@ -2373,7 +2284,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get inputCharacters {
     return _json['inputCharacters'] as double?;
   }
@@ -2386,7 +2296,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get outputCharacters {
     return _json['outputCharacters'] as double?;
   }
@@ -2399,7 +2308,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get inputImages {
     return _json['inputImages'] as double?;
   }
@@ -2412,7 +2320,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get outputImages {
     return _json['outputImages'] as double?;
   }
@@ -2425,7 +2332,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get inputVideos {
     return _json['inputVideos'] as double?;
   }
@@ -2438,7 +2344,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get outputVideos {
     return _json['outputVideos'] as double?;
   }
@@ -2451,7 +2356,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get inputAudioFiles {
     return _json['inputAudioFiles'] as double?;
   }
@@ -2464,7 +2368,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get outputAudioFiles {
     return _json['outputAudioFiles'] as double?;
   }
@@ -2477,7 +2380,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -2490,7 +2392,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get thoughtsTokens {
     return _json['thoughtsTokens'] as double?;
   }
@@ -2503,7 +2404,6 @@ class GenerationUsage {
     }
   }
 
-  @override
   double? get cachedContentTokens {
     return _json['cachedContentTokens'] as double?;
   }
@@ -2587,7 +2487,6 @@ class Operation {
 
   static const SchemanticType<Operation> $schema = _OperationTypeFactory();
 
-  @override
   String? get action {
     return _json['action'] as String?;
   }
@@ -2600,7 +2499,6 @@ class Operation {
     }
   }
 
-  @override
   String get id {
     return _json['id'] as String;
   }
@@ -2609,7 +2507,6 @@ class Operation {
     _json['id'] = value;
   }
 
-  @override
   bool? get done {
     return _json['done'] as bool?;
   }
@@ -2622,7 +2519,6 @@ class Operation {
     }
   }
 
-  @override
   Map<String, dynamic>? get output {
     return _json['output'] as Map<String, dynamic>?;
   }
@@ -2635,7 +2531,6 @@ class Operation {
     }
   }
 
-  @override
   Map<String, dynamic>? get error {
     return _json['error'] as Map<String, dynamic>?;
   }
@@ -2648,7 +2543,6 @@ class Operation {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -2722,7 +2616,6 @@ class OutputConfig {
   static const SchemanticType<OutputConfig> $schema =
       _OutputConfigTypeFactory();
 
-  @override
   String? get format {
     return _json['format'] as String?;
   }
@@ -2735,7 +2628,6 @@ class OutputConfig {
     }
   }
 
-  @override
   Map<String, dynamic>? get schema {
     return _json['schema'] as Map<String, dynamic>?;
   }
@@ -2748,7 +2640,6 @@ class OutputConfig {
     }
   }
 
-  @override
   bool? get constrained {
     return _json['constrained'] as bool?;
   }
@@ -2761,7 +2652,6 @@ class OutputConfig {
     }
   }
 
-  @override
   String? get contentType {
     return _json['contentType'] as String?;
   }
@@ -2829,7 +2719,6 @@ class DocumentData {
   static const SchemanticType<DocumentData> $schema =
       _DocumentDataTypeFactory();
 
-  @override
   List<Part> get content {
     return (_json['content'] as List)
         .map((e) => Part(e as Map<String, dynamic>))
@@ -2840,7 +2729,6 @@ class DocumentData {
     _json['content'] = value.toList();
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -2926,7 +2814,6 @@ class GenerateActionOptions {
   static const SchemanticType<GenerateActionOptions> $schema =
       _GenerateActionOptionsTypeFactory();
 
-  @override
   String? get model {
     return _json['model'] as String?;
   }
@@ -2939,7 +2826,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   List<DocumentData>? get docs {
     return (_json['docs'] as List?)
         ?.map((e) => DocumentData(e as Map<String, dynamic>))
@@ -2954,7 +2840,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   List<Message> get messages {
     return (_json['messages'] as List)
         .map((e) => Message(e as Map<String, dynamic>))
@@ -2965,7 +2850,6 @@ class GenerateActionOptions {
     _json['messages'] = value.toList();
   }
 
-  @override
   List<String>? get tools {
     return (_json['tools'] as List?)?.cast<String>();
   }
@@ -2978,7 +2862,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   String? get toolChoice {
     return _json['toolChoice'] as String?;
   }
@@ -2991,7 +2874,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   Map<String, dynamic>? get config {
     return _json['config'] as Map<String, dynamic>?;
   }
@@ -3004,7 +2886,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   GenerateActionOutputConfig? get output {
     return _json['output'] == null
         ? null
@@ -3019,7 +2900,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   Map<String, dynamic>? get resume {
     return _json['resume'] as Map<String, dynamic>?;
   }
@@ -3032,7 +2912,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   bool? get returnToolRequests {
     return _json['returnToolRequests'] as bool?;
   }
@@ -3045,7 +2924,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   int? get maxTurns {
     return _json['maxTurns'] as int?;
   }
@@ -3058,7 +2936,6 @@ class GenerateActionOptions {
     }
   }
 
-  @override
   String? get stepName {
     return _json['stepName'] as String?;
   }
@@ -3150,7 +3027,6 @@ class GenerateActionOutputConfig {
   static const SchemanticType<GenerateActionOutputConfig> $schema =
       _GenerateActionOutputConfigTypeFactory();
 
-  @override
   String? get format {
     return _json['format'] as String?;
   }
@@ -3163,7 +3039,6 @@ class GenerateActionOutputConfig {
     }
   }
 
-  @override
   String? get contentType {
     return _json['contentType'] as String?;
   }
@@ -3176,7 +3051,6 @@ class GenerateActionOutputConfig {
     }
   }
 
-  @override
   bool? get instructions {
     return _json['instructions'] as bool?;
   }
@@ -3189,7 +3063,6 @@ class GenerateActionOutputConfig {
     }
   }
 
-  @override
   Map<String, dynamic>? get jsonSchema {
     return _json['jsonSchema'] as Map<String, dynamic>?;
   }
@@ -3202,7 +3075,6 @@ class GenerateActionOutputConfig {
     }
   }
 
-  @override
   bool? get constrained {
     return _json['constrained'] as bool?;
   }

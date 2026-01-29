@@ -68,8 +68,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'recipeTransformer',
-    inputType: RecipeType,
-    outputType: RecipeType,
+    inputType: Recipe.$schema,
+    outputType: Recipe.$schema,
     fn: (recipe, context) async {
       final hasSalt = recipe.ingredients.any(
         (i) => i.name.toLowerCase() == 'salt',

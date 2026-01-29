@@ -34,7 +34,6 @@ class Ingredient {
 
   static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -43,7 +42,6 @@ class Ingredient {
     _json['name'] = value;
   }
 
-  @override
   String get quantity {
     return _json['quantity'] as String;
   }
@@ -102,7 +100,6 @@ class Recipe {
 
   static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
 
-  @override
   String get title {
     return _json['title'] as String;
   }
@@ -111,7 +108,6 @@ class Recipe {
     _json['title'] = value;
   }
 
-  @override
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
         .map((e) => Ingredient(e as Map<String, dynamic>))
@@ -122,7 +118,6 @@ class Recipe {
     _json['ingredients'] = value.toList();
   }
 
-  @override
   int get servings {
     return _json['servings'] as int;
   }
@@ -189,7 +184,6 @@ class AnnotatedRecipe {
   static const SchemanticType<AnnotatedRecipe> $schema =
       _AnnotatedRecipeTypeFactory();
 
-  @override
   String get title {
     return _json['title_key_in_json'] as String;
   }
@@ -198,7 +192,6 @@ class AnnotatedRecipe {
     _json['title_key_in_json'] = value;
   }
 
-  @override
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
         .map((e) => Ingredient(e as Map<String, dynamic>))
@@ -209,7 +202,6 @@ class AnnotatedRecipe {
     _json['ingredients'] = value.toList();
   }
 
-  @override
   int get servings {
     return _json['servings'] as int;
   }
@@ -268,7 +260,6 @@ class MealPlan {
 
   static const SchemanticType<MealPlan> $schema = _MealPlanTypeFactory();
 
-  @override
   String get day {
     return _json['day'] as String;
   }
@@ -277,7 +268,6 @@ class MealPlan {
     _json['day'] = value;
   }
 
-  @override
   MealType get mealType {
     return MealType.values.byName(_json['mealType'] as String);
   }
@@ -344,7 +334,6 @@ class NullableFields {
   static const SchemanticType<NullableFields> $schema =
       _NullableFieldsTypeFactory();
 
-  @override
   String? get optionalString {
     return _json['optionalString'] as String?;
   }
@@ -357,7 +346,6 @@ class NullableFields {
     }
   }
 
-  @override
   int? get optionalInt {
     return _json['optionalInt'] as int?;
   }
@@ -370,7 +358,6 @@ class NullableFields {
     }
   }
 
-  @override
   List<String>? get optionalList {
     return (_json['optionalList'] as List?)?.cast<String>();
   }
@@ -383,7 +370,6 @@ class NullableFields {
     }
   }
 
-  @override
   Ingredient? get optionalIngredient {
     return _json['optionalIngredient'] == null
         ? null
@@ -461,7 +447,6 @@ class ComplexObject {
   static const SchemanticType<ComplexObject> $schema =
       _ComplexObjectTypeFactory();
 
-  @override
   String get id {
     return _json['id'] as String;
   }
@@ -470,7 +455,6 @@ class ComplexObject {
     _json['id'] = value;
   }
 
-  @override
   DateTime get createdAt {
     return DateTime.parse(_json['createdAt'] as String);
   }
@@ -479,7 +463,6 @@ class ComplexObject {
     _json['createdAt'] = value.toIso8601String();
   }
 
-  @override
   double get price {
     return _json['price'] as double;
   }
@@ -488,7 +471,6 @@ class ComplexObject {
     _json['price'] = value;
   }
 
-  @override
   Map<String, String> get metadata {
     return _json['metadata'] as Map<String, String>;
   }
@@ -497,7 +479,6 @@ class ComplexObject {
     _json['metadata'] = value;
   }
 
-  @override
   List<int> get ratings {
     return (_json['ratings'] as List).cast<int>();
   }
@@ -506,7 +487,6 @@ class ComplexObject {
     _json['ratings'] = value;
   }
 
-  @override
   NullableFields? get nestedNullable {
     return _json['nestedNullable'] == null
         ? null
@@ -579,7 +559,6 @@ class Menu {
 
   static const SchemanticType<Menu> $schema = _MenuTypeFactory();
 
-  @override
   List<Recipe> get recipes {
     return (_json['recipes'] as List)
         .map((e) => Recipe(e as Map<String, dynamic>))
@@ -590,7 +569,6 @@ class Menu {
     _json['recipes'] = value.toList();
   }
 
-  @override
   List<Ingredient>? get optionalIngredients {
     return (_json['optionalIngredients'] as List?)
         ?.map((e) => Ingredient(e as Map<String, dynamic>))

@@ -21,7 +21,9 @@ part of 'simple_flow_types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Ingredient implements IngredientSchema {
+class Ingredient {
+  factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   Ingredient(this._json);
 
   factory Ingredient.from({required String name, required String quantity}) {
@@ -30,7 +32,8 @@ class Ingredient implements IngredientSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
+
   String get name {
     return _json['name'] as String;
   }
@@ -39,7 +42,6 @@ class Ingredient implements IngredientSchema {
     _json['name'] = value;
   }
 
-  @override
   String get quantity {
     return _json['quantity'] as String;
   }
@@ -77,10 +79,9 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   );
 }
 
-// ignore: constant_identifier_names
-const IngredientType = _IngredientTypeFactory();
+class Recipe {
+  factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Recipe implements RecipeSchema {
   Recipe(this._json);
 
   factory Recipe.from({
@@ -97,7 +98,8 @@ class Recipe implements RecipeSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
+
   String get title {
     return _json['title'] as String;
   }
@@ -106,7 +108,6 @@ class Recipe implements RecipeSchema {
     _json['title'] = value;
   }
 
-  @override
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
         .map((e) => Ingredient(e as Map<String, dynamic>))
@@ -117,7 +118,6 @@ class Recipe implements RecipeSchema {
     _json['ingredients'] = value.toList();
   }
 
-  @override
   int get servings {
     return _json['servings'] as int;
   }
@@ -157,9 +157,6 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
       },
       required: ['title', 'ingredients', 'servings'],
     ),
-    dependencies: [IngredientType],
+    dependencies: [Ingredient.$schema],
   );
 }
-
-// ignore: constant_identifier_names
-const RecipeType = _RecipeTypeFactory();

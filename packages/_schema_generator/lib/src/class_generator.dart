@@ -79,7 +79,7 @@ class ClassGenerator {
     b.body.add(
       Class((c) {
         c
-          ..name = '\$${className}'
+          ..name = '\$$className'
           ..abstract = true
           ..annotations.add(refer('Schematic').call([]));
 
@@ -136,7 +136,7 @@ class ClassGenerator {
     b.body.add(
       Class((c) {
         c
-          ..name = '\$${className}'
+          ..name = '\$$className'
           ..abstract = true
           ..annotations.add(refer('Schematic').call([]));
         if (extend != null) {
@@ -158,7 +158,7 @@ class ClassGenerator {
             b,
             subclassName,
             subclassSchema,
-            extend: refer('\$${className}'),
+            extend: refer('\$$className'),
           );
         }
       }
@@ -271,7 +271,7 @@ class ClassGenerator {
             def.containsKey('enum')) {
           return refer(newName);
         }
-        return refer('\$${newName}');
+        return refer('\$$newName');
       }
       dynamic current = definitions;
       for (var i = 2; i < parts.length; i++) {
@@ -296,7 +296,7 @@ class ClassGenerator {
           def.containsKey('enum')) {
         return refer(newName);
       }
-      return refer('\$${newName}');
+      return refer('\$$newName');
     }
     return refer('dynamic');
   }

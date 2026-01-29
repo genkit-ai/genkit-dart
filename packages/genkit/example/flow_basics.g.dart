@@ -34,7 +34,6 @@ class Subject {
 
   static const SchemanticType<Subject> $schema = _SubjectTypeFactory();
 
-  @override
   String get subject {
     return _json['subject'] as String;
   }
@@ -85,7 +84,6 @@ class Count {
 
   static const SchemanticType<Count> $schema = _CountTypeFactory();
 
-  @override
   int get count {
     return _json['count'] as int;
   }

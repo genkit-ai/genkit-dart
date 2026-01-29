@@ -59,8 +59,8 @@ void main() async {
 
   final processObject = ai.defineFlow(
     name: 'processObject',
-    inputType: ProcessObjectInputType,
-    outputType: ProcessObjectOutputType,
+    inputType: ProcessObjectInput.$schema,
+    outputType: ProcessObjectOutput.$schema,
     fn: (input, _) async {
       return ProcessObjectOutput.from(
         reply: 'reply: ${input.message}',
@@ -71,9 +71,9 @@ void main() async {
 
   final streamObjects = ai.defineFlow(
     name: 'streamObjects',
-    inputType: StreamObjectsInputType,
-    outputType: StreamObjectsOutputType,
-    streamType: StreamObjectsOutputType,
+    inputType: StreamObjectsInput.$schema,
+    outputType: StreamObjectsOutput.$schema,
+    streamType: StreamObjectsOutput.$schema,
     fn: (input, context) async {
       for (var i = 0; i < 5; i++) {
         context.sendChunk(
@@ -95,9 +95,9 @@ void main() async {
     // The JS example takes MessageSchema[] and returns GenerateResponseSchema.
     // In Dart we can just use the ModelRequest/Response types or rely on JSON.
     // However, defining a flow that mocks 'ai.generate' behavior:
-    inputType: ModelRequestType,
-    outputType: ModelResponseType,
-    streamType: ModelResponseChunkType,
+    inputType: ModelRequest.$schema,
+    outputType: ModelResponse.$schema,
+    streamType: ModelResponseChunk.$schema,
     fn: (request, context) async {
       // Calling the model directly.
       final response = await ai.generate(
@@ -115,7 +115,7 @@ void main() async {
     name: 'streamyThrowy',
     inputType: intType(),
     outputType: stringType(),
-    streamType: StreamyThrowyChunkType,
+    streamType: StreamyThrowyChunk.$schema,
     fn: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
