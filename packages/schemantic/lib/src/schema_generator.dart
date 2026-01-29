@@ -133,7 +133,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     // inherit the `json` field.
     final isSubclass = _implementsAnnotatedType(element);
     return Class((b) {
-      b..name = baseName;
+      b.name = baseName;
 
       b.fields.add(
         Field((f) {
