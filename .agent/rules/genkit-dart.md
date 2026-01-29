@@ -44,7 +44,7 @@ Using `schemantic` package (see packages/schemantic). Define schemas using the `
 ```dart
 import 'package:schemantic/schemantic.dart';
 
-part 'my_file.g.dart';
+part 'my_file.schema.g.dart';
 
 @Schematic()
 abstract class MyObjSchema {

@@ -17,7 +17,7 @@ import 'package:genkit/lite.dart' as lite;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'example.g.dart';
+part 'example.schema.g.dart';
 
 // --- Schemas for Tool Calling Example ---
 

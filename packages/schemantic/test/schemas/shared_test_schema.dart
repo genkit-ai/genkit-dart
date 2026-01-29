@@ -14,7 +14,7 @@
 
 import 'package:schemantic/schemantic.dart';
 
-part 'shared_test_schema.g.dart';
+part 'shared_test_schema.schema.g.dart';
 
 @Schematic()
 abstract class SharedChildSchema {

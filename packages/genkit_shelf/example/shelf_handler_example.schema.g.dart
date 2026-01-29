@@ -1,3 +1,4 @@
+// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,28 +16,28 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'genkit_test.dart';
+part of 'shelf_handler_example.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions implements TestCustomOptionsSchema {
-  TestCustomOptions(this._json);
+class HandlerInput implements HandlerInputSchema {
+  HandlerInput(this._json);
 
-  factory TestCustomOptions.from({required String customField}) {
-    return TestCustomOptions({'customField': customField});
+  factory HandlerInput.from({required String message}) {
+    return HandlerInput({'message': message});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get customField {
-    return _json['customField'] as String;
+  String get message {
+    return _json['message'] as String;
   }
 
-  set customField(String value) {
-    _json['customField'] = value;
+  set message(String value) {
+    _json['message'] = value;
   }
 
   @override
@@ -49,44 +50,44 @@ class TestCustomOptions implements TestCustomOptionsSchema {
   }
 }
 
-class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
-  const _TestCustomOptionsTypeFactory();
+class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
+  const _HandlerInputTypeFactory();
 
   @override
-  TestCustomOptions parse(Object? json) {
-    return TestCustomOptions(json as Map<String, dynamic>);
+  HandlerInput parse(Object? json) {
+    return HandlerInput(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TestCustomOptions',
+    name: 'HandlerInput',
     definition: Schema.object(
-      properties: {'customField': Schema.string()},
-      required: ['customField'],
+      properties: {'message': Schema.string()},
+      required: ['message'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const TestCustomOptionsType = _TestCustomOptionsTypeFactory();
+const HandlerInputType = _HandlerInputTypeFactory();
 
-class TestToolInput implements TestToolInputSchema {
-  TestToolInput(this._json);
+class HandlerOutput implements HandlerOutputSchema {
+  HandlerOutput(this._json);
 
-  factory TestToolInput.from({required String name}) {
-    return TestToolInput({'name': name});
+  factory HandlerOutput.from({required String processedMessage}) {
+    return HandlerOutput({'processedMessage': processedMessage});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get name {
-    return _json['name'] as String;
+  String get processedMessage {
+    return _json['processedMessage'] as String;
   }
 
-  set name(String value) {
-    _json['name'] = value;
+  set processedMessage(String value) {
+    _json['processedMessage'] = value;
   }
 
   @override
@@ -99,24 +100,24 @@ class TestToolInput implements TestToolInputSchema {
   }
 }
 
-class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
-  const _TestToolInputTypeFactory();
+class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
+  const _HandlerOutputTypeFactory();
 
   @override
-  TestToolInput parse(Object? json) {
-    return TestToolInput(json as Map<String, dynamic>);
+  HandlerOutput parse(Object? json) {
+    return HandlerOutput(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TestToolInput',
+    name: 'HandlerOutput',
     definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
+      properties: {'processedMessage': Schema.string()},
+      required: ['processedMessage'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const TestToolInputType = _TestToolInputTypeFactory();
+const HandlerOutputType = _HandlerOutputTypeFactory();

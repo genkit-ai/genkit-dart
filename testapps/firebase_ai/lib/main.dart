@@ -26,7 +26,7 @@ import 'package:record/record.dart';
 import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'main.g.dart';
+part 'main.schema.g.dart';
 
 @Schematic()
 abstract class WeatherToolInputSchema {

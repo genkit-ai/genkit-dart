@@ -20,7 +20,7 @@ import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 import 'schemas/shared_test_schema.dart';
 
-part 'integration_test.g.dart';
+part 'integration_test.schema.g.dart';
 
 @Schematic()
 abstract class UserSchema {

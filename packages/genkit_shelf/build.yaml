@@ -2,7 +2,7 @@
 targets:
   $default:
     builders:
-      source_gen|combining_builder:
+      schemantic:
         options:
           header: |-
             // Copyright 2025 Google LLC

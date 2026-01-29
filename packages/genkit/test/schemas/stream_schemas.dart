@@ -14,7 +14,7 @@
 
 import 'package:json_annotation/json_annotation.dart';
 
-part 'stream_schemas.g.dart';
+part 'stream_schemas.schema.g.dart';
 
 @JsonSerializable()
 class StreamInput {

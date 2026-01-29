@@ -28,7 +28,7 @@ void main() async {
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 
-part 'main.g.dart';
+part 'main.schema.g.dart';
 
 @Schematic()
 abstract class WeatherToolInputSchema {

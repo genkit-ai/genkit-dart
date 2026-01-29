@@ -1,3 +1,4 @@
+// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +13,64 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// GENERATED CODE - DO NOT MODIFY BY HAND
-// dart format width=80
+// GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
+// To regenerate, run `dart run build_runner build -d`
 
-part of 'generate_test.dart';
+part of 'genkit_test.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
+
+class TestCustomOptions implements TestCustomOptionsSchema {
+  TestCustomOptions(this._json);
+
+  factory TestCustomOptions.from({required String customField}) {
+    return TestCustomOptions({'customField': customField});
+  }
+
+  Map<String, dynamic> _json;
+
+  @override
+  String get customField {
+    return _json['customField'] as String;
+  }
+
+  set customField(String value) {
+    _json['customField'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
+  const _TestCustomOptionsTypeFactory();
+
+  @override
+  TestCustomOptions parse(Object? json) {
+    return TestCustomOptions(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestCustomOptions',
+    definition: Schema.object(
+      properties: {'customField': Schema.string()},
+      required: ['customField'],
+    ),
+    dependencies: [],
+  );
+}
+
+// ignore: constant_identifier_names
+const TestCustomOptionsType = _TestCustomOptionsTypeFactory();
 
 class TestToolInput implements TestToolInputSchema {
   TestToolInput(this._json);

@@ -16,28 +16,28 @@
 // GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
 // To regenerate, run `dart run build_runner build -d`
 
-part of 'main.dart';
+part of 'generate_test.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherToolInput implements WeatherToolInputSchema {
-  WeatherToolInput(this._json);
+class TestToolInput implements TestToolInputSchema {
+  TestToolInput(this._json);
 
-  factory WeatherToolInput.from({required String location}) {
-    return WeatherToolInput({'location': location});
+  factory TestToolInput.from({required String name}) {
+    return TestToolInput({'name': name});
   }
 
   Map<String, dynamic> _json;
 
   @override
-  String get location {
-    return _json['location'] as String;
+  String get name {
+    return _json['name'] as String;
   }
 
-  set location(String value) {
-    _json['location'] = value;
+  set name(String value) {
+    _json['name'] = value;
   }
 
   @override
@@ -50,24 +50,24 @@ class WeatherToolInput implements WeatherToolInputSchema {
   }
 }
 
-class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
-  const _WeatherToolInputTypeFactory();
+class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
+  const _TestToolInputTypeFactory();
 
   @override
-  WeatherToolInput parse(Object? json) {
-    return WeatherToolInput(json as Map<String, dynamic>);
+  TestToolInput parse(Object? json) {
+    return TestToolInput(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'WeatherToolInput',
+    name: 'TestToolInput',
     definition: Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
+      properties: {'name': Schema.string()},
+      required: ['name'],
     ),
     dependencies: [],
   );
 }
 
 // ignore: constant_identifier_names
-const WeatherToolInputType = _WeatherToolInputTypeFactory();
+const TestToolInputType = _TestToolInputTypeFactory();

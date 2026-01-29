@@ -17,7 +17,7 @@ import 'package:genkit/src/types.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
-part 'model_test.g.dart';
+part 'model_test.schema.g.dart';
 
 @Schematic()
 abstract class TestCustomOptionsSchema {

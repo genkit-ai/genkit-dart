@@ -8,10 +8,12 @@ environment:
 workspace:
   - packages/_schema_generator
   - packages/genkit
+  - packages/genkit_firebase_ai
   - packages/genkit_google_genai
   - packages/genkit_shelf
   - packages/schemantic
   - testapps/basic
+  - testapps/firebase_ai
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0

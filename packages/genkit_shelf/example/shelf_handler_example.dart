@@ -22,7 +22,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
-part 'shelf_handler_example.g.dart';
+part 'shelf_handler_example.schema.g.dart';
 
 @Schematic()
 abstract class HandlerInputSchema {

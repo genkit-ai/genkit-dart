@@ -1,8 +1,7 @@
 name: firebase_ai_testapp
 description: "A new Flutter project."
 publish_to: 'none'
-
-version: 1.0.0+1
+resolution: workspace
 
 environment:
   sdk: ^3.10.0
@@ -33,12 +32,3 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-
-
-dependency_overrides:
-  genkit:
-    path: ../../packages/genkit
-  genkit_firebase_ai:
-    path: ../../packages/genkit_firebase_ai
-  schemantic:
-    path: ../../packages/schemantic

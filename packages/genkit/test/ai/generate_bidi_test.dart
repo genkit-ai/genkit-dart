@@ -18,7 +18,7 @@ import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
-part 'generate_bidi_test.g.dart';
+part 'generate_bidi_test.schema.g.dart';
 
 @Schematic()
 abstract class MyToolInputSchema {

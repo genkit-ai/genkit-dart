@@ -19,6 +19,6 @@ import 'src/schema_generator.dart';
 
 Builder schemaBuilder(BuilderOptions options) => PartBuilder(
   [SchemaGenerator()],
-  '.g.dart',
+  '.schema.g.dart',
   header: options.config['header'] as String?,
 );

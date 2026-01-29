@@ -20,7 +20,7 @@ import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'genkit_firebase_ai.g.dart';
+part 'genkit_firebase_ai.schema.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
