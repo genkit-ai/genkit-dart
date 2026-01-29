@@ -19,24 +19,24 @@ import 'package:schemantic/schemantic.dart';
 part 'types.g.dart';
 
 @Schematic()
-abstract class CandidateSchema {
+abstract class $Candidate {
   double get index;
-  MessageSchema get message;
-  GenerationUsageSchema? get usage;
+  $Message get message;
+  $GenerationUsage? get usage;
   FinishReason get finishReason;
   String? get finishMessage;
   Map<String, dynamic>? get custom;
 }
 
 @Schematic()
-abstract class MessageSchema {
+abstract class $Message {
   Role get role;
-  List<PartSchema> get content;
+  List<$Part> get content;
   Map<String, dynamic>? get metadata;
 }
 
 @Schematic()
-abstract class ToolDefinitionSchema {
+abstract class $ToolDefinition {
   String get name;
   String get description;
   dynamic get inputSchema;
@@ -45,10 +45,10 @@ abstract class ToolDefinitionSchema {
 }
 
 @Schematic()
-abstract class PartSchema {}
+abstract class $Part {}
 
 @Schematic()
-abstract class TextPartSchema implements PartSchema {
+abstract class $TextPart implements $Part {
   String get text;
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
@@ -56,45 +56,45 @@ abstract class TextPartSchema implements PartSchema {
 }
 
 @Schematic()
-abstract class MediaPartSchema implements PartSchema {
-  MediaSchema get media;
+abstract class $MediaPart implements $Part {
+  $Media get media;
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic>? get custom;
 }
 
 @Schematic()
-abstract class ToolRequestPartSchema implements PartSchema {
-  ToolRequestSchema get toolRequest;
+abstract class $ToolRequestPart implements $Part {
+  $ToolRequest get toolRequest;
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic>? get custom;
 }
 
 @Schematic()
-abstract class ToolResponsePartSchema implements PartSchema {
-  ToolResponseSchema get toolResponse;
+abstract class $ToolResponsePart implements $Part {
+  $ToolResponse get toolResponse;
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic>? get custom;
 }
 
 @Schematic()
-abstract class DataPartSchema implements PartSchema {
+abstract class $DataPart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic>? get custom;
 }
 
 @Schematic()
-abstract class CustomPartSchema implements PartSchema {
+abstract class $CustomPart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic> get custom;
 }
 
 @Schematic()
-abstract class ReasoningPartSchema implements PartSchema {
+abstract class $ReasoningPart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic>? get custom;
@@ -102,7 +102,7 @@ abstract class ReasoningPartSchema implements PartSchema {
 }
 
 @Schematic()
-abstract class ResourcePartSchema implements PartSchema {
+abstract class $ResourcePart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic>? get custom;
@@ -110,13 +110,13 @@ abstract class ResourcePartSchema implements PartSchema {
 }
 
 @Schematic()
-abstract class MediaSchema {
+abstract class $Media {
   String? get contentType;
   String get url;
 }
 
 @Schematic()
-abstract class ToolRequestSchema {
+abstract class $ToolRequest {
   String? get ref;
   String get name;
   Map<String, dynamic>? get input;
@@ -124,7 +124,7 @@ abstract class ToolRequestSchema {
 }
 
 @Schematic()
-abstract class ToolResponseSchema {
+abstract class $ToolResponse {
   String? get ref;
   String get name;
   dynamic get output;
@@ -132,7 +132,7 @@ abstract class ToolResponseSchema {
 }
 
 @Schematic()
-abstract class ModelInfoSchema {
+abstract class $ModelInfo {
   List<String>? get versions;
   String? get label;
   Map<String, dynamic>? get configSchema;
@@ -141,50 +141,50 @@ abstract class ModelInfoSchema {
 }
 
 @Schematic()
-abstract class ModelRequestSchema {
-  List<MessageSchema> get messages;
+abstract class $ModelRequest {
+  List<$Message> get messages;
   Map<String, dynamic>? get config;
-  List<ToolDefinitionSchema>? get tools;
+  List<$ToolDefinition>? get tools;
   String? get toolChoice;
-  OutputConfigSchema? get output;
-  List<DocumentDataSchema>? get docs;
+  $OutputConfig? get output;
+  List<$DocumentData>? get docs;
 }
 
 @Schematic()
-abstract class ModelResponseSchema {
-  MessageSchema? get message;
+abstract class $ModelResponse {
+  $Message? get message;
   FinishReason get finishReason;
   String? get finishMessage;
   double? get latencyMs;
-  GenerationUsageSchema? get usage;
+  $GenerationUsage? get usage;
   Map<String, dynamic>? get custom;
   Map<String, dynamic>? get raw;
-  GenerateRequestSchema? get request;
-  OperationSchema? get operation;
+  $GenerateRequest? get request;
+  $Operation? get operation;
 }
 
 @Schematic()
-abstract class ModelResponseChunkSchema {
+abstract class $ModelResponseChunk {
   Role? get role;
   int? get index;
-  List<PartSchema> get content;
+  List<$Part> get content;
   Map<String, dynamic>? get custom;
   bool? get aggregated;
 }
 
 @Schematic()
-abstract class GenerateRequestSchema {
-  List<MessageSchema> get messages;
+abstract class $GenerateRequest {
+  List<$Message> get messages;
   Map<String, dynamic>? get config;
-  List<ToolDefinitionSchema>? get tools;
+  List<$ToolDefinition>? get tools;
   String? get toolChoice;
-  OutputConfigSchema? get output;
-  List<DocumentDataSchema>? get docs;
+  $OutputConfig? get output;
+  List<$DocumentData>? get docs;
   double? get candidates;
 }
 
 @Schematic()
-abstract class GenerationUsageSchema {
+abstract class $GenerationUsage {
   double? get inputTokens;
   double? get outputTokens;
   double? get totalTokens;
@@ -202,7 +202,7 @@ abstract class GenerationUsageSchema {
 }
 
 @Schematic()
-abstract class OperationSchema {
+abstract class $Operation {
   String? get action;
   String get id;
   bool? get done;
@@ -212,7 +212,7 @@ abstract class OperationSchema {
 }
 
 @Schematic()
-abstract class OutputConfigSchema {
+abstract class $OutputConfig {
   String? get format;
   Map<String, dynamic>? get schema;
   bool? get constrained;
@@ -235,20 +235,20 @@ extension type Role(String value) {
 }
 
 @Schematic()
-abstract class DocumentDataSchema {
-  List<PartSchema> get content;
+abstract class $DocumentData {
+  List<$Part> get content;
   Map<String, dynamic>? get metadata;
 }
 
 @Schematic()
-abstract class GenerateActionOptionsSchema {
+abstract class $GenerateActionOptions {
   String? get model;
-  List<DocumentDataSchema>? get docs;
-  List<MessageSchema> get messages;
+  List<$DocumentData>? get docs;
+  List<$Message> get messages;
   List<String>? get tools;
   String? get toolChoice;
   Map<String, dynamic>? get config;
-  GenerateActionOutputConfigSchema? get output;
+  $GenerateActionOutputConfig? get output;
   Map<String, dynamic>? get resume;
   bool? get returnToolRequests;
   int? get maxTurns;
@@ -256,7 +256,7 @@ abstract class GenerateActionOptionsSchema {
 }
 
 @Schematic()
-abstract class GenerateActionOutputConfigSchema {
+abstract class $GenerateActionOutputConfig {
   String? get format;
   String? get contentType;
   bool? get instructions;

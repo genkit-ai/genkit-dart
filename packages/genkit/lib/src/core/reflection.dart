@@ -288,10 +288,10 @@ class ReflectionServer {
         'name': action.name,
         'description': action.metadata['description'],
         'metadata': action.metadata,
-        if (action.inputType != null)
-          'inputSchema': toJsonSchema(type: action.inputType),
-        if (action.outputType != null)
-          'outputSchema': toJsonSchema(type: action.outputType),
+        if (action.inputSchema != null)
+          'inputSchema': toJsonSchema(type: action.inputSchema),
+        if (action.outputSchema != null)
+          'outputSchema': toJsonSchema(type: action.outputSchema),
       };
     }
     request.response

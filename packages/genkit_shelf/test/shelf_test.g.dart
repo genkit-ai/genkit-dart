@@ -21,7 +21,10 @@ part of 'shelf_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ShelfTestOutput implements ShelfTestOutputSchema {
+class ShelfTestOutput {
+  factory ShelfTestOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   ShelfTestOutput(this._json);
 
   factory ShelfTestOutput.from({required String greeting}) {
@@ -29,6 +32,9 @@ class ShelfTestOutput implements ShelfTestOutputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ShelfTestOutput> $schema =
+      _ShelfTestOutputTypeFactory();
 
   @override
   String get greeting {
@@ -68,10 +74,10 @@ class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
   );
 }
 
-// ignore: constant_identifier_names
-const ShelfTestOutputType = _ShelfTestOutputTypeFactory();
+class ShelfTestStream {
+  factory ShelfTestStream.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ShelfTestStream implements ShelfTestStreamSchema {
   ShelfTestStream(this._json);
 
   factory ShelfTestStream.from({required String chunk}) {
@@ -79,6 +85,9 @@ class ShelfTestStream implements ShelfTestStreamSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ShelfTestStream> $schema =
+      _ShelfTestStreamTypeFactory();
 
   @override
   String get chunk {
@@ -117,6 +126,3 @@ class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const ShelfTestStreamType = _ShelfTestStreamTypeFactory();

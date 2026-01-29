@@ -22,12 +22,12 @@ import 'package:schemantic/schemantic.dart';
 part 'flow_basics.g.dart';
 
 @Schematic()
-abstract class SubjectSchema {
+abstract class $Subject {
   String get subject;
 }
 
 @Schematic()
-abstract class CountSchema {
+abstract class $Count {
   int get count;
 }
 
@@ -66,7 +66,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'withInputSchema',
-    inputType: SubjectType,
+    inputType: Subject.$schema,
     outputType: stringType(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
@@ -81,7 +81,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'withListInputSchema',
-    inputType: listType(SubjectType),
+    inputType: listType(Subject.$schema),
     outputType: stringType(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
@@ -96,7 +96,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'withContext',
-    inputType: SubjectType,
+    inputType: Subject.$schema,
     outputType: stringType(),
     fn: (input, context) async {
       return 'subject: ${input.subject}, context: ${jsonEncode(context.context)}';
@@ -108,7 +108,7 @@ void main() async {
     name: 'streamy',
     inputType: intType(),
     outputType: stringType(),
-    streamType: CountType,
+    streamType: Count.$schema,
     fn: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
@@ -124,7 +124,7 @@ void main() async {
     name: 'streamyThrowy',
     inputType: intType(),
     outputType: stringType(),
-    streamType: CountType,
+    streamType: Count.$schema,
     fn: (count, context) async {
       var i = 0;
       for (; i < count; i++) {

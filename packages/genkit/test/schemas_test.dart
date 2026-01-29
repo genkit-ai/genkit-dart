@@ -140,7 +140,7 @@ void main() {
   group('Part Deserialization', () {
     test('deserializes TextPart', () {
       final json = {'text': 'hello'};
-      final part = PartType.parse(json);
+      final part = Part.$schema.parse(json);
       expect(part.text, 'hello');
     });
 
@@ -148,7 +148,7 @@ void main() {
       final json = {
         'media': {'url': 'http://example.com/image.png'},
       };
-      final part = PartType.parse(json);
+      final part = Part.$schema.parse(json);
       expect(part.media!.url, 'http://example.com/image.png');
     });
 
@@ -156,7 +156,7 @@ void main() {
       final json = {
         'toolRequest': {'name': 'testTool'},
       };
-      final part = PartType.parse(json);
+      final part = Part.$schema.parse(json);
       expect(part, isA<Part>());
       expect(part.isToolRequest, isTrue);
       expect(part.toolRequest!.name, 'testTool');
@@ -166,7 +166,7 @@ void main() {
       final json = {
         'toolResponse': {'name': 'testTool'},
       };
-      final part = PartType.parse(json);
+      final part = Part.$schema.parse(json);
       expect(part, isA<Part>());
       expect(part.isToolResponse, isTrue);
       expect(part.toolResponse!.name, 'testTool');

@@ -140,7 +140,9 @@ void main() async {
   print('\n--- Dynamic Types ---');
 
   // List of Strings
-  final stringList = listType(User.$schema); // UserType is generated so it's fine
+  final stringList = listType(
+    User.$schema,
+  ); // UserType is generated so it's fine
   final parsedList = stringList.parse([
     {'name': 'Alice', 'isAdmin': true},
     {'name': 'Bob', 'isAdmin': false},

@@ -21,7 +21,7 @@ import 'package:test/test.dart';
 part 'generate_bidi_test.g.dart';
 
 @Schematic()
-abstract class MyToolInputSchema {
+abstract class $MyToolInput {
   String get location;
 }
 
@@ -44,7 +44,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'Get weather',
-        inputType: MyToolInputType,
+        inputType: MyToolInput.$schema,
         fn: (input, context) async {
           return 'Sunny in ${input.location}';
         },

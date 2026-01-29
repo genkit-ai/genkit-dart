@@ -79,7 +79,7 @@ class ClassGenerator {
     b.body.add(
       Class((c) {
         c
-          ..name = '${className}Schema'
+          ..name = '\$${className}'
           ..abstract = true
           ..annotations.add(refer('Schematic').call([]));
 
@@ -136,7 +136,7 @@ class ClassGenerator {
     b.body.add(
       Class((c) {
         c
-          ..name = '${className}Schema'
+          ..name = '\$${className}'
           ..abstract = true
           ..annotations.add(refer('Schematic').call([]));
         if (extend != null) {
@@ -158,7 +158,7 @@ class ClassGenerator {
             b,
             subclassName,
             subclassSchema,
-            extend: refer('${className}Schema'),
+            extend: refer('\$${className}'),
           );
         }
       }
@@ -249,14 +249,14 @@ class ClassGenerator {
       'boolean' => refer('bool'),
       'array' => _mapArrayType(parentType, schema),
       'object' => refer('Map<String, dynamic>'),
-      _ => refer('dynamic')
+      _ => refer('dynamic'),
     };
   }
 
   Reference _mapRefType(String parentType, Map<String, dynamic> schema) {
     final ref = schema['\$ref'] as String;
     if (ref == '#/\$defs/DocumentPart') {
-      return refer('PartSchema');
+      return refer(r'$Part');
     }
     final parts = ref.split('/');
     if (parts.length > 2 && parts[0] == '#' && parts[1] == '\$defs') {
@@ -271,7 +271,7 @@ class ClassGenerator {
             def.containsKey('enum')) {
           return refer(newName);
         }
-        return refer('${newName}Schema');
+        return refer('\$${newName}');
       }
       dynamic current = definitions;
       for (var i = 2; i < parts.length; i++) {
@@ -296,7 +296,7 @@ class ClassGenerator {
           def.containsKey('enum')) {
         return refer(newName);
       }
-      return refer('${newName}Schema');
+      return refer('\$${newName}');
     }
     return refer('dynamic');
   }

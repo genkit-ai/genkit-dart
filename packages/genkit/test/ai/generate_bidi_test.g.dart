@@ -21,7 +21,10 @@ part of 'generate_bidi_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class MyToolInput implements MyToolInputSchema {
+class MyToolInput {
+  factory MyToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   MyToolInput(this._json);
 
   factory MyToolInput.from({required String location}) {
@@ -29,6 +32,8 @@ class MyToolInput implements MyToolInputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<MyToolInput> $schema = _MyToolInputTypeFactory();
 
   @override
   String get location {
@@ -67,6 +72,3 @@ class _MyToolInputTypeFactory extends SchemanticType<MyToolInput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const MyToolInputType = _MyToolInputTypeFactory();

@@ -21,7 +21,9 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Candidate implements CandidateSchema {
+class Candidate {
+  factory Candidate.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   Candidate(this._json);
 
   factory Candidate.from({
@@ -43,6 +45,8 @@ class Candidate implements CandidateSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Candidate> $schema = _CandidateTypeFactory();
 
   @override
   double get index {
@@ -144,14 +148,13 @@ class _CandidateTypeFactory extends SchemanticType<Candidate> {
       },
       required: ['index', 'message', 'finishReason'],
     ),
-    dependencies: [MessageType, GenerationUsageType],
+    dependencies: [Message.$schema, GenerationUsage.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const CandidateType = _CandidateTypeFactory();
+class Message {
+  factory Message.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Message implements MessageSchema {
   Message(this._json);
 
   factory Message.from({
@@ -167,6 +170,8 @@ class Message implements MessageSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Message> $schema = _MessageTypeFactory();
 
   @override
   Role get role {
@@ -232,14 +237,14 @@ class _MessageTypeFactory extends SchemanticType<Message> {
       },
       required: ['role', 'content'],
     ),
-    dependencies: [PartType],
+    dependencies: [Part.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const MessageType = _MessageTypeFactory();
+class ToolDefinition {
+  factory ToolDefinition.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ToolDefinition implements ToolDefinitionSchema {
   ToolDefinition(this._json);
 
   factory ToolDefinition.from({
@@ -259,6 +264,9 @@ class ToolDefinition implements ToolDefinitionSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ToolDefinition> $schema =
+      _ToolDefinitionTypeFactory();
 
   @override
   String get name {
@@ -344,10 +352,9 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   );
 }
 
-// ignore: constant_identifier_names
-const ToolDefinitionType = _ToolDefinitionTypeFactory();
+class Part {
+  factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Part implements PartSchema {
   Part(this._json);
 
   factory Part.from() {
@@ -355,6 +362,8 @@ class Part implements PartSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Part> $schema = _PartTypeFactory();
 
   @override
   String toString() {
@@ -382,10 +391,9 @@ class _PartTypeFactory extends SchemanticType<Part> {
   );
 }
 
-// ignore: constant_identifier_names
-const PartType = _PartTypeFactory();
+class TextPart implements Part {
+  factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class TextPart implements TextPartSchema, Part {
   TextPart(this._json);
 
   factory TextPart.from({
@@ -404,6 +412,8 @@ class TextPart implements TextPartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
   @override
   String get text {
@@ -488,10 +498,9 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
   );
 }
 
-// ignore: constant_identifier_names
-const TextPartType = _TextPartTypeFactory();
+class MediaPart implements Part {
+  factory MediaPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class MediaPart implements MediaPartSchema, Part {
   MediaPart(this._json);
 
   factory MediaPart.from({
@@ -510,6 +519,8 @@ class MediaPart implements MediaPartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<MediaPart> $schema = _MediaPartTypeFactory();
 
   @override
   Media get media {
@@ -590,14 +601,14 @@ class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
       },
       required: ['media'],
     ),
-    dependencies: [MediaType],
+    dependencies: [Media.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const MediaPartType = _MediaPartTypeFactory();
+class ToolRequestPart implements Part {
+  factory ToolRequestPart.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ToolRequestPart implements ToolRequestPartSchema, Part {
   ToolRequestPart(this._json);
 
   factory ToolRequestPart.from({
@@ -616,6 +627,9 @@ class ToolRequestPart implements ToolRequestPartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ToolRequestPart> $schema =
+      _ToolRequestPartTypeFactory();
 
   @override
   ToolRequest get toolRequest {
@@ -696,14 +710,14 @@ class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
       },
       required: ['toolRequest'],
     ),
-    dependencies: [ToolRequestType],
+    dependencies: [ToolRequest.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const ToolRequestPartType = _ToolRequestPartTypeFactory();
+class ToolResponsePart implements Part {
+  factory ToolResponsePart.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ToolResponsePart implements ToolResponsePartSchema, Part {
   ToolResponsePart(this._json);
 
   factory ToolResponsePart.from({
@@ -722,6 +736,9 @@ class ToolResponsePart implements ToolResponsePartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ToolResponsePart> $schema =
+      _ToolResponsePartTypeFactory();
 
   @override
   ToolResponse get toolResponse {
@@ -802,14 +819,13 @@ class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
       },
       required: ['toolResponse'],
     ),
-    dependencies: [ToolResponseType],
+    dependencies: [ToolResponse.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const ToolResponsePartType = _ToolResponsePartTypeFactory();
+class DataPart implements Part {
+  factory DataPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class DataPart implements DataPartSchema, Part {
   DataPart(this._json);
 
   factory DataPart.from({
@@ -826,6 +842,8 @@ class DataPart implements DataPartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<DataPart> $schema = _DataPartTypeFactory();
 
   @override
   Map<String, dynamic>? get data {
@@ -900,10 +918,9 @@ class _DataPartTypeFactory extends SchemanticType<DataPart> {
   );
 }
 
-// ignore: constant_identifier_names
-const DataPartType = _DataPartTypeFactory();
+class CustomPart implements Part {
+  factory CustomPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class CustomPart implements CustomPartSchema, Part {
   CustomPart(this._json);
 
   factory CustomPart.from({
@@ -920,6 +937,8 @@ class CustomPart implements CustomPartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<CustomPart> $schema = _CustomPartTypeFactory();
 
   @override
   Map<String, dynamic>? get data {
@@ -990,10 +1009,10 @@ class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   );
 }
 
-// ignore: constant_identifier_names
-const CustomPartType = _CustomPartTypeFactory();
+class ReasoningPart implements Part {
+  factory ReasoningPart.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ReasoningPart implements ReasoningPartSchema, Part {
   ReasoningPart(this._json);
 
   factory ReasoningPart.from({
@@ -1012,6 +1031,9 @@ class ReasoningPart implements ReasoningPartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ReasoningPart> $schema =
+      _ReasoningPartTypeFactory();
 
   @override
   Map<String, dynamic>? get data {
@@ -1096,10 +1118,10 @@ class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   );
 }
 
-// ignore: constant_identifier_names
-const ReasoningPartType = _ReasoningPartTypeFactory();
+class ResourcePart implements Part {
+  factory ResourcePart.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ResourcePart implements ResourcePartSchema, Part {
   ResourcePart(this._json);
 
   factory ResourcePart.from({
@@ -1118,6 +1140,9 @@ class ResourcePart implements ResourcePartSchema, Part {
 
   @override
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ResourcePart> $schema =
+      _ResourcePartTypeFactory();
 
   @override
   Map<String, dynamic>? get data {
@@ -1202,10 +1227,9 @@ class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   );
 }
 
-// ignore: constant_identifier_names
-const ResourcePartType = _ResourcePartTypeFactory();
+class Media {
+  factory Media.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Media implements MediaSchema {
   Media(this._json);
 
   factory Media.from({String? contentType, required String url}) {
@@ -1216,6 +1240,8 @@ class Media implements MediaSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Media> $schema = _MediaTypeFactory();
 
   @override
   String? get contentType {
@@ -1268,10 +1294,10 @@ class _MediaTypeFactory extends SchemanticType<Media> {
   );
 }
 
-// ignore: constant_identifier_names
-const MediaType = _MediaTypeFactory();
+class ToolRequest {
+  factory ToolRequest.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ToolRequest implements ToolRequestSchema {
   ToolRequest(this._json);
 
   factory ToolRequest.from({
@@ -1289,6 +1315,8 @@ class ToolRequest implements ToolRequestSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ToolRequest> $schema = _ToolRequestTypeFactory();
 
   @override
   String? get ref {
@@ -1372,10 +1400,10 @@ class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   );
 }
 
-// ignore: constant_identifier_names
-const ToolRequestType = _ToolRequestTypeFactory();
+class ToolResponse {
+  factory ToolResponse.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ToolResponse implements ToolResponseSchema {
   ToolResponse(this._json);
 
   factory ToolResponse.from({
@@ -1393,6 +1421,9 @@ class ToolResponse implements ToolResponseSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ToolResponse> $schema =
+      _ToolResponseTypeFactory();
 
   @override
   String? get ref {
@@ -1472,10 +1503,9 @@ class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   );
 }
 
-// ignore: constant_identifier_names
-const ToolResponseType = _ToolResponseTypeFactory();
+class ModelInfo {
+  factory ModelInfo.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class ModelInfo implements ModelInfoSchema {
   ModelInfo(this._json);
 
   factory ModelInfo.from({
@@ -1495,6 +1525,8 @@ class ModelInfo implements ModelInfoSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ModelInfo> $schema = _ModelInfoTypeFactory();
 
   @override
   List<String>? get versions {
@@ -1596,10 +1628,10 @@ class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   );
 }
 
-// ignore: constant_identifier_names
-const ModelInfoType = _ModelInfoTypeFactory();
+class ModelRequest {
+  factory ModelRequest.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ModelRequest implements ModelRequestSchema {
   ModelRequest(this._json);
 
   factory ModelRequest.from({
@@ -1621,6 +1653,9 @@ class ModelRequest implements ModelRequestSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ModelRequest> $schema =
+      _ModelRequestTypeFactory();
 
   @override
   List<Message> get messages {
@@ -1743,18 +1778,18 @@ class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
       required: ['messages'],
     ),
     dependencies: [
-      MessageType,
-      ToolDefinitionType,
-      OutputConfigType,
-      DocumentDataType,
+      Message.$schema,
+      ToolDefinition.$schema,
+      OutputConfig.$schema,
+      DocumentData.$schema,
     ],
   );
 }
 
-// ignore: constant_identifier_names
-const ModelRequestType = _ModelRequestTypeFactory();
+class ModelResponse {
+  factory ModelResponse.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ModelResponse implements ModelResponseSchema {
   ModelResponse(this._json);
 
   factory ModelResponse.from({
@@ -1782,6 +1817,9 @@ class ModelResponse implements ModelResponseSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ModelResponse> $schema =
+      _ModelResponseTypeFactory();
 
   @override
   Message? get message {
@@ -1940,18 +1978,18 @@ class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
       required: ['finishReason'],
     ),
     dependencies: [
-      MessageType,
-      GenerationUsageType,
-      GenerateRequestType,
-      OperationType,
+      Message.$schema,
+      GenerationUsage.$schema,
+      GenerateRequest.$schema,
+      Operation.$schema,
     ],
   );
 }
 
-// ignore: constant_identifier_names
-const ModelResponseType = _ModelResponseTypeFactory();
+class ModelResponseChunk {
+  factory ModelResponseChunk.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ModelResponseChunk implements ModelResponseChunkSchema {
   ModelResponseChunk(this._json);
 
   factory ModelResponseChunk.from({
@@ -1971,6 +2009,9 @@ class ModelResponseChunk implements ModelResponseChunkSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ModelResponseChunk> $schema =
+      _ModelResponseChunkTypeFactory();
 
   @override
   Role? get role {
@@ -2069,14 +2110,14 @@ class _ModelResponseChunkTypeFactory
       },
       required: ['content'],
     ),
-    dependencies: [PartType],
+    dependencies: [Part.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const ModelResponseChunkType = _ModelResponseChunkTypeFactory();
+class GenerateRequest {
+  factory GenerateRequest.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class GenerateRequest implements GenerateRequestSchema {
   GenerateRequest(this._json);
 
   factory GenerateRequest.from({
@@ -2100,6 +2141,9 @@ class GenerateRequest implements GenerateRequestSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<GenerateRequest> $schema =
+      _GenerateRequestTypeFactory();
 
   @override
   List<Message> get messages {
@@ -2236,18 +2280,18 @@ class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
       required: ['messages'],
     ),
     dependencies: [
-      MessageType,
-      ToolDefinitionType,
-      OutputConfigType,
-      DocumentDataType,
+      Message.$schema,
+      ToolDefinition.$schema,
+      OutputConfig.$schema,
+      DocumentData.$schema,
     ],
   );
 }
 
-// ignore: constant_identifier_names
-const GenerateRequestType = _GenerateRequestTypeFactory();
+class GenerationUsage {
+  factory GenerationUsage.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class GenerationUsage implements GenerationUsageSchema {
   GenerationUsage(this._json);
 
   factory GenerationUsage.from({
@@ -2286,6 +2330,9 @@ class GenerationUsage implements GenerationUsageSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<GenerationUsage> $schema =
+      _GenerationUsageTypeFactory();
 
   @override
   double? get inputTokens {
@@ -2513,10 +2560,9 @@ class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   );
 }
 
-// ignore: constant_identifier_names
-const GenerationUsageType = _GenerationUsageTypeFactory();
+class Operation {
+  factory Operation.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Operation implements OperationSchema {
   Operation(this._json);
 
   factory Operation.from({
@@ -2538,6 +2584,8 @@ class Operation implements OperationSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Operation> $schema = _OperationTypeFactory();
 
   @override
   String? get action {
@@ -2649,10 +2697,10 @@ class _OperationTypeFactory extends SchemanticType<Operation> {
   );
 }
 
-// ignore: constant_identifier_names
-const OperationType = _OperationTypeFactory();
+class OutputConfig {
+  factory OutputConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class OutputConfig implements OutputConfigSchema {
   OutputConfig(this._json);
 
   factory OutputConfig.from({
@@ -2670,6 +2718,9 @@ class OutputConfig implements OutputConfigSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<OutputConfig> $schema =
+      _OutputConfigTypeFactory();
 
   @override
   String? get format {
@@ -2757,10 +2808,10 @@ class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   );
 }
 
-// ignore: constant_identifier_names
-const OutputConfigType = _OutputConfigTypeFactory();
+class DocumentData {
+  factory DocumentData.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class DocumentData implements DocumentDataSchema {
   DocumentData(this._json);
 
   factory DocumentData.from({
@@ -2774,6 +2825,9 @@ class DocumentData implements DocumentDataSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<DocumentData> $schema =
+      _DocumentDataTypeFactory();
 
   @override
   List<Part> get content {
@@ -2829,14 +2883,14 @@ class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
       },
       required: ['content'],
     ),
-    dependencies: [PartType],
+    dependencies: [Part.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const DocumentDataType = _DocumentDataTypeFactory();
+class GenerateActionOptions {
+  factory GenerateActionOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class GenerateActionOptions implements GenerateActionOptionsSchema {
   GenerateActionOptions(this._json);
 
   factory GenerateActionOptions.from({
@@ -2868,6 +2922,9 @@ class GenerateActionOptions implements GenerateActionOptionsSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<GenerateActionOptions> $schema =
+      _GenerateActionOptionsTypeFactory();
 
   @override
   String? get model {
@@ -3059,17 +3116,17 @@ class _GenerateActionOptionsTypeFactory
       required: ['messages'],
     ),
     dependencies: [
-      DocumentDataType,
-      MessageType,
-      GenerateActionOutputConfigType,
+      DocumentData.$schema,
+      Message.$schema,
+      GenerateActionOutputConfig.$schema,
     ],
   );
 }
 
-// ignore: constant_identifier_names
-const GenerateActionOptionsType = _GenerateActionOptionsTypeFactory();
+class GenerateActionOutputConfig {
+  factory GenerateActionOutputConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class GenerateActionOutputConfig implements GenerateActionOutputConfigSchema {
   GenerateActionOutputConfig(this._json);
 
   factory GenerateActionOutputConfig.from({
@@ -3089,6 +3146,9 @@ class GenerateActionOutputConfig implements GenerateActionOutputConfigSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<GenerateActionOutputConfig> $schema =
+      _GenerateActionOutputConfigTypeFactory();
 
   @override
   String? get format {
@@ -3190,6 +3250,3 @@ class _GenerateActionOutputConfigTypeFactory
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const GenerateActionOutputConfigType = _GenerateActionOutputConfigTypeFactory();

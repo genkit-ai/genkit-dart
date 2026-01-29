@@ -25,12 +25,12 @@ import 'package:shelf_router/shelf_router.dart';
 part 'shelf_handler_example.g.dart';
 
 @Schematic()
-abstract class HandlerInputSchema {
+abstract class $HandlerInput {
   String get message;
 }
 
 @Schematic()
-abstract class HandlerOutputSchema {
+abstract class $HandlerOutput {
   String get processedMessage;
 }
 
@@ -54,7 +54,7 @@ void main() async {
   // Define client action
   final customAction = defineRemoteAction(
     url: 'http://localhost:8080/api/custom-flow',
-    outputType: HandlerOutputType,
+    outputType: HandlerOutput.$schema,
   );
 
   // Define a flow
@@ -63,8 +63,8 @@ void main() async {
     fn: (HandlerInput input, _) async => HandlerOutput.from(
       processedMessage: 'Processed by custom handler: ${input.message}',
     ),
-    inputType: HandlerInputType,
-    outputType: HandlerOutputType,
+    inputType: HandlerInput.$schema,
+    outputType: HandlerOutput.$schema,
   );
 
   // Define client flow

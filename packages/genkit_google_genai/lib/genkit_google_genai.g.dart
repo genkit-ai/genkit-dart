@@ -21,7 +21,10 @@ part of 'genkit_google_genai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class GeminiOptions implements GeminiOptionsSchema {
+class GeminiOptions {
+  factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   GeminiOptions(this._json);
 
   factory GeminiOptions.from({
@@ -74,6 +77,9 @@ class GeminiOptions implements GeminiOptionsSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<GeminiOptions> $schema =
+      _GeminiOptionsTypeFactory();
 
   @override
   String? get apiKey {
@@ -402,19 +408,19 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       required: [],
     ),
     dependencies: [
-      SafetySettingsType,
-      FunctionCallingConfigType,
-      ThinkingConfigType,
-      GoogleSearchRetrievalType,
-      FileSearchType,
+      SafetySettings.$schema,
+      FunctionCallingConfig.$schema,
+      ThinkingConfig.$schema,
+      GoogleSearchRetrieval.$schema,
+      FileSearch.$schema,
     ],
   );
 }
 
-// ignore: constant_identifier_names
-const GeminiOptionsType = _GeminiOptionsTypeFactory();
+class SafetySettings {
+  factory SafetySettings.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class SafetySettings implements SafetySettingsSchema {
   SafetySettings(this._json);
 
   factory SafetySettings.from({String? category, String? threshold}) {
@@ -425,6 +431,9 @@ class SafetySettings implements SafetySettingsSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<SafetySettings> $schema =
+      _SafetySettingsTypeFactory();
 
   @override
   String? get category {
@@ -508,10 +517,10 @@ class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   );
 }
 
-// ignore: constant_identifier_names
-const SafetySettingsType = _SafetySettingsTypeFactory();
+class ThinkingConfig {
+  factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ThinkingConfig implements ThinkingConfigSchema {
   ThinkingConfig(this._json);
 
   factory ThinkingConfig.from({bool? includeThoughts, int? thinkingBudget}) {
@@ -522,6 +531,9 @@ class ThinkingConfig implements ThinkingConfigSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ThinkingConfig> $schema =
+      _ThinkingConfigTypeFactory();
 
   @override
   bool? get includeThoughts {
@@ -581,10 +593,10 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   );
 }
 
-// ignore: constant_identifier_names
-const ThinkingConfigType = _ThinkingConfigTypeFactory();
+class FunctionCallingConfig {
+  factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class FunctionCallingConfig implements FunctionCallingConfigSchema {
   FunctionCallingConfig(this._json);
 
   factory FunctionCallingConfig.from({
@@ -599,6 +611,9 @@ class FunctionCallingConfig implements FunctionCallingConfigSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<FunctionCallingConfig> $schema =
+      _FunctionCallingConfigTypeFactory();
 
   @override
   String? get mode {
@@ -661,10 +676,10 @@ class _FunctionCallingConfigTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const FunctionCallingConfigType = _FunctionCallingConfigTypeFactory();
+class GoogleSearchRetrieval {
+  factory GoogleSearchRetrieval.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class GoogleSearchRetrieval implements GoogleSearchRetrievalSchema {
   GoogleSearchRetrieval(this._json);
 
   factory GoogleSearchRetrieval.from({String? mode, double? dynamicThreshold}) {
@@ -675,6 +690,9 @@ class GoogleSearchRetrieval implements GoogleSearchRetrievalSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<GoogleSearchRetrieval> $schema =
+      _GoogleSearchRetrievalTypeFactory();
 
   @override
   String? get mode {
@@ -735,10 +753,9 @@ class _GoogleSearchRetrievalTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const GoogleSearchRetrievalType = _GoogleSearchRetrievalTypeFactory();
+class FileSearch {
+  factory FileSearch.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class FileSearch implements FileSearchSchema {
   FileSearch(this._json);
 
   factory FileSearch.from({List<String>? fileSearchStoreNames}) {
@@ -749,6 +766,8 @@ class FileSearch implements FileSearchSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
 
   @override
   List<String>? get fileSearchStoreNames {
@@ -791,6 +810,3 @@ class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const FileSearchType = _FileSearchTypeFactory();

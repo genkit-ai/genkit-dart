@@ -21,7 +21,9 @@ part of 'action_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestInput implements TestInputSchema {
+class TestInput {
+  factory TestInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   TestInput(this._json);
 
   factory TestInput.from({required String name}) {
@@ -29,6 +31,8 @@ class TestInput implements TestInputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TestInput> $schema = _TestInputTypeFactory();
 
   @override
   String get name {
@@ -68,10 +72,9 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
   );
 }
 
-// ignore: constant_identifier_names
-const TestInputType = _TestInputTypeFactory();
+class TestOutput {
+  factory TestOutput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class TestOutput implements TestOutputSchema {
   TestOutput(this._json);
 
   factory TestOutput.from({required String greeting}) {
@@ -79,6 +82,8 @@ class TestOutput implements TestOutputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TestOutput> $schema = _TestOutputTypeFactory();
 
   @override
   String get greeting {
@@ -117,6 +122,3 @@ class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TestOutputType = _TestOutputTypeFactory();

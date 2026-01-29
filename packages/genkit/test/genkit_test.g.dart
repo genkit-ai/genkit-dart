@@ -21,7 +21,10 @@ part of 'genkit_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions implements TestCustomOptionsSchema {
+class TestCustomOptions {
+  factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   TestCustomOptions(this._json);
 
   factory TestCustomOptions.from({required String customField}) {
@@ -29,6 +32,9 @@ class TestCustomOptions implements TestCustomOptionsSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TestCustomOptions> $schema =
+      _TestCustomOptionsTypeFactory();
 
   @override
   String get customField {
@@ -68,10 +74,10 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
   );
 }
 
-// ignore: constant_identifier_names
-const TestCustomOptionsType = _TestCustomOptionsTypeFactory();
+class TestToolInput {
+  factory TestToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class TestToolInput implements TestToolInputSchema {
   TestToolInput(this._json);
 
   factory TestToolInput.from({required String name}) {
@@ -79,6 +85,9 @@ class TestToolInput implements TestToolInputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TestToolInput> $schema =
+      _TestToolInputTypeFactory();
 
   @override
   String get name {
@@ -117,6 +126,3 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TestToolInputType = _TestToolInputTypeFactory();

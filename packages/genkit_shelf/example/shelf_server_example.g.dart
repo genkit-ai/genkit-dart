@@ -21,7 +21,9 @@ part of 'shelf_server_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class HelloInput implements HelloInputSchema {
+class HelloInput {
+  factory HelloInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   HelloInput(this._json);
 
   factory HelloInput.from({required String name}) {
@@ -29,6 +31,8 @@ class HelloInput implements HelloInputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<HelloInput> $schema = _HelloInputTypeFactory();
 
   @override
   String get name {
@@ -68,10 +72,10 @@ class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   );
 }
 
-// ignore: constant_identifier_names
-const HelloInputType = _HelloInputTypeFactory();
+class HelloOutput {
+  factory HelloOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class HelloOutput implements HelloOutputSchema {
   HelloOutput(this._json);
 
   factory HelloOutput.from({required String greeting}) {
@@ -79,6 +83,8 @@ class HelloOutput implements HelloOutputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<HelloOutput> $schema = _HelloOutputTypeFactory();
 
   @override
   String get greeting {
@@ -118,10 +124,9 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   );
 }
 
-// ignore: constant_identifier_names
-const HelloOutputType = _HelloOutputTypeFactory();
+class CountChunk {
+  factory CountChunk.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class CountChunk implements CountChunkSchema {
   CountChunk(this._json);
 
   factory CountChunk.from({required int count}) {
@@ -129,6 +134,8 @@ class CountChunk implements CountChunkSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<CountChunk> $schema = _CountChunkTypeFactory();
 
   @override
   int get count {
@@ -167,6 +174,3 @@ class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const CountChunkType = _CountChunkTypeFactory();

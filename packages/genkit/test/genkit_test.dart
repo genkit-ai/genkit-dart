@@ -22,12 +22,12 @@ import 'package:test/test.dart';
 part 'genkit_test.g.dart';
 
 @Schematic()
-abstract class TestCustomOptionsSchema {
+abstract class $TestCustomOptions {
   String get customField;
 }
 
 @Schematic()
-abstract class TestToolInputSchema {
+abstract class $TestToolInput {
   String get name;
 }
 
@@ -139,7 +139,7 @@ void main() {
       );
 
       final result = await genkit.generate(
-        model: modelRef(modelName, customOptions: TestCustomOptionsType),
+        model: modelRef(modelName, customOptions: TestCustomOptions.$schema),
         prompt: prompt,
         config: TestCustomOptions.from(customField: 'yo'),
       );
@@ -187,7 +187,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'A test tool',
-        inputType: TestToolInputType,
+        inputType: TestToolInput.$schema,
         fn: (input, context) async {
           return 'Hello, ${input.name}!';
         },

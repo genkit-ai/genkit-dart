@@ -25,7 +25,7 @@ part 'genkit_firebase_ai.g.dart';
 final _logger = Logger('genkit_firebase_ai');
 
 @Schematic()
-abstract class GeminiOptionsSchema {
+abstract class $GeminiOptions {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
   double? get temperature;
@@ -37,34 +37,34 @@ abstract class GeminiOptionsSchema {
   String? get responseMimeType;
   Map<String, dynamic>? get responseSchema;
   Map<String, dynamic>? get responseJsonSchema;
-  ThinkingConfigSchema? get thinkingConfig;
+  $ThinkingConfig? get thinkingConfig;
 }
 
 @Schematic()
-abstract class ThinkingConfigSchema {
+abstract class $ThinkingConfig {
   int? get thinkingBudget;
   bool? get includeThoughts;
 }
 
 @Schematic()
-abstract class PrebuiltVoiceConfigSchema {
+abstract class $PrebuiltVoiceConfig {
   String? get voiceName;
 }
 
 @Schematic()
-abstract class VoiceConfigSchema {
-  PrebuiltVoiceConfigSchema? get prebuiltVoiceConfig;
+abstract class $VoiceConfig {
+  $PrebuiltVoiceConfig? get prebuiltVoiceConfig;
 }
 
 @Schematic()
-abstract class SpeechConfigSchema {
-  VoiceConfigSchema? get voiceConfig;
+abstract class $SpeechConfig {
+  $VoiceConfig? get voiceConfig;
 }
 
 @Schematic()
-abstract class LiveGenerationConfigSchema {
+abstract class $LiveGenerationConfig {
   List<String>? get responseModalities;
-  SpeechConfigSchema? get speechConfig;
+  $SpeechConfig? get speechConfig;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
   double? get temperature;
@@ -87,7 +87,7 @@ class FirebaseGenAiPluginHandle {
   ///
   /// The [name] is the model name, e.g. 'gemini-2.5-flash'.
   ModelRef<GeminiOptions> gemini(String name) {
-    return modelRef('firebaseai/$name', customOptions: GeminiOptionsType);
+    return modelRef('firebaseai/$name', customOptions: GeminiOptions.$schema);
   }
 }
 

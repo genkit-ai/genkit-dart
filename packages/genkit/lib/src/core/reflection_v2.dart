@@ -174,12 +174,12 @@ class ReflectionServerV2 {
         'name': action.name,
         'description': action.metadata['description'],
         'metadata': action.metadata,
-        if (action.inputType != null)
-          'inputSchema': toJsonSchema(type: action.inputType),
-        if (action.outputType != null)
-          'outputSchema': toJsonSchema(type: action.outputType),
-        if (action.initType != null)
-          'initSchema': toJsonSchema(type: action.initType),
+        if (action.inputSchema != null)
+          'inputSchema': toJsonSchema(type: action.inputSchema),
+        if (action.outputSchema != null)
+          'outputSchema': toJsonSchema(type: action.outputSchema),
+        if (action.initSchema != null)
+          'initSchema': toJsonSchema(type: action.initSchema),
       };
     }
     _sendResponse(id, convertedActions);

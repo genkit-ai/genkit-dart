@@ -332,7 +332,7 @@ void main() {
 
     test('DescriptionSchema has description', () {
       final schemaMetadata = Description.$schema.schemaMetadata;
-        final definition = schemaMetadata!.definition as Map<String, dynamic>;
+      final definition = schemaMetadata!.definition as Map<String, dynamic>;
 
       // We expect the definition to have the description directly (if it's an object)
       // The implementation uses Schema.object(description: ...) which produces

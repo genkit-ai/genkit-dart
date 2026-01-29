@@ -22,7 +22,7 @@ part 'example.g.dart';
 // --- Schemas for Tool Calling Example ---
 
 @Schematic()
-abstract class WeatherToolInputSchema {
+abstract class $WeatherToolInput {
   @Field(
     description:
         'The location (ex. city, state, country) to get the weather for',
@@ -33,30 +33,30 @@ abstract class WeatherToolInputSchema {
 // --- Schemas for Structured Streaming Example ---
 
 @Schematic()
-abstract class CategorySchema {
+abstract class $Category {
   String get name;
   @Schematic(
     description: 'make sure there are at least 2-3 levels of subcategories',
   )
-  List<CategorySchema>? get subcategories;
+  List<$Category>? get subcategories;
 }
 
 @Schematic()
-abstract class WeaponSchema {
+abstract class $Weapon {
   String get name;
   double get damage;
-  CategorySchema get category;
+  $Category get category;
 }
 
 @Schematic()
-abstract class RpgCharacterSchema {
+abstract class $RpgCharacter {
   @Schematic(description: 'name of the character')
   String get name;
 
   @Schematic(description: "character's backstory, about a paragraph")
   String get backstory;
 
-  List<WeaponSchema> get weapons;
+  List<$Weapon> get weapons;
 
   @StringField(enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'])
   String get classType;
@@ -101,7 +101,7 @@ void main(List<String> args) async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the weather for a location',
-    inputType: WeatherToolInputType,
+    inputType: WeatherToolInput.$schema,
     fn: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
         return 'The weather in Boston is 72 and sunny.';
@@ -128,13 +128,13 @@ void main(List<String> args) async {
   ai.defineFlow(
     name: 'structuredStreaming',
     inputType: stringType(),
-    streamType: RpgCharacterType,
-    outputType: RpgCharacterType,
+    streamType: RpgCharacter.$schema,
+    outputType: RpgCharacter.$schema,
     fn: (name, ctx) async {
       final stream = ai.generateStream(
         model: googleAI.gemini('gemini-2.5-flash'),
         config: GeminiOptions.from(temperature: 2.0),
-        outputSchema: RpgCharacterType,
+        outputSchema: RpgCharacter.$schema,
         prompt: 'Generate an RPC character called $name',
       );
 

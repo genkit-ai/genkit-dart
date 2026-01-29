@@ -116,10 +116,10 @@ class Genkit {
         }
         return fn(input as I, context);
       },
-      inputType: inputType,
-      outputType: outputType,
-      streamType: streamType,
-      initType: initType,
+      inputSchema: inputType,
+      outputSchema: outputType,
+      streamSchema: streamType,
+      initSchema: initType,
     );
     registry.register(flow);
     return flow;
@@ -141,10 +141,10 @@ class Genkit {
         }
         return fn(context.inputStream!, context);
       },
-      inputType: inputType,
-      outputType: outputType,
-      streamType: streamType,
-      initType: initType,
+      inputSchema: inputType,
+      outputSchema: outputType,
+      streamSchema: streamType,
+      initSchema: initType,
     );
     registry.register(flow);
     return flow;
@@ -167,8 +167,8 @@ class Genkit {
         }
         return fn(input as I, context);
       },
-      inputType: inputType,
-      outputType: outputType,
+      inputSchema: inputType,
+      outputSchema: outputType,
     );
     registry.register(tool);
     return tool;

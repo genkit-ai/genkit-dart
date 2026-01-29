@@ -49,9 +49,9 @@ class Model<C>
     this.customOptions,
   }) : super(
          actionType: 'model',
-         inputType: ModelRequestType,
-         outputType: ModelResponseType,
-         streamType: ModelResponseChunkType,
+         inputSchema: ModelRequest.$schema,
+         outputSchema: ModelResponse.$schema,
+         streamSchema: ModelResponseChunk.$schema,
        ) {
     metadata['description'] = name;
     if (metadata['model'] == null) {
@@ -104,10 +104,10 @@ class BidiModel<C>
     this.customOptions,
   }) : super(
          actionType: 'bidi-model',
-         inputType: ModelRequestType,
-         initType: ModelRequestType,
-         outputType: ModelResponseType,
-         streamType: ModelResponseChunkType,
+         inputSchema: ModelRequest.$schema,
+         initSchema: ModelRequest.$schema,
+         outputSchema: ModelResponse.$schema,
+         streamSchema: ModelResponseChunk.$schema,
        ) {
     metadata['description'] = name;
     metadata['model'] = <String, dynamic>{};

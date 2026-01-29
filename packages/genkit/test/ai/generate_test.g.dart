@@ -21,7 +21,10 @@ part of 'generate_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestToolInput implements TestToolInputSchema {
+class TestToolInput {
+  factory TestToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   TestToolInput(this._json);
 
   factory TestToolInput.from({required String name}) {
@@ -29,6 +32,9 @@ class TestToolInput implements TestToolInputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TestToolInput> $schema =
+      _TestToolInputTypeFactory();
 
   @override
   String get name {
@@ -67,6 +73,3 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TestToolInputType = _TestToolInputTypeFactory();

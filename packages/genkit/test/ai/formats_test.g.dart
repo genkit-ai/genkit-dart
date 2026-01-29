@@ -21,7 +21,9 @@ part of 'formats_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestObject implements TestObjectSchema {
+class TestObject {
+  factory TestObject.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   TestObject(this._json);
 
   factory TestObject.from({required String foo, required int bar}) {
@@ -29,6 +31,8 @@ class TestObject implements TestObjectSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<TestObject> $schema = _TestObjectTypeFactory();
 
   @override
   String get foo {
@@ -76,6 +80,3 @@ class _TestObjectTypeFactory extends SchemanticType<TestObject> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TestObjectType = _TestObjectTypeFactory();

@@ -47,7 +47,11 @@ abstract class $User {
 }
 ''',
         },
-        {'a|lib/a.schemantic.g.part': decodedMatches(contains('class _UserTypeFactory'))},
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
+            contains('class _UserTypeFactory'),
+          ),
+        },
       );
     });
 

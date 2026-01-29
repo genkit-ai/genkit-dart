@@ -21,7 +21,10 @@ part of 'example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherToolInput implements WeatherToolInputSchema {
+class WeatherToolInput {
+  factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   WeatherToolInput(this._json);
 
   factory WeatherToolInput.from({required String location}) {
@@ -29,6 +32,9 @@ class WeatherToolInput implements WeatherToolInputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<WeatherToolInput> $schema =
+      _WeatherToolInputTypeFactory();
 
   @override
   String get location {
@@ -73,10 +79,9 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   );
 }
 
-// ignore: constant_identifier_names
-const WeatherToolInputType = _WeatherToolInputTypeFactory();
+class Category {
+  factory Category.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Category implements CategorySchema {
   Category(this._json);
 
   factory Category.from({required String name, List<Category>? subcategories}) {
@@ -88,6 +93,8 @@ class Category implements CategorySchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Category> $schema = _CategoryTypeFactory();
 
   @override
   String get name {
@@ -143,14 +150,13 @@ class _CategoryTypeFactory extends SchemanticType<Category> {
       },
       required: ['name'],
     ),
-    dependencies: [CategoryType],
+    dependencies: [Category.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const CategoryType = _CategoryTypeFactory();
+class Weapon {
+  factory Weapon.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Weapon implements WeaponSchema {
   Weapon(this._json);
 
   factory Weapon.from({
@@ -166,6 +172,8 @@ class Weapon implements WeaponSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Weapon> $schema = _WeaponTypeFactory();
 
   @override
   String get name {
@@ -223,14 +231,14 @@ class _WeaponTypeFactory extends SchemanticType<Weapon> {
       },
       required: ['name', 'damage', 'category'],
     ),
-    dependencies: [CategoryType],
+    dependencies: [Category.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const WeaponType = _WeaponTypeFactory();
+class RpgCharacter {
+  factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class RpgCharacter implements RpgCharacterSchema {
   RpgCharacter(this._json);
 
   factory RpgCharacter.from({
@@ -250,6 +258,9 @@ class RpgCharacter implements RpgCharacterSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<RpgCharacter> $schema =
+      _RpgCharacterTypeFactory();
 
   @override
   String get name {
@@ -337,9 +348,6 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
       },
       required: ['name', 'backstory', 'weapons', 'classType'],
     ),
-    dependencies: [WeaponType],
+    dependencies: [Weapon.$schema],
   );
 }
-
-// ignore: constant_identifier_names
-const RpgCharacterType = _RpgCharacterTypeFactory();

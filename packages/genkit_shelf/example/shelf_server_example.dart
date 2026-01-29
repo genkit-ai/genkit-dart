@@ -20,17 +20,17 @@ import 'package:schemantic/schemantic.dart';
 part 'shelf_server_example.g.dart';
 
 @Schematic()
-abstract class HelloInputSchema {
+abstract class $HelloInput {
   String get name;
 }
 
 @Schematic()
-abstract class HelloOutputSchema {
+abstract class $HelloOutput {
   String get greeting;
 }
 
 @Schematic()
-abstract class CountChunkSchema {
+abstract class $CountChunk {
   int get count;
 }
 
@@ -61,12 +61,12 @@ void main() async {
   // Define remote actions for the client flow
   final helloAction = defineRemoteAction(
     url: 'http://localhost:3400/hello',
-    outputType: HelloOutputType,
+    outputType: HelloOutput.$schema,
   );
 
   final countAction = defineRemoteAction(
     url: 'http://localhost:3400/count',
-    streamType: CountChunkType,
+    streamType: CountChunk.$schema,
     outputType: stringType(),
   );
 
@@ -76,8 +76,8 @@ void main() async {
     fn: (HelloInput input, _) async {
       return HelloOutput.from(greeting: 'Hello, ${input.name}!');
     },
-    inputType: HelloInputType,
-    outputType: HelloOutputType,
+    inputType: HelloInput.$schema,
+    outputType: HelloOutput.$schema,
   );
 
   // 2. Define a streaming flow
@@ -92,7 +92,7 @@ void main() async {
     },
     inputType: intType(),
     outputType: stringType(),
-    streamType: CountChunkType,
+    streamType: CountChunk.$schema,
   );
 
   // 3. Define a flow with authentication (context)

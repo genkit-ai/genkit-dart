@@ -18,10 +18,10 @@ class Flow<I, O, S, Init> extends Action<I, O, S, Init> {
   Flow({
     required super.name,
     required super.fn,
-    super.inputType,
-    super.outputType,
-    super.streamType,
-    super.initType,
+    super.inputSchema,
+    super.outputSchema,
+    super.streamSchema,
+    super.initSchema,
     super.metadata,
   }) : super(actionType: 'flow');
 }

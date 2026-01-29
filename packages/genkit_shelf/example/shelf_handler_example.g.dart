@@ -21,7 +21,10 @@ part of 'shelf_handler_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class HandlerInput implements HandlerInputSchema {
+class HandlerInput {
+  factory HandlerInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
   HandlerInput(this._json);
 
   factory HandlerInput.from({required String message}) {
@@ -29,6 +32,9 @@ class HandlerInput implements HandlerInputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<HandlerInput> $schema =
+      _HandlerInputTypeFactory();
 
   @override
   String get message {
@@ -68,10 +74,10 @@ class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
   );
 }
 
-// ignore: constant_identifier_names
-const HandlerInputType = _HandlerInputTypeFactory();
+class HandlerOutput {
+  factory HandlerOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class HandlerOutput implements HandlerOutputSchema {
   HandlerOutput(this._json);
 
   factory HandlerOutput.from({required String processedMessage}) {
@@ -79,6 +85,9 @@ class HandlerOutput implements HandlerOutputSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<HandlerOutput> $schema =
+      _HandlerOutputTypeFactory();
 
   @override
   String get processedMessage {
@@ -117,6 +126,3 @@ class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const HandlerOutputType = _HandlerOutputTypeFactory();

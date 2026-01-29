@@ -21,7 +21,9 @@ part of 'extension_type_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Ingredient implements IngredientSchema {
+class Ingredient {
+  factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   Ingredient(this._json);
 
   factory Ingredient.from({required String name, required String quantity}) {
@@ -29,6 +31,8 @@ class Ingredient implements IngredientSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
 
   @override
   String get name {
@@ -77,10 +81,9 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   );
 }
 
-// ignore: constant_identifier_names
-const IngredientType = _IngredientTypeFactory();
+class Recipe {
+  factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Recipe implements RecipeSchema {
   Recipe(this._json);
 
   factory Recipe.from({
@@ -96,6 +99,8 @@ class Recipe implements RecipeSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
 
   @override
   String get title {
@@ -157,14 +162,14 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
       },
       required: ['title', 'ingredients', 'servings'],
     ),
-    dependencies: [IngredientType],
+    dependencies: [Ingredient.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const RecipeType = _RecipeTypeFactory();
+class AnnotatedRecipe {
+  factory AnnotatedRecipe.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class AnnotatedRecipe implements AnnotatedRecipeSchema {
   AnnotatedRecipe(this._json);
 
   factory AnnotatedRecipe.from({
@@ -180,6 +185,9 @@ class AnnotatedRecipe implements AnnotatedRecipeSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<AnnotatedRecipe> $schema =
+      _AnnotatedRecipeTypeFactory();
 
   @override
   String get title {
@@ -243,14 +251,13 @@ class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
       },
       required: ['title_key_in_json', 'ingredients', 'servings'],
     ),
-    dependencies: [IngredientType],
+    dependencies: [Ingredient.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const AnnotatedRecipeType = _AnnotatedRecipeTypeFactory();
+class MealPlan {
+  factory MealPlan.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class MealPlan implements MealPlanSchema {
   MealPlan(this._json);
 
   factory MealPlan.from({required String day, required MealType mealType}) {
@@ -258,6 +265,8 @@ class MealPlan implements MealPlanSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<MealPlan> $schema = _MealPlanTypeFactory();
 
   @override
   String get day {
@@ -309,10 +318,10 @@ class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
   );
 }
 
-// ignore: constant_identifier_names
-const MealPlanType = _MealPlanTypeFactory();
+class NullableFields {
+  factory NullableFields.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class NullableFields implements NullableFieldsSchema {
   NullableFields(this._json);
 
   factory NullableFields.from({
@@ -331,6 +340,9 @@ class NullableFields implements NullableFieldsSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<NullableFields> $schema =
+      _NullableFieldsTypeFactory();
 
   @override
   String? get optionalString {
@@ -416,14 +428,14 @@ class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
       },
       required: [],
     ),
-    dependencies: [IngredientType],
+    dependencies: [Ingredient.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const NullableFieldsType = _NullableFieldsTypeFactory();
+class ComplexObject {
+  factory ComplexObject.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ComplexObject implements ComplexObjectSchema {
   ComplexObject(this._json);
 
   factory ComplexObject.from({
@@ -445,6 +457,9 @@ class ComplexObject implements ComplexObjectSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<ComplexObject> $schema =
+      _ComplexObjectTypeFactory();
 
   @override
   String get id {
@@ -538,14 +553,13 @@ class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
       },
       required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
     ),
-    dependencies: [NullableFieldsType],
+    dependencies: [NullableFields.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const ComplexObjectType = _ComplexObjectTypeFactory();
+class Menu {
+  factory Menu.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Menu implements MenuSchema {
   Menu(this._json);
 
   factory Menu.from({
@@ -562,6 +576,8 @@ class Menu implements MenuSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Menu> $schema = _MenuTypeFactory();
 
   @override
   List<Recipe> get recipes {
@@ -621,9 +637,6 @@ class _MenuTypeFactory extends SchemanticType<Menu> {
       },
       required: ['recipes'],
     ),
-    dependencies: [RecipeType, IngredientType],
+    dependencies: [Recipe.$schema, Ingredient.$schema],
   );
 }
-
-// ignore: constant_identifier_names
-const MenuType = _MenuTypeFactory();

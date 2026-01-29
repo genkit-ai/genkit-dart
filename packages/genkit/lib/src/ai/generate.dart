@@ -35,9 +35,9 @@ defineGenerateAction(Registry registry) {
   return Action(
     actionType: 'util',
     name: 'generate',
-    inputType: GenerateActionOptionsType,
-    outputType: ModelResponseType,
-    streamType: ModelResponseChunkType,
+    inputSchema: GenerateActionOptions.$schema,
+    outputSchema: ModelResponse.$schema,
+    streamSchema: ModelResponseChunk.$schema,
     fn: (options, ctx) async {
       if (options == null) {
         throw Exception('Generate action called with null options');
@@ -52,11 +52,11 @@ ToolDefinition toToolDefinition(Tool tool) {
   return ToolDefinition.from(
     name: tool.name,
     description: tool.description!,
-    inputSchema: tool.inputType?.jsonSchema != null
-        ? toJsonSchema(type: tool.inputType)
+    inputSchema: tool.inputSchema?.jsonSchema != null
+        ? toJsonSchema(type: tool.inputSchema)
         : null,
-    outputSchema: tool.outputType?.jsonSchema != null
-        ? toJsonSchema(type: tool.outputType)
+    outputSchema: tool.outputSchema?.jsonSchema != null
+        ? toJsonSchema(type: tool.outputSchema)
         : null,
   );
 }

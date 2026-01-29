@@ -25,12 +25,12 @@ import 'package:test/test.dart';
 part 'shelf_test.g.dart';
 
 @Schematic()
-abstract class ShelfTestOutputSchema {
+abstract class $ShelfTestOutput {
   String get greeting;
 }
 
 @Schematic()
-abstract class ShelfTestStreamSchema {
+abstract class $ShelfTestStream {
   String get chunk;
 }
 
@@ -204,8 +204,8 @@ void main() {
         return ShelfTestOutput.from(greeting: 'done');
       },
       inputType: stringType(),
-      outputType: ShelfTestOutputType,
-      streamType: ShelfTestStreamType,
+      outputType: ShelfTestOutput.$schema,
+      streamType: ShelfTestStream.$schema,
     );
 
     server = await startFlowServer(flows: [complexStreamFlow], port: 0);
@@ -213,8 +213,8 @@ void main() {
 
     final action = defineRemoteAction(
       url: 'http://localhost:$port/complexStream',
-      outputType: ShelfTestOutputType,
-      streamType: ShelfTestStreamType,
+      outputType: ShelfTestOutput.$schema,
+      streamType: ShelfTestStream.$schema,
     );
 
     final stream = action.stream(input: 'start');

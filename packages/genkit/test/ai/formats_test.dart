@@ -20,7 +20,7 @@ import 'package:test/test.dart';
 part 'formats_test.g.dart';
 
 @Schematic()
-abstract class TestObjectSchema {
+abstract class $TestObject {
   String get foo;
   int get bar;
 }
@@ -115,7 +115,7 @@ void main() {
       await genkit.generate(
         model: modelRef('instructionModel'),
         prompt: 'hi',
-        outputSchema: TestObjectType,
+        outputSchema: TestObject.$schema,
       );
 
       expect(receivedInstructions, contains('Output should be in JSON format'));
@@ -139,7 +139,7 @@ void main() {
       final response = await genkit.generate(
         model: modelRef('defaultJsonModel'),
         prompt: 'hi',
-        outputSchema: TestObjectType,
+        outputSchema: TestObject.$schema,
       );
 
       expect(response.output, isA<TestObject>());
@@ -305,7 +305,7 @@ void main() {
           ),
           manualInstructions,
         ],
-        outputSchema: TestObjectType,
+        outputSchema: TestObject.$schema,
       );
 
       final messages = capturedRequest?.messages;

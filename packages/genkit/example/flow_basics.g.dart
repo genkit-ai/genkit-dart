@@ -21,7 +21,9 @@ part of 'flow_basics.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Subject implements SubjectSchema {
+class Subject {
+  factory Subject.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
   Subject(this._json);
 
   factory Subject.from({required String subject}) {
@@ -29,6 +31,8 @@ class Subject implements SubjectSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Subject> $schema = _SubjectTypeFactory();
 
   @override
   String get subject {
@@ -68,10 +72,9 @@ class _SubjectTypeFactory extends SchemanticType<Subject> {
   );
 }
 
-// ignore: constant_identifier_names
-const SubjectType = _SubjectTypeFactory();
+class Count {
+  factory Count.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Count implements CountSchema {
   Count(this._json);
 
   factory Count.from({required int count}) {
@@ -79,6 +82,8 @@ class Count implements CountSchema {
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Count> $schema = _CountTypeFactory();
 
   @override
   int get count {
@@ -117,6 +122,3 @@ class _CountTypeFactory extends SchemanticType<Count> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const CountType = _CountTypeFactory();

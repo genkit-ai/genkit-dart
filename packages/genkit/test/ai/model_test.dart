@@ -20,7 +20,7 @@ import 'package:test/test.dart';
 part 'model_test.g.dart';
 
 @Schematic()
-abstract class TestCustomOptionsSchema {
+abstract class $TestCustomOptions {
   String get customField;
 }
 
@@ -38,7 +38,7 @@ void main() {
             ),
           );
         },
-        customOptions: TestCustomOptionsType,
+        customOptions: TestCustomOptions.$schema,
       );
 
       final metadata = model.metadata;
