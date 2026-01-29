@@ -145,7 +145,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             responseJsonSchema:
                 req.config?['responseJsonSchema'] as Map<String, dynamic>?,
             thinkingConfig: req.config?['thinkingConfig'] != null
-                ? m.ThinkingConfig(
+                ?
+                  // ignore: deprecated_member_use
+                  m.ThinkingConfig(
                     thinkingBudget:
                         (req.config!['thinkingConfig'] as Map)['thinkingBudget']
                             as int?,
