@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: avoid_dynamic_calls
+
 import 'dart:convert';
 
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;

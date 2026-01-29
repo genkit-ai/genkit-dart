@@ -38,6 +38,7 @@ void main() async {
   // Keep logging minimal
   Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen((record) {
+    // ignore: avoid_print
     print('${record.level.name}: ${record.time}: ${record.message}');
   });
 
@@ -457,7 +458,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                                                 : Theme.of(
                                                     context,
                                                   ).colorScheme.primary))
-                                      .withOpacity(0.4),
+                                      .withValues(alpha: 0.4),
                               blurRadius: _isRecording ? 10 : 4,
                               spreadRadius: _isRecording ? 2 : 1,
                             ),
@@ -546,6 +547,7 @@ class AudioPlayerQueue {
       await completer.future.timeout(timeout, onTimeout: () {});
       await sub.cancel();
     } catch (e) {
+      // ignore: avoid_print
       print('AudioQueue Error: $e');
     } finally {
       _isPlaying = false;

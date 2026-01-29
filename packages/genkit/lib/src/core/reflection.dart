@@ -301,7 +301,8 @@ class ReflectionServer {
   }
 
   Future<void> _handleRunAction(HttpRequest request) async {
-    final body = jsonDecode(await utf8.decodeStream(request));
+    final body =
+        jsonDecode(await utf8.decodeStream(request)) as Map<String, dynamic>;
     final key = body['key'] as String;
     final input = body['input'];
     final stream = request.uri.queryParameters['stream'] == 'true';
@@ -434,7 +435,7 @@ class ReflectionServer {
       final file = File(runtimeFilePath!);
       if (await file.exists()) {
         final fileContent = await file.readAsString();
-        final data = jsonDecode(fileContent);
+        final data = jsonDecode(fileContent) as Map<String, dynamic>;
         if (data['pid'] == pid) {
           await file.delete();
           print('Runtime file cleaned up: $runtimeFilePath');

@@ -129,7 +129,7 @@ class ClassGenerator {
   void _generateUnionClass(
     LibraryBuilder b,
     String className,
-    List<dynamic> anyOf, {
+    List<Map<String, dynamic>> anyOf, {
     Reference? extend,
   }) {
     // Generate the base abstract class for the union type.

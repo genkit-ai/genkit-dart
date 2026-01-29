@@ -94,7 +94,7 @@ Future<O?> streamFlow<O, S>({
               final errorData = jsonDecode(jsonString);
               if (errorData is Map<String, dynamic> &&
                   errorData.containsKey('error')) {
-                final errorContent = errorData['error'];
+                final errorContent = errorData['error'] as Map<String, dynamic>;
                 final message =
                     errorContent['message'] ?? 'Unknown streaming error';
                 return handleError(

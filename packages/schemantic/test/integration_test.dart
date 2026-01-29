@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: unused_element
+// ignore_for_file: avoid_dynamic_calls, unused_element
 
 import 'dart:convert';
 
@@ -197,7 +197,7 @@ void main() {
       // 1. Verify refs generation
       // 1. Verify refs generation
       final nodeSchema = Node.$schema.jsonSchema(useRefs: true);
-      final json = jsonDecode(jsonEncode(nodeSchema));
+      final json = jsonDecode(jsonEncode(nodeSchema)) as Map<String, dynamic>;
 
       // Should have a root ref or be a combinator dependent on implementation
       expect(json[r'$ref'], '#/\$defs/Node');

@@ -54,14 +54,15 @@ class Model<C>
          streamSchema: ModelResponseChunk.$schema,
        ) {
     metadata['description'] = name;
-    if (metadata['model'] == null) {
-      metadata['model'] = <String, dynamic>{};
-    }
-    if (metadata['model']['label'] == null) {
-      metadata['model']['label'] = name;
+
+    final model =
+        (metadata['model'] ??= <String, dynamic>{}) as Map<String, dynamic>;
+
+    if (model['label'] == null) {
+      model['label'] = name;
     }
     if (customOptions != null) {
-      metadata['model']['customOptions'] = toJsonSchema(
+      model['customOptions'] = toJsonSchema(
         type: customOptions,
         useRefs: false,
       );
@@ -110,10 +111,11 @@ class BidiModel<C>
          streamSchema: ModelResponseChunk.$schema,
        ) {
     metadata['description'] = name;
-    metadata['model'] = <String, dynamic>{};
-    metadata['model']['label'] = name;
+    final model =
+        (metadata['model'] ??= <String, dynamic>{}) as Map<String, dynamic>;
+    model['label'] = name;
     if (customOptions != null) {
-      metadata['model']['customOptions'] = toJsonSchema(type: customOptions);
+      model['customOptions'] = toJsonSchema(type: customOptions);
     }
   }
 }
