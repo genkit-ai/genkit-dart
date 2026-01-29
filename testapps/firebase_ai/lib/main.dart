@@ -236,13 +236,11 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
 
       final newSession = await _ai.generateBidi(
         model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
-        config: LiveGenerationConfig.from(
+        config: LiveGenerationConfig(
           responseModalities: ['AUDIO'],
-          speechConfig: SpeechConfig.from(
-            voiceConfig: VoiceConfig.from(
-              prebuiltVoiceConfig: PrebuiltVoiceConfig.from(
-                voiceName: 'Algenib',
-              ),
+          speechConfig: SpeechConfig(
+            voiceConfig: VoiceConfig(
+              prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Algenib'),
             ),
           ),
         ),
@@ -313,13 +311,13 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       _audioSubscription = stream.listen((data) {
         final base64Audio = base64Encode(data);
         _session!.send(
-          ModelRequest.from(
+          ModelRequest(
             messages: [
-              Message.from(
+              Message(
                 role: Role.user,
                 content: [
-                  MediaPart.from(
-                    media: Media.from(
+                  MediaPart(
+                    media: Media(
                       url: 'data:audio/pcm;rate=16000;base64,$base64Audio',
                       contentType: 'audio/pcm;rate=16000',
                     ),
