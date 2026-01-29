@@ -101,9 +101,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             final type = typeObj.toTypeValue();
             if (type != null) {
               final typeName = _convertSchemaType(type);
-              // Constructor name logic: lowercase first letter of simple type name.
-              var sanitizedName = typeName.replaceAll(alphaNumeric, '');
-              final ctorName = _decapitalize(sanitizedName);
+              final typeAsDartName = _typeToDartName(typeName);
+              final ctorName = _decapitalize(typeAsDartName);
 
               c.constructors.add(
                 Constructor(
@@ -186,7 +185,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                       ..name = paramName
                       ..type = refer(helperClassName)
                       ..named = true
-                      // Assuming required for AnyOf based on user example
                       ..required = true,
                   ),
                 );
@@ -349,7 +347,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     final jsonFieldName = _getJsonKey(mainGetter);
 
     final typeName = _convertSchemaType(type);
-    final suffix = _capitalize(typeName.replaceAll(alphaNumeric, ''));
+    final typeAsDartName = _typeToDartName(typeName);
+    final suffix = _capitalize(typeAsDartName);
     final accessorName = '${mainName}As$suffix';
 
     return Method(
@@ -366,6 +365,12 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         ..body = Code("_json['$jsonFieldName'] = value;"),
     );
   }
+
+  String _typeToDartName(String typeName) =>
+      (typeName.endsWith('?') ? '${typeName}OrNull' : typeName).replaceAll(
+        alphaNumeric,
+        '',
+      );
 
   String _capitalize(String s) =>
       s.isEmpty ? s : s.substring(0, 1).toUpperCase() + s.substring(1);
@@ -872,8 +877,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           ConstantReader(anyOfAnnotation).peek('anyOf')?.listValue ?? [];
       final schemas = types
           .map((t) => t.toTypeValue())
-          .where((t) => t != null)
-          .map((t) => _jsonSchemaForType(t!, null, useRefs: useRefs))
+          .nonNulls
+          .map((t) => _jsonSchemaForType(t, null, useRefs: useRefs))
           .toList();
 
       final namedArgs = <String, Expression>{'anyOf': literalList(schemas)};
