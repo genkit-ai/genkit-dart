@@ -25,5 +25,3 @@ dev_dependencies:
 dependency_overrides:
   genkit:
     path: ../genkit
-  schemantic:
-    path: ../schemantic
