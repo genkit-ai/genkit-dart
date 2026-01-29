@@ -18,3 +18,5 @@ build
 .idea
 melos_*.iml
 packages/genkit_firebase_ai/.flutter-plugins-dependencies
+
+*.local.*
