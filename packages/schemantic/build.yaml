@@ -2,9 +2,8 @@ builders:
   schemantic:
     import: "package:schemantic/builder.dart"
     builder_factories: ["schemaBuilder"]
-    build_extensions: {".dart": [".g.part"]}
+    build_extensions: {".dart": [".schemantic.g.part"]}
     auto_apply: dependents
-    build_to: source
 
 targets:
   $default:

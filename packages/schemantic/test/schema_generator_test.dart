@@ -47,7 +47,7 @@ abstract class UserSchema {
 }
 ''',
         },
-        {'a|lib/a.g.dart': decodedMatches(contains('class _UserTypeFactory'))},
+        {'a|lib/a.schemantic.g.part': decodedMatches(contains('class _UserTypeFactory'))},
       );
     });
 
@@ -76,7 +76,7 @@ abstract class UserSchema {
 ''',
         },
         {
-          'a|lib/a.g.dart': decodedMatches(
+          'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
               contains('class _AddressTypeFactory'),
               contains('class _UserTypeFactory'),
@@ -105,7 +105,7 @@ abstract class ProductSchema {
 ''',
         },
         {
-          'a|lib/a.g.dart': decodedMatches(
+          'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
               contains("return _json['product_id'] as String;"),
               contains(
@@ -135,7 +135,7 @@ abstract class ItemSchema {
 ''',
         },
         {
-          'a|lib/a.g.dart': decodedMatches(
+          'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
               contains(
                 "return Status.values.byName(_json['status'] as String);",
