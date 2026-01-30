@@ -36,9 +36,9 @@ export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'
     show GenerateBidiSession, GenerateResponseChunk;
 export 'package:genkit/src/ai/model.dart'
-    show BidiModel, Model, ModelRef, modelRef;
+    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart' show Tool;
-export 'package:genkit/src/core/action.dart' show Action;
+export 'package:genkit/src/core/action.dart' show Action, ActionMetadata;
 export 'package:genkit/src/core/flow.dart';
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/exception.dart' show GenkitException;

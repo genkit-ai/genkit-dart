@@ -39,6 +39,13 @@ abstract class $GeminiOptions {
   $ThinkingConfig? get thinkingConfig;
   List<String>? get responseModalities;
 
+  @Field(
+    description:
+        'Context caching allows you to save and reuse precomputed input '
+        'tokens that you wish to use repeatedly.',
+  )
+  bool? get contextCache;
+
   // Retrieval
   $GoogleSearchRetrieval? get googleSearchRetrieval;
   $FileSearch? get fileSearch;
@@ -67,6 +74,17 @@ typedef GoogleGenAiPluginOptions = ();
 
 const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 
+final commonModelInfo = ModelInfo(
+  supports: {
+    'multiturn': true,
+    'media': true,
+    'tools': true,
+    'toolChoice': true,
+    'systemRole': true,
+    'constrained': true,
+  },
+);
+
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
@@ -80,40 +98,45 @@ class GoogleGenAiPluginHandle {
 }
 
 class _GoogleGenAiPlugin extends GenkitPlugin {
-  @override
-  String get name => 'googleai';
-
   String? apiKey;
 
   _GoogleGenAiPlugin({this.apiKey});
 
   @override
-  Future<List<Action>> init() async {
-    return [_createModel('gemini-2.5-flash'), _createModel('gemini-2.5-pro')];
+  String get name => 'googleai';
+
+  @override
+  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
+  list() async {
+    final service = gcl.ModelService.fromApiKey(apiKey);
+    final modelsResponse = await service.listModels(
+      gcl.ListModelsRequest(pageSize: 1000),
+    );
+    final models = modelsResponse.models
+        .where((model) {
+          return model.name.startsWith('models/gemini-');
+        })
+        .map((model) {
+          return modelMetadata(
+            'googleai/${model.name.split('/').last}',
+            customOptions: GeminiOptions.$schema,
+            modelInfo: commonModelInfo,
+          );
+        })
+        .toList();
+    return models;
   }
 
   @override
   Action? resolve(String actionType, String name) {
-    return _createModel(name);
+    return _createModel(name, GeminiOptions.$schema);
   }
 
-  Model _createModel(String modelName) {
+  Model _createModel(String modelName, SchemanticType customOptions) {
     return Model(
       name: 'googleai/$modelName',
-      customOptions: GeminiOptions.$schema,
-      metadata: {
-        'model': ModelInfo(
-          label: modelName,
-          supports: {
-            'multiturn': true,
-            'media': true,
-            'tools': true,
-            'toolChoice': true,
-            'systemRole': true,
-            'constrained': true,
-          },
-        ).toJson(),
-      },
+      customOptions: customOptions,
+      metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
         final options = req!.config == null
             ? GeminiOptions()
@@ -439,15 +462,9 @@ abstract class $SafetySettings {
   @StringField(
     enumValues: [
       'HARM_CATEGORY_UNSPECIFIED',
-      'HARM_CATEGORY_DEROGATORY',
-      'HARM_CATEGORY_TOXICITY',
-      'HARM_CATEGORY_VIOLENCE',
-      'HARM_CATEGORY_SEXUAL',
-      'HARM_CATEGORY_MEDICAL',
-      'HARM_CATEGORY_DANGEROUS',
-      'HARM_CATEGORY_HARASSMENT',
       'HARM_CATEGORY_HATE_SPEECH',
       'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_HARASSMENT',
       'HARM_CATEGORY_DANGEROUS_CONTENT',
       'HARM_CATEGORY_CIVIC_INTEGRITY',
     ],
@@ -456,12 +473,10 @@ abstract class $SafetySettings {
 
   @StringField(
     enumValues: [
-      'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
       'BLOCK_LOW_AND_ABOVE',
       'BLOCK_MEDIUM_AND_ABOVE',
       'BLOCK_ONLY_HIGH',
       'BLOCK_NONE',
-      'OFF',
     ],
   )
   String? get threshold;
@@ -469,7 +484,23 @@ abstract class $SafetySettings {
 
 @Schematic()
 abstract class $ThinkingConfig {
+  @Field(
+    description:
+        'Indicates whether to include thoughts in the response.'
+        'If true, thoughts are returned only when available.',
+  )
   bool? get includeThoughts;
+
+  @IntegerField(
+    minimum: 0,
+    maximum: 24576,
+    description:
+        'The thinking budget parameter gives the model guidance on the '
+        'number of thinking tokens it can use when generating a response. '
+        'A greater number of tokens is typically associated with more detailed '
+        'thinking, which is needed for solving more complex tasks. '
+        'Setting the thinking budget to 0 disables thinking.',
+  )
   int? get thinkingBudget;
 }
 
@@ -490,4 +521,92 @@ abstract class $GoogleSearchRetrieval {
 @Schematic()
 abstract class $FileSearch {
   List<String>? get fileSearchStoreNames;
+}
+
+@Schematic()
+abstract class $GeminiTtsOptions {
+  String? get apiKey;
+  // TODO: Add apiVersion, baseUrl
+  // String? get apiVersion;
+  // String? get baseUrl;
+
+  List<$SafetySettings>? get safetySettings;
+
+  bool? get codeExecution;
+  $FunctionCallingConfig? get functionCallingConfig;
+  $ThinkingConfig? get thinkingConfig;
+  List<String>? get responseModalities;
+
+  @Field(
+    description:
+        'Context caching allows you to save and reuse precomputed input '
+        'tokens that you wish to use repeatedly.',
+  )
+  bool? get contextCache;
+
+  // Retrieval
+  $GoogleSearchRetrieval? get googleSearchRetrieval;
+  $FileSearch? get fileSearch;
+  // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
+
+  @DoubleField(minimum: 0.0, maximum: 2.0)
+  double? get temperature;
+
+  @DoubleField(minimum: 0.0, maximum: 1.0)
+  double? get topP;
+
+  int? get topK;
+  int? get candidateCount;
+  List<String>? get stopSequences;
+  int? get maxOutputTokens;
+
+  String? get responseMimeType;
+  bool? get responseLogprobs;
+  int? get logprobs;
+  double? get presencePenalty;
+  double? get frequencyPenalty;
+  int? get seed;
+
+  $SpeechConfig? get speechConfig;
+}
+
+@Schematic(description: 'Speech generation config')
+abstract class $SpeechConfig {
+  $VoiceConfig? get voiceConfig;
+  $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
+}
+
+@Schematic(description: 'Configuration for multi-speaker setup')
+abstract class $MultiSpeakerVoiceConfig {
+  @Field(description: 'Configuration for all the enabled speaker voices')
+  List<$SpeakerVoiceConfig> get speakerVoiceConfigs;
+}
+
+@Schematic(
+  description: 'Configuration for a single speaker in a multi speaker setup',
+)
+abstract class $SpeakerVoiceConfig {
+  @StringField(description: 'Name of the speaker to use')
+  String get speaker;
+
+  $VoiceConfig get voiceConfig;
+}
+
+@Schematic(description: 'Configuration for the voice to use')
+abstract class $VoiceConfig {
+  $PrebuiltVoiceConfig? get prebuiltVoiceConfig;
+}
+
+@Schematic(description: 'Configuration for the prebuilt speaker to use')
+abstract class $PrebuiltVoiceConfig {
+  @StringField(
+    description:
+        'Name of the preset voice to use. '
+        'Known values: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, '
+        'Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, '
+        'Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, '
+        'Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, '
+        'Sadaltager, Sulafat',
+  )
+  String? get voiceName;
 }
