@@ -117,9 +117,10 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
           return model.name.startsWith('models/gemini-');
         })
         .map((model) {
-          return modelMetadata(
+          final isTts = model.name.contains('-tts');
+           return modelMetadata(
             'googleai/${model.name.split('/').last}',
-            customOptions: GeminiOptions.$schema,
+            customOptions: isTts ? GeminiTtsOptions.$schema : GeminiOptions.$schema,
             modelInfo: commonModelInfo,
           );
         })
@@ -129,6 +130,9 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
 
   @override
   Action? resolve(String actionType, String name) {
+    if (name.contains('-tts')) {
+        return _createModel(name, GeminiTtsOptions.$schema);
+    }
     return _createModel(name, GeminiOptions.$schema);
   }
 
@@ -138,29 +142,52 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
       customOptions: customOptions,
       metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
-        final options = req!.config == null
-            ? GeminiOptions()
-            : GeminiOptions.$schema.parse(req.config!);
+        final gcl.GenerationConfig generationConfig;
+        List<gcl.SafetySetting>? safetySettings;
+        List<gcl.Tool>? tools;
+        gcl.ToolConfig? toolConfig;
+        String? apiKey;
+
+        final isJsonMode =
+            req!.output?.format == 'json' ||
+            req.output?.contentType == 'application/json';
+
+        if (customOptions == GeminiTtsOptions.$schema) {
+          final options = req.config == null
+              ? GeminiTtsOptions()
+              : GeminiTtsOptions.$schema.parse(req.config!);
+          
+          apiKey = options.apiKey;
+          generationConfig = toGeminiTtsSettings(
+            options,
+            req.output?.schema,
+            isJsonMode,
+          );
+          safetySettings = toGeminiTtsSafetySettings(options);
+          tools = toGeminiTtsTools(req.tools, options);
+          toolConfig = toGeminiTtsToolConfig(options);
+        } else {
+             final options = req.config == null
+              ? GeminiOptions()
+              : GeminiOptions.$schema.parse(req.config!);
+          apiKey = options.apiKey;
+          generationConfig = toGeminiSettings(
+            options,
+            req.output?.schema,
+            isJsonMode,
+          );
+          safetySettings = toGeminiSafetySettings(options);
+          tools = toGeminiTools(req.tools, options);
+          toolConfig = toGeminiToolConfig(options);
+        }
 
         final service = gcl.GenerativeService.fromApiKey(
-          options.apiKey ?? apiKey,
+          apiKey ?? this.apiKey,
           // TODO: baseUrl is not supported in the current version of the library
           // baseUrl: options.baseUrl,
         );
 
         try {
-          final isJsonMode =
-              req.output?.format == 'json' ||
-              req.output?.contentType == 'application/json';
-          final generationConfig = toGeminiSettings(
-            options,
-            req.output?.schema,
-            isJsonMode,
-          );
-          final safetySettings = toGeminiSafetySettings(options);
-          final tools = toGeminiTools(req.tools, options);
-          final toolConfig = toGeminiToolConfig(options);
-
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
@@ -272,6 +299,137 @@ gcl.GenerationConfig toGeminiSettings(
 }
 
 @visibleForTesting
+gcl.GenerationConfig toGeminiTtsSettings(
+  GeminiTtsOptions options,
+  Map<String, dynamic>? outputSchema,
+  bool isJsonMode,
+) {
+  return gcl.GenerationConfig(
+    candidateCount: options.candidateCount,
+    stopSequences: options.stopSequences ?? [],
+    maxOutputTokens: options.maxOutputTokens,
+    temperature: options.temperature,
+    topP: options.topP,
+    topK: options.topK,
+    responseMimeType:
+        isJsonMode ? 'application/json' : (options.responseMimeType ?? ''),
+    responseJsonSchema: switch (outputSchema) {
+      null => null,
+      Map<String, Object?> $1 => pb.Value.fromJson($1),
+    },
+    presencePenalty: options.presencePenalty,
+    frequencyPenalty: options.frequencyPenalty,
+    responseLogprobs: options.responseLogprobs,
+    logprobs: options.logprobs,
+    enableEnhancedCivicAnswers: null,
+    responseModalities:
+        options.responseModalities
+            ?.map(
+              (m) => switch (m.toUpperCase()) {
+                'TEXT' => gcl.GenerationConfig_Modality.text,
+                'IMAGE' => gcl.GenerationConfig_Modality.image,
+                'AUDIO' => gcl.GenerationConfig_Modality.audio,
+                _ => gcl.GenerationConfig_Modality.modalityUnspecified,
+              },
+            )
+            .toList() ??
+        [],
+    speechConfig:
+        options.speechConfig == null
+            ? null
+            : gcl.SpeechConfig(
+              voiceConfig:
+                  options.speechConfig!.voiceConfig == null
+                      ? null
+                      : gcl.VoiceConfig(
+                        prebuiltVoiceConfig:
+                            options
+                                    .speechConfig!
+                                    .voiceConfig!
+                                    .prebuiltVoiceConfig ==
+                                null
+                                ? null
+                                : gcl.PrebuiltVoiceConfig(
+                                  voiceName:
+                                      options
+                                          .speechConfig!
+                                          .voiceConfig!
+                                          .prebuiltVoiceConfig!
+                                          .voiceName,
+                                ),
+                      ),
+            ),
+    thinkingConfig:
+        options.thinkingConfig == null
+            ? null
+            : gcl.ThinkingConfig(
+              includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
+              thinkingBudget: options.thinkingConfig!.thinkingBudget,
+            ),
+  );
+}
+
+@visibleForTesting
+List<gcl.SafetySetting>? toGeminiTtsSafetySettings(GeminiTtsOptions options) {
+  return options.safetySettings
+      ?.map(
+        (s) => gcl.SafetySetting(
+          category: switch (s.category) {
+            null => gcl.HarmCategory.harmCategoryUnspecified,
+            String c => gcl.HarmCategory.fromJson(c),
+          },
+          threshold: switch (s.threshold) {
+            null =>
+              gcl
+                  .SafetySetting_HarmBlockThreshold
+                  .harmBlockThresholdUnspecified,
+            String t => gcl.SafetySetting_HarmBlockThreshold.fromJson(t),
+          },
+        ),
+      )
+      .toList();
+}
+
+@visibleForTesting
+List<gcl.Tool> toGeminiTtsTools(
+  List<ToolDefinition>? tools,
+  GeminiTtsOptions options,
+) {
+  return [
+    ...(tools?.map(_toGeminiTool) ?? []),
+    if (options.codeExecution == true)
+      gcl.Tool(codeExecution: gcl.CodeExecution()),
+    if (options.googleSearchRetrieval != null)
+      gcl.Tool(
+        googleSearchRetrieval: gcl.GoogleSearchRetrieval(
+          dynamicRetrievalConfig: gcl.DynamicRetrievalConfig(
+            mode: switch (options.googleSearchRetrieval!.mode) {
+              null => gcl.DynamicRetrievalConfig_Mode.modeUnspecified,
+              String m => gcl.DynamicRetrievalConfig_Mode.fromJson(m),
+            },
+            dynamicThreshold: options.googleSearchRetrieval!.dynamicThreshold,
+          ),
+        ),
+      ),
+  ];
+}
+
+@visibleForTesting
+gcl.ToolConfig? toGeminiTtsToolConfig(GeminiTtsOptions options) {
+  if (options.functionCallingConfig == null) return null;
+  return gcl.ToolConfig(
+    functionCallingConfig: gcl.FunctionCallingConfig(
+      mode: switch (options.functionCallingConfig!.mode) {
+        null => gcl.FunctionCallingConfig_Mode.modeUnspecified,
+        String m => gcl.FunctionCallingConfig_Mode.fromJson(m),
+      },
+      allowedFunctionNames:
+          options.functionCallingConfig!.allowedFunctionNames ?? [],
+    ),
+  );
+}
+
+@visibleForTesting
 List<gcl.SafetySetting>? toGeminiSafetySettings(GeminiOptions options) {
   return options.safetySettings
       ?.map(
@@ -347,7 +505,7 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
   final finishReason = FinishReason(candidate.finishReason.value.toLowerCase());
   final message = Message(
     role: Role(candidate.content!.role),
-    content: candidate.content?.parts.map(_fromGeminiPart).toList() ?? [],
+    content: candidate.content?.parts.map(fromGeminiPart).toList() ?? [],
   );
   return (message, finishReason);
 }
@@ -413,7 +571,8 @@ gcl.Part toGeminiPart(Part p) {
   throw UnimplementedError('Unsupported part type: $p');
 }
 
-Part _fromGeminiPart(gcl.Part p) {
+@visibleForTesting
+Part fromGeminiPart(gcl.Part p) {
   if (p.text != null) {
     return TextPart(text: p.text!);
   }
@@ -438,6 +597,15 @@ Part _fromGeminiPart(gcl.Part p) {
       custom: {
         'executableCode': p.executableCode!.toJson() as Map<String, dynamic>,
       },
+    );
+  }
+  if (p.inlineData != null) {
+    return MediaPart(
+      media: Media(
+        url:
+            'data:${p.inlineData!.mimeType};base64,${base64Encode(p.inlineData!.data)}',
+        contentType: p.inlineData!.mimeType,
+      ),
     );
   }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');

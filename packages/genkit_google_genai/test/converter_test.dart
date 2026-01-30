@@ -15,6 +15,8 @@
 import 'dart:convert';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
+    as gcl;
 import 'package:test/test.dart';
 
 void main() {
@@ -51,6 +53,22 @@ void main() {
       expect(geminiPart.fileData, isNotNull);
       expect(geminiPart.fileData!.mimeType, 'image/png');
       expect(geminiPart.fileData!.fileUri, 'https://example.com/image.png');
+    });
+  });
+
+  group('fromGeminiPart', () {
+    test('converts inline data to MediaPart', () {
+      final part = gcl.Part(
+        inlineData: gcl.Blob(
+          mimeType: 'audio/mp3',
+          data: base64Decode('SGVsbG8='),
+        ),
+      );
+      final geminiPart = fromGeminiPart(part);
+      expect(geminiPart, isA<MediaPart>());
+      final media = (geminiPart as MediaPart).media;
+      expect(media.contentType, 'audio/mp3');
+      expect(media.url, 'data:audio/mp3;base64,SGVsbG8=');
     });
   });
 }

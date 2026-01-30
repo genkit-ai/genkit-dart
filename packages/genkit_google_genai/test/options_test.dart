@@ -147,4 +147,36 @@ void main() {
       expect(config?.functionCallingConfig?.allowedFunctionNames, ['foo']);
     });
   });
+
+  group('toGeminiTtsSettings', () {
+    test('maps speech config correctly', () {
+      final options = GeminiTtsOptions(
+        speechConfig: SpeechConfig(
+          voiceConfig: VoiceConfig(
+            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+          ),
+        ),
+      );
+
+      final settings = toGeminiTtsSettings(options, null, false);
+
+      expect(settings.speechConfig, isNotNull);
+      expect(
+        settings.speechConfig?.voiceConfig?.prebuiltVoiceConfig?.voiceName,
+        'Puck',
+      );
+    });
+
+    test('maps standard fields correctly', () {
+      final options = GeminiTtsOptions(
+        temperature: 0.5,
+        responseMimeType: 'audio/mp3',
+      );
+
+      final settings = toGeminiTtsSettings(options, null, false);
+
+      expect(settings.temperature, 0.5);
+      expect(settings.responseMimeType, 'audio/mp3');
+    });
+  });
 }
