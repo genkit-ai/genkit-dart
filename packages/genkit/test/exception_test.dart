@@ -21,7 +21,8 @@ void main() {
       final exception = GenkitException('Test error message');
 
       expect(exception.message, 'Test error message');
-      expect(exception.statusCode, isNull);
+      expect(exception.status, StatusCodes.UNKNOWN);
+      expect(exception.statusCode, StatusCodes.UNKNOWN.value);
       expect(exception.details, isNull);
       expect(exception.underlyingException, isNull);
       expect(exception.stackTrace, isNull);
@@ -40,7 +41,8 @@ void main() {
       );
 
       expect(exception.message, 'Main error message');
-      expect(exception.statusCode, 500);
+      expect(exception.status, StatusCodes.INTERNAL);
+      expect(exception.statusCode, StatusCodes.INTERNAL.value);
       expect(exception.details, 'Error details');
       expect(exception.underlyingException, underlyingException);
       expect(exception.stackTrace, stackTrace);
@@ -56,7 +58,8 @@ void main() {
       final string = exception.toString();
 
       expect(string, contains('GenkitException: Test error'));
-      expect(string, contains('Status Code: 404'));
+      expect(string, contains('Status: NOT_FOUND'));
+      expect(string, contains('Code: 5'));
       expect(string, contains('Details: Not found'));
     });
 
@@ -102,8 +105,10 @@ void main() {
     test('should handle HTTP status codes correctly', () {
       final exception = GenkitException('HTTP Error', statusCode: 429);
 
-      expect(exception.statusCode, 429);
-      expect(exception.toString(), contains('Status Code: 429'));
+      expect(exception.status, StatusCodes.RESOURCE_EXHAUSTED);
+      expect(exception.statusCode, StatusCodes.RESOURCE_EXHAUSTED.value);
+      expect(exception.toString(), contains('Status: RESOURCE_EXHAUSTED'));
+      expect(exception.toString(), contains('Code: 8'));
     });
 
     test('should include all information in complete exception', () {
@@ -121,7 +126,8 @@ void main() {
       final string = exception.toString();
 
       expect(string, contains('GenkitException: JSON parsing failed'));
-      expect(string, contains('Status Code: 400'));
+      expect(string, contains('Status: INVALID_ARGUMENT'));
+      expect(string, contains('Code: 3'));
       expect(string, contains('Details: Response body: {"invalid": json}'));
       expect(
         string,

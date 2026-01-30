@@ -109,9 +109,7 @@ class ClassGenerator {
                   if (unionTypes != null && unionTypes.isNotEmpty) {
                     if (unionTypes.length > 1) {
                       m.annotations.add(
-                        refer('AnyOf').call([
-                          literalList(unionTypes),
-                        ]),
+                        refer('AnyOf').call([literalList(unionTypes)]),
                       );
                       m.returns = refer('Object?');
                     } else {

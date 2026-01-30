@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import '../ai/model.dart';
+import '../exception.dart';
 import 'action.dart';
 
 /// A plugin for Genkit.
@@ -42,7 +43,10 @@ abstract class GenkitPlugin {
   Model model(String name) {
     final m = resolve('model', name);
     if (m == null || m is! Model) {
-      throw Exception('Model $name not found');
+      throw GenkitException(
+        'Model $name not found',
+        status: StatusCodes.NOT_FOUND,
+      );
     }
     return m;
   }
