@@ -963,31 +963,31 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
               ]),
             ];
 
-            final combinedArgs = <String, Expression>{
+            final combinedMap = <Object, Object>{
               'allOf': literalList(allOfList),
             };
             if (properties.containsKey('description')) {
-              combinedArgs['description'] = properties['description']!;
+              combinedMap['description'] = properties['description']!;
             }
             if (properties.containsKey('default')) {
-              combinedArgs['defaultValue'] = properties['default']!;
+              combinedMap['default'] = properties['default']!;
             }
 
-            return refer('Schema.combined').call([], combinedArgs);
+            return refer('Schema.fromMap').call([literalMap(combinedMap)]);
           } else {
             // Not using refs (inline).
             // SchemaExpression is types.jsonSchema().
             // Wrapper needed.
-            final combinedArgs = <String, Expression>{
+            final combinedMap = <Object, Object>{
               'allOf': literalList([schemaExpression]),
             };
             if (properties.containsKey('description')) {
-              combinedArgs['description'] = properties['description']!;
+              combinedMap['description'] = properties['description']!;
             }
             if (properties.containsKey('default')) {
-              combinedArgs['defaultValue'] = properties['default']!;
+              combinedMap['default'] = properties['default']!;
             }
-            return refer('Schema.combined').call([], combinedArgs);
+            return refer('Schema.fromMap').call([literalMap(combinedMap)]);
           }
         }
       } else {
@@ -1042,9 +1042,30 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
     final defaultValue = reader.peek('defaultValue')?.literalValue;
     if (defaultValue != null) {
-      properties['default'] = literal(defaultValue);
+      properties['default'] = _toLiteral(defaultValue);
     }
     return properties;
+  }
+
+  Expression _toLiteral(Object? value) {
+    if (value == null) return literalNull;
+    if (value is String) return literalString(value);
+    if (value is num) return literalNum(value);
+    if (value is bool) return literalBool(value);
+    if (value is List) {
+      return literalList(value.map(_toLiteral));
+    }
+    if (value is Map) {
+      return literalMap(
+        value.map((k, v) => MapEntry(_toLiteral(k), _toLiteral(v))),
+      );
+    }
+    if (value is DartObject) {
+      return _toLiteral(ConstantReader(value).literalValue);
+    }
+    // Fallback or error if unsafe type
+    throw ArgumentError.value(
+        value, 'value', 'Not a supported literal type for Schema generation');
   }
 
   Map<String, Expression> _readStringProperties(ConstantReader reader) {

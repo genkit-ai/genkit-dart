@@ -241,6 +241,40 @@ abstract class $Config {
         },
       );
     });
+
+    test('generates schema with nested schema and defaultValue', () async {
+      await _testBuilderWithNoFail(
+        {
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
+          'a|lib/a.dart': r'''
+import 'package:schemantic/schemantic.dart';
+
+part 'a.g.dart';
+
+@Schematic()
+abstract class $Inner {
+  String get val;
+}
+
+@Schematic()
+abstract class $Outer {
+  @Field(defaultValue: {'val': 'default'})
+  $Inner get inner;
+}
+''',
+        },
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
+            allOf(
+              contains("Schema.fromMap({"),
+              contains("'allOf':"),
+              contains(r"Schema.fromMap({'$ref': r'#/$defs/Inner'})"),
+              contains("'default': {'val': 'default'}"),
+            ),
+          ),
+        },
+      );
+    });
   });
 }
 
