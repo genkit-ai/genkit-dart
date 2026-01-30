@@ -53,7 +53,7 @@ class GeminiOptions {
       'responseMimeType': ?responseMimeType,
       'responseSchema': ?responseSchema,
       'responseJsonSchema': ?responseJsonSchema,
-      if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
+      'thinkingConfig': ?thinkingConfig?.toJson(),
     };
   }
 
@@ -390,10 +390,7 @@ class VoiceConfig {
   VoiceConfig._(this._json);
 
   VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
-    _json = {
-      if (prebuiltVoiceConfig != null)
-        'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
-    };
+    _json = {'prebuiltVoiceConfig': ?prebuiltVoiceConfig?.toJson()};
   }
 
   late final Map<String, dynamic> _json;
@@ -456,7 +453,7 @@ class SpeechConfig {
   SpeechConfig._(this._json);
 
   SpeechConfig({VoiceConfig? voiceConfig}) {
-    _json = {if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson()};
+    _json = {'voiceConfig': ?voiceConfig?.toJson()};
   }
 
   late final Map<String, dynamic> _json;
@@ -528,7 +525,7 @@ class LiveGenerationConfig {
   }) {
     _json = {
       'responseModalities': ?responseModalities,
-      if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
+      'speechConfig': ?speechConfig?.toJson(),
       'stopSequences': ?stopSequences,
       'maxOutputTokens': ?maxOutputTokens,
       'temperature': ?temperature,
