@@ -18,6 +18,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
+import 'src/ai/generate_middleware.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
@@ -34,11 +35,15 @@ import 'src/utils.dart';
 
 export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'
-    show GenerateBidiSession, GenerateResponseChunk;
+    show GenerateBidiSession, GenerateResponseChunk, GenerateResponseHelper;
+export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
+export 'package:genkit/src/ai/middleware/retry.dart'
+    show RetryMiddleware, StatusName;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart' show Tool;
-export 'package:genkit/src/core/action.dart' show Action, ActionMetadata;
+export 'package:genkit/src/core/action.dart'
+    show Action, ActionFnArg, ActionMetadata;
 export 'package:genkit/src/core/flow.dart';
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/exception.dart' show GenkitException;
@@ -246,6 +251,7 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
+    List<GenerateMiddleware>? use,
   }) async {
     if (outputInstructions != null && outputNoInstructions == true) {
       throw ArgumentError(
@@ -282,6 +288,7 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
+      middlewares: use,
       onChunk: (c) {
         if (outputSchema != null) {
           onChunk?.call(
@@ -323,6 +330,7 @@ class Genkit {
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
+    List<GenerateMiddleware>? use,
   }) {
     final streamController = StreamController<GenerateResponseChunk<S>>();
     final actionStream =
@@ -346,6 +354,7 @@ class Genkit {
           outputNoInstructions: outputNoInstructions,
           outputContentType: outputContentType,
           context: context,
+          use: use,
           onChunk: (chunk) {
             if (streamController.isClosed) return;
             streamController.add(chunk as GenerateResponseChunk<S>);
