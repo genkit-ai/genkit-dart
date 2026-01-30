@@ -102,9 +102,14 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     final service = gcl.ModelService.fromApiKey(apiKey);
-    final modelsResponse = await service.listModels(
-      gcl.ListModelsRequest(pageSize: 1000),
-    );
+    final gcl.ListModelsResponse modelsResponse;
+    try {
+      modelsResponse = await service.listModels(
+        gcl.ListModelsRequest(pageSize: 1000),
+      );
+    } catch (e, stack) {
+      throw _handleException(e, stack);
+    }
     final models = modelsResponse.models
         .where((model) {
           return model.name.startsWith('models/gemini-');
@@ -246,10 +251,53 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
               raw: jsonDecode(jsonEncode(response)),
             );
           }
+        } catch (e, stack) {
+          throw _handleException(e, stack);
         } finally {
           service.close();
         }
       },
+    );
+  }
+
+  GenkitException _handleException(Object e, StackTrace stack) {
+    if (e is GenkitException) return e;
+
+    // Check for common HTTP status codes if the exception has them
+    // googleapis definitions often have 'status' or 'code'
+    int? httpStatus;
+    String? message;
+
+    // Dynamic access to avoid hard dependency on specific exception types
+    // if they are not exported or vary.
+    try {
+      if ((e as dynamic).status != null) {
+        httpStatus = (e as dynamic).status as int?;
+      } else if ((e as dynamic).code != null) {
+        httpStatus =
+            (e as dynamic).code as int?; // Sometimes 'code' is the status
+      }
+      if ((e as dynamic).message != null) {
+        message = (e as dynamic).message as String?;
+      }
+    } catch (_) {
+      // Ignore reflection errors
+    }
+
+    if (httpStatus != null) {
+      return GenkitException(
+        message ?? 'Google AI API Error: $httpStatus',
+        status: StatusCodes.fromHttpStatus(httpStatus),
+        underlyingException: e,
+        stackTrace: stack,
+      );
+    }
+
+    return GenkitException(
+      'Google AI Error: $e',
+      status: StatusCodes.INTERNAL,
+      underlyingException: e,
+      stackTrace: stack,
     );
   }
 }
