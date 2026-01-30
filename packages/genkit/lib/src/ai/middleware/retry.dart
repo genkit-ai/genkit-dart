@@ -27,47 +27,61 @@ import '../generate_middleware.dart';
 
 final _logger = Logger('genkit.middleware.retry');
 
-
 /// Common status codes for Genkit operations.
 ///
 /// These correspond to gRPC status codes.
 enum StatusName {
   /// The operation completed successfully.
   OK,
+
   /// The operation was cancelled.
   CANCELLED,
+
   /// Unknown error.
   UNKNOWN,
+
   /// Client specified an invalid argument.
   INVALID_ARGUMENT,
+
   /// Deadline expired before operation could complete.
   DEADLINE_EXCEEDED,
+
   /// Some requested entity (e.g., file or directory) was not found.
   NOT_FOUND,
+
   /// Some entity that we attempted to create (e.g., file or directory) already exists.
   ALREADY_EXISTS,
+
   /// The caller does not have permission to execute the specified operation.
   PERMISSION_DENIED,
+
   /// The request does not have valid authentication credentials for the operation.
   UNAUTHENTICATED,
+
   /// Some resource has been exhausted, perhaps a per-user quota.
   RESOURCE_EXHAUSTED,
+
   /// Operation was rejected because the system is not in a state required for the operation's execution.
   FAILED_PRECONDITION,
+
   /// The operation was aborted.
   ABORTED,
+
   /// Operation was attempted past the valid range.
   OUT_OF_RANGE,
+
   /// Operation is not implemented or not supported/enabled in this service.
   UNIMPLEMENTED,
+
   /// Internal errors.
   INTERNAL,
+
   /// The service is currently unavailable.
   UNAVAILABLE,
+
   /// Unrecoverable data loss or corruption.
   DATA_LOSS,
 }
-
 
 /// A middleware that retries model and tool requests on failure.
 ///
@@ -177,7 +191,9 @@ class RetryMiddleware extends GenerateMiddleware {
           rethrow;
         }
         final delay = _calculateDelay(attempt);
-        _logger.warning('Retry attempt $attempt after ${delay.inMilliseconds}ms due to error: $e');
+        _logger.warning(
+          'Retry attempt $attempt after ${delay.inMilliseconds}ms due to error: $e',
+        );
         await Future.delayed(delay);
       }
     }
@@ -188,14 +204,14 @@ class RetryMiddleware extends GenerateMiddleware {
     if (e is GenkitException) {
       status = _mapStatusCodeToStatus(e.statusCode);
     }
-    
+
     if (status != null) {
       if (statuses.isEmpty) {
         return defaultRetryStatuses.contains(status);
       }
       return statuses.contains(status);
     }
-    
+
     return false;
   }
 
@@ -214,19 +230,32 @@ class RetryMiddleware extends GenerateMiddleware {
   StatusName? _mapStatusCodeToStatus(int? statusCode) {
     if (statusCode == null) return null;
     switch (statusCode) {
-      case 200: return StatusName.OK;
-      case 400: return StatusName.INVALID_ARGUMENT;
-      case 401: return StatusName.UNAUTHENTICATED;
-      case 403: return StatusName.PERMISSION_DENIED;
-      case 404: return StatusName.NOT_FOUND;
-      case 409: return StatusName.ABORTED; // Or ALREADY_EXISTS
-      case 429: return StatusName.RESOURCE_EXHAUSTED;
-      case 499: return StatusName.CANCELLED;
-      case 500: return StatusName.INTERNAL;
-      case 501: return StatusName.UNIMPLEMENTED;
-      case 503: return StatusName.UNAVAILABLE;
-      case 504: return StatusName.DEADLINE_EXCEEDED;
-      default: return StatusName.UNKNOWN;
+      case 200:
+        return StatusName.OK;
+      case 400:
+        return StatusName.INVALID_ARGUMENT;
+      case 401:
+        return StatusName.UNAUTHENTICATED;
+      case 403:
+        return StatusName.PERMISSION_DENIED;
+      case 404:
+        return StatusName.NOT_FOUND;
+      case 409:
+        return StatusName.ABORTED; // Or ALREADY_EXISTS
+      case 429:
+        return StatusName.RESOURCE_EXHAUSTED;
+      case 499:
+        return StatusName.CANCELLED;
+      case 500:
+        return StatusName.INTERNAL;
+      case 501:
+        return StatusName.UNIMPLEMENTED;
+      case 503:
+        return StatusName.UNAVAILABLE;
+      case 504:
+        return StatusName.DEADLINE_EXCEEDED;
+      default:
+        return StatusName.UNKNOWN;
     }
   }
 }
