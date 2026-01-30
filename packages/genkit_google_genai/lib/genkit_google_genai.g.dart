@@ -34,7 +34,6 @@ class GeminiOptions {
     FunctionCallingConfig? functionCallingConfig,
     ThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
-    bool? contextCache,
     GoogleSearchRetrieval? googleSearchRetrieval,
     FileSearch? fileSearch,
     double? temperature,
@@ -59,7 +58,6 @@ class GeminiOptions {
         'functionCallingConfig': functionCallingConfig.toJson(),
       if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
       if (responseModalities != null) 'responseModalities': responseModalities,
-      if (contextCache != null) 'contextCache': contextCache,
       if (googleSearchRetrieval != null)
         'googleSearchRetrieval': googleSearchRetrieval.toJson(),
       if (fileSearch != null) 'fileSearch': fileSearch.toJson(),
@@ -162,18 +160,6 @@ class GeminiOptions {
       _json.remove('responseModalities');
     } else {
       _json['responseModalities'] = value;
-    }
-  }
-
-  bool? get contextCache {
-    return _json['contextCache'] as bool?;
-  }
-
-  set contextCache(bool? value) {
-    if (value == null) {
-      _json.remove('contextCache');
-    } else {
-      _json['contextCache'] = value;
     }
   }
 
@@ -384,10 +370,6 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         }),
         'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
         'responseModalities': Schema.list(items: Schema.string()),
-        'contextCache': Schema.boolean(
-          description:
-              'Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.',
-        ),
         'googleSearchRetrieval': Schema.fromMap({
           '\$ref': r'#/$defs/GoogleSearchRetrieval',
         }),
@@ -815,7 +797,6 @@ class GeminiTtsOptions {
     FunctionCallingConfig? functionCallingConfig,
     ThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
-    bool? contextCache,
     GoogleSearchRetrieval? googleSearchRetrieval,
     FileSearch? fileSearch,
     double? temperature,
@@ -841,7 +822,6 @@ class GeminiTtsOptions {
         'functionCallingConfig': functionCallingConfig.toJson(),
       if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
       if (responseModalities != null) 'responseModalities': responseModalities,
-      if (contextCache != null) 'contextCache': contextCache,
       if (googleSearchRetrieval != null)
         'googleSearchRetrieval': googleSearchRetrieval.toJson(),
       if (fileSearch != null) 'fileSearch': fileSearch.toJson(),
@@ -945,18 +925,6 @@ class GeminiTtsOptions {
       _json.remove('responseModalities');
     } else {
       _json['responseModalities'] = value;
-    }
-  }
-
-  bool? get contextCache {
-    return _json['contextCache'] as bool?;
-  }
-
-  set contextCache(bool? value) {
-    if (value == null) {
-      _json.remove('contextCache');
-    } else {
-      _json['contextCache'] = value;
     }
   }
 
@@ -1181,10 +1149,6 @@ class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
         }),
         'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
         'responseModalities': Schema.list(items: Schema.string()),
-        'contextCache': Schema.boolean(
-          description:
-              'Context caching allows you to save and reuse precomputed input tokens that you wish to use repeatedly.',
-        ),
         'googleSearchRetrieval': Schema.fromMap({
           '\$ref': r'#/$defs/GoogleSearchRetrieval',
         }),

@@ -39,13 +39,6 @@ abstract class $GeminiOptions {
   $ThinkingConfig? get thinkingConfig;
   List<String>? get responseModalities;
 
-  @Field(
-    description:
-        'Context caching allows you to save and reuse precomputed input '
-        'tokens that you wish to use repeatedly.',
-  )
-  bool? get contextCache;
-
   // Retrieval
   $GoogleSearchRetrieval? get googleSearchRetrieval;
   $FileSearch? get fileSearch;
@@ -650,13 +643,6 @@ abstract class $GeminiTtsOptions {
   $FunctionCallingConfig? get functionCallingConfig;
   $ThinkingConfig? get thinkingConfig;
   List<String>? get responseModalities;
-
-  @Field(
-    description:
-        'Context caching allows you to save and reuse precomputed input '
-        'tokens that you wish to use repeatedly.',
-  )
-  bool? get contextCache;
 
   // Retrieval
   $GoogleSearchRetrieval? get googleSearchRetrieval;
