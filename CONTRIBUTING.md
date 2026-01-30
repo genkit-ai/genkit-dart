@@ -20,3 +20,7 @@
 ## Requirements
 - All tests must pass.
 - Code must be formatted and lint-free.
+- New files must include license headers. Run:
+  ```bash
+  dart run tools/apply_license.dart
+  ```

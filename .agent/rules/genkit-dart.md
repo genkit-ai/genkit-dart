@@ -30,6 +30,7 @@ The repository is managed using [Melos](https://melos.invertase.dev/).
 # Best Practices
 
 *   Always run `melos run analyze` to verify code health.
+*   Apply license headers when adding new files: `dart run tools/apply_license.dart`.
 *   Do not modify `pubspec.lock` manually; let `melos bootstrap` or `dart pub get` handle it.
 
 # Schema Framework
