@@ -112,7 +112,9 @@ void main(List<String> args) async {
 
   ai.defineFlow(
     name: 'weatherFlow',
-    inputSchema: stringSchema(defaultValue: 'What is the weather like in Boston?'),
+    inputSchema: stringSchema(
+      defaultValue: 'What is the weather like in Boston?',
+    ),
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(

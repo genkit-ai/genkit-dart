@@ -118,9 +118,7 @@ void main() async {
 
       // Call 'hello' flow
       try {
-        final helloRes = await helloAction(
-          input: HelloInput(name: 'Client'),
-        );
+        final helloRes = await helloAction(input: HelloInput(name: 'Client'));
         results.add('Hello Flow: ${helloRes.greeting}');
       } catch (e) {
         results.add('Hello Flow Error: $e');

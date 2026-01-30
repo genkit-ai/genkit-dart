@@ -52,7 +52,7 @@ class _StringSchemaFactory extends SchemanticType<String> {
   final List<String>? enumValues;
   final String? defaultValue;
 
-const _StringSchemaFactory({
+  const _StringSchemaFactory({
     this.description,
     this.minLength,
     this.maxLength,
@@ -217,10 +217,7 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
 /// ```dart
 /// boolSchema().parse(true);
 /// ```
-SchemanticType<bool> boolSchema({
-  String? description,
-  bool? defaultValue,
-}) {
+SchemanticType<bool> boolSchema({String? description, bool? defaultValue}) {
   return _BoolSchemaFactory(
     description: description,
     defaultValue: defaultValue,

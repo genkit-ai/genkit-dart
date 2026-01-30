@@ -56,7 +56,9 @@ void main() {
           await for (final request in input) {
             final msg = request.messages.first;
             if (msg.role == Role.tool) {
-              final toolResponse = ToolResponsePart.fromJson(msg.content.first.toJson());
+              final toolResponse = ToolResponsePart.fromJson(
+                msg.content.first.toJson(),
+              );
               context.sendChunk(
                 ModelResponseChunk(
                   content: [
@@ -83,9 +85,7 @@ void main() {
                 );
               } else {
                 context.sendChunk(
-                  ModelResponseChunk(
-                    content: [TextPart(text: 'echo $text')],
-                  ),
+                  ModelResponseChunk(content: [TextPart(text: 'echo $text')]),
                 );
               }
             }

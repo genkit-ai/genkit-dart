@@ -235,7 +235,7 @@ abstract class $Config {
               contains("'type': 'string'"),
               contains("'type': 'integer'"),
               contains("'type': 'boolean'"),
-              contains("Schema.fromMap"), 
+              contains("Schema.fromMap"),
             ),
           ),
         },

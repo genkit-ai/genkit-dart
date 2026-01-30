@@ -322,12 +322,8 @@ void main() {
       genkit.defineModel(
         name: 'streamingJsonModel',
         fn: (req, ctx) async {
-          ctx.sendChunk(
-            ModelResponseChunk(content: [TextPart(text: '{"a":')]),
-          );
-          ctx.sendChunk(
-            ModelResponseChunk(content: [TextPart(text: ' 1,')]),
-          );
+          ctx.sendChunk(ModelResponseChunk(content: [TextPart(text: '{"a":')]));
+          ctx.sendChunk(ModelResponseChunk(content: [TextPart(text: ' 1,')]));
           ctx.sendChunk(
             ModelResponseChunk(content: [TextPart(text: '"b": 2}')]),
           );

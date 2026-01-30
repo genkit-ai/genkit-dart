@@ -24,9 +24,7 @@ void main() {
           TextPart(text: 'Hello, '),
           TextPart(text: 'world!'),
           // ignore: unnecessary_type_check
-          MediaPart(
-            media: Media(url: 'http://example.com/image.png'),
-          ),
+          MediaPart(media: Media(url: 'http://example.com/image.png')),
         ],
       );
       expect(message.text, 'Hello, world!');
@@ -37,9 +35,7 @@ void main() {
         role: Role.user,
         content: [
           // ignore: unnecessary_type_check
-          MediaPart(
-            media: Media(url: 'http://example.com/image.png'),
-          ),
+          MediaPart(media: Media(url: 'http://example.com/image.png')),
         ],
       );
       expect(message.text, '');
@@ -70,9 +66,7 @@ void main() {
     });
 
     test('GenerateResponseChunk text getter', () {
-      final chunk = ModelResponseChunk(
-        content: [TextPart(text: 'Chunk text')],
-      );
+      final chunk = ModelResponseChunk(content: [TextPart(text: 'Chunk text')]);
       expect(chunk.text, 'Chunk text');
     });
 

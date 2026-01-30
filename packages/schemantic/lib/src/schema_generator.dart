@@ -54,7 +54,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       );
     }
 
-    final helperClasses = _generateHelperClasses(element);
+    final helperClasses = _generateHelperClasses(baseName, element);
     final extensionType = _generateClass(baseName, element);
     final factory = _generateFactory(baseName, element, annotation);
 
@@ -70,7 +70,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
   RegExp alphaNumeric = RegExp(r'[^a-zA-Z0-9]');
 
-  List<Class> _generateHelperClasses(ClassElement element) {
+  List<Class> _generateHelperClasses(String baseName, ClassElement element) {
     final classes = <Class>[];
     for (final field in element.fields) {
       if (field.getter == null) continue;
@@ -87,7 +87,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       }
       classes.add(
         Class((c) {
-          c.name = _capitalize(fieldName);
+          c.name = baseName + _capitalize(fieldName);
           c.fields.add(
             Field(
               (f) => f
@@ -114,9 +114,20 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                       Parameter(
                         (p) => p
                           ..name = 'value'
-                          ..toThis = true
+                          ..toThis = !type.isSchema
                           ..type = refer(typeName),
                       ),
+                    )
+                    ..initializers.addAll(
+                      type.isSchema
+                          ? [
+                              refer('value')
+                                  .assign(
+                                    refer('value').property('toJson').call([]),
+                                  )
+                                  .code,
+                            ]
+                          : [],
                     ),
                 ),
               );
@@ -209,7 +220,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
               if (anyOfAnnotation != null) {
                 // Handle AnyOf parameter using Helper Class
-                final helperClassName = _capitalize(paramName!);
+                final helperClassName = baseName + _capitalize(paramName!);
                 params.add(
                   Parameter(
                     (p) => p
@@ -311,12 +322,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           if (anyOfAnnotation != null) {
             final types =
                 ConstantReader(anyOfAnnotation).peek('anyOf')?.listValue ?? [];
-            for (final typeObject in types) {
-              final type = typeObject.toTypeValue();
-              if (type != null) {
-                b.methods.add(_generateAnyOfSetter(getter, type));
-              }
-            }
+            // Generate single setter for AnyOf
+            b.methods.add(_generateAnyOfSetter(getter, types, baseName));
             b.methods.add(_generateAnyOfGetter(getter, types));
           } else {
             // Generate standard accessors
@@ -371,28 +378,25 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
   Method _generateAnyOfSetter(
     PropertyAccessorElement mainGetter,
-    DartType type,
+    List<DartObject> types,
+    String baseName,
   ) {
     final mainName = mainGetter.name;
     final jsonFieldName = _getJsonKey(mainGetter);
-
-    final typeName = _convertSchemaType(type);
-    final typeAsDartName = _typeToDartName(typeName);
-    final suffix = _capitalize(typeAsDartName);
-    final accessorName = '${mainName}As$suffix';
+    final helperClassName = baseName + _capitalize(mainName!);
 
     return Method(
       (m) => m
-        ..name = accessorName
+        ..name = mainName
         ..type = MethodType.setter
         ..requiredParameters.add(
           Parameter(
             (p) => p
               ..name = 'value'
-              ..type = refer(typeName),
+              ..type = refer(helperClassName),
           ),
         )
-        ..body = Code("_json['$jsonFieldName'] = value;"),
+        ..body = Code("_json['$jsonFieldName'] = value.value;"),
     );
   }
 
@@ -422,9 +426,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         return 'List<$nestedBaseName$nullability>$listNullability';
       }
     }
-    final nonNullableTypeName = type.getDisplayString().replaceAll('?', '');
-    if (nonNullableTypeName.isSchema) {
-      final nestedBaseName = _resolveBaseName(nonNullableTypeName);
+    if (type.isSchema) {
+      final nestedBaseName = _resolveBaseName(type.element!.name!);
       final nullability = typeName.endsWith('?') ? '?' : '';
       return '$nestedBaseName$nullability';
     }
@@ -627,7 +630,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                     ..type = refer('Object?'),
                 ),
               )
-              ..body = Code('return $baseName._(json as Map<String, dynamic>);'),
+              ..body = Code(
+                'return $baseName._(json as Map<String, dynamic>);',
+              ),
           ),
         );
       }
@@ -928,8 +933,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           properties['format'] = literalString('date-time');
           schemaExpression = refer('Schema.string').call([], properties);
         }
-      } else if (typeName.isSchema) {
-        final nestedBaseName = _resolveBaseName(typeName);
+      } else if (type.isSchema) {
+        final nestedBaseName = _resolveBaseName(type.element!.name!);
         // If we are building the "definition" for the metadata, we want to use refs for children.
         if (useRefs) {
           final refMap = <Object, Object>{
@@ -939,9 +944,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           };
           // default is not allowed as sibling of $ref, so we don't add it here.
           // It will be added in the allOf wrapper below.
-          schemaExpression = refer(
-            'Schema.fromMap',
-          ).call([literalMap(refMap)]);
+          schemaExpression = refer('Schema.fromMap').call([literalMap(refMap)]);
         } else {
           // For metadata generation, we can emit a direct call to the nested type's jsonSchema.
           schemaExpression = refer(
@@ -1065,7 +1068,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
     // Fallback or error if unsafe type
     throw ArgumentError.value(
-        value, 'value', 'Not a supported literal type for Schema generation');
+      value,
+      'value',
+      'Not a supported literal type for Schema generation',
+    );
   }
 
   Map<String, Expression> _readStringProperties(ConstantReader reader) {
@@ -1167,6 +1173,10 @@ extension on DartType {
 
   bool get isDynamic {
     return getDisplayString() == 'dynamic';
+  }
+
+  bool get isSchema {
+    return element?.name?.startsWith(r'$') ?? false;
   }
 }
 

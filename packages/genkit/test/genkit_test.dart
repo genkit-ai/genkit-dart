@@ -210,14 +210,8 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           final chunks = [
-            ModelResponseChunk(
-              index: 0,
-              content: [TextPart(text: 'chunk1')],
-            ),
-            ModelResponseChunk(
-              index: 0,
-              content: [TextPart(text: 'chunk2')],
-            ),
+            ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk1')]),
+            ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk2')]),
           ];
 
           for (final chunk in chunks) {
@@ -256,14 +250,8 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           final chunks = [
-            ModelResponseChunk(
-              index: 0,
-              content: [TextPart(text: 'chunk1')],
-            ),
-            ModelResponseChunk(
-              index: 0,
-              content: [TextPart(text: 'chunk2')],
-            ),
+            ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk1')]),
+            ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk2')]),
           ];
 
           for (final chunk in chunks) {

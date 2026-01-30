@@ -134,7 +134,10 @@ void main() {
 
     test('Parsing errors', () {
       expect(() => intSchema().parse('not an int'), throwsA(isA<TypeError>()));
-      expect(() => listSchema(intSchema()).parse(['a']), throwsA(isA<TypeError>()));
+      expect(
+        () => listSchema(intSchema()).parse(['a']),
+        throwsA(isA<TypeError>()),
+      );
     });
 
     test('mapType with Strings and Ints', () {

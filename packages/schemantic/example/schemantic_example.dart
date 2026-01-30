@@ -60,15 +60,10 @@ void main() async {
   final address = Address(
     street: '123 Main St',
     city: 'Springfield',
-    zipCode: ZipCode.int(62704),
+    zipCode: AddressZipCode.int(62704),
   );
 
-  final user = User(
-    name: 'Alice',
-    age: 30,
-    isAdmin: true,
-    address: address,
-  );
+  final user = User(name: 'Alice', age: 30, isAdmin: true, address: address);
 
   print('--- Instance ---');
   print('Name: ${user.name}');

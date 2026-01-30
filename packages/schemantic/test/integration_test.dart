@@ -104,6 +104,27 @@ abstract class $CrossFileParent {
   $SharedChild get child;
 }
 
+@Schematic()
+abstract class $Defaults {
+  @StringField(defaultValue: 'prod')
+  String get env;
+
+  @IntegerField(defaultValue: 8080)
+  int get port;
+
+  @DoubleField(defaultValue: 1.5)
+  double get ratio;
+
+  @Field(defaultValue: true)
+  bool get flag;
+}
+
+@Schematic()
+abstract class $Poly {
+  @AnyOf([int, String, $User])
+  Object? get id;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -365,19 +386,61 @@ void main() {
       expect(props['flag']['default'], true);
     });
   });
-}
 
-@Schematic()
-abstract class $Defaults {
-  @StringField(defaultValue: 'prod')
-  String get env;
+  group('AnyOf Tests', () {
+    test('Poly serialization and deserialization', () {
+      final p1 = Poly(id: PolyId.int(123));
+      expect(p1.id, 123);
+      expect(p1.toJson(), {'id': 123});
 
-  @IntegerField(defaultValue: 8080)
-  int get port;
+      final p2 = Poly(id: PolyId.string('abc'));
+      expect(p2.id, 'abc');
+      expect(p2.toJson(), {'id': 'abc'});
 
-  @DoubleField(defaultValue: 1.5)
-  double get ratio;
+      final parsed1 = Poly.$schema.parse({'id': 123});
+      expect(
+        parsed1.id,
+        isA<int>(),
+      ); // Getter returns Object? which is the raw value for now?
+      // Wait, let's check generated getter.
+      // Getter returns Object? and body is `return _json['id'] as Object?;`
+      // So yes, it returns the raw value.
+      expect(parsed1.id, 123);
 
-  @Field(defaultValue: true)
-  bool get flag;
+      final parsed2 = Poly.$schema.parse({'id': 'abc'});
+      expect(parsed2.id, 'abc');
+    });
+
+    test('Poly JSON Schema', () {
+      final schema = Poly.$schema.jsonSchema(useRefs: true);
+      final json = jsonDecode(schema.toJson());
+      final defs = json[r'$defs'] ?? json['definitions'];
+      final polyDef = defs['Poly'];
+      final props = polyDef['properties'];
+      expect(props['id']['anyOf'], [
+        {'type': 'integer'},
+        {'type': 'string'},
+        {r'$ref': r'#/$defs/User'},
+      ]);
+    });
+
+    test('Poly with Schema type', () {
+      final user = User(name: 'UserInPoly', isAdmin: true);
+      final p3 = Poly(id: PolyId.user(user));
+
+      // Check it was serialized properly in _json (since we mocked toJson behavior in generator)
+      // Actually we need to check if it's stored as Map
+      final json = p3.toJson();
+      expect(json['id'], isA<Map>());
+      expect(json['id']['name'], 'UserInPoly');
+
+      // Check parse
+      final parsed = Poly.$schema.parse(json);
+      // Because AnyOf getter returns Object?, it will return the Map<String, dynamic> here
+      // unless we improve getter to try to match?
+      // For now, raw map is expected behavior for AnyOf getter if it's an object.
+      expect(parsed.id, isA<Map>());
+      expect((parsed.id as Map)['name'], 'UserInPoly');
+    });
+  });
 }

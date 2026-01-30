@@ -30,9 +30,7 @@ void main() async {
         message: Message(
           role: Role.model,
           content: [
-            TextPart(
-              text: 'echo: ${req.messages.map((m) => m.text).join()}',
-            ),
+            TextPart(text: 'echo: ${req.messages.map((m) => m.text).join()}'),
           ],
         ),
       );
