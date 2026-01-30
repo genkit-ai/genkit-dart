@@ -794,118 +794,17 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   }) {
     final properties = <String, Expression>{};
     if (keyAnnotation != null) {
-      // Validate annotation usage
       final annotationType = keyAnnotation.type!;
-      if (_stringFieldChecker.isAssignableFromType(annotationType) &&
-          !type.isDartCoreString &&
-          !type.isDynamic) {
-        // Allow dynamic? Maybe no. But let's be strict as requested.
-        // Wait, enums might use StringField (if we allow custom enum schema constraints? probably not supported yet for enums via StringField)
-        // For now, strict check.
-        throw InvalidGenerationSourceError(
-          '@StringField can only be used on String types.',
-          todo:
-              'Change the field type to String or use a different annotation.',
-        );
-      }
-      if (_integerFieldChecker.isAssignableFromType(annotationType) &&
-          !type.isDartCoreInt &&
-          !type.isDynamic) {
-        throw InvalidGenerationSourceError(
-          '@IntegerField can only be used on int types.',
-          todo: 'Change the field type to int or use a different annotation.',
-        );
-      }
-      if (_numberFieldChecker.isAssignableFromType(annotationType) &&
-          !type.isDartCoreDouble &&
-          !type.isDartCoreNum &&
-          !type.isDartCoreInt &&
-          !type.isDynamic) {
-        // NumberField can be used on double, num, or int (since int is num)
-        throw InvalidGenerationSourceError(
-          '@NumberField can only be used on num, double, or int types.',
-          todo:
-              'Change the field type to num/double or use a different annotation.',
-        );
-      }
+      _validateAnnotation(annotationType, type);
 
       final reader = ConstantReader(keyAnnotation);
-      final description = reader.read('description').literalValue as String?;
-      if (description != null) {
-        properties['description'] = literalString(description);
-      }
-
-      final defaultValue = reader.peek('defaultValue')?.literalValue;
-      if (defaultValue != null) {
-        properties['default'] = literal(defaultValue);
-      }
+      properties.addAll(_readCommonProperties(reader));
 
       if (_stringFieldChecker.isAssignableFromType(annotationType)) {
-        final minLength = reader.peek('minLength')?.intValue;
-        final maxLength = reader.peek('maxLength')?.intValue;
-        final pattern = reader.peek('pattern')?.stringValue;
-        final format = reader.peek('format')?.stringValue;
-        final enumValues = reader
-            .peek('enumValues')
-            ?.listValue
-            .map((e) => e.toStringValue())
-            .toList();
-
-        if (minLength != null) properties['minLength'] = literalNum(minLength);
-        if (maxLength != null) properties['maxLength'] = literalNum(maxLength);
-        if (pattern != null) {
-          properties['pattern'] = literalString(pattern, raw: true);
-        }
-        if (format != null) properties['format'] = literalString(format);
-        if (enumValues != null) {
-          properties['enumValues'] = literalList(enumValues);
-        }
-      } else if (_integerFieldChecker.isAssignableFromType(annotationType)) {
-        final minimum = reader.peek('minimum')?.intValue;
-        final maximum = reader.peek('maximum')?.intValue;
-        final exclusiveMinimum = reader.peek('exclusiveMinimum')?.intValue;
-        final exclusiveMaximum = reader.peek('exclusiveMaximum')?.intValue;
-        final multipleOf = reader.peek('multipleOf')?.intValue;
-
-        if (minimum != null) properties['minimum'] = literalNum(minimum);
-        if (maximum != null) properties['maximum'] = literalNum(maximum);
-        if (exclusiveMinimum != null) {
-          properties['exclusiveMinimum'] = literalNum(exclusiveMinimum);
-        }
-        if (exclusiveMaximum != null) {
-          properties['exclusiveMaximum'] = literalNum(exclusiveMaximum);
-        }
-        if (multipleOf != null) {
-          properties['multipleOf'] = literalNum(multipleOf);
-        }
-      } else if (_numberFieldChecker.isAssignableFromType(annotationType)) {
-        final minimum =
-            reader.peek('minimum')?.doubleValue ??
-            reader.peek('minimum')?.intValue;
-        final maximum =
-            reader.peek('maximum')?.doubleValue ??
-            reader.peek('maximum')?.intValue;
-        final exclusiveMinimum =
-            reader.peek('exclusiveMinimum')?.doubleValue ??
-            reader.peek('exclusiveMinimum')?.intValue;
-        final exclusiveMaximum =
-            reader.peek('exclusiveMaximum')?.doubleValue ??
-            reader.peek('exclusiveMaximum')?.intValue;
-        final multipleOf =
-            reader.peek('multipleOf')?.doubleValue ??
-            reader.peek('multipleOf')?.intValue;
-
-        if (minimum != null) properties['minimum'] = literalNum(minimum);
-        if (maximum != null) properties['maximum'] = literalNum(maximum);
-        if (exclusiveMinimum != null) {
-          properties['exclusiveMinimum'] = literalNum(exclusiveMinimum);
-        }
-        if (exclusiveMaximum != null) {
-          properties['exclusiveMaximum'] = literalNum(exclusiveMaximum);
-        }
-        if (multipleOf != null) {
-          properties['multipleOf'] = literalNum(multipleOf);
-        }
+        properties.addAll(_readStringProperties(reader));
+      } else if (_integerFieldChecker.isAssignableFromType(annotationType) ||
+          _numberFieldChecker.isAssignableFromType(annotationType)) {
+        properties.addAll(_readNumberProperties(reader));
       }
     }
 
@@ -1019,13 +918,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     } else {
       final typeName = type.getDisplayString().replaceAll('?', '');
       if (typeName == 'DateTime') {
-        properties['format'] = literalString('date-time');
         if (hasDefault) {
           properties['type'] = literalString('string');
+          properties['format'] = literalString('date-time');
           schemaExpression = refer(
             'Schema.fromMap',
           ).call([literalMap(properties)]);
         } else {
+          properties['format'] = literalString('date-time');
           schemaExpression = refer('Schema.string').call([], properties);
         }
       } else if (typeName.isSchema) {
@@ -1033,13 +933,12 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         // If we are building the "definition" for the metadata, we want to use refs for children.
         if (useRefs) {
           final refMap = <Object, Object>{
-            literalString(r'\$ref'): CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
+            literalString(r'\$ref'): CodeExpression(
+              Code("r'#/\$defs/$nestedBaseName'"),
+            ),
           };
           if (hasDefault) {
-             // keys in refMap are Expressions (from literalString), so we should use expression key for consistency?
-             // Or just use 'default' string if literalMap supports mixed?
-             // To be safe and match original style:
-             refMap['default'] = properties['default']!;
+            refMap['default'] = properties['default']!;
           }
           schemaExpression = refer(
             'Schema.fromMap',
@@ -1054,33 +953,30 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (properties.isNotEmpty) {
           // If there are extra properties (like description), we need to wrap the ref/schema.
           // Wrap the schema in allOf to allow adding extra properties like description.
-          // If hasDefault, it is already added to properties or refMap?
-          // If we used refs, we created a fromMap.
-          // But if properties has other things (description):
           if (useRefs) {
             // we already have schemaExpression as a ref.
             // If we have extra properties, combine them.
             if (properties.length > (hasDefault ? 1 : 0)) {
-              // We have description or other things.
-              // Schema.combined.
-              // If hasDefault, we can put it in combined or in the ref?
-              // Putting 'default' in properties implies we want it in the wrapper.
-              
-              // We should reconstruct the logic properly.
-              // If useRefs, we WANT a ref.
-              // But if we have default, we want Default + Ref.
-              // Standard way: { allOf: [ {$ref: ...} ], default: ... }
-              
-              final allOfList = [refer('Schema.fromMap').call([literalMap({
-                r'$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'"))
-              })])];
-              
+              final allOfList = [
+                refer('Schema.fromMap').call([
+                  literalMap({
+                    r'$ref': CodeExpression(
+                      Code("r'#/\$defs/$nestedBaseName'"),
+                    ),
+                  }),
+                ]),
+              ];
+
               final combinedArgs = <String, Expression>{
-                 'allOf': literalList(allOfList),
+                'allOf': literalList(allOfList),
               };
-              if (properties.containsKey('description')) combinedArgs['description'] = properties['description']!;
-              if (properties.containsKey('default')) combinedArgs['defaultValue'] = properties['default']!;
-              
+              if (properties.containsKey('description')) {
+                combinedArgs['description'] = properties['description']!;
+              }
+              if (properties.containsKey('default')) {
+                combinedArgs['defaultValue'] = properties['default']!;
+              }
+
               return refer('Schema.combined').call([], combinedArgs);
             }
             return schemaExpression;
@@ -1088,22 +984,20 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             // Not using refs (inline).
             // SchemaExpression is types.jsonSchema().
             // Wrapper needed.
-             final combinedArgs = <String, Expression>{
-                 'allOf': literalList([schemaExpression]),
-              };
-              if (properties.containsKey('description')) combinedArgs['description'] = properties['description']!;
-              if (properties.containsKey('default')) combinedArgs['defaultValue'] = properties['default']!;
-              return refer('Schema.combined').call([], combinedArgs);
+            final combinedArgs = <String, Expression>{
+              'allOf': literalList([schemaExpression]),
+            };
+            if (properties.containsKey('description')) {
+              combinedArgs['description'] = properties['description']!;
+            }
+            if (properties.containsKey('default')) {
+              combinedArgs['defaultValue'] = properties['default']!;
+            }
+            return refer('Schema.combined').call([], combinedArgs);
           }
         }
       } else {
         if (hasDefault) {
-          // Schema.any properties?
-          // Schema.any doesn't support default as argument, supports fromMap structure?
-          // Schema.any implementation: Schema.fromMap({...}).
-          // So if I add 'default' to properties, and call Schema.fromMap...
-          // Schema.any factory takes title, description.
-          // I can just use Schema.fromMap(properties).
           schemaExpression = refer(
             'Schema.fromMap',
           ).call([literalMap(properties)]);
@@ -1114,6 +1008,92 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
 
     return schemaExpression;
+  }
+
+  void _validateAnnotation(DartType annotationType, DartType type) {
+    if (_stringFieldChecker.isAssignableFromType(annotationType) &&
+        !type.isDartCoreString &&
+        !type.isDynamic) {
+      throw InvalidGenerationSourceError(
+        '@StringField can only be used on String types.',
+        todo: 'Change the field type to String or use a different annotation.',
+      );
+    }
+    if (_integerFieldChecker.isAssignableFromType(annotationType) &&
+        !type.isDartCoreInt &&
+        !type.isDynamic) {
+      throw InvalidGenerationSourceError(
+        '@IntegerField can only be used on int types.',
+        todo: 'Change the field type to int or use a different annotation.',
+      );
+    }
+    if (_numberFieldChecker.isAssignableFromType(annotationType) &&
+        !type.isDartCoreDouble &&
+        !type.isDartCoreNum &&
+        !type.isDartCoreInt &&
+        !type.isDynamic) {
+      throw InvalidGenerationSourceError(
+        '@NumberField can only be used on num, double, or int types.',
+        todo:
+            'Change the field type to num/double or use a different annotation.',
+      );
+    }
+  }
+
+  Map<String, Expression> _readCommonProperties(ConstantReader reader) {
+    final properties = <String, Expression>{};
+    final description = reader.peek('description')?.stringValue;
+    if (description != null) {
+      properties['description'] = literalString(description);
+    }
+    final defaultValue = reader.peek('defaultValue')?.literalValue;
+    if (defaultValue != null) {
+      properties['default'] = literal(defaultValue);
+    }
+    return properties;
+  }
+
+  Map<String, Expression> _readStringProperties(ConstantReader reader) {
+    final properties = <String, Expression>{};
+    final minLength = reader.peek('minLength')?.intValue;
+    final maxLength = reader.peek('maxLength')?.intValue;
+    final pattern = reader.peek('pattern')?.stringValue;
+    final format = reader.peek('format')?.stringValue;
+    final enumValues = reader
+        .peek('enumValues')
+        ?.listValue
+        .map((e) => e.toStringValue())
+        .toList();
+
+    if (minLength != null) properties['minLength'] = literalNum(minLength);
+    if (maxLength != null) properties['maxLength'] = literalNum(maxLength);
+    if (pattern != null) {
+      properties['pattern'] = literalString(pattern, raw: true);
+    }
+    if (format != null) properties['format'] = literalString(format);
+    if (enumValues != null) {
+      properties['enumValues'] = literalList(enumValues);
+    }
+    return properties;
+  }
+
+  Map<String, Expression> _readNumberProperties(ConstantReader reader) {
+    final properties = <String, Expression>{};
+
+    void readNum(String key) {
+      final value = reader.peek(key)?.literalValue;
+      if (value is num) {
+        properties[key] = literalNum(value);
+      }
+    }
+
+    readNum('minimum');
+    readNum('maximum');
+    readNum('exclusiveMinimum');
+    readNum('exclusiveMaximum');
+    readNum('multipleOf');
+
+    return properties;
   }
 
   String _getJsonKey(PropertyAccessorElement getter) {
