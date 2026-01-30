@@ -30,6 +30,7 @@ SchemanticType<String> stringSchema({
   String? pattern,
   String? format,
   List<String>? enumValues,
+  Object? defaultValue,
 }) {
   return _StringSchemaFactory(
     description: description,
@@ -38,6 +39,7 @@ SchemanticType<String> stringSchema({
     pattern: pattern,
     format: format,
     enumValues: enumValues,
+    defaultValue: defaultValue,
   );
 }
 
@@ -48,6 +50,7 @@ class _StringSchemaFactory extends SchemanticType<String> {
   final String? pattern;
   final String? format;
   final List<String>? enumValues;
+  final Object? defaultValue;
 
   const _StringSchemaFactory({
     this.description,
@@ -56,6 +59,7 @@ class _StringSchemaFactory extends SchemanticType<String> {
     this.pattern,
     this.format,
     this.enumValues,
+    this.defaultValue,
   });
 
   @override
@@ -71,6 +75,7 @@ class _StringSchemaFactory extends SchemanticType<String> {
       if (pattern != null) 'pattern': pattern,
       if (format != null) 'format': format,
       if (enumValues != null) 'enum': enumValues,
+      if (defaultValue != null) 'default': defaultValue,
     });
   }
 }
@@ -81,6 +86,7 @@ class _StringSchemaFactory extends SchemanticType<String> {
 /// ```dart
 /// intSchema().parse(123);
 /// ```
+
 SchemanticType<int> intSchema({
   String? description,
   int? minimum,
@@ -88,6 +94,7 @@ SchemanticType<int> intSchema({
   int? exclusiveMinimum,
   int? exclusiveMaximum,
   int? multipleOf,
+  Object? defaultValue,
 }) {
   return _IntSchemaFactory(
     description: description,
@@ -96,6 +103,7 @@ SchemanticType<int> intSchema({
     exclusiveMinimum: exclusiveMinimum,
     exclusiveMaximum: exclusiveMaximum,
     multipleOf: multipleOf,
+    defaultValue: defaultValue,
   );
 }
 
@@ -106,6 +114,7 @@ class _IntSchemaFactory extends SchemanticType<int> {
   final int? exclusiveMinimum;
   final int? exclusiveMaximum;
   final int? multipleOf;
+  final Object? defaultValue;
 
   const _IntSchemaFactory({
     this.description,
@@ -114,6 +123,7 @@ class _IntSchemaFactory extends SchemanticType<int> {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
+    this.defaultValue,
   });
 
   @override
@@ -129,6 +139,7 @@ class _IntSchemaFactory extends SchemanticType<int> {
       if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
       if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
       if (multipleOf != null) 'multipleOf': multipleOf,
+      if (defaultValue != null) 'default': defaultValue,
     });
   }
 }
@@ -139,6 +150,7 @@ class _IntSchemaFactory extends SchemanticType<int> {
 /// ```dart
 /// doubleSchema().parse(12.34);
 /// ```
+
 SchemanticType<double> doubleSchema({
   String? description,
   double? minimum,
@@ -146,6 +158,7 @@ SchemanticType<double> doubleSchema({
   double? exclusiveMinimum,
   double? exclusiveMaximum,
   double? multipleOf,
+  Object? defaultValue,
 }) {
   return _DoubleSchemaFactory(
     description: description,
@@ -154,6 +167,7 @@ SchemanticType<double> doubleSchema({
     exclusiveMinimum: exclusiveMinimum,
     exclusiveMaximum: exclusiveMaximum,
     multipleOf: multipleOf,
+    defaultValue: defaultValue,
   );
 }
 
@@ -164,6 +178,7 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
   final double? exclusiveMinimum;
   final double? exclusiveMaximum;
   final double? multipleOf;
+  final Object? defaultValue;
 
   const _DoubleSchemaFactory({
     this.description,
@@ -172,6 +187,7 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
+    this.defaultValue,
   });
 
   @override
@@ -190,6 +206,7 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
       if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
       if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
       if (multipleOf != null) 'multipleOf': multipleOf,
+      if (defaultValue != null) 'default': defaultValue,
     });
   }
 }
@@ -200,13 +217,21 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
 /// ```dart
 /// boolSchema().parse(true);
 /// ```
-SchemanticType<bool> boolSchema({String? description}) {
-  return _BoolSchemaFactory(description: description);
+SchemanticType<bool> boolSchema({
+  String? description,
+  Object? defaultValue,
+}) {
+  return _BoolSchemaFactory(
+    description: description,
+    defaultValue: defaultValue,
+  );
 }
 
 class _BoolSchemaFactory extends SchemanticType<bool> {
   final String? description;
-  const _BoolSchemaFactory({this.description});
+  final Object? defaultValue;
+
+  const _BoolSchemaFactory({this.description, this.defaultValue});
 
   @override
   bool parse(Object? json) => json as bool;
@@ -216,6 +241,7 @@ class _BoolSchemaFactory extends SchemanticType<bool> {
     return jsb.Schema.fromMap({
       'type': 'boolean',
       if (description != null) 'description': description,
+      if (defaultValue != null) 'default': defaultValue,
     });
   }
 }

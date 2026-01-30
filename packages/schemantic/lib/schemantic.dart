@@ -48,7 +48,10 @@ class Field {
   /// A description of the field, which will be included in the generated JSON Schema.
   final String? description;
 
-  const Field({this.name, this.description});
+  /// The default value for the field.
+  final Object? defaultValue;
+
+  const Field({this.name, this.description, this.defaultValue});
 }
 
 /// Annotation for String fields with specific schema constraints.
@@ -67,6 +70,7 @@ class StringField extends Field {
     this.pattern,
     this.format,
     this.enumValues,
+    super.defaultValue,
   });
 }
 
@@ -86,6 +90,7 @@ class IntegerField extends Field {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
+    super.defaultValue,
   });
 }
 
@@ -105,6 +110,7 @@ class NumberField extends Field {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
+    super.defaultValue,
   });
 }
 

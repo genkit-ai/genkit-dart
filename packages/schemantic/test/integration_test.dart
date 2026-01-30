@@ -353,5 +353,31 @@ void main() {
       final parsed = CrossFileParent.$schema.parse(json);
       expect(parsed.child.childId, 'c1');
     });
+
+    test('DefaultsSchema has default values', () {
+      final schema = Defaults.$schema.jsonSchema();
+      final schemaJson = jsonDecode(schema.toJson());
+      final props = schemaJson['properties'] as Map<String, dynamic>;
+
+      expect(props['env']['default'], 'prod');
+      expect(props['port']['default'], 8080);
+      expect(props['ratio']['default'], 1.5);
+      expect(props['flag']['default'], true);
+    });
   });
+}
+
+@Schematic()
+abstract class $Defaults {
+  @StringField(defaultValue: 'prod')
+  String get env;
+
+  @IntegerField(defaultValue: 8080)
+  int get port;
+
+  @NumberField(defaultValue: 1.5)
+  double get ratio;
+
+  @Field(defaultValue: true)
+  bool get flag;
 }

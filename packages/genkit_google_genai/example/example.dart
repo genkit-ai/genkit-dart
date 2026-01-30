@@ -71,7 +71,7 @@ void main(List<String> args) async {
   // --- Basic Generate Flow ---
   ai.defineFlow(
     name: 'basicGenerate',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
     outputSchema: stringSchema(),
     fn: (input, context) async {
       final response = await ai.generate(
@@ -85,7 +85,7 @@ void main(List<String> args) async {
   // --- Lite Generate Flow (Wrapped) ---
   ai.defineFlow(
     name: 'liteGenerate',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
     outputSchema: stringSchema(),
     fn: (input, context) async {
       final gemini = googleAI();
@@ -112,7 +112,7 @@ void main(List<String> args) async {
 
   ai.defineFlow(
     name: 'weatherFlow',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'What is the weather like in Boston?'),
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
@@ -127,7 +127,7 @@ void main(List<String> args) async {
   // --- Structured Streaming Flow ---
   ai.defineFlow(
     name: 'structuredStreaming',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'Gorble'),
     streamSchema: RpgCharacter.$schema,
     outputSchema: RpgCharacter.$schema,
     fn: (name, ctx) async {

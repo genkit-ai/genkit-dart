@@ -835,6 +835,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         properties['description'] = literalString(description);
       }
 
+      final defaultValue = reader.peek('defaultValue')?.literalValue;
+      if (defaultValue != null) {
+        properties['default'] = literal(defaultValue);
+      }
+
       if (_stringFieldChecker.isAssignableFromType(annotationType)) {
         final minLength = reader.peek('minLength')?.intValue;
         final maxLength = reader.peek('maxLength')?.intValue;
@@ -917,9 +922,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (properties.containsKey('description')) {
         namedArgs['description'] = properties['description']!;
       }
+      if (properties.containsKey('default')) {
+        namedArgs['defaultValue'] = properties['default']!;
+      }
 
       return refer('Schema.combined').call([], namedArgs);
     }
+
+    final hasDefault = properties.containsKey('default');
 
     Expression schemaExpression;
     if (type.element is EnumElement) {
@@ -928,16 +938,54 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           .where((f) => f.isEnumConstant)
           .map((f) => f.name)
           .toList();
-      properties['enumValues'] = literalList(enumValues);
-      schemaExpression = refer('Schema.string').call([], properties);
+      properties[hasDefault ? 'enum' : 'enumValues'] = literalList(enumValues);
+      if (hasDefault) {
+        properties['type'] = literalString('string');
+        schemaExpression = refer(
+          'Schema.fromMap',
+        ).call([literalMap(properties)]);
+      } else {
+        schemaExpression = refer('Schema.string').call([], properties);
+      }
     } else if (type.isDartCoreString) {
-      schemaExpression = refer('Schema.string').call([], properties);
+      if (hasDefault) {
+        properties['type'] = literalString('string');
+        if (properties.containsKey('enumValues')) {
+          properties['enum'] = properties.remove('enumValues')!;
+        }
+        schemaExpression = refer(
+          'Schema.fromMap',
+        ).call([literalMap(properties)]);
+      } else {
+        schemaExpression = refer('Schema.string').call([], properties);
+      }
     } else if (type.isDartCoreInt) {
-      schemaExpression = refer('Schema.integer').call([], properties);
+      if (hasDefault) {
+        properties['type'] = literalString('integer');
+        schemaExpression = refer(
+          'Schema.fromMap',
+        ).call([literalMap(properties)]);
+      } else {
+        schemaExpression = refer('Schema.integer').call([], properties);
+      }
     } else if (type.isDartCoreBool) {
-      schemaExpression = refer('Schema.boolean').call([], properties);
+      if (hasDefault) {
+        properties['type'] = literalString('boolean');
+        schemaExpression = refer(
+          'Schema.fromMap',
+        ).call([literalMap(properties)]);
+      } else {
+        schemaExpression = refer('Schema.boolean').call([], properties);
+      }
     } else if (type.isDartCoreDouble || type.isDartCoreNum) {
-      schemaExpression = refer('Schema.number').call([], properties);
+      if (hasDefault) {
+        properties['type'] = literalString('number');
+        schemaExpression = refer(
+          'Schema.fromMap',
+        ).call([literalMap(properties)]);
+      } else {
+        schemaExpression = refer('Schema.number').call([], properties);
+      }
     } else if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
       properties['items'] = _jsonSchemaForType(
@@ -945,7 +993,14 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         null,
         useRefs: useRefs,
       );
-      schemaExpression = refer('Schema.list').call([], properties);
+      if (hasDefault) {
+        properties['type'] = literalString('array');
+        schemaExpression = refer(
+          'Schema.fromMap',
+        ).call([literalMap(properties)]);
+      } else {
+        schemaExpression = refer('Schema.list').call([], properties);
+      }
     } else if (type.isDartCoreMap) {
       final valueType = (type as InterfaceType).typeArguments[1];
       properties['additionalProperties'] = _jsonSchemaForType(
@@ -953,23 +1008,42 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         null,
         useRefs: useRefs,
       );
-      schemaExpression = refer('Schema.object').call([], properties);
+      if (hasDefault) {
+        properties['type'] = literalString('object');
+        schemaExpression = refer(
+          'Schema.fromMap',
+        ).call([literalMap(properties)]);
+      } else {
+        schemaExpression = refer('Schema.object').call([], properties);
+      }
     } else {
       final typeName = type.getDisplayString().replaceAll('?', '');
       if (typeName == 'DateTime') {
         properties['format'] = literalString('date-time');
-        schemaExpression = refer('Schema.string').call([], properties);
+        if (hasDefault) {
+          properties['type'] = literalString('string');
+          schemaExpression = refer(
+            'Schema.fromMap',
+          ).call([literalMap(properties)]);
+        } else {
+          schemaExpression = refer('Schema.string').call([], properties);
+        }
       } else if (typeName.isSchema) {
         final nestedBaseName = _resolveBaseName(typeName);
         // If we are building the "definition" for the metadata, we want to use refs for children.
         if (useRefs) {
-          schemaExpression = refer('Schema.fromMap').call([
-            literalMap({
-              literalString(r'\$ref'): CodeExpression(
-                Code("r'#/\$defs/$nestedBaseName'"),
-              ),
-            }),
-          ]);
+          final refMap = <Object, Object>{
+            literalString(r'\$ref'): CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
+          };
+          if (hasDefault) {
+             // keys in refMap are Expressions (from literalString), so we should use expression key for consistency?
+             // Or just use 'default' string if literalMap supports mixed?
+             // To be safe and match original style:
+             refMap['default'] = properties['default']!;
+          }
+          schemaExpression = refer(
+            'Schema.fromMap',
+          ).call([literalMap(refMap)]);
         } else {
           // For metadata generation, we can emit a direct call to the nested type's jsonSchema.
           schemaExpression = refer(
@@ -980,14 +1054,62 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (properties.isNotEmpty) {
           // If there are extra properties (like description), we need to wrap the ref/schema.
           // Wrap the schema in allOf to allow adding extra properties like description.
-          final mergedProperties = {
-            ...properties,
-            'allOf': literalList([schemaExpression]),
-          };
-          return refer('Schema.object').call([], mergedProperties);
+          // If hasDefault, it is already added to properties or refMap?
+          // If we used refs, we created a fromMap.
+          // But if properties has other things (description):
+          if (useRefs) {
+            // we already have schemaExpression as a ref.
+            // If we have extra properties, combine them.
+            if (properties.length > (hasDefault ? 1 : 0)) {
+              // We have description or other things.
+              // Schema.combined.
+              // If hasDefault, we can put it in combined or in the ref?
+              // Putting 'default' in properties implies we want it in the wrapper.
+              
+              // We should reconstruct the logic properly.
+              // If useRefs, we WANT a ref.
+              // But if we have default, we want Default + Ref.
+              // Standard way: { allOf: [ {$ref: ...} ], default: ... }
+              
+              final allOfList = [refer('Schema.fromMap').call([literalMap({
+                r'$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'"))
+              })])];
+              
+              final combinedArgs = <String, Expression>{
+                 'allOf': literalList(allOfList),
+              };
+              if (properties.containsKey('description')) combinedArgs['description'] = properties['description']!;
+              if (properties.containsKey('default')) combinedArgs['defaultValue'] = properties['default']!;
+              
+              return refer('Schema.combined').call([], combinedArgs);
+            }
+            return schemaExpression;
+          } else {
+            // Not using refs (inline).
+            // SchemaExpression is types.jsonSchema().
+            // Wrapper needed.
+             final combinedArgs = <String, Expression>{
+                 'allOf': literalList([schemaExpression]),
+              };
+              if (properties.containsKey('description')) combinedArgs['description'] = properties['description']!;
+              if (properties.containsKey('default')) combinedArgs['defaultValue'] = properties['default']!;
+              return refer('Schema.combined').call([], combinedArgs);
+          }
         }
       } else {
-        schemaExpression = refer('Schema.any').call([], properties);
+        if (hasDefault) {
+          // Schema.any properties?
+          // Schema.any doesn't support default as argument, supports fromMap structure?
+          // Schema.any implementation: Schema.fromMap({...}).
+          // So if I add 'default' to properties, and call Schema.fromMap...
+          // Schema.any factory takes title, description.
+          // I can just use Schema.fromMap(properties).
+          schemaExpression = refer(
+            'Schema.fromMap',
+          ).call([literalMap(properties)]);
+        } else {
+          schemaExpression = refer('Schema.any').call([], properties);
+        }
       }
     }
 

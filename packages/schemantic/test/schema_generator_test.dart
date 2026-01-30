@@ -22,12 +22,65 @@ void main() {
   group('SchemaGenerator', () {
     const schematicBuilderLib = r'''
 class Schematic {
-  const Schematic();
+  final String? description;
+  const Schematic({this.description});
 }
 class Field {
   final String? name;
   final String? description;
-  const Field({this.name, this.description});
+  final Object? defaultValue;
+  const Field({this.name, this.description, this.defaultValue});
+}
+class StringField extends Field {
+  final int? minLength;
+  final int? maxLength;
+  final String? pattern;
+  final String? format;
+  final List<String>? enumValues;
+  const StringField({
+    super.name,
+    super.description,
+    this.minLength,
+    this.maxLength,
+    this.pattern,
+    this.format,
+    this.enumValues,
+    super.defaultValue,
+  });
+}
+class IntegerField extends Field {
+  final int? minimum;
+  final int? maximum;
+  final int? exclusiveMinimum;
+  final int? exclusiveMaximum;
+  final int? multipleOf;
+  const IntegerField({
+    super.name,
+    super.description,
+    this.minimum,
+    this.maximum,
+    this.exclusiveMinimum,
+    this.exclusiveMaximum,
+    this.multipleOf,
+    super.defaultValue,
+  });
+}
+class NumberField extends Field {
+  final num? minimum;
+  final num? maximum;
+  final num? exclusiveMinimum;
+  final num? exclusiveMaximum;
+  final num? multipleOf;
+  const NumberField({
+    super.name,
+    super.description,
+    this.minimum,
+    this.maximum,
+    this.exclusiveMinimum,
+    this.exclusiveMaximum,
+    this.multipleOf,
+    super.defaultValue,
+  });
 }
 ''';
 
@@ -145,6 +198,44 @@ abstract class $Item {
                 "return Status.values.byName(_json['status'] as String);",
               ),
               contains("enumValues: ['active', 'inactive']"),
+            ),
+          ),
+        },
+      );
+    });
+
+    test('generates schema with defaultValue', () async {
+      await _testBuilderWithNoFail(
+        {
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
+          'a|lib/a.dart': r'''
+import 'package:schemantic/schemantic.dart';
+
+part 'a.g.dart';
+
+@Schematic()
+abstract class $Config {
+  @StringField(defaultValue: 'production')
+  String get environment;
+
+  @IntegerField(defaultValue: 8080)
+  int get port;
+  
+  @Field(defaultValue: true)
+  bool get enabled;
+}
+''',
+        },
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
+            allOf(
+              contains("'default': 'production'"),
+              contains("'default': 8080"),
+              contains("'default': true"),
+              contains("'type': 'string'"),
+              contains("'type': 'integer'"),
+              contains("'type': 'boolean'"),
+              contains("Schema.fromMap"), 
             ),
           ),
         },
