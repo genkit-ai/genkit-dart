@@ -5,6 +5,7 @@ A general-purpose Dart library for generating type-safe data classes and runtime
 ## Features
 
 - **Type-Safe Data Classes**: Generates fully-typed Dart data classes from simple abstract definitions.
+- **First-Class Schemas**: Schemas are first-class citizens: pass them as values (`SchemanticType<T>`), compose them, and inspect them at runtime—all while maintaining full static type safety.
 - **Runtime JSON Schema**: Access the standard JSON Schema for any generated type at runtime.
 - **Serialization**: Built-in `toJson` and `parse` methods.
 - **Validation**: Validate JSON data against the generated schema at runtime.
@@ -21,7 +22,55 @@ dart pub add dev:build_runner
 
 ## Usage
 
-### 1. Define your specific Schema
+### 1. Basic & Dynamic Types
+
+Schemantic provides a set of basic types and helpers for creating dynamic schemas without generating code.
+
+#### Primitives
+- `stringSchema({String? description, int? minLength, ...})`
+- `intSchema({String? description, int? minimum, ...})`
+- `doubleSchema({String? description, double? minimum, ...})`
+- `boolSchema({String? description})`
+- `voidSchema({String? description})`
+- `dynamicSchema({String? description})`
+
+Example:
+
+```dart
+final age = intSchema(
+  description: 'Age in years',
+  minimum: 0,
+  defaultValue: 18,
+);
+```
+
+#### Collections
+
+You can create strongly typed Lists and Maps dynamically:
+
+```dart
+void main() {
+  // Define a List of Strings
+  final stringList = listSchema(stringSchema());
+  print(stringList.parse(['a', 'b'])); // ['a', 'b']
+
+  // Define a Map with String keys and Integer values
+  final scores = mapSchema(stringSchema(), intSchema());
+  print(scores.parse({'Alice': 100, 'Bob': 80})); // {'Alice': 100, 'Bob': 80}
+
+  // Nesting types
+  final matrix = listSchema(listSchema(intSchema()));
+  print(matrix.parse([[1, 2], [3, 4]])); // [[1, 2], [3, 4]]
+  
+  // JSON Schema generation works as expected
+  print(scores.jsonSchema().toJson());
+  // {type: object, additionalProperties: {type: integer}}
+}
+```
+
+### 2. Generated Schemas
+
+#### 1. Define your specific Schema
 
 Create a Dart file (e.g., `user.dart`) and define your schema as an abstract class annotated with `@Schematic()`.
 
@@ -30,7 +79,6 @@ import 'package:schemantic/schemantic.dart';
 
 part 'user.g.dart';
 
-@Schematic()
 @Schematic()
 abstract class $User {
   String get name;
@@ -111,40 +159,6 @@ void main() {
 }
 ```
 
-### Basic & Dynamic Types
-
-Schemantic provides a set of basic types and helpers for creating dynamic schemas without generating code.
-
-#### Primitives
-- `stringSchema()`
-- `intSchema()`
-- `doubleSchema(`
-- `boolSchema()`
-- `voidSchema()`
-
-#### `listSchema` and `mapSchema`
-
-You can create strongly typed Lists and Maps dynamically:
-
-```dart
-void main() {
-  // Define a List of Strings
-  final stringList = listSchema(stringSchema());
-  print(stringList.parse(['a', 'b'])); // ['a', 'b']
-
-  // Define a Map with String keys and Integer values
-  final scores = mapSchema(stringSchema(), intSchema());
-  print(scores.parse({'Alice': 100, 'Bob': 80})); // {'Alice': 100, 'Bob': 80}
-
-  // Nesting types
-  final matrix = listSchema(listSchema(intSchema()));
-  print(matrix.parse([[1, 2], [3, 4]])); // [[1, 2], [3, 4]]
-  
-  // JSON Schema generation works as expected
-  print(scores.jsonSchema().toJson());
-  // {type: object, additionalProperties: {type: integer}}
-}
-
 ## Schema Metadata
 
 You can add a description to your generated schema using the `description` parameter in `@Schematic`:
@@ -179,27 +193,14 @@ final scores = mapSchema(
 );
 ```
 
-### Basic Types
+### Field Annotations
 
-Schemantic provides factories for basic types with optional metadata:
-
-- `stringSchema({String? description, int? minLength, ...})`
-- `intSchema({String? description, int? minimum, ...})`
-- `doubleSchema({String? description, double? minimum, ...})`
-- `boolSchema({String? description})`
-- `dynamicSchema({String? description})`
-
-Example:
-
-final age = intSchema(
-  description: 'Age in years',
-  minimum: 0,
-);
+Schemantic provides specialized annotations for defining schema constraints:
 
 - `@Field`: Basic customization (name, description).
 - `@StringField`: Constraints for strings (minLength, maxLength, pattern, format, enumValues).
 - `@IntegerField`: Constraints for integers (minimum, maximum, multipleOf).
-- `@NumberField`: Constraints for doubles/numbers (minimum, maximum, multipleOf).
+- `@DoubleField`: Constraints for doubles/numbers (minimum, maximum, multipleOf).
 
 ```dart
 @Schematic()
@@ -209,15 +210,20 @@ abstract class $User {
     name: 'years_old', 
     description: 'Age of the user',
     minimum: 0,
-    maximum: 120
+    maximum: 120,
+    defaultValue: 18,
   )
   int? get age;
+
+  @DoubleField(minimum: 0.0, maximum: 100.0, defaultValue: 0.0)
+  double get score;
 
   @StringField(
     minLength: 2,
     maxLength: 50,
     pattern: r'^[a-zA-Z\s]+$',
-    enumValues: ['user', 'admin'] // Mapped to 'enum' in JSON Schema
+    enumValues: ['user', 'admin'], // Mapped to 'enum' in JSON Schema
+    defaultValue: 'user'
   )
   String get role;
 }

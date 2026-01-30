@@ -48,7 +48,10 @@ class Field {
   /// A description of the field, which will be included in the generated JSON Schema.
   final String? description;
 
-  const Field({this.name, this.description});
+  /// The default value for the field.
+  final Object? defaultValue;
+
+  const Field({this.name, this.description, this.defaultValue});
 }
 
 /// Annotation for String fields with specific schema constraints.
@@ -67,7 +70,8 @@ class StringField extends Field {
     this.pattern,
     this.format,
     this.enumValues,
-  });
+    String? defaultValue,
+  }) : super(defaultValue: defaultValue);
 }
 
 /// Annotation for Integer fields with specific schema constraints.
@@ -86,18 +90,20 @@ class IntegerField extends Field {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
-  });
+    int? defaultValue,
+  }) : super(defaultValue: defaultValue);
 }
 
 /// Annotation for Number (double) fields with specific schema constraints.
-class NumberField extends Field {
+/// Annotation for Number (double) fields with specific schema constraints.
+class DoubleField extends Field {
   final num? minimum;
   final num? maximum;
   final num? exclusiveMinimum;
   final num? exclusiveMaximum;
   final num? multipleOf;
 
-  const NumberField({
+  const DoubleField({
     super.name,
     super.description,
     this.minimum,
@@ -105,7 +111,8 @@ class NumberField extends Field {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
-  });
+    num? defaultValue,
+  }) : super(defaultValue: defaultValue);
 }
 
 /// Metadata associated with a [SchemanticType], primarily used for schema generation.

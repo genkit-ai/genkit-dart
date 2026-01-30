@@ -110,6 +110,20 @@ void main() {
       expect(json, isEmpty);
     });
 
+    test('defaultValue in helpers', () {
+      final s = stringSchema(defaultValue: 'default');
+      expect(jsonDecode(s.jsonSchema().toJson())['default'], 'default');
+
+      final i = intSchema(defaultValue: 42);
+      expect(jsonDecode(i.jsonSchema().toJson())['default'], 42);
+
+      final d = doubleSchema(defaultValue: 3.14);
+      expect(jsonDecode(d.jsonSchema().toJson())['default'], 3.14);
+
+      final b = boolSchema(defaultValue: true);
+      expect(jsonDecode(b.jsonSchema().toJson())['default'], true);
+    });
+
     test('MapType replacement', () {
       final mapT = mapSchema(stringSchema(), dynamicSchema());
       final json = {'key': 'value', 'a': 1};

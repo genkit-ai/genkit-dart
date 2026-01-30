@@ -44,10 +44,10 @@ abstract class $GeminiOptions {
   $FileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
 
-  @NumberField(minimum: 0.0, maximum: 2.0)
+  @DoubleField(minimum: 0.0, maximum: 2.0)
   double? get temperature;
 
-  @NumberField(minimum: 0.0, maximum: 1.0)
+  @DoubleField(minimum: 0.0, maximum: 1.0)
   double? get topP;
 
   int? get topK;

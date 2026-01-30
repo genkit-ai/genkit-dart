@@ -54,7 +54,7 @@ abstract class $Keyed {
   @IntegerField(minimum: 10, maximum: 100)
   int? get score;
 
-  @NumberField(minimum: 0.5, maximum: 5.5)
+  @DoubleField(minimum: 0.5, maximum: 5.5)
   double? get rating;
 }
 
@@ -82,7 +82,7 @@ abstract class $Comprehensive {
   )
   int get intField;
 
-  @NumberField(
+  @DoubleField(
     name: 'n_field',
     description: 'A number field',
     minimum: 0.0,
@@ -319,7 +319,7 @@ void main() {
       expect(i['exclusiveMaximum'], 100);
       expect(i['multipleOf'], 5);
 
-      // NumberField validation
+      // DoubleField validation
       final n = props['n_field'];
       expect(n['type'], 'number');
       expect(n['description'], 'A number field');
@@ -353,5 +353,31 @@ void main() {
       final parsed = CrossFileParent.$schema.parse(json);
       expect(parsed.child.childId, 'c1');
     });
+
+    test('DefaultsSchema has default values', () {
+      final schema = Defaults.$schema.jsonSchema();
+      final schemaJson = jsonDecode(schema.toJson());
+      final props = schemaJson['properties'] as Map<String, dynamic>;
+
+      expect(props['env']['default'], 'prod');
+      expect(props['port']['default'], 8080);
+      expect(props['ratio']['default'], 1.5);
+      expect(props['flag']['default'], true);
+    });
   });
+}
+
+@Schematic()
+abstract class $Defaults {
+  @StringField(defaultValue: 'prod')
+  String get env;
+
+  @IntegerField(defaultValue: 8080)
+  int get port;
+
+  @DoubleField(defaultValue: 1.5)
+  double get ratio;
+
+  @Field(defaultValue: true)
+  bool get flag;
 }

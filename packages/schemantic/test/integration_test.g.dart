@@ -551,3 +551,87 @@ class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
     dependencies: [SharedChild.$schema],
   );
 }
+
+class Defaults {
+  factory Defaults.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Defaults._(this._json);
+
+  factory Defaults({
+    required String env,
+    required int port,
+    required double ratio,
+    required bool flag,
+  }) {
+    return Defaults._({'env': env, 'port': port, 'ratio': ratio, 'flag': flag});
+  }
+
+  Map<String, dynamic> _json;
+
+  static const SchemanticType<Defaults> $schema = _DefaultsTypeFactory();
+
+  String get env {
+    return _json['env'] as String;
+  }
+
+  set env(String value) {
+    _json['env'] = value;
+  }
+
+  int get port {
+    return _json['port'] as int;
+  }
+
+  set port(int value) {
+    _json['port'] = value;
+  }
+
+  double get ratio {
+    return _json['ratio'] as double;
+  }
+
+  set ratio(double value) {
+    _json['ratio'] = value;
+  }
+
+  bool get flag {
+    return _json['flag'] as bool;
+  }
+
+  set flag(bool value) {
+    _json['flag'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _DefaultsTypeFactory extends SchemanticType<Defaults> {
+  const _DefaultsTypeFactory();
+
+  @override
+  Defaults parse(Object? json) {
+    return Defaults._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Defaults',
+    definition: Schema.object(
+      properties: {
+        'env': Schema.fromMap({'default': 'prod', 'type': 'string'}),
+        'port': Schema.fromMap({'default': 8080, 'type': 'integer'}),
+        'ratio': Schema.fromMap({'default': 1.5, 'type': 'number'}),
+        'flag': Schema.fromMap({'default': true, 'type': 'boolean'}),
+      },
+      required: ['env', 'port', 'ratio', 'flag'],
+    ),
+    dependencies: [],
+  );
+}

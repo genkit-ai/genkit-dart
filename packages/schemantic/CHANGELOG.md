@@ -1,3 +1,9 @@
+## 0.0.1-dev.11
+
+> Note: This release has breaking changes.
+
+ - **BREAKING**: Rename `NumberField` to `DoubleField` for consistency.
+
 ## 0.0.1-dev.10
 
 - Add `anyOf` support.
