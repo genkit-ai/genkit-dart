@@ -218,13 +218,10 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  var composedModel = coreModel;
-  if (middlewares != null) {
-    for (final mw in middlewares.reversed) {
-      final next = composedModel;
-      composedModel = (r, c) => mw.model(r, c, next);
-    }
-  }
+  final composedModel = middlewares?.reversed.fold(
+    coreModel,
+    (next, mw) => (r, c) => mw.model(r, c, next),
+  ) ?? coreModel;
 
   while (turns < (requestOptions.maxTurns ?? 5)) {
     // Execute model with middleware
@@ -283,38 +280,25 @@ Future<GenerateResponseHelper> _runGenerateLoop(
         );
       }
 
-      var composedTool = coreTool;
-      if (middlewares != null) {
-        for (final mw in middlewares.reversed) {
-          final next = composedTool;
-          composedTool = (r, c) => mw.tool(r, c, next);
-        }
-      }
+      final composedTool = middlewares?.reversed.fold(
+        coreTool,
+        (next, mw) => (r, c) => mw.tool(r, c, next),
+      ) ?? coreTool;
 
       // Execute tool with middleware
-      try {
-        final toolResponse = await composedTool(
-          toolRequest.toolRequest,
-          (
-            streamingRequested: false,
-            sendChunk: (_) {},
-            context: ctx.context,
-            inputStream: null,
-            init: null,
-          ),
-        );
-        toolResponses.add(
-          ToolResponsePart(toolResponse: toolResponse),
-        );
-      } catch (e) {
-         // Should we let middleware handle errors?
-         // If middleware rethrows, it bubbles up.
-         // Existing logic didn't catch errors here unless I missed it.
-         // Original code: await tool.runRaw(...)
-         // If it failed, it would throw.
-         // So if composedTool throws, we throw.
-         rethrow;
-      }
+      final toolResponse = await composedTool(
+        toolRequest.toolRequest,
+        (
+          streamingRequested: false,
+          sendChunk: (_) {},
+          context: ctx.context,
+          inputStream: null,
+          init: null,
+        ),
+      );
+      toolResponses.add(
+        ToolResponsePart(toolResponse: toolResponse),
+      );
     }
 
     final newMessages =
@@ -350,13 +334,10 @@ Future<GenerateResponseHelper> runGenerateAction(
     return _runGenerateLoop(registry, opts, c, middlewares: middlewares);
   }
 
-  var composedGenerate = coreGenerate;
-  if (middlewares != null) {
-    for (final mw in middlewares.reversed) {
-      final next = composedGenerate;
-      composedGenerate = (o, c) => mw.generate(o, c, next);
-    }
-  }
+  final composedGenerate = middlewares?.reversed.fold(
+    coreGenerate,
+    (next, mw) => (o, c) => mw.generate(o, c, next),
+  ) ?? coreGenerate;
 
   return composedGenerate(options, ctx);
 }

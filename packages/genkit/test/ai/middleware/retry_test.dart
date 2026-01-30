@@ -260,5 +260,32 @@ void main() {
       // Initial (1) + 3 retries = 4
       expect(attempts, 4);
     });
+    test('should use default statuses if statuses is empty', () async {
+      var attempts = 0;
+      final mw = RetryMiddleware(
+        maxRetries: 3,
+        initialDelayMs: 1,
+        noJitter: true,
+        statuses: [], // Empty list should trigger defaults
+      );
+
+      genkit.defineModel(name: 'default-status-model', fn: (req, ctx) async {
+        attempts++;
+        throw GenkitException('Simulated Failure', statusCode: 503); // UNAVAILABLE (in default list)
+      });
+
+      try {
+        await genkit.generate(
+          model: modelRef('default-status-model'),
+          prompt: 'test',
+          use: [mw],
+        );
+      } catch (e) {
+        // Expected
+      }
+
+      // Should retry: 1 + 3 = 4
+      expect(attempts, 4);
+    });
   });
 }

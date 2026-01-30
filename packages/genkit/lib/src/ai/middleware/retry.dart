@@ -108,16 +108,19 @@ class RetryMiddleware extends GenerateMiddleware {
   /// Whether to retry tool requests. Defaults to `false`.
   final bool retryTools;
 
+  /// The default list of status codes that trigger a retry.
+  static const defaultRetryStatuses = [
+    StatusName.UNAVAILABLE,
+    StatusName.DEADLINE_EXCEEDED,
+    StatusName.RESOURCE_EXHAUSTED,
+    StatusName.ABORTED,
+    StatusName.INTERNAL,
+  ];
+
   /// Creates a [RetryMiddleware].
   RetryMiddleware({
     this.maxRetries = 3,
-    this.statuses = const [
-      StatusName.UNAVAILABLE,
-      StatusName.DEADLINE_EXCEEDED,
-      StatusName.RESOURCE_EXHAUSTED,
-      StatusName.ABORTED,
-      StatusName.INTERNAL,
-    ],
+    this.statuses = defaultRetryStatuses,
     this.initialDelayMs = 1000,
     this.maxDelayMs = 60000,
     this.backoffFactor = 2.0,
@@ -181,14 +184,15 @@ class RetryMiddleware extends GenerateMiddleware {
   }
 
   bool _shouldRetry(Object e) {
-    if (statuses.isEmpty) return true;
-    
     StatusName? status;
     if (e is GenkitException) {
       status = _mapStatusCodeToStatus(e.statusCode);
     }
     
     if (status != null) {
+      if (statuses.isEmpty) {
+        return defaultRetryStatuses.contains(status);
+      }
       return statuses.contains(status);
     }
     
