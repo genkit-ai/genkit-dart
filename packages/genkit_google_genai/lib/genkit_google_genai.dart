@@ -118,9 +118,11 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
         })
         .map((model) {
           final isTts = model.name.contains('-tts');
-           return modelMetadata(
+          return modelMetadata(
             'googleai/${model.name.split('/').last}',
-            customOptions: isTts ? GeminiTtsOptions.$schema : GeminiOptions.$schema,
+            customOptions: isTts
+                ? GeminiTtsOptions.$schema
+                : GeminiOptions.$schema,
             modelInfo: commonModelInfo,
           );
         })
@@ -131,7 +133,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
   @override
   Action? resolve(String actionType, String name) {
     if (name.contains('-tts')) {
-        return _createModel(name, GeminiTtsOptions.$schema);
+      return _createModel(name, GeminiTtsOptions.$schema);
     }
     return _createModel(name, GeminiOptions.$schema);
   }
@@ -156,7 +158,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
           final options = req.config == null
               ? GeminiTtsOptions()
               : GeminiTtsOptions.$schema.parse(req.config!);
-          
+
           apiKey = options.apiKey;
           generationConfig = toGeminiTtsSettings(
             options,
@@ -167,7 +169,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
           tools = toGeminiTtsTools(req.tools, options);
           toolConfig = toGeminiTtsToolConfig(options);
         } else {
-             final options = req.config == null
+          final options = req.config == null
               ? GeminiOptions()
               : GeminiOptions.$schema.parse(req.config!);
           apiKey = options.apiKey;
@@ -311,8 +313,9 @@ gcl.GenerationConfig toGeminiTtsSettings(
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
-    responseMimeType:
-        isJsonMode ? 'application/json' : (options.responseMimeType ?? ''),
+    responseMimeType: isJsonMode
+        ? 'application/json'
+        : (options.responseMimeType ?? ''),
     responseJsonSchema: switch (outputSchema) {
       null => null,
       Map<String, Object?> $1 => pb.Value.fromJson($1),
@@ -334,38 +337,34 @@ gcl.GenerationConfig toGeminiTtsSettings(
             )
             .toList() ??
         [],
-    speechConfig:
-        options.speechConfig == null
-            ? null
-            : gcl.SpeechConfig(
-              voiceConfig:
-                  options.speechConfig!.voiceConfig == null
-                      ? null
-                      : gcl.VoiceConfig(
-                        prebuiltVoiceConfig:
-                            options
-                                    .speechConfig!
-                                    .voiceConfig!
-                                    .prebuiltVoiceConfig ==
-                                null
-                                ? null
-                                : gcl.PrebuiltVoiceConfig(
-                                  voiceName:
-                                      options
-                                          .speechConfig!
-                                          .voiceConfig!
-                                          .prebuiltVoiceConfig!
-                                          .voiceName,
-                                ),
-                      ),
-            ),
-    thinkingConfig:
-        options.thinkingConfig == null
-            ? null
-            : gcl.ThinkingConfig(
-              includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
-              thinkingBudget: options.thinkingConfig!.thinkingBudget,
-            ),
+    speechConfig: options.speechConfig == null
+        ? null
+        : gcl.SpeechConfig(
+            voiceConfig: options.speechConfig!.voiceConfig == null
+                ? null
+                : gcl.VoiceConfig(
+                    prebuiltVoiceConfig:
+                        options
+                                .speechConfig!
+                                .voiceConfig!
+                                .prebuiltVoiceConfig ==
+                            null
+                        ? null
+                        : gcl.PrebuiltVoiceConfig(
+                            voiceName: options
+                                .speechConfig!
+                                .voiceConfig!
+                                .prebuiltVoiceConfig!
+                                .voiceName,
+                          ),
+                  ),
+          ),
+    thinkingConfig: options.thinkingConfig == null
+        ? null
+        : gcl.ThinkingConfig(
+            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
+            thinkingBudget: options.thinkingConfig!.thinkingBudget,
+          ),
   );
 }
 
