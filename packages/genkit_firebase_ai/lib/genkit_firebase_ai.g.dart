@@ -87,7 +87,7 @@ class GeminiOptions {
   }
 
   double? get temperature {
-    return _json['temperature'] as double?;
+    return (_json['temperature'] as num?)?.toDouble();
   }
 
   set temperature(double? value) {
@@ -99,7 +99,7 @@ class GeminiOptions {
   }
 
   double? get topP {
-    return _json['topP'] as double?;
+    return (_json['topP'] as num?)?.toDouble();
   }
 
   set topP(double? value) {
@@ -123,7 +123,7 @@ class GeminiOptions {
   }
 
   double? get presencePenalty {
-    return _json['presencePenalty'] as double?;
+    return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
   set presencePenalty(double? value) {
@@ -135,7 +135,7 @@ class GeminiOptions {
   }
 
   double? get frequencyPenalty {
-    return _json['frequencyPenalty'] as double?;
+    return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
   set frequencyPenalty(double? value) {
@@ -599,7 +599,7 @@ class LiveGenerationConfig {
   }
 
   double? get temperature {
-    return _json['temperature'] as double?;
+    return (_json['temperature'] as num?)?.toDouble();
   }
 
   set temperature(double? value) {
@@ -611,7 +611,7 @@ class LiveGenerationConfig {
   }
 
   double? get topP {
-    return _json['topP'] as double?;
+    return (_json['topP'] as num?)?.toDouble();
   }
 
   set topP(double? value) {
@@ -635,7 +635,7 @@ class LiveGenerationConfig {
   }
 
   double? get presencePenalty {
-    return _json['presencePenalty'] as double?;
+    return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
   set presencePenalty(double? value) {
@@ -647,7 +647,7 @@ class LiveGenerationConfig {
   }
 
   double? get frequencyPenalty {
-    return _json['frequencyPenalty'] as double?;
+    return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
   set frequencyPenalty(double? value) {

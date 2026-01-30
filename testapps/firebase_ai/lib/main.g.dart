@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// GENERATED CODE BY schemantic- DO NOT MODIFY BY HAND
-// To regenerate, run `dart run build_runner build -d`
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
 
 part of 'main.dart';
 
@@ -22,16 +21,21 @@ part of 'main.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherToolInput implements WeatherToolInputSchema {
-  WeatherToolInput(this._json);
+class WeatherToolInput {
+  factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory WeatherToolInput.from({required String location}) {
-    return WeatherToolInput({'location': location});
+  WeatherToolInput._(this._json);
+
+  factory WeatherToolInput({required String location}) {
+    return WeatherToolInput._({'location': location});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<WeatherToolInput> $schema =
+      _WeatherToolInputTypeFactory();
+
   String get location {
     return _json['location'] as String;
   }
@@ -55,7 +59,7 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
 
   @override
   WeatherToolInput parse(Object? json) {
-    return WeatherToolInput(json as Map<String, dynamic>);
+    return WeatherToolInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -68,6 +72,3 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const WeatherToolInputType = _WeatherToolInputTypeFactory();

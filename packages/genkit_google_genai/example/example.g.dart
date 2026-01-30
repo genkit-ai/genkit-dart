@@ -181,7 +181,7 @@ class Weapon {
   }
 
   double get damage {
-    return _json['damage'] as double;
+    return (_json['damage'] as num).toDouble();
   }
 
   set damage(double value) {

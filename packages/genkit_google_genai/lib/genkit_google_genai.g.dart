@@ -194,7 +194,7 @@ class GeminiOptions {
   }
 
   double? get temperature {
-    return _json['temperature'] as double?;
+    return (_json['temperature'] as num?)?.toDouble();
   }
 
   set temperature(double? value) {
@@ -206,7 +206,7 @@ class GeminiOptions {
   }
 
   double? get topP {
-    return _json['topP'] as double?;
+    return (_json['topP'] as num?)?.toDouble();
   }
 
   set topP(double? value) {
@@ -302,7 +302,7 @@ class GeminiOptions {
   }
 
   double? get presencePenalty {
-    return _json['presencePenalty'] as double?;
+    return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
   set presencePenalty(double? value) {
@@ -314,7 +314,7 @@ class GeminiOptions {
   }
 
   double? get frequencyPenalty {
-    return _json['frequencyPenalty'] as double?;
+    return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
   set frequencyPenalty(double? value) {
@@ -683,7 +683,7 @@ class GoogleSearchRetrieval {
   }
 
   double? get dynamicThreshold {
-    return _json['dynamicThreshold'] as double?;
+    return (_json['dynamicThreshold'] as num?)?.toDouble();
   }
 
   set dynamicThreshold(double? value) {
@@ -959,7 +959,7 @@ class GeminiTtsOptions {
   }
 
   double? get temperature {
-    return _json['temperature'] as double?;
+    return (_json['temperature'] as num?)?.toDouble();
   }
 
   set temperature(double? value) {
@@ -971,7 +971,7 @@ class GeminiTtsOptions {
   }
 
   double? get topP {
-    return _json['topP'] as double?;
+    return (_json['topP'] as num?)?.toDouble();
   }
 
   set topP(double? value) {
@@ -1067,7 +1067,7 @@ class GeminiTtsOptions {
   }
 
   double? get presencePenalty {
-    return _json['presencePenalty'] as double?;
+    return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
   set presencePenalty(double? value) {
@@ -1079,7 +1079,7 @@ class GeminiTtsOptions {
   }
 
   double? get frequencyPenalty {
-    return _json['frequencyPenalty'] as double?;
+    return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
   set frequencyPenalty(double? value) {

@@ -29,7 +29,7 @@ import 'package:schemantic/schemantic.dart';
 part 'main.g.dart';
 
 @Schematic()
-abstract class WeatherToolInputSchema {
+abstract class $WeatherToolInput {
   String get location;
 }
 
@@ -117,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _ai.defineTool(
       name: 'getWeather',
       description: 'Get the weather for a location',
-      inputSchema: WeatherToolInputType,
+      inputSchema: WeatherToolInput.$schema,
       fn: (input, context) async {
         if (input.location.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';
@@ -209,7 +209,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
     _ai.defineTool(
       name: 'getWeather',
       description: 'Get the weather for a location',
-      inputSchema: WeatherToolInputType,
+      inputSchema: WeatherToolInput.$schema,
       fn: (input, context) async {
         if (input.location.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';

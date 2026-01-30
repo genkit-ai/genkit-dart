@@ -298,7 +298,7 @@ class Keyed {
   }
 
   double? get rating {
-    return _json['rating'] as double?;
+    return (_json['rating'] as num?)?.toDouble();
   }
 
   set rating(double? value) {
@@ -385,7 +385,7 @@ class Comprehensive {
   }
 
   double get numberField {
-    return _json['n_field'] as double;
+    return (_json['n_field'] as num).toDouble();
   }
 
   set numberField(double value) {
@@ -587,7 +587,7 @@ class Defaults {
   }
 
   double get ratio {
-    return _json['ratio'] as double;
+    return (_json['ratio'] as num).toDouble();
   }
 
   set ratio(double value) {
