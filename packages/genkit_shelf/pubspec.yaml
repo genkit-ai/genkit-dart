@@ -1,7 +1,7 @@
 name: genkit_shelf
 description: Shelf integration for Genkit Dart.
 resolution: workspace
-version: 0.0.1-dev.9
+version: 0.0.1-dev.10
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
@@ -9,8 +9,8 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.10.0-dev.9
-  schemantic: ^0.0.1-dev.11
+  genkit: ^0.10.0-dev.10
+  schemantic: ^0.0.1-dev.12
   shelf: ^1.4.2
   shelf_router: ^1.1.4
 

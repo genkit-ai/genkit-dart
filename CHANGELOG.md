@@ -11,6 +11,43 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit` - `v0.10.0-dev.10`](#genkit---v0100-dev10)
+ - [`genkit_google_genai` - `v0.0.1-dev.10`](#genkit_google_genai---v001-dev10)
+ - [`genkit_shelf` - `v0.0.1-dev.10`](#genkit_shelf---v001-dev10)
+ - [`schemantic` - `v0.0.1-dev.12`](#schemantic---v001-dev12)
+
+---
+
+#### `genkit` - `v0.10.0-dev.10`
+
+ - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).
+
+#### `genkit_google_genai` - `v0.0.1-dev.10`
+
+ - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).
+
+#### `genkit_shelf` - `v0.0.1-dev.10`
+
+ - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).
+
+#### `schemantic` - `v0.0.1-dev.12`
+
+ - **REFACTOR**: Identify schema types using a new `Type.isSchema` getter instead of string-based checks.
+ - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).
+
+
+## 2026-01-29
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - [`genkit` - `v0.10.0-dev.9`](#genkit---v0100-dev9)
  - [`genkit_google_genai` - `v0.0.1-dev.9`](#genkit_google_genai---v001-dev9)
  - [`genkit_shelf` - `v0.0.1-dev.9`](#genkit_shelf---v001-dev9)

@@ -1,3 +1,8 @@
+## 0.0.1-dev.12
+
+ - **REFACTOR**: Identify schema types using a new `Type.isSchema` getter instead of string-based checks.
+ - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).
+
 ## 0.0.1-dev.11
 
 > Note: This release has breaking changes.

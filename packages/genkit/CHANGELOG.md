@@ -1,3 +1,7 @@
+## 0.10.0-dev.10
+
+ - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).
+
 ## 0.10.0-dev.9
 
 > Note: This release has breaking changes.
