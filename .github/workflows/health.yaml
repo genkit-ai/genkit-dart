@@ -1,0 +1,15 @@
+name: Health
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  health:
+    uses: dart-lang/ecosystem/.github/workflows/health.yaml@main
+    with:
+      sdk: main
+      ignore_license: "**.g.dart"
+      ignore_coverage: "**.g.dart"
+    permissions:
+      pull-requests: write

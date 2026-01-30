@@ -43,8 +43,6 @@ melos:
     build-gen-core:
       run: |
         melos exec --scope="genkit" -- dart run build_runner build
-        # For mockito generated files
-        dart run tools/apply_license.dart
       description: Run build_runner for genkit.
 
     build-gen-plugins:
