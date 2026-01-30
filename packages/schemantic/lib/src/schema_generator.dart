@@ -412,9 +412,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     final typeName = type.getDisplayString();
     if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
-      final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
-      if (itemTypeName.isSchema) {
-        final nestedBaseName = _resolveBaseName(itemTypeName);
+      if (itemType.isSchema) {
+        final nestedBaseName = _resolveBaseName(itemType.element!.name!);
         final nullability = itemType.getDisplayString().endsWith('?')
             ? '?'
             : '';
@@ -422,9 +421,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         return 'List<$nestedBaseName$nullability>$listNullability';
       }
     }
-    final nonNullableTypeName = type.getDisplayString().replaceAll('?', '');
-    if (nonNullableTypeName.isSchema) {
-      final nestedBaseName = _resolveBaseName(nonNullableTypeName);
+    if (type.isSchema) {
+      final nestedBaseName = _resolveBaseName(type.element!.name!);
       final nullability = typeName.endsWith('?') ? '?' : '';
       return '$nestedBaseName$nullability';
     }
@@ -450,8 +448,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         final itemType = (returnType as InterfaceType).typeArguments.first;
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         final itemIsNullable = itemType.isNullable;
-        if (itemTypeName.isSchema) {
-          final nestedBaseName = _resolveBaseName(itemTypeName);
+        if (itemType.isSchema) {
+          final nestedBaseName = _resolveBaseName(itemType.element!.name!);
           if (itemIsNullable) {
             getterBody =
                 "return (_json['$jsonFieldName'] as List?)?.map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
@@ -463,8 +461,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           getterBody =
               "return (_json['$jsonFieldName'] as List?)?.cast<$itemTypeName>();";
         }
-      } else if (nonNullableTypeName.isSchema) {
-        final nestedBaseName = _resolveBaseName(nonNullableTypeName);
+      } else if (returnType.isSchema) {
+        final nestedBaseName = _resolveBaseName(returnType.element!.name!);
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : $nestedBaseName.fromJson(_json['$jsonFieldName'] as Map<String, dynamic>);";
       } else if (nonNullableTypeName == 'DateTime') {
@@ -479,8 +477,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final itemType = (returnType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       final itemIsNullable = itemType.isNullable;
-      if (itemTypeName.isSchema) {
-        final nestedBaseName = _resolveBaseName(itemTypeName);
+      if (itemType.isSchema) {
+        final nestedBaseName = _resolveBaseName(itemType.element!.name!);
         if (itemIsNullable) {
           getterBody =
               "return (_json['$jsonFieldName'] as List).map((e) => e == null ? null : $nestedBaseName.fromJson(e as Map<String, dynamic>)).toList();";
@@ -494,8 +492,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       }
     } else if (nonNullableTypeName == 'DateTime') {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
-    } else if (nonNullableTypeName.isSchema) {
-      final nestedBaseName = _resolveBaseName(nonNullableTypeName);
+    } else if (returnType.isSchema) {
+      final nestedBaseName = _resolveBaseName(returnType.element!.name!);
       getterBody =
           "return $nestedBaseName.fromJson(_json['$jsonFieldName'] as Map<String, dynamic>);";
     }
@@ -1167,6 +1165,10 @@ extension on DartType {
 
   bool get isDynamic {
     return getDisplayString() == 'dynamic';
+  }
+
+  bool get isSchema {
+    return element?.name?.startsWith(r'$') ?? false;
   }
 }
 
