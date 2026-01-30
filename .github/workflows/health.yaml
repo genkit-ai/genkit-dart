@@ -12,6 +12,7 @@ jobs:
       checks: changelog,coverage,breaking,do-not-submit,leaking,unused-dependencies
       ignore_license: "**.g.dart"
       ignore_coverage: "**.g.dart"
+      ignore_breaking: "packages/genkit_firebase_ai/**"
 # Wait for https://github.com/dart-lang/ecosystem/pull/389 to land
       # license: |
       #   // Copyright %YEAR% Google LLC
