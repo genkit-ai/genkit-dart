@@ -1,3 +1,11 @@
+## 0.10.0-dev.9
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: reimplement schema generation from extension types to classes, enhance `PartExtension` getters, and simplify `GenerateResponse` and tool invocation. (#53).
+ - **FEAT**: use combining builder and header option (#52).
+ - **BREAKING** **FEAT**: implement Schemantic API redesign with $ prefixed schema definitions and static `$schema` for unified schema access. (#60).
+
 ## 0.10.0-dev.8
 
 > Note: This release has breaking changes.

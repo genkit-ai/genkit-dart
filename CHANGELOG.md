@@ -3,6 +3,54 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-01-29
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit` - `v0.10.0-dev.9`](#genkit---v0100-dev9)
+ - [`genkit_google_genai` - `v0.0.1-dev.9`](#genkit_google_genai---v001-dev9)
+ - [`genkit_shelf` - `v0.0.1-dev.9`](#genkit_shelf---v001-dev9)
+ - [`schemantic` - `v0.0.1-dev.11`](#schemantic---v001-dev11)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `genkit` - `v0.10.0-dev.9`
+
+ - **REFACTOR**: reimplement schema generation from extension types to classes, enhance `PartExtension` getters, and simplify `GenerateResponse` and tool invocation. (#53).
+ - **FEAT**: use combining builder and header option (#52).
+ - **BREAKING** **FEAT**: implement Schemantic API redesign with $ prefixed schema definitions and static `$schema` for unified schema access. (#60).
+
+#### `genkit_google_genai` - `v0.0.1-dev.9`
+
+ - **REFACTOR**: reimplement schema generation from extension types to classes, enhance `PartExtension` getters, and simplify `GenerateResponse` and tool invocation. (#53).
+ - **FEAT**: Add support for specifying default values for schema fields and types, and generate them in the JSON Schema. (#61).
+ - **FEAT**: use combining builder and header option (#52).
+ - **BREAKING** **FEAT**: implement Schemantic API redesign with $ prefixed schema definitions and static `$schema` for unified schema access. (#60).
+
+#### `genkit_shelf` - `v0.0.1-dev.9`
+
+ - **FEAT**: use combining builder and header option (#52).
+ - **BREAKING** **FEAT**: implement Schemantic API redesign with $ prefixed schema definitions and static `$schema` for unified schema access. (#60).
+
+#### `schemantic` - `v0.0.1-dev.11`
+
+ - **REFACTOR**: reimplement schema generation from extension types to classes, enhance `PartExtension` getters, and simplify `GenerateResponse` and tool invocation. (#53).
+ - **FEAT**: Add support for specifying default values for schema fields and types, and generate them in the JSON Schema. (#61).
+ - **FEAT**: `AnyOf` support and simplified license headers (#59).
+ - **FEAT**: use combining builder and header option (#52).
+ - **FEAT**: allow referencing other schemas when using `Schema` schematic (#46).
+ - **BREAKING** **REFACTOR**: removed support for generation from jsb Schema defs (#48).
+ - **BREAKING** **FEAT**: implement Schemantic API redesign with $ prefixed schema definitions and static `$schema` for unified schema access. (#60).
+
+
 ## 2026-01-18
 
 ### Changes

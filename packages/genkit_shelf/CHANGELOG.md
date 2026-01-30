@@ -1,3 +1,10 @@
+## 0.0.1-dev.9
+
+> Note: This release has breaking changes.
+
+ - **FEAT**: use combining builder and header option (#52).
+ - **BREAKING** **FEAT**: implement Schemantic API redesign with $ prefixed schema definitions and static `$schema` for unified schema access. (#60).
+
 ## 0.0.1-dev.8
 
 > Note: This release has breaking changes.

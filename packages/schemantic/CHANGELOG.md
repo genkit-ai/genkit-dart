@@ -1,3 +1,15 @@
+## 0.0.1-dev.11
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: reimplement schema generation from extension types to classes, enhance `PartExtension` getters, and simplify `GenerateResponse` and tool invocation. (#53).
+ - **FEAT**: Add support for specifying default values for schema fields and types, and generate them in the JSON Schema. (#61).
+ - **FEAT**: `AnyOf` support and simplified license headers (#59).
+ - **FEAT**: use combining builder and header option (#52).
+ - **FEAT**: allow referencing other schemas when using `Schema` schematic (#46).
+ - **BREAKING** **REFACTOR**: removed support for generation from jsb Schema defs (#48).
+ - **BREAKING** **FEAT**: implement Schemantic API redesign with $ prefixed schema definitions and static `$schema` for unified schema access. (#60).
+
 
 ## 0.0.1-dev.9
 
