@@ -39,8 +39,8 @@ abstract class $Message {
 abstract class $ToolDefinition {
   String get name;
   String get description;
-  dynamic get inputSchema;
-  dynamic get outputSchema;
+  Map<String, dynamic>? get inputSchema;
+  Map<String, dynamic>? get outputSchema;
   Map<String, dynamic>? get metadata;
 }
 
@@ -173,6 +173,20 @@ abstract class $ModelResponseChunk {
 }
 
 @Schematic()
+abstract class $GenerateResponse {
+  $Message? get message;
+  FinishReason? get finishReason;
+  String? get finishMessage;
+  double? get latencyMs;
+  $GenerationUsage? get usage;
+  Map<String, dynamic>? get custom;
+  Map<String, dynamic>? get raw;
+  $GenerateRequest? get request;
+  $Operation? get operation;
+  List<$Candidate>? get candidates;
+}
+
+@Schematic()
 abstract class $GenerateRequest {
   List<$Message> get messages;
   Map<String, dynamic>? get config;
@@ -259,7 +273,8 @@ abstract class $GenerateActionOptions {
 abstract class $GenerateActionOutputConfig {
   String? get format;
   String? get contentType;
-  bool? get instructions;
+  @AnyOf([bool, String])
+  Object? get instructions;
   Map<String, dynamic>? get jsonSchema;
   bool? get constrained;
 }

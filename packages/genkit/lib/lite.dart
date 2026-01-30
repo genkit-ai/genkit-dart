@@ -24,7 +24,7 @@ import 'src/core/registry.dart';
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';
 
-Future<GenerateResponse> generate<C>({
+Future<GenerateResponseHelper> generate<C>({
   String? prompt,
   List<Message>? messages,
   required Model<C> model,
@@ -84,7 +84,7 @@ Future<GenerateResponse> generate<C>({
   );
 }
 
-ActionStream<GenerateResponseChunk, GenerateResponse> generateStream<C>({
+ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   required Model<C> model,
   String? prompt,
   List<Message>? messages,
@@ -102,7 +102,7 @@ ActionStream<GenerateResponseChunk, GenerateResponse> generateStream<C>({
   Map<String, dynamic>? context,
 }) {
   final streamController = StreamController<GenerateResponseChunk>();
-  final actionStream = ActionStream<GenerateResponseChunk, GenerateResponse>(
+  final actionStream = ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
     streamController.stream,
   );
 

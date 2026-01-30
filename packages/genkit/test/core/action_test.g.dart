@@ -26,11 +26,11 @@ class TestInput {
 
   TestInput._(this._json);
 
-  factory TestInput({required String name}) {
-    return TestInput._({'name': name});
+  TestInput({required String name}) {
+    _json = {'name': name};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<TestInput> $schema = _TestInputTypeFactory();
 
@@ -76,11 +76,11 @@ class TestOutput {
 
   TestOutput._(this._json);
 
-  factory TestOutput({required String greeting}) {
-    return TestOutput._({'greeting': greeting});
+  TestOutput({required String greeting}) {
+    _json = {'greeting': greeting};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<TestOutput> $schema = _TestOutputTypeFactory();
 

@@ -109,42 +109,34 @@ class GenerateResponseChunk<O> {
 }
 
 /// A response from a generate action.
-class GenerateResponse<O> {
+class GenerateResponseHelper<O> extends GenerateResponse {
   final ModelResponse _response;
   final O? output;
 
-  GenerateResponse(this._response, {this.output});
-
-  /// The generated message.
-  Message? get message => _response.message;
-
-  /// The reason the generation finished.
-  FinishReason get finishReason => _response.finishReason;
-
-  /// The message explaining why the generation finished.
-  String? get finishMessage => _response.finishMessage;
-
-  /// The latency of the generation in milliseconds.
-  double? get latencyMs => _response.latencyMs;
-
-  /// The usage statistics for the generation.
-  GenerationUsage? get usage => _response.usage;
-
-  /// Custom data returned by the model.
-  Map<String, dynamic>? get custom => _response.custom;
-
-  /// Raw response data from the model.
-  Map<String, dynamic>? get raw => _response.raw;
-
-  /// The request that triggered this generation.
-  GenerateRequest? get request => _response.request;
-
-  /// The operation associated with this generation.
-  Operation? get operation => _response.operation;
+  GenerateResponseHelper(this._response, {this.output})
+    : super(
+        message: _response.message,
+        finishReason: _response.finishReason,
+        finishMessage: _response.finishMessage,
+        latencyMs: _response.latencyMs,
+        usage: _response.usage,
+        custom: _response.custom,
+        raw: _response.raw,
+        request: _response.request,
+        operation: _response.operation,
+        candidates: [
+          Candidate(
+            index: 0,
+            message: _response.message!,
+            finishReason: _response.finishReason,
+            finishMessage: _response.finishMessage,
+            usage: _response.usage,
+            custom: _response.custom,
+          ),
+        ],
+      );
 
   ModelResponse get modelResponse => _response;
-
-  Map<String, dynamic> toJson() => _response.toJson();
 
   /// The text content of the response.
   String get text => _response.text;
@@ -167,7 +159,7 @@ class GenerateResponse<O> {
   ModelResponse get rawResponse => _response;
 }
 
-Future<GenerateResponse> runGenerateAction(
+Future<GenerateResponseHelper> runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
@@ -222,7 +214,7 @@ Future<GenerateResponse> runGenerateAction(
         .parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
-      return GenerateResponse(response, output: null);
+      return GenerateResponseHelper(response, output: null);
     }
 
     final toolRequests = response.message?.content
@@ -230,7 +222,7 @@ Future<GenerateResponse> runGenerateAction(
         .nonNulls
         .toList();
     if (toolRequests == null || toolRequests.isEmpty) {
-      return GenerateResponse(
+      return GenerateResponseHelper(
         response,
         output: _parseOutput(response.message, parser),
       );
@@ -278,7 +270,7 @@ Future<GenerateResponse> runGenerateAction(
   );
 }
 
-Future<GenerateResponse> generateHelper<C>(
+Future<GenerateResponseHelper> generateHelper<C>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,

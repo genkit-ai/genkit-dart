@@ -229,7 +229,7 @@ class Genkit {
     );
   }
 
-  Future<GenerateResponse<S>> generate<C, S>({
+  Future<GenerateResponseHelper<S>> generate<C, S>({
     String? prompt,
     List<Message>? messages,
     required ModelRef<C> model,
@@ -297,16 +297,16 @@ class Genkit {
       },
     );
     if (outputSchema != null) {
-      return GenerateResponse(
+      return GenerateResponseHelper(
         rawResponse.rawResponse,
         output: outputSchema.parse(rawResponse.output),
       );
     } else {
-      return rawResponse as GenerateResponse<S>;
+      return rawResponse as GenerateResponseHelper<S>;
     }
   }
 
-  ActionStream<GenerateResponseChunk<S>, GenerateResponse<S>>
+  ActionStream<GenerateResponseChunk<S>, GenerateResponseHelper<S>>
   generateStream<C, S>({
     String? prompt,
     List<Message>? messages,
@@ -326,7 +326,7 @@ class Genkit {
   }) {
     final streamController = StreamController<GenerateResponseChunk<S>>();
     final actionStream =
-        ActionStream<GenerateResponseChunk<S>, GenerateResponse<S>>(
+        ActionStream<GenerateResponseChunk<S>, GenerateResponseHelper<S>>(
           streamController.stream,
         );
 

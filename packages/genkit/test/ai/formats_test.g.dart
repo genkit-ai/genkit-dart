@@ -26,11 +26,11 @@ class TestObject {
 
   TestObject._(this._json);
 
-  factory TestObject({required String foo, required int bar}) {
-    return TestObject._({'foo': foo, 'bar': bar});
+  TestObject({required String foo, required int bar}) {
+    _json = {'foo': foo, 'bar': bar};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<TestObject> $schema = _TestObjectTypeFactory();
 

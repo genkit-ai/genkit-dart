@@ -430,7 +430,7 @@ ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
 
 @visibleForTesting
 m.Tool toGeminiTool(ToolDefinition tool) {
-  final schemaMap = tool.inputSchema as Map<String, dynamic>?;
+  final schemaMap = tool.inputSchema;
   final propertiesMap = schemaMap?['properties'] as Map<String, dynamic>? ?? {};
 
   final parameters = propertiesMap.map((key, value) {

@@ -26,11 +26,11 @@ class Subject {
 
   Subject._(this._json);
 
-  factory Subject({required String subject}) {
-    return Subject._({'subject': subject});
+  Subject({required String subject}) {
+    _json = {'subject': subject};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Subject> $schema = _SubjectTypeFactory();
 
@@ -76,11 +76,11 @@ class Count {
 
   Count._(this._json);
 
-  factory Count({required int count}) {
-    return Count._({'count': count});
+  Count({required int count}) {
+    _json = {'count': count};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Count> $schema = _CountTypeFactory();
 
