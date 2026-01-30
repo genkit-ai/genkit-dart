@@ -37,8 +37,7 @@ export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'
     show GenerateBidiSession, GenerateResponseChunk, GenerateResponseHelper;
 export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
-export 'package:genkit/src/ai/middleware/retry.dart'
-    show RetryMiddleware, StatusName;
+export 'package:genkit/src/ai/middleware/retry.dart' show RetryMiddleware;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart' show Tool;
@@ -46,7 +45,7 @@ export 'package:genkit/src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata;
 export 'package:genkit/src/core/flow.dart';
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
-export 'package:genkit/src/exception.dart' show GenkitException;
+export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
 export 'package:genkit/src/o11y/otlp_http_exporter.dart'
     show configureCollectorExporter;
 export 'package:genkit/src/schema_extensions.dart';
@@ -142,7 +141,10 @@ class Genkit {
       name: name,
       fn: (input, context) {
         if (context.inputStream == null) {
-          throw Exception('Bidi flow $name called without an input stream');
+          throw GenkitException(
+            'Bidi flow $name called without an input stream',
+            status: StatusCodes.INVALID_ARGUMENT,
+          );
         }
         return fn(context.inputStream!, context);
       },
@@ -209,7 +211,7 @@ class Genkit {
         if (context.inputStream == null) {
           throw GenkitException(
             'Bidi model $name called without an input stream',
-            statusCode: 400,
+            status: StatusCodes.INVALID_ARGUMENT,
           );
         }
         return fn(context.inputStream!, context);

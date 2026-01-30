@@ -27,67 +27,11 @@ import '../generate_middleware.dart';
 
 final _logger = Logger('genkit.middleware.retry');
 
-/// Common status codes for Genkit operations.
-///
-/// These correspond to gRPC status codes.
-enum StatusName {
-  /// The operation completed successfully.
-  OK,
-
-  /// The operation was cancelled.
-  CANCELLED,
-
-  /// Unknown error.
-  UNKNOWN,
-
-  /// Client specified an invalid argument.
-  INVALID_ARGUMENT,
-
-  /// Deadline expired before operation could complete.
-  DEADLINE_EXCEEDED,
-
-  /// Some requested entity (e.g., file or directory) was not found.
-  NOT_FOUND,
-
-  /// Some entity that we attempted to create (e.g., file or directory) already exists.
-  ALREADY_EXISTS,
-
-  /// The caller does not have permission to execute the specified operation.
-  PERMISSION_DENIED,
-
-  /// The request does not have valid authentication credentials for the operation.
-  UNAUTHENTICATED,
-
-  /// Some resource has been exhausted, perhaps a per-user quota.
-  RESOURCE_EXHAUSTED,
-
-  /// Operation was rejected because the system is not in a state required for the operation's execution.
-  FAILED_PRECONDITION,
-
-  /// The operation was aborted.
-  ABORTED,
-
-  /// Operation was attempted past the valid range.
-  OUT_OF_RANGE,
-
-  /// Operation is not implemented or not supported/enabled in this service.
-  UNIMPLEMENTED,
-
-  /// Internal errors.
-  INTERNAL,
-
-  /// The service is currently unavailable.
-  UNAVAILABLE,
-
-  /// Unrecoverable data loss or corruption.
-  DATA_LOSS,
-}
-
 /// A middleware that retries model and tool requests on failure.
 ///
 /// Only [GenkitException]s with specific status codes are retried.
-/// By default, it retries on [StatusName.UNAVAILABLE], [StatusName.DEADLINE_EXCEEDED],
-/// [StatusName.RESOURCE_EXHAUSTED], [StatusName.ABORTED], and [StatusName.INTERNAL].
+/// By default, it retries on [StatusCodes.UNAVAILABLE], [StatusCodes.DEADLINE_EXCEEDED],
+/// [StatusCodes.RESOURCE_EXHAUSTED], [StatusCodes.ABORTED], and [StatusCodes.INTERNAL].
 ///
 /// It uses exponential backoff with jitter to calculate the delay between retries.
 class RetryMiddleware extends GenerateMiddleware {
@@ -95,7 +39,7 @@ class RetryMiddleware extends GenerateMiddleware {
   final int maxRetries;
 
   /// The list of status codes that should trigger a retry.
-  final List<StatusName> statuses;
+  final List<StatusCodes> statuses;
 
   /// The initial delay in milliseconds for the first retry.
   final int initialDelayMs;
@@ -124,11 +68,11 @@ class RetryMiddleware extends GenerateMiddleware {
 
   /// The default list of status codes that trigger a retry.
   static const defaultRetryStatuses = [
-    StatusName.UNAVAILABLE,
-    StatusName.DEADLINE_EXCEEDED,
-    StatusName.RESOURCE_EXHAUSTED,
-    StatusName.ABORTED,
-    StatusName.INTERNAL,
+    StatusCodes.UNAVAILABLE,
+    StatusCodes.DEADLINE_EXCEEDED,
+    StatusCodes.RESOURCE_EXHAUSTED,
+    StatusCodes.ABORTED,
+    StatusCodes.INTERNAL,
   ];
 
   /// Creates a [RetryMiddleware].
@@ -200,16 +144,11 @@ class RetryMiddleware extends GenerateMiddleware {
   }
 
   bool _shouldRetry(Object e) {
-    StatusName? status;
     if (e is GenkitException) {
-      status = _mapStatusCodeToStatus(e.statusCode);
-    }
-
-    if (status != null) {
       if (statuses.isEmpty) {
-        return defaultRetryStatuses.contains(status);
+        return defaultRetryStatuses.contains(e.status);
       }
-      return statuses.contains(status);
+      return statuses.contains(e.status);
     }
 
     return false;
@@ -225,37 +164,5 @@ class RetryMiddleware extends GenerateMiddleware {
       delayMs = delayMs * (0.5 + Random().nextDouble());
     }
     return Duration(milliseconds: delayMs.toInt());
-  }
-
-  StatusName? _mapStatusCodeToStatus(int? statusCode) {
-    if (statusCode == null) return null;
-    switch (statusCode) {
-      case 200:
-        return StatusName.OK;
-      case 400:
-        return StatusName.INVALID_ARGUMENT;
-      case 401:
-        return StatusName.UNAUTHENTICATED;
-      case 403:
-        return StatusName.PERMISSION_DENIED;
-      case 404:
-        return StatusName.NOT_FOUND;
-      case 409:
-        return StatusName.ABORTED; // Or ALREADY_EXISTS
-      case 429:
-        return StatusName.RESOURCE_EXHAUSTED;
-      case 499:
-        return StatusName.CANCELLED;
-      case 500:
-        return StatusName.INTERNAL;
-      case 501:
-        return StatusName.UNIMPLEMENTED;
-      case 503:
-        return StatusName.UNAVAILABLE;
-      case 504:
-        return StatusName.DEADLINE_EXCEEDED;
-      default:
-        return StatusName.UNKNOWN;
-    }
   }
 }

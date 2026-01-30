@@ -41,7 +41,10 @@ defineGenerateAction(Registry registry) {
     streamSchema: ModelResponseChunk.$schema,
     fn: (options, ctx) async {
       if (options == null) {
-        throw Exception('Generate action called with null options');
+        throw GenkitException(
+          'Generate action called with null options',
+          status: StatusCodes.INVALID_ARGUMENT,
+        );
       }
       final response = await runGenerateAction(registry, options, ctx);
       return response.modelResponse;
@@ -167,12 +170,18 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   List<GenerateMiddleware>? middlewares,
 }) async {
   if (options.model == null) {
-    throw GenkitException('Model must be provided', statusCode: 400);
+    throw GenkitException(
+      'Model must be provided',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
   }
 
   final model = await registry.lookupAction('model', options.model!) as Model?;
   if (model == null) {
-    throw GenkitException('Model ${options.model} not found', statusCode: 404);
+    throw GenkitException(
+      'Model ${options.model} not found',
+      status: StatusCodes.NOT_FOUND,
+    );
   }
 
   // Resolve and apply format
@@ -263,7 +272,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       if (tool == null) {
         throw GenkitException(
           'Tool ${toolRequest.toolRequest.name} not found',
-          statusCode: 404,
+          status: StatusCodes.NOT_FOUND,
         );
       }
 
@@ -310,7 +319,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   }
   throw GenkitException(
     'Reached max turns of ${requestOptions.maxTurns ?? 5}',
-    statusCode: 400,
+    status: StatusCodes.INVALID_ARGUMENT,
   );
 }
 
@@ -452,7 +461,10 @@ Future<GenerateBidiSession> runGenerateBidi(
   final model =
       await registry.lookupAction('bidi-model', modelName) as BidiModel?;
   if (model == null) {
-    throw GenkitException('Bidi Model $modelName not found', statusCode: 404);
+    throw GenkitException(
+      'Bidi Model $modelName not found',
+      status: StatusCodes.NOT_FOUND,
+    );
   }
 
   var toolDefs = <ToolDefinition>[];
@@ -513,7 +525,7 @@ Future<GenerateBidiSession> runGenerateBidi(
               (t) => t.name == toolRequest.toolRequest.name,
               orElse: () => throw GenkitException(
                 'Tool ${toolRequest.toolRequest.name} not found',
-                statusCode: 404,
+                status: StatusCodes.NOT_FOUND,
               ),
             );
 

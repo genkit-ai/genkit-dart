@@ -139,7 +139,11 @@ void main() {
       expect(
         () => testAction(input: 'test'),
         throwsA(
-          isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
+          isA<GenkitException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            StatusCodes.INTERNAL.value,
+          ),
         ),
       );
     });

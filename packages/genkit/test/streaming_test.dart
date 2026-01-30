@@ -145,21 +145,33 @@ void main() {
       await expectLater(
         stream.toList(),
         throwsA(
-          isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
+          isA<GenkitException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            StatusCodes.INTERNAL.value,
+          ),
         ),
       );
 
       await expectLater(
         stream.onResult,
         throwsA(
-          isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
+          isA<GenkitException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            StatusCodes.INTERNAL.value,
+          ),
         ),
       );
 
       expect(
         () => stream.result,
         throwsA(
-          isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
+          isA<GenkitException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            StatusCodes.INTERNAL.value,
+          ),
         ),
       );
     });
@@ -211,7 +223,11 @@ void main() {
             },
         },
         throwsA(
-          isA<GenkitException>().having((e) => e.statusCode, 'statusCode', 500),
+          isA<GenkitException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            StatusCodes.INTERNAL.value,
+          ),
         ),
       );
       expect(() => stream.result, throwsA(isA<GenkitException>()));

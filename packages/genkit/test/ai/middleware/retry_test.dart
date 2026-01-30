@@ -40,7 +40,10 @@ void main() {
         name: 'fail-model',
         fn: (req, ctx) async {
           attempts++;
-          throw GenkitException('Simulated Failure', statusCode: 503);
+          throw GenkitException(
+            'Simulated Failure',
+            status: StatusCodes.UNAVAILABLE,
+          );
         },
       );
 
@@ -72,7 +75,10 @@ void main() {
         fn: (req, ctx) async {
           attempts++;
           if (attempts < 3) {
-            throw GenkitException('Simulated Failure', statusCode: 503);
+            throw GenkitException(
+              'Simulated Failure',
+              status: StatusCodes.UNAVAILABLE,
+            );
           }
           return ModelResponse(
             finishReason: FinishReason.stop,
@@ -101,7 +107,7 @@ void main() {
         initialDelayMs: 1,
         maxDelayMs: 5,
         noJitter: true,
-        statuses: [StatusName.UNAVAILABLE], // Only retry UNAVAILABLE
+        statuses: [StatusCodes.UNAVAILABLE], // Only retry UNAVAILABLE
       );
 
       genkit.defineModel(
@@ -110,7 +116,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Fatal Error',
-            statusCode: 400,
+            status: StatusCodes.INVALID_ARGUMENT,
           ); // INVALID_ARGUMENT
         },
       );
@@ -145,7 +151,7 @@ void main() {
       genkit.defineModel(
         name: 'callback-model',
         fn: (req, ctx) async {
-          throw GenkitException('Fail', statusCode: 503);
+          throw GenkitException('Fail', status: StatusCodes.UNAVAILABLE);
         },
       );
 
@@ -179,7 +185,7 @@ void main() {
         name: 'cancel-model',
         fn: (req, ctx) async {
           attempts++;
-          throw GenkitException('Fail', statusCode: 503);
+          throw GenkitException('Fail', status: StatusCodes.UNAVAILABLE);
         },
       );
 
@@ -220,7 +226,10 @@ void main() {
         name: 'fail-model-disabled',
         fn: (req, ctx) async {
           attempts++;
-          throw GenkitException('Simulated Failure', statusCode: 503);
+          throw GenkitException(
+            'Simulated Failure',
+            status: StatusCodes.UNAVAILABLE,
+          );
         },
       );
 
@@ -282,7 +291,10 @@ void main() {
         inputSchema: null,
         fn: (input, ctx) async {
           attempts++;
-          throw GenkitException('Tool Failure', statusCode: 503);
+          throw GenkitException(
+            'Tool Failure',
+            status: StatusCodes.UNAVAILABLE,
+          );
         },
       );
 
@@ -315,7 +327,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            statusCode: 503,
+            status: StatusCodes.UNAVAILABLE,
           ); // UNAVAILABLE (in default list)
         },
       );
