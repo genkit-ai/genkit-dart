@@ -49,7 +49,7 @@ class Candidate {
   static const SchemanticType<Candidate> $schema = _CandidateTypeFactory();
 
   double get index {
-    return _json['index'] as double;
+    return (_json['index'] as num).toDouble();
   }
 
   set index(double value) {
@@ -1791,7 +1791,7 @@ class ModelResponse {
   }
 
   double? get latencyMs {
-    return _json['latencyMs'] as double?;
+    return (_json['latencyMs'] as num?)?.toDouble();
   }
 
   set latencyMs(double? value) {
@@ -2143,7 +2143,7 @@ class GenerateRequest {
   }
 
   double? get candidates {
-    return _json['candidates'] as double?;
+    return (_json['candidates'] as num?)?.toDouble();
   }
 
   set candidates(double? value) {
@@ -2249,7 +2249,7 @@ class GenerationUsage {
       _GenerationUsageTypeFactory();
 
   double? get inputTokens {
-    return _json['inputTokens'] as double?;
+    return (_json['inputTokens'] as num?)?.toDouble();
   }
 
   set inputTokens(double? value) {
@@ -2261,7 +2261,7 @@ class GenerationUsage {
   }
 
   double? get outputTokens {
-    return _json['outputTokens'] as double?;
+    return (_json['outputTokens'] as num?)?.toDouble();
   }
 
   set outputTokens(double? value) {
@@ -2273,7 +2273,7 @@ class GenerationUsage {
   }
 
   double? get totalTokens {
-    return _json['totalTokens'] as double?;
+    return (_json['totalTokens'] as num?)?.toDouble();
   }
 
   set totalTokens(double? value) {
@@ -2285,7 +2285,7 @@ class GenerationUsage {
   }
 
   double? get inputCharacters {
-    return _json['inputCharacters'] as double?;
+    return (_json['inputCharacters'] as num?)?.toDouble();
   }
 
   set inputCharacters(double? value) {
@@ -2297,7 +2297,7 @@ class GenerationUsage {
   }
 
   double? get outputCharacters {
-    return _json['outputCharacters'] as double?;
+    return (_json['outputCharacters'] as num?)?.toDouble();
   }
 
   set outputCharacters(double? value) {
@@ -2309,7 +2309,7 @@ class GenerationUsage {
   }
 
   double? get inputImages {
-    return _json['inputImages'] as double?;
+    return (_json['inputImages'] as num?)?.toDouble();
   }
 
   set inputImages(double? value) {
@@ -2321,7 +2321,7 @@ class GenerationUsage {
   }
 
   double? get outputImages {
-    return _json['outputImages'] as double?;
+    return (_json['outputImages'] as num?)?.toDouble();
   }
 
   set outputImages(double? value) {
@@ -2333,7 +2333,7 @@ class GenerationUsage {
   }
 
   double? get inputVideos {
-    return _json['inputVideos'] as double?;
+    return (_json['inputVideos'] as num?)?.toDouble();
   }
 
   set inputVideos(double? value) {
@@ -2345,7 +2345,7 @@ class GenerationUsage {
   }
 
   double? get outputVideos {
-    return _json['outputVideos'] as double?;
+    return (_json['outputVideos'] as num?)?.toDouble();
   }
 
   set outputVideos(double? value) {
@@ -2357,7 +2357,7 @@ class GenerationUsage {
   }
 
   double? get inputAudioFiles {
-    return _json['inputAudioFiles'] as double?;
+    return (_json['inputAudioFiles'] as num?)?.toDouble();
   }
 
   set inputAudioFiles(double? value) {
@@ -2369,7 +2369,7 @@ class GenerationUsage {
   }
 
   double? get outputAudioFiles {
-    return _json['outputAudioFiles'] as double?;
+    return (_json['outputAudioFiles'] as num?)?.toDouble();
   }
 
   set outputAudioFiles(double? value) {
@@ -2393,7 +2393,7 @@ class GenerationUsage {
   }
 
   double? get thoughtsTokens {
-    return _json['thoughtsTokens'] as double?;
+    return (_json['thoughtsTokens'] as num?)?.toDouble();
   }
 
   set thoughtsTokens(double? value) {
@@ -2405,7 +2405,7 @@ class GenerationUsage {
   }
 
   double? get cachedContentTokens {
-    return _json['cachedContentTokens'] as double?;
+    return (_json['cachedContentTokens'] as num?)?.toDouble();
   }
 
   set cachedContentTokens(double? value) {

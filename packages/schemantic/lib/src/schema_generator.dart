@@ -445,9 +445,17 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     );
 
     var getterBody = "return _json['$jsonFieldName'] as $typeName;";
+    if (returnType.isDartCoreDouble && !returnType.isNullable) {
+      getterBody = "return (_json['$jsonFieldName'] as num).toDouble();";
+    }
 
     if (returnType.isNullable) {
-      getterBody = "return _json['$jsonFieldName'] as $typeName;";
+      if (returnType.isDartCoreDouble) {
+        getterBody =
+            "return (_json['$jsonFieldName'] as num?)?.toDouble();";
+      } else {
+        getterBody = "return _json['$jsonFieldName'] as $typeName;";
+      }
       if (returnType.isDartCoreList) {
         final itemType = (returnType as InterfaceType).typeArguments.first;
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');

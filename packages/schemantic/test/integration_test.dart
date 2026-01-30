@@ -387,6 +387,19 @@ void main() {
     });
   });
 
+  group('Coercion Tests', () {
+    test('Double field accepts int value', () {
+      final json = {
+        's_field': 'a',
+        'i_field': 10,
+        'n_field': 20, // int value for double field
+      };
+
+      final parsed = Comprehensive.$schema.parse(json);
+      expect(parsed.numberField, 20.0);
+    });
+  });
+
   group('AnyOf Tests', () {
     test('Poly serialization and deserialization', () {
       final p1 = Poly(id: PolyId.int(123));

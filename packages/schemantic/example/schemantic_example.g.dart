@@ -255,7 +255,7 @@ class Product {
   }
 
   double get price {
-    return _json['price'] as double;
+    return (_json['price'] as num).toDouble();
   }
 
   set price(double value) {
