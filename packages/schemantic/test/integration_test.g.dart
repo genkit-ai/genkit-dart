@@ -635,3 +635,72 @@ class _DefaultsTypeFactory extends SchemanticType<Defaults> {
     dependencies: [],
   );
 }
+
+class Poly {
+  factory Poly.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Poly._(this._json);
+
+  factory Poly({required PolyId id}) {
+    return Poly._({'id': id.value});
+  }
+
+  Map<String, dynamic> _json;
+
+  static const SchemanticType<Poly> $schema = _PolyTypeFactory();
+
+  set id(PolyId value) {
+    _json['id'] = value.value;
+  }
+
+  // Possible return values are `int`, `String`, `$User`
+  Object? get id {
+    return _json['id'] as Object?;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class PolyId {
+  PolyId.int(int this.value);
+
+  PolyId.string(String this.value);
+
+  PolyId.user(User value) : value = value.toJson();
+
+  final Object? value;
+}
+
+class _PolyTypeFactory extends SchemanticType<Poly> {
+  const _PolyTypeFactory();
+
+  @override
+  Poly parse(Object? json) {
+    return Poly._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Poly',
+    definition: Schema.object(
+      properties: {
+        'id': Schema.combined(
+          anyOf: [
+            Schema.integer(),
+            Schema.string(),
+            Schema.fromMap({'\$ref': r'#/$defs/User'}),
+          ],
+        ),
+      },
+      required: [],
+    ),
+    dependencies: [User.$schema],
+  );
+}

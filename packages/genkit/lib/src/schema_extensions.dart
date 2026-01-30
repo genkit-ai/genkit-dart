@@ -108,7 +108,8 @@ extension PartExtension on Part {
 
   bool get isData => toJson().containsKey('data');
   DataPart? get dataPart => isData ? DataPart.fromJson(toJson()) : null;
-  Map<String, dynamic>? get data => isData ? DataPart.fromJson(toJson()).data : null;
+  Map<String, dynamic>? get data =>
+      isData ? DataPart.fromJson(toJson()).data : null;
 
   bool get isCustom => toJson().containsKey('custom');
   CustomPart? get customPart => isCustom ? CustomPart.fromJson(toJson()) : null;
@@ -122,7 +123,8 @@ extension PartExtension on Part {
       isReasoning ? ReasoningPart.fromJson(toJson()).reasoning : null;
 
   bool get isResource => toJson().containsKey('resource');
-  ResourcePart? get resourcePart => isResource ? ResourcePart.fromJson(toJson()) : null;
+  ResourcePart? get resourcePart =>
+      isResource ? ResourcePart.fromJson(toJson()) : null;
   Map<String, dynamic>? get resource =>
       isResource ? ResourcePart.fromJson(toJson()).resource : null;
 

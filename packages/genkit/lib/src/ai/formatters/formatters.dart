@@ -147,10 +147,7 @@ List<Message> injectInstructions(List<Message> messages, String? instructions) {
 
   if (messages.any(hasOutputInstruction)) return messages;
 
-  final newPart = TextPart(
-    text: instructions,
-    metadata: {'purpose': 'output'},
-  );
+  final newPart = TextPart(text: instructions, metadata: {'purpose': 'output'});
 
   // Find last user message or system message
   var targetIndex = messages.lastIndexWhere((m) => m.role == Role.system);

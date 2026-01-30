@@ -159,6 +159,50 @@ void main() {
 }
 ```
 
+
+### Union Types (AnyOf)
+
+Schemantic supports union types using the `@AnyOf` annotation. This allows a field to accept multiple types.
+
+```dart
+@Schematic()
+abstract class $Poly {
+  @AnyOf([int, String, $User])
+  Object? get id;
+}
+```
+
+#### Generated Helpers
+
+For `AnyOf` fields, Schemantic generates a specific helper class to handle type safety. The helper class is named using the convention `ParentNameFieldName` (e.g., `PolyId` for field `id` in `Poly`).
+
+```dart
+// Usage
+final poly = Poly(
+  // Use the helper class factories to set values
+  id: PolyId.int(123),
+);
+
+final poly2 = Poly(
+  id: PolyId.string('abc'),
+);
+
+final poly3 = Poly(
+  // You can also use Schema types
+  id: PolyId.user(User(name: 'Alice', isAdmin: true)),
+);
+```
+
+On the generated class, the setter takes the helper class, while the getter returns `Object?` (the raw JSON value).
+
+```dart
+// The setter enforces strict typing via the helper
+poly.id = PolyId.int(456);
+
+// The getter returns the raw value
+print(poly.id); // 456
+```
+
 ## Schema Metadata
 
 You can add a description to your generated schema using the `description` parameter in `@Schematic`:

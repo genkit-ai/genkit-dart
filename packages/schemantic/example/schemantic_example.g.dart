@@ -29,7 +29,7 @@ class Address {
   factory Address({
     required String street,
     required String city,
-    required ZipCode zipCode,
+    required AddressZipCode zipCode,
   }) {
     return Address._({
       'street': street,
@@ -58,12 +58,8 @@ class Address {
     _json['city'] = value;
   }
 
-  set zipCodeAsInt(int value) {
-    _json['zipCode'] = value;
-  }
-
-  set zipCodeAsString(String value) {
-    _json['zipCode'] = value;
+  set zipCode(AddressZipCode value) {
+    _json['zipCode'] = value.value;
   }
 
   // Possible return values are `int`, `String`
@@ -81,10 +77,10 @@ class Address {
   }
 }
 
-class ZipCode {
-  ZipCode.int(int this.value);
+class AddressZipCode {
+  AddressZipCode.int(int this.value);
 
-  ZipCode.string(String this.value);
+  AddressZipCode.string(String this.value);
 
   final Object? value;
 }

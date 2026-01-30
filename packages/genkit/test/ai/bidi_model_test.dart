@@ -49,9 +49,7 @@ void main() {
           await for (final chunk in input) {
             final text = chunk.messages.first.content.first.text;
             context.sendChunk(
-              ModelResponseChunk(
-                content: [TextPart(text: 'echo $text')],
-              ),
+              ModelResponseChunk(content: [TextPart(text: 'echo $text')]),
             );
           }
           return ModelResponse(finishReason: FinishReason.stop);
@@ -98,9 +96,7 @@ void main() {
           await for (final chunk in input) {
             final text = chunk.messages.first.content.first.text;
             context.sendChunk(
-              ModelResponseChunk(
-                content: [TextPart(text: '$prefix$text')],
-              ),
+              ModelResponseChunk(content: [TextPart(text: '$prefix$text')]),
             );
           }
           return ModelResponse(finishReason: FinishReason.stop);
