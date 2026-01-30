@@ -199,7 +199,7 @@ final age = intSchema(
 - `@Field`: Basic customization (name, description).
 - `@StringField`: Constraints for strings (minLength, maxLength, pattern, format, enumValues).
 - `@IntegerField`: Constraints for integers (minimum, maximum, multipleOf).
-- `@NumberField`: Constraints for doubles/numbers (minimum, maximum, multipleOf).
+- `@DoubleField`: Constraints for doubles/numbers (minimum, maximum, multipleOf).
 
 ```dart
 @Schematic()
@@ -212,6 +212,9 @@ abstract class $User {
     maximum: 120
   )
   int? get age;
+
+  @DoubleField(minimum: 0.0, maximum: 100.0)
+  double get score;
 
   @StringField(
     minLength: 2,

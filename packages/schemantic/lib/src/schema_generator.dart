@@ -1027,7 +1027,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         !type.isDartCoreInt &&
         !type.isDynamic) {
       throw InvalidGenerationSourceError(
-        '@NumberField can only be used on num, double, or int types.',
+        '@DoubleField can only be used on num, double, or int types.',
         todo:
             'Change the field type to num/double or use a different annotation.',
       );
@@ -1149,7 +1149,7 @@ const _integerFieldChecker = TypeChecker.fromUrl(
 );
 
 const _numberFieldChecker = TypeChecker.fromUrl(
-  'package:schemantic/schemantic.dart#NumberField',
+  'package:schemantic/schemantic.dart#DoubleField',
 );
 
 const _schematicChecker = TypeChecker.fromUrl(

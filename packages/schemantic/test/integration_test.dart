@@ -54,7 +54,7 @@ abstract class $Keyed {
   @IntegerField(minimum: 10, maximum: 100)
   int? get score;
 
-  @NumberField(minimum: 0.5, maximum: 5.5)
+  @DoubleField(minimum: 0.5, maximum: 5.5)
   double? get rating;
 }
 
@@ -82,7 +82,7 @@ abstract class $Comprehensive {
   )
   int get intField;
 
-  @NumberField(
+  @DoubleField(
     name: 'n_field',
     description: 'A number field',
     minimum: 0.0,
@@ -319,7 +319,7 @@ void main() {
       expect(i['exclusiveMaximum'], 100);
       expect(i['multipleOf'], 5);
 
-      // NumberField validation
+      // DoubleField validation
       final n = props['n_field'];
       expect(n['type'], 'number');
       expect(n['description'], 'A number field');
@@ -375,7 +375,7 @@ abstract class $Defaults {
   @IntegerField(defaultValue: 8080)
   int get port;
 
-  @NumberField(defaultValue: 1.5)
+  @DoubleField(defaultValue: 1.5)
   double get ratio;
 
   @Field(defaultValue: true)

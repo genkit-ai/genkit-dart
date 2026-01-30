@@ -65,13 +65,13 @@ class IntegerField extends Field {
     super.defaultValue,
   });
 }
-class NumberField extends Field {
+class DoubleField extends Field {
   final num? minimum;
   final num? maximum;
   final num? exclusiveMinimum;
   final num? exclusiveMaximum;
   final num? multipleOf;
-  const NumberField({
+  const DoubleField({
     super.name,
     super.description,
     this.minimum,

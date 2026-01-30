@@ -95,14 +95,15 @@ class IntegerField extends Field {
 }
 
 /// Annotation for Number (double) fields with specific schema constraints.
-class NumberField extends Field {
+/// Annotation for Number (double) fields with specific schema constraints.
+class DoubleField extends Field {
   final num? minimum;
   final num? maximum;
   final num? exclusiveMinimum;
   final num? exclusiveMaximum;
   final num? multipleOf;
 
-  const NumberField({
+  const DoubleField({
     super.name,
     super.description,
     this.minimum,
