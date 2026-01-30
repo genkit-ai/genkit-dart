@@ -21,16 +21,19 @@ part of 'flow_basics.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Subject implements SubjectSchema {
-  Subject(this._json);
+class Subject {
+  factory Subject.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  factory Subject.from({required String subject}) {
-    return Subject({'subject': subject});
+  Subject._(this._json);
+
+  factory Subject({required String subject}) {
+    return Subject._({'subject': subject});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Subject> $schema = _SubjectTypeFactory();
+
   String get subject {
     return _json['subject'] as String;
   }
@@ -54,7 +57,7 @@ class _SubjectTypeFactory extends SchemanticType<Subject> {
 
   @override
   Subject parse(Object? json) {
-    return Subject(json as Map<String, dynamic>);
+    return Subject._(json as Map<String, dynamic>);
   }
 
   @override
@@ -68,19 +71,19 @@ class _SubjectTypeFactory extends SchemanticType<Subject> {
   );
 }
 
-// ignore: constant_identifier_names
-const SubjectType = _SubjectTypeFactory();
+class Count {
+  factory Count.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Count implements CountSchema {
-  Count(this._json);
+  Count._(this._json);
 
-  factory Count.from({required int count}) {
-    return Count({'count': count});
+  factory Count({required int count}) {
+    return Count._({'count': count});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Count> $schema = _CountTypeFactory();
+
   int get count {
     return _json['count'] as int;
   }
@@ -104,7 +107,7 @@ class _CountTypeFactory extends SchemanticType<Count> {
 
   @override
   Count parse(Object? json) {
-    return Count(json as Map<String, dynamic>);
+    return Count._(json as Map<String, dynamic>);
   }
 
   @override
@@ -117,6 +120,3 @@ class _CountTypeFactory extends SchemanticType<Count> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const CountType = _CountTypeFactory();

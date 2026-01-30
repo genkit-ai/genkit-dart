@@ -19,7 +19,6 @@ analyzer:
     strict-inference: false
 
   errors:
-    avoid_dynamic_calls: ignore
     lines_longer_than_80_chars: ignore
     prefer_const_constructors: ignore
     prefer_single_quotes: ignore

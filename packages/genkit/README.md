@@ -81,7 +81,7 @@ Give models the ability to take actions and access external data:
 ```dart
 // Define schemas for tool input
 @Schematic()
-abstract class WeatherInput {
+abstract class $WeatherInput {
   String get location;
 }
 
@@ -90,7 +90,7 @@ abstract class WeatherInput {
 final weatherTool = ai.defineTool(
   name: 'getWeather',
   description: 'Gets the current weather for a location',
-  inputType: WeatherInputType,
+  inputSchema: WeatherInput.$schema,
   fn: (input, _) async {
     // Call your weather API here
     return 'Weather in ${input.location}: 72°F and sunny';
@@ -112,8 +112,8 @@ Wrap your AI logic in flows for better observability, testing, and deployment:
 ```dart
 final jokeFlow = ai.defineFlow(
   name: 'tellJoke',
-  inputType: stringType(),
-  outputType: stringType(),
+  inputSchema: stringSchema(),
+  outputSchema: stringSchema(),
   fn: (topic, _) async {
     final response = await ai.generate(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -134,9 +134,9 @@ Stream data from your flows using `context.sendChunk`:
 ```dart
 final streamStory = ai.defineFlow(
   name: 'streamStory',
-  inputType: stringType(),
-  outputType: stringType(),
-  streamType: stringType(),
+  inputSchema: stringSchema(),
+  outputSchema: stringSchema(),
+  streamSchema: stringSchema(),
   fn: (topic, context) async {
     final stream = ai.generateStream(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -192,15 +192,15 @@ Remote actions represent a remote Genkit action (like flows, models and prompts)
 #### Creating a remote action
 final stringAction = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
-  inputType: stringType(),
-  outputType: stringType(),
+  inputSchema: stringSchema(),
+  outputSchema: stringSchema(),
 );
 
 // Create a remote action for custom objects
 final customAction = defineRemoteAction(
   url: 'http://localhost:3400/custom-flow',
-  inputType: myInputType(),
-  outputType: myOutputType(),
+  inputSchema: MyInput.$schema,
+  outputSchema: MyOutput.$schema,
 );
 ```
 
@@ -213,8 +213,8 @@ The code assumes that you have `my-flow` and `custom-flow` deployed at those URL
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/echo-string',
-  inputType: stringType(),
-  outputType: stringType(),
+  inputSchema: stringSchema(),
+  outputSchema: stringSchema(),
 );
 
 try {
@@ -231,13 +231,13 @@ First, define your schemas and run `build_runner` to generate the types.
 
 ```dart
 @Schematic()
-abstract class MyInput {
+abstract class $MyInput {
   String get message;
   int get count;
 }
 
 @Schematic()
-abstract class MyOutput {
+abstract class $MyOutput {
   String get reply;
   int get newCount;
 }
@@ -250,11 +250,11 @@ Then define and call the action:
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/process-object',
-  inputType: MyInputType,
-  outputType: MyOutputType,
+  inputSchema: MyInput.$schema,
+  outputSchema: MyOutput.$schema,
 );
 
-final input = MyInput.from(message: 'Process this data', count: 10);
+final input = MyInput(message: 'Process this data', count: 10);
 
 try {
   final output = await action(input: input);
@@ -266,16 +266,16 @@ try {
 
 ### Calling Streaming Flows
 
-Use the `stream` method for flows that stream multiple chunks of data and then return a final response. Specify `streamType` to handle typed chunks.
+Use the `stream` method for flows that stream multiple chunks of data and then return a final response. Specify `streamSchema` to handle typed chunks.
 
 #### Example 1: Using `onResult` (Recommended)
 
 ```dart
 final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-story',
-  inputType: stringType(),
-  outputType: stringType(),
-  streamType: stringType(),
+  inputSchema: stringSchema(),
+  outputSchema: stringSchema(),
+  streamSchema: stringSchema(),
 );
 
 try {
@@ -300,7 +300,7 @@ try {
 
 ```dart
 @Schematic()
-abstract class StreamChunk {
+abstract class $StreamChunk {
   String get content;
 }
 
@@ -308,12 +308,12 @@ abstract class StreamChunk {
 
 final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-process',
-  inputType: MyInputType,
-  outputType: MyOutputType,
-  streamType: StreamChunkType,
+  inputSchema: MyInput.$schema,
+  outputSchema: MyOutput.$schema,
+  streamSchema: StreamChunk.$schema,
 );
 
-final input = MyInput.from(message: 'Stream this data', count: 5);
+final input = MyInput(message: 'Stream this data', count: 5);
 
 try {
   final stream = streamAction.stream(input: input);
@@ -352,8 +352,8 @@ You can also set default headers when creating the remote action:
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
-  inputType: stringType(),
-  outputType: stringType(),
+  inputSchema: stringSchema(),
+  outputSchema: stringSchema(),
   defaultHeaders: {'Authorization': 'Bearer your-token'},
 );
 ```
@@ -396,14 +396,14 @@ import 'package:genkit/client.dart';
 
 final generateFlow = defineRemoteAction(
   url: 'http://localhost:3400/generate',
-  inputType: ModelRequestType,
-  outputType: ModelResponseType,
-  streamType: ModelResponseChunkType,
+  inputSchema: ModelRequest.$schema,
+  outputSchema: ModelResponse.$schema,
+  streamSchema: ModelResponseChunk.$schema,
 );
 
 final stream = generateFlow.stream(
-  input: ModelRequest.from(
-    messages: [Message.from(role: Role.user, content: [TextPart.from(text: "hello")])],
+  input: ModelRequest(
+    messages: [Message(role: Role.user, content: [TextPart(text: "hello")])],
   ),
 );
 

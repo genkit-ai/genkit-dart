@@ -21,16 +21,21 @@ part of 'genkit_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions implements TestCustomOptionsSchema {
-  TestCustomOptions(this._json);
+class TestCustomOptions {
+  factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory TestCustomOptions.from({required String customField}) {
-    return TestCustomOptions({'customField': customField});
+  TestCustomOptions._(this._json);
+
+  factory TestCustomOptions({required String customField}) {
+    return TestCustomOptions._({'customField': customField});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<TestCustomOptions> $schema =
+      _TestCustomOptionsTypeFactory();
+
   String get customField {
     return _json['customField'] as String;
   }
@@ -54,7 +59,7 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
 
   @override
   TestCustomOptions parse(Object? json) {
-    return TestCustomOptions(json as Map<String, dynamic>);
+    return TestCustomOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -68,19 +73,21 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
   );
 }
 
-// ignore: constant_identifier_names
-const TestCustomOptionsType = _TestCustomOptionsTypeFactory();
+class TestToolInput {
+  factory TestToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class TestToolInput implements TestToolInputSchema {
-  TestToolInput(this._json);
+  TestToolInput._(this._json);
 
-  factory TestToolInput.from({required String name}) {
-    return TestToolInput({'name': name});
+  factory TestToolInput({required String name}) {
+    return TestToolInput._({'name': name});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<TestToolInput> $schema =
+      _TestToolInputTypeFactory();
+
   String get name {
     return _json['name'] as String;
   }
@@ -104,7 +111,7 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
 
   @override
   TestToolInput parse(Object? json) {
-    return TestToolInput(json as Map<String, dynamic>);
+    return TestToolInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -117,6 +124,3 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TestToolInputType = _TestToolInputTypeFactory();

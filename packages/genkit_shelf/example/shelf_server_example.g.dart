@@ -21,16 +21,19 @@ part of 'shelf_server_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class HelloInput implements HelloInputSchema {
-  HelloInput(this._json);
+class HelloInput {
+  factory HelloInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  factory HelloInput.from({required String name}) {
-    return HelloInput({'name': name});
+  HelloInput._(this._json);
+
+  factory HelloInput({required String name}) {
+    return HelloInput._({'name': name});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<HelloInput> $schema = _HelloInputTypeFactory();
+
   String get name {
     return _json['name'] as String;
   }
@@ -54,7 +57,7 @@ class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
 
   @override
   HelloInput parse(Object? json) {
-    return HelloInput(json as Map<String, dynamic>);
+    return HelloInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -68,19 +71,20 @@ class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   );
 }
 
-// ignore: constant_identifier_names
-const HelloInputType = _HelloInputTypeFactory();
+class HelloOutput {
+  factory HelloOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class HelloOutput implements HelloOutputSchema {
-  HelloOutput(this._json);
+  HelloOutput._(this._json);
 
-  factory HelloOutput.from({required String greeting}) {
-    return HelloOutput({'greeting': greeting});
+  factory HelloOutput({required String greeting}) {
+    return HelloOutput._({'greeting': greeting});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<HelloOutput> $schema = _HelloOutputTypeFactory();
+
   String get greeting {
     return _json['greeting'] as String;
   }
@@ -104,7 +108,7 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
 
   @override
   HelloOutput parse(Object? json) {
-    return HelloOutput(json as Map<String, dynamic>);
+    return HelloOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -118,19 +122,19 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   );
 }
 
-// ignore: constant_identifier_names
-const HelloOutputType = _HelloOutputTypeFactory();
+class CountChunk {
+  factory CountChunk.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class CountChunk implements CountChunkSchema {
-  CountChunk(this._json);
+  CountChunk._(this._json);
 
-  factory CountChunk.from({required int count}) {
-    return CountChunk({'count': count});
+  factory CountChunk({required int count}) {
+    return CountChunk._({'count': count});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<CountChunk> $schema = _CountChunkTypeFactory();
+
   int get count {
     return _json['count'] as int;
   }
@@ -154,7 +158,7 @@ class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
 
   @override
   CountChunk parse(Object? json) {
-    return CountChunk(json as Map<String, dynamic>);
+    return CountChunk._(json as Map<String, dynamic>);
   }
 
   @override
@@ -167,6 +171,3 @@ class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const CountChunkType = _CountChunkTypeFactory();

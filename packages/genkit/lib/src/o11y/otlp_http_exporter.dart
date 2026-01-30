@@ -133,7 +133,7 @@ class CollectorHttpExporter implements sdk.SpanExporter {
       api.SpanKind.server => 2,
       api.SpanKind.client => 3,
       api.SpanKind.producer => 4,
-      api.SpanKind.consumer => 5
+      api.SpanKind.consumer => 5,
     };
   }
 

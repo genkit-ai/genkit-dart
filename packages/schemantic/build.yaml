@@ -10,6 +10,8 @@ targets:
     builders:
       schemantic:
         enabled: true
+      source_gen:combining_builder:
+        enabled: true
         dev_options:
           header: |
             // Copyright 2025 Google LLC

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: avoid_dynamic_calls
+
 import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/types.dart';
 import 'package:schemantic/schemantic.dart';
@@ -20,7 +22,7 @@ import 'package:test/test.dart';
 part 'model_test.g.dart';
 
 @Schematic()
-abstract class TestCustomOptionsSchema {
+abstract class $TestCustomOptions {
   String get customField;
 }
 
@@ -30,15 +32,15 @@ void main() {
       final model = Model(
         name: 'testModel',
         fn: (request, context) async {
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: 'hi')],
+              content: [TextPart(text: 'hi')],
             ),
           );
         },
-        customOptions: TestCustomOptionsType,
+        customOptions: TestCustomOptions.$schema,
       );
 
       final metadata = model.metadata;

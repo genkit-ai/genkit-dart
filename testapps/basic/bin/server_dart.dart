@@ -34,16 +34,16 @@ void main() async {
       final input = request;
       for (var i = 0; i < 3; i++) {
         context.sendChunk(
-          ModelResponseChunk.from(content: [TextPart.from(text: 'chunk $i')]),
+          ModelResponseChunk(content: [TextPart(text: 'chunk $i')]),
         );
         await Future.delayed(Duration(seconds: 1));
       }
 
       final text = input.messages.map((m) => m.text).join();
-      return ModelResponse.from(
-        message: Message.from(
+      return ModelResponse(
+        message: Message(
           role: Role.model,
-          content: [TextPart.from(text: 'Echo: $text')],
+          content: [TextPart(text: 'Echo: $text')],
         ),
         finishReason: FinishReason.stop,
       );
@@ -52,17 +52,17 @@ void main() async {
 
   final echoString = ai.defineFlow(
     name: 'echoString',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (input, _) async => input,
   );
 
   final processObject = ai.defineFlow(
     name: 'processObject',
-    inputType: ProcessObjectInputType,
-    outputType: ProcessObjectOutputType,
+    inputSchema: ProcessObjectInput.$schema,
+    outputSchema: ProcessObjectOutput.$schema,
     fn: (input, _) async {
-      return ProcessObjectOutput.from(
+      return ProcessObjectOutput(
         reply: 'reply: ${input.message}',
         newCount: input.count + 1,
       );
@@ -71,17 +71,17 @@ void main() async {
 
   final streamObjects = ai.defineFlow(
     name: 'streamObjects',
-    inputType: StreamObjectsInputType,
-    outputType: StreamObjectsOutputType,
-    streamType: StreamObjectsOutputType,
+    inputSchema: StreamObjectsInput.$schema,
+    outputSchema: StreamObjectsOutput.$schema,
+    streamSchema: StreamObjectsOutput.$schema,
     fn: (input, context) async {
       for (var i = 0; i < 5; i++) {
         context.sendChunk(
-          StreamObjectsOutput.from(text: 'input: $i', summary: 'summary $i'),
+          StreamObjectsOutput(text: 'input: $i', summary: 'summary $i'),
         );
         await Future.delayed(Duration(seconds: 1));
       }
-      return StreamObjectsOutput.from(
+      return StreamObjectsOutput(
         text: 'input: ${input.prompt}',
         summary: 'summary is summary',
       );
@@ -95,9 +95,9 @@ void main() async {
     // The JS example takes MessageSchema[] and returns GenerateResponseSchema.
     // In Dart we can just use the ModelRequest/Response types or rely on JSON.
     // However, defining a flow that mocks 'ai.generate' behavior:
-    inputType: ModelRequestType,
-    outputType: ModelResponseType,
-    streamType: ModelResponseChunkType,
+    inputSchema: ModelRequest.$schema,
+    outputSchema: ModelResponse.$schema,
+    streamSchema: ModelResponseChunk.$schema,
     fn: (request, context) async {
       // Calling the model directly.
       final response = await ai.generate(
@@ -113,9 +113,9 @@ void main() async {
 
   final streamyThrowy = ai.defineFlow(
     name: 'streamyThrowy',
-    inputType: intType(),
-    outputType: stringType(),
-    streamType: StreamyThrowyChunkType,
+    inputSchema: intSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: StreamyThrowyChunk.$schema,
     fn: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
@@ -123,7 +123,7 @@ void main() async {
           throw GenkitException('whoops', statusCode: 500);
         }
         await Future.delayed(Duration(seconds: 1));
-        context.sendChunk(StreamyThrowyChunk.from(count: i));
+        context.sendChunk(StreamyThrowyChunk(count: i));
       }
       return 'done: $count, streamed: $i times';
     },
@@ -131,8 +131,8 @@ void main() async {
 
   final throwy = ai.defineFlow(
     name: 'throwy',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (subject, _) async {
       // Mocking 'call-llm' calls as simple runs or strings since we don't have that model.
       final foo = await ai.run('call-llm', () async {

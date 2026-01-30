@@ -21,16 +21,19 @@ part of 'simple_flow_types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Ingredient implements IngredientSchema {
-  Ingredient(this._json);
+class Ingredient {
+  factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  factory Ingredient.from({required String name, required String quantity}) {
-    return Ingredient({'name': name, 'quantity': quantity});
+  Ingredient._(this._json);
+
+  factory Ingredient({required String name, required String quantity}) {
+    return Ingredient._({'name': name, 'quantity': quantity});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
+
   String get name {
     return _json['name'] as String;
   }
@@ -39,7 +42,6 @@ class Ingredient implements IngredientSchema {
     _json['name'] = value;
   }
 
-  @override
   String get quantity {
     return _json['quantity'] as String;
   }
@@ -63,7 +65,7 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 
   @override
   Ingredient parse(Object? json) {
-    return Ingredient(json as Map<String, dynamic>);
+    return Ingredient._(json as Map<String, dynamic>);
   }
 
   @override
@@ -77,18 +79,17 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   );
 }
 
-// ignore: constant_identifier_names
-const IngredientType = _IngredientTypeFactory();
+class Recipe {
+  factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Recipe implements RecipeSchema {
-  Recipe(this._json);
+  Recipe._(this._json);
 
-  factory Recipe.from({
+  factory Recipe({
     required String title,
     required List<Ingredient> ingredients,
     required int servings,
   }) {
-    return Recipe({
+    return Recipe._({
       'title': title,
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'servings': servings,
@@ -97,7 +98,8 @@ class Recipe implements RecipeSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
+
   String get title {
     return _json['title'] as String;
   }
@@ -106,10 +108,9 @@ class Recipe implements RecipeSchema {
     _json['title'] = value;
   }
 
-  @override
   List<Ingredient> get ingredients {
     return (_json['ingredients'] as List)
-        .map((e) => Ingredient(e as Map<String, dynamic>))
+        .map((e) => Ingredient.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -117,7 +118,6 @@ class Recipe implements RecipeSchema {
     _json['ingredients'] = value.toList();
   }
 
-  @override
   int get servings {
     return _json['servings'] as int;
   }
@@ -141,7 +141,7 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
 
   @override
   Recipe parse(Object? json) {
-    return Recipe(json as Map<String, dynamic>);
+    return Recipe._(json as Map<String, dynamic>);
   }
 
   @override
@@ -157,9 +157,6 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
       },
       required: ['title', 'ingredients', 'servings'],
     ),
-    dependencies: [IngredientType],
+    dependencies: [Ingredient.$schema],
   );
 }
-
-// ignore: constant_identifier_names
-const RecipeType = _RecipeTypeFactory();

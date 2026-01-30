@@ -21,16 +21,21 @@ part of 'shelf_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ShelfTestOutput implements ShelfTestOutputSchema {
-  ShelfTestOutput(this._json);
+class ShelfTestOutput {
+  factory ShelfTestOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory ShelfTestOutput.from({required String greeting}) {
-    return ShelfTestOutput({'greeting': greeting});
+  ShelfTestOutput._(this._json);
+
+  factory ShelfTestOutput({required String greeting}) {
+    return ShelfTestOutput._({'greeting': greeting});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<ShelfTestOutput> $schema =
+      _ShelfTestOutputTypeFactory();
+
   String get greeting {
     return _json['greeting'] as String;
   }
@@ -54,7 +59,7 @@ class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
 
   @override
   ShelfTestOutput parse(Object? json) {
-    return ShelfTestOutput(json as Map<String, dynamic>);
+    return ShelfTestOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -68,19 +73,21 @@ class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
   );
 }
 
-// ignore: constant_identifier_names
-const ShelfTestOutputType = _ShelfTestOutputTypeFactory();
+class ShelfTestStream {
+  factory ShelfTestStream.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ShelfTestStream implements ShelfTestStreamSchema {
-  ShelfTestStream(this._json);
+  ShelfTestStream._(this._json);
 
-  factory ShelfTestStream.from({required String chunk}) {
-    return ShelfTestStream({'chunk': chunk});
+  factory ShelfTestStream({required String chunk}) {
+    return ShelfTestStream._({'chunk': chunk});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<ShelfTestStream> $schema =
+      _ShelfTestStreamTypeFactory();
+
   String get chunk {
     return _json['chunk'] as String;
   }
@@ -104,7 +111,7 @@ class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
 
   @override
   ShelfTestStream parse(Object? json) {
-    return ShelfTestStream(json as Map<String, dynamic>);
+    return ShelfTestStream._(json as Map<String, dynamic>);
   }
 
   @override
@@ -117,6 +124,3 @@ class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const ShelfTestStreamType = _ShelfTestStreamTypeFactory();

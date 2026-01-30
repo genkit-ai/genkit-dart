@@ -31,8 +31,8 @@ void main() {
       final model = genkit.defineBidiModel(
         name: 'myBidiModel',
         fn: (input, context) async {
-          context.sendChunk(ModelResponseChunk.from(content: []));
-          return ModelResponse.from(finishReason: FinishReason.stop);
+          context.sendChunk(ModelResponseChunk(content: []));
+          return ModelResponse(finishReason: FinishReason.stop);
         },
       );
       expect(model.name, 'myBidiModel');
@@ -49,33 +49,33 @@ void main() {
           await for (final chunk in input) {
             final text = chunk.messages.first.content.first.text;
             context.sendChunk(
-              ModelResponseChunk.from(
-                content: [TextPart.from(text: 'echo $text')],
+              ModelResponseChunk(
+                content: [TextPart(text: 'echo $text')],
               ),
             );
           }
-          return ModelResponse.from(finishReason: FinishReason.stop);
+          return ModelResponse(finishReason: FinishReason.stop);
         },
       );
       // ...
 
       final session = model.streamBidi();
       session.send(
-        ModelRequest.from(
+        ModelRequest(
           messages: [
-            Message.from(
+            Message(
               role: Role.user,
-              content: [TextPart.from(text: 'hello')],
+              content: [TextPart(text: 'hello')],
             ),
           ],
         ),
       );
       session.send(
-        ModelRequest.from(
+        ModelRequest(
           messages: [
-            Message.from(
+            Message(
               role: Role.user,
-              content: [TextPart.from(text: 'world')],
+              content: [TextPart(text: 'world')],
             ),
           ],
         ),
@@ -98,24 +98,24 @@ void main() {
           await for (final chunk in input) {
             final text = chunk.messages.first.content.first.text;
             context.sendChunk(
-              ModelResponseChunk.from(
-                content: [TextPart.from(text: '$prefix$text')],
+              ModelResponseChunk(
+                content: [TextPart(text: '$prefix$text')],
               ),
             );
           }
-          return ModelResponse.from(finishReason: FinishReason.stop);
+          return ModelResponse(finishReason: FinishReason.stop);
         },
       );
 
       final session = model.streamBidi(
-        init: ModelRequest.from(messages: [], config: {'prefix': '>> '}),
+        init: ModelRequest(messages: [], config: {'prefix': '>> '}),
       );
       session.send(
-        ModelRequest.from(
+        ModelRequest(
           messages: [
-            Message.from(
+            Message(
               role: Role.user,
-              content: [TextPart.from(text: 'm1')],
+              content: [TextPart(text: 'm1')],
             ),
           ],
         ),

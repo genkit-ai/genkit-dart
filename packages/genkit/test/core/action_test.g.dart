@@ -21,16 +21,19 @@ part of 'action_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestInput implements TestInputSchema {
-  TestInput(this._json);
+class TestInput {
+  factory TestInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  factory TestInput.from({required String name}) {
-    return TestInput({'name': name});
+  TestInput._(this._json);
+
+  factory TestInput({required String name}) {
+    return TestInput._({'name': name});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<TestInput> $schema = _TestInputTypeFactory();
+
   String get name {
     return _json['name'] as String;
   }
@@ -54,7 +57,7 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
 
   @override
   TestInput parse(Object? json) {
-    return TestInput(json as Map<String, dynamic>);
+    return TestInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -68,19 +71,19 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
   );
 }
 
-// ignore: constant_identifier_names
-const TestInputType = _TestInputTypeFactory();
+class TestOutput {
+  factory TestOutput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class TestOutput implements TestOutputSchema {
-  TestOutput(this._json);
+  TestOutput._(this._json);
 
-  factory TestOutput.from({required String greeting}) {
-    return TestOutput({'greeting': greeting});
+  factory TestOutput({required String greeting}) {
+    return TestOutput._({'greeting': greeting});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<TestOutput> $schema = _TestOutputTypeFactory();
+
   String get greeting {
     return _json['greeting'] as String;
   }
@@ -104,7 +107,7 @@ class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
 
   @override
   TestOutput parse(Object? json) {
-    return TestOutput(json as Map<String, dynamic>);
+    return TestOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -117,6 +120,3 @@ class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TestOutputType = _TestOutputTypeFactory();

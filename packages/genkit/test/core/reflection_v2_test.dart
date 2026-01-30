@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: avoid_dynamic_calls
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -69,7 +71,7 @@ void main() {
     test('should handle listActions', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputType: mapType(stringType(), stringType()),
+        inputSchema: mapSchema(stringSchema(), stringSchema()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
         metadata: {'description': 'A test action'},
@@ -109,7 +111,7 @@ void main() {
     test('should handle runAction', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputType: mapType(stringType(), stringType()),
+        inputSchema: mapSchema(stringSchema(), stringSchema()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
       );
@@ -152,7 +154,7 @@ void main() {
       final streamAction = Action(
         actionType: 'custom',
         name: 'streamAction',
-        streamType: stringType(),
+        streamSchema: stringSchema(),
         fn: (input, context) async {
           context.sendChunk('chunk1');
           context.sendChunk('chunk2');

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: unused_element
+// ignore_for_file: avoid_dynamic_calls, unused_element
 
 import 'dart:convert';
 
@@ -23,27 +23,27 @@ import 'schemas/shared_test_schema.dart';
 part 'integration_test.g.dart';
 
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   String get name;
   int? get age;
   bool get isAdmin;
 }
 
 @Schematic()
-abstract class GroupSchema {
+abstract class $Group {
   String get groupName;
-  List<UserSchema> get members;
-  UserSchema? get leader;
+  List<$User> get members;
+  $User? get leader;
 }
 
 @Schematic()
-abstract class NodeSchema {
+abstract class $Node {
   String get id;
-  List<NodeSchema>? get children;
+  List<$Node>? get children;
 }
 
 @Schematic()
-abstract class KeyedSchema {
+abstract class $Keyed {
   @StringField(
     name: 'custom_name',
     description: 'A custom named field',
@@ -59,13 +59,13 @@ abstract class KeyedSchema {
 }
 
 @Schematic()
-abstract class ComprehensiveSchema {
+abstract class $Comprehensive {
   @StringField(
     name: 's_field',
     description: 'A string field',
     minLength: 1,
     maxLength: 10,
-    pattern: '^[a-z]+\$',
+    pattern: r'^[a-z]+$',
     format: 'email',
     enumValues: ['a', 'b'],
   )
@@ -95,19 +95,19 @@ abstract class ComprehensiveSchema {
 }
 
 @Schematic(description: 'A schema with description')
-abstract class DescriptionSchema {
+abstract class $Description {
   String get name;
 }
 
 @Schematic()
-abstract class CrossFileParentSchema {
-  SharedChildSchema get child;
+abstract class $CrossFileParent {
+  $SharedChild get child;
 }
 
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
-      final user = User.from(name: 'Alice', age: 30, isAdmin: true);
+      final user = User(name: 'Alice', age: 30, isAdmin: true);
 
       expect(user.name, 'Alice');
       expect(user.age, 30);
@@ -116,14 +116,14 @@ void main() {
       final json = user.toJson();
       expect(json, {'name': 'Alice', 'age': 30, 'isAdmin': true});
 
-      final parsed = UserType.parse(json);
+      final parsed = User.$schema.parse(json);
       expect(parsed.name, 'Alice');
       expect(parsed.age, 30);
       expect(parsed.isAdmin, isTrue);
     });
 
     test('User with null optional field', () {
-      final user = User.from(name: 'Bob', isAdmin: false);
+      final user = User(name: 'Bob', isAdmin: false);
 
       expect(user.name, 'Bob');
       expect(user.age, isNull);
@@ -133,15 +133,15 @@ void main() {
       expect(json, {'name': 'Bob', 'isAdmin': false});
       expect(json.containsKey('age'), isFalse);
 
-      final parsed = UserType.parse(json);
+      final parsed = User.$schema.parse(json);
       expect(parsed.name, 'Bob');
       expect(parsed.age, isNull);
     });
 
     test('Group serialization with nested objects', () {
-      final u1 = User.from(name: 'A', isAdmin: false);
-      final u2 = User.from(name: 'B', isAdmin: true);
-      final group = Group.from(
+      final u1 = User(name: 'A', isAdmin: false);
+      final u2 = User(name: 'B', isAdmin: true);
+      final group = Group(
         groupName: 'Engineering',
         members: [u1, u2],
         leader: u2,
@@ -157,12 +157,12 @@ void main() {
       expect(json['members'], isA<List>());
       expect((json['members'] as List).length, 2);
       expect(json['leader'], isA<Map>());
-      final parsed = GroupType.parse(json);
+      final parsed = Group.$schema.parse(json);
       expect(parsed.groupName, 'Engineering');
       expect(parsed.members.first.name, 'A');
       expect(parsed.leader?.isAdmin, isTrue);
 
-      final schema = GroupType.jsonSchema(useRefs: false);
+      final schema = Group.$schema.jsonSchema(useRefs: false);
       expect(jsonDecode(jsonEncode(schema)), {
         'type': 'object',
         'properties': {
@@ -196,8 +196,8 @@ void main() {
     test('Recursive Schema Generation', () {
       // 1. Verify refs generation
       // 1. Verify refs generation
-      final nodeSchema = NodeType.jsonSchema(useRefs: true);
-      final json = jsonDecode(jsonEncode(nodeSchema));
+      final nodeSchema = Node.$schema.jsonSchema(useRefs: true);
+      final json = jsonDecode(jsonEncode(nodeSchema)) as Map<String, dynamic>;
 
       // Should have a root ref or be a combinator dependent on implementation
       expect(json[r'$ref'], '#/\$defs/Node');
@@ -214,11 +214,11 @@ void main() {
       );
 
       // 2. Verify inline generation throws for recursive schema
-      expect(() => NodeType.jsonSchema(useRefs: false), throwsStateError);
+      expect(() => Node.$schema.jsonSchema(useRefs: false), throwsStateError);
     });
 
     test('Schema Validation', () async {
-      final schema = UserType.jsonSchema();
+      final schema = User.$schema.jsonSchema();
       // Valid data
       expect(
         await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
@@ -242,7 +242,7 @@ void main() {
     });
 
     test('Schema Validation with useRefs: true', () async {
-      final schema = UserType.jsonSchema(useRefs: true);
+      final schema = User.$schema.jsonSchema(useRefs: true);
       // Valid data
       expect(
         await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
@@ -252,7 +252,7 @@ void main() {
       expect(await schema.validate({'name': 'Charlie'}), isNotEmpty);
 
       // Recursive schema valid data
-      final nodeSchema = NodeType.jsonSchema(useRefs: true);
+      final nodeSchema = Node.$schema.jsonSchema(useRefs: true);
       expect(
         await nodeSchema.validate({'id': 'root', 'children': []}),
         isEmpty,
@@ -279,14 +279,14 @@ void main() {
       );
     });
     test('KeyedSchema serialization and deserialization', () {
-      final keyed = Keyed.from(originalName: 'test');
+      final keyed = Keyed(originalName: 'test');
       final json = keyed.toJson();
       expect(json, {'custom_name': 'test'});
 
-      final parsed = KeyedType.parse({'custom_name': 'parsed'});
+      final parsed = Keyed.$schema.parse({'custom_name': 'parsed'});
       expect(parsed.originalName, 'parsed');
 
-      final schema = KeyedType.jsonSchema();
+      final schema = Keyed.$schema.jsonSchema();
       final schemaJson = jsonDecode(schema.toJson());
       expect(
         schemaJson['properties']['custom_name']['description'],
@@ -295,7 +295,7 @@ void main() {
     });
 
     test('ComprehensiveSchema validation', () {
-      final schema = ComprehensiveType.jsonSchema();
+      final schema = Comprehensive.$schema.jsonSchema();
       final schemaJson = jsonDecode(schema.toJson());
       final props = schemaJson['properties'] as Map<String, dynamic>;
 
@@ -305,7 +305,7 @@ void main() {
       expect(s['description'], 'A string field');
       expect(s['minLength'], 1);
       expect(s['maxLength'], 10);
-      expect(s['pattern'], '^[a-z]+\$');
+      expect(s['pattern'], r'^[a-z]+$');
       expect(s['format'], 'email');
       expect(s['enum'], ['a', 'b']);
 
@@ -331,8 +331,8 @@ void main() {
     });
 
     test('DescriptionSchema has description', () {
-      final schemaMetadata = DescriptionType.schemaMetadata;
-      final definition = schemaMetadata.definition as Map<String, dynamic>;
+      final schemaMetadata = Description.$schema.schemaMetadata;
+      final definition = schemaMetadata!.definition as Map<String, dynamic>;
 
       // We expect the definition to have the description directly (if it's an object)
       // The implementation uses Schema.object(description: ...) which produces
@@ -341,8 +341,8 @@ void main() {
     });
 
     test('Cross-file schema reference', () {
-      final child = SharedChild.from(childId: 'c1');
-      final parent = CrossFileParent.from(child: child);
+      final child = SharedChild(childId: 'c1');
+      final parent = CrossFileParent(child: child);
 
       expect(parent.child.childId, 'c1');
       final json = parent.toJson();
@@ -350,7 +350,7 @@ void main() {
         'child': {'childId': 'c1'},
       });
 
-      final parsed = CrossFileParentType.parse(json);
+      final parsed = CrossFileParent.$schema.parse(json);
       expect(parsed.child.childId, 'c1');
     });
   });

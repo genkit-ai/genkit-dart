@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,20 +21,27 @@ part of 'schemantic_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Address implements AddressSchema {
-  Address(this._json);
+class Address {
+  factory Address.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-  factory Address.from({
+  Address._(this._json);
+
+  factory Address({
     required String street,
     required String city,
     required ZipCode zipCode,
   }) {
-    return Address({'street': street, 'city': city, 'zipCode': zipCode.value});
+    return Address._({
+      'street': street,
+      'city': city,
+      'zipCode': zipCode.value,
+    });
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Address> $schema = _AddressTypeFactory();
+
   String get street {
     return _json['street'] as String;
   }
@@ -44,7 +50,6 @@ class Address implements AddressSchema {
     _json['street'] = value;
   }
 
-  @override
   String get city {
     return _json['city'] as String;
   }
@@ -62,7 +67,6 @@ class Address implements AddressSchema {
   }
 
   // Possible return values are `int`, `String`
-  @override
   Object? get zipCode {
     return _json['zipCode'] as Object?;
   }
@@ -90,7 +94,7 @@ class _AddressTypeFactory extends SchemanticType<Address> {
 
   @override
   Address parse(Object? json) {
-    return Address(json as Map<String, dynamic>);
+    return Address._(json as Map<String, dynamic>);
   }
 
   @override
@@ -108,19 +112,18 @@ class _AddressTypeFactory extends SchemanticType<Address> {
   );
 }
 
-// ignore: constant_identifier_names
-const AddressType = _AddressTypeFactory();
+class User {
+  factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class User implements UserSchema {
-  User(this._json);
+  User._(this._json);
 
-  factory User.from({
+  factory User({
     required String name,
     int? age,
     required bool isAdmin,
     Address? address,
   }) {
-    return User({
+    return User._({
       'name': name,
       if (age != null) 'years_old': age,
       'isAdmin': isAdmin,
@@ -130,7 +133,8 @@ class User implements UserSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<User> $schema = _UserTypeFactory();
+
   String get name {
     return _json['name'] as String;
   }
@@ -139,7 +143,6 @@ class User implements UserSchema {
     _json['name'] = value;
   }
 
-  @override
   int? get age {
     return _json['years_old'] as int?;
   }
@@ -152,7 +155,6 @@ class User implements UserSchema {
     }
   }
 
-  @override
   bool get isAdmin {
     return _json['isAdmin'] as bool;
   }
@@ -161,11 +163,10 @@ class User implements UserSchema {
     _json['isAdmin'] = value;
   }
 
-  @override
   Address? get address {
     return _json['address'] == null
         ? null
-        : Address(_json['address'] as Map<String, dynamic>);
+        : Address.fromJson(_json['address'] as Map<String, dynamic>);
   }
 
   set address(Address? value) {
@@ -191,7 +192,7 @@ class _UserTypeFactory extends SchemanticType<User> {
 
   @override
   User parse(Object? json) {
-    return User(json as Map<String, dynamic>);
+    return User._(json as Map<String, dynamic>);
   }
 
   @override
@@ -214,23 +215,22 @@ class _UserTypeFactory extends SchemanticType<User> {
       },
       required: ['name', 'isAdmin'],
     ),
-    dependencies: [AddressType],
+    dependencies: [Address.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const UserType = _UserTypeFactory();
+class Product {
+  factory Product.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Product implements ProductSchema {
-  Product(this._json);
+  Product._(this._json);
 
-  factory Product.from({
+  factory Product({
     required String id,
     required String name,
     required double price,
     List<String>? tags,
   }) {
-    return Product({
+    return Product._({
       'id': id,
       'name': name,
       'price': price,
@@ -240,7 +240,8 @@ class Product implements ProductSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<Product> $schema = _ProductTypeFactory();
+
   String get id {
     return _json['id'] as String;
   }
@@ -249,7 +250,6 @@ class Product implements ProductSchema {
     _json['id'] = value;
   }
 
-  @override
   String get name {
     return _json['name'] as String;
   }
@@ -258,7 +258,6 @@ class Product implements ProductSchema {
     _json['name'] = value;
   }
 
-  @override
   double get price {
     return _json['price'] as double;
   }
@@ -267,7 +266,6 @@ class Product implements ProductSchema {
     _json['price'] = value;
   }
 
-  @override
   List<String>? get tags {
     return (_json['tags'] as List?)?.cast<String>();
   }
@@ -295,7 +293,7 @@ class _ProductTypeFactory extends SchemanticType<Product> {
 
   @override
   Product parse(Object? json) {
-    return Product(json as Map<String, dynamic>);
+    return Product._(json as Map<String, dynamic>);
   }
 
   @override
@@ -313,6 +311,3 @@ class _ProductTypeFactory extends SchemanticType<Product> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const ProductType = _ProductTypeFactory();

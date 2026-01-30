@@ -20,7 +20,7 @@ import 'package:test/test.dart';
 void main() {
   group('toGeminiSettings', () {
     test('maps basic fields correctly', () {
-      final options = GeminiOptions.from(
+      final options = GeminiOptions(
         temperature: 0.7,
         topP: 0.9,
         topK: 40,
@@ -42,8 +42,8 @@ void main() {
     });
 
     test('maps thinking config', () {
-      final options = GeminiOptions.from(
-        thinkingConfig: ThinkingConfig.from(
+      final options = GeminiOptions(
+        thinkingConfig: ThinkingConfig(
           includeThoughts: true,
           thinkingBudget: 2048,
         ),
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('maps response modalities', () {
-      final options = GeminiOptions.from(
+      final options = GeminiOptions(
         responseModalities: ['TEXT', 'audio', 'IMAGE'],
       );
 
@@ -72,9 +72,9 @@ void main() {
 
   group('toGeminiSafetySettings', () {
     test('maps safety settings correctly', () {
-      final options = GeminiOptions.from(
+      final options = GeminiOptions(
         safetySettings: [
-          SafetySettings.from(
+          SafetySettings(
             category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
             threshold: 'BLOCK_ONLY_HIGH',
           ),
@@ -97,7 +97,7 @@ void main() {
 
   group('toGeminiTools', () {
     test('maps code execution', () {
-      final options = GeminiOptions.from(codeExecution: true);
+      final options = GeminiOptions(codeExecution: true);
       final tools = toGeminiTools(null, options);
 
       expect(tools, hasLength(1));
@@ -105,8 +105,8 @@ void main() {
     });
 
     test('maps google search retrieval', () {
-      final options = GeminiOptions.from(
-        googleSearchRetrieval: GoogleSearchRetrieval.from(
+      final options = GeminiOptions(
+        googleSearchRetrieval: GoogleSearchRetrieval(
           mode: 'MODE_DYNAMIC',
           dynamicThreshold: 0.8,
         ),
@@ -132,8 +132,8 @@ void main() {
 
   group('toGeminiToolConfig', () {
     test('maps function calling config', () {
-      final options = GeminiOptions.from(
-        functionCallingConfig: FunctionCallingConfig.from(
+      final options = GeminiOptions(
+        functionCallingConfig: FunctionCallingConfig(
           mode: 'ANY',
           allowedFunctionNames: ['foo'],
         ),

@@ -94,7 +94,7 @@ Future<O?> streamFlow<O, S>({
               final errorData = jsonDecode(jsonString);
               if (errorData is Map<String, dynamic> &&
                   errorData.containsKey('error')) {
-                final errorContent = errorData['error'];
+                final errorContent = errorData['error'] as Map<String, dynamic>;
                 final message =
                     errorContent['message'] ?? 'Unknown streaming error';
                 return handleError(
@@ -185,18 +185,18 @@ RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
   http.Client? httpClient,
   O Function(dynamic jsonData)? fromResponse,
   S Function(dynamic jsonData)? fromStreamChunk,
-  SchemanticType<I>? inputType,
-  SchemanticType<O>? outputType,
-  SchemanticType<S>? streamType,
+  SchemanticType<I>? inputSchema,
+  SchemanticType<O>? outputSchema,
+  SchemanticType<S>? streamSchema,
 }) {
-  if (fromResponse != null && outputType != null) {
+  if (fromResponse != null && outputSchema != null) {
     throw ArgumentError(
-      'Cannot provide both fromResponse and outputType. Please provide only one.',
+      'Cannot provide both fromResponse and outputSchema. Please provide only one.',
     );
   }
-  if (fromStreamChunk != null && streamType != null) {
+  if (fromStreamChunk != null && streamSchema != null) {
     throw ArgumentError(
-      'Cannot provide both fromStreamChunk and streamType. Please provide only one.',
+      'Cannot provide both fromStreamChunk and streamSchema. Please provide only one.',
     );
   }
 
@@ -206,10 +206,10 @@ RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
     httpClient: httpClient,
     fromResponse:
         fromResponse ??
-        (outputType != null ? (d) => outputType.parse(d) : (d) => d as O),
+        (outputSchema != null ? (d) => outputSchema.parse(d) : (d) => d as O),
     fromStreamChunk:
         fromStreamChunk ??
-        (streamType != null ? (d) => streamType.parse(d) : (d) => d as S),
+        (streamSchema != null ? (d) => streamSchema.parse(d) : (d) => d as S),
   );
 }
 

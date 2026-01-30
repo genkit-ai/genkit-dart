@@ -23,12 +23,12 @@ import '../test_util.dart';
 part 'action_test.g.dart';
 
 @Schematic()
-abstract class TestInputSchema {
+abstract class $TestInput {
   String get name;
 }
 
 @Schematic()
-abstract class TestOutputSchema {
+abstract class $TestOutput {
   String get greeting;
 }
 
@@ -90,14 +90,14 @@ void main() {
       final action = Action(
         name: 'testAction',
         actionType: 'test',
-        inputType: TestInputType,
-        outputType: TestOutputType,
+        inputSchema: TestInput.$schema,
+        outputSchema: TestOutput.$schema,
         fn: (TestInput? input, context) async {
-          return TestOutputType.parse({'greeting': 'Hello ${input!.name}'});
+          return TestOutput.$schema.parse({'greeting': 'Hello ${input!.name}'});
         },
       );
 
-      final result = await action(TestInputType.parse({'name': 'world'}));
+      final result = await action(TestInput.$schema.parse({'name': 'world'}));
       expect(result.greeting, 'Hello world');
     });
 
@@ -105,14 +105,14 @@ void main() {
       final action = Action(
         name: 'testAction',
         actionType: 'test',
-        inputType: TestInputType,
-        outputType: TestOutputType,
+        inputSchema: TestInput.$schema,
+        outputSchema: TestOutput.$schema,
         fn: (TestInput? input, context) async {
-          return TestOutputType.parse({'greeting': 'Hello ${input!.name}'});
+          return TestOutput.$schema.parse({'greeting': 'Hello ${input!.name}'});
         },
       );
 
-      await action(TestInputType.parse({'name': 'world'}));
+      await action(TestInput.$schema.parse({'name': 'world'}));
       processor.forceFlush();
 
       expect(exporter.spans.length, 1);

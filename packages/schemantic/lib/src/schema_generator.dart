@@ -37,28 +37,30 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
 
     final className = element.name;
-    if (className == null || !className.endsWith('Schema')) {
+    if (className == null) {
       throw InvalidGenerationSourceError(
-        'Schema class names must end with "Schema".',
+        'Schema class must have a name.',
         element: element,
       );
     }
-    final baseName = _stripSchemaSuffix(className);
+
+    String baseName;
+    if (className.startsWith(r'$')) {
+      baseName = className.substring(1);
+    } else {
+      throw InvalidGenerationSourceError(
+        'Schema class names must start with "\$".',
+        element: element,
+      );
+    }
 
     final helperClasses = _generateHelperClasses(element);
     final extensionType = _generateClass(baseName, element);
     final factory = _generateFactory(baseName, element, annotation);
-    final constInstance = _generateConstInstance(baseName);
 
-    final library = Library(
-      (b) => b
-        ..body.addAll([
-          extensionType,
-          ...helperClasses,
-          factory,
-          constInstance,
-        ]),
-    );
+    final libraryMembers = <Spec>[extensionType, ...helperClasses, factory];
+
+    final library = Library((b) => b..body.addAll(libraryMembers));
 
     final emitter = DartEmitter(useNullSafetySyntax: true);
     return DartFormatter(
@@ -131,9 +133,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     // inherit the `json` field.
     final isSubclass = _implementsAnnotatedType(element);
     return Class((b) {
-      b
-        ..name = baseName
-        ..implements.add(refer(element.name!));
+      b.name = baseName;
 
       b.fields.add(
         Field((f) {
@@ -147,9 +147,41 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         }),
       );
 
+      b.fields.add(
+        Field((f) {
+          f
+            ..static = true
+            ..modifier = FieldModifier.constant
+            ..name = r'$schema'
+            ..type = refer('SchemanticType<$baseName>')
+            ..assignment = refer(
+              '_${baseName}TypeFactory',
+            ).constInstance([]).code;
+        }),
+      );
+
       b.constructors.add(
         Constructor(
           (c) => c
+            ..name = 'fromJson'
+            ..factory = true
+            ..requiredParameters.add(
+              Parameter(
+                (p) => p
+                  ..name = 'json'
+                  ..type = refer('Map<String, dynamic>'),
+              ),
+            )
+            ..body = refer(
+              r'$schema',
+            ).property('parse').call([refer('json')]).code,
+        ),
+      );
+
+      b.constructors.add(
+        Constructor(
+          (c) => c
+            ..name = '_'
             ..requiredParameters.add(
               Parameter(
                 (p) => p
@@ -163,7 +195,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       b.constructors.add(
         Constructor((c) {
           c.factory = true;
-          c.name = 'from';
           final params = <Parameter>[];
           final jsonMapEntries = <String>[];
 
@@ -256,7 +287,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           c.optionalParameters.addAll(params);
           final mapLiteral = '{${jsonMapEntries.join(', ')}}';
           c.body = refer(
-            baseName,
+            '$baseName._',
           ).call([CodeExpression(Code(mapLiteral))]).returned.statement;
         }),
       );
@@ -264,7 +295,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       for (final interface in element.interfaces) {
         final interfaceName = interface.getDisplayString().replaceAll('?', '');
         if (interfaceName.isSchema) {
-          final interfaceBaseName = _stripSchemaSuffix(interfaceName);
+          final interfaceBaseName = _resolveBaseName(interfaceName);
           b.implements.add(refer(interfaceBaseName));
         }
       }
@@ -333,7 +364,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           '// Possible return values are ${types.map((e) => e.toTypeValue()).map((e) => '`$e`').join(', ')}',
         )
         ..type = MethodType.getter
-        ..annotations.add(refer('override'))
         ..returns = refer('Object?')
         ..body = Code("return _json['${_getJsonKey(mainGetter)}'] as Object?;"),
     );
@@ -384,7 +414,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final itemType = (type as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       if (itemTypeName.isSchema) {
-        final nestedBaseName = _stripSchemaSuffix(itemTypeName);
+        final nestedBaseName = _resolveBaseName(itemTypeName);
         final nullability = itemType.getDisplayString().endsWith('?')
             ? '?'
             : '';
@@ -394,7 +424,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     }
     final nonNullableTypeName = type.getDisplayString().replaceAll('?', '');
     if (nonNullableTypeName.isSchema) {
-      final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
+      final nestedBaseName = _resolveBaseName(nonNullableTypeName);
       final nullability = typeName.endsWith('?') ? '?' : '';
       return '$nestedBaseName$nullability';
     }
@@ -421,22 +451,22 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         final itemIsNullable = itemType.isNullable;
         if (itemTypeName.isSchema) {
-          final nestedBaseName = _stripSchemaSuffix(itemTypeName);
+          final nestedBaseName = _resolveBaseName(itemTypeName);
           if (itemIsNullable) {
             getterBody =
                 "return (_json['$jsonFieldName'] as List?)?.map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
           } else {
             getterBody =
-                "return (_json['$jsonFieldName'] as List?)?.map((e) => $nestedBaseName(e as Map<String, dynamic>)).toList();";
+                "return (_json['$jsonFieldName'] as List?)?.map((e) => $nestedBaseName.fromJson(e as Map<String, dynamic>)).toList();";
           }
         } else {
           getterBody =
               "return (_json['$jsonFieldName'] as List?)?.cast<$itemTypeName>();";
         }
       } else if (nonNullableTypeName.isSchema) {
-        final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
+        final nestedBaseName = _resolveBaseName(nonNullableTypeName);
         getterBody =
-            "return _json['$jsonFieldName'] == null ? null : $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
+            "return _json['$jsonFieldName'] == null ? null : $nestedBaseName.fromJson(_json['$jsonFieldName'] as Map<String, dynamic>);";
       } else if (nonNullableTypeName == 'DateTime') {
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : DateTime.parse(_json['$jsonFieldName'] as String);";
@@ -450,13 +480,13 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       final itemIsNullable = itemType.isNullable;
       if (itemTypeName.isSchema) {
-        final nestedBaseName = _stripSchemaSuffix(itemTypeName);
+        final nestedBaseName = _resolveBaseName(itemTypeName);
         if (itemIsNullable) {
           getterBody =
-              "return (_json['$jsonFieldName'] as List).map((e) => e == null ? null : $nestedBaseName(e as Map<String, dynamic>)).toList();";
+              "return (_json['$jsonFieldName'] as List).map((e) => e == null ? null : $nestedBaseName.fromJson(e as Map<String, dynamic>)).toList();";
         } else {
           getterBody =
-              "return (_json['$jsonFieldName'] as List).map((e) => $nestedBaseName(e as Map<String, dynamic>)).toList();";
+              "return (_json['$jsonFieldName'] as List).map((e) => $nestedBaseName.fromJson(e as Map<String, dynamic>)).toList();";
         }
       } else {
         getterBody =
@@ -465,14 +495,13 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     } else if (nonNullableTypeName == 'DateTime') {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
     } else if (nonNullableTypeName.isSchema) {
-      final nestedBaseName = _stripSchemaSuffix(nonNullableTypeName);
+      final nestedBaseName = _resolveBaseName(nonNullableTypeName);
       getterBody =
-          "return $nestedBaseName(_json['$jsonFieldName'] as Map<String, dynamic>);";
+          "return $nestedBaseName.fromJson(_json['$jsonFieldName'] as Map<String, dynamic>);";
     }
 
     return Method(
       (b) => b
-        ..annotations.add(refer('override'))
         ..type = MethodType.getter
         ..name = fieldName
         ..returns = refer(convertedTypeName)
@@ -552,7 +581,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             .map((i) {
               final interfaceName = i.getDisplayString().replaceAll('?', '');
               if (interfaceName.isSchema) {
-                return _stripSchemaSuffix(interfaceName);
+                return _resolveBaseName(interfaceName);
               }
               return null;
             })
@@ -564,7 +593,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           // This parse logic implies that we need to check validity.
           // Validate JSON structure using the schema before parsing.
           parseBody +=
-              'if (${subtype}Type.jsonSchema(useRefs: true).validate(jsonMap)) { return $subtype(jsonMap); }';
+              'if (${subtype}Type.jsonSchema(useRefs: true).validate(jsonMap)) { return $subtype.fromJson(jsonMap); }';
         }
         parseBody += 'throw Exception("Invalid JSON for $baseName");';
 
@@ -598,7 +627,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                     ..type = refer('Object?'),
                 ),
               )
-              ..body = Code('return $baseName(json as Map<String, dynamic>);'),
+              ..body = Code('return $baseName._(json as Map<String, dynamic>);'),
           ),
         );
       }
@@ -624,8 +653,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
     void addDependency(String typeName) {
       if (typeName.isSchema) {
-        final nestedBaseName = _stripSchemaSuffix(typeName);
-        dependencies.add(refer('${nestedBaseName}Type'));
+        final nestedBaseName = _resolveBaseName(typeName);
+        // We use the static field $schema for dependencies if possible,
+        // but since dependencies list expects SchemanticType instances:
+        // refer('${nestedBaseName}.\$schema')
+        dependencies.add(refer('$nestedBaseName.\$schema'));
       }
     }
 
@@ -695,7 +727,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             final interfaceName = i.getDisplayString().replaceAll('?', '');
             if (interfaceName.isSchema) {
               addDependency(interfaceName);
-              final nestedBaseName = _stripSchemaSuffix(interfaceName);
+              final nestedBaseName = _resolveBaseName(interfaceName);
               return refer('Schema.fromMap').call([
                 literalMap({
                   literalString(r'\$ref'): CodeExpression(
@@ -928,7 +960,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         properties['format'] = literalString('date-time');
         schemaExpression = refer('Schema.string').call([], properties);
       } else if (typeName.isSchema) {
-        final nestedBaseName = _stripSchemaSuffix(typeName);
+        final nestedBaseName = _resolveBaseName(typeName);
         // If we are building the "definition" for the metadata, we want to use refs for children.
         if (useRefs) {
           schemaExpression = refer('Schema.fromMap').call([
@@ -940,7 +972,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           ]);
         } else {
           // For metadata generation, we can emit a direct call to the nested type's jsonSchema.
-          schemaExpression = refer('${nestedBaseName}Type.jsonSchema').call([]);
+          schemaExpression = refer(
+            '$nestedBaseName.\$schema.jsonSchema',
+          ).call([]);
         }
 
         if (properties.isNotEmpty) {
@@ -973,18 +1007,16 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     return fieldName!;
   }
 
-  Field _generateConstInstance(String baseName) {
-    return Field(
-      (b) => b
-        ..name = '${baseName}Type'
-        ..docs.add('// ignore: constant_identifier_names')
-        ..modifier = FieldModifier.constant
-        ..assignment = refer('_${baseName}TypeFactory').constInstance([]).code,
+  String _resolveBaseName(String s) {
+    if (s.startsWith(r'$')) {
+      return s.substring(1);
+    }
+    // This path should not be taken if call sites are guarded by `isSchema`.
+    // Throwing an error makes the contract stricter.
+    throw ArgumentError(
+      'Invalid schema name "$s". Schema names must start with a "\$".',
     );
   }
-
-  String _stripSchemaSuffix(String s) =>
-      s.endsWith('Schema') ? s.substring(0, s.length - 6) : s;
 }
 
 const _keyChecker = TypeChecker.fromUrl(
@@ -1033,5 +1065,5 @@ Iterable<InterfaceType> _annotatedInterfaces(ClassElement element) {
 }
 
 extension on String {
-  bool get isSchema => endsWith('Schema');
+  bool get isSchema => startsWith(r'$');
 }

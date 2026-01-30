@@ -21,7 +21,7 @@ import 'package:test/test.dart';
 part 'generate_bidi_test.g.dart';
 
 @Schematic()
-abstract class MyToolInputSchema {
+abstract class $MyToolInput {
   String get location;
 }
 
@@ -44,7 +44,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'Get weather',
-        inputType: MyToolInputType,
+        inputSchema: MyToolInput.$schema,
         fn: (input, context) async {
           return 'Sunny in ${input.location}';
         },
@@ -56,11 +56,11 @@ void main() {
           await for (final request in input) {
             final msg = request.messages.first;
             if (msg.role == Role.tool) {
-              final toolResponse = ToolResponsePart(msg.content.first.toJson());
+              final toolResponse = ToolResponsePart.fromJson(msg.content.first.toJson());
               context.sendChunk(
-                ModelResponseChunk.from(
+                ModelResponseChunk(
                   content: [
-                    TextPart.from(
+                    TextPart(
                       text: 'Weather is: ${toolResponse.toolResponse.output}',
                     ),
                   ],
@@ -70,10 +70,10 @@ void main() {
               final text = msg.content.first.text;
               if (text == 'check weather') {
                 context.sendChunk(
-                  ModelResponseChunk.from(
+                  ModelResponseChunk(
                     content: [
-                      ToolRequestPart.from(
-                        toolRequest: ToolRequest.from(
+                      ToolRequestPart(
+                        toolRequest: ToolRequest(
                           name: toolName,
                           input: {'location': 'London'},
                         ),
@@ -83,14 +83,14 @@ void main() {
                 );
               } else {
                 context.sendChunk(
-                  ModelResponseChunk.from(
-                    content: [TextPart.from(text: 'echo $text')],
+                  ModelResponseChunk(
+                    content: [TextPart(text: 'echo $text')],
                   ),
                 );
               }
             }
           }
-          return ModelResponse.from(finishReason: FinishReason.stop);
+          return ModelResponse(finishReason: FinishReason.stop);
         },
       );
 
@@ -132,12 +132,12 @@ void main() {
 
           await for (final _ in input) {
             context.sendChunk(
-              ModelResponseChunk.from(
-                content: [TextPart.from(text: '$systemText $configVal')],
+              ModelResponseChunk(
+                content: [TextPart(text: '$systemText $configVal')],
               ),
             );
           }
-          return ModelResponse.from(finishReason: FinishReason.stop);
+          return ModelResponse(finishReason: FinishReason.stop);
         },
       );
 

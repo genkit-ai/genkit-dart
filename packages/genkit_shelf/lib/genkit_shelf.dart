@@ -81,8 +81,8 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
         }
         input = jsonBody['data'];
       }
-      if (action.inputType != null && input != null) {
-        input = action.inputType!.parse(input);
+      if (action.inputSchema != null && input != null) {
+        input = action.inputSchema!.parse(input);
       }
     } catch (e) {
       return Response(

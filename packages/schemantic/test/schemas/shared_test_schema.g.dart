@@ -1,4 +1,3 @@
-// dart format width=80
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,16 +21,20 @@ part of 'shared_test_schema.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class SharedChild implements SharedChildSchema {
-  SharedChild(this._json);
+class SharedChild {
+  factory SharedChild.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory SharedChild.from({required String childId}) {
-    return SharedChild({'childId': childId});
+  SharedChild._(this._json);
+
+  factory SharedChild({required String childId}) {
+    return SharedChild._({'childId': childId});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<SharedChild> $schema = _SharedChildTypeFactory();
+
   String get childId {
     return _json['childId'] as String;
   }
@@ -55,7 +58,7 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
 
   @override
   SharedChild parse(Object? json) {
-    return SharedChild(json as Map<String, dynamic>);
+    return SharedChild._(json as Map<String, dynamic>);
   }
 
   @override
@@ -69,17 +72,18 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
   );
 }
 
-// ignore: constant_identifier_names
-const SharedChildType = _SharedChildTypeFactory();
+class Part {
+  factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class Part implements PartSchema {
-  Part(this._json);
+  Part._(this._json);
 
-  factory Part.from() {
-    return Part({});
+  factory Part() {
+    return Part._({});
   }
 
   Map<String, dynamic> _json;
+
+  static const SchemanticType<Part> $schema = _PartTypeFactory();
 
   @override
   String toString() {
@@ -96,7 +100,7 @@ class _PartTypeFactory extends SchemanticType<Part> {
 
   @override
   Part parse(Object? json) {
-    return Part(json as Map<String, dynamic>);
+    return Part._(json as Map<String, dynamic>);
   }
 
   @override
@@ -107,19 +111,18 @@ class _PartTypeFactory extends SchemanticType<Part> {
   );
 }
 
-// ignore: constant_identifier_names
-const PartType = _PartTypeFactory();
+class TextPart implements Part {
+  factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class TextPart implements TextPartSchema, Part {
-  TextPart(this._json);
+  TextPart._(this._json);
 
-  factory TextPart.from({
+  factory TextPart({
     required String text,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return TextPart({
+    return TextPart._({
       'text': text,
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
@@ -130,7 +133,8 @@ class TextPart implements TextPartSchema, Part {
   @override
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
+
   String get text {
     return _json['text'] as String;
   }
@@ -139,7 +143,6 @@ class TextPart implements TextPartSchema, Part {
     _json['text'] = value;
   }
 
-  @override
   Map<String, dynamic>? get data {
     return _json['data'] as Map<String, dynamic>?;
   }
@@ -152,7 +155,6 @@ class TextPart implements TextPartSchema, Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get metadata {
     return _json['metadata'] as Map<String, dynamic>?;
   }
@@ -165,7 +167,6 @@ class TextPart implements TextPartSchema, Part {
     }
   }
 
-  @override
   Map<String, dynamic>? get custom {
     return _json['custom'] as Map<String, dynamic>?;
   }
@@ -194,7 +195,7 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
 
   @override
   TextPart parse(Object? json) {
-    return TextPart(json as Map<String, dynamic>);
+    return TextPart._(json as Map<String, dynamic>);
   }
 
   @override
@@ -212,6 +213,3 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TextPartType = _TextPartTypeFactory();

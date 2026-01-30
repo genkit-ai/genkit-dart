@@ -19,7 +19,7 @@ import 'package:test/test.dart';
 part 'generate_test.g.dart';
 
 @Schematic()
-abstract class TestToolInputSchema {
+abstract class $TestToolInput {
   String get name;
 }
 
@@ -46,21 +46,21 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           if (request.messages.last.role == Role.tool) {
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: FinishReason.stop,
-              message: Message.from(
+              message: Message(
                 role: Role.model,
-                content: [TextPart.from(text: 'Done')],
+                content: [TextPart(text: 'Done')],
               ),
             );
           }
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
               content: [
-                ToolRequestPart.from(
-                  toolRequest: ToolRequest.from(
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
                     name: tool1Name,
                     input: {'name': 'world'},
                   ),
@@ -74,7 +74,7 @@ void main() {
       genkit.defineTool(
         name: tool1Name,
         description: 'Tool 1',
-        inputType: TestToolInputType,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           tool1Called = true;
           return 'tool 1 output';
@@ -84,7 +84,7 @@ void main() {
       genkit.defineTool(
         name: tool2Name,
         description: 'Tool 2',
-        inputType: TestToolInputType,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           tool2Called = true;
           return 'tool 2 output';
@@ -112,13 +112,13 @@ void main() {
         genkit.defineModel(
           name: modelName,
           fn: (request, context) async {
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: FinishReason.stop,
-              message: Message.from(
+              message: Message(
                 role: Role.model,
                 content: [
-                  ToolRequestPart.from(
-                    toolRequest: ToolRequest.from(
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
                       name: toolName,
                       input: {'name': 'world'},
                     ),
@@ -132,7 +132,7 @@ void main() {
         genkit.defineTool(
           name: toolName,
           description: 'A test tool',
-          inputType: TestToolInputType,
+          inputSchema: TestToolInput.$schema,
           fn: (input, context) async {
             toolCalled = true;
             return 'tool output';
@@ -159,13 +159,13 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
               content: [
-                ToolRequestPart.from(
-                  toolRequest: ToolRequest.from(
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
                     name: toolName,
                     input: {'name': 'world'},
                   ),
@@ -179,7 +179,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'A test tool',
-        inputType: TestToolInputType,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           return 'tool output';
         },

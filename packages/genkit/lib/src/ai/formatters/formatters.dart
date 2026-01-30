@@ -49,7 +49,7 @@ GenerateActionOptions applyFormat(
 ) {
   var outputConfig = request.output;
   if (outputConfig?.jsonSchema != null && outputConfig?.format == null) {
-    outputConfig = GenerateActionOutputConfig({
+    outputConfig = GenerateActionOutputConfig.fromJson({
       'format': 'json',
       if (outputConfig?.contentType != null)
         'contentType': outputConfig?.contentType,
@@ -76,7 +76,7 @@ GenerateActionOptions applyFormat(
     }
 
     // Merge config
-    outputConfig = GenerateActionOutputConfig({
+    outputConfig = GenerateActionOutputConfig.fromJson({
       if (outputConfig?.format != null || formatter.config.format != null)
         'format': outputConfig?.format ?? formatter.config.format,
       if (outputConfig?.contentType != null ||
@@ -98,7 +98,7 @@ GenerateActionOptions applyFormat(
     });
   }
 
-  return GenerateActionOptions.from(
+  return GenerateActionOptions(
     messages: messages,
     model: request.model,
     config: request.config,
@@ -147,7 +147,7 @@ List<Message> injectInstructions(List<Message> messages, String? instructions) {
 
   if (messages.any(hasOutputInstruction)) return messages;
 
-  final newPart = TextPart.from(
+  final newPart = TextPart(
     text: instructions,
     metadata: {'purpose': 'output'},
   );
@@ -177,7 +177,7 @@ List<Message> injectInstructions(List<Message> messages, String? instructions) {
   }
 
   final newMessages = List<Message>.from(messages);
-  newMessages[targetIndex] = Message.from(
+  newMessages[targetIndex] = Message(
     role: targetMessage.role,
     content: newContent,
     metadata: targetMessage.metadata,

@@ -17,7 +17,6 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 
-
 void main() async {
   configureCollectorExporter();
 
@@ -26,12 +25,12 @@ void main() async {
   ai.defineModel(
     name: 'echo',
     fn: (req, ctx) async {
-      return ModelResponse.from(
+      return ModelResponse(
         finishReason: FinishReason.stop,
-        message: Message.from(
+        message: Message(
           role: Role.model,
           content: [
-            TextPart.from(
+            TextPart(
               text: 'echo: ${req.messages.map((m) => m.text).join()}',
             ),
           ],
@@ -53,9 +52,9 @@ void main() async {
 
   ai.defineFlow(
     name: 'outer',
-    inputType: stringType(),
-    outputType: stringType(),
-    streamType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: stringSchema(),
     fn: (String name, context) async {
       if (context.streamingRequested) {
         for (var i = 0; i < 5; i++) {
@@ -69,8 +68,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'recipeTransformer',
-    inputType: RecipeType,
-    outputType: RecipeType,
+    inputSchema: Recipe.$schema,
+    outputSchema: Recipe.$schema,
     fn: (recipe, context) async {
       final hasSalt = recipe.ingredients.any(
         (i) => i.name.toLowerCase() == 'salt',
@@ -78,12 +77,12 @@ void main() async {
       if (hasSalt) {
         return recipe;
       }
-      return Recipe.from(
+      return Recipe(
         title: recipe.title,
         servings: recipe.servings,
         ingredients: [
           ...recipe.ingredients,
-          Ingredient.from(name: 'salt', quantity: 'a pinch'),
+          Ingredient(name: 'salt', quantity: 'a pinch'),
         ],
       );
     },

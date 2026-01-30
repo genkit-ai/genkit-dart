@@ -31,7 +31,8 @@ import 'package:schemantic/schemantic.dart';
 part 'user.g.dart';
 
 @Schematic()
-abstract class UserSchema {
+@Schematic()
+abstract class $User {
   String get name;
   int? get age;
   bool get isAdmin;
@@ -46,18 +47,17 @@ Run the build runner to generate the implementation:
 dart run build_runner build
 ```
 
-This will generate a `user.schema.g.dart` file containing:
-- `User`: The concrete data class.
-- `UserType`: A utility class for parsing, schema access, and validation.
+This will generate a `user.g.dart` file containing:
+- `User`: The concrete data class, which includes a static `$schema` field for accessing schema information.
 
 ### 3. Use the Generated Types
 
-You can now use the generated `User` class and `UserType` utility:
+You can now use the generated `User` class:
 
 ```dart
 void main() async {
   // Create an instance using the generated class
-  final user = User.from(
+  final user = User(
     name: 'Alice',
     age: 30,
     isAdmin: true,
@@ -68,14 +68,14 @@ void main() async {
   // Output: {name: Alice, age: 30, isAdmin: true}
 
   // Parse from JSON
-  final parsed = UserType.parse({
+  final parsed = User.fromJson({
     'name': 'Bob',
     'isAdmin': false,
   });
   print(parsed.name); // Bob
 
   // Access JSON Schema at runtime
-  final schema = UserType.jsonSchema();
+  final schema = User.$schema.jsonSchema;
   print(schema.toJson()); 
   // Output: {type: object, properties: {name: {type: string}, ...}, required: [name, isAdmin]}
   
@@ -95,16 +95,16 @@ For recursive structures like trees, use the `useRefs: true` option when generat
 
 ```dart
 @Schematic()
-abstract class NodeSchema {
+abstract class $Node {
   String get id;
-  List<NodeSchema>? get children;
+  List<$Node>? get children;
 }
 ```
 
 ```dart
 void main() {
   // Must use useRefs: true for recursive schemas
-  final schema = NodeType.jsonSchema(useRefs: true);
+  final schema = Node.$schema.jsonSchema;
   
   print(schema.toJson());
   // Generates schema with "$ref": "#/$defs/Node"
@@ -116,28 +116,28 @@ void main() {
 Schemantic provides a set of basic types and helpers for creating dynamic schemas without generating code.
 
 #### Primitives
-- `stringType()`
-- `intType()`
-- `doubleType()`
-- `boolType()`
-- `voidType()`
+- `stringSchema()`
+- `intSchema()`
+- `doubleSchema(`
+- `boolSchema()`
+- `voidSchema()`
 
-#### `listType` and `mapType`
+#### `listSchema` and `mapSchema`
 
 You can create strongly typed Lists and Maps dynamically:
 
 ```dart
 void main() {
   // Define a List of Strings
-  final stringList = listType(stringType());
+  final stringList = listSchema(stringSchema());
   print(stringList.parse(['a', 'b'])); // ['a', 'b']
 
   // Define a Map with String keys and Integer values
-  final scores = mapType(stringType(), intType());
+  final scores = mapSchema(stringSchema(), intSchema());
   print(scores.parse({'Alice': 100, 'Bob': 80})); // {'Alice': 100, 'Bob': 80}
 
   // Nesting types
-  final matrix = listType(listType(intType()));
+  final matrix = listSchema(listSchema(intSchema()));
   print(matrix.parse([[1, 2], [3, 4]])); // [[1, 2], [3, 4]]
   
   // JSON Schema generation works as expected
@@ -151,19 +151,19 @@ You can add a description to your generated schema using the `description` param
 
 ```dart
 @Schematic(description: 'Represents a user in the system')
-abstract class UserSchema {
+abstract class $User {
   // ...
 }
 ```
 
 ### Enhanced Collections
 
-You can use `listType` and `mapType` to create collections with metadata and validation:
+You can use `listSchema` and `mapSchema` to create collections with metadata and validation:
 
 ```dart
 // A list of strings with description and size constraints.
-final tags = listType(
-  stringType(),
+final tags = listSchema(
+  stringSchema(),
   description: 'A list of tags',
   minItems: 1,
   maxItems: 10,
@@ -171,9 +171,9 @@ final tags = listType(
 );
 
 // A map with integer values.
-final scores = mapType(
-  stringType(),
-  intType(),
+final scores = mapSchema(
+  stringSchema(),
+  intSchema(),
   description: 'Player scores',
   minProperties: 1,
 );
@@ -183,24 +183,18 @@ final scores = mapType(
 
 Schemantic provides factories for basic types with optional metadata:
 
-- `stringType({String? description, int? minLength, ...})`
-- `intType({String? description, int? minimum, ...})`
-- `doubleType({String? description, double? minimum, ...})`
-- `boolType({String? description})`
-- `dynamicType({String? description})`
+- `stringSchema({String? description, int? minLength, ...})`
+- `intSchema({String? description, int? minimum, ...})`
+- `doubleSchema({String? description, double? minimum, ...})`
+- `boolSchema({String? description})`
+- `dynamicSchema({String? description})`
 
 Example:
 
-```dart
-final age = intType(
+final age = intSchema(
   description: 'Age in years',
   minimum: 0,
 );
-```
-
-## Customizing Fields
-
-You can use specialized annotations to apply JSON Schema constraints directly to your Dart fields.
 
 - `@Field`: Basic customization (name, description).
 - `@StringField`: Constraints for strings (minLength, maxLength, pattern, format, enumValues).
@@ -209,7 +203,7 @@ You can use specialized annotations to apply JSON Schema constraints directly to
 
 ```dart
 @Schematic()
-abstract class UserSchema {
+abstract class $User {
   // Map 'age' to 'years_old' in JSON, and add validation
   @IntegerField(
     name: 'years_old', 

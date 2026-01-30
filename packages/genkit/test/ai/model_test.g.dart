@@ -21,16 +21,21 @@ part of 'model_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions implements TestCustomOptionsSchema {
-  TestCustomOptions(this._json);
+class TestCustomOptions {
+  factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory TestCustomOptions.from({required String customField}) {
-    return TestCustomOptions({'customField': customField});
+  TestCustomOptions._(this._json);
+
+  factory TestCustomOptions({required String customField}) {
+    return TestCustomOptions._({'customField': customField});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<TestCustomOptions> $schema =
+      _TestCustomOptionsTypeFactory();
+
   String get customField {
     return _json['customField'] as String;
   }
@@ -54,7 +59,7 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
 
   @override
   TestCustomOptions parse(Object? json) {
-    return TestCustomOptions(json as Map<String, dynamic>);
+    return TestCustomOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -67,6 +72,3 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const TestCustomOptionsType = _TestCustomOptionsTypeFactory();

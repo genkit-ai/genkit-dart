@@ -22,7 +22,7 @@ import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 void main() {
   group('toGeminiPart', () {
     test('converts text part', () {
-      final part = TextPart.from(text: 'hello');
+      final part = TextPart(text: 'hello');
       final geminiPart = toGeminiPart(part);
       expect(geminiPart, isA<m.TextPart>());
       expect((geminiPart as m.TextPart).text, 'hello');
@@ -30,8 +30,8 @@ void main() {
 
     test('converts media part with data URI', () {
       final data = 'SGVsbG8='; // "Hello" in base64
-      final part = MediaPart.from(
-        media: Media.from(
+      final part = MediaPart(
+        media: Media(
           url: 'data:text/plain;base64,$data',
           contentType: 'text/plain',
         ),
@@ -44,8 +44,8 @@ void main() {
     });
 
     test('converts http/s media URL to FileData', () {
-      final part = MediaPart.from(
-        media: Media.from(
+      final part = MediaPart(
+        media: Media(
           url: 'https://example.com/image.png',
           contentType: 'image/png',
         ),

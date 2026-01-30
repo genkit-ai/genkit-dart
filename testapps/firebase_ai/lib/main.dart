@@ -38,6 +38,7 @@ void main() async {
   // Keep logging minimal
   Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen((record) {
+    // ignore: avoid_print
     print('${record.level.name}: ${record.time}: ${record.message}');
   });
 
@@ -116,7 +117,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _ai.defineTool(
       name: 'getWeather',
       description: 'Get the weather for a location',
-      inputType: WeatherToolInputType,
+      inputSchema: WeatherToolInputType,
       fn: (input, context) async {
         if (input.location.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';
@@ -208,7 +209,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
     _ai.defineTool(
       name: 'getWeather',
       description: 'Get the weather for a location',
-      inputType: WeatherToolInputType,
+      inputSchema: WeatherToolInputType,
       fn: (input, context) async {
         if (input.location.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';
@@ -236,13 +237,11 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
 
       final newSession = await _ai.generateBidi(
         model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
-        config: LiveGenerationConfig.from(
+        config: LiveGenerationConfig(
           responseModalities: ['AUDIO'],
-          speechConfig: SpeechConfig.from(
-            voiceConfig: VoiceConfig.from(
-              prebuiltVoiceConfig: PrebuiltVoiceConfig.from(
-                voiceName: 'Algenib',
-              ),
+          speechConfig: SpeechConfig(
+            voiceConfig: VoiceConfig(
+              prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Algenib'),
             ),
           ),
         ),
@@ -313,13 +312,13 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       _audioSubscription = stream.listen((data) {
         final base64Audio = base64Encode(data);
         _session!.send(
-          ModelRequest.from(
+          ModelRequest(
             messages: [
-              Message.from(
+              Message(
                 role: Role.user,
                 content: [
-                  MediaPart.from(
-                    media: Media.from(
+                  MediaPart(
+                    media: Media(
                       url: 'data:audio/pcm;rate=16000;base64,$base64Audio',
                       contentType: 'audio/pcm;rate=16000',
                     ),
@@ -459,7 +458,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
                                                 : Theme.of(
                                                     context,
                                                   ).colorScheme.primary))
-                                      .withOpacity(0.4),
+                                      .withValues(alpha: 0.4),
                               blurRadius: _isRecording ? 10 : 4,
                               spreadRadius: _isRecording ? 2 : 1,
                             ),
@@ -548,6 +547,7 @@ class AudioPlayerQueue {
       await completer.future.timeout(timeout, onTimeout: () {});
       await sub.cancel();
     } catch (e) {
+      // ignore: avoid_print
       print('AudioQueue Error: $e');
     } finally {
       _isPlaying = false;

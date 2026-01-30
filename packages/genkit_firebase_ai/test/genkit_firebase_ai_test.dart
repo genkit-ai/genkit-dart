@@ -53,7 +53,7 @@ void main() {
 
   group('Tool Conversion', () {
     test('converts tool definition', () {
-      final toolDef = ToolDefinition.from(
+      final toolDef = ToolDefinition(
         name: 'myTool',
         description: 'desc',
         inputSchema: {
@@ -76,8 +76,8 @@ void main() {
 
   group('Part Conversion', () {
     test('FunctionCall (ToolRequestPart)', () {
-      final part = ToolRequestPart.from(
-        toolRequest: ToolRequest.from(name: 'foo', input: {'a': 1}),
+      final part = ToolRequestPart(
+        toolRequest: ToolRequest(name: 'foo', input: {'a': 1}),
       );
       final mPart = toGeminiPart(part);
       expect(mPart, isA<m.FunctionCall>());
@@ -87,8 +87,8 @@ void main() {
     });
 
     test('FunctionResponse (ToolResponsePart)', () {
-      final part = ToolResponsePart.from(
-        toolResponse: ToolResponse.from(name: 'foo', output: {'b': 2}),
+      final part = ToolResponsePart(
+        toolResponse: ToolResponse(name: 'foo', output: {'b': 2}),
       );
       final mPart = toGeminiPart(part);
       expect(mPart, isA<m.FunctionResponse>());

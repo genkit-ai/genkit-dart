@@ -19,8 +19,8 @@ class Tool<I, O> extends Action<I, O, void, void> {
     required super.name,
     required super.description,
     required super.fn,
-    super.inputType,
-    super.outputType,
+    super.inputSchema,
+    super.outputSchema,
     super.metadata,
   }) : super(actionType: 'tool');
 }

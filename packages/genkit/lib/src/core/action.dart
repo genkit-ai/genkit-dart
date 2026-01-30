@@ -60,20 +60,20 @@ class ActionMetadata<I, O, S, Init> {
   String name;
   String? description;
   String actionType;
-  SchemanticType<I>? inputType;
-  SchemanticType<O>? outputType;
-  SchemanticType<S>? streamType;
-  SchemanticType<Init>? initType;
+  SchemanticType<I>? inputSchema;
+  SchemanticType<O>? outputSchema;
+  SchemanticType<S>? streamSchema;
+  SchemanticType<Init>? initSchema;
   Map<String, dynamic> metadata;
 
   ActionMetadata({
     required this.name,
     this.actionType = 'custom', // Default or required?
     this.description,
-    this.inputType,
-    this.outputType,
-    this.streamType,
-    this.initType,
+    this.inputSchema,
+    this.outputSchema,
+    this.streamSchema,
+    this.initSchema,
     Map<String, dynamic>? metadata,
   }) : metadata = metadata ?? {};
 
@@ -81,10 +81,10 @@ class ActionMetadata<I, O, S, Init> {
     return {
       'name': name,
       'description': description,
-      'inputSchema': inputType?.jsonSchema,
-      'outputSchema': outputType?.jsonSchema,
-      'streamSchema': streamType?.jsonSchema,
-      'initSchema': initType?.jsonSchema,
+      'inputSchema': inputSchema?.jsonSchema,
+      'outputSchema': outputSchema?.jsonSchema,
+      'streamSchema': streamSchema?.jsonSchema,
+      'initSchema': initSchema?.jsonSchema,
     };
   }
 }
@@ -96,10 +96,10 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     required super.name,
     required super.actionType,
     required this.fn,
-    super.inputType,
-    super.outputType,
-    super.streamType,
-    super.initType,
+    super.inputSchema,
+    super.outputSchema,
+    super.streamSchema,
+    super.initSchema,
     super.description,
     super.metadata,
   });
@@ -127,11 +127,11 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     dynamic init,
   }) async {
     return await run(
-      inputType != null ? inputType!.parse(input) : input,
+      inputSchema != null ? inputSchema!.parse(input) : input,
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
-      init: initType != null ? initType!.parse(init) : init,
+      init: initSchema != null ? initSchema!.parse(init) : init,
     );
   }
 

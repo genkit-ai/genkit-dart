@@ -17,8 +17,8 @@ void main() async {
 
   final flow = ai.defineFlow(
     name: 'myFlow',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (String input, _) async => 'Hello $input',
   );
 
@@ -45,8 +45,8 @@ void main() async {
 
   final flow = ai.defineFlow(
     name: 'myFlow',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (String input, _) async => 'Hello $input',
   );
 

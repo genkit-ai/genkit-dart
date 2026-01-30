@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: avoid_dynamic_calls
+
 import 'dart:convert';
 
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
@@ -20,20 +22,20 @@ import 'package:test/test.dart';
 
 void main() {
   group('Basic Types', () {
-    test('stringType()', () {
-      expect(stringType().parse('hello'), 'hello');
-      final json = jsonDecode(stringType().jsonSchema().toJson());
+    test('stringSchema()', () {
+      expect(stringSchema().parse('hello'), 'hello');
+      final json = jsonDecode(stringSchema().jsonSchema().toJson());
       expect(json['type'], 'string');
     });
 
-    test('intType()', () {
-      expect(intType().parse(123), 123);
-      final json = jsonDecode(intType().jsonSchema().toJson());
+    test('intSchema()', () {
+      expect(intSchema().parse(123), 123);
+      final json = jsonDecode(intSchema().jsonSchema().toJson());
       expect(json['type'], 'integer');
     });
 
-    test('listType with stringType()', () {
-      final stringListParams = listType(stringType());
+    test('listSchema with stringSchema()', () {
+      final stringListParams = listSchema(stringSchema());
       final json = ['a', 'b', 'c'];
       final parsed = stringListParams.parse(json);
 
@@ -49,8 +51,8 @@ void main() {
       expect(schemaJson['items']['type'], 'string');
     });
 
-    test('listType with complex objects', () {
-      final nestedList = listType(listType(intType()));
+    test('listSchema with complex objects', () {
+      final nestedList = listSchema(listSchema(intSchema()));
       final json = [
         [1, 2],
         [3, 4],
@@ -71,45 +73,45 @@ void main() {
       expect(schemaJson['items']['items']['type'], 'integer');
     });
 
-    test('doubleType()', () {
-      expect(doubleType().parse(12.34), 12.34);
-      expect(doubleType().parse(10), 10.0); // Test int to double conversion
-      final json = jsonDecode(doubleType().jsonSchema().toJson());
+    test('doubleSchema()', () {
+      expect(doubleSchema().parse(12.34), 12.34);
+      expect(doubleSchema().parse(10), 10.0); // Test int to double conversion
+      final json = jsonDecode(doubleSchema().jsonSchema().toJson());
       expect(json['type'], 'number');
     });
 
-    test('boolType()', () {
-      expect(boolType().parse(true), true);
-      expect(boolType().parse(false), false);
-      final json = jsonDecode(boolType().jsonSchema().toJson());
+    test('boolSchema()', () {
+      expect(boolSchema().parse(true), true);
+      expect(boolSchema().parse(false), false);
+      final json = jsonDecode(boolSchema().jsonSchema().toJson());
       expect(json['type'], 'boolean');
     });
 
-    test('voidType()', () {
-      expect(() => voidType().parse(null), returnsNormally);
-      expect(() => voidType().parse('anything'), returnsNormally);
-      final json = jsonDecode(voidType().jsonSchema().toJson());
+    test('voidSchema()', () {
+      expect(() => voidSchema().parse(null), returnsNormally);
+      expect(() => voidSchema().parse('anything'), returnsNormally);
+      final json = jsonDecode(voidSchema().jsonSchema().toJson());
       expect(json['type'], 'null');
     });
 
-    test('dynamicType()', () {
-      expect(dynamicType().parse(123), 123);
-      expect(dynamicType().parse('hello'), 'hello');
-      expect(dynamicType().parse(true), true);
-      expect(dynamicType().parse(null), null);
+    test('dynamicSchema()', () {
+      expect(dynamicSchema().parse(123), 123);
+      expect(dynamicSchema().parse('hello'), 'hello');
+      expect(dynamicSchema().parse(true), true);
+      expect(dynamicSchema().parse(null), null);
       final list = [1, 2];
-      expect(dynamicType().parse(list), list);
+      expect(dynamicSchema().parse(list), list);
       final map = {'a': 1};
-      expect(dynamicType().parse(map), map);
+      expect(dynamicSchema().parse(map), map);
 
-      final json = jsonDecode(dynamicType().jsonSchema().toJson());
+      final json = jsonDecode(dynamicSchema().jsonSchema().toJson());
       // schema.any() typically returns an empty schema {} which allows everything
       // In new impl we might return empty map or with description
       expect(json, isEmpty);
     });
 
     test('MapType replacement', () {
-      final mapT = mapType(stringType(), dynamicType());
+      final mapT = mapSchema(stringSchema(), dynamicSchema());
       final json = {'key': 'value', 'a': 1};
       expect(mapT.parse(json), json);
       final schemaJson = jsonDecode(mapT.jsonSchema().toJson());
@@ -117,12 +119,12 @@ void main() {
     });
 
     test('Parsing errors', () {
-      expect(() => intType().parse('not an int'), throwsA(isA<TypeError>()));
-      expect(() => listType(intType()).parse(['a']), throwsA(isA<TypeError>()));
+      expect(() => intSchema().parse('not an int'), throwsA(isA<TypeError>()));
+      expect(() => listSchema(intSchema()).parse(['a']), throwsA(isA<TypeError>()));
     });
 
     test('mapType with Strings and Ints', () {
-      final mapT = mapType(stringType(), intType());
+      final mapT = mapSchema(stringSchema(), intSchema());
       final json = {'a': 1, 'b': 2};
       final parsed = mapT.parse(json);
       expect(parsed, {'a': 1, 'b': 2});
@@ -134,9 +136,9 @@ void main() {
     });
 
     group('Reference Handling', () {
-      test('listType with useRefs=true handles nested defs', () {
+      test('listSchema with useRefs=true handles nested defs', () {
         final type = _MockType();
-        final list = listType(type);
+        final list = listSchema(type);
         final schema = list.jsonSchema(useRefs: true);
         final json = jsonDecode(schema.toJson());
 
@@ -155,9 +157,9 @@ void main() {
         );
       });
 
-      test('mapType with useRefs=true handles nested defs', () {
+      test('mapSchema with useRefs=true handles nested defs', () {
         final type = _MockType();
-        final mapT = mapType(stringType(), type);
+        final mapT = mapSchema(stringSchema(), type);
         final schema = mapT.jsonSchema(useRefs: true);
         final json = jsonDecode(schema.toJson());
 

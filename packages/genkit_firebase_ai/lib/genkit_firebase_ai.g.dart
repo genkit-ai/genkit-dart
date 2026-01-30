@@ -21,10 +21,13 @@ part of 'genkit_firebase_ai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class GeminiOptions implements GeminiOptionsSchema {
-  GeminiOptions(this._json);
+class GeminiOptions {
+  factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory GeminiOptions.from({
+  GeminiOptions._(this._json);
+
+  factory GeminiOptions({
     List<String>? stopSequences,
     int? maxOutputTokens,
     double? temperature,
@@ -38,7 +41,7 @@ class GeminiOptions implements GeminiOptionsSchema {
     Map<String, dynamic>? responseJsonSchema,
     ThinkingConfig? thinkingConfig,
   }) {
-    return GeminiOptions({
+    return GeminiOptions._({
       if (stopSequences != null) 'stopSequences': stopSequences,
       if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
       if (temperature != null) 'temperature': temperature,
@@ -56,7 +59,9 @@ class GeminiOptions implements GeminiOptionsSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<GeminiOptions> $schema =
+      _GeminiOptionsTypeFactory();
+
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -69,7 +74,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -82,7 +86,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -95,7 +98,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -108,7 +110,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -121,7 +122,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -134,7 +134,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -147,7 +146,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -160,7 +158,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   String? get responseMimeType {
     return _json['responseMimeType'] as String?;
   }
@@ -173,7 +170,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   Map<String, dynamic>? get responseSchema {
     return _json['responseSchema'] as Map<String, dynamic>?;
   }
@@ -186,7 +182,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   Map<String, dynamic>? get responseJsonSchema {
     return _json['responseJsonSchema'] as Map<String, dynamic>?;
   }
@@ -199,11 +194,12 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
-        : ThinkingConfig(_json['thinkingConfig'] as Map<String, dynamic>);
+        : ThinkingConfig.fromJson(
+            _json['thinkingConfig'] as Map<String, dynamic>,
+          );
   }
 
   set thinkingConfig(ThinkingConfig? value) {
@@ -229,7 +225,7 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 
   @override
   GeminiOptions parse(Object? json) {
-    return GeminiOptions(json as Map<String, dynamic>);
+    return GeminiOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -252,18 +248,18 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       },
       required: [],
     ),
-    dependencies: [ThinkingConfigType],
+    dependencies: [ThinkingConfig.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const GeminiOptionsType = _GeminiOptionsTypeFactory();
+class ThinkingConfig {
+  factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ThinkingConfig implements ThinkingConfigSchema {
-  ThinkingConfig(this._json);
+  ThinkingConfig._(this._json);
 
-  factory ThinkingConfig.from({int? thinkingBudget, bool? includeThoughts}) {
-    return ThinkingConfig({
+  factory ThinkingConfig({int? thinkingBudget, bool? includeThoughts}) {
+    return ThinkingConfig._({
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
     });
@@ -271,7 +267,9 @@ class ThinkingConfig implements ThinkingConfigSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<ThinkingConfig> $schema =
+      _ThinkingConfigTypeFactory();
+
   int? get thinkingBudget {
     return _json['thinkingBudget'] as int?;
   }
@@ -284,7 +282,6 @@ class ThinkingConfig implements ThinkingConfigSchema {
     }
   }
 
-  @override
   bool? get includeThoughts {
     return _json['includeThoughts'] as bool?;
   }
@@ -312,7 +309,7 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
 
   @override
   ThinkingConfig parse(Object? json) {
-    return ThinkingConfig(json as Map<String, dynamic>);
+    return ThinkingConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -329,19 +326,23 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   );
 }
 
-// ignore: constant_identifier_names
-const ThinkingConfigType = _ThinkingConfigTypeFactory();
+class PrebuiltVoiceConfig {
+  factory PrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class PrebuiltVoiceConfig implements PrebuiltVoiceConfigSchema {
-  PrebuiltVoiceConfig(this._json);
+  PrebuiltVoiceConfig._(this._json);
 
-  factory PrebuiltVoiceConfig.from({String? voiceName}) {
-    return PrebuiltVoiceConfig({if (voiceName != null) 'voiceName': voiceName});
+  factory PrebuiltVoiceConfig({String? voiceName}) {
+    return PrebuiltVoiceConfig._({
+      if (voiceName != null) 'voiceName': voiceName,
+    });
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<PrebuiltVoiceConfig> $schema =
+      _PrebuiltVoiceConfigTypeFactory();
+
   String? get voiceName {
     return _json['voiceName'] as String?;
   }
@@ -370,7 +371,7 @@ class _PrebuiltVoiceConfigTypeFactory
 
   @override
   PrebuiltVoiceConfig parse(Object? json) {
-    return PrebuiltVoiceConfig(json as Map<String, dynamic>);
+    return PrebuiltVoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -384,14 +385,14 @@ class _PrebuiltVoiceConfigTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const PrebuiltVoiceConfigType = _PrebuiltVoiceConfigTypeFactory();
+class VoiceConfig {
+  factory VoiceConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class VoiceConfig implements VoiceConfigSchema {
-  VoiceConfig(this._json);
+  VoiceConfig._(this._json);
 
-  factory VoiceConfig.from({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
-    return VoiceConfig({
+  factory VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
+    return VoiceConfig._({
       if (prebuiltVoiceConfig != null)
         'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
     });
@@ -399,11 +400,12 @@ class VoiceConfig implements VoiceConfigSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<VoiceConfig> $schema = _VoiceConfigTypeFactory();
+
   PrebuiltVoiceConfig? get prebuiltVoiceConfig {
     return _json['prebuiltVoiceConfig'] == null
         ? null
-        : PrebuiltVoiceConfig(
+        : PrebuiltVoiceConfig.fromJson(
             _json['prebuiltVoiceConfig'] as Map<String, dynamic>,
           );
   }
@@ -431,7 +433,7 @@ class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
 
   @override
   VoiceConfig parse(Object? json) {
-    return VoiceConfig(json as Map<String, dynamic>);
+    return VoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -445,29 +447,31 @@ class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
       },
       required: [],
     ),
-    dependencies: [PrebuiltVoiceConfigType],
+    dependencies: [PrebuiltVoiceConfig.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const VoiceConfigType = _VoiceConfigTypeFactory();
+class SpeechConfig {
+  factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class SpeechConfig implements SpeechConfigSchema {
-  SpeechConfig(this._json);
+  SpeechConfig._(this._json);
 
-  factory SpeechConfig.from({VoiceConfig? voiceConfig}) {
-    return SpeechConfig({
+  factory SpeechConfig({VoiceConfig? voiceConfig}) {
+    return SpeechConfig._({
       if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
     });
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<SpeechConfig> $schema =
+      _SpeechConfigTypeFactory();
+
   VoiceConfig? get voiceConfig {
     return _json['voiceConfig'] == null
         ? null
-        : VoiceConfig(_json['voiceConfig'] as Map<String, dynamic>);
+        : VoiceConfig.fromJson(_json['voiceConfig'] as Map<String, dynamic>);
   }
 
   set voiceConfig(VoiceConfig? value) {
@@ -493,7 +497,7 @@ class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
 
   @override
   SpeechConfig parse(Object? json) {
-    return SpeechConfig(json as Map<String, dynamic>);
+    return SpeechConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -505,17 +509,17 @@ class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
       },
       required: [],
     ),
-    dependencies: [VoiceConfigType],
+    dependencies: [VoiceConfig.$schema],
   );
 }
 
-// ignore: constant_identifier_names
-const SpeechConfigType = _SpeechConfigTypeFactory();
+class LiveGenerationConfig {
+  factory LiveGenerationConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class LiveGenerationConfig implements LiveGenerationConfigSchema {
-  LiveGenerationConfig(this._json);
+  LiveGenerationConfig._(this._json);
 
-  factory LiveGenerationConfig.from({
+  factory LiveGenerationConfig({
     List<String>? responseModalities,
     SpeechConfig? speechConfig,
     List<String>? stopSequences,
@@ -526,7 +530,7 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     double? presencePenalty,
     double? frequencyPenalty,
   }) {
-    return LiveGenerationConfig({
+    return LiveGenerationConfig._({
       if (responseModalities != null) 'responseModalities': responseModalities,
       if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
       if (stopSequences != null) 'stopSequences': stopSequences,
@@ -541,7 +545,9 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<LiveGenerationConfig> $schema =
+      _LiveGenerationConfigTypeFactory();
+
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -554,11 +560,10 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   SpeechConfig? get speechConfig {
     return _json['speechConfig'] == null
         ? null
-        : SpeechConfig(_json['speechConfig'] as Map<String, dynamic>);
+        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
   }
 
   set speechConfig(SpeechConfig? value) {
@@ -569,7 +574,6 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -582,7 +586,6 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -595,7 +598,6 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -608,7 +610,6 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -621,7 +622,6 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -634,7 +634,6 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -647,7 +646,6 @@ class LiveGenerationConfig implements LiveGenerationConfigSchema {
     }
   }
 
-  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -676,7 +674,7 @@ class _LiveGenerationConfigTypeFactory
 
   @override
   LiveGenerationConfig parse(Object? json) {
-    return LiveGenerationConfig(json as Map<String, dynamic>);
+    return LiveGenerationConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -696,9 +694,6 @@ class _LiveGenerationConfigTypeFactory
       },
       required: [],
     ),
-    dependencies: [SpeechConfigType],
+    dependencies: [SpeechConfig.$schema],
   );
 }
-
-// ignore: constant_identifier_names
-const LiveGenerationConfigType = _LiveGenerationConfigTypeFactory();

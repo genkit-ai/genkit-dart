@@ -31,7 +31,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 part 'main.g.dart';
 
 @Schematic()
-abstract class WeatherToolInputSchema {
+abstract class $WeatherToolInput {
   String get location;
 }
 
@@ -41,7 +41,7 @@ void main() async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the weather for a location',
-    inputType: WeatherToolInputType,
+    inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       return 'The weather in ${input.location} is 75 and sunny.';
     },

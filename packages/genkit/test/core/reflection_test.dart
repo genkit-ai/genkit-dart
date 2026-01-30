@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: avoid_dynamic_calls
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -54,9 +56,9 @@ void main() {
       registry = Registry();
       final testAction = Action(
         actionType: 'test',
-        inputType: stringType(),
-        outputType: stringType(),
-        streamType: stringType(),
+        inputSchema: stringSchema(),
+        outputSchema: stringSchema(),
+        streamSchema: stringSchema(),
         name: 'testAction',
         fn: (input, context) async {
           if (context.streamingRequested) {

@@ -20,17 +20,17 @@ import 'package:schemantic/schemantic.dart';
 part 'shelf_server_example.g.dart';
 
 @Schematic()
-abstract class HelloInputSchema {
+abstract class $HelloInput {
   String get name;
 }
 
 @Schematic()
-abstract class HelloOutputSchema {
+abstract class $HelloOutput {
   String get greeting;
 }
 
 @Schematic()
-abstract class CountChunkSchema {
+abstract class $CountChunk {
   int get count;
 }
 
@@ -61,23 +61,23 @@ void main() async {
   // Define remote actions for the client flow
   final helloAction = defineRemoteAction(
     url: 'http://localhost:3400/hello',
-    outputType: HelloOutputType,
+    outputSchema: HelloOutput.$schema,
   );
 
   final countAction = defineRemoteAction(
     url: 'http://localhost:3400/count',
-    streamType: CountChunkType,
-    outputType: stringType(),
+    streamSchema: CountChunk.$schema,
+    outputSchema: stringSchema(),
   );
 
   // 1. Define a simple unary flow
   final helloFlow = ai.defineFlow(
     name: 'hello',
     fn: (HelloInput input, _) async {
-      return HelloOutput.from(greeting: 'Hello, ${input.name}!');
+      return HelloOutput(greeting: 'Hello, ${input.name}!');
     },
-    inputType: HelloInputType,
-    outputType: HelloOutputType,
+    inputSchema: HelloInput.$schema,
+    outputSchema: HelloOutput.$schema,
   );
 
   // 2. Define a streaming flow
@@ -86,13 +86,13 @@ void main() async {
     fn: (int count, ctx) async {
       for (var i = 1; i <= count; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
-        ctx.sendChunk(CountChunk.from(count: i));
+        ctx.sendChunk(CountChunk(count: i));
       }
       return 'Done counting to $count';
     },
-    inputType: intType(),
-    outputType: stringType(),
-    streamType: CountChunkType,
+    inputSchema: intSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: CountChunk.$schema,
   );
 
   // 3. Define a flow with authentication (context)
@@ -105,8 +105,8 @@ void main() async {
       }
       return 'Secure data for $user: $input';
     },
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
   );
 
   // 4. Define a client flow that acts as a client to call other flows
@@ -119,7 +119,7 @@ void main() async {
       // Call 'hello' flow
       try {
         final helloRes = await helloAction(
-          input: HelloInput.from(name: 'Client'),
+          input: HelloInput(name: 'Client'),
         );
         results.add('Hello Flow: ${helloRes.greeting}');
       } catch (e) {
@@ -142,8 +142,8 @@ void main() async {
 
       return results.join('\n');
     },
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
   );
 
   // 5. Start the flow server

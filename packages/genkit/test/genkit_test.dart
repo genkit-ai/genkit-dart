@@ -22,12 +22,12 @@ import 'package:test/test.dart';
 part 'genkit_test.g.dart';
 
 @Schematic()
-abstract class TestCustomOptionsSchema {
+abstract class $TestCustomOptions {
   String get customField;
 }
 
 @Schematic()
-abstract class TestToolInputSchema {
+abstract class $TestToolInput {
   String get name;
 }
 
@@ -122,12 +122,12 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          final response = ModelResponse.from(
+          final response = ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
               content: [
-                TextPart.from(
+                TextPart(
                   text:
                       'config:${request.config} req:${request.messages.map((m) => m.content.map((c) => c.toJson().toString())).join('\n')}',
                 ),
@@ -139,9 +139,9 @@ void main() {
       );
 
       final result = await genkit.generate(
-        model: modelRef(modelName, customOptions: TestCustomOptionsType),
+        model: modelRef(modelName, customOptions: TestCustomOptions.$schema),
         prompt: prompt,
-        config: TestCustomOptions.from(customField: 'yo'),
+        config: TestCustomOptions(customField: 'yo'),
       );
       expect(result.text, 'config:{customField: yo} req:({text: test prompt})');
     });
@@ -154,12 +154,12 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           if (request.messages.last.role == Role.tool) {
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: FinishReason.stop,
-              message: Message.from(
+              message: Message(
                 role: Role.model,
                 content: [
-                  TextPart.from(
+                  TextPart(
                     text:
                         'Tool output: ${request.messages.last.content.firstWhere((p) => p.isToolResponse).toolResponse!.output}',
                   ),
@@ -167,13 +167,13 @@ void main() {
               ),
             );
           }
-          return ModelResponse.from(
+          return ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
               content: [
-                ToolRequestPart.from(
-                  toolRequest: ToolRequest.from(
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
                     name: toolName,
                     input: {'name': 'world'},
                   ),
@@ -187,7 +187,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'A test tool',
-        inputType: TestToolInputType,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           return 'Hello, ${input.name}!';
         },
@@ -210,13 +210,13 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           final chunks = [
-            ModelResponseChunk.from(
+            ModelResponseChunk(
               index: 0,
-              content: [TextPart.from(text: 'chunk1')],
+              content: [TextPart(text: 'chunk1')],
             ),
-            ModelResponseChunk.from(
+            ModelResponseChunk(
               index: 0,
-              content: [TextPart.from(text: 'chunk2')],
+              content: [TextPart(text: 'chunk2')],
             ),
           ];
 
@@ -224,11 +224,11 @@ void main() {
             context.sendChunk(chunk);
           }
 
-          final response = ModelResponse.from(
+          final response = ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: 'final response')],
+              content: [TextPart(text: 'final response')],
             ),
           );
           return response;
@@ -256,13 +256,13 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           final chunks = [
-            ModelResponseChunk.from(
+            ModelResponseChunk(
               index: 0,
-              content: [TextPart.from(text: 'chunk1')],
+              content: [TextPart(text: 'chunk1')],
             ),
-            ModelResponseChunk.from(
+            ModelResponseChunk(
               index: 0,
-              content: [TextPart.from(text: 'chunk2')],
+              content: [TextPart(text: 'chunk2')],
             ),
           ];
 
@@ -270,11 +270,11 @@ void main() {
             context.sendChunk(chunk);
           }
 
-          final response = ModelResponse.from(
+          final response = ModelResponse(
             finishReason: FinishReason.stop,
-            message: Message.from(
+            message: Message(
               role: Role.model,
-              content: [TextPart.from(text: 'final response')],
+              content: [TextPart(text: 'final response')],
             ),
           );
           return response;

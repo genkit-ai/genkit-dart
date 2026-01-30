@@ -21,16 +21,21 @@ part of 'shelf_handler_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class HandlerInput implements HandlerInputSchema {
-  HandlerInput(this._json);
+class HandlerInput {
+  factory HandlerInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory HandlerInput.from({required String message}) {
-    return HandlerInput({'message': message});
+  HandlerInput._(this._json);
+
+  factory HandlerInput({required String message}) {
+    return HandlerInput._({'message': message});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<HandlerInput> $schema =
+      _HandlerInputTypeFactory();
+
   String get message {
     return _json['message'] as String;
   }
@@ -54,7 +59,7 @@ class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
 
   @override
   HandlerInput parse(Object? json) {
-    return HandlerInput(json as Map<String, dynamic>);
+    return HandlerInput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -68,19 +73,21 @@ class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
   );
 }
 
-// ignore: constant_identifier_names
-const HandlerInputType = _HandlerInputTypeFactory();
+class HandlerOutput {
+  factory HandlerOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class HandlerOutput implements HandlerOutputSchema {
-  HandlerOutput(this._json);
+  HandlerOutput._(this._json);
 
-  factory HandlerOutput.from({required String processedMessage}) {
-    return HandlerOutput({'processedMessage': processedMessage});
+  factory HandlerOutput({required String processedMessage}) {
+    return HandlerOutput._({'processedMessage': processedMessage});
   }
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<HandlerOutput> $schema =
+      _HandlerOutputTypeFactory();
+
   String get processedMessage {
     return _json['processedMessage'] as String;
   }
@@ -104,7 +111,7 @@ class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
 
   @override
   HandlerOutput parse(Object? json) {
-    return HandlerOutput(json as Map<String, dynamic>);
+    return HandlerOutput._(json as Map<String, dynamic>);
   }
 
   @override
@@ -117,6 +124,3 @@ class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const HandlerOutputType = _HandlerOutputTypeFactory();

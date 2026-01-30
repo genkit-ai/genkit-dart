@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: avoid_dynamic_calls
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -247,7 +249,7 @@ void main() {
     test('should create RemoteAction instance', () {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/helper',
-        inputType: stringType(),
+        inputSchema: stringSchema(),
         fromResponse: (data) => data as String,
       );
 
@@ -269,9 +271,9 @@ void main() {
     test('should work with SchemanticType', () async {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/test',
-        inputType: stringType(),
+        inputSchema: stringSchema(),
         httpClient: mockClient,
-        outputType: stringType(),
+        outputSchema: stringSchema(),
       );
 
       when(
@@ -292,9 +294,9 @@ void main() {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/stream',
         httpClient: mockClient,
-        inputType: stringType(),
-        outputType: stringType(),
-        streamType: stringType(),
+        inputSchema: stringSchema(),
+        outputSchema: stringSchema(),
+        streamSchema: stringSchema(),
       );
 
       final expectedChunks = ['chunk1', 'chunk2'];
@@ -324,7 +326,7 @@ void main() {
         () => defineRemoteAction(
           url: 'http://localhost:3400/helper',
           fromResponse: (data) => data as String,
-          outputType: stringType(),
+          outputSchema: stringSchema(),
         ),
         throwsArgumentError,
       );
@@ -334,7 +336,7 @@ void main() {
           url: 'http://localhost:3400/test',
           fromResponse: (d) => d as String,
           fromStreamChunk: (d) => d as String,
-          streamType: stringType(),
+          streamSchema: stringSchema(),
         ),
         throwsArgumentError,
       );

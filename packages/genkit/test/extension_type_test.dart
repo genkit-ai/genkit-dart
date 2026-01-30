@@ -18,59 +18,59 @@ import 'package:test/test.dart';
 part 'extension_type_test.g.dart';
 
 @Schematic()
-abstract class IngredientSchema {
+abstract class $Ingredient {
   String get name;
   String get quantity;
 }
 
 @Schematic()
-abstract class RecipeSchema {
+abstract class $Recipe {
   String get title;
-  List<IngredientSchema> get ingredients;
+  List<$Ingredient> get ingredients;
   int get servings;
 }
 
 @Schematic()
-abstract class AnnotatedRecipeSchema {
+abstract class $AnnotatedRecipe {
   @Field(
     name: 'title_key_in_json',
     description: 'description set in json schema',
   )
   String get title;
-  List<IngredientSchema> get ingredients;
+  List<$Ingredient> get ingredients;
   int get servings;
 }
 
 enum MealType { breakfast, lunch, dinner }
 
 @Schematic()
-abstract class MealPlanSchema {
+abstract class $MealPlan {
   String get day;
   MealType get mealType;
 }
 
 @Schematic()
-abstract class NullableFieldsSchema {
+abstract class $NullableFields {
   String? get optionalString;
   int? get optionalInt;
   List<String>? get optionalList;
-  IngredientSchema? get optionalIngredient;
+  $Ingredient? get optionalIngredient;
 }
 
 @Schematic()
-abstract class ComplexObjectSchema {
+abstract class $ComplexObject {
   String get id;
   DateTime get createdAt;
   double get price;
   Map<String, String> get metadata;
   List<int> get ratings;
-  NullableFieldsSchema? get nestedNullable;
+  $NullableFields? get nestedNullable;
 }
 
 @Schematic()
-abstract class MenuSchema {
-  List<RecipeSchema> get recipes;
-  List<IngredientSchema>? get optionalIngredients;
+abstract class $Menu {
+  List<$Recipe> get recipes;
+  List<$Ingredient>? get optionalIngredients;
 }
 
 void main() {
@@ -85,7 +85,7 @@ void main() {
         "servings": 4,
       };
 
-      final recipe = RecipeType.parse(recipeJson);
+      final recipe = Recipe.$schema.parse(recipeJson);
 
       expect(recipe.title, "Pancakes");
       expect(recipe.servings, 4);
@@ -116,7 +116,7 @@ void main() {
         required: ['title', 'ingredients', 'servings'],
       );
 
-      expect(RecipeType.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(Recipe.$schema.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Generates correct JSON schema for annotated fields', () {
@@ -140,14 +140,14 @@ void main() {
       );
 
       expect(
-        AnnotatedRecipeType.jsonSchema().toJson(),
+        AnnotatedRecipe.$schema.jsonSchema().toJson(),
         expectedSchema.toJson(),
       );
     });
 
     test('Validates annotated schema correctly', () async {
       expect(
-        (await AnnotatedRecipeType.jsonSchema().validate({
+        (await AnnotatedRecipe.$schema.jsonSchema().validate({
           'title_key_in_json': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -158,7 +158,7 @@ void main() {
       );
 
       expect(
-        (await AnnotatedRecipeType.jsonSchema().validate({
+        (await AnnotatedRecipe.$schema.jsonSchema().validate({
           'title_key_in_json': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -168,7 +168,7 @@ void main() {
       );
 
       expect(
-        (await AnnotatedRecipeType.jsonSchema().validate({
+        (await AnnotatedRecipe.$schema.jsonSchema().validate({
           'title': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -190,7 +190,7 @@ void main() {
         required: ['day', 'mealType'],
       );
 
-      expect(MealPlanType.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(MealPlan.$schema.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Generates correct JSON schema for nullable fields', () {
@@ -199,12 +199,15 @@ void main() {
           'optionalString': Schema.string(),
           'optionalInt': Schema.integer(),
           'optionalList': Schema.list(items: Schema.string()),
-          'optionalIngredient': IngredientType.jsonSchema(),
+          'optionalIngredient': Ingredient.$schema.jsonSchema(),
         },
         required: [],
       );
 
-      expect(NullableFieldsType.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(
+        NullableFields.$schema.jsonSchema().toJson(),
+        expectedSchema.toJson(),
+      );
     });
 
     test('Parses and accesses nullable data correctly', () {
@@ -215,7 +218,7 @@ void main() {
         'optionalList': ['a', 'b'],
         'optionalIngredient': {'name': 'Salt', 'quantity': '1 pinch'},
       };
-      final fullData = NullableFieldsType.parse(fullJson);
+      final fullData = NullableFields.$schema.parse(fullJson);
       expect(fullData.optionalString, 'hello');
       expect(fullData.optionalInt, 42);
       expect(fullData.optionalList, ['a', 'b']);
@@ -228,7 +231,7 @@ void main() {
         'optionalList': null,
         'optionalIngredient': null,
       };
-      final emptyData = NullableFieldsType.parse(emptyJson);
+      final emptyData = NullableFields.$schema.parse(emptyJson);
       expect(emptyData.optionalString, isNull);
       expect(emptyData.optionalInt, isNull);
       expect(emptyData.optionalList, isNull);
@@ -253,12 +256,15 @@ void main() {
           'price': Schema.number(),
           'metadata': Schema.object(additionalProperties: Schema.string()),
           'ratings': Schema.list(items: Schema.integer()),
-          'nestedNullable': NullableFieldsType.jsonSchema(),
+          'nestedNullable': NullableFields.$schema.jsonSchema(),
         },
         required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
       );
 
-      expect(ComplexObjectType.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(
+        ComplexObject.$schema.jsonSchema().toJson(),
+        expectedSchema.toJson(),
+      );
     });
 
     test('Parses and accesses complex object data correctly', () {
@@ -272,7 +278,7 @@ void main() {
         'nestedNullable': {'optionalString': 'nested'},
       };
 
-      final complexObject = ComplexObjectType.parse(complexJson);
+      final complexObject = ComplexObject.$schema.parse(complexJson);
 
       expect(complexObject.id, 'xyz-123');
       expect(complexObject.createdAt, now);
@@ -291,7 +297,7 @@ void main() {
         'ratings': [5, 4, 5],
         'nestedNullable': null,
       };
-      final complexObjectWithNull = ComplexObjectType.parse(
+      final complexObjectWithNull = ComplexObject.$schema.parse(
         complexJsonWithNull,
       );
       expect(complexObjectWithNull.nestedNullable, isNull);
@@ -300,7 +306,7 @@ void main() {
     test('Generates correct JSON schema for lists of complex objects', () {
       final expectedSchema = Schema.object(
         properties: {
-          'recipes': Schema.list(items: RecipeType.jsonSchema()),
+          'recipes': Schema.list(items: Recipe.$schema.jsonSchema()),
           'optionalIngredients': Schema.list(
             items: Schema.object(
               properties: {
@@ -314,7 +320,7 @@ void main() {
         required: ['recipes'],
       );
 
-      expect(MenuType.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(Menu.$schema.jsonSchema().toJson(), expectedSchema.toJson());
     });
 
     test('Parses and accesses lists of complex objects correctly', () {
@@ -333,7 +339,7 @@ void main() {
         ],
       };
 
-      final menu = MenuType.parse(menuJson);
+      final menu = Menu.$schema.parse(menuJson);
 
       expect(menu.recipes.length, 1);
       expect(menu.recipes[0].title, "Pancakes");

@@ -26,22 +26,22 @@ import 'src/aggregation.dart';
 part 'genkit_google_genai.g.dart';
 
 @Schematic()
-abstract class GeminiOptionsSchema {
+abstract class $GeminiOptions {
   String? get apiKey;
   // TODO: Add apiVersion, baseUrl
   // String? get apiVersion;
   // String? get baseUrl;
 
-  List<SafetySettingsSchema>? get safetySettings;
+  List<$SafetySettings>? get safetySettings;
 
   bool? get codeExecution;
-  FunctionCallingConfigSchema? get functionCallingConfig;
-  ThinkingConfigSchema? get thinkingConfig;
+  $FunctionCallingConfig? get functionCallingConfig;
+  $ThinkingConfig? get thinkingConfig;
   List<String>? get responseModalities;
 
   // Retrieval
-  GoogleSearchRetrievalSchema? get googleSearchRetrieval;
-  FileSearchSchema? get fileSearch;
+  $GoogleSearchRetrieval? get googleSearchRetrieval;
+  $FileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
 
   @NumberField(minimum: 0.0, maximum: 2.0)
@@ -75,7 +75,7 @@ class GoogleGenAiPluginHandle {
   }
 
   ModelRef<GeminiOptions> gemini(String name) {
-    return modelRef('googleai/$name', customOptions: GeminiOptionsType);
+    return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
   }
 }
 
@@ -100,9 +100,9 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
   Model _createModel(String modelName) {
     return Model(
       name: 'googleai/$modelName',
-      customOptions: GeminiOptionsType,
+      customOptions: GeminiOptions.$schema,
       metadata: {
-        'model': ModelInfo.from(
+        'model': ModelInfo(
           label: modelName,
           supports: {
             'multiturn': true,
@@ -116,8 +116,8 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
       },
       fn: (req, ctx) async {
         final options = req!.config == null
-            ? GeminiOptions.from()
-            : GeminiOptionsType.parse(req.config!);
+            ? GeminiOptions()
+            : GeminiOptions.$schema.parse(req.config!);
 
         final service = gcl.GenerativeService.fromApiKey(
           options.apiKey ?? apiKey,
@@ -169,7 +169,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
                   chunk.candidates.first,
                 );
                 ctx.sendChunk(
-                  ModelResponseChunk.from(index: 0, content: message.content),
+                  ModelResponseChunk(index: 0, content: message.content),
                 );
               }
             }
@@ -177,7 +177,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
             final (message, finishReason) = _fromGeminiCandidate(
               aggregated.candidates.first,
             );
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: finishReason,
               message: message,
               raw: aggregated.toJson() as Map<String, dynamic>,
@@ -187,7 +187,7 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
             final (message, finishReason) = _fromGeminiCandidate(
               response.candidates.first,
             );
-            return ModelResponse.from(
+            return ModelResponse(
               finishReason: finishReason,
               message: message,
               raw: jsonDecode(jsonEncode(response)),
@@ -322,7 +322,7 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
 
 (Message, FinishReason) _fromGeminiCandidate(gcl.Candidate candidate) {
   final finishReason = FinishReason(candidate.finishReason.value.toLowerCase());
-  final message = Message.from(
+  final message = Message(
     role: Role(candidate.content!.role),
     content: candidate.content?.parts.map(_fromGeminiPart).toList() ?? [],
   );
@@ -392,18 +392,18 @@ gcl.Part toGeminiPart(Part p) {
 
 Part _fromGeminiPart(gcl.Part p) {
   if (p.text != null) {
-    return TextPart.from(text: p.text!);
+    return TextPart(text: p.text!);
   }
   if (p.functionCall != null) {
-    return ToolRequestPart.from(
-      toolRequest: ToolRequest.from(
+    return ToolRequestPart(
+      toolRequest: ToolRequest(
         name: p.functionCall!.name,
         input: p.functionCall!.args?.toJson() as Map<String, dynamic>?,
       ),
     );
   }
   if (p.codeExecutionResult != null) {
-    return CustomPart.from(
+    return CustomPart(
       custom: {
         'codeExecutionResult':
             p.codeExecutionResult!.toJson() as Map<String, dynamic>,
@@ -411,7 +411,7 @@ Part _fromGeminiPart(gcl.Part p) {
     );
   }
   if (p.executableCode != null) {
-    return CustomPart.from(
+    return CustomPart(
       custom: {
         'executableCode': p.executableCode!.toJson() as Map<String, dynamic>,
       },
@@ -435,7 +435,7 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
 }
 
 @Schematic()
-abstract class SafetySettingsSchema {
+abstract class $SafetySettings {
   @StringField(
     enumValues: [
       'HARM_CATEGORY_UNSPECIFIED',
@@ -468,26 +468,26 @@ abstract class SafetySettingsSchema {
 }
 
 @Schematic()
-abstract class ThinkingConfigSchema {
+abstract class $ThinkingConfig {
   bool? get includeThoughts;
   int? get thinkingBudget;
 }
 
 @Schematic()
-abstract class FunctionCallingConfigSchema {
+abstract class $FunctionCallingConfig {
   @StringField(enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'])
   String? get mode;
   List<String>? get allowedFunctionNames;
 }
 
 @Schematic()
-abstract class GoogleSearchRetrievalSchema {
+abstract class $GoogleSearchRetrieval {
   @StringField(enumValues: ['MODE_UNSPECIFIED', 'MODE_DYNAMIC'])
   String? get mode;
   double? get dynamicThreshold;
 }
 
 @Schematic()
-abstract class FileSearchSchema {
+abstract class $FileSearch {
   List<String>? get fileSearchStoreNames;
 }

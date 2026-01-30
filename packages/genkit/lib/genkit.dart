@@ -103,23 +103,23 @@ class Genkit {
   Flow<I, O, S, Init> defineFlow<I, O, S, Init>({
     required String name,
     required ActionFn<I, O, S, Init> fn,
-    SchemanticType<I>? inputType,
-    SchemanticType<O>? outputType,
-    SchemanticType<S>? streamType,
-    SchemanticType<Init>? initType,
+    SchemanticType<I>? inputSchema,
+    SchemanticType<O>? outputSchema,
+    SchemanticType<S>? streamSchema,
+    SchemanticType<Init>? initSchema,
   }) {
     final flow = Flow(
       name: name,
       fn: (input, context) {
-        if (input == null && inputType != null && null is! I) {
+        if (input == null && inputSchema != null && null is! I) {
           throw ArgumentError('Flow "$name" requires a non-null input.');
         }
         return fn(input as I, context);
       },
-      inputType: inputType,
-      outputType: outputType,
-      streamType: streamType,
-      initType: initType,
+      inputSchema: inputSchema,
+      outputSchema: outputSchema,
+      streamSchema: streamSchema,
+      initSchema: initSchema,
     );
     registry.register(flow);
     return flow;
@@ -128,10 +128,10 @@ class Genkit {
   Flow<I, O, S, Init> defineBidiFlow<I, O, S, Init>({
     required String name,
     required BidiActionFn<I, O, S, Init> fn,
-    SchemanticType<I>? inputType,
-    SchemanticType<O>? outputType,
-    SchemanticType<S>? streamType,
-    SchemanticType<Init>? initType,
+    SchemanticType<I>? inputSchema,
+    SchemanticType<O>? outputSchema,
+    SchemanticType<S>? streamSchema,
+    SchemanticType<Init>? initSchema,
   }) {
     final flow = Flow(
       name: name,
@@ -141,10 +141,10 @@ class Genkit {
         }
         return fn(context.inputStream!, context);
       },
-      inputType: inputType,
-      outputType: outputType,
-      streamType: streamType,
-      initType: initType,
+      inputSchema: inputSchema,
+      outputSchema: outputSchema,
+      streamSchema: streamSchema,
+      initSchema: initSchema,
     );
     registry.register(flow);
     return flow;
@@ -154,21 +154,21 @@ class Genkit {
     required String name,
     required String description,
     required ActionFn<I, O, S, void> fn,
-    SchemanticType<I>? inputType,
-    SchemanticType<O>? outputType,
-    SchemanticType<S>? streamType,
+    SchemanticType<I>? inputSchema,
+    SchemanticType<O>? outputSchema,
+    SchemanticType<S>? streamSchema,
   }) {
     final tool = Tool(
       name: name,
       description: description,
       fn: (input, context) {
-        if (input == null && inputType != null && null is! I) {
+        if (input == null && inputSchema != null && null is! I) {
           throw ArgumentError('Tool "$name" requires a non-null input.');
         }
         return fn(input as I, context);
       },
-      inputType: inputType,
-      outputType: outputType,
+      inputSchema: inputSchema,
+      outputSchema: outputSchema,
     );
     registry.register(tool);
     return tool;
@@ -260,7 +260,7 @@ class Genkit {
         outputInstructions != null ||
         outputNoInstructions != null ||
         outputContentType != null) {
-      outputConfig = GenerateActionOutputConfig({
+      outputConfig = GenerateActionOutputConfig.fromJson({
         if (outputFormat != null) 'format': outputFormat,
         if (outputSchema != null)
           'jsonSchema': toJsonSchema(type: outputSchema),

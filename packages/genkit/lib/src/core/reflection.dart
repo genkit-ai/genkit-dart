@@ -288,10 +288,10 @@ class ReflectionServer {
         'name': action.name,
         'description': action.metadata['description'],
         'metadata': action.metadata,
-        if (action.inputType != null)
-          'inputSchema': toJsonSchema(type: action.inputType),
-        if (action.outputType != null)
-          'outputSchema': toJsonSchema(type: action.outputType),
+        if (action.inputSchema != null)
+          'inputSchema': toJsonSchema(type: action.inputSchema),
+        if (action.outputSchema != null)
+          'outputSchema': toJsonSchema(type: action.outputSchema),
       };
     }
     request.response
@@ -301,7 +301,7 @@ class ReflectionServer {
   }
 
   Future<void> _handleRunAction(HttpRequest request) async {
-    final body = jsonDecode(await utf8.decodeStream(request));
+    final body = await _jsonDecodeStream(request);
     final key = body['key'] as String;
     final input = body['input'];
     final stream = request.uri.queryParameters['stream'] == 'true';
@@ -433,8 +433,7 @@ class ReflectionServer {
     try {
       final file = File(runtimeFilePath!);
       if (await file.exists()) {
-        final fileContent = await file.readAsString();
-        final data = jsonDecode(fileContent);
+        final data = await _jsonDecodeStream(file.openRead());
         if (data['pid'] == pid) {
           await file.delete();
           print('Runtime file cleaned up: $runtimeFilePath');
@@ -457,3 +456,9 @@ Future<String?> _findProjectRoot() async {
   }
   return null;
 }
+
+Future<Map<String, dynamic>> _jsonDecodeStream(Stream<List<int>> stream) async {
+  return await _jsonStreamDecoder.bind(stream).single as Map<String, dynamic>;
+}
+
+final _jsonStreamDecoder = utf8.decoder.fuse(json.decoder);

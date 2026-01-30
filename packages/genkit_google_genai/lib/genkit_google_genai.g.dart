@@ -21,10 +21,13 @@ part of 'genkit_google_genai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class GeminiOptions implements GeminiOptionsSchema {
-  GeminiOptions(this._json);
+class GeminiOptions {
+  factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory GeminiOptions.from({
+  GeminiOptions._(this._json);
+
+  factory GeminiOptions({
     String? apiKey,
     List<SafetySettings>? safetySettings,
     bool? codeExecution,
@@ -46,7 +49,7 @@ class GeminiOptions implements GeminiOptionsSchema {
     double? frequencyPenalty,
     int? seed,
   }) {
-    return GeminiOptions({
+    return GeminiOptions._({
       if (apiKey != null) 'apiKey': apiKey,
       if (safetySettings != null)
         'safetySettings': safetySettings.map((e) => e.toJson()).toList(),
@@ -75,7 +78,9 @@ class GeminiOptions implements GeminiOptionsSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<GeminiOptions> $schema =
+      _GeminiOptionsTypeFactory();
+
   String? get apiKey {
     return _json['apiKey'] as String?;
   }
@@ -88,10 +93,9 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   List<SafetySettings>? get safetySettings {
     return (_json['safetySettings'] as List?)
-        ?.map((e) => SafetySettings(e as Map<String, dynamic>))
+        ?.map((e) => SafetySettings.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -103,7 +107,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   bool? get codeExecution {
     return _json['codeExecution'] as bool?;
   }
@@ -116,11 +119,10 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   FunctionCallingConfig? get functionCallingConfig {
     return _json['functionCallingConfig'] == null
         ? null
-        : FunctionCallingConfig(
+        : FunctionCallingConfig.fromJson(
             _json['functionCallingConfig'] as Map<String, dynamic>,
           );
   }
@@ -133,11 +135,12 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   ThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
-        : ThinkingConfig(_json['thinkingConfig'] as Map<String, dynamic>);
+        : ThinkingConfig.fromJson(
+            _json['thinkingConfig'] as Map<String, dynamic>,
+          );
   }
 
   set thinkingConfig(ThinkingConfig? value) {
@@ -148,7 +151,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   List<String>? get responseModalities {
     return (_json['responseModalities'] as List?)?.cast<String>();
   }
@@ -161,11 +163,10 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   GoogleSearchRetrieval? get googleSearchRetrieval {
     return _json['googleSearchRetrieval'] == null
         ? null
-        : GoogleSearchRetrieval(
+        : GoogleSearchRetrieval.fromJson(
             _json['googleSearchRetrieval'] as Map<String, dynamic>,
           );
   }
@@ -178,11 +179,10 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   FileSearch? get fileSearch {
     return _json['fileSearch'] == null
         ? null
-        : FileSearch(_json['fileSearch'] as Map<String, dynamic>);
+        : FileSearch.fromJson(_json['fileSearch'] as Map<String, dynamic>);
   }
 
   set fileSearch(FileSearch? value) {
@@ -193,7 +193,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get temperature {
     return _json['temperature'] as double?;
   }
@@ -206,7 +205,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get topP {
     return _json['topP'] as double?;
   }
@@ -219,7 +217,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   int? get topK {
     return _json['topK'] as int?;
   }
@@ -232,7 +229,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   int? get candidateCount {
     return _json['candidateCount'] as int?;
   }
@@ -245,7 +241,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
@@ -258,7 +253,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   int? get maxOutputTokens {
     return _json['maxOutputTokens'] as int?;
   }
@@ -271,7 +265,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   String? get responseMimeType {
     return _json['responseMimeType'] as String?;
   }
@@ -284,7 +277,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   bool? get responseLogprobs {
     return _json['responseLogprobs'] as bool?;
   }
@@ -297,7 +289,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   int? get logprobs {
     return _json['logprobs'] as int?;
   }
@@ -310,7 +301,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get presencePenalty {
     return _json['presencePenalty'] as double?;
   }
@@ -323,7 +313,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   double? get frequencyPenalty {
     return _json['frequencyPenalty'] as double?;
   }
@@ -336,7 +325,6 @@ class GeminiOptions implements GeminiOptionsSchema {
     }
   }
 
-  @override
   int? get seed {
     return _json['seed'] as int?;
   }
@@ -364,7 +352,7 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 
   @override
   GeminiOptions parse(Object? json) {
-    return GeminiOptions(json as Map<String, dynamic>);
+    return GeminiOptions._(json as Map<String, dynamic>);
   }
 
   @override
@@ -402,23 +390,23 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       required: [],
     ),
     dependencies: [
-      SafetySettingsType,
-      FunctionCallingConfigType,
-      ThinkingConfigType,
-      GoogleSearchRetrievalType,
-      FileSearchType,
+      SafetySettings.$schema,
+      FunctionCallingConfig.$schema,
+      ThinkingConfig.$schema,
+      GoogleSearchRetrieval.$schema,
+      FileSearch.$schema,
     ],
   );
 }
 
-// ignore: constant_identifier_names
-const GeminiOptionsType = _GeminiOptionsTypeFactory();
+class SafetySettings {
+  factory SafetySettings.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class SafetySettings implements SafetySettingsSchema {
-  SafetySettings(this._json);
+  SafetySettings._(this._json);
 
-  factory SafetySettings.from({String? category, String? threshold}) {
-    return SafetySettings({
+  factory SafetySettings({String? category, String? threshold}) {
+    return SafetySettings._({
       if (category != null) 'category': category,
       if (threshold != null) 'threshold': threshold,
     });
@@ -426,7 +414,9 @@ class SafetySettings implements SafetySettingsSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<SafetySettings> $schema =
+      _SafetySettingsTypeFactory();
+
   String? get category {
     return _json['category'] as String?;
   }
@@ -439,7 +429,6 @@ class SafetySettings implements SafetySettingsSchema {
     }
   }
 
-  @override
   String? get threshold {
     return _json['threshold'] as String?;
   }
@@ -467,7 +456,7 @@ class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
 
   @override
   SafetySettings parse(Object? json) {
-    return SafetySettings(json as Map<String, dynamic>);
+    return SafetySettings._(json as Map<String, dynamic>);
   }
 
   @override
@@ -508,14 +497,14 @@ class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   );
 }
 
-// ignore: constant_identifier_names
-const SafetySettingsType = _SafetySettingsTypeFactory();
+class ThinkingConfig {
+  factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class ThinkingConfig implements ThinkingConfigSchema {
-  ThinkingConfig(this._json);
+  ThinkingConfig._(this._json);
 
-  factory ThinkingConfig.from({bool? includeThoughts, int? thinkingBudget}) {
-    return ThinkingConfig({
+  factory ThinkingConfig({bool? includeThoughts, int? thinkingBudget}) {
+    return ThinkingConfig._({
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
     });
@@ -523,7 +512,9 @@ class ThinkingConfig implements ThinkingConfigSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<ThinkingConfig> $schema =
+      _ThinkingConfigTypeFactory();
+
   bool? get includeThoughts {
     return _json['includeThoughts'] as bool?;
   }
@@ -536,7 +527,6 @@ class ThinkingConfig implements ThinkingConfigSchema {
     }
   }
 
-  @override
   int? get thinkingBudget {
     return _json['thinkingBudget'] as int?;
   }
@@ -564,7 +554,7 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
 
   @override
   ThinkingConfig parse(Object? json) {
-    return ThinkingConfig(json as Map<String, dynamic>);
+    return ThinkingConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -581,17 +571,17 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   );
 }
 
-// ignore: constant_identifier_names
-const ThinkingConfigType = _ThinkingConfigTypeFactory();
+class FunctionCallingConfig {
+  factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class FunctionCallingConfig implements FunctionCallingConfigSchema {
-  FunctionCallingConfig(this._json);
+  FunctionCallingConfig._(this._json);
 
-  factory FunctionCallingConfig.from({
+  factory FunctionCallingConfig({
     String? mode,
     List<String>? allowedFunctionNames,
   }) {
-    return FunctionCallingConfig({
+    return FunctionCallingConfig._({
       if (mode != null) 'mode': mode,
       if (allowedFunctionNames != null)
         'allowedFunctionNames': allowedFunctionNames,
@@ -600,7 +590,9 @@ class FunctionCallingConfig implements FunctionCallingConfigSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<FunctionCallingConfig> $schema =
+      _FunctionCallingConfigTypeFactory();
+
   String? get mode {
     return _json['mode'] as String?;
   }
@@ -613,7 +605,6 @@ class FunctionCallingConfig implements FunctionCallingConfigSchema {
     }
   }
 
-  @override
   List<String>? get allowedFunctionNames {
     return (_json['allowedFunctionNames'] as List?)?.cast<String>();
   }
@@ -642,7 +633,7 @@ class _FunctionCallingConfigTypeFactory
 
   @override
   FunctionCallingConfig parse(Object? json) {
-    return FunctionCallingConfig(json as Map<String, dynamic>);
+    return FunctionCallingConfig._(json as Map<String, dynamic>);
   }
 
   @override
@@ -661,14 +652,14 @@ class _FunctionCallingConfigTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const FunctionCallingConfigType = _FunctionCallingConfigTypeFactory();
+class GoogleSearchRetrieval {
+  factory GoogleSearchRetrieval.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-class GoogleSearchRetrieval implements GoogleSearchRetrievalSchema {
-  GoogleSearchRetrieval(this._json);
+  GoogleSearchRetrieval._(this._json);
 
-  factory GoogleSearchRetrieval.from({String? mode, double? dynamicThreshold}) {
-    return GoogleSearchRetrieval({
+  factory GoogleSearchRetrieval({String? mode, double? dynamicThreshold}) {
+    return GoogleSearchRetrieval._({
       if (mode != null) 'mode': mode,
       if (dynamicThreshold != null) 'dynamicThreshold': dynamicThreshold,
     });
@@ -676,7 +667,9 @@ class GoogleSearchRetrieval implements GoogleSearchRetrievalSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<GoogleSearchRetrieval> $schema =
+      _GoogleSearchRetrievalTypeFactory();
+
   String? get mode {
     return _json['mode'] as String?;
   }
@@ -689,7 +682,6 @@ class GoogleSearchRetrieval implements GoogleSearchRetrievalSchema {
     }
   }
 
-  @override
   double? get dynamicThreshold {
     return _json['dynamicThreshold'] as double?;
   }
@@ -718,7 +710,7 @@ class _GoogleSearchRetrievalTypeFactory
 
   @override
   GoogleSearchRetrieval parse(Object? json) {
-    return GoogleSearchRetrieval(json as Map<String, dynamic>);
+    return GoogleSearchRetrieval._(json as Map<String, dynamic>);
   }
 
   @override
@@ -735,14 +727,13 @@ class _GoogleSearchRetrievalTypeFactory
   );
 }
 
-// ignore: constant_identifier_names
-const GoogleSearchRetrievalType = _GoogleSearchRetrievalTypeFactory();
+class FileSearch {
+  factory FileSearch.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
-class FileSearch implements FileSearchSchema {
-  FileSearch(this._json);
+  FileSearch._(this._json);
 
-  factory FileSearch.from({List<String>? fileSearchStoreNames}) {
-    return FileSearch({
+  factory FileSearch({List<String>? fileSearchStoreNames}) {
+    return FileSearch._({
       if (fileSearchStoreNames != null)
         'fileSearchStoreNames': fileSearchStoreNames,
     });
@@ -750,7 +741,8 @@ class FileSearch implements FileSearchSchema {
 
   Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
+
   List<String>? get fileSearchStoreNames {
     return (_json['fileSearchStoreNames'] as List?)?.cast<String>();
   }
@@ -778,7 +770,7 @@ class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
 
   @override
   FileSearch parse(Object? json) {
-    return FileSearch(json as Map<String, dynamic>);
+    return FileSearch._(json as Map<String, dynamic>);
   }
 
   @override
@@ -791,6 +783,3 @@ class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const FileSearchType = _FileSearchTypeFactory();

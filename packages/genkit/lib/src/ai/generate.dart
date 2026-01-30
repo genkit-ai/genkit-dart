@@ -35,9 +35,9 @@ defineGenerateAction(Registry registry) {
   return Action(
     actionType: 'util',
     name: 'generate',
-    inputType: GenerateActionOptionsType,
-    outputType: ModelResponseType,
-    streamType: ModelResponseChunkType,
+    inputSchema: GenerateActionOptions.$schema,
+    outputSchema: ModelResponse.$schema,
+    streamSchema: ModelResponseChunk.$schema,
     fn: (options, ctx) async {
       if (options == null) {
         throw Exception('Generate action called with null options');
@@ -49,14 +49,14 @@ defineGenerateAction(Registry registry) {
 }
 
 ToolDefinition toToolDefinition(Tool tool) {
-  return ToolDefinition.from(
+  return ToolDefinition(
     name: tool.name,
     description: tool.description!,
-    inputSchema: tool.inputType?.jsonSchema != null
-        ? toJsonSchema(type: tool.inputType)
+    inputSchema: tool.inputSchema?.jsonSchema != null
+        ? toJsonSchema(type: tool.inputSchema)
         : null,
-    outputSchema: tool.outputType?.jsonSchema != null
-        ? toJsonSchema(type: tool.outputType)
+    outputSchema: tool.outputSchema?.jsonSchema != null
+        ? toJsonSchema(type: tool.outputSchema)
         : null,
   );
 }
@@ -195,14 +195,14 @@ Future<GenerateResponse> runGenerateAction(
     }
   }
 
-  final request = ModelRequest.from(
+  final request = ModelRequest(
     messages: requestOptions.messages,
     config: requestOptions.config,
     tools: toolDefs,
     toolChoice: requestOptions.toolChoice,
     output: requestOptions.output == null
         ? null
-        : OutputConfig.from(
+        : OutputConfig(
             format: requestOptions.output!.format,
             contentType: requestOptions.output!.contentType,
             schema: requestOptions.output!.jsonSchema,
@@ -249,8 +249,8 @@ Future<GenerateResponse> runGenerateAction(
       }
       final output = await tool.runRaw(toolRequest.toolRequest.input);
       toolResponses.add(
-        ToolResponsePart.from(
-          toolResponse: ToolResponse.from(
+        ToolResponsePart(
+          toolResponse: ToolResponse(
             ref: toolRequest.toolRequest.ref,
             name: toolRequest.toolRequest.name,
             output: output.result,
@@ -261,9 +261,9 @@ Future<GenerateResponse> runGenerateAction(
 
     final newMessages = List<Message>.from(currentRequest.messages)
       ..add(response.message!)
-      ..add(Message.from(role: Role.tool, content: toolResponses));
+      ..add(Message(role: Role.tool, content: toolResponses));
 
-    currentRequest = ModelRequest.from(
+    currentRequest = ModelRequest(
       messages: newMessages,
       config: currentRequest.config,
       tools: currentRequest.tools,
@@ -299,9 +299,9 @@ Future<GenerateResponse> generateHelper<C>(
   final resolvedMessages =
       messages ??
       [
-        Message.from(
+        Message(
           role: Role.user,
-          content: [TextPart.from(text: prompt!)],
+          content: [TextPart(text: prompt!)],
         ),
       ];
 
@@ -313,7 +313,7 @@ Future<GenerateResponse> generateHelper<C>(
 
   return await runGenerateAction(
     registry,
-    GenerateActionOptions.from(
+    GenerateActionOptions(
       model: modelName,
       messages: resolvedMessages,
       config: config is Map ? config : (config as dynamic)?.toJson(),
@@ -353,19 +353,19 @@ class GenerateBidiSession {
   void send(dynamic promptOrMessages) {
     if (promptOrMessages is String) {
       _session.send(
-        ModelRequest.from(
+        ModelRequest(
           messages: [
-            Message.from(
+            Message(
               role: Role.user,
-              content: [TextPart.from(text: promptOrMessages)],
+              content: [TextPart(text: promptOrMessages)],
             ),
           ],
         ),
       );
     } else if (promptOrMessages is List<Part>) {
       _session.send(
-        ModelRequest.from(
-          messages: [Message.from(role: Role.user, content: promptOrMessages)],
+        ModelRequest(
+          messages: [Message(role: Role.user, content: promptOrMessages)],
         ),
       );
     } else if (promptOrMessages is ModelRequest) {
@@ -405,12 +405,12 @@ Future<GenerateBidiSession> runGenerateBidi(
     }
   }
 
-  final initRequest = ModelRequest.from(
+  final initRequest = ModelRequest(
     messages: [
       if (system != null)
-        Message.from(
+        Message(
           role: Role.system,
-          content: [TextPart.from(text: system)],
+          content: [TextPart(text: system)],
         ),
     ],
     config: config is Map
@@ -440,7 +440,7 @@ Future<GenerateBidiSession> runGenerateBidi(
 
         final toolRequests = chunk.content
             .where((p) => p.isToolRequest)
-            .map((p) => ToolRequestPart(p.toJson()))
+            .map((p) => ToolRequestPart.fromJson(p.toJson()))
             .toList();
 
         if (toolRequests.isNotEmpty) {
@@ -458,8 +458,8 @@ Future<GenerateBidiSession> runGenerateBidi(
             try {
               final output = await tool.runRaw(toolRequest.toolRequest.input);
               toolResponses.add(
-                ToolResponsePart.from(
-                  toolResponse: ToolResponse.from(
+                ToolResponsePart(
+                  toolResponse: ToolResponse(
                     ref: toolRequest.toolRequest.ref,
                     name: toolRequest.toolRequest.name,
                     output: output.result,
@@ -468,8 +468,8 @@ Future<GenerateBidiSession> runGenerateBidi(
               );
             } catch (e) {
               toolResponses.add(
-                ToolResponsePart.from(
-                  toolResponse: ToolResponse.from(
+                ToolResponsePart(
+                  toolResponse: ToolResponse(
                     ref: toolRequest.toolRequest.ref,
                     name: toolRequest.toolRequest.name,
                     output: 'Error: $e',
@@ -480,8 +480,8 @@ Future<GenerateBidiSession> runGenerateBidi(
           }
           _logger.fine('toolResponses: $toolResponses');
           session.send(
-            ModelRequest.from(
-              messages: [Message.from(role: Role.tool, content: toolResponses)],
+            ModelRequest(
+              messages: [Message(role: Role.tool, content: toolResponses)],
             ),
           );
         }
