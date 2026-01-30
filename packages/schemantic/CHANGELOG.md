@@ -1,13 +1,3 @@
-## 0.0.1-dev.11
-
-> Note: This release has breaking changes.
-
- - **BREAKING**: Rename `NumberField` to `DoubleField` for consistency.
-
-## 0.0.1-dev.10
-
-- Add `anyOf` support.
-- Allow header input for the `build_runner` builder.
 
 ## 0.0.1-dev.9
 
