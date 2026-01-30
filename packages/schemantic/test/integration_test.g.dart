@@ -27,7 +27,7 @@ class User {
   User._(this._json);
 
   User({required String name, int? age, required bool isAdmin}) {
-    _json = {'name': name, if (age != null) 'age': age, 'isAdmin': isAdmin};
+    _json = {'name': name, 'age': ?age, 'isAdmin': isAdmin};
   }
 
   late final Map<String, dynamic> _json;
@@ -262,11 +262,7 @@ class Keyed {
   Keyed._(this._json);
 
   Keyed({required String originalName, int? score, double? rating}) {
-    _json = {
-      'custom_name': originalName,
-      if (score != null) 'score': score,
-      if (rating != null) 'rating': rating,
-    };
+    _json = {'custom_name': originalName, 'score': ?score, 'rating': ?rating};
   }
 
   late final Map<String, dynamic> _json;

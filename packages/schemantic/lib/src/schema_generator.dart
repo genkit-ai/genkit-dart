@@ -276,7 +276,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                         ..body = refer('e').property('toJson').call([]).code,
                     ).closure;
                     valueExpression = refer(paramName!)
-                        .property('map')
+                        .maybeNullSafeProperty(isNullable, 'map')
                         .call([toJsonLambda])
                         .property('toList')
                         .call([]);
@@ -286,7 +286,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 } else if (isExtensionType) {
                   valueExpression = refer(
                     paramName!,
-                  ).property('toJson').call([]);
+                  ).maybeNullSafeProperty(isNullable, 'toJson').call([]);
                 } else {
                   valueExpression = refer(paramName!);
                 }
@@ -294,9 +294,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 final emitter = DartEmitter(useNullSafetySyntax: true);
                 final valueString = valueExpression.accept(emitter);
                 if (isNullable) {
-                  jsonMapEntries.add(
-                    "if ($paramName != null) '$key': $valueString",
-                  );
+                  jsonMapEntries.add("'$key': ?$valueString");
                 } else {
                   jsonMapEntries.add("'$key': $valueString");
                 }
@@ -1205,4 +1203,13 @@ Iterable<InterfaceType> _annotatedInterfaces(ClassElement element) {
 
 extension on String {
   bool get isSchema => startsWith(r'$');
+}
+
+extension on Expression {
+  Expression maybeNullSafeProperty(bool nullable, String name) {
+    if (nullable) {
+      return nullSafeProperty(name);
+    }
+    return property(name);
+  }
 }

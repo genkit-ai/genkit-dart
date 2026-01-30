@@ -50,29 +50,26 @@ class GeminiOptions {
     int? seed,
   }) {
     _json = {
-      if (apiKey != null) 'apiKey': apiKey,
-      if (safetySettings != null)
-        'safetySettings': safetySettings.map((e) => e.toJson()).toList(),
-      if (codeExecution != null) 'codeExecution': codeExecution,
-      if (functionCallingConfig != null)
-        'functionCallingConfig': functionCallingConfig.toJson(),
-      if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
-      if (responseModalities != null) 'responseModalities': responseModalities,
-      if (googleSearchRetrieval != null)
-        'googleSearchRetrieval': googleSearchRetrieval.toJson(),
-      if (fileSearch != null) 'fileSearch': fileSearch.toJson(),
-      if (temperature != null) 'temperature': temperature,
-      if (topP != null) 'topP': topP,
-      if (topK != null) 'topK': topK,
-      if (candidateCount != null) 'candidateCount': candidateCount,
-      if (stopSequences != null) 'stopSequences': stopSequences,
-      if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
-      if (responseMimeType != null) 'responseMimeType': responseMimeType,
-      if (responseLogprobs != null) 'responseLogprobs': responseLogprobs,
-      if (logprobs != null) 'logprobs': logprobs,
-      if (presencePenalty != null) 'presencePenalty': presencePenalty,
-      if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
-      if (seed != null) 'seed': seed,
+      'apiKey': ?apiKey,
+      'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
+      'codeExecution': ?codeExecution,
+      'functionCallingConfig': ?functionCallingConfig?.toJson(),
+      'thinkingConfig': ?thinkingConfig?.toJson(),
+      'responseModalities': ?responseModalities,
+      'googleSearchRetrieval': ?googleSearchRetrieval?.toJson(),
+      'fileSearch': ?fileSearch?.toJson(),
+      'temperature': ?temperature,
+      'topP': ?topP,
+      'topK': ?topK,
+      'candidateCount': ?candidateCount,
+      'stopSequences': ?stopSequences,
+      'maxOutputTokens': ?maxOutputTokens,
+      'responseMimeType': ?responseMimeType,
+      'responseLogprobs': ?responseLogprobs,
+      'logprobs': ?logprobs,
+      'presencePenalty': ?presencePenalty,
+      'frequencyPenalty': ?frequencyPenalty,
+      'seed': ?seed,
     };
   }
 
@@ -406,10 +403,7 @@ class SafetySettings {
   SafetySettings._(this._json);
 
   SafetySettings({String? category, String? threshold}) {
-    _json = {
-      if (category != null) 'category': category,
-      if (threshold != null) 'threshold': threshold,
-    };
+    _json = {'category': ?category, 'threshold': ?threshold};
   }
 
   late final Map<String, dynamic> _json;
@@ -497,8 +491,8 @@ class ThinkingConfig {
 
   ThinkingConfig({bool? includeThoughts, int? thinkingBudget}) {
     _json = {
-      if (includeThoughts != null) 'includeThoughts': includeThoughts,
-      if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
+      'includeThoughts': ?includeThoughts,
+      'thinkingBudget': ?thinkingBudget,
     };
   }
 
@@ -578,11 +572,7 @@ class FunctionCallingConfig {
   FunctionCallingConfig._(this._json);
 
   FunctionCallingConfig({String? mode, List<String>? allowedFunctionNames}) {
-    _json = {
-      if (mode != null) 'mode': mode,
-      if (allowedFunctionNames != null)
-        'allowedFunctionNames': allowedFunctionNames,
-    };
+    _json = {'mode': ?mode, 'allowedFunctionNames': ?allowedFunctionNames};
   }
 
   late final Map<String, dynamic> _json;
@@ -656,10 +646,7 @@ class GoogleSearchRetrieval {
   GoogleSearchRetrieval._(this._json);
 
   GoogleSearchRetrieval({String? mode, double? dynamicThreshold}) {
-    _json = {
-      if (mode != null) 'mode': mode,
-      if (dynamicThreshold != null) 'dynamicThreshold': dynamicThreshold,
-    };
+    _json = {'mode': ?mode, 'dynamicThreshold': ?dynamicThreshold};
   }
 
   late final Map<String, dynamic> _json;
@@ -730,10 +717,7 @@ class FileSearch {
   FileSearch._(this._json);
 
   FileSearch({List<String>? fileSearchStoreNames}) {
-    _json = {
-      if (fileSearchStoreNames != null)
-        'fileSearchStoreNames': fileSearchStoreNames,
-    };
+    _json = {'fileSearchStoreNames': ?fileSearchStoreNames};
   }
 
   late final Map<String, dynamic> _json;
@@ -811,30 +795,27 @@ class GeminiTtsOptions {
     SpeechConfig? speechConfig,
   }) {
     _json = {
-      if (apiKey != null) 'apiKey': apiKey,
-      if (safetySettings != null)
-        'safetySettings': safetySettings.map((e) => e.toJson()).toList(),
-      if (codeExecution != null) 'codeExecution': codeExecution,
-      if (functionCallingConfig != null)
-        'functionCallingConfig': functionCallingConfig.toJson(),
-      if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
-      if (responseModalities != null) 'responseModalities': responseModalities,
-      if (googleSearchRetrieval != null)
-        'googleSearchRetrieval': googleSearchRetrieval.toJson(),
-      if (fileSearch != null) 'fileSearch': fileSearch.toJson(),
-      if (temperature != null) 'temperature': temperature,
-      if (topP != null) 'topP': topP,
-      if (topK != null) 'topK': topK,
-      if (candidateCount != null) 'candidateCount': candidateCount,
-      if (stopSequences != null) 'stopSequences': stopSequences,
-      if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
-      if (responseMimeType != null) 'responseMimeType': responseMimeType,
-      if (responseLogprobs != null) 'responseLogprobs': responseLogprobs,
-      if (logprobs != null) 'logprobs': logprobs,
-      if (presencePenalty != null) 'presencePenalty': presencePenalty,
-      if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
-      if (seed != null) 'seed': seed,
-      if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
+      'apiKey': ?apiKey,
+      'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
+      'codeExecution': ?codeExecution,
+      'functionCallingConfig': ?functionCallingConfig?.toJson(),
+      'thinkingConfig': ?thinkingConfig?.toJson(),
+      'responseModalities': ?responseModalities,
+      'googleSearchRetrieval': ?googleSearchRetrieval?.toJson(),
+      'fileSearch': ?fileSearch?.toJson(),
+      'temperature': ?temperature,
+      'topP': ?topP,
+      'topK': ?topK,
+      'candidateCount': ?candidateCount,
+      'stopSequences': ?stopSequences,
+      'maxOutputTokens': ?maxOutputTokens,
+      'responseMimeType': ?responseMimeType,
+      'responseLogprobs': ?responseLogprobs,
+      'logprobs': ?logprobs,
+      'presencePenalty': ?presencePenalty,
+      'frequencyPenalty': ?frequencyPenalty,
+      'seed': ?seed,
+      'speechConfig': ?speechConfig?.toJson(),
     };
   }
 
@@ -1188,9 +1169,8 @@ class SpeechConfig {
     MultiSpeakerVoiceConfig? multiSpeakerVoiceConfig,
   }) {
     _json = {
-      if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
-      if (multiSpeakerVoiceConfig != null)
-        'multiSpeakerVoiceConfig': multiSpeakerVoiceConfig.toJson(),
+      'voiceConfig': ?voiceConfig?.toJson(),
+      'multiSpeakerVoiceConfig': ?multiSpeakerVoiceConfig?.toJson(),
     };
   }
 
@@ -1407,10 +1387,7 @@ class VoiceConfig {
   VoiceConfig._(this._json);
 
   VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
-    _json = {
-      if (prebuiltVoiceConfig != null)
-        'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
-    };
+    _json = {'prebuiltVoiceConfig': ?prebuiltVoiceConfig?.toJson()};
   }
 
   late final Map<String, dynamic> _json;
@@ -1474,7 +1451,7 @@ class PrebuiltVoiceConfig {
   PrebuiltVoiceConfig._(this._json);
 
   PrebuiltVoiceConfig({String? voiceName}) {
-    _json = {if (voiceName != null) 'voiceName': voiceName};
+    _json = {'voiceName': ?voiceName};
   }
 
   late final Map<String, dynamic> _json;
