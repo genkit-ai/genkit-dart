@@ -79,149 +79,175 @@ class TestMiddleware extends GenerateMiddleware {
 }
 
 class InterceptorMiddleware extends GenerateMiddleware {
-    @override
-    Future<ModelResponse> model(
-        ModelRequest request,
-        ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
-        Future<ModelResponse> Function(
-                ModelRequest request,
-                ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx)
-            next) async {
-         // Modify request
-        final content = request.messages.last.content.first;
-        if (!content.isText) {
-             throw Exception('Content is not text');
-        }
-        final text = content.text;
-        final newRequest = ModelRequest(messages: [
-            Message(role: Role.user, content: [TextPart(text: 'intercepted: $text')])
-        ],
-        config: request.config,
-        tools: request.tools,
-        toolChoice: request.toolChoice,
-        output: request.output,
-        );
-        return await next(newRequest, ctx);
+  @override
+  Future<ModelResponse> model(
+    ModelRequest request,
+    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    Future<ModelResponse> Function(
+      ModelRequest request,
+      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    )
+    next,
+  ) async {
+    // Modify request
+    final content = request.messages.last.content.first;
+    if (!content.isText) {
+      throw Exception('Content is not text');
     }
+    final text = content.text;
+    final newRequest = ModelRequest(
+      messages: [
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'intercepted: $text')],
+        ),
+      ],
+      config: request.config,
+      tools: request.tools,
+      toolChoice: request.toolChoice,
+      output: request.output,
+    );
+    return await next(newRequest, ctx);
+  }
 }
 
 void main() {
-    group('Generate Middleware', () {
-        late Genkit genkit;
+  group('Generate Middleware', () {
+    late Genkit genkit;
 
-        setUp(() {
-            genkit = Genkit(isDevEnv: false);
-        });
-
-        tearDown(() async {
-            await genkit.shutdown();
-        });
-
-        test('should execute middleware in order', () async {
-            final log = <String>[];
-            final mw1 = TestMiddleware(log, 'mw1');
-            final mw2 = TestMiddleware(log, 'mw2');
-
-            genkit.defineModel(name: 'test-model', fn: (req, ctx) async {
-                log.add('model:exec');
-                 if (req.messages.any((m) => m.role == Role.tool)) {
-                     // After tool execution
-                     return ModelResponse(
-                        finishReason: FinishReason.stop,
-                        message: Message(role: Role.model, content: [TextPart(text: 'Final Answer')]),
-                    );
-                 }
-                 // Request tool
-                 return ModelResponse(
-                     finishReason: FinishReason.stop,
-                     message: Message(
-                         role: Role.model,
-                         content: [
-                             ToolRequestPart(toolRequest: ToolRequest(name: 'test-tool', input: {'name': 'foo'}))
-                         ]
-                     )
-                 );
-            });
-
-            genkit.defineTool(
-                name: 'test-tool',
-                description: 'Test Tool',
-                inputSchema: TestToolInput.$schema,
-                fn: (input, ctx) async {
-                    log.add('tool:exec');
-                    return 'bar';
-                }
-            );
-
-            await genkit.generate(
-                model: modelRef('test-model'),
-                prompt: 'hello',
-                tools: ['test-tool'],
-                use: [mw1, mw2],
-            );
-
-            // Verify log order
-            // mw1 start -> mw2 start -> model start -> model end -> tool start -> tool end -> model start -> model end -> mw2 end -> mw1 end
-            // Wait, models are called multiple times in a loop.
-            // 1. generate start mw1
-            // 2. generate start mw2
-            // 3. model start mw1
-            // 4. model start mw2
-            // 5. model:exec (returns tool request)
-            // 6. model end mw2
-            // 7. model end mw1
-            // 8. tool start mw1
-            // 9. tool start mw2
-            // 10. tool:exec
-            // 11. tool end mw2
-            // 12. tool end mw1
-            // 13. model start mw1
-            // 14. model start mw2
-            // 15. model:exec (returns final answer)
-            // 16. model end mw2
-            // 17. model end mw1
-            // 18. generate end mw2
-            // 19. generate end mw1
-
-            expect(log, containsAllInOrder([
-                'mw1:generate:start',
-                'mw2:generate:start',
-                'mw1:model:start',
-                'mw2:model:start',
-                'model:exec',
-                'mw2:model:end',
-                'mw1:model:end',
-                'mw1:tool:test-tool:start',
-                'mw2:tool:test-tool:start',
-                'tool:exec',
-                'mw2:tool:test-tool:end',
-                'mw1:tool:test-tool:end',
-                'mw1:model:start',
-                'mw2:model:start',
-                'model:exec',
-                'mw2:model:end',
-                'mw1:model:end',
-                'mw2:generate:end',
-                'mw1:generate:end',
-            ]));
-        });
-        
-         test('should intercept model request', () async {
-            genkit.defineModel(name: 'echo-model', fn: (req, ctx) async {
-                final text = req.messages.last.content.first.text!;
-                return ModelResponse(
-                    finishReason: FinishReason.stop,
-                    message: Message(role: Role.model, content: [TextPart(text: 'echo: $text')])
-                );
-            });
-
-            final result = await genkit.generate(
-                model: modelRef('echo-model'),
-                prompt: 'original',
-                use: [InterceptorMiddleware()],
-            );
-
-            expect(result.text, 'echo: intercepted: original');
-        });
+    setUp(() {
+      genkit = Genkit(isDevEnv: false);
     });
+
+    tearDown(() async {
+      await genkit.shutdown();
+    });
+
+    test('should execute middleware in order', () async {
+      final log = <String>[];
+      final mw1 = TestMiddleware(log, 'mw1');
+      final mw2 = TestMiddleware(log, 'mw2');
+
+      genkit.defineModel(
+        name: 'test-model',
+        fn: (req, ctx) async {
+          log.add('model:exec');
+          if (req.messages.any((m) => m.role == Role.tool)) {
+            // After tool execution
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Final Answer')],
+              ),
+            );
+          }
+          // Request tool
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'test-tool',
+                    input: {'name': 'foo'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'test-tool',
+        description: 'Test Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, ctx) async {
+          log.add('tool:exec');
+          return 'bar';
+        },
+      );
+
+      await genkit.generate(
+        model: modelRef('test-model'),
+        prompt: 'hello',
+        tools: ['test-tool'],
+        use: [mw1, mw2],
+      );
+
+      // Verify log order
+      // mw1 start -> mw2 start -> model start -> model end -> tool start -> tool end -> model start -> model end -> mw2 end -> mw1 end
+      // Wait, models are called multiple times in a loop.
+      // 1. generate start mw1
+      // 2. generate start mw2
+      // 3. model start mw1
+      // 4. model start mw2
+      // 5. model:exec (returns tool request)
+      // 6. model end mw2
+      // 7. model end mw1
+      // 8. tool start mw1
+      // 9. tool start mw2
+      // 10. tool:exec
+      // 11. tool end mw2
+      // 12. tool end mw1
+      // 13. model start mw1
+      // 14. model start mw2
+      // 15. model:exec (returns final answer)
+      // 16. model end mw2
+      // 17. model end mw1
+      // 18. generate end mw2
+      // 19. generate end mw1
+
+      expect(
+        log,
+        containsAllInOrder([
+          'mw1:generate:start',
+          'mw2:generate:start',
+          'mw1:model:start',
+          'mw2:model:start',
+          'model:exec',
+          'mw2:model:end',
+          'mw1:model:end',
+          'mw1:tool:test-tool:start',
+          'mw2:tool:test-tool:start',
+          'tool:exec',
+          'mw2:tool:test-tool:end',
+          'mw1:tool:test-tool:end',
+          'mw1:model:start',
+          'mw2:model:start',
+          'model:exec',
+          'mw2:model:end',
+          'mw1:model:end',
+          'mw2:generate:end',
+          'mw1:generate:end',
+        ]),
+      );
+    });
+
+    test('should intercept model request', () async {
+      genkit.defineModel(
+        name: 'echo-model',
+        fn: (req, ctx) async {
+          final text = req.messages.last.content.first.text!;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'echo: $text')],
+            ),
+          );
+        },
+      );
+
+      final result = await genkit.generate(
+        model: modelRef('echo-model'),
+        prompt: 'original',
+        use: [InterceptorMiddleware()],
+      );
+
+      expect(result.text, 'echo: intercepted: original');
+    });
+  });
 }

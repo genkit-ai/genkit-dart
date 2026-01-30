@@ -219,7 +219,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 throwOnUnresolved: false,
               );
 
-                if (anyOfAnnotation != null) {
+              if (anyOfAnnotation != null) {
                 // Handle AnyOf parameter using Helper Class
                 final helperClassName = baseName + _capitalize(paramName!);
                 final isNullable = getter.returnType.isNullable;
@@ -457,8 +457,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
     if (returnType.isNullable) {
       if (returnType.isDartCoreDouble) {
-        getterBody =
-            "return (_json['$jsonFieldName'] as num?)?.toDouble();";
+        getterBody = "return (_json['$jsonFieldName'] as num?)?.toDouble();";
       } else {
         getterBody = "return _json['$jsonFieldName'] as $typeName;";
       }

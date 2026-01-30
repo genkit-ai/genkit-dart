@@ -102,9 +102,10 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   Map<String, dynamic>? context,
 }) {
   final streamController = StreamController<GenerateResponseChunk>();
-  final actionStream = ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-    streamController.stream,
-  );
+  final actionStream =
+      ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
+        streamController.stream,
+      );
 
   generate(
         prompt: prompt,

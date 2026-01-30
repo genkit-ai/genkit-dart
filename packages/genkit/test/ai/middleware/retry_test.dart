@@ -36,10 +36,13 @@ void main() {
         noJitter: true,
       );
 
-      genkit.defineModel(name: 'fail-model', fn: (req, ctx) async {
-        attempts++;
-        throw GenkitException('Simulated Failure', statusCode: 503);
-      });
+      genkit.defineModel(
+        name: 'fail-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('Simulated Failure', statusCode: 503);
+        },
+      );
 
       try {
         await genkit.generate(
@@ -64,16 +67,22 @@ void main() {
         noJitter: true,
       );
 
-      genkit.defineModel(name: 'flakey-model', fn: (req, ctx) async {
-        attempts++;
-        if (attempts < 3) {
-          throw GenkitException('Simulated Failure', statusCode: 503);
-        }
-        return ModelResponse(
-          finishReason: FinishReason.stop,
-          message: Message(role: Role.model, content: [TextPart(text: 'Success')]),
-        );
-      });
+      genkit.defineModel(
+        name: 'flakey-model',
+        fn: (req, ctx) async {
+          attempts++;
+          if (attempts < 3) {
+            throw GenkitException('Simulated Failure', statusCode: 503);
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'Success')],
+            ),
+          );
+        },
+      );
 
       final result = await genkit.generate(
         model: modelRef('flakey-model'),
@@ -95,10 +104,16 @@ void main() {
         statuses: [StatusName.UNAVAILABLE], // Only retry UNAVAILABLE
       );
 
-      genkit.defineModel(name: 'fatal-model', fn: (req, ctx) async {
-        attempts++;
-        throw GenkitException('Fatal Error', statusCode: 400); // INVALID_ARGUMENT
-      });
+      genkit.defineModel(
+        name: 'fatal-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException(
+            'Fatal Error',
+            statusCode: 400,
+          ); // INVALID_ARGUMENT
+        },
+      );
 
       try {
         await genkit.generate(
@@ -127,9 +142,12 @@ void main() {
         },
       );
 
-      genkit.defineModel(name: 'callback-model', fn: (req, ctx) async {
-        throw GenkitException('Fail', statusCode: 503);
-      });
+      genkit.defineModel(
+        name: 'callback-model',
+        fn: (req, ctx) async {
+          throw GenkitException('Fail', statusCode: 503);
+        },
+      );
 
       try {
         await genkit.generate(
@@ -153,14 +171,17 @@ void main() {
         noJitter: true,
         onError: (e, attempt) {
           // Verify we stop after 2 attempts (1 retry)
-          return attempt < 2; 
+          return attempt < 2;
         },
       );
 
-      genkit.defineModel(name: 'cancel-model', fn: (req, ctx) async {
-        attempts++;
-        throw GenkitException('Fail', statusCode: 503);
-      });
+      genkit.defineModel(
+        name: 'cancel-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('Fail', statusCode: 503);
+        },
+      );
 
       try {
         await genkit.generate(
@@ -172,7 +193,7 @@ void main() {
         // Expected
       }
 
-      // Initial (1) + Retry 1 (returns true) + Retry 2 (returns false, stops before delay/call) 
+      // Initial (1) + Retry 1 (returns true) + Retry 2 (returns false, stops before delay/call)
       // Wait, if stops, it rethrows.
       // 1. Call model (attempt 1). Fails.
       // 2. Catch. attempt=0. Max retries ok. Status ok. attempt++ (now 1).
@@ -182,7 +203,7 @@ void main() {
       // 6. Catch. attempt=1. Max retries ok. Status ok. attempt++ (now 2).
       // 7. onError(2). Returns false.
       // 8. Rethrow.
-      // 
+      //
       // So model was called 2 times.
       expect(attempts, 2);
     });
@@ -195,10 +216,13 @@ void main() {
         retryModel: false,
       );
 
-      genkit.defineModel(name: 'fail-model-disabled', fn: (req, ctx) async {
-        attempts++;
-        throw GenkitException('Simulated Failure', statusCode: 503);
-      });
+      genkit.defineModel(
+        name: 'fail-model-disabled',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('Simulated Failure', statusCode: 503);
+        },
+      );
 
       try {
         await genkit.generate(
@@ -222,29 +246,45 @@ void main() {
         noJitter: true,
         retryTools: true,
       );
-      
-      genkit.defineModel(name: 'tool-caller', fn: (req, ctx) async {
-         if (req.messages.any((m) => m.role == Role.tool)) {
-             return ModelResponse(
-                finishReason: FinishReason.stop,
-                message: Message(role: Role.model, content: [TextPart(text: 'Final Answer')]),
-            );
-         }
-         return ModelResponse(
-             finishReason: FinishReason.stop,
-             message: Message(
-                 role: Role.model,
-                 content: [
-                     ToolRequestPart(toolRequest: ToolRequest(name: 'fail-tool', input: {'name': 'foo'}))
-                 ]
-             )
-         );
-      });
 
-      genkit.defineTool(name: 'fail-tool', description: 'desc', inputSchema: null, fn: (input, ctx) async {
+      genkit.defineModel(
+        name: 'tool-caller',
+        fn: (req, ctx) async {
+          if (req.messages.any((m) => m.role == Role.tool)) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Final Answer')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'fail-tool',
+                    input: {'name': 'foo'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'fail-tool',
+        description: 'desc',
+        inputSchema: null,
+        fn: (input, ctx) async {
           attempts++;
           throw GenkitException('Tool Failure', statusCode: 503);
-      });
+        },
+      );
 
       try {
         await genkit.generate(
@@ -269,10 +309,16 @@ void main() {
         statuses: [], // Empty list should trigger defaults
       );
 
-      genkit.defineModel(name: 'default-status-model', fn: (req, ctx) async {
-        attempts++;
-        throw GenkitException('Simulated Failure', statusCode: 503); // UNAVAILABLE (in default list)
-      });
+      genkit.defineModel(
+        name: 'default-status-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException(
+            'Simulated Failure',
+            statusCode: 503,
+          ); // UNAVAILABLE (in default list)
+        },
+      );
 
       try {
         await genkit.generate(
