@@ -70,8 +70,8 @@ class StringField extends Field {
     this.pattern,
     this.format,
     this.enumValues,
-    super.defaultValue,
-  });
+    String? defaultValue,
+  }) : super(defaultValue: defaultValue);
 }
 
 /// Annotation for Integer fields with specific schema constraints.
@@ -90,8 +90,8 @@ class IntegerField extends Field {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
-    super.defaultValue,
-  });
+    int? defaultValue,
+  }) : super(defaultValue: defaultValue);
 }
 
 /// Annotation for Number (double) fields with specific schema constraints.
@@ -110,8 +110,8 @@ class NumberField extends Field {
     this.exclusiveMinimum,
     this.exclusiveMaximum,
     this.multipleOf,
-    super.defaultValue,
-  });
+    num? defaultValue,
+  }) : super(defaultValue: defaultValue);
 }
 
 /// Metadata associated with a [SchemanticType], primarily used for schema generation.

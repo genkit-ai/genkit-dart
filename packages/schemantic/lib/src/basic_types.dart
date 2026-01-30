@@ -30,7 +30,7 @@ SchemanticType<String> stringSchema({
   String? pattern,
   String? format,
   List<String>? enumValues,
-  Object? defaultValue,
+  String? defaultValue,
 }) {
   return _StringSchemaFactory(
     description: description,
@@ -50,9 +50,9 @@ class _StringSchemaFactory extends SchemanticType<String> {
   final String? pattern;
   final String? format;
   final List<String>? enumValues;
-  final Object? defaultValue;
+  final String? defaultValue;
 
-  const _StringSchemaFactory({
+const _StringSchemaFactory({
     this.description,
     this.minLength,
     this.maxLength,
@@ -94,7 +94,7 @@ SchemanticType<int> intSchema({
   int? exclusiveMinimum,
   int? exclusiveMaximum,
   int? multipleOf,
-  Object? defaultValue,
+  int? defaultValue,
 }) {
   return _IntSchemaFactory(
     description: description,
@@ -114,7 +114,7 @@ class _IntSchemaFactory extends SchemanticType<int> {
   final int? exclusiveMinimum;
   final int? exclusiveMaximum;
   final int? multipleOf;
-  final Object? defaultValue;
+  final int? defaultValue;
 
   const _IntSchemaFactory({
     this.description,
@@ -158,7 +158,7 @@ SchemanticType<double> doubleSchema({
   double? exclusiveMinimum,
   double? exclusiveMaximum,
   double? multipleOf,
-  Object? defaultValue,
+  double? defaultValue,
 }) {
   return _DoubleSchemaFactory(
     description: description,
@@ -178,7 +178,7 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
   final double? exclusiveMinimum;
   final double? exclusiveMaximum;
   final double? multipleOf;
-  final Object? defaultValue;
+  final double? defaultValue;
 
   const _DoubleSchemaFactory({
     this.description,
@@ -219,7 +219,7 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
 /// ```
 SchemanticType<bool> boolSchema({
   String? description,
-  Object? defaultValue,
+  bool? defaultValue,
 }) {
   return _BoolSchemaFactory(
     description: description,
@@ -229,7 +229,7 @@ SchemanticType<bool> boolSchema({
 
 class _BoolSchemaFactory extends SchemanticType<bool> {
   final String? description;
-  final Object? defaultValue;
+  final bool? defaultValue;
 
   const _BoolSchemaFactory({this.description, this.defaultValue});
 
