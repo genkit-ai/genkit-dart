@@ -24,6 +24,7 @@ import '../schema.dart';
 import '../schema_extensions.dart';
 import '../types.dart';
 import 'formatters/formatters.dart';
+import 'generate_middleware.dart';
 import 'model.dart';
 import 'tool.dart';
 
@@ -159,11 +160,12 @@ class GenerateResponseHelper<O> extends GenerateResponse {
   ModelResponse get rawResponse => _response;
 }
 
-Future<GenerateResponseHelper> runGenerateAction(
-  Registry registry,
-  GenerateActionOptions options,
-  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-) async {
+Future<GenerateResponseHelper> _runGenerateLoop(
+    Registry registry,
+    GenerateActionOptions options,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
+    List<GenerateMiddleware>? middlewares,
+  }) async {
   if (options.model == null) {
     throw GenkitException('Model must be provided', statusCode: 400);
   }
@@ -195,32 +197,57 @@ Future<GenerateResponseHelper> runGenerateAction(
     output: requestOptions.output == null
         ? null
         : OutputConfig(
-            format: requestOptions.output!.format,
-            contentType: requestOptions.output!.contentType,
-            schema: requestOptions.output!.jsonSchema,
-            constrained: requestOptions.output!.constrained,
-          ),
+          format: requestOptions.output!.format,
+          contentType: requestOptions.output!.contentType,
+          schema: requestOptions.output!.jsonSchema,
+          constrained: requestOptions.output!.constrained,
+        ),
   );
   var currentRequest = request;
   var turns = 0;
+
+  // Prepare model middleware chain
+  Future<ModelResponse> coreModel(
+    ModelRequest req,
+    ActionFnArg<ModelResponseChunk, ModelRequest, void> c,
+  ) {
+    return model(
+      req,
+      onChunk: c.streamingRequested ? c.sendChunk : null,
+      context: c.context,
+    );
+  }
+
+  final composedModel = middlewares?.reversed.fold(
+    coreModel,
+    (next, mw) => (r, c) => mw.model(r, c, next),
+  ) ?? coreModel;
+
   while (turns < (requestOptions.maxTurns ?? 5)) {
-    var response = await model(
+    // Execute model with middleware
+    var response = await composedModel(
       currentRequest,
-      onChunk: ctx.streamingRequested ? ctx.sendChunk : null,
+      (
+        streamingRequested: ctx.streamingRequested,
+        sendChunk: ctx.sendChunk,
+        context: ctx.context,
+        inputStream: null,
+        init: null,
+      ),
     );
 
-    final parser = format
-        ?.handler(requestOptions.output?.jsonSchema)
-        .parseMessage;
+    final parser =
+        format?.handler(requestOptions.output?.jsonSchema).parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
       return GenerateResponseHelper(response, output: null);
     }
 
-    final toolRequests = response.message?.content
-        .map((c) => c.toolRequestPart)
-        .nonNulls
-        .toList();
+    final toolRequests =
+        response.message?.content
+            .map((c) => c.toolRequestPart)
+            .nonNulls
+            .toList();
     if (toolRequests == null || toolRequests.isEmpty) {
       return GenerateResponseHelper(
         response,
@@ -239,21 +266,45 @@ Future<GenerateResponseHelper> runGenerateAction(
           statusCode: 404,
         );
       }
-      final output = await tool.runRaw(toolRequest.toolRequest.input);
-      toolResponses.add(
-        ToolResponsePart(
-          toolResponse: ToolResponse(
-            ref: toolRequest.toolRequest.ref,
-            name: toolRequest.toolRequest.name,
-            output: output.result,
-          ),
+
+      // Prepare tool middleware chain
+      Future<ToolResponse> coreTool(
+        ToolRequest req,
+        ActionFnArg<void, dynamic, void> c,
+      ) async {
+        final out = await tool.runRaw(req.input, context: c.context);
+        return ToolResponse(
+          ref: req.ref,
+          name: req.name,
+          output: out.result,
+        );
+      }
+
+      final composedTool = middlewares?.reversed.fold(
+        coreTool,
+        (next, mw) => (r, c) => mw.tool(r, c, next),
+      ) ?? coreTool;
+
+      // Execute tool with middleware
+      final toolResponse = await composedTool(
+        toolRequest.toolRequest,
+        (
+          streamingRequested: false,
+          sendChunk: (_) {},
+          context: ctx.context,
+          inputStream: null,
+          init: null,
         ),
+      );
+      toolResponses.add(
+        ToolResponsePart(toolResponse: toolResponse),
       );
     }
 
-    final newMessages = List<Message>.from(currentRequest.messages)
-      ..add(response.message!)
-      ..add(Message(role: Role.tool, content: toolResponses));
+    final newMessages =
+        List<Message>.from(currentRequest.messages)
+          ..add(response.message!)
+          ..add(Message(role: Role.tool, content: toolResponses));
 
     currentRequest = ModelRequest(
       messages: newMessages,
@@ -270,6 +321,27 @@ Future<GenerateResponseHelper> runGenerateAction(
   );
 }
 
+Future<GenerateResponseHelper> runGenerateAction(
+  Registry registry,
+  GenerateActionOptions options,
+  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
+  List<GenerateMiddleware>? middlewares,
+}) async {
+  Future<GenerateResponseHelper> coreGenerate(
+    GenerateActionOptions opts,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
+  ) {
+    return _runGenerateLoop(registry, opts, c, middlewares: middlewares);
+  }
+
+  final composedGenerate = middlewares?.reversed.fold(
+    coreGenerate,
+    (next, mw) => (o, c) => mw.generate(o, c, next),
+  ) ?? coreGenerate;
+
+  return composedGenerate(options, ctx);
+}
+
 Future<GenerateResponseHelper> generateHelper<C>(
   Registry registry, {
   String? prompt,
@@ -283,6 +355,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
   GenerateActionOutputConfig? output,
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
+  List<GenerateMiddleware>? middlewares,
 }) async {
   if (messages == null && prompt == null) {
     throw ArgumentError('prompt or messages must be provided');
@@ -332,6 +405,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
       inputStream: null,
       init: null,
     ),
+    middlewares: middlewares,
   );
 }
 
