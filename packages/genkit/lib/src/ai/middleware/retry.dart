@@ -57,6 +57,8 @@ class RetryMiddleware extends GenerateMiddleware {
   final double backoffFactor;
   final bool noJitter;
   final bool Function(Object error, int attempt)? onError;
+  final bool retryModel;
+  final bool retryTools;
 
   RetryMiddleware({
     this.maxRetries = 3,
@@ -72,9 +74,9 @@ class RetryMiddleware extends GenerateMiddleware {
     this.backoffFactor = 2.0,
     this.noJitter = false,
     this.onError,
+    this.retryModel = true,
+    this.retryTools = false,
   });
-
-
 
   @override
   Future<ModelResponse> model(
@@ -86,6 +88,9 @@ class RetryMiddleware extends GenerateMiddleware {
     )
     next,
   ) {
+    if (!retryModel) {
+      return next(request, ctx);
+    }
     return _retry(() => next(request, ctx));
   }
 
@@ -99,6 +104,9 @@ class RetryMiddleware extends GenerateMiddleware {
     )
     next,
   ) {
+    if (!retryTools) {
+      return next(request, ctx);
+    }
     return _retry(() => next(request, ctx));
   }
 
