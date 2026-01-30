@@ -86,8 +86,7 @@ class Category {
   Category({required String name, List<Category>? subcategories}) {
     _json = {
       'name': name,
-      if (subcategories != null)
-        'subcategories': subcategories.map((e) => e.toJson()).toList(),
+      'subcategories': ?subcategories?.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -243,7 +242,7 @@ class RpgCharacter {
       'backstory': backstory,
       'weapons': weapons.map((e) => e.toJson()).toList(),
       'classType': classType,
-      if (affiliation != null) 'affiliation': affiliation,
+      'affiliation': ?affiliation,
     };
   }
 

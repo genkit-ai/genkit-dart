@@ -15,7 +15,6 @@ workspace:
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
-  lints: 6.0.0 # until we update the generator!
   melos: ^7.0.0
   
 melos:

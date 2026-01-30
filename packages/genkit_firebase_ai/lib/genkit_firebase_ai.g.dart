@@ -42,17 +42,17 @@ class GeminiOptions {
     ThinkingConfig? thinkingConfig,
   }) {
     _json = {
-      if (stopSequences != null) 'stopSequences': stopSequences,
-      if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
-      if (temperature != null) 'temperature': temperature,
-      if (topP != null) 'topP': topP,
-      if (topK != null) 'topK': topK,
-      if (presencePenalty != null) 'presencePenalty': presencePenalty,
-      if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
-      if (responseModalities != null) 'responseModalities': responseModalities,
-      if (responseMimeType != null) 'responseMimeType': responseMimeType,
-      if (responseSchema != null) 'responseSchema': responseSchema,
-      if (responseJsonSchema != null) 'responseJsonSchema': responseJsonSchema,
+      'stopSequences': ?stopSequences,
+      'maxOutputTokens': ?maxOutputTokens,
+      'temperature': ?temperature,
+      'topP': ?topP,
+      'topK': ?topK,
+      'presencePenalty': ?presencePenalty,
+      'frequencyPenalty': ?frequencyPenalty,
+      'responseModalities': ?responseModalities,
+      'responseMimeType': ?responseMimeType,
+      'responseSchema': ?responseSchema,
+      'responseJsonSchema': ?responseJsonSchema,
       if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
     };
   }
@@ -260,8 +260,8 @@ class ThinkingConfig {
 
   ThinkingConfig({int? thinkingBudget, bool? includeThoughts}) {
     _json = {
-      if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
-      if (includeThoughts != null) 'includeThoughts': includeThoughts,
+      'thinkingBudget': ?thinkingBudget,
+      'includeThoughts': ?includeThoughts,
     };
   }
 
@@ -333,7 +333,7 @@ class PrebuiltVoiceConfig {
   PrebuiltVoiceConfig._(this._json);
 
   PrebuiltVoiceConfig({String? voiceName}) {
-    _json = {if (voiceName != null) 'voiceName': voiceName};
+    _json = {'voiceName': ?voiceName};
   }
 
   late final Map<String, dynamic> _json;
@@ -527,15 +527,15 @@ class LiveGenerationConfig {
     double? frequencyPenalty,
   }) {
     _json = {
-      if (responseModalities != null) 'responseModalities': responseModalities,
+      'responseModalities': ?responseModalities,
       if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
-      if (stopSequences != null) 'stopSequences': stopSequences,
-      if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
-      if (temperature != null) 'temperature': temperature,
-      if (topP != null) 'topP': topP,
-      if (topK != null) 'topK': topK,
-      if (presencePenalty != null) 'presencePenalty': presencePenalty,
-      if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
+      'stopSequences': ?stopSequences,
+      'maxOutputTokens': ?maxOutputTokens,
+      'temperature': ?temperature,
+      'topP': ?topP,
+      'topK': ?topK,
+      'presencePenalty': ?presencePenalty,
+      'frequencyPenalty': ?frequencyPenalty,
     };
   }
 

@@ -92,11 +92,7 @@ class ReflectionServerV2 {
   void _sendError(dynamic id, int code, String message, [dynamic data]) {
     _send({
       'jsonrpc': '2.0',
-      'error': {
-        'code': code,
-        'message': message,
-        if (data != null) 'data': data,
-      },
+      'error': {'code': code, 'message': message, 'data': ?data},
       'id': id,
     });
   }

@@ -117,7 +117,7 @@ class User {
   }) {
     _json = {
       'name': name,
-      if (age != null) 'years_old': age,
+      'years_old': ?age,
       'isAdmin': isAdmin,
       if (address != null) 'address': address.toJson(),
     };
@@ -222,12 +222,7 @@ class Product {
     required double price,
     List<String>? tags,
   }) {
-    _json = {
-      'id': id,
-      'name': name,
-      'price': price,
-      if (tags != null) 'tags': tags,
-    };
+    _json = {'id': id, 'name': name, 'price': price, 'tags': ?tags};
   }
 
   late final Map<String, dynamic> _json;

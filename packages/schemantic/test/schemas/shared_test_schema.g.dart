@@ -124,9 +124,9 @@ class TextPart implements Part {
   }) {
     _json = {
       'text': text,
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
+      'data': ?data,
+      'metadata': ?metadata,
+      'custom': ?custom,
     };
   }
 

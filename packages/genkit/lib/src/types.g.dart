@@ -37,10 +37,10 @@ class Candidate {
     _json = {
       'index': index,
       'message': message.toJson(),
-      if (usage != null) 'usage': usage.toJson(),
+      'usage': ?usage?.toJson(),
       'finishReason': finishReason,
-      if (finishMessage != null) 'finishMessage': finishMessage,
-      if (custom != null) 'custom': custom,
+      'finishMessage': ?finishMessage,
+      'custom': ?custom,
     };
   }
 
@@ -159,7 +159,7 @@ class Message {
     _json = {
       'role': role,
       'content': content.map((e) => e.toJson()).toList(),
-      if (metadata != null) 'metadata': metadata,
+      'metadata': ?metadata,
     };
   }
 
@@ -248,9 +248,9 @@ class ToolDefinition {
     _json = {
       'name': name,
       'description': description,
-      if (inputSchema != null) 'inputSchema': inputSchema,
-      if (outputSchema != null) 'outputSchema': outputSchema,
-      if (metadata != null) 'metadata': metadata,
+      'inputSchema': ?inputSchema,
+      'outputSchema': ?outputSchema,
+      'metadata': ?metadata,
     };
   }
 
@@ -398,9 +398,9 @@ class TextPart implements Part {
   }) {
     _json = {
       'text': text,
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
+      'data': ?data,
+      'metadata': ?metadata,
+      'custom': ?custom,
     };
   }
 
@@ -501,9 +501,9 @@ class MediaPart implements Part {
   }) {
     _json = {
       'media': media.toJson(),
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
+      'data': ?data,
+      'metadata': ?metadata,
+      'custom': ?custom,
     };
   }
 
@@ -605,9 +605,9 @@ class ToolRequestPart implements Part {
   }) {
     _json = {
       'toolRequest': toolRequest.toJson(),
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
+      'data': ?data,
+      'metadata': ?metadata,
+      'custom': ?custom,
     };
   }
 
@@ -710,9 +710,9 @@ class ToolResponsePart implements Part {
   }) {
     _json = {
       'toolResponse': toolResponse.toJson(),
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
+      'data': ?data,
+      'metadata': ?metadata,
+      'custom': ?custom,
     };
   }
 
@@ -811,11 +811,7 @@ class DataPart implements Part {
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    _json = {
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
-    };
+    _json = {'data': ?data, 'metadata': ?metadata, 'custom': ?custom};
   }
 
   @override
@@ -903,11 +899,7 @@ class CustomPart implements Part {
     Map<String, dynamic>? metadata,
     required Map<String, dynamic> custom,
   }) {
-    _json = {
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      'custom': custom,
-    };
+    _json = {'data': ?data, 'metadata': ?metadata, 'custom': custom};
   }
 
   @override
@@ -994,9 +986,9 @@ class ReasoningPart implements Part {
     required String reasoning,
   }) {
     _json = {
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
+      'data': ?data,
+      'metadata': ?metadata,
+      'custom': ?custom,
       'reasoning': reasoning,
     };
   }
@@ -1099,9 +1091,9 @@ class ResourcePart implements Part {
     required Map<String, dynamic> resource,
   }) {
     _json = {
-      if (data != null) 'data': data,
-      if (metadata != null) 'metadata': metadata,
-      if (custom != null) 'custom': custom,
+      'data': ?data,
+      'metadata': ?metadata,
+      'custom': ?custom,
       'resource': resource,
     };
   }
@@ -1197,7 +1189,7 @@ class Media {
   Media._(this._json);
 
   Media({String? contentType, required String url}) {
-    _json = {if (contentType != null) 'contentType': contentType, 'url': url};
+    _json = {'contentType': ?contentType, 'url': url};
   }
 
   late final Map<String, dynamic> _json;
@@ -1265,12 +1257,7 @@ class ToolRequest {
     Map<String, dynamic>? input,
     bool? partial,
   }) {
-    _json = {
-      if (ref != null) 'ref': ref,
-      'name': name,
-      if (input != null) 'input': input,
-      if (partial != null) 'partial': partial,
-    };
+    _json = {'ref': ?ref, 'name': name, 'input': ?input, 'partial': ?partial};
   }
 
   late final Map<String, dynamic> _json;
@@ -1367,12 +1354,7 @@ class ToolResponse {
     dynamic output,
     List<dynamic>? content,
   }) {
-    _json = {
-      if (ref != null) 'ref': ref,
-      'name': name,
-      if (output != null) 'output': output,
-      if (content != null) 'content': content,
-    };
+    _json = {'ref': ?ref, 'name': name, 'output': ?output, 'content': ?content};
   }
 
   late final Map<String, dynamic> _json;
@@ -1467,11 +1449,11 @@ class ModelInfo {
     String? stage,
   }) {
     _json = {
-      if (versions != null) 'versions': versions,
-      if (label != null) 'label': label,
-      if (configSchema != null) 'configSchema': configSchema,
-      if (supports != null) 'supports': supports,
-      if (stage != null) 'stage': stage,
+      'versions': ?versions,
+      'label': ?label,
+      'configSchema': ?configSchema,
+      'supports': ?supports,
+      'stage': ?stage,
     };
   }
 
@@ -1590,11 +1572,11 @@ class ModelRequest {
   }) {
     _json = {
       'messages': messages.map((e) => e.toJson()).toList(),
-      if (config != null) 'config': config,
-      if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
-      if (toolChoice != null) 'toolChoice': toolChoice,
-      if (output != null) 'output': output.toJson(),
-      if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
+      'config': ?config,
+      'tools': ?tools?.map((e) => e.toJson()).toList(),
+      'toolChoice': ?toolChoice,
+      'output': ?output?.toJson(),
+      'docs': ?docs?.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -1744,15 +1726,15 @@ class ModelResponse {
     Operation? operation,
   }) {
     _json = {
-      if (message != null) 'message': message.toJson(),
+      'message': ?message?.toJson(),
       'finishReason': finishReason,
-      if (finishMessage != null) 'finishMessage': finishMessage,
-      if (latencyMs != null) 'latencyMs': latencyMs,
-      if (usage != null) 'usage': usage.toJson(),
-      if (custom != null) 'custom': custom,
-      if (raw != null) 'raw': raw,
-      if (request != null) 'request': request.toJson(),
-      if (operation != null) 'operation': operation.toJson(),
+      'finishMessage': ?finishMessage,
+      'latencyMs': ?latencyMs,
+      'usage': ?usage?.toJson(),
+      'custom': ?custom,
+      'raw': ?raw,
+      'request': ?request?.toJson(),
+      'operation': ?operation?.toJson(),
     };
   }
 
@@ -1931,11 +1913,11 @@ class ModelResponseChunk {
     bool? aggregated,
   }) {
     _json = {
-      if (role != null) 'role': role,
-      if (index != null) 'index': index,
+      'role': ?role,
+      'index': ?index,
       'content': content.map((e) => e.toJson()).toList(),
-      if (custom != null) 'custom': custom,
-      if (aggregated != null) 'aggregated': aggregated,
+      'custom': ?custom,
+      'aggregated': ?aggregated,
     };
   }
 
@@ -2059,17 +2041,16 @@ class GenerateResponse {
     List<Candidate>? candidates,
   }) {
     _json = {
-      if (message != null) 'message': message.toJson(),
-      if (finishReason != null) 'finishReason': finishReason,
-      if (finishMessage != null) 'finishMessage': finishMessage,
-      if (latencyMs != null) 'latencyMs': latencyMs,
-      if (usage != null) 'usage': usage.toJson(),
-      if (custom != null) 'custom': custom,
-      if (raw != null) 'raw': raw,
-      if (request != null) 'request': request.toJson(),
-      if (operation != null) 'operation': operation.toJson(),
-      if (candidates != null)
-        'candidates': candidates.map((e) => e.toJson()).toList(),
+      'message': ?message?.toJson(),
+      'finishReason': ?finishReason,
+      'finishMessage': ?finishMessage,
+      'latencyMs': ?latencyMs,
+      'usage': ?usage?.toJson(),
+      'custom': ?custom,
+      'raw': ?raw,
+      'request': ?request?.toJson(),
+      'operation': ?operation?.toJson(),
+      'candidates': ?candidates?.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -2273,12 +2254,12 @@ class GenerateRequest {
   }) {
     _json = {
       'messages': messages.map((e) => e.toJson()).toList(),
-      if (config != null) 'config': config,
-      if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
-      if (toolChoice != null) 'toolChoice': toolChoice,
-      if (output != null) 'output': output.toJson(),
-      if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
-      if (candidates != null) 'candidates': candidates,
+      'config': ?config,
+      'tools': ?tools?.map((e) => e.toJson()).toList(),
+      'toolChoice': ?toolChoice,
+      'output': ?output?.toJson(),
+      'docs': ?docs?.map((e) => e.toJson()).toList(),
+      'candidates': ?candidates,
     };
   }
 
@@ -2446,21 +2427,20 @@ class GenerationUsage {
     double? cachedContentTokens,
   }) {
     _json = {
-      if (inputTokens != null) 'inputTokens': inputTokens,
-      if (outputTokens != null) 'outputTokens': outputTokens,
-      if (totalTokens != null) 'totalTokens': totalTokens,
-      if (inputCharacters != null) 'inputCharacters': inputCharacters,
-      if (outputCharacters != null) 'outputCharacters': outputCharacters,
-      if (inputImages != null) 'inputImages': inputImages,
-      if (outputImages != null) 'outputImages': outputImages,
-      if (inputVideos != null) 'inputVideos': inputVideos,
-      if (outputVideos != null) 'outputVideos': outputVideos,
-      if (inputAudioFiles != null) 'inputAudioFiles': inputAudioFiles,
-      if (outputAudioFiles != null) 'outputAudioFiles': outputAudioFiles,
-      if (custom != null) 'custom': custom,
-      if (thoughtsTokens != null) 'thoughtsTokens': thoughtsTokens,
-      if (cachedContentTokens != null)
-        'cachedContentTokens': cachedContentTokens,
+      'inputTokens': ?inputTokens,
+      'outputTokens': ?outputTokens,
+      'totalTokens': ?totalTokens,
+      'inputCharacters': ?inputCharacters,
+      'outputCharacters': ?outputCharacters,
+      'inputImages': ?inputImages,
+      'outputImages': ?outputImages,
+      'inputVideos': ?inputVideos,
+      'outputVideos': ?outputVideos,
+      'inputAudioFiles': ?inputAudioFiles,
+      'outputAudioFiles': ?outputAudioFiles,
+      'custom': ?custom,
+      'thoughtsTokens': ?thoughtsTokens,
+      'cachedContentTokens': ?cachedContentTokens,
     };
   }
 
@@ -2695,12 +2675,12 @@ class Operation {
     Map<String, dynamic>? metadata,
   }) {
     _json = {
-      if (action != null) 'action': action,
+      'action': ?action,
       'id': id,
-      if (done != null) 'done': done,
-      if (output != null) 'output': output,
-      if (error != null) 'error': error,
-      if (metadata != null) 'metadata': metadata,
+      'done': ?done,
+      'output': ?output,
+      'error': ?error,
+      'metadata': ?metadata,
     };
   }
 
@@ -2825,10 +2805,10 @@ class OutputConfig {
     String? contentType,
   }) {
     _json = {
-      if (format != null) 'format': format,
-      if (schema != null) 'schema': schema,
-      if (constrained != null) 'constrained': constrained,
-      if (contentType != null) 'contentType': contentType,
+      'format': ?format,
+      'schema': ?schema,
+      'constrained': ?constrained,
+      'contentType': ?contentType,
     };
   }
 
@@ -2928,7 +2908,7 @@ class DocumentData {
   DocumentData({required List<Part> content, Map<String, dynamic>? metadata}) {
     _json = {
       'content': content.map((e) => e.toJson()).toList(),
-      if (metadata != null) 'metadata': metadata,
+      'metadata': ?metadata,
     };
   }
 
@@ -3013,17 +2993,17 @@ class GenerateActionOptions {
     String? stepName,
   }) {
     _json = {
-      if (model != null) 'model': model,
-      if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
+      'model': ?model,
+      'docs': ?docs?.map((e) => e.toJson()).toList(),
       'messages': messages.map((e) => e.toJson()).toList(),
-      if (tools != null) 'tools': tools,
-      if (toolChoice != null) 'toolChoice': toolChoice,
-      if (config != null) 'config': config,
-      if (output != null) 'output': output.toJson(),
-      if (resume != null) 'resume': resume,
-      if (returnToolRequests != null) 'returnToolRequests': returnToolRequests,
-      if (maxTurns != null) 'maxTurns': maxTurns,
-      if (stepName != null) 'stepName': stepName,
+      'tools': ?tools,
+      'toolChoice': ?toolChoice,
+      'config': ?config,
+      'output': ?output?.toJson(),
+      'resume': ?resume,
+      'returnToolRequests': ?returnToolRequests,
+      'maxTurns': ?maxTurns,
+      'stepName': ?stepName,
     };
   }
 
@@ -3234,11 +3214,11 @@ class GenerateActionOutputConfig {
     bool? constrained,
   }) {
     _json = {
-      if (format != null) 'format': format,
-      if (contentType != null) 'contentType': contentType,
+      'format': ?format,
+      'contentType': ?contentType,
       if (instructions != null) 'instructions': instructions.value,
-      if (jsonSchema != null) 'jsonSchema': jsonSchema,
-      if (constrained != null) 'constrained': constrained,
+      'jsonSchema': ?jsonSchema,
+      'constrained': ?constrained,
     };
   }
 

@@ -321,11 +321,10 @@ class NullableFields {
     Ingredient? optionalIngredient,
   }) {
     _json = {
-      if (optionalString != null) 'optionalString': optionalString,
-      if (optionalInt != null) 'optionalInt': optionalInt,
-      if (optionalList != null) 'optionalList': optionalList,
-      if (optionalIngredient != null)
-        'optionalIngredient': optionalIngredient.toJson(),
+      'optionalString': ?optionalString,
+      'optionalInt': ?optionalInt,
+      'optionalList': ?optionalList,
+      'optionalIngredient': ?optionalIngredient?.toJson(),
     };
   }
 
@@ -440,7 +439,7 @@ class ComplexObject {
       'price': price,
       'metadata': metadata,
       'ratings': ratings,
-      if (nestedNullable != null) 'nestedNullable': nestedNullable.toJson(),
+      'nestedNullable': ?nestedNullable?.toJson(),
     };
   }
 
@@ -549,10 +548,9 @@ class Menu {
   Menu({required List<Recipe> recipes, List<Ingredient>? optionalIngredients}) {
     _json = {
       'recipes': recipes.map((e) => e.toJson()).toList(),
-      if (optionalIngredients != null)
-        'optionalIngredients': optionalIngredients
-            .map((e) => e.toJson())
-            .toList(),
+      'optionalIngredients': ?optionalIngredients
+          ?.map((e) => e.toJson())
+          .toList(),
     };
   }
 

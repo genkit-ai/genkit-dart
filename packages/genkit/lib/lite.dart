@@ -59,12 +59,12 @@ Future<GenerateResponseHelper> generate<C>({
       outputNoInstructions != null ||
       outputContentType != null) {
     outputConfig = GenerateActionOutputConfig.fromJson({
-      if (outputFormat != null) 'format': outputFormat,
+      'format': ?outputFormat,
       if (outputSchema != null)
         'jsonSchema': outputSchema.jsonSchema as Map<String, dynamic>,
-      if (outputConstrained != null) 'constrained': outputConstrained,
-      if (outputInstructions != null) 'instructions': outputInstructions,
-      if (outputContentType != null) 'contentType': outputContentType,
+      'constrained': ?outputConstrained,
+      'instructions': ?outputInstructions,
+      'contentType': ?outputContentType,
       if (outputNoInstructions == true) 'instructions': false,
     });
   }
