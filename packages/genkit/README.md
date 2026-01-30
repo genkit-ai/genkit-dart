@@ -151,6 +151,29 @@ final streamStory = ai.defineFlow(
 );
 ```
 
+### Middleware
+
+Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `RetryMiddleware` for robust error handling.
+
+#### Retry Middleware
+
+Automatically retry failed requests with exponential backoff and jitter:
+
+```dart
+final response = await ai.generate(
+  model: googleAI.gemini('gemini-2.5-flash'),
+  prompt: 'Reliable request',
+  use: [
+    RetryMiddleware(
+      maxRetries: 3,
+      retryModel: true, // Retry model validation errors (default: true)
+      retryTools: false, // Retry tool execution errors (default: false)
+      statuses: [StatusName.UNAVAILABLE], // Retry only on specific errors
+    ),
+  ],
+);
+```
+
 ---
 
 ## Development Tools

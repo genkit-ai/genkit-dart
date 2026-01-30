@@ -28,38 +28,87 @@ import '../generate_middleware.dart';
 final _logger = Logger('genkit.middleware.retry');
 
 
+/// Common status codes for Genkit operations.
+///
+/// These correspond to gRPC status codes.
 enum StatusName {
+  /// The operation completed successfully.
   OK,
+  /// The operation was cancelled.
   CANCELLED,
+  /// Unknown error.
   UNKNOWN,
+  /// Client specified an invalid argument.
   INVALID_ARGUMENT,
+  /// Deadline expired before operation could complete.
   DEADLINE_EXCEEDED,
+  /// Some requested entity (e.g., file or directory) was not found.
   NOT_FOUND,
+  /// Some entity that we attempted to create (e.g., file or directory) already exists.
   ALREADY_EXISTS,
+  /// The caller does not have permission to execute the specified operation.
   PERMISSION_DENIED,
+  /// The request does not have valid authentication credentials for the operation.
   UNAUTHENTICATED,
+  /// Some resource has been exhausted, perhaps a per-user quota.
   RESOURCE_EXHAUSTED,
+  /// Operation was rejected because the system is not in a state required for the operation's execution.
   FAILED_PRECONDITION,
+  /// The operation was aborted.
   ABORTED,
+  /// Operation was attempted past the valid range.
   OUT_OF_RANGE,
+  /// Operation is not implemented or not supported/enabled in this service.
   UNIMPLEMENTED,
+  /// Internal errors.
   INTERNAL,
+  /// The service is currently unavailable.
   UNAVAILABLE,
+  /// Unrecoverable data loss or corruption.
   DATA_LOSS,
 }
 
 
+/// A middleware that retries model and tool requests on failure.
+///
+/// Only [GenkitException]s with specific status codes are retried.
+/// By default, it retries on [StatusName.UNAVAILABLE], [StatusName.DEADLINE_EXCEEDED],
+/// [StatusName.RESOURCE_EXHAUSTED], [StatusName.ABORTED], and [StatusName.INTERNAL].
+///
+/// It uses exponential backoff with jitter to calculate the delay between retries.
 class RetryMiddleware extends GenerateMiddleware {
+  /// The maximum number of retry attempts.
   final int maxRetries;
+
+  /// The list of status codes that should trigger a retry.
   final List<StatusName> statuses;
+
+  /// The initial delay in milliseconds for the first retry.
   final int initialDelayMs;
+
+  /// The maximum delay in milliseconds between retries.
   final int maxDelayMs;
+
+  /// The factor by which the delay increases with each retry.
   final double backoffFactor;
+
+  /// Whether to disable jitter. Jitter is enabled by default.
   final bool noJitter;
+
+  /// An optional callback that is called on each error.
+  ///
+  /// The callback receives the error and the current attempt number (1-based).
+  /// If the callback returns `false`, retrying is stopped immediately.
+  /// If it returns `true` (or if it is null), retrying continues.
   final bool Function(Object error, int attempt)? onError;
+
+  /// Whether to retry model requests. Defaults to `true`.
   final bool retryModel;
+
+  /// Whether to retry tool requests. Defaults to `false`.
   final bool retryTools;
 
+  /// Creates a [RetryMiddleware].
   RetryMiddleware({
     this.maxRetries = 3,
     this.statuses = const [
