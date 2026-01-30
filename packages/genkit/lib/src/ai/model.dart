@@ -56,8 +56,9 @@ class Model<C>
     metadata['description'] = name;
 
     final model = <String, dynamic>{
-      ...(metadata['model'] ?? <String, dynamic>{}),
+      ...(metadata['model'] as Map<String, dynamic>? ?? <String, dynamic>{}),
     };
+    metadata['model'] = model;
 
     if (model['label'] == null) {
       model['label'] = name;

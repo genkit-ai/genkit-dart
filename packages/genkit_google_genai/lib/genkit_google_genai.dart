@@ -337,28 +337,7 @@ gcl.GenerationConfig toGeminiTtsSettings(
             )
             .toList() ??
         [],
-    speechConfig: options.speechConfig == null
-        ? null
-        : gcl.SpeechConfig(
-            voiceConfig: options.speechConfig!.voiceConfig == null
-                ? null
-                : gcl.VoiceConfig(
-                    prebuiltVoiceConfig:
-                        options
-                                .speechConfig!
-                                .voiceConfig!
-                                .prebuiltVoiceConfig ==
-                            null
-                        ? null
-                        : gcl.PrebuiltVoiceConfig(
-                            voiceName: options
-                                .speechConfig!
-                                .voiceConfig!
-                                .prebuiltVoiceConfig!
-                                .voiceName,
-                          ),
-                  ),
-          ),
+    speechConfig: _toSpeechConfig(options.speechConfig),
     thinkingConfig: options.thinkingConfig == null
         ? null
         : gcl.ThinkingConfig(
@@ -366,6 +345,23 @@ gcl.GenerationConfig toGeminiTtsSettings(
             thinkingBudget: options.thinkingConfig!.thinkingBudget,
           ),
   );
+}
+
+gcl.SpeechConfig? _toSpeechConfig(SpeechConfig? config) {
+  if (config == null) return null;
+  return gcl.SpeechConfig(voiceConfig: _toVoiceConfig(config.voiceConfig));
+}
+
+gcl.VoiceConfig? _toVoiceConfig(VoiceConfig? config) {
+  if (config == null) return null;
+  return gcl.VoiceConfig(
+    prebuiltVoiceConfig: _toPrebuiltVoiceConfig(config.prebuiltVoiceConfig),
+  );
+}
+
+gcl.PrebuiltVoiceConfig? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
+  if (config == null) return null;
+  return gcl.PrebuiltVoiceConfig(voiceName: config.voiceName);
 }
 
 @visibleForTesting
