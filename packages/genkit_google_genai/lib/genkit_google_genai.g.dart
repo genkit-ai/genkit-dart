@@ -27,7 +27,7 @@ class GeminiOptions {
 
   GeminiOptions._(this._json);
 
-  factory GeminiOptions({
+  GeminiOptions({
     String? apiKey,
     List<SafetySettings>? safetySettings,
     bool? codeExecution,
@@ -49,7 +49,7 @@ class GeminiOptions {
     double? frequencyPenalty,
     int? seed,
   }) {
-    return GeminiOptions._({
+    _json = {
       if (apiKey != null) 'apiKey': apiKey,
       if (safetySettings != null)
         'safetySettings': safetySettings.map((e) => e.toJson()).toList(),
@@ -73,10 +73,10 @@ class GeminiOptions {
       if (presencePenalty != null) 'presencePenalty': presencePenalty,
       if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
       if (seed != null) 'seed': seed,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GeminiOptions> $schema =
       _GeminiOptionsTypeFactory();
@@ -405,14 +405,14 @@ class SafetySettings {
 
   SafetySettings._(this._json);
 
-  factory SafetySettings({String? category, String? threshold}) {
-    return SafetySettings._({
+  SafetySettings({String? category, String? threshold}) {
+    _json = {
       if (category != null) 'category': category,
       if (threshold != null) 'threshold': threshold,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<SafetySettings> $schema =
       _SafetySettingsTypeFactory();
@@ -495,14 +495,14 @@ class ThinkingConfig {
 
   ThinkingConfig._(this._json);
 
-  factory ThinkingConfig({bool? includeThoughts, int? thinkingBudget}) {
-    return ThinkingConfig._({
+  ThinkingConfig({bool? includeThoughts, int? thinkingBudget}) {
+    _json = {
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
@@ -577,18 +577,15 @@ class FunctionCallingConfig {
 
   FunctionCallingConfig._(this._json);
 
-  factory FunctionCallingConfig({
-    String? mode,
-    List<String>? allowedFunctionNames,
-  }) {
-    return FunctionCallingConfig._({
+  FunctionCallingConfig({String? mode, List<String>? allowedFunctionNames}) {
+    _json = {
       if (mode != null) 'mode': mode,
       if (allowedFunctionNames != null)
         'allowedFunctionNames': allowedFunctionNames,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<FunctionCallingConfig> $schema =
       _FunctionCallingConfigTypeFactory();
@@ -658,14 +655,14 @@ class GoogleSearchRetrieval {
 
   GoogleSearchRetrieval._(this._json);
 
-  factory GoogleSearchRetrieval({String? mode, double? dynamicThreshold}) {
-    return GoogleSearchRetrieval._({
+  GoogleSearchRetrieval({String? mode, double? dynamicThreshold}) {
+    _json = {
       if (mode != null) 'mode': mode,
       if (dynamicThreshold != null) 'dynamicThreshold': dynamicThreshold,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GoogleSearchRetrieval> $schema =
       _GoogleSearchRetrievalTypeFactory();
@@ -732,14 +729,14 @@ class FileSearch {
 
   FileSearch._(this._json);
 
-  factory FileSearch({List<String>? fileSearchStoreNames}) {
-    return FileSearch._({
+  FileSearch({List<String>? fileSearchStoreNames}) {
+    _json = {
       if (fileSearchStoreNames != null)
         'fileSearchStoreNames': fileSearchStoreNames,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
 
@@ -790,7 +787,7 @@ class GeminiTtsOptions {
 
   GeminiTtsOptions._(this._json);
 
-  factory GeminiTtsOptions({
+  GeminiTtsOptions({
     String? apiKey,
     List<SafetySettings>? safetySettings,
     bool? codeExecution,
@@ -813,7 +810,7 @@ class GeminiTtsOptions {
     int? seed,
     SpeechConfig? speechConfig,
   }) {
-    return GeminiTtsOptions._({
+    _json = {
       if (apiKey != null) 'apiKey': apiKey,
       if (safetySettings != null)
         'safetySettings': safetySettings.map((e) => e.toJson()).toList(),
@@ -838,10 +835,10 @@ class GeminiTtsOptions {
       if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
       if (seed != null) 'seed': seed,
       if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GeminiTtsOptions> $schema =
       _GeminiTtsOptionsTypeFactory();
@@ -1186,18 +1183,18 @@ class SpeechConfig {
 
   SpeechConfig._(this._json);
 
-  factory SpeechConfig({
+  SpeechConfig({
     VoiceConfig? voiceConfig,
     MultiSpeakerVoiceConfig? multiSpeakerVoiceConfig,
   }) {
-    return SpeechConfig._({
+    _json = {
       if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
       if (multiSpeakerVoiceConfig != null)
         'multiSpeakerVoiceConfig': multiSpeakerVoiceConfig.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<SpeechConfig> $schema =
       _SpeechConfigTypeFactory();
@@ -1273,17 +1270,17 @@ class MultiSpeakerVoiceConfig {
 
   MultiSpeakerVoiceConfig._(this._json);
 
-  factory MultiSpeakerVoiceConfig({
+  MultiSpeakerVoiceConfig({
     required List<SpeakerVoiceConfig> speakerVoiceConfigs,
   }) {
-    return MultiSpeakerVoiceConfig._({
+    _json = {
       'speakerVoiceConfigs': speakerVoiceConfigs
           .map((e) => e.toJson())
           .toList(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<MultiSpeakerVoiceConfig> $schema =
       _MultiSpeakerVoiceConfigTypeFactory();
@@ -1340,17 +1337,14 @@ class SpeakerVoiceConfig {
 
   SpeakerVoiceConfig._(this._json);
 
-  factory SpeakerVoiceConfig({
+  SpeakerVoiceConfig({
     required String speaker,
     required VoiceConfig voiceConfig,
   }) {
-    return SpeakerVoiceConfig._({
-      'speaker': speaker,
-      'voiceConfig': voiceConfig.toJson(),
-    });
+    _json = {'speaker': speaker, 'voiceConfig': voiceConfig.toJson()};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<SpeakerVoiceConfig> $schema =
       _SpeakerVoiceConfigTypeFactory();
@@ -1412,14 +1406,14 @@ class VoiceConfig {
 
   VoiceConfig._(this._json);
 
-  factory VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
-    return VoiceConfig._({
+  VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
+    _json = {
       if (prebuiltVoiceConfig != null)
         'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<VoiceConfig> $schema = _VoiceConfigTypeFactory();
 
@@ -1479,13 +1473,11 @@ class PrebuiltVoiceConfig {
 
   PrebuiltVoiceConfig._(this._json);
 
-  factory PrebuiltVoiceConfig({String? voiceName}) {
-    return PrebuiltVoiceConfig._({
-      if (voiceName != null) 'voiceName': voiceName,
-    });
+  PrebuiltVoiceConfig({String? voiceName}) {
+    _json = {if (voiceName != null) 'voiceName': voiceName};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<PrebuiltVoiceConfig> $schema =
       _PrebuiltVoiceConfigTypeFactory();

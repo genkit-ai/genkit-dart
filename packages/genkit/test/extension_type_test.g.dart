@@ -26,11 +26,11 @@ class Ingredient {
 
   Ingredient._(this._json);
 
-  factory Ingredient({required String name, required String quantity}) {
-    return Ingredient._({'name': name, 'quantity': quantity});
+  Ingredient({required String name, required String quantity}) {
+    _json = {'name': name, 'quantity': quantity};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
 
@@ -84,19 +84,19 @@ class Recipe {
 
   Recipe._(this._json);
 
-  factory Recipe({
+  Recipe({
     required String title,
     required List<Ingredient> ingredients,
     required int servings,
   }) {
-    return Recipe._({
+    _json = {
       'title': title,
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'servings': servings,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
 
@@ -167,19 +167,19 @@ class AnnotatedRecipe {
 
   AnnotatedRecipe._(this._json);
 
-  factory AnnotatedRecipe({
+  AnnotatedRecipe({
     required String title,
     required List<Ingredient> ingredients,
     required int servings,
   }) {
-    return AnnotatedRecipe._({
+    _json = {
       'title_key_in_json': title,
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'servings': servings,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<AnnotatedRecipe> $schema =
       _AnnotatedRecipeTypeFactory();
@@ -252,11 +252,11 @@ class MealPlan {
 
   MealPlan._(this._json);
 
-  factory MealPlan({required String day, required MealType mealType}) {
-    return MealPlan._({'day': day, 'mealType': mealType});
+  MealPlan({required String day, required MealType mealType}) {
+    _json = {'day': day, 'mealType': mealType};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<MealPlan> $schema = _MealPlanTypeFactory();
 
@@ -314,22 +314,22 @@ class NullableFields {
 
   NullableFields._(this._json);
 
-  factory NullableFields({
+  NullableFields({
     String? optionalString,
     int? optionalInt,
     List<String>? optionalList,
     Ingredient? optionalIngredient,
   }) {
-    return NullableFields._({
+    _json = {
       if (optionalString != null) 'optionalString': optionalString,
       if (optionalInt != null) 'optionalInt': optionalInt,
       if (optionalList != null) 'optionalList': optionalList,
       if (optionalIngredient != null)
         'optionalIngredient': optionalIngredient.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<NullableFields> $schema =
       _NullableFieldsTypeFactory();
@@ -426,7 +426,7 @@ class ComplexObject {
 
   ComplexObject._(this._json);
 
-  factory ComplexObject({
+  ComplexObject({
     required String id,
     required DateTime createdAt,
     required double price,
@@ -434,17 +434,17 @@ class ComplexObject {
     required List<int> ratings,
     NullableFields? nestedNullable,
   }) {
-    return ComplexObject._({
+    _json = {
       'id': id,
       'createdAt': createdAt,
       'price': price,
       'metadata': metadata,
       'ratings': ratings,
       if (nestedNullable != null) 'nestedNullable': nestedNullable.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ComplexObject> $schema =
       _ComplexObjectTypeFactory();
@@ -546,20 +546,17 @@ class Menu {
 
   Menu._(this._json);
 
-  factory Menu({
-    required List<Recipe> recipes,
-    List<Ingredient>? optionalIngredients,
-  }) {
-    return Menu._({
+  Menu({required List<Recipe> recipes, List<Ingredient>? optionalIngredients}) {
+    _json = {
       'recipes': recipes.map((e) => e.toJson()).toList(),
       if (optionalIngredients != null)
         'optionalIngredients': optionalIngredients
             .map((e) => e.toJson())
             .toList(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Menu> $schema = _MenuTypeFactory();
 

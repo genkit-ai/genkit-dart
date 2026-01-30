@@ -26,7 +26,7 @@ class Candidate {
 
   Candidate._(this._json);
 
-  factory Candidate({
+  Candidate({
     required double index,
     required Message message,
     GenerationUsage? usage,
@@ -34,17 +34,17 @@ class Candidate {
     String? finishMessage,
     Map<String, dynamic>? custom,
   }) {
-    return Candidate._({
+    _json = {
       'index': index,
       'message': message.toJson(),
       if (usage != null) 'usage': usage.toJson(),
       'finishReason': finishReason,
       if (finishMessage != null) 'finishMessage': finishMessage,
       if (custom != null) 'custom': custom,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Candidate> $schema = _CandidateTypeFactory();
 
@@ -151,19 +151,19 @@ class Message {
 
   Message._(this._json);
 
-  factory Message({
+  Message({
     required Role role,
     required List<Part> content,
     Map<String, dynamic>? metadata,
   }) {
-    return Message._({
+    _json = {
       'role': role,
       'content': content.map((e) => e.toJson()).toList(),
       if (metadata != null) 'metadata': metadata,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Message> $schema = _MessageTypeFactory();
 
@@ -238,23 +238,23 @@ class ToolDefinition {
 
   ToolDefinition._(this._json);
 
-  factory ToolDefinition({
+  ToolDefinition({
     required String name,
     required String description,
-    dynamic inputSchema,
-    dynamic outputSchema,
+    Map<String, dynamic>? inputSchema,
+    Map<String, dynamic>? outputSchema,
     Map<String, dynamic>? metadata,
   }) {
-    return ToolDefinition._({
+    _json = {
       'name': name,
       'description': description,
       if (inputSchema != null) 'inputSchema': inputSchema,
       if (outputSchema != null) 'outputSchema': outputSchema,
       if (metadata != null) 'metadata': metadata,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ToolDefinition> $schema =
       _ToolDefinitionTypeFactory();
@@ -275,20 +275,28 @@ class ToolDefinition {
     _json['description'] = value;
   }
 
-  dynamic get inputSchema {
-    return _json['inputSchema'] as dynamic;
+  Map<String, dynamic>? get inputSchema {
+    return _json['inputSchema'] as Map<String, dynamic>?;
   }
 
-  set inputSchema(dynamic value) {
-    _json['inputSchema'] = value;
+  set inputSchema(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('inputSchema');
+    } else {
+      _json['inputSchema'] = value;
+    }
   }
 
-  dynamic get outputSchema {
-    return _json['outputSchema'] as dynamic;
+  Map<String, dynamic>? get outputSchema {
+    return _json['outputSchema'] as Map<String, dynamic>?;
   }
 
-  set outputSchema(dynamic value) {
-    _json['outputSchema'] = value;
+  set outputSchema(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('outputSchema');
+    } else {
+      _json['outputSchema'] = value;
+    }
   }
 
   Map<String, dynamic>? get metadata {
@@ -328,11 +336,11 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
       properties: {
         'name': Schema.string(),
         'description': Schema.string(),
-        'inputSchema': Schema.any(),
-        'outputSchema': Schema.any(),
+        'inputSchema': Schema.object(additionalProperties: Schema.any()),
+        'outputSchema': Schema.object(additionalProperties: Schema.any()),
         'metadata': Schema.object(additionalProperties: Schema.any()),
       },
-      required: ['name', 'description', 'inputSchema', 'outputSchema'],
+      required: ['name', 'description'],
     ),
     dependencies: [],
   );
@@ -343,11 +351,11 @@ class Part {
 
   Part._(this._json);
 
-  factory Part() {
-    return Part._({});
+  Part() {
+    _json = {};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Part> $schema = _PartTypeFactory();
 
@@ -382,22 +390,22 @@ class TextPart implements Part {
 
   TextPart._(this._json);
 
-  factory TextPart({
+  TextPart({
     required String text,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return TextPart._({
+    _json = {
       'text': text,
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
@@ -485,22 +493,22 @@ class MediaPart implements Part {
 
   MediaPart._(this._json);
 
-  factory MediaPart({
+  MediaPart({
     required Media media,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return MediaPart._({
+    _json = {
       'media': media.toJson(),
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<MediaPart> $schema = _MediaPartTypeFactory();
 
@@ -589,22 +597,22 @@ class ToolRequestPart implements Part {
 
   ToolRequestPart._(this._json);
 
-  factory ToolRequestPart({
+  ToolRequestPart({
     required ToolRequest toolRequest,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return ToolRequestPart._({
+    _json = {
       'toolRequest': toolRequest.toJson(),
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ToolRequestPart> $schema =
       _ToolRequestPartTypeFactory();
@@ -694,22 +702,22 @@ class ToolResponsePart implements Part {
 
   ToolResponsePart._(this._json);
 
-  factory ToolResponsePart({
+  ToolResponsePart({
     required ToolResponse toolResponse,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return ToolResponsePart._({
+    _json = {
       'toolResponse': toolResponse.toJson(),
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ToolResponsePart> $schema =
       _ToolResponsePartTypeFactory();
@@ -798,20 +806,20 @@ class DataPart implements Part {
 
   DataPart._(this._json);
 
-  factory DataPart({
+  DataPart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return DataPart._({
+    _json = {
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<DataPart> $schema = _DataPartTypeFactory();
 
@@ -890,20 +898,20 @@ class CustomPart implements Part {
 
   CustomPart._(this._json);
 
-  factory CustomPart({
+  CustomPart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     required Map<String, dynamic> custom,
   }) {
-    return CustomPart._({
+    _json = {
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       'custom': custom,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<CustomPart> $schema = _CustomPartTypeFactory();
 
@@ -979,22 +987,22 @@ class ReasoningPart implements Part {
 
   ReasoningPart._(this._json);
 
-  factory ReasoningPart({
+  ReasoningPart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
     required String reasoning,
   }) {
-    return ReasoningPart._({
+    _json = {
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
       'reasoning': reasoning,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ReasoningPart> $schema =
       _ReasoningPartTypeFactory();
@@ -1084,22 +1092,22 @@ class ResourcePart implements Part {
 
   ResourcePart._(this._json);
 
-  factory ResourcePart({
+  ResourcePart({
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
     required Map<String, dynamic> resource,
   }) {
-    return ResourcePart._({
+    _json = {
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
       'resource': resource,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ResourcePart> $schema =
       _ResourcePartTypeFactory();
@@ -1188,14 +1196,11 @@ class Media {
 
   Media._(this._json);
 
-  factory Media({String? contentType, required String url}) {
-    return Media._({
-      if (contentType != null) 'contentType': contentType,
-      'url': url,
-    });
+  Media({String? contentType, required String url}) {
+    _json = {if (contentType != null) 'contentType': contentType, 'url': url};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Media> $schema = _MediaTypeFactory();
 
@@ -1254,21 +1259,21 @@ class ToolRequest {
 
   ToolRequest._(this._json);
 
-  factory ToolRequest({
+  ToolRequest({
     String? ref,
     required String name,
     Map<String, dynamic>? input,
     bool? partial,
   }) {
-    return ToolRequest._({
+    _json = {
       if (ref != null) 'ref': ref,
       'name': name,
       if (input != null) 'input': input,
       if (partial != null) 'partial': partial,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ToolRequest> $schema = _ToolRequestTypeFactory();
 
@@ -1356,21 +1361,21 @@ class ToolResponse {
 
   ToolResponse._(this._json);
 
-  factory ToolResponse({
+  ToolResponse({
     String? ref,
     required String name,
     dynamic output,
     List<dynamic>? content,
   }) {
-    return ToolResponse._({
+    _json = {
       if (ref != null) 'ref': ref,
       'name': name,
       if (output != null) 'output': output,
       if (content != null) 'content': content,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ToolResponse> $schema =
       _ToolResponseTypeFactory();
@@ -1454,23 +1459,23 @@ class ModelInfo {
 
   ModelInfo._(this._json);
 
-  factory ModelInfo({
+  ModelInfo({
     List<String>? versions,
     String? label,
     Map<String, dynamic>? configSchema,
     Map<String, dynamic>? supports,
     String? stage,
   }) {
-    return ModelInfo._({
+    _json = {
       if (versions != null) 'versions': versions,
       if (label != null) 'label': label,
       if (configSchema != null) 'configSchema': configSchema,
       if (supports != null) 'supports': supports,
       if (stage != null) 'stage': stage,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ModelInfo> $schema = _ModelInfoTypeFactory();
 
@@ -1575,7 +1580,7 @@ class ModelRequest {
 
   ModelRequest._(this._json);
 
-  factory ModelRequest({
+  ModelRequest({
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
@@ -1583,17 +1588,17 @@ class ModelRequest {
     OutputConfig? output,
     List<DocumentData>? docs,
   }) {
-    return ModelRequest._({
+    _json = {
       'messages': messages.map((e) => e.toJson()).toList(),
       if (config != null) 'config': config,
       if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
       if (toolChoice != null) 'toolChoice': toolChoice,
       if (output != null) 'output': output.toJson(),
       if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ModelRequest> $schema =
       _ModelRequestTypeFactory();
@@ -1727,7 +1732,7 @@ class ModelResponse {
 
   ModelResponse._(this._json);
 
-  factory ModelResponse({
+  ModelResponse({
     Message? message,
     required FinishReason finishReason,
     String? finishMessage,
@@ -1738,7 +1743,7 @@ class ModelResponse {
     GenerateRequest? request,
     Operation? operation,
   }) {
-    return ModelResponse._({
+    _json = {
       if (message != null) 'message': message.toJson(),
       'finishReason': finishReason,
       if (finishMessage != null) 'finishMessage': finishMessage,
@@ -1748,10 +1753,10 @@ class ModelResponse {
       if (raw != null) 'raw': raw,
       if (request != null) 'request': request.toJson(),
       if (operation != null) 'operation': operation.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ModelResponse> $schema =
       _ModelResponseTypeFactory();
@@ -1918,23 +1923,23 @@ class ModelResponseChunk {
 
   ModelResponseChunk._(this._json);
 
-  factory ModelResponseChunk({
+  ModelResponseChunk({
     Role? role,
     int? index,
     required List<Part> content,
     Map<String, dynamic>? custom,
     bool? aggregated,
   }) {
-    return ModelResponseChunk._({
+    _json = {
       if (role != null) 'role': role,
       if (index != null) 'index': index,
       'content': content.map((e) => e.toJson()).toList(),
       if (custom != null) 'custom': custom,
       if (aggregated != null) 'aggregated': aggregated,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ModelResponseChunk> $schema =
       _ModelResponseChunkTypeFactory();
@@ -2035,13 +2040,229 @@ class _ModelResponseChunkTypeFactory
   );
 }
 
+class GenerateResponse {
+  factory GenerateResponse.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GenerateResponse._(this._json);
+
+  GenerateResponse({
+    Message? message,
+    FinishReason? finishReason,
+    String? finishMessage,
+    double? latencyMs,
+    GenerationUsage? usage,
+    Map<String, dynamic>? custom,
+    Map<String, dynamic>? raw,
+    GenerateRequest? request,
+    Operation? operation,
+    List<Candidate>? candidates,
+  }) {
+    _json = {
+      if (message != null) 'message': message.toJson(),
+      if (finishReason != null) 'finishReason': finishReason,
+      if (finishMessage != null) 'finishMessage': finishMessage,
+      if (latencyMs != null) 'latencyMs': latencyMs,
+      if (usage != null) 'usage': usage.toJson(),
+      if (custom != null) 'custom': custom,
+      if (raw != null) 'raw': raw,
+      if (request != null) 'request': request.toJson(),
+      if (operation != null) 'operation': operation.toJson(),
+      if (candidates != null)
+        'candidates': candidates.map((e) => e.toJson()).toList(),
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<GenerateResponse> $schema =
+      _GenerateResponseTypeFactory();
+
+  Message? get message {
+    return _json['message'] == null
+        ? null
+        : Message.fromJson(_json['message'] as Map<String, dynamic>);
+  }
+
+  set message(Message? value) {
+    if (value == null) {
+      _json.remove('message');
+    } else {
+      _json['message'] = value;
+    }
+  }
+
+  FinishReason? get finishReason {
+    return _json['finishReason'] as FinishReason?;
+  }
+
+  set finishReason(FinishReason? value) {
+    if (value == null) {
+      _json.remove('finishReason');
+    } else {
+      _json['finishReason'] = value;
+    }
+  }
+
+  String? get finishMessage {
+    return _json['finishMessage'] as String?;
+  }
+
+  set finishMessage(String? value) {
+    if (value == null) {
+      _json.remove('finishMessage');
+    } else {
+      _json['finishMessage'] = value;
+    }
+  }
+
+  double? get latencyMs {
+    return (_json['latencyMs'] as num?)?.toDouble();
+  }
+
+  set latencyMs(double? value) {
+    if (value == null) {
+      _json.remove('latencyMs');
+    } else {
+      _json['latencyMs'] = value;
+    }
+  }
+
+  GenerationUsage? get usage {
+    return _json['usage'] == null
+        ? null
+        : GenerationUsage.fromJson(_json['usage'] as Map<String, dynamic>);
+  }
+
+  set usage(GenerationUsage? value) {
+    if (value == null) {
+      _json.remove('usage');
+    } else {
+      _json['usage'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get custom {
+    return _json['custom'] as Map<String, dynamic>?;
+  }
+
+  set custom(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get raw {
+    return _json['raw'] as Map<String, dynamic>?;
+  }
+
+  set raw(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('raw');
+    } else {
+      _json['raw'] = value;
+    }
+  }
+
+  GenerateRequest? get request {
+    return _json['request'] == null
+        ? null
+        : GenerateRequest.fromJson(_json['request'] as Map<String, dynamic>);
+  }
+
+  set request(GenerateRequest? value) {
+    if (value == null) {
+      _json.remove('request');
+    } else {
+      _json['request'] = value;
+    }
+  }
+
+  Operation? get operation {
+    return _json['operation'] == null
+        ? null
+        : Operation.fromJson(_json['operation'] as Map<String, dynamic>);
+  }
+
+  set operation(Operation? value) {
+    if (value == null) {
+      _json.remove('operation');
+    } else {
+      _json['operation'] = value;
+    }
+  }
+
+  List<Candidate>? get candidates {
+    return (_json['candidates'] as List?)
+        ?.map((e) => Candidate.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set candidates(List<Candidate>? value) {
+    if (value == null) {
+      _json.remove('candidates');
+    } else {
+      _json['candidates'] = value.toList();
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _GenerateResponseTypeFactory extends SchemanticType<GenerateResponse> {
+  const _GenerateResponseTypeFactory();
+
+  @override
+  GenerateResponse parse(Object? json) {
+    return GenerateResponse._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GenerateResponse',
+    definition: Schema.object(
+      properties: {
+        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+        'finishReason': Schema.any(),
+        'finishMessage': Schema.string(),
+        'latencyMs': Schema.number(),
+        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
+        'custom': Schema.object(additionalProperties: Schema.any()),
+        'raw': Schema.object(additionalProperties: Schema.any()),
+        'request': Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
+        'operation': Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
+        'candidates': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Candidate'}),
+        ),
+      },
+      required: [],
+    ),
+    dependencies: [
+      Message.$schema,
+      GenerationUsage.$schema,
+      GenerateRequest.$schema,
+      Operation.$schema,
+      Candidate.$schema,
+    ],
+  );
+}
+
 class GenerateRequest {
   factory GenerateRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
   GenerateRequest._(this._json);
 
-  factory GenerateRequest({
+  GenerateRequest({
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
@@ -2050,7 +2271,7 @@ class GenerateRequest {
     List<DocumentData>? docs,
     double? candidates,
   }) {
-    return GenerateRequest._({
+    _json = {
       'messages': messages.map((e) => e.toJson()).toList(),
       if (config != null) 'config': config,
       if (tools != null) 'tools': tools.map((e) => e.toJson()).toList(),
@@ -2058,10 +2279,10 @@ class GenerateRequest {
       if (output != null) 'output': output.toJson(),
       if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
       if (candidates != null) 'candidates': candidates,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GenerateRequest> $schema =
       _GenerateRequestTypeFactory();
@@ -2208,7 +2429,7 @@ class GenerationUsage {
 
   GenerationUsage._(this._json);
 
-  factory GenerationUsage({
+  GenerationUsage({
     double? inputTokens,
     double? outputTokens,
     double? totalTokens,
@@ -2224,7 +2445,7 @@ class GenerationUsage {
     double? thoughtsTokens,
     double? cachedContentTokens,
   }) {
-    return GenerationUsage._({
+    _json = {
       if (inputTokens != null) 'inputTokens': inputTokens,
       if (outputTokens != null) 'outputTokens': outputTokens,
       if (totalTokens != null) 'totalTokens': totalTokens,
@@ -2240,10 +2461,10 @@ class GenerationUsage {
       if (thoughtsTokens != null) 'thoughtsTokens': thoughtsTokens,
       if (cachedContentTokens != null)
         'cachedContentTokens': cachedContentTokens,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GenerationUsage> $schema =
       _GenerationUsageTypeFactory();
@@ -2465,7 +2686,7 @@ class Operation {
 
   Operation._(this._json);
 
-  factory Operation({
+  Operation({
     String? action,
     required String id,
     bool? done,
@@ -2473,17 +2694,17 @@ class Operation {
     Map<String, dynamic>? error,
     Map<String, dynamic>? metadata,
   }) {
-    return Operation._({
+    _json = {
       if (action != null) 'action': action,
       'id': id,
       if (done != null) 'done': done,
       if (output != null) 'output': output,
       if (error != null) 'error': error,
       if (metadata != null) 'metadata': metadata,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Operation> $schema = _OperationTypeFactory();
 
@@ -2597,21 +2818,21 @@ class OutputConfig {
 
   OutputConfig._(this._json);
 
-  factory OutputConfig({
+  OutputConfig({
     String? format,
     Map<String, dynamic>? schema,
     bool? constrained,
     String? contentType,
   }) {
-    return OutputConfig._({
+    _json = {
       if (format != null) 'format': format,
       if (schema != null) 'schema': schema,
       if (constrained != null) 'constrained': constrained,
       if (contentType != null) 'contentType': contentType,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<OutputConfig> $schema =
       _OutputConfigTypeFactory();
@@ -2704,17 +2925,14 @@ class DocumentData {
 
   DocumentData._(this._json);
 
-  factory DocumentData({
-    required List<Part> content,
-    Map<String, dynamic>? metadata,
-  }) {
-    return DocumentData._({
+  DocumentData({required List<Part> content, Map<String, dynamic>? metadata}) {
+    _json = {
       'content': content.map((e) => e.toJson()).toList(),
       if (metadata != null) 'metadata': metadata,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<DocumentData> $schema =
       _DocumentDataTypeFactory();
@@ -2781,7 +2999,7 @@ class GenerateActionOptions {
 
   GenerateActionOptions._(this._json);
 
-  factory GenerateActionOptions({
+  GenerateActionOptions({
     String? model,
     List<DocumentData>? docs,
     required List<Message> messages,
@@ -2794,7 +3012,7 @@ class GenerateActionOptions {
     int? maxTurns,
     String? stepName,
   }) {
-    return GenerateActionOptions._({
+    _json = {
       if (model != null) 'model': model,
       if (docs != null) 'docs': docs.map((e) => e.toJson()).toList(),
       'messages': messages.map((e) => e.toJson()).toList(),
@@ -2806,10 +3024,10 @@ class GenerateActionOptions {
       if (returnToolRequests != null) 'returnToolRequests': returnToolRequests,
       if (maxTurns != null) 'maxTurns': maxTurns,
       if (stepName != null) 'stepName': stepName,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GenerateActionOptions> $schema =
       _GenerateActionOptionsTypeFactory();
@@ -3008,23 +3226,23 @@ class GenerateActionOutputConfig {
 
   GenerateActionOutputConfig._(this._json);
 
-  factory GenerateActionOutputConfig({
+  GenerateActionOutputConfig({
     String? format,
     String? contentType,
-    bool? instructions,
+    GenerateActionOutputConfigInstructions? instructions,
     Map<String, dynamic>? jsonSchema,
     bool? constrained,
   }) {
-    return GenerateActionOutputConfig._({
+    _json = {
       if (format != null) 'format': format,
       if (contentType != null) 'contentType': contentType,
-      if (instructions != null) 'instructions': instructions,
+      if (instructions != null) 'instructions': instructions.value,
       if (jsonSchema != null) 'jsonSchema': jsonSchema,
       if (constrained != null) 'constrained': constrained,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GenerateActionOutputConfig> $schema =
       _GenerateActionOutputConfigTypeFactory();
@@ -3053,16 +3271,13 @@ class GenerateActionOutputConfig {
     }
   }
 
-  bool? get instructions {
-    return _json['instructions'] as bool?;
+  set instructions(GenerateActionOutputConfigInstructions value) {
+    _json['instructions'] = value.value;
   }
 
-  set instructions(bool? value) {
-    if (value == null) {
-      _json.remove('instructions');
-    } else {
-      _json['instructions'] = value;
-    }
+  // Possible return values are `bool`, `String`
+  Object? get instructions {
+    return _json['instructions'] as Object?;
   }
 
   Map<String, dynamic>? get jsonSchema {
@@ -3099,6 +3314,14 @@ class GenerateActionOutputConfig {
   }
 }
 
+class GenerateActionOutputConfigInstructions {
+  GenerateActionOutputConfigInstructions.bool(bool this.value);
+
+  GenerateActionOutputConfigInstructions.string(String this.value);
+
+  final Object? value;
+}
+
 class _GenerateActionOutputConfigTypeFactory
     extends SchemanticType<GenerateActionOutputConfig> {
   const _GenerateActionOutputConfigTypeFactory();
@@ -3115,7 +3338,9 @@ class _GenerateActionOutputConfigTypeFactory
       properties: {
         'format': Schema.string(),
         'contentType': Schema.string(),
-        'instructions': Schema.boolean(),
+        'instructions': Schema.combined(
+          anyOf: [Schema.boolean(), Schema.string()],
+        ),
         'jsonSchema': Schema.object(additionalProperties: Schema.any()),
         'constrained': Schema.boolean(),
       },

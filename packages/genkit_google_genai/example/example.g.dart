@@ -27,11 +27,11 @@ class WeatherToolInput {
 
   WeatherToolInput._(this._json);
 
-  factory WeatherToolInput({required String location}) {
-    return WeatherToolInput._({'location': location});
+  WeatherToolInput({required String location}) {
+    _json = {'location': location};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<WeatherToolInput> $schema =
       _WeatherToolInputTypeFactory();
@@ -83,15 +83,15 @@ class Category {
 
   Category._(this._json);
 
-  factory Category({required String name, List<Category>? subcategories}) {
-    return Category._({
+  Category({required String name, List<Category>? subcategories}) {
+    _json = {
       'name': name,
       if (subcategories != null)
         'subcategories': subcategories.map((e) => e.toJson()).toList(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Category> $schema = _CategoryTypeFactory();
 
@@ -156,19 +156,15 @@ class Weapon {
 
   Weapon._(this._json);
 
-  factory Weapon({
+  Weapon({
     required String name,
     required double damage,
     required Category category,
   }) {
-    return Weapon._({
-      'name': name,
-      'damage': damage,
-      'category': category.toJson(),
-    });
+    _json = {'name': name, 'damage': damage, 'category': category.toJson()};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Weapon> $schema = _WeaponTypeFactory();
 
@@ -235,23 +231,23 @@ class RpgCharacter {
 
   RpgCharacter._(this._json);
 
-  factory RpgCharacter({
+  RpgCharacter({
     required String name,
     required String backstory,
     required List<Weapon> weapons,
     required String classType,
     String? affiliation,
   }) {
-    return RpgCharacter._({
+    _json = {
       'name': name,
       'backstory': backstory,
       'weapons': weapons.map((e) => e.toJson()).toList(),
       'classType': classType,
       if (affiliation != null) 'affiliation': affiliation,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<RpgCharacter> $schema =
       _RpgCharacterTypeFactory();

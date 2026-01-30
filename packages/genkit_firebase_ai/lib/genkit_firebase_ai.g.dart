@@ -27,7 +27,7 @@ class GeminiOptions {
 
   GeminiOptions._(this._json);
 
-  factory GeminiOptions({
+  GeminiOptions({
     List<String>? stopSequences,
     int? maxOutputTokens,
     double? temperature,
@@ -41,7 +41,7 @@ class GeminiOptions {
     Map<String, dynamic>? responseJsonSchema,
     ThinkingConfig? thinkingConfig,
   }) {
-    return GeminiOptions._({
+    _json = {
       if (stopSequences != null) 'stopSequences': stopSequences,
       if (maxOutputTokens != null) 'maxOutputTokens': maxOutputTokens,
       if (temperature != null) 'temperature': temperature,
@@ -54,10 +54,10 @@ class GeminiOptions {
       if (responseSchema != null) 'responseSchema': responseSchema,
       if (responseJsonSchema != null) 'responseJsonSchema': responseJsonSchema,
       if (thinkingConfig != null) 'thinkingConfig': thinkingConfig.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<GeminiOptions> $schema =
       _GeminiOptionsTypeFactory();
@@ -258,14 +258,14 @@ class ThinkingConfig {
 
   ThinkingConfig._(this._json);
 
-  factory ThinkingConfig({int? thinkingBudget, bool? includeThoughts}) {
-    return ThinkingConfig._({
+  ThinkingConfig({int? thinkingBudget, bool? includeThoughts}) {
+    _json = {
       if (thinkingBudget != null) 'thinkingBudget': thinkingBudget,
       if (includeThoughts != null) 'includeThoughts': includeThoughts,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
@@ -332,13 +332,11 @@ class PrebuiltVoiceConfig {
 
   PrebuiltVoiceConfig._(this._json);
 
-  factory PrebuiltVoiceConfig({String? voiceName}) {
-    return PrebuiltVoiceConfig._({
-      if (voiceName != null) 'voiceName': voiceName,
-    });
+  PrebuiltVoiceConfig({String? voiceName}) {
+    _json = {if (voiceName != null) 'voiceName': voiceName};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<PrebuiltVoiceConfig> $schema =
       _PrebuiltVoiceConfigTypeFactory();
@@ -391,14 +389,14 @@ class VoiceConfig {
 
   VoiceConfig._(this._json);
 
-  factory VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
-    return VoiceConfig._({
+  VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
+    _json = {
       if (prebuiltVoiceConfig != null)
         'prebuiltVoiceConfig': prebuiltVoiceConfig.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<VoiceConfig> $schema = _VoiceConfigTypeFactory();
 
@@ -457,13 +455,11 @@ class SpeechConfig {
 
   SpeechConfig._(this._json);
 
-  factory SpeechConfig({VoiceConfig? voiceConfig}) {
-    return SpeechConfig._({
-      if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson(),
-    });
+  SpeechConfig({VoiceConfig? voiceConfig}) {
+    _json = {if (voiceConfig != null) 'voiceConfig': voiceConfig.toJson()};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<SpeechConfig> $schema =
       _SpeechConfigTypeFactory();
@@ -519,7 +515,7 @@ class LiveGenerationConfig {
 
   LiveGenerationConfig._(this._json);
 
-  factory LiveGenerationConfig({
+  LiveGenerationConfig({
     List<String>? responseModalities,
     SpeechConfig? speechConfig,
     List<String>? stopSequences,
@@ -530,7 +526,7 @@ class LiveGenerationConfig {
     double? presencePenalty,
     double? frequencyPenalty,
   }) {
-    return LiveGenerationConfig._({
+    _json = {
       if (responseModalities != null) 'responseModalities': responseModalities,
       if (speechConfig != null) 'speechConfig': speechConfig.toJson(),
       if (stopSequences != null) 'stopSequences': stopSequences,
@@ -540,10 +536,10 @@ class LiveGenerationConfig {
       if (topK != null) 'topK': topK,
       if (presencePenalty != null) 'presencePenalty': presencePenalty,
       if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<LiveGenerationConfig> $schema =
       _LiveGenerationConfigTypeFactory();

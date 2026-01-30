@@ -26,19 +26,15 @@ class Address {
 
   Address._(this._json);
 
-  factory Address({
+  Address({
     required String street,
     required String city,
     required AddressZipCode zipCode,
   }) {
-    return Address._({
-      'street': street,
-      'city': city,
-      'zipCode': zipCode.value,
-    });
+    _json = {'street': street, 'city': city, 'zipCode': zipCode.value};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Address> $schema = _AddressTypeFactory();
 
@@ -113,21 +109,21 @@ class User {
 
   User._(this._json);
 
-  factory User({
+  User({
     required String name,
     int? age,
     required bool isAdmin,
     Address? address,
   }) {
-    return User._({
+    _json = {
       'name': name,
       if (age != null) 'years_old': age,
       'isAdmin': isAdmin,
       if (address != null) 'address': address.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<User> $schema = _UserTypeFactory();
 
@@ -220,21 +216,21 @@ class Product {
 
   Product._(this._json);
 
-  factory Product({
+  Product({
     required String id,
     required String name,
     required double price,
     List<String>? tags,
   }) {
-    return Product._({
+    _json = {
       'id': id,
       'name': name,
       'price': price,
       if (tags != null) 'tags': tags,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Product> $schema = _ProductTypeFactory();
 

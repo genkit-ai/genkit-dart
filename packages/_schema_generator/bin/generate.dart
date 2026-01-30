@@ -83,6 +83,7 @@ const _allowlist = {
   'ModelRequest',
   'ModelResponse',
   'ModelResponseChunk',
+  'GenerateResponse',
   'GenerateRequest',
   'GenerationUsage',
   'Operation',

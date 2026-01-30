@@ -27,11 +27,11 @@ class TestCustomOptions {
 
   TestCustomOptions._(this._json);
 
-  factory TestCustomOptions({required String customField}) {
-    return TestCustomOptions._({'customField': customField});
+  TestCustomOptions({required String customField}) {
+    _json = {'customField': customField};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<TestCustomOptions> $schema =
       _TestCustomOptionsTypeFactory();

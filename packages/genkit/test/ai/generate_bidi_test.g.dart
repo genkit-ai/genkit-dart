@@ -27,11 +27,11 @@ class MyToolInput {
 
   MyToolInput._(this._json);
 
-  factory MyToolInput({required String location}) {
-    return MyToolInput._({'location': location});
+  MyToolInput({required String location}) {
+    _json = {'location': location};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<MyToolInput> $schema = _MyToolInputTypeFactory();
 

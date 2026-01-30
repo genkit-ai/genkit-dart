@@ -60,7 +60,12 @@ class ClassGenerator {
     if (schema.containsKey('enum')) {
       _generateEnumExtensionType(b, className, schema['enum']);
     } else if (schema.containsKey('anyOf')) {
-      _generateUnionClass(b, className, schema['anyOf'], extend: extend);
+      _generateUnionClass(
+        b,
+        className,
+        (schema['anyOf'] as List).cast<Map<String, dynamic>>(),
+        extend: extend,
+      );
     } else {
       _generateStandardClass(b, className, schema, extend: extend);
     }
@@ -92,21 +97,59 @@ class ClassGenerator {
               .where((e) => !_isNotType(e.value as Map<String, dynamic>))
               .map((e) {
                 final isRequired = required.contains(e.key);
+                final unionTypes = _getUnionTypes(
+                  e.value as Map<String, dynamic>,
+                );
+
                 return Method((m) {
                   m
                     ..name = _sanitizeFieldName(e.key)
-                    ..type = MethodType.getter
-                    ..returns = _mapType(
+                    ..type = MethodType.getter;
+
+                  if (unionTypes != null && unionTypes.isNotEmpty) {
+                    if (unionTypes.length > 1) {
+                      m.annotations.add(
+                        refer('AnyOf').call([
+                          literalList(unionTypes),
+                        ]),
+                      );
+                      m.returns = refer('Object?');
+                    } else {
+                      m.returns = refer('${unionTypes.first.symbol}?');
+                    }
+                  } else {
+                    m.returns = _mapType(
                       className,
                       e.key,
                       e.value,
                       isRequired: isRequired,
                     );
+                  }
                 });
               }),
         );
       }),
     );
+  }
+
+  List<Reference>? _getUnionTypes(Map<String, dynamic> schema) {
+    if (schema.containsKey('anyOf')) {
+      final anyOf = (schema['anyOf'] as List).cast<Map<String, dynamic>>();
+      return anyOf
+          .map((s) => _mapTypeInner('union', s))
+          .where((r) => r.symbol != 'dynamic')
+          .map((r) => refer(r.symbol!.replaceAll('?', '')))
+          .toList();
+    }
+    if (schema['type'] is List) {
+      final types = (schema['type'] as List).cast<String>();
+      return types
+          .where((t) => t != 'null')
+          .map((t) => _mapTypeInner('union', {'type': t}))
+          .map((r) => refer(r.symbol!.replaceAll('?', '')))
+          .toList();
+    }
+    return null;
   }
 
   void _generateEnumExtensionType(

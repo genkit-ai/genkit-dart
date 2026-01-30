@@ -27,11 +27,11 @@ class TestToolInput {
 
   TestToolInput._(this._json);
 
-  factory TestToolInput({required String name}) {
-    return TestToolInput._({'name': name});
+  TestToolInput({required String name}) {
+    _json = {'name': name};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<TestToolInput> $schema =
       _TestToolInputTypeFactory();

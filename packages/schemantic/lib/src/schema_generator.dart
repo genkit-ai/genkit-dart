@@ -150,6 +150,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         Field((f) {
           f
             ..name = '_json'
+            ..late = true
+            ..modifier = FieldModifier.final$
             ..type = refer('Map<String, dynamic>');
 
           if (isSubclass) {
@@ -205,7 +207,6 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
 
       b.constructors.add(
         Constructor((c) {
-          c.factory = true;
           final params = <Parameter>[];
           final jsonMapEntries = <String>[];
 
@@ -218,22 +219,29 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                 throwOnUnresolved: false,
               );
 
-              if (anyOfAnnotation != null) {
+                if (anyOfAnnotation != null) {
                 // Handle AnyOf parameter using Helper Class
                 final helperClassName = baseName + _capitalize(paramName!);
+                final isNullable = getter.returnType.isNullable;
                 params.add(
                   Parameter(
                     (p) => p
                       ..name = paramName
-                      ..type = refer(helperClassName)
+                      ..type = refer('$helperClassName${isNullable ? "?" : ""}')
                       ..named = true
-                      ..required = true,
+                      ..required = !isNullable,
                   ),
                 );
 
                 final key = _getJsonKey(getter);
                 // Assign helper.value to map
-                jsonMapEntries.add("'$key': $paramName.value");
+                if (isNullable) {
+                  jsonMapEntries.add(
+                    "if ($paramName != null) '$key': $paramName.value",
+                  );
+                } else {
+                  jsonMapEntries.add("'$key': $paramName.value");
+                }
               } else {
                 // Standard Field Handling
                 final paramType = refer(_convertSchemaType(getter.returnType));
@@ -297,9 +305,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           }
           c.optionalParameters.addAll(params);
           final mapLiteral = '{${jsonMapEntries.join(', ')}}';
-          c.body = refer(
-            '$baseName._',
-          ).call([CodeExpression(Code(mapLiteral))]).returned.statement;
+          c.body = Code('_json = $mapLiteral;');
         }),
       );
 

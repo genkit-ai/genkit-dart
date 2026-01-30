@@ -26,15 +26,11 @@ class User {
 
   User._(this._json);
 
-  factory User({required String name, int? age, required bool isAdmin}) {
-    return User._({
-      'name': name,
-      if (age != null) 'age': age,
-      'isAdmin': isAdmin,
-    });
+  User({required String name, int? age, required bool isAdmin}) {
+    _json = {'name': name, if (age != null) 'age': age, 'isAdmin': isAdmin};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<User> $schema = _UserTypeFactory();
 
@@ -104,19 +100,19 @@ class Group {
 
   Group._(this._json);
 
-  factory Group({
+  Group({
     required String groupName,
     required List<User> members,
     User? leader,
   }) {
-    return Group._({
+    _json = {
       'groupName': groupName,
       'members': members.map((e) => e.toJson()).toList(),
       if (leader != null) 'leader': leader.toJson(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Group> $schema = _GroupTypeFactory();
 
@@ -192,15 +188,15 @@ class Node {
 
   Node._(this._json);
 
-  factory Node({required String id, List<Node>? children}) {
-    return Node._({
+  Node({required String id, List<Node>? children}) {
+    _json = {
       'id': id,
       if (children != null)
         'children': children.map((e) => e.toJson()).toList(),
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Node> $schema = _NodeTypeFactory();
 
@@ -265,15 +261,15 @@ class Keyed {
 
   Keyed._(this._json);
 
-  factory Keyed({required String originalName, int? score, double? rating}) {
-    return Keyed._({
+  Keyed({required String originalName, int? score, double? rating}) {
+    _json = {
       'custom_name': originalName,
       if (score != null) 'score': score,
       if (rating != null) 'rating': rating,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Keyed> $schema = _KeyedTypeFactory();
 
@@ -351,19 +347,19 @@ class Comprehensive {
 
   Comprehensive._(this._json);
 
-  factory Comprehensive({
+  Comprehensive({
     required String stringField,
     required int intField,
     required double numberField,
   }) {
-    return Comprehensive._({
+    _json = {
       's_field': stringField,
       'i_field': intField,
       'n_field': numberField,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Comprehensive> $schema =
       _ComprehensiveTypeFactory();
@@ -452,11 +448,11 @@ class Description {
 
   Description._(this._json);
 
-  factory Description({required String name}) {
-    return Description._({'name': name});
+  Description({required String name}) {
+    _json = {'name': name};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Description> $schema = _DescriptionTypeFactory();
 
@@ -504,11 +500,11 @@ class CrossFileParent {
 
   CrossFileParent._(this._json);
 
-  factory CrossFileParent({required SharedChild child}) {
-    return CrossFileParent._({'child': child.toJson()});
+  CrossFileParent({required SharedChild child}) {
+    _json = {'child': child.toJson()};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<CrossFileParent> $schema =
       _CrossFileParentTypeFactory();
@@ -557,16 +553,16 @@ class Defaults {
 
   Defaults._(this._json);
 
-  factory Defaults({
+  Defaults({
     required String env,
     required int port,
     required double ratio,
     required bool flag,
   }) {
-    return Defaults._({'env': env, 'port': port, 'ratio': ratio, 'flag': flag});
+    _json = {'env': env, 'port': port, 'ratio': ratio, 'flag': flag};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Defaults> $schema = _DefaultsTypeFactory();
 
@@ -641,11 +637,11 @@ class Poly {
 
   Poly._(this._json);
 
-  factory Poly({required PolyId id}) {
-    return Poly._({'id': id.value});
+  Poly({required PolyId id}) {
+    _json = {'id': id.value};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Poly> $schema = _PolyTypeFactory();
 

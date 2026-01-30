@@ -27,11 +27,11 @@ class SharedChild {
 
   SharedChild._(this._json);
 
-  factory SharedChild({required String childId}) {
-    return SharedChild._({'childId': childId});
+  SharedChild({required String childId}) {
+    _json = {'childId': childId};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<SharedChild> $schema = _SharedChildTypeFactory();
 
@@ -77,11 +77,11 @@ class Part {
 
   Part._(this._json);
 
-  factory Part() {
-    return Part._({});
+  Part() {
+    _json = {};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Part> $schema = _PartTypeFactory();
 
@@ -116,22 +116,22 @@ class TextPart implements Part {
 
   TextPart._(this._json);
 
-  factory TextPart({
+  TextPart({
     required String text,
     Map<String, dynamic>? data,
     Map<String, dynamic>? metadata,
     Map<String, dynamic>? custom,
   }) {
-    return TextPart._({
+    _json = {
       'text': text,
       if (data != null) 'data': data,
       if (metadata != null) 'metadata': metadata,
       if (custom != null) 'custom': custom,
-    });
+    };
   }
 
   @override
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
