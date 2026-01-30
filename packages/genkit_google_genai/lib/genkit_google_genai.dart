@@ -67,6 +67,17 @@ typedef GoogleGenAiPluginOptions = ();
 
 const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 
+final commonModelInfo = ModelInfo(
+  supports: {
+    'multiturn': true,
+    'media': true,
+    'tools': true,
+    'toolChoice': true,
+    'systemRole': true,
+    'constrained': true,
+  },
+);
+
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
@@ -80,64 +91,106 @@ class GoogleGenAiPluginHandle {
 }
 
 class _GoogleGenAiPlugin extends GenkitPlugin {
-  @override
-  String get name => 'googleai';
-
   String? apiKey;
 
   _GoogleGenAiPlugin({this.apiKey});
 
   @override
-  Future<List<Action>> init() async {
-    return [_createModel('gemini-2.5-flash'), _createModel('gemini-2.5-pro')];
+  String get name => 'googleai';
+
+  @override
+  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
+  list() async {
+    final service = gcl.ModelService.fromApiKey(apiKey);
+    final modelsResponse = await service.listModels(
+      gcl.ListModelsRequest(pageSize: 1000),
+    );
+    final models = modelsResponse.models
+        .where((model) {
+          return model.name.startsWith('models/gemini-');
+        })
+        .map((model) {
+          final isTts = model.name.contains('-tts');
+          return modelMetadata(
+            'googleai/${model.name.split('/').last}',
+            customOptions: isTts
+                ? GeminiTtsOptions.$schema
+                : GeminiOptions.$schema,
+            modelInfo: commonModelInfo,
+          );
+        })
+        .toList();
+    return models;
   }
 
   @override
   Action? resolve(String actionType, String name) {
-    return _createModel(name);
+    if (name.contains('-tts')) {
+      return _createModel(name, GeminiTtsOptions.$schema);
+    }
+    return _createModel(name, GeminiOptions.$schema);
   }
 
-  Model _createModel(String modelName) {
+  Model _createModel(String modelName, SchemanticType customOptions) {
     return Model(
       name: 'googleai/$modelName',
-      customOptions: GeminiOptions.$schema,
-      metadata: {
-        'model': ModelInfo(
-          label: modelName,
-          supports: {
-            'multiturn': true,
-            'media': true,
-            'tools': true,
-            'toolChoice': true,
-            'systemRole': true,
-            'constrained': true,
-          },
-        ).toJson(),
-      },
+      customOptions: customOptions,
+      metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
-        final options = req!.config == null
-            ? GeminiOptions()
-            : GeminiOptions.$schema.parse(req.config!);
+        final gcl.GenerationConfig generationConfig;
+        List<gcl.SafetySetting>? safetySettings;
+        List<gcl.Tool>? tools;
+        gcl.ToolConfig? toolConfig;
+        String? apiKey;
+
+        final isJsonMode =
+            req!.output?.format == 'json' ||
+            req.output?.contentType == 'application/json';
+
+        if (customOptions == GeminiTtsOptions.$schema) {
+          final options = req.config == null
+              ? GeminiTtsOptions()
+              : GeminiTtsOptions.$schema.parse(req.config!);
+
+          apiKey = options.apiKey;
+          generationConfig = toGeminiTtsSettings(
+            options,
+            req.output?.schema,
+            isJsonMode,
+          );
+          safetySettings = toGeminiSafetySettings(options.safetySettings);
+          tools = toGeminiTools(
+            req.tools,
+            codeExecution: options.codeExecution,
+            googleSearchRetrieval: options.googleSearchRetrieval,
+          );
+          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
+        } else {
+          final options = req.config == null
+              ? GeminiOptions()
+              : GeminiOptions.$schema.parse(req.config!);
+          apiKey = options.apiKey;
+          generationConfig = toGeminiSettings(
+            options,
+            req.output?.schema,
+            isJsonMode,
+          );
+          safetySettings = toGeminiSafetySettings(options.safetySettings);
+          tools = toGeminiTools(
+            req.tools,
+            codeExecution: options.codeExecution,
+            googleSearchRetrieval: options.googleSearchRetrieval,
+          );
+          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
+        }
 
         final service = gcl.GenerativeService.fromApiKey(
-          options.apiKey ?? apiKey,
+          apiKey ?? this.apiKey,
           // TODO: baseUrl is not supported in the current version of the library
           // baseUrl: options.baseUrl,
         );
 
         try {
-          final isJsonMode =
-              req.output?.format == 'json' ||
-              req.output?.contentType == 'application/json';
-          final generationConfig = toGeminiSettings(
-            options,
-            req.output?.schema,
-            isJsonMode,
-          );
-          final safetySettings = toGeminiSafetySettings(options);
-          final tools = toGeminiTools(req.tools, options);
-          final toolConfig = toGeminiToolConfig(options);
-
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
@@ -249,8 +302,74 @@ gcl.GenerationConfig toGeminiSettings(
 }
 
 @visibleForTesting
-List<gcl.SafetySetting>? toGeminiSafetySettings(GeminiOptions options) {
-  return options.safetySettings
+gcl.GenerationConfig toGeminiTtsSettings(
+  GeminiTtsOptions options,
+  Map<String, dynamic>? outputSchema,
+  bool isJsonMode,
+) {
+  return gcl.GenerationConfig(
+    candidateCount: options.candidateCount,
+    stopSequences: options.stopSequences ?? [],
+    maxOutputTokens: options.maxOutputTokens,
+    temperature: options.temperature,
+    topP: options.topP,
+    topK: options.topK,
+    responseMimeType: isJsonMode
+        ? 'application/json'
+        : (options.responseMimeType ?? ''),
+    responseJsonSchema: switch (outputSchema) {
+      null => null,
+      Map<String, Object?> $1 => pb.Value.fromJson($1),
+    },
+    presencePenalty: options.presencePenalty,
+    frequencyPenalty: options.frequencyPenalty,
+    responseLogprobs: options.responseLogprobs,
+    logprobs: options.logprobs,
+    enableEnhancedCivicAnswers: null,
+    responseModalities:
+        options.responseModalities
+            ?.map(
+              (m) => switch (m.toUpperCase()) {
+                'TEXT' => gcl.GenerationConfig_Modality.text,
+                'IMAGE' => gcl.GenerationConfig_Modality.image,
+                'AUDIO' => gcl.GenerationConfig_Modality.audio,
+                _ => gcl.GenerationConfig_Modality.modalityUnspecified,
+              },
+            )
+            .toList() ??
+        [],
+    speechConfig: _toSpeechConfig(options.speechConfig),
+    thinkingConfig: options.thinkingConfig == null
+        ? null
+        : gcl.ThinkingConfig(
+            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
+            thinkingBudget: options.thinkingConfig!.thinkingBudget,
+          ),
+  );
+}
+
+gcl.SpeechConfig? _toSpeechConfig(SpeechConfig? config) {
+  if (config == null) return null;
+  return gcl.SpeechConfig(voiceConfig: _toVoiceConfig(config.voiceConfig));
+}
+
+gcl.VoiceConfig? _toVoiceConfig(VoiceConfig? config) {
+  if (config == null) return null;
+  return gcl.VoiceConfig(
+    prebuiltVoiceConfig: _toPrebuiltVoiceConfig(config.prebuiltVoiceConfig),
+  );
+}
+
+gcl.PrebuiltVoiceConfig? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
+  if (config == null) return null;
+  return gcl.PrebuiltVoiceConfig(voiceName: config.voiceName);
+}
+
+@visibleForTesting
+List<gcl.SafetySetting>? toGeminiSafetySettings(
+  List<SafetySettings>? safetySettings,
+) {
+  return safetySettings
       ?.map(
         (s) => gcl.SafetySetting(
           category: switch (s.category) {
@@ -271,22 +390,22 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(GeminiOptions options) {
 
 @visibleForTesting
 List<gcl.Tool> toGeminiTools(
-  List<ToolDefinition>? tools,
-  GeminiOptions options,
-) {
+  List<ToolDefinition>? tools, {
+  bool? codeExecution,
+  GoogleSearchRetrieval? googleSearchRetrieval,
+}) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
-    if (options.codeExecution == true)
-      gcl.Tool(codeExecution: gcl.CodeExecution()),
-    if (options.googleSearchRetrieval != null)
+    if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
+    if (googleSearchRetrieval != null)
       gcl.Tool(
         googleSearchRetrieval: gcl.GoogleSearchRetrieval(
           dynamicRetrievalConfig: gcl.DynamicRetrievalConfig(
-            mode: switch (options.googleSearchRetrieval!.mode) {
+            mode: switch (googleSearchRetrieval.mode) {
               null => gcl.DynamicRetrievalConfig_Mode.modeUnspecified,
               String m => gcl.DynamicRetrievalConfig_Mode.fromJson(m),
             },
-            dynamicThreshold: options.googleSearchRetrieval!.dynamicThreshold,
+            dynamicThreshold: googleSearchRetrieval.dynamicThreshold,
           ),
         ),
       ),
@@ -294,16 +413,17 @@ List<gcl.Tool> toGeminiTools(
 }
 
 @visibleForTesting
-gcl.ToolConfig? toGeminiToolConfig(GeminiOptions options) {
-  if (options.functionCallingConfig == null) return null;
+gcl.ToolConfig? toGeminiToolConfig(
+  FunctionCallingConfig? functionCallingConfig,
+) {
+  if (functionCallingConfig == null) return null;
   return gcl.ToolConfig(
     functionCallingConfig: gcl.FunctionCallingConfig(
-      mode: switch (options.functionCallingConfig!.mode) {
+      mode: switch (functionCallingConfig.mode) {
         null => gcl.FunctionCallingConfig_Mode.modeUnspecified,
         String m => gcl.FunctionCallingConfig_Mode.fromJson(m),
       },
-      allowedFunctionNames:
-          options.functionCallingConfig!.allowedFunctionNames ?? [],
+      allowedFunctionNames: functionCallingConfig.allowedFunctionNames ?? [],
     ),
   );
 }
@@ -324,7 +444,7 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
   final finishReason = FinishReason(candidate.finishReason.value.toLowerCase());
   final message = Message(
     role: Role(candidate.content!.role),
-    content: candidate.content?.parts.map(_fromGeminiPart).toList() ?? [],
+    content: candidate.content?.parts.map(fromGeminiPart).toList() ?? [],
   );
   return (message, finishReason);
 }
@@ -390,7 +510,8 @@ gcl.Part toGeminiPart(Part p) {
   throw UnimplementedError('Unsupported part type: $p');
 }
 
-Part _fromGeminiPart(gcl.Part p) {
+@visibleForTesting
+Part fromGeminiPart(gcl.Part p) {
   if (p.text != null) {
     return TextPart(text: p.text!);
   }
@@ -417,6 +538,15 @@ Part _fromGeminiPart(gcl.Part p) {
       },
     );
   }
+  if (p.inlineData != null) {
+    return MediaPart(
+      media: Media(
+        url:
+            'data:${p.inlineData!.mimeType};base64,${base64Encode(p.inlineData!.data)}',
+        contentType: p.inlineData!.mimeType,
+      ),
+    );
+  }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
 
@@ -439,15 +569,9 @@ abstract class $SafetySettings {
   @StringField(
     enumValues: [
       'HARM_CATEGORY_UNSPECIFIED',
-      'HARM_CATEGORY_DEROGATORY',
-      'HARM_CATEGORY_TOXICITY',
-      'HARM_CATEGORY_VIOLENCE',
-      'HARM_CATEGORY_SEXUAL',
-      'HARM_CATEGORY_MEDICAL',
-      'HARM_CATEGORY_DANGEROUS',
-      'HARM_CATEGORY_HARASSMENT',
       'HARM_CATEGORY_HATE_SPEECH',
       'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_HARASSMENT',
       'HARM_CATEGORY_DANGEROUS_CONTENT',
       'HARM_CATEGORY_CIVIC_INTEGRITY',
     ],
@@ -456,12 +580,10 @@ abstract class $SafetySettings {
 
   @StringField(
     enumValues: [
-      'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
       'BLOCK_LOW_AND_ABOVE',
       'BLOCK_MEDIUM_AND_ABOVE',
       'BLOCK_ONLY_HIGH',
       'BLOCK_NONE',
-      'OFF',
     ],
   )
   String? get threshold;
@@ -469,7 +591,23 @@ abstract class $SafetySettings {
 
 @Schematic()
 abstract class $ThinkingConfig {
+  @Field(
+    description:
+        'Indicates whether to include thoughts in the response.'
+        'If true, thoughts are returned only when available.',
+  )
   bool? get includeThoughts;
+
+  @IntegerField(
+    minimum: 0,
+    maximum: 24576,
+    description:
+        'The thinking budget parameter gives the model guidance on the '
+        'number of thinking tokens it can use when generating a response. '
+        'A greater number of tokens is typically associated with more detailed '
+        'thinking, which is needed for solving more complex tasks. '
+        'Setting the thinking budget to 0 disables thinking.',
+  )
   int? get thinkingBudget;
 }
 
@@ -490,4 +628,85 @@ abstract class $GoogleSearchRetrieval {
 @Schematic()
 abstract class $FileSearch {
   List<String>? get fileSearchStoreNames;
+}
+
+@Schematic()
+abstract class $GeminiTtsOptions {
+  String? get apiKey;
+  // TODO: Add apiVersion, baseUrl
+  // String? get apiVersion;
+  // String? get baseUrl;
+
+  List<$SafetySettings>? get safetySettings;
+
+  bool? get codeExecution;
+  $FunctionCallingConfig? get functionCallingConfig;
+  $ThinkingConfig? get thinkingConfig;
+  List<String>? get responseModalities;
+
+  // Retrieval
+  $GoogleSearchRetrieval? get googleSearchRetrieval;
+  $FileSearch? get fileSearch;
+  // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
+
+  @DoubleField(minimum: 0.0, maximum: 2.0)
+  double? get temperature;
+
+  @DoubleField(minimum: 0.0, maximum: 1.0)
+  double? get topP;
+
+  int? get topK;
+  int? get candidateCount;
+  List<String>? get stopSequences;
+  int? get maxOutputTokens;
+
+  String? get responseMimeType;
+  bool? get responseLogprobs;
+  int? get logprobs;
+  double? get presencePenalty;
+  double? get frequencyPenalty;
+  int? get seed;
+
+  $SpeechConfig? get speechConfig;
+}
+
+@Schematic(description: 'Speech generation config')
+abstract class $SpeechConfig {
+  $VoiceConfig? get voiceConfig;
+  $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
+}
+
+@Schematic(description: 'Configuration for multi-speaker setup')
+abstract class $MultiSpeakerVoiceConfig {
+  @Field(description: 'Configuration for all the enabled speaker voices')
+  List<$SpeakerVoiceConfig> get speakerVoiceConfigs;
+}
+
+@Schematic(
+  description: 'Configuration for a single speaker in a multi speaker setup',
+)
+abstract class $SpeakerVoiceConfig {
+  @StringField(description: 'Name of the speaker to use')
+  String get speaker;
+
+  $VoiceConfig get voiceConfig;
+}
+
+@Schematic(description: 'Configuration for the voice to use')
+abstract class $VoiceConfig {
+  $PrebuiltVoiceConfig? get prebuiltVoiceConfig;
+}
+
+@Schematic(description: 'Configuration for the prebuilt speaker to use')
+abstract class $PrebuiltVoiceConfig {
+  @StringField(
+    description:
+        'Name of the preset voice to use. '
+        'Known values: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, '
+        'Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, '
+        'Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, '
+        'Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, '
+        'Sadaltager, Sulafat',
+  )
+  String? get voiceName;
 }

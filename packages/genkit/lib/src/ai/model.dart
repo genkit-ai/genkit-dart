@@ -55,8 +55,10 @@ class Model<C>
        ) {
     metadata['description'] = name;
 
-    final model =
-        (metadata['model'] ??= <String, dynamic>{}) as Map<String, dynamic>;
+    final model = <String, dynamic>{
+      ...(metadata['model'] as Map<String, dynamic>? ?? <String, dynamic>{}),
+    };
+    metadata['model'] = model;
 
     if (model['label'] == null) {
       model['label'] = name;
@@ -68,6 +70,39 @@ class Model<C>
       );
     }
   }
+}
+
+ActionMetadata modelMetadata(
+  String name, {
+  ModelInfo? modelInfo,
+  SchemanticType<dynamic>? customOptions,
+}) {
+  return ActionMetadata(
+    name: name,
+    description: name,
+    actionType: 'model',
+    metadata: {
+      'label': name,
+      'description': name,
+      'model': {
+        ...(modelInfo ??
+                ModelInfo(
+                  label: name,
+                  supports: {
+                    'multiturn': true,
+                    'media': true,
+                    'tools': true,
+                    'toolChoice': true,
+                    'systemRole': true,
+                    'constrained': true,
+                  },
+                ))
+            .toJson(),
+        if (customOptions != null)
+          'customOptions': toJsonSchema(type: customOptions, useRefs: false),
+      },
+    },
+  );
 }
 
 BidiModelRef<C> bidiModelRef<C>(
