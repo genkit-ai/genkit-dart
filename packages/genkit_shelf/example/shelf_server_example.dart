@@ -101,7 +101,7 @@ void main() async {
     fn: (String input, ctx) async {
       final user = ctx.context?['user'];
       if (user == null) {
-        throw GenkitException('Unauthorized access', statusCode: 401);
+        throw GenkitException('Unauthorized access', status: StatusCodes.INTERNAL);
       }
       return 'Secure data for $user: $input';
     },

@@ -21,8 +21,8 @@ void main() {
       final exception = GenkitException('Test error message');
 
       expect(exception.message, 'Test error message');
-      expect(exception.status, StatusCodes.UNKNOWN);
-      expect(exception.statusCode, StatusCodes.UNKNOWN.value);
+      expect(exception.status, StatusCodes.INTERNAL);
+      expect(exception.statusCode, StatusCodes.INTERNAL.value);
       expect(exception.details, isNull);
       expect(exception.underlyingException, isNull);
       expect(exception.stackTrace, isNull);
@@ -34,7 +34,7 @@ void main() {
 
       final exception = GenkitException(
         'Main error message',
-        statusCode: 500,
+        status: StatusCodes.INTERNAL,
         details: 'Error details',
         underlyingException: underlyingException,
         stackTrace: stackTrace,
@@ -51,7 +51,7 @@ void main() {
     test('should return properly formatted string from toString()', () {
       final exception = GenkitException(
         'Test error',
-        statusCode: 404,
+        status: StatusCodes.NOT_FOUND,
         details: 'Not found',
       );
 
@@ -68,7 +68,10 @@ void main() {
 
       final string = exception.toString();
 
-      expect(string, equals('GenkitException: Simple error'));
+      expect(
+        string,
+        equals('GenkitException: Simple error (Status: INTERNAL, Code: 13)'),
+      );
     });
 
     test('should include underlying exception in toString()', () {
@@ -92,7 +95,10 @@ void main() {
 
       final string = exception.toString();
 
-      expect(string, equals('GenkitException: Test error'));
+      expect(
+        string,
+        equals('GenkitException: Test error (Status: INTERNAL, Code: 13)'),
+      );
       expect(string, isNot(contains('Details:')));
     });
 
@@ -102,22 +108,13 @@ void main() {
       expect(exception, isA<Exception>());
     });
 
-    test('should handle HTTP status codes correctly', () {
-      final exception = GenkitException('HTTP Error', statusCode: 429);
-
-      expect(exception.status, StatusCodes.RESOURCE_EXHAUSTED);
-      expect(exception.statusCode, StatusCodes.RESOURCE_EXHAUSTED.value);
-      expect(exception.toString(), contains('Status: RESOURCE_EXHAUSTED'));
-      expect(exception.toString(), contains('Code: 8'));
-    });
-
     test('should include all information in complete exception', () {
       final underlyingException = FormatException('Invalid JSON');
       final stackTrace = StackTrace.current;
 
       final exception = GenkitException(
         'JSON parsing failed',
-        statusCode: 400,
+        status: StatusCodes.INVALID_ARGUMENT,
         details: 'Response body: {"invalid": json}',
         underlyingException: underlyingException,
         stackTrace: stackTrace,

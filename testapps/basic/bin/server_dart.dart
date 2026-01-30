@@ -120,7 +120,7 @@ void main() async {
       var i = 0;
       for (; i < count; i++) {
         if (i == 3) {
-          throw GenkitException('whoops', statusCode: 500);
+          throw GenkitException('whoops', status: StatusCodes.INTERNAL);
         }
         await Future.delayed(Duration(seconds: 1));
         context.sendChunk(StreamyThrowyChunk(count: i));
@@ -140,7 +140,7 @@ void main() async {
       });
 
       if (subject.isNotEmpty) {
-        throw GenkitException('whoops', statusCode: 500);
+        throw GenkitException('whoops', status: StatusCodes.INTERNAL);
       }
       return await ai.run('call-llm', () async {
         return 'foo: $foo';

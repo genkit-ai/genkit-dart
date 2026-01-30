@@ -119,15 +119,10 @@ class GenkitException implements Exception {
   GenkitException(
     this.message, {
     StatusCodes? status,
-    int? statusCode,
     this.details,
     this.underlyingException,
     this.stackTrace,
-  }) : status =
-           status ??
-           (statusCode != null
-               ? StatusCodes.fromHttpStatus(statusCode)
-               : StatusCodes.UNKNOWN);
+  }) : status = status ?? StatusCodes.INTERNAL;
 
   /// Returns the integer value of the status code.
   int get statusCode => status.value;

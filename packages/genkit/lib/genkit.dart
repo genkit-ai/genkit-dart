@@ -211,7 +211,7 @@ class Genkit {
         if (context.inputStream == null) {
           throw GenkitException(
             'Bidi model $name called without an input stream',
-            statusCode: 400,
+            status: StatusCodes.INVALID_ARGUMENT,
           );
         }
         return fn(context.inputStream!, context);
