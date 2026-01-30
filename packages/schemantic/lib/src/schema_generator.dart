@@ -937,9 +937,8 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
               Code("r'#/\$defs/$nestedBaseName'"),
             ),
           };
-          if (hasDefault) {
-            refMap['default'] = properties['default']!;
-          }
+          // default is not allowed as sibling of $ref, so we don't add it here.
+          // It will be added in the allOf wrapper below.
           schemaExpression = refer(
             'Schema.fromMap',
           ).call([literalMap(refMap)]);
@@ -951,35 +950,30 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         }
 
         if (properties.isNotEmpty) {
-          // If there are extra properties (like description), we need to wrap the ref/schema.
-          // Wrap the schema in allOf to allow adding extra properties like description.
+          // If there are extra properties (like description or default), we need to wrap the ref/schema.
+          // Wrap the schema in allOf to allow adding extra properties.
           if (useRefs) {
             // we already have schemaExpression as a ref.
-            // If we have extra properties, combine them.
-            if (properties.length > (hasDefault ? 1 : 0)) {
-              final allOfList = [
-                refer('Schema.fromMap').call([
-                  literalMap({
-                    r'$ref': CodeExpression(
-                      Code("r'#/\$defs/$nestedBaseName'"),
-                    ),
-                  }),
-                ]),
-              ];
+            // Always wrap if we have properties (because we can't put them on the ref)
+            final allOfList = [
+              refer('Schema.fromMap').call([
+                literalMap({
+                  r'$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
+                }),
+              ]),
+            ];
 
-              final combinedArgs = <String, Expression>{
-                'allOf': literalList(allOfList),
-              };
-              if (properties.containsKey('description')) {
-                combinedArgs['description'] = properties['description']!;
-              }
-              if (properties.containsKey('default')) {
-                combinedArgs['defaultValue'] = properties['default']!;
-              }
-
-              return refer('Schema.combined').call([], combinedArgs);
+            final combinedArgs = <String, Expression>{
+              'allOf': literalList(allOfList),
+            };
+            if (properties.containsKey('description')) {
+              combinedArgs['description'] = properties['description']!;
             }
-            return schemaExpression;
+            if (properties.containsKey('default')) {
+              combinedArgs['defaultValue'] = properties['default']!;
+            }
+
+            return refer('Schema.combined').call([], combinedArgs);
           } else {
             // Not using refs (inline).
             // SchemaExpression is types.jsonSchema().
