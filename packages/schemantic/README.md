@@ -116,28 +116,28 @@ void main() {
 Schemantic provides a set of basic types and helpers for creating dynamic schemas without generating code.
 
 #### Primitives
-- `stringType()`
-- `intType()`
-- `doubleType()`
-- `boolType()`
-- `voidType()`
+- `stringSchema()`
+- `intSchema()`
+- `doubleSchema(`
+- `boolSchema()`
+- `voidSchema()`
 
-#### `listType` and `mapType`
+#### `listSchema` and `mapSchema`
 
 You can create strongly typed Lists and Maps dynamically:
 
 ```dart
 void main() {
   // Define a List of Strings
-  final stringList = listType(stringType());
+  final stringList = listSchema(stringSchema());
   print(stringList.parse(['a', 'b'])); // ['a', 'b']
 
   // Define a Map with String keys and Integer values
-  final scores = mapType(stringType(), intType());
+  final scores = mapSchema(stringSchema(), intSchema());
   print(scores.parse({'Alice': 100, 'Bob': 80})); // {'Alice': 100, 'Bob': 80}
 
   // Nesting types
-  final matrix = listType(listType(intType()));
+  final matrix = listSchema(listSchema(intSchema()));
   print(matrix.parse([[1, 2], [3, 4]])); // [[1, 2], [3, 4]]
   
   // JSON Schema generation works as expected
@@ -158,12 +158,12 @@ abstract class $User {
 
 ### Enhanced Collections
 
-You can use `listType` and `mapType` to create collections with metadata and validation:
+You can use `listSchema` and `mapSchema` to create collections with metadata and validation:
 
 ```dart
 // A list of strings with description and size constraints.
-final tags = listType(
-  stringType(),
+final tags = listSchema(
+  stringSchema(),
   description: 'A list of tags',
   minItems: 1,
   maxItems: 10,
@@ -171,9 +171,9 @@ final tags = listType(
 );
 
 // A map with integer values.
-final scores = mapType(
-  stringType(),
-  intType(),
+final scores = mapSchema(
+  stringSchema(),
+  intSchema(),
   description: 'Player scores',
   minProperties: 1,
 );
@@ -183,24 +183,18 @@ final scores = mapType(
 
 Schemantic provides factories for basic types with optional metadata:
 
-- `stringType({String? description, int? minLength, ...})`
-- `intType({String? description, int? minimum, ...})`
-- `doubleType({String? description, double? minimum, ...})`
-- `boolType({String? description})`
-- `dynamicType({String? description})`
+- `stringSchema({String? description, int? minLength, ...})`
+- `intSchema({String? description, int? minimum, ...})`
+- `doubleSchema({String? description, double? minimum, ...})`
+- `boolSchema({String? description})`
+- `dynamicSchema({String? description})`
 
 Example:
 
-```dart
-final age = intType(
+final age = intSchema(
   description: 'Age in years',
   minimum: 0,
 );
-```
-
-## Customizing Fields
-
-You can use specialized annotations to apply JSON Schema constraints directly to your Dart fields.
 
 - `@Field`: Basic customization (name, description).
 - `@StringField`: Constraints for strings (minLength, maxLength, pattern, format, enumValues).

@@ -74,7 +74,7 @@ void main() {
       genkit.defineTool(
         name: tool1Name,
         description: 'Tool 1',
-        inputType: TestToolInput.$schema,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           tool1Called = true;
           return 'tool 1 output';
@@ -84,7 +84,7 @@ void main() {
       genkit.defineTool(
         name: tool2Name,
         description: 'Tool 2',
-        inputType: TestToolInput.$schema,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           tool2Called = true;
           return 'tool 2 output';
@@ -132,7 +132,7 @@ void main() {
         genkit.defineTool(
           name: toolName,
           description: 'A test tool',
-          inputType: TestToolInput.$schema,
+          inputSchema: TestToolInput.$schema,
           fn: (input, context) async {
             toolCalled = true;
             return 'tool output';
@@ -179,7 +179,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'A test tool',
-        inputType: TestToolInput.$schema,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           return 'tool output';
         },

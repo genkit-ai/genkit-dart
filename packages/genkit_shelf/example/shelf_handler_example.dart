@@ -54,7 +54,7 @@ void main() async {
   // Define client action
   final customAction = defineRemoteAction(
     url: 'http://localhost:8080/api/custom-flow',
-    outputType: HandlerOutput.$schema,
+    outputSchema: HandlerOutput.$schema,
   );
 
   // Define a flow
@@ -63,8 +63,8 @@ void main() async {
     fn: (HandlerInput input, _) async => HandlerOutput(
       processedMessage: 'Processed by custom handler: ${input.message}',
     ),
-    inputType: HandlerInput.$schema,
-    outputType: HandlerOutput.$schema,
+    inputSchema: HandlerInput.$schema,
+    outputSchema: HandlerOutput.$schema,
   );
 
   // Define client flow
@@ -76,8 +76,8 @@ void main() async {
       );
       return result.processedMessage;
     },
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
   );
 
   // Create a Shelf Router

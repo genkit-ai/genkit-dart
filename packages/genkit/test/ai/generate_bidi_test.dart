@@ -44,7 +44,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'Get weather',
-        inputType: MyToolInput.$schema,
+        inputSchema: MyToolInput.$schema,
         fn: (input, context) async {
           return 'Sunny in ${input.location}';
         },

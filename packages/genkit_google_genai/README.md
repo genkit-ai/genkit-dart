@@ -41,7 +41,7 @@ void main() async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the weather for a location',
-    inputType: WeatherToolInput.$schema,
+    inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       return 'The weather in ${input.location} is 75 and sunny.';
     },

@@ -17,13 +17,13 @@ import 'dart:convert';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import '../schemantic.dart';
 
-/// A string type.
+/// A string schema.
 ///
 /// Example:
 /// ```dart
-/// stringType().parse('hello');
+/// stringSchema().parse('hello');
 /// ```
-SchemanticType<String> stringType({
+SchemanticType<String> stringSchema({
   String? description,
   int? minLength,
   int? maxLength,
@@ -31,7 +31,7 @@ SchemanticType<String> stringType({
   String? format,
   List<String>? enumValues,
 }) {
-  return _StringTypeFactory(
+  return _StringSchemaFactory(
     description: description,
     minLength: minLength,
     maxLength: maxLength,
@@ -41,7 +41,7 @@ SchemanticType<String> stringType({
   );
 }
 
-class _StringTypeFactory extends SchemanticType<String> {
+class _StringSchemaFactory extends SchemanticType<String> {
   final String? description;
   final int? minLength;
   final int? maxLength;
@@ -49,7 +49,7 @@ class _StringTypeFactory extends SchemanticType<String> {
   final String? format;
   final List<String>? enumValues;
 
-  const _StringTypeFactory({
+  const _StringSchemaFactory({
     this.description,
     this.minLength,
     this.maxLength,
@@ -75,13 +75,13 @@ class _StringTypeFactory extends SchemanticType<String> {
   }
 }
 
-/// An integer type.
+/// An integer schema.
 ///
 /// Example:
 /// ```dart
-/// intType().parse(123);
+/// intSchema().parse(123);
 /// ```
-SchemanticType<int> intType({
+SchemanticType<int> intSchema({
   String? description,
   int? minimum,
   int? maximum,
@@ -89,7 +89,7 @@ SchemanticType<int> intType({
   int? exclusiveMaximum,
   int? multipleOf,
 }) {
-  return _IntTypeFactory(
+  return _IntSchemaFactory(
     description: description,
     minimum: minimum,
     maximum: maximum,
@@ -99,7 +99,7 @@ SchemanticType<int> intType({
   );
 }
 
-class _IntTypeFactory extends SchemanticType<int> {
+class _IntSchemaFactory extends SchemanticType<int> {
   final String? description;
   final int? minimum;
   final int? maximum;
@@ -107,7 +107,7 @@ class _IntTypeFactory extends SchemanticType<int> {
   final int? exclusiveMaximum;
   final int? multipleOf;
 
-  const _IntTypeFactory({
+  const _IntSchemaFactory({
     this.description,
     this.minimum,
     this.maximum,
@@ -133,13 +133,13 @@ class _IntTypeFactory extends SchemanticType<int> {
   }
 }
 
-/// A double type.
+/// A double schema.
 ///
 /// Example:
 /// ```dart
-/// doubleType().parse(12.34);
+/// doubleSchema().parse(12.34);
 /// ```
-SchemanticType<double> doubleType({
+SchemanticType<double> doubleSchema({
   String? description,
   double? minimum,
   double? maximum,
@@ -147,7 +147,7 @@ SchemanticType<double> doubleType({
   double? exclusiveMaximum,
   double? multipleOf,
 }) {
-  return _DoubleTypeFactory(
+  return _DoubleSchemaFactory(
     description: description,
     minimum: minimum,
     maximum: maximum,
@@ -157,7 +157,7 @@ SchemanticType<double> doubleType({
   );
 }
 
-class _DoubleTypeFactory extends SchemanticType<double> {
+class _DoubleSchemaFactory extends SchemanticType<double> {
   final String? description;
   final double? minimum;
   final double? maximum;
@@ -165,7 +165,7 @@ class _DoubleTypeFactory extends SchemanticType<double> {
   final double? exclusiveMaximum;
   final double? multipleOf;
 
-  const _DoubleTypeFactory({
+  const _DoubleSchemaFactory({
     this.description,
     this.minimum,
     this.maximum,
@@ -194,19 +194,19 @@ class _DoubleTypeFactory extends SchemanticType<double> {
   }
 }
 
-/// A boolean type.
+/// A boolean schema.
 ///
 /// Example:
 /// ```dart
-/// boolType().parse(true);
+/// boolSchema().parse(true);
 /// ```
-SchemanticType<bool> boolType({String? description}) {
-  return _BoolTypeFactory(description: description);
+SchemanticType<bool> boolSchema({String? description}) {
+  return _BoolSchemaFactory(description: description);
 }
 
-class _BoolTypeFactory extends SchemanticType<bool> {
+class _BoolSchemaFactory extends SchemanticType<bool> {
   final String? description;
-  const _BoolTypeFactory({this.description});
+  const _BoolSchemaFactory({this.description});
 
   @override
   bool parse(Object? json) => json as bool;
@@ -220,19 +220,19 @@ class _BoolTypeFactory extends SchemanticType<bool> {
   }
 }
 
-/// A void type.
+/// A void schema.
 ///
 /// Example:
 /// ```dart
-/// voidType().parse(null);
+/// voidSchema().parse(null);
 /// ```
-SchemanticType<void> voidType({String? description}) {
-  return _VoidTypeFactory(description: description);
+SchemanticType<void> voidSchema({String? description}) {
+  return _VoidSchemaFactory(description: description);
 }
 
-class _VoidTypeFactory extends SchemanticType<void> {
+class _VoidSchemaFactory extends SchemanticType<void> {
   final String? description;
-  const _VoidTypeFactory({this.description});
+  const _VoidSchemaFactory({this.description});
   @override
   void parse(Object? json) {}
 
@@ -245,19 +245,19 @@ class _VoidTypeFactory extends SchemanticType<void> {
   }
 }
 
-/// A dynamic type.
+/// A dynamic schema.
 ///
 /// Example:
 /// ```dart
-/// dynamicType().parse(anything);
+/// dynamicSchema().parse(anything);
 /// ```
-SchemanticType<dynamic> dynamicType({String? description}) {
-  return _DynamicTypeFactory(description: description);
+SchemanticType<dynamic> dynamicSchema({String? description}) {
+  return _DynamicSchemaFactory(description: description);
 }
 
-class _DynamicTypeFactory extends SchemanticType<dynamic> {
+class _DynamicSchemaFactory extends SchemanticType<dynamic> {
   final String? description;
-  const _DynamicTypeFactory({this.description});
+  const _DynamicSchemaFactory({this.description});
   @override
   dynamic parse(Object? json) => json;
 
@@ -270,21 +270,21 @@ class _DynamicTypeFactory extends SchemanticType<dynamic> {
   }
 }
 
-/// Creates a strongly typed List type schema.
+/// Creates a strongly typed List schema.
 ///
 /// Example:
 /// ```dart
-/// final stringList = listType(StringType, description: 'List of strings');
+/// final stringList = listSchema(stringSchema(), description: 'List of strings');
 /// stringList.parse(['a', 'b']);
 /// ```
-SchemanticType<List<T>> listType<T>(
+SchemanticType<List<T>> listSchema<T>(
   SchemanticType<T> itemType, {
   String? description,
   int? minItems,
   int? maxItems,
   bool? uniqueItems,
 }) {
-  return _ListTypeFactory<T>(
+  return _ListSchemaFactory<T>(
     itemType,
     description: description,
     minItems: minItems,
@@ -293,14 +293,14 @@ SchemanticType<List<T>> listType<T>(
   );
 }
 
-class _ListTypeFactory<T> extends SchemanticType<List<T>> {
+class _ListSchemaFactory<T> extends SchemanticType<List<T>> {
   final SchemanticType<T> itemType;
   final String? description;
   final int? minItems;
   final int? maxItems;
   final bool? uniqueItems;
 
-  const _ListTypeFactory(
+  const _ListSchemaFactory(
     this.itemType, {
     this.description,
     this.minItems,
@@ -345,21 +345,21 @@ class _ListTypeFactory<T> extends SchemanticType<List<T>> {
   }
 }
 
-/// Creates a strongly typed Map type schema.
+/// Creates a strongly typed Map schema.
 ///
 /// Example:
 /// ```dart
-/// final myMap = mapType(StringType, IntType, description: 'My Map');
+/// final myMap = mapSchema(stringSchema(), intSchema(), description: 'My Map');
 /// myMap.parse({'a': 1, 'b': 2});
 /// ```
-SchemanticType<Map<K, V>> mapType<K, V>(
+SchemanticType<Map<K, V>> mapSchema<K, V>(
   SchemanticType<K> keyType,
   SchemanticType<V> valueType, {
   String? description,
   int? minProperties,
   int? maxProperties,
 }) {
-  return _MapTypeFactory<K, V>(
+  return _MapSchemaFactory<K, V>(
     keyType,
     valueType,
     description: description,
@@ -368,14 +368,14 @@ SchemanticType<Map<K, V>> mapType<K, V>(
   );
 }
 
-class _MapTypeFactory<K, V> extends SchemanticType<Map<K, V>> {
+class _MapSchemaFactory<K, V> extends SchemanticType<Map<K, V>> {
   final SchemanticType<K> keyType;
   final SchemanticType<V> valueType;
   final String? description;
   final int? minProperties;
   final int? maxProperties;
 
-  const _MapTypeFactory(
+  const _MapSchemaFactory(
     this.keyType,
     this.valueType, {
     this.description,

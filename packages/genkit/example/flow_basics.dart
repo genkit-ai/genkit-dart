@@ -40,8 +40,8 @@ void main() async {
   // genkit flow:run basic "\"hello\""
   final basic = ai.defineFlow(
     name: 'basic',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (String subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
@@ -55,7 +55,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'parent',
-    outputType: stringType(),
+    outputSchema: stringSchema(),
     fn: (_, _) async {
       // Dart flow objects are callable, but we need to handle the input.
       // basic expects a string.
@@ -66,8 +66,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'withInputSchema',
-    inputType: Subject.$schema,
-    outputType: stringType(),
+    inputSchema: Subject.$schema,
+    outputSchema: stringSchema(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: ${input.subject}';
@@ -81,8 +81,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'withListInputSchema',
-    inputType: listType(Subject.$schema),
-    outputType: stringType(),
+    inputSchema: listSchema(Subject.$schema),
+    outputSchema: stringSchema(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subjects: ${input.map((e) => e.subject).join(', ')}';
@@ -96,8 +96,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'withContext',
-    inputType: Subject.$schema,
-    outputType: stringType(),
+    inputSchema: Subject.$schema,
+    outputSchema: stringSchema(),
     fn: (input, context) async {
       return 'subject: ${input.subject}, context: ${jsonEncode(context.context)}';
     },
@@ -106,9 +106,9 @@ void main() async {
   // genkit flow:run streamy 5 -s
   ai.defineFlow(
     name: 'streamy',
-    inputType: intType(),
-    outputType: stringType(),
-    streamType: Count.$schema,
+    inputSchema: intSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: Count.$schema,
     fn: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
@@ -122,9 +122,9 @@ void main() async {
   // genkit flow:run streamyThrowy 5 -s
   ai.defineFlow(
     name: 'streamyThrowy',
-    inputType: intType(),
-    outputType: stringType(),
-    streamType: Count.$schema,
+    inputSchema: intSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: Count.$schema,
     fn: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
@@ -142,8 +142,8 @@ void main() async {
   // genkit flow:run throwy "\"hello\""
   ai.defineFlow(
     name: 'throwy',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
@@ -161,8 +161,8 @@ void main() async {
   // genkit flow:run throwy2 "\"hello\""
   ai.defineFlow(
     name: 'throwy2',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         if (subject.isNotEmpty) {
@@ -178,8 +178,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'flowMultiStepCaughtError',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (input, _) async {
       var i = 1;
 
@@ -207,8 +207,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'multiSteps',
-    inputType: stringType(),
-    outputType: intType(),
+    inputSchema: stringSchema(),
+    outputSchema: intSchema(),
     fn: (input, _) async {
       final out1 = await ai.run('step1', () async {
         return 'Hello, $input! step 1';
@@ -231,7 +231,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'largeSteps',
-    outputType: stringType(),
+    outputSchema: stringSchema(),
     fn: (_, _) async {
       await ai.run('large-step1', () async {
         return generateString(100000);

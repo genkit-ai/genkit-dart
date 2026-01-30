@@ -71,7 +71,7 @@ void main() {
     test('should handle listActions', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputSchema: mapType(stringType(), stringType()),
+        inputSchema: mapSchema(stringSchema(), stringSchema()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
         metadata: {'description': 'A test action'},
@@ -111,7 +111,7 @@ void main() {
     test('should handle runAction', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputSchema: mapType(stringType(), stringType()),
+        inputSchema: mapSchema(stringSchema(), stringSchema()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
       );
@@ -154,7 +154,7 @@ void main() {
       final streamAction = Action(
         actionType: 'custom',
         name: 'streamAction',
-        streamSchema: stringType(),
+        streamSchema: stringSchema(),
         fn: (input, context) async {
           context.sendChunk('chunk1');
           context.sendChunk('chunk2');

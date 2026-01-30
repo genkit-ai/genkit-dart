@@ -37,7 +37,7 @@ Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
   final echoStringFlow = defineRemoteAction(
     url: '$baseUrl/echoString',
-    outputType: stringType(),
+    outputSchema: stringSchema(),
   );
   final response = await echoStringFlow(input: 'Hello Genkit client for Dart!');
   print('Response: $response');
@@ -48,7 +48,7 @@ Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
   final throwy = defineRemoteAction(
     url: '$baseUrl/throwy',
-    outputType: stringType(),
+    outputSchema: stringSchema(),
   );
   try {
     await throwy(input: 'Hello Genkit client for Dart!');
@@ -67,8 +67,8 @@ Future<void> _runThrowingStreamingFlow() async {
   print('\n--- Streaming Flow error handling ---');
   final streamyThrowy = defineRemoteAction(
     url: '$baseUrl/streamyThrowy',
-    outputType: stringType(),
-    streamType: StreamyThrowyChunk.$schema,
+    outputSchema: stringSchema(),
+    streamSchema: StreamyThrowyChunk.$schema,
   );
   try {
     final stream = streamyThrowy.stream(input: 5);
@@ -92,7 +92,7 @@ Future<void> _runObjectFlow() async {
   print('\n--- Object to Object flow ---');
   final processObjectFlow = defineRemoteAction(
     url: '$baseUrl/processObject',
-    outputType: ProcessObjectOutput.$schema,
+    outputSchema: ProcessObjectOutput.$schema,
   );
   final response = await processObjectFlow(
     input: ProcessObjectInput(message: 'Hello Genkit!', count: 20),
@@ -105,8 +105,8 @@ Future<void> _runStreamingFlow() async {
   print('\n--- Stream Objects ---');
   final streamObjectsFlow = defineRemoteAction(
     url: '$baseUrl/streamObjects',
-    outputType: StreamObjectsOutput.$schema,
-    streamType: StreamObjectsOutput.$schema,
+    outputSchema: StreamObjectsOutput.$schema,
+    streamSchema: StreamObjectsOutput.$schema,
   );
   final stream = streamObjectsFlow.stream(
     input: StreamObjectsInput(prompt: 'What is Genkit?'),
@@ -126,8 +126,8 @@ Future<void> _runStreamingGenerateFlow() async {
   print('\n--- Stream generate call ---');
   final generateFlow = defineRemoteAction(
     url: '$baseUrl/generate',
-    outputType: ModelResponse.$schema,
-    streamType: ModelResponseChunk.$schema,
+    outputSchema: ModelResponse.$schema,
+    streamSchema: ModelResponseChunk.$schema,
   );
   final stream = generateFlow.stream(
     input: ModelRequest(
@@ -166,7 +166,7 @@ Future<void> _runPerformanceExample() async {
     final echoAction = defineRemoteAction(
       url: '$baseUrl/echoString',
       httpClient: client,
-      outputType: stringType(),
+      outputSchema: stringSchema(),
     );
 
     final r1 = await echoAction(input: 'First call');

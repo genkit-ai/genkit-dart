@@ -71,8 +71,8 @@ void main(List<String> args) async {
   // --- Basic Generate Flow ---
   ai.defineFlow(
     name: 'basicGenerate',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (input, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -85,8 +85,8 @@ void main(List<String> args) async {
   // --- Lite Generate Flow (Wrapped) ---
   ai.defineFlow(
     name: 'liteGenerate',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (input, context) async {
       final gemini = googleAI();
       final response = await lite.generate(
@@ -101,7 +101,7 @@ void main(List<String> args) async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the weather for a location',
-    inputType: WeatherToolInput.$schema,
+    inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
         return 'The weather in Boston is 72 and sunny.';
@@ -112,8 +112,8 @@ void main(List<String> args) async {
 
   ai.defineFlow(
     name: 'weatherFlow',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -127,9 +127,9 @@ void main(List<String> args) async {
   // --- Structured Streaming Flow ---
   ai.defineFlow(
     name: 'structuredStreaming',
-    inputType: stringType(),
-    streamType: RpgCharacter.$schema,
-    outputType: RpgCharacter.$schema,
+    inputSchema: stringSchema(),
+    streamSchema: RpgCharacter.$schema,
+    outputSchema: RpgCharacter.$schema,
     fn: (name, ctx) async {
       final stream = ai.generateStream(
         model: googleAI.gemini('gemini-2.5-flash'),

@@ -61,13 +61,13 @@ void main() async {
   // Define remote actions for the client flow
   final helloAction = defineRemoteAction(
     url: 'http://localhost:3400/hello',
-    outputType: HelloOutput.$schema,
+    outputSchema: HelloOutput.$schema,
   );
 
   final countAction = defineRemoteAction(
     url: 'http://localhost:3400/count',
-    streamType: CountChunk.$schema,
-    outputType: stringType(),
+    streamSchema: CountChunk.$schema,
+    outputSchema: stringSchema(),
   );
 
   // 1. Define a simple unary flow
@@ -76,8 +76,8 @@ void main() async {
     fn: (HelloInput input, _) async {
       return HelloOutput(greeting: 'Hello, ${input.name}!');
     },
-    inputType: HelloInput.$schema,
-    outputType: HelloOutput.$schema,
+    inputSchema: HelloInput.$schema,
+    outputSchema: HelloOutput.$schema,
   );
 
   // 2. Define a streaming flow
@@ -90,9 +90,9 @@ void main() async {
       }
       return 'Done counting to $count';
     },
-    inputType: intType(),
-    outputType: stringType(),
-    streamType: CountChunk.$schema,
+    inputSchema: intSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: CountChunk.$schema,
   );
 
   // 3. Define a flow with authentication (context)
@@ -105,8 +105,8 @@ void main() async {
       }
       return 'Secure data for $user: $input';
     },
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
   );
 
   // 4. Define a client flow that acts as a client to call other flows
@@ -142,8 +142,8 @@ void main() async {
 
       return results.join('\n');
     },
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
   );
 
   // 5. Start the flow server

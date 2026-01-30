@@ -187,7 +187,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'A test tool',
-        inputType: TestToolInput.$schema,
+        inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           return 'Hello, ${input.name}!';
         },

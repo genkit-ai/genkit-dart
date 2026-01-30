@@ -56,9 +56,9 @@ void main() {
       registry = Registry();
       final testAction = Action(
         actionType: 'test',
-        inputSchema: stringType(),
-        outputSchema: stringType(),
-        streamSchema: stringType(),
+        inputSchema: stringSchema(),
+        outputSchema: stringSchema(),
+        streamSchema: stringSchema(),
         name: 'testAction',
         fn: (input, context) async {
           if (context.streamingRequested) {

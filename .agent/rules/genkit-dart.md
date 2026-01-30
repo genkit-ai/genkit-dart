@@ -47,13 +47,13 @@ import 'package:schemantic/schemantic.dart';
 part 'my_file.g.dart';
 
 @Schematic()
-abstract class MyObjSchema {
+abstract class $MyObj {
   String get name;
-  MySubObjSchema get subObj;
+  $MySubObj get subObj;
 }
 
 @Schematic()
-abstract class MySubObjSchema {
+abstract class $MySubObj {
   String get foo;
 }
 ```
@@ -74,7 +74,7 @@ Use the generated `*Type` classes when defining flows, actions, or tools:
 ```dart
 ai.defineFlow(
   name: 'my-flow',
-  inputType: MyObjType,
+  inputSchema: MyObj.$schema,
   fn: (input, _) async {
     print(input.name); // Typed access
     ...

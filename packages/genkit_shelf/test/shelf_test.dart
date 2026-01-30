@@ -51,8 +51,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echo',
       fn: (input, _) async => 'Echo: $input',
-      inputType: stringType(),
-      outputType: stringType(),
+      inputSchema: stringSchema(),
+      outputSchema: stringSchema(),
     );
 
     server = await startFlowServer(flows: [echoFlow], port: 0);
@@ -76,9 +76,9 @@ void main() {
         ctx.sendChunk('Chunk 2');
         return 'Done';
       },
-      inputType: stringType(),
-      outputType: stringType(),
-      streamType: stringType(),
+      inputSchema: stringSchema(),
+      outputSchema: stringSchema(),
+      streamSchema: stringSchema(),
     );
 
     server = await startFlowServer(flows: [streamFlow], port: 0);
@@ -108,8 +108,8 @@ void main() {
         if (user == null) throw Exception('Unauthorized');
         return 'Hello $user';
       },
-      inputType: stringType(),
-      outputType: stringType(),
+      inputSchema: stringSchema(),
+      outputSchema: stringSchema(),
     );
 
     final flowWithContext = FlowWithContextProvider(
@@ -154,8 +154,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echo',
       fn: (input, _) async => 'Echo: $input',
-      inputType: stringType(),
-      outputType: stringType(),
+      inputSchema: stringSchema(),
+      outputSchema: stringSchema(),
     );
 
     final handler = shelfHandler(echoFlow);
@@ -178,8 +178,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echoType',
       fn: (input, _) async => 'Echo: $input',
-      inputType: stringType(),
-      outputType: stringType(),
+      inputSchema: stringSchema(),
+      outputSchema: stringSchema(),
     );
 
     server = await startFlowServer(flows: [echoFlow], port: 0);
@@ -187,7 +187,7 @@ void main() {
 
     final action = defineRemoteAction(
       url: 'http://localhost:$port/echoType',
-      outputType: stringType(),
+      outputSchema: stringSchema(),
     );
 
     final result = await action(input: 'typed');
@@ -203,9 +203,9 @@ void main() {
         ctx.sendChunk(ShelfTestStream(chunk: 'chunk2'));
         return ShelfTestOutput(greeting: 'done');
       },
-      inputType: stringType(),
-      outputType: ShelfTestOutput.$schema,
-      streamType: ShelfTestStream.$schema,
+      inputSchema: stringSchema(),
+      outputSchema: ShelfTestOutput.$schema,
+      streamSchema: ShelfTestStream.$schema,
     );
 
     server = await startFlowServer(flows: [complexStreamFlow], port: 0);
@@ -213,8 +213,8 @@ void main() {
 
     final action = defineRemoteAction(
       url: 'http://localhost:$port/complexStream',
-      outputType: ShelfTestOutput.$schema,
-      streamType: ShelfTestStream.$schema,
+      outputSchema: ShelfTestOutput.$schema,
+      streamSchema: ShelfTestStream.$schema,
     );
 
     final stream = action.stream(input: 'start');
@@ -241,9 +241,9 @@ void main() {
         ctx.sendChunk('Chunk 2');
         return 'Done';
       },
-      inputType: stringType(),
-      outputType: stringType(),
-      streamType: stringType(),
+      inputSchema: stringSchema(),
+      outputSchema: stringSchema(),
+      streamSchema: stringSchema(),
     );
 
     server = await startFlowServer(flows: [streamFlow], port: 0);

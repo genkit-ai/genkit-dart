@@ -52,9 +52,9 @@ void main() async {
 
   ai.defineFlow(
     name: 'outer',
-    inputType: stringType(),
-    outputType: stringType(),
-    streamType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: stringSchema(),
     fn: (String name, context) async {
       if (context.streamingRequested) {
         for (var i = 0; i < 5; i++) {
@@ -68,8 +68,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'recipeTransformer',
-    inputType: Recipe.$schema,
-    outputType: Recipe.$schema,
+    inputSchema: Recipe.$schema,
+    outputSchema: Recipe.$schema,
     fn: (recipe, context) async {
       final hasSalt = recipe.ingredients.any(
         (i) => i.name.toLowerCase() == 'salt',

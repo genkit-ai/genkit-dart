@@ -25,10 +25,10 @@ void main() {
 
       final flow = genkit.defineBidiFlow(
         name: 'chatFlow',
-        inputType: stringType(),
-        outputType: stringType(),
-        streamType: stringType(),
-        initType: voidType(),
+        inputSchema: stringSchema(),
+        outputSchema: stringSchema(),
+        streamSchema: stringSchema(),
+        initSchema: voidSchema(),
         fn: (inputStream, context) async {
           await for (final chunk in inputStream) {
             context.sendChunk('echo $chunk');
@@ -53,10 +53,10 @@ void main() {
 
       final flow = genkit.defineBidiFlow(
         name: 'chatFlow',
-        inputType: stringType(),
-        outputType: stringType(),
-        streamType: stringType(),
-        initType: voidType(),
+        inputSchema: stringSchema(),
+        outputSchema: stringSchema(),
+        streamSchema: stringSchema(),
+        initSchema: voidSchema(),
         fn: (inputStream, context) async {
           await for (final chunk in inputStream) {
             context.sendChunk('echo $chunk');
@@ -80,10 +80,10 @@ void main() {
 
       final flow = genkit.defineBidiFlow(
         name: 'chatFlowInit',
-        inputType: stringType(),
-        outputType: stringType(),
-        streamType: stringType(),
-        initType: mapType(stringType(), stringType()),
+        inputSchema: stringSchema(),
+        outputSchema: stringSchema(),
+        streamSchema: stringSchema(),
+        initSchema: mapSchema(stringSchema(), stringSchema()),
         fn: (inputStream, context) async {
           final prefix = context.init?['prefix'] ?? '';
           await for (final chunk in inputStream) {

@@ -52,15 +52,15 @@ void main() async {
 
   final echoString = ai.defineFlow(
     name: 'echoString',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (input, _) async => input,
   );
 
   final processObject = ai.defineFlow(
     name: 'processObject',
-    inputType: ProcessObjectInput.$schema,
-    outputType: ProcessObjectOutput.$schema,
+    inputSchema: ProcessObjectInput.$schema,
+    outputSchema: ProcessObjectOutput.$schema,
     fn: (input, _) async {
       return ProcessObjectOutput(
         reply: 'reply: ${input.message}',
@@ -71,9 +71,9 @@ void main() async {
 
   final streamObjects = ai.defineFlow(
     name: 'streamObjects',
-    inputType: StreamObjectsInput.$schema,
-    outputType: StreamObjectsOutput.$schema,
-    streamType: StreamObjectsOutput.$schema,
+    inputSchema: StreamObjectsInput.$schema,
+    outputSchema: StreamObjectsOutput.$schema,
+    streamSchema: StreamObjectsOutput.$schema,
     fn: (input, context) async {
       for (var i = 0; i < 5; i++) {
         context.sendChunk(
@@ -95,9 +95,9 @@ void main() async {
     // The JS example takes MessageSchema[] and returns GenerateResponseSchema.
     // In Dart we can just use the ModelRequest/Response types or rely on JSON.
     // However, defining a flow that mocks 'ai.generate' behavior:
-    inputType: ModelRequest.$schema,
-    outputType: ModelResponse.$schema,
-    streamType: ModelResponseChunk.$schema,
+    inputSchema: ModelRequest.$schema,
+    outputSchema: ModelResponse.$schema,
+    streamSchema: ModelResponseChunk.$schema,
     fn: (request, context) async {
       // Calling the model directly.
       final response = await ai.generate(
@@ -113,9 +113,9 @@ void main() async {
 
   final streamyThrowy = ai.defineFlow(
     name: 'streamyThrowy',
-    inputType: intType(),
-    outputType: stringType(),
-    streamType: StreamyThrowyChunk.$schema,
+    inputSchema: intSchema(),
+    outputSchema: stringSchema(),
+    streamSchema: StreamyThrowyChunk.$schema,
     fn: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
@@ -131,8 +131,8 @@ void main() async {
 
   final throwy = ai.defineFlow(
     name: 'throwy',
-    inputType: stringType(),
-    outputType: stringType(),
+    inputSchema: stringSchema(),
+    outputSchema: stringSchema(),
     fn: (subject, _) async {
       // Mocking 'call-llm' calls as simple runs or strings since we don't have that model.
       final foo = await ai.run('call-llm', () async {
