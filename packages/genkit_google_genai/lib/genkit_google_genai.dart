@@ -165,9 +165,13 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
             req.output?.schema,
             isJsonMode,
           );
-          safetySettings = toGeminiTtsSafetySettings(options);
-          tools = toGeminiTtsTools(req.tools, options);
-          toolConfig = toGeminiTtsToolConfig(options);
+          safetySettings = toGeminiSafetySettings(options.safetySettings);
+          tools = toGeminiTools(
+            req.tools,
+            codeExecution: options.codeExecution,
+            googleSearchRetrieval: options.googleSearchRetrieval,
+          );
+          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
           final options = req.config == null
               ? GeminiOptions()
@@ -178,9 +182,13 @@ class _GoogleGenAiPlugin extends GenkitPlugin {
             req.output?.schema,
             isJsonMode,
           );
-          safetySettings = toGeminiSafetySettings(options);
-          tools = toGeminiTools(req.tools, options);
-          toolConfig = toGeminiToolConfig(options);
+          safetySettings = toGeminiSafetySettings(options.safetySettings);
+          tools = toGeminiTools(
+            req.tools,
+            codeExecution: options.codeExecution,
+            googleSearchRetrieval: options.googleSearchRetrieval,
+          );
+          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
 
         final service = gcl.GenerativeService.fromApiKey(
@@ -365,68 +373,10 @@ gcl.PrebuiltVoiceConfig? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
 }
 
 @visibleForTesting
-List<gcl.SafetySetting>? toGeminiTtsSafetySettings(GeminiTtsOptions options) {
-  return options.safetySettings
-      ?.map(
-        (s) => gcl.SafetySetting(
-          category: switch (s.category) {
-            null => gcl.HarmCategory.harmCategoryUnspecified,
-            String c => gcl.HarmCategory.fromJson(c),
-          },
-          threshold: switch (s.threshold) {
-            null =>
-              gcl
-                  .SafetySetting_HarmBlockThreshold
-                  .harmBlockThresholdUnspecified,
-            String t => gcl.SafetySetting_HarmBlockThreshold.fromJson(t),
-          },
-        ),
-      )
-      .toList();
-}
-
-@visibleForTesting
-List<gcl.Tool> toGeminiTtsTools(
-  List<ToolDefinition>? tools,
-  GeminiTtsOptions options,
+List<gcl.SafetySetting>? toGeminiSafetySettings(
+  List<SafetySettings>? safetySettings,
 ) {
-  return [
-    ...(tools?.map(_toGeminiTool) ?? []),
-    if (options.codeExecution == true)
-      gcl.Tool(codeExecution: gcl.CodeExecution()),
-    if (options.googleSearchRetrieval != null)
-      gcl.Tool(
-        googleSearchRetrieval: gcl.GoogleSearchRetrieval(
-          dynamicRetrievalConfig: gcl.DynamicRetrievalConfig(
-            mode: switch (options.googleSearchRetrieval!.mode) {
-              null => gcl.DynamicRetrievalConfig_Mode.modeUnspecified,
-              String m => gcl.DynamicRetrievalConfig_Mode.fromJson(m),
-            },
-            dynamicThreshold: options.googleSearchRetrieval!.dynamicThreshold,
-          ),
-        ),
-      ),
-  ];
-}
-
-@visibleForTesting
-gcl.ToolConfig? toGeminiTtsToolConfig(GeminiTtsOptions options) {
-  if (options.functionCallingConfig == null) return null;
-  return gcl.ToolConfig(
-    functionCallingConfig: gcl.FunctionCallingConfig(
-      mode: switch (options.functionCallingConfig!.mode) {
-        null => gcl.FunctionCallingConfig_Mode.modeUnspecified,
-        String m => gcl.FunctionCallingConfig_Mode.fromJson(m),
-      },
-      allowedFunctionNames:
-          options.functionCallingConfig!.allowedFunctionNames ?? [],
-    ),
-  );
-}
-
-@visibleForTesting
-List<gcl.SafetySetting>? toGeminiSafetySettings(GeminiOptions options) {
-  return options.safetySettings
+  return safetySettings
       ?.map(
         (s) => gcl.SafetySetting(
           category: switch (s.category) {
@@ -447,22 +397,22 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(GeminiOptions options) {
 
 @visibleForTesting
 List<gcl.Tool> toGeminiTools(
-  List<ToolDefinition>? tools,
-  GeminiOptions options,
-) {
+  List<ToolDefinition>? tools, {
+  bool? codeExecution,
+  GoogleSearchRetrieval? googleSearchRetrieval,
+}) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
-    if (options.codeExecution == true)
-      gcl.Tool(codeExecution: gcl.CodeExecution()),
-    if (options.googleSearchRetrieval != null)
+    if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
+    if (googleSearchRetrieval != null)
       gcl.Tool(
         googleSearchRetrieval: gcl.GoogleSearchRetrieval(
           dynamicRetrievalConfig: gcl.DynamicRetrievalConfig(
-            mode: switch (options.googleSearchRetrieval!.mode) {
+            mode: switch (googleSearchRetrieval.mode) {
               null => gcl.DynamicRetrievalConfig_Mode.modeUnspecified,
               String m => gcl.DynamicRetrievalConfig_Mode.fromJson(m),
             },
-            dynamicThreshold: options.googleSearchRetrieval!.dynamicThreshold,
+            dynamicThreshold: googleSearchRetrieval.dynamicThreshold,
           ),
         ),
       ),
@@ -470,16 +420,17 @@ List<gcl.Tool> toGeminiTools(
 }
 
 @visibleForTesting
-gcl.ToolConfig? toGeminiToolConfig(GeminiOptions options) {
-  if (options.functionCallingConfig == null) return null;
+gcl.ToolConfig? toGeminiToolConfig(
+  FunctionCallingConfig? functionCallingConfig,
+) {
+  if (functionCallingConfig == null) return null;
   return gcl.ToolConfig(
     functionCallingConfig: gcl.FunctionCallingConfig(
-      mode: switch (options.functionCallingConfig!.mode) {
+      mode: switch (functionCallingConfig.mode) {
         null => gcl.FunctionCallingConfig_Mode.modeUnspecified,
         String m => gcl.FunctionCallingConfig_Mode.fromJson(m),
       },
-      allowedFunctionNames:
-          options.functionCallingConfig!.allowedFunctionNames ?? [],
+      allowedFunctionNames: functionCallingConfig.allowedFunctionNames ?? [],
     ),
   );
 }

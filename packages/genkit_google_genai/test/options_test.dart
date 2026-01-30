@@ -81,7 +81,7 @@ void main() {
         ],
       );
 
-      final settings = toGeminiSafetySettings(options);
+      final settings = toGeminiSafetySettings(options.safetySettings);
 
       expect(settings, hasLength(1));
       expect(
@@ -98,7 +98,7 @@ void main() {
   group('toGeminiTools', () {
     test('maps code execution', () {
       final options = GeminiOptions(codeExecution: true);
-      final tools = toGeminiTools(null, options);
+      final tools = toGeminiTools(null, codeExecution: options.codeExecution);
 
       expect(tools, hasLength(1));
       expect(tools.first.codeExecution, isNotNull);
@@ -111,7 +111,10 @@ void main() {
           dynamicThreshold: 0.8,
         ),
       );
-      final tools = toGeminiTools(null, options);
+      final tools = toGeminiTools(
+        null,
+        googleSearchRetrieval: options.googleSearchRetrieval,
+      );
 
       expect(tools, hasLength(1));
       expect(tools.first.googleSearchRetrieval, isNotNull);
@@ -138,7 +141,7 @@ void main() {
           allowedFunctionNames: ['foo'],
         ),
       );
-      final config = toGeminiToolConfig(options);
+      final config = toGeminiToolConfig(options.functionCallingConfig);
 
       expect(
         config?.functionCallingConfig?.mode,
