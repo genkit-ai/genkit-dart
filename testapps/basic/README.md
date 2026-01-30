@@ -28,7 +28,7 @@ To run the application, you can use the provided shell script. Before running th
 Once the dependencies are installed, you can run the server using the `run_with_gemini_cli.sh` script:
 
 ```bash
-./tool/run_with_gemini_cli.sh
+./tool/run_with_genkit.sh
 ```
 
 This will start the Genkit development server, which runs the Dart application.
