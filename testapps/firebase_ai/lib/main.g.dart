@@ -27,11 +27,11 @@ class WeatherToolInput {
 
   WeatherToolInput._(this._json);
 
-  factory WeatherToolInput({required String location}) {
-    return WeatherToolInput._({'location': location});
+  WeatherToolInput({required String location}) {
+    _json = {'location': location};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<WeatherToolInput> $schema =
       _WeatherToolInputTypeFactory();
