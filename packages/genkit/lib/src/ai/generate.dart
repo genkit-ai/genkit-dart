@@ -263,7 +263,6 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       coreModel;
 
   // Check for resume
-  // Check for resume
   if (requestOptions.resume != null) {
       currentRequest = _resolveResume(currentRequest, requestOptions.resume!);
   }
