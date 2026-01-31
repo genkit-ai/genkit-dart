@@ -55,5 +55,5 @@ melos:
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{ai_features,basic_sample}"
+        scope: "{agentic-patterns,ai_features,basic_sample}"
       description: Run build_runner for testapps (except the flutter one!)
