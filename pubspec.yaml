@@ -52,7 +52,7 @@ melos:
       description: Run build_runner for plugins.
 
     build-gen-testapps:
-      run: |
-        melos exec --scope="ai_features,basic-sample,firebase_ai_testapp" -- dart run build_runner build
-      description: Run build_runner for testapps.
-      
+      exec: dart run build_runner build
+      packageFilters:
+        scope: "{ai_features,basic_sample}"
+      description: Run build_runner for testapps (except the flutter one!)
