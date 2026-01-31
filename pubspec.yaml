@@ -32,14 +32,12 @@ melos:
     analyze:
       exec: dart analyze --fatal-infos .
 
-
     build-gen:
       run: |
         melos run build-gen-core
         melos run build-gen-plugins
         melos run build-gen-testapps
       description: Run build_runner in topological order (core -> plugins -> app) to avoid race conditions.
-
 
     build-gen-core:
       run: |
@@ -55,6 +53,6 @@ melos:
 
     build-gen-testapps:
       run: |
-        melos exec --scope="basic-sample,firebase_ai_testapp" -- dart run build_runner build
+        melos exec --scope="ai_features,basic-sample,firebase_ai_testapp" -- dart run build_runner build
       description: Run build_runner for testapps.
       
