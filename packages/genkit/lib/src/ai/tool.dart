@@ -27,7 +27,7 @@ class ToolFnArgs<I> {
   Map<String, dynamic>? get context => _base.context;
 
   /// Interrupts the generation loop with optional [data].
-  void interrupt([dynamic data]) {
+  Never interrupt([dynamic data]) {
     throw ToolInterruptException(data ?? true);
   }
 }

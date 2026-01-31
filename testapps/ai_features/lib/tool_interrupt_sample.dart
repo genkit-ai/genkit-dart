@@ -46,9 +46,6 @@ Future<void> main(List<String> args) async {
     fn: (input, ctx) async {
       // input is TriviaQuestions (generated class)
       ctx.interrupt(input);
-      // Wait, interrupt function expects dynamic data?
-      // If we pass input (TriviaQuestions), it will be in metadata.
-      return 'User selection via resume';
     },
   );
 
