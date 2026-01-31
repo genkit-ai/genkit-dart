@@ -152,7 +152,7 @@ void main(List<String> arguments) async {
       print('Running Image Generator for concept: "$concept"...\n');
       final result =
           await imageGeneratorFlow(ImageGeneratorInput(concept: concept));
-      
+
       if (result.startsWith('data:')) {
         try {
           final base64idx = result.indexOf('base64,');
@@ -166,7 +166,7 @@ void main(List<String> arguments) async {
             await file.writeAsBytes(bytes);
             print('\nFinal Result (Saved to file):\n${file.absolute.path}');
           } else {
-             print('\nFinal Result (Image URL):\n$result');
+            print('\nFinal Result (Image URL):\n$result');
           }
         } catch (e) {
           print('Error saving image: $e');
