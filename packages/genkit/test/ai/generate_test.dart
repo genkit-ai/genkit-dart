@@ -195,5 +195,33 @@ void main() {
         throwsA(isA<GenkitException>()),
       );
     });
+    
+    test('should return full message history in response.messages', () async {
+      const modelName = 'historyModel';
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'Response')],
+            ),
+          );
+        },
+      );
+
+      final response = await genkit.generate(
+        model: modelRef(modelName),
+        prompt: 'Request',
+      );
+
+      expect(response.messages.length, 2);
+      expect(response.messages[0].role, Role.user);
+      expect(response.messages[0].content[0].toJson()['text'], 'Request');
+      expect(response.messages[1].role, Role.model);
+      expect(response.messages[1].content[0].toJson()['text'], 'Response');
+      expect(response.messages[1].toJson(), response.message!.toJson());
+    });
   });
 }

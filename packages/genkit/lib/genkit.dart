@@ -40,7 +40,7 @@ export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
 export 'package:genkit/src/ai/middleware/retry.dart' show RetryMiddleware;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
-export 'package:genkit/src/ai/tool.dart' show Tool;
+export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
 export 'package:genkit/src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata;
 export 'package:genkit/src/core/flow.dart';
@@ -160,7 +160,7 @@ class Genkit {
   Tool<I, O> defineTool<I, O, S>({
     required String name,
     required String description,
-    required ActionFn<I, O, S, void> fn,
+    required ToolFn<I, O> fn,
     SchemanticType<I>? inputSchema,
     SchemanticType<O>? outputSchema,
     SchemanticType<S>? streamSchema,
@@ -172,7 +172,7 @@ class Genkit {
         if (input == null && inputSchema != null && null is! I) {
           throw ArgumentError('Tool "$name" requires a non-null input.');
         }
-        return fn(input as I, context);
+        return fn(input, context);
       },
       inputSchema: inputSchema,
       outputSchema: outputSchema,
@@ -254,6 +254,23 @@ class Genkit {
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
     List<GenerateMiddleware>? use,
+    /// Optional data to resume an interrupted generation session.
+    ///
+    /// The map should contain a `respond` key with a list of tool responses, matching
+    /// the structure of the interrupted tool requests.
+    ///
+    /// Example:
+    /// ```dart
+    /// resume: {
+    ///   'respond': [
+    ///     {
+    ///       'ref': 'toolRef', // or 'name'
+    ///       'output': 'User Answer'
+    ///     }
+    ///   ]
+    /// }
+    /// ```
+    Map<String, dynamic>? resume,
   }) async {
     if (outputInstructions != null && outputNoInstructions == true) {
       throw ArgumentError(
@@ -291,6 +308,7 @@ class Genkit {
       output: outputConfig,
       context: context,
       middlewares: use,
+      resume: resume,
       onChunk: (c) {
         if (outputSchema != null) {
           onChunk?.call(
@@ -333,6 +351,7 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     List<GenerateMiddleware>? use,
+    Map<String, dynamic>? resume,
   }) {
     final streamController = StreamController<GenerateResponseChunk<S>>();
     final actionStream =
@@ -357,6 +376,7 @@ class Genkit {
           outputContentType: outputContentType,
           context: context,
           use: use,
+          resume: resume,
           onChunk: (chunk) {
             if (streamController.isClosed) return;
             streamController.add(chunk as GenerateResponseChunk<S>);
