@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:agentic_patterns/agentic_rag.dart';
 import 'package:agentic_patterns/autonomous_operation.dart';
 import 'package:agentic_patterns/conditional_routing.dart';
@@ -149,7 +152,29 @@ void main(List<String> arguments) async {
       print('Running Image Generator for concept: "$concept"...\n');
       final result =
           await imageGeneratorFlow(ImageGeneratorInput(concept: concept));
-      print('\nFinal Result (Image URL):\n$result');
+      
+      if (result.startsWith('data:')) {
+        try {
+          final base64idx = result.indexOf('base64,');
+          if (base64idx != -1) {
+            final base64Str = result.substring(base64idx + 7);
+            final bytes = base64Decode(base64Str);
+            final sanitizedConcept =
+                concept.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+            final fileName = 'generated_image_$sanitizedConcept.png';
+            final file = File(fileName);
+            await file.writeAsBytes(bytes);
+            print('\nFinal Result (Saved to file):\n${file.absolute.path}');
+          } else {
+             print('\nFinal Result (Image URL):\n$result');
+          }
+        } catch (e) {
+          print('Error saving image: $e');
+          print('\nFinal Result (Image URL):\n$result');
+        }
+      } else {
+        print('\nFinal Result (Image URL):\n$result');
+      }
       break;
     default:
       print('Unknown command: $command');

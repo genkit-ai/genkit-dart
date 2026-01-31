@@ -87,22 +87,17 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
 
         for (final interrupt in interrupts) {
           if (interrupt.toolRequest.name == askUser.name) {
-            final question = interrupt.metadata as String?;
+            final question = interrupt.metadata?['interrupt'] as String?;
             // In a real CLI app, we would prompt the user here.
             // For this sample, we'll simulate a user response.
             print('\n[Agent requested input]: $question');
             final simulatedAnswer =
-                'I am interested in efficiency and scalability.';
+                'I am interested in efficiency and scalability. Linux OS. My budget is \$1500.';
             print('[User answered]: $simulatedAnswer\n');
 
             resumeResponses.add(
               InterruptResponse(
-                // We need to find the ToolRequestPart corresponding to this interrupt
-                response.message!.content
-                    .whereType<ToolRequestPart>()
-                    .firstWhere(
-                      (p) => p.toolRequest == interrupt.toolRequest,
-                    ),
+                interrupt,
                 simulatedAnswer,
               ),
             );

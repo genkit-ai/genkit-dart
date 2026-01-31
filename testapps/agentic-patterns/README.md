@@ -37,6 +37,12 @@ Below is a list of the available samples and how to run them:
   dart run bin/main.dart sequentialProcessing "Space exploration"
   ```
 
+- **Image Generator**
+  Generates a detailed image prompt from a concept and then generates an image using `gemini-2.5-flash-image` (Nano Banana).
+  ```bash
+  dart run bin/main.dart imageGenerator "Cyberpunk city"
+  ```
+
 - **Parallel Execution**
   Runs tasks in parallel (Product Name & Tagline) and aggregates results.
   ```bash
@@ -71,10 +77,4 @@ Below is a list of the available samples and how to run them:
   Demonstrates managing conversation history across multiple turns using a session ID.
   ```bash
   dart run bin/main.dart statefulInteractions "session-123" "Hello, I'm Bob."
-  ```
-
-- **Image Generator**
-  Generates a detailed image prompt from a concept and then generates an image using `gemini-2.5-flash-image` (Nano Banana).
-  ```bash
-  dart run bin/main.dart imageGenerator "Cyberpunk city"
   ```
