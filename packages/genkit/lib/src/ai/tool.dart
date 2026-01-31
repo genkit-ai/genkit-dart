@@ -44,7 +44,12 @@ class Tool<I, O> extends Action<I, O, void, void> {
     super.outputSchema,
     super.metadata,
   }) : super(
-         fn: (input, ctx) => fn(input as I, ToolFnArgs(ctx)),
+         fn: (input, ctx) {
+           if (input == null && inputSchema != null && null is! I) {
+             throw ArgumentError('Tool "$name" requires a non-null input.');
+           }
+           return fn(input as I, ToolFnArgs(ctx));
+         },
          actionType: 'tool',
        );
 }

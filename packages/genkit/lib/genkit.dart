@@ -168,12 +168,7 @@ class Genkit {
     final tool = Tool(
       name: name,
       description: description,
-      fn: (input, context) {
-        if (input == null && inputSchema != null && null is! I) {
-          throw ArgumentError('Tool "$name" requires a non-null input.');
-        }
-        return fn(input, context);
-      },
+      fn: fn,
       inputSchema: inputSchema,
       outputSchema: outputSchema,
     );
