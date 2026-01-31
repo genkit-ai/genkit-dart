@@ -31,6 +31,8 @@ import 'tool.dart';
 
 final _logger = Logger('genkit');
 
+const _defaultMaxTurns = 5;
+
 /// Defines the utility 'generate' action.
 Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
 defineGenerateAction(Registry registry) {
@@ -281,15 +283,27 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     currentRequest = _resolveResume(currentRequest, requestOptions.resume!);
   }
 
-  while (turns < (requestOptions.maxTurns ?? 5)) {
+  var messageIndex = 0;
+  while (turns < (requestOptions.maxTurns ?? _defaultMaxTurns)) {
     // Execute model with middleware
     var response = await composedModel(currentRequest, (
       streamingRequested: ctx.streamingRequested,
-      sendChunk: ctx.sendChunk,
+      sendChunk: (chunk) {
+        ctx.sendChunk(
+          ModelResponseChunk(
+            index: messageIndex,
+            content: chunk.content,
+            role: chunk.role,
+            custom: chunk.custom,
+            aggregated: chunk.aggregated,
+          ),
+        );
+      },
       context: ctx.context,
       inputStream: null,
       init: null,
     ));
+    messageIndex++;
 
     final parser = format
         ?.handler(requestOptions.output?.jsonSchema)
@@ -391,8 +405,8 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     turns++;
   }
   throw GenkitException(
-    'Reached max turns of ${requestOptions.maxTurns ?? 5}',
-    status: StatusCodes.INVALID_ARGUMENT,
+    'Reached max turns of ${requestOptions.maxTurns ?? _defaultMaxTurns}. Adjust maxTurns option to increase the max number of turns.',
+    status: StatusCodes.ABORTED,
   );
 }
 
