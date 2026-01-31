@@ -141,10 +141,6 @@ void main(List<String> arguments) async {
       print('\nFinal Result:\n$result');
       break;
     case 'statefulInteractions':
-      if (args.isEmpty) {
-        print('Usage: statefulInteractions "<sessionId>" "<message>"');
-        return;
-      }
       if (args.length < 2) {
         print('Usage: statefulInteractions "<sessionId>" "<message>"');
         return;
