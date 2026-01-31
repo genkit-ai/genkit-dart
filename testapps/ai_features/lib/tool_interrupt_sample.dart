@@ -55,7 +55,6 @@ Future<void> main(List<String> args) async {
     // interruptData from metadata
     final interruptData = interruptPart.metadata?['interrupt'];
 
-
     final questions = interruptData as TriviaQuestions;
 
     print('\n--- TRIVIA TIME ---');

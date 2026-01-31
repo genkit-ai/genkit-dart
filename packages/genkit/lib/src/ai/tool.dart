@@ -44,7 +44,7 @@ class Tool<I, O> extends Action<I, O, void, void> {
     super.outputSchema,
     super.metadata,
   }) : super(
-          fn: (input, ctx) => fn(input as I, ToolFnArgs(ctx)),
-          actionType: 'tool',
-        );
+         fn: (input, ctx) => fn(input as I, ToolFnArgs(ctx)),
+         actionType: 'tool',
+       );
 }

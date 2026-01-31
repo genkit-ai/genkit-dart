@@ -195,7 +195,7 @@ void main() {
         throwsA(isA<GenkitException>()),
       );
     });
-    
+
     test('should return full message history in response.messages', () async {
       const modelName = 'historyModel';
       genkit.defineModel(

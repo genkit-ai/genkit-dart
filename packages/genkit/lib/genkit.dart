@@ -254,6 +254,7 @@ class Genkit {
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
     List<GenerateMiddleware>? use,
+
     /// Optional data to resume an interrupted generation session.
     ///
     /// The map should contain a `respond` key with a list of tool responses, matching
