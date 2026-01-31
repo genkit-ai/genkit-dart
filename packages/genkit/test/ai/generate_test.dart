@@ -189,10 +189,38 @@ void main() {
         () => genkit.generate(
           model: modelRef(modelName),
           prompt: 'Use a tool',
+          // this tool causes an infinite tool call loop
           tools: [toolName],
-          maxTurns: 2,
+          maxTurns: 5,
         ),
-        throwsA(isA<GenkitException>()),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.ABORTED)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('Adjust maxTurns option'),
+              ),
+        ),
+      );
+
+      await expectLater(
+        () => genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'Use a tool',
+          // this tool causes an infinite tool call loop
+          tools: [toolName],
+          // maxTurns is not specified, should still use default (5).
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.ABORTED)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('Adjust maxTurns option'),
+              ),
+        ),
       );
     });
 
