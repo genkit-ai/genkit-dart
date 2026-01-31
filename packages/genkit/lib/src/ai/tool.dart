@@ -12,15 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import '../core/action.dart';
+import 'interrupt.dart';
+
+/// Arguments passed to a tool function execution.
+class ToolFnArgs<I> {
+  final ActionFnArg<void, I, void> _base;
+
+  ToolFnArgs(this._base);
+
+  /// The execution context.
+  Map<String, dynamic>? get context => _base.context;
+
+  /// Interrupts the generation loop with optional [data].
+  Never interrupt([dynamic data]) {
+    throw ToolInterruptException(data ?? true);
+  }
+}
+
+/// A function that implements a tool.
+typedef ToolFn<I, O> = Future<O> Function(I input, ToolFnArgs<I> context);
 
 class Tool<I, O> extends Action<I, O, void, void> {
   Tool({
     required super.name,
     required super.description,
-    required super.fn,
+    required ToolFn<I, O> fn,
     super.inputSchema,
     super.outputSchema,
     super.metadata,
-  }) : super(actionType: 'tool');
+  }) : super(
+         fn: (input, ctx) {
+           if (input == null && inputSchema != null && null is! I) {
+             throw ArgumentError('Tool "$name" requires a non-null input.');
+           }
+           return fn(input as I, ToolFnArgs(ctx));
+         },
+         actionType: 'tool',
+       );
 }

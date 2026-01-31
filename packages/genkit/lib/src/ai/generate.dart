@@ -25,6 +25,7 @@ import '../schema_extensions.dart';
 import '../types.dart';
 import 'formatters/formatters.dart';
 import 'generate_middleware.dart';
+import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
 
@@ -112,13 +113,29 @@ class GenerateResponseChunk<O> {
   ModelResponseChunk get rawChunk => _chunk;
 }
 
+/// A response to an interrupted tool request.
+class InterruptResponse {
+  final ToolRequestPart _part;
+  final dynamic output;
+
+  InterruptResponse(this._part, this.output);
+
+  Map<String, dynamic> toJson() => {
+    'name': _part.toolRequest.name,
+    'ref': _part.toolRequest.ref,
+    'output': output,
+  };
+}
+
 /// A response from a generate action.
 class GenerateResponseHelper<O> extends GenerateResponse {
   final ModelResponse _response;
+  final ModelRequest? _request;
   final O? output;
 
-  GenerateResponseHelper(this._response, {this.output})
-    : super(
+  GenerateResponseHelper(this._response, {ModelRequest? request, this.output})
+    : _request = request,
+      super(
         message: _response.message,
         finishReason: _response.finishReason,
         finishMessage: _response.finishMessage,
@@ -126,7 +143,7 @@ class GenerateResponseHelper<O> extends GenerateResponse {
         usage: _response.usage,
         custom: _response.custom,
         raw: _response.raw,
-        request: _response.request,
+        request: _response.request, // This uses ModelResponse.request
         operation: _response.operation,
         candidates: [
           Candidate(
@@ -140,6 +157,15 @@ class GenerateResponseHelper<O> extends GenerateResponse {
         ],
       );
 
+  /// The full history of the conversation, including the request messages and
+  /// the final model response.
+  ///
+  /// This is useful for continuing the conversation in multi-turn scenarios.
+  List<Message> get messages => [
+    ...(_request?.messages ?? _response.request?.messages ?? []),
+    _response.message!,
+  ];
+
   ModelResponse get modelResponse => _response;
 
   /// The text content of the response.
@@ -150,6 +176,21 @@ class GenerateResponseHelper<O> extends GenerateResponse {
 
   /// The tool requests in the response.
   List<ToolRequest> get toolRequests => _response.toolRequests;
+
+  /// The list of tool requests that triggered an interrupt.
+  ///
+  /// These parts contain metadata with the interrupt payload.
+  List<ToolRequestPart> get interrupts {
+    return _response.message?.content
+            .where(
+              (p) =>
+                  p.isToolRequest &&
+                  (p.metadata?.containsKey('interrupt') ?? false),
+            )
+            .map((p) => p.toolRequestPart!)
+            .toList() ??
+        [];
+  }
 
   /// Tries to parse the output as JSON.
   ///
@@ -235,6 +276,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       ) ??
       coreModel;
 
+  // Check for resume
+  if (requestOptions.resume != null) {
+    currentRequest = _resolveResume(currentRequest, requestOptions.resume!);
+  }
+
   while (turns < (requestOptions.maxTurns ?? 5)) {
     // Execute model with middleware
     var response = await composedModel(currentRequest, (
@@ -250,7 +296,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
         .parseMessage;
 
     if (requestOptions.returnToolRequests ?? false) {
-      return GenerateResponseHelper(response, output: null);
+      return GenerateResponseHelper(
+        response,
+        request: currentRequest,
+        output: null,
+      );
     }
 
     final toolRequests = response.message?.content
@@ -260,48 +310,71 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     if (toolRequests == null || toolRequests.isEmpty) {
       return GenerateResponseHelper(
         response,
+        request: currentRequest,
         output: _parseOutput(response.message, parser),
       );
     }
 
-    final toolResponses = <Part>[];
-    for (final toolRequest in toolRequests) {
-      final tool =
-          await registry.lookupAction('tool', toolRequest.toolRequest.name)
-              as Tool?;
-      if (tool == null) {
-        throw GenkitException(
-          'Tool ${toolRequest.toolRequest.name} not found',
-          status: StatusCodes.NOT_FOUND,
-        );
+    final execution = await _executeTools(
+      registry,
+      toolRequests,
+      ctx.context,
+      middlewares: middlewares,
+    );
+    final toolResponses = execution.toolResponses;
+    final toolStatus = execution.toolStatus;
+    final interrupted = execution.interrupted;
+
+    if (interrupted) {
+      final newContent = <Part>[];
+      for (final part in response.message!.content) {
+        if (part.isToolRequest) {
+          final req = part.toolRequestPart!.toolRequest;
+          final ref = req.ref ?? req.name;
+          final status = toolStatus[ref];
+          final meta = Map<String, dynamic>.from(part.metadata ?? {});
+
+          if (status is ToolInterruptException) {
+            meta['interrupt'] = status.interrupt;
+          } else if (status != null) {
+            meta['pendingOutput'] = status;
+          }
+          newContent.add(
+            ToolRequestPart(
+              toolRequest: req,
+              custom: part.custom,
+              data: part.data,
+              metadata: meta,
+            ),
+          );
+        } else {
+          newContent.add(part);
+        }
       }
 
-      // Prepare tool middleware chain
-      Future<ToolResponse> coreTool(
-        ToolRequest req,
-        ActionFnArg<void, dynamic, void> c,
-      ) async {
-        final out = await tool.runRaw(req.input, context: c.context);
-        return ToolResponse(ref: req.ref, name: req.name, output: out.result);
-      }
+      final newMessage = Message(
+        role: response.message!.role,
+        content: newContent,
+        metadata: response.message!.metadata,
+      );
 
-      final composedTool =
-          middlewares?.reversed.fold(
-            coreTool,
-            (next, mw) =>
-                (r, c) => mw.tool(r, c, next),
-          ) ??
-          coreTool;
+      final newResponse = ModelResponse(
+        message: newMessage,
+        finishReason: FinishReason.interrupted,
+        finishMessage: response.finishMessage,
+        latencyMs: response.latencyMs,
+        usage: response.usage,
+        custom: response.custom,
+        raw: response.raw,
+        request: response.request,
+        operation: response.operation,
+      );
 
-      // Execute tool with middleware
-      final toolResponse = await composedTool(toolRequest.toolRequest, (
-        streamingRequested: false,
-        sendChunk: (_) {},
-        context: ctx.context,
-        inputStream: null,
-        init: null,
-      ));
-      toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
+      return GenerateResponseHelper(
+        newResponse,
+        request: currentRequest,
+        output: null,
+      );
     }
 
     final newMessages = List<Message>.from(currentRequest.messages)
@@ -361,20 +434,28 @@ Future<GenerateResponseHelper> generateHelper<C>(
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
   List<GenerateMiddleware>? middlewares,
+
+  /// List of interrupt responses to resolve interrupts.
+  List<InterruptResponse>? resume,
 }) async {
   if (messages == null && prompt == null) {
     throw ArgumentError('prompt or messages must be provided');
   }
 
-  final resolvedMessages =
-      messages ??
-      [
-        Message(
-          role: Role.user,
-          content: [TextPart(text: prompt!)],
-        ),
-      ];
+  Map<String, dynamic>? resolvedResume;
+  if (resume != null) {
+    resolvedResume = {'respond': resume.map((r) => r.toJson()).toList()};
+  }
 
+  final resolvedMessages = messages ?? [];
+  if (prompt != null) {
+    resolvedMessages.add(
+      Message(
+        role: Role.user,
+        content: [TextPart(text: prompt)],
+      ),
+    );
+  }
   final modelName = model.name;
 
   final format = resolveFormat(registry, output);
@@ -392,6 +473,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
       returnToolRequests: returnToolRequests,
       maxTurns: maxTurns,
       output: output,
+      resume: resolvedResume,
     ),
     (
       streamingRequested: onChunk != null,
@@ -600,4 +682,166 @@ O? _parseChunkOutput<O>(
     return dataPart.data as O?;
   }
   return null;
+}
+
+ModelRequest _resolveResume(ModelRequest request, Map<String, dynamic> resume) {
+  final lastMessage = request.messages.lastOrNull;
+  if (lastMessage?.role != Role.model ||
+      !(lastMessage?.content.any((p) => p.isToolRequest) ?? false)) {
+    return request;
+  }
+
+  final toolResponses = <Part>[];
+  final resumeRespond =
+      (resume['respond'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+  final newContent = <Part>[];
+  for (final part in lastMessage!.content) {
+    if (part.isToolRequest) {
+      final req = part.toolRequestPart!.toolRequest;
+      final meta = part.metadata ?? {};
+      dynamic output;
+
+      if (meta.containsKey('pendingOutput')) {
+        output = meta['pendingOutput'];
+      } else {
+        final match = resumeRespond.firstWhere(
+          (r) => r['ref'] == req.ref && r['name'] == req.name,
+          orElse: () => {},
+        );
+        if (match.isNotEmpty) {
+          output = match['output'];
+        }
+      }
+
+      if (output != null) {
+        toolResponses.add(
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: req.ref,
+              name: req.name,
+              output: output,
+            ),
+          ),
+        );
+        final newMeta = Map<String, dynamic>.from(meta);
+        if (newMeta.containsKey('interrupt')) {
+          newMeta['resolvedInterrupt'] = true;
+          newMeta.remove('interrupt');
+        }
+        newContent.add(
+          ToolRequestPart(
+            toolRequest: req,
+            custom: part.custom,
+            data: part.data,
+            metadata: newMeta,
+          ),
+        );
+      } else {
+        throw GenkitException(
+          'Unresolved tool request ${req.name}. You must supply replies for all interrupted tool requests.',
+          status: StatusCodes.INVALID_ARGUMENT,
+        );
+      }
+    } else {
+      newContent.add(part);
+    }
+  }
+
+  final newMessages = List<Message>.from(request.messages);
+  newMessages.removeLast();
+  newMessages.add(
+    Message(
+      role: lastMessage.role,
+      content: newContent,
+      metadata: lastMessage.metadata,
+    ),
+  );
+  newMessages.add(Message(role: Role.tool, content: toolResponses));
+
+  return ModelRequest(
+    messages: newMessages,
+    config: request.config,
+    tools: request.tools,
+    toolChoice: request.toolChoice,
+    output: request.output,
+  );
+}
+
+Future<
+  ({
+    List<Part> toolResponses,
+    bool interrupted,
+    Map<String, dynamic> toolStatus,
+  })
+>
+_executeTools(
+  Registry registry,
+  List<ToolRequestPart> toolRequests,
+  Map<String, dynamic>? context, {
+  List<GenerateMiddleware>? middlewares,
+}) async {
+  final toolResponses = <Part>[];
+  final toolStatus = <String, dynamic>{};
+  var interrupted = false;
+
+  for (final toolRequest in toolRequests) {
+    final tool =
+        await registry.lookupAction('tool', toolRequest.toolRequest.name)
+            as Tool?;
+    if (tool == null) {
+      throw GenkitException(
+        'Tool ${toolRequest.toolRequest.name} not found',
+        status: StatusCodes.NOT_FOUND,
+      );
+    }
+
+    Future<ToolResponse> coreTool(
+      ToolRequest req,
+      ActionFnArg<void, dynamic, void> c,
+    ) async {
+      final out = await tool.runRaw(req.input, context: c.context);
+      return ToolResponse(ref: req.ref, name: req.name, output: out.result);
+    }
+
+    final composedTool =
+        middlewares?.reversed.fold(
+          coreTool,
+          (next, mw) =>
+              (r, c) => mw.tool(r, c, next),
+        ) ??
+        coreTool;
+
+    try {
+      final toolResponse = await composedTool(toolRequest.toolRequest, (
+        streamingRequested: false,
+        sendChunk: (_) {},
+        context: context,
+        inputStream: null,
+        init: null,
+      ));
+      toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
+      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
+          toolResponse.output;
+    } on ToolInterruptException catch (e) {
+      interrupted = true;
+      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
+          e;
+    } catch (e) {
+      toolResponses.add(
+        ToolResponsePart(
+          toolResponse: ToolResponse(
+            ref: toolRequest.toolRequest.ref,
+            name: toolRequest.toolRequest.name,
+            output: 'Error: $e',
+          ),
+        ),
+      );
+    }
+  }
+  return (
+    toolResponses: toolResponses,
+    interrupted: interrupted,
+    toolStatus: toolStatus,
+  );
 }
