@@ -11,7 +11,7 @@ workspace:
   - packages/genkit_google_genai
   - packages/genkit_shelf
   - packages/schemantic
-  - testapps/agentic-patterns
+  - testapps/agentic_patterns
   - testapps/ai_features
   - testapps/basic
 
@@ -55,5 +55,5 @@ melos:
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{agentic-patterns,ai_features,basic_sample}"
+        scope: "{agentic_patterns,ai_features,basic_sample}"
       description: Run build_runner for testapps (except the flutter one!)
