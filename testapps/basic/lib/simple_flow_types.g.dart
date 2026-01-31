@@ -26,11 +26,11 @@ class Ingredient {
 
   Ingredient._(this._json);
 
-  factory Ingredient({required String name, required String quantity}) {
-    return Ingredient._({'name': name, 'quantity': quantity});
+  Ingredient({required String name, required String quantity}) {
+    _json = {'name': name, 'quantity': quantity};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
 
@@ -84,19 +84,19 @@ class Recipe {
 
   Recipe._(this._json);
 
-  factory Recipe({
+  Recipe({
     required String title,
     required List<Ingredient> ingredients,
     required int servings,
   }) {
-    return Recipe._({
+    _json = {
       'title': title,
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'servings': servings,
-    });
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
 

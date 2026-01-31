@@ -27,11 +27,11 @@ class ProcessObjectInput {
 
   ProcessObjectInput._(this._json);
 
-  factory ProcessObjectInput({required String message, required int count}) {
-    return ProcessObjectInput._({'message': message, 'count': count});
+  ProcessObjectInput({required String message, required int count}) {
+    _json = {'message': message, 'count': count};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ProcessObjectInput> $schema =
       _ProcessObjectInputTypeFactory();
@@ -88,11 +88,11 @@ class ProcessObjectOutput {
 
   ProcessObjectOutput._(this._json);
 
-  factory ProcessObjectOutput({required String reply, required int newCount}) {
-    return ProcessObjectOutput._({'reply': reply, 'newCount': newCount});
+  ProcessObjectOutput({required String reply, required int newCount}) {
+    _json = {'reply': reply, 'newCount': newCount};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ProcessObjectOutput> $schema =
       _ProcessObjectOutputTypeFactory();
@@ -149,11 +149,11 @@ class StreamObjectsInput {
 
   StreamObjectsInput._(this._json);
 
-  factory StreamObjectsInput({required String prompt}) {
-    return StreamObjectsInput._({'prompt': prompt});
+  StreamObjectsInput({required String prompt}) {
+    _json = {'prompt': prompt};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<StreamObjectsInput> $schema =
       _StreamObjectsInputTypeFactory();
@@ -202,11 +202,11 @@ class StreamObjectsOutput {
 
   StreamObjectsOutput._(this._json);
 
-  factory StreamObjectsOutput({required String text, required String summary}) {
-    return StreamObjectsOutput._({'text': text, 'summary': summary});
+  StreamObjectsOutput({required String text, required String summary}) {
+    _json = {'text': text, 'summary': summary};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<StreamObjectsOutput> $schema =
       _StreamObjectsOutputTypeFactory();
@@ -263,11 +263,11 @@ class StreamyThrowyChunk {
 
   StreamyThrowyChunk._(this._json);
 
-  factory StreamyThrowyChunk({required int count}) {
-    return StreamyThrowyChunk._({'count': count});
+  StreamyThrowyChunk({required int count}) {
+    _json = {'count': count};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<StreamyThrowyChunk> $schema =
       _StreamyThrowyChunkTypeFactory();

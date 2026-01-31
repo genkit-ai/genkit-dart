@@ -42,11 +42,15 @@ jobs:
         working-directory: packages/genkit_firebase_ai
         run: flutter analyze
 
-      - name: Ensure firebase_options.dart exists
+      - name: "testapps/firebase_ai: build_runner"
+        working-directory: testapps/firebase_ai
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: "testapps/firebase_ai: Ensure firebase_options.dart exists"
         working-directory: testapps/firebase_ai
         run: ./tool/stub_firebase_options.sh
 
-      - name: Run testapps/firebase_ai Analyzer
+      - name: "testapps/firebase_ai: Analyzer"
         working-directory: testapps/firebase_ai
         run: flutter analyze
 
