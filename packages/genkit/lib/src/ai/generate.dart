@@ -263,92 +263,9 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       coreModel;
 
   // Check for resume
-  final lastMessage = currentRequest.messages.lastOrNull;
-  if (requestOptions.resume != null &&
-      lastMessage?.role == Role.model &&
-      (lastMessage?.content.any((p) => p.isToolRequest) ?? false)) {
-    final toolResponses = <Part>[];
-    final resumeRespond =
-        (requestOptions.resume!['respond'] as List?)
-            ?.cast<Map<String, dynamic>>() ??
-        [];
-
-    final newContent = <Part>[];
-    for (final part in lastMessage!.content) {
-      if (part.isToolRequest) {
-        final req = part.toolRequestPart!.toolRequest;
-        final meta = part.metadata ?? {};
-        dynamic output;
-
-        if (meta.containsKey('pendingOutput')) {
-          output = meta['pendingOutput'];
-        } else {
-          final match = resumeRespond.firstWhere(
-            (r) => r['ref'] == req.ref && r['name'] == req.name,
-            orElse: () => {},
-          );
-          if (match.isNotEmpty) {
-            output = match['output'];
-            // TODO: Optional: Update metadata to mark as resolved
-          }
-        }
-
-        if (output != null) {
-          toolResponses.add(
-            ToolResponsePart(
-              toolResponse: ToolResponse(
-                ref: req.ref,
-                name: req.name,
-                output: output,
-              ),
-            ),
-          );
-          // If we wanted to update the history message to remove 'interrupt' and add 'resolvedInterrupt',
-          // we would recreate the part here.
-          final newMeta = Map<String, dynamic>.from(meta);
-          if (newMeta.containsKey('interrupt')) {
-            newMeta['resolvedInterrupt'] = true;
-            newMeta.remove('interrupt');
-          }
-          newContent.add(
-            ToolRequestPart(
-              toolRequest: req,
-              custom: part.custom,
-              data: part.data,
-              metadata: newMeta,
-            ),
-          );
-        } else {
-          throw GenkitException(
-            'Unresolved tool request ${req.name}. You must supply replies for all interrupted tool requests.',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-      } else {
-        newContent.add(part);
-      }
-    }
-
-    // Update the last message in history with resolved metadata
-    final newMessages = List<Message>.from(currentRequest.messages);
-    newMessages.removeLast();
-    newMessages.add(
-      Message(
-        role: lastMessage.role,
-        content: newContent,
-        metadata: lastMessage.metadata,
-      ),
-    );
-    // Add the tool responses
-    newMessages.add(Message(role: Role.tool, content: toolResponses));
-
-    currentRequest = ModelRequest(
-      messages: newMessages,
-      config: currentRequest.config,
-      tools: currentRequest.tools,
-      toolChoice: currentRequest.toolChoice,
-      output: currentRequest.output,
-    );
+  // Check for resume
+  if (requestOptions.resume != null) {
+      currentRequest = _resolveResume(currentRequest, requestOptions.resume!);
   }
 
   while (turns < (requestOptions.maxTurns ?? 5)) {
@@ -385,69 +302,15 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       );
     }
 
-    final toolResponses = <Part>[];
-    final toolStatus = <String, dynamic>{}; // ref -> output or Interrupt
-    var interrupted = false;
-
-    for (final toolRequest in toolRequests) {
-      final tool =
-          await registry.lookupAction('tool', toolRequest.toolRequest.name)
-              as Tool?;
-      if (tool == null) {
-        throw GenkitException(
-          'Tool ${toolRequest.toolRequest.name} not found',
-          status: StatusCodes.NOT_FOUND,
-        );
-      }
-
-      // Prepare tool middleware chain
-      Future<ToolResponse> coreTool(
-        ToolRequest req,
-        ActionFnArg<void, dynamic, void> c,
-      ) async {
-        final out = await tool.runRaw(req.input, context: c.context);
-        return ToolResponse(ref: req.ref, name: req.name, output: out.result);
-      }
-
-      final composedTool =
-          middlewares?.reversed.fold(
-            coreTool,
-            (next, mw) =>
-                (r, c) => mw.tool(r, c, next),
-          ) ??
-          coreTool;
-
-      try {
-        // Execute tool with middleware
-        final toolResponse = await composedTool(toolRequest.toolRequest, (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          context: ctx.context,
-          inputStream: null,
-          init: null,
-        ));
-        toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
-        toolStatus[toolRequest.toolRequest.ref ??
-                toolRequest.toolRequest.name] =
-            toolResponse.output;
-      } on ToolInterruptException catch (e) {
-        interrupted = true;
-        toolStatus[toolRequest.toolRequest.ref ??
-                toolRequest.toolRequest.name] =
-            e;
-      } catch (e) {
-        // For now, treat generic errors as tool output errors
-        toolResponses.add(
-          ToolResponsePart(
-            toolResponse: ToolResponse(
-              ref: toolRequest.toolRequest.ref,
-              name: toolRequest.toolRequest.name,
-              output: 'Error: $e',
-            ),
-          ),
-        );
-      }
-    }
+    final execution = await _executeTools(
+      registry,
+      toolRequests,
+      ctx.context,
+      middlewares: middlewares,
+    );
+    final toolResponses = execution.toolResponses;
+    final toolStatus = execution.toolStatus;
+    final interrupted = execution.interrupted;
 
     if (interrupted) {
       final newContent = <Part>[];
@@ -569,7 +432,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
     resolvedMessages.add(
       Message(
         role: Role.user,
-        content: [TextPart(text: prompt!)],
+        content: [TextPart(text: prompt)],
       ),
     );
   }
@@ -799,4 +662,161 @@ O? _parseChunkOutput<O>(
     return dataPart.data as O?;
   }
   return null;
+}
+
+ModelRequest _resolveResume(ModelRequest request, Map<String, dynamic> resume) {
+  final lastMessage = request.messages.lastOrNull;
+  if (lastMessage?.role != Role.model ||
+      !(lastMessage?.content.any((p) => p.isToolRequest) ?? false)) {
+    return request;
+  }
+
+  final toolResponses = <Part>[];
+  final resumeRespond = (resume['respond'] as List?)
+          ?.cast<Map<String, dynamic>>() ??
+      [];
+
+  final newContent = <Part>[];
+  for (final part in lastMessage!.content) {
+    if (part.isToolRequest) {
+      final req = part.toolRequestPart!.toolRequest;
+      final meta = part.metadata ?? {};
+      dynamic output;
+
+      if (meta.containsKey('pendingOutput')) {
+        output = meta['pendingOutput'];
+      } else {
+        final match = resumeRespond.firstWhere(
+          (r) => r['ref'] == req.ref && r['name'] == req.name,
+          orElse: () => {},
+        );
+        if (match.isNotEmpty) {
+          output = match['output'];
+        }
+      }
+
+      if (output != null) {
+        toolResponses.add(
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: req.ref,
+              name: req.name,
+              output: output,
+            ),
+          ),
+        );
+        final newMeta = Map<String, dynamic>.from(meta);
+        if (newMeta.containsKey('interrupt')) {
+          newMeta['resolvedInterrupt'] = true;
+          newMeta.remove('interrupt');
+        }
+        newContent.add(
+          ToolRequestPart(
+            toolRequest: req,
+            custom: part.custom,
+            data: part.data,
+            metadata: newMeta,
+          ),
+        );
+      } else {
+        throw GenkitException(
+          'Unresolved tool request ${req.name}. You must supply replies for all interrupted tool requests.',
+          status: StatusCodes.INVALID_ARGUMENT,
+        );
+      }
+    } else {
+      newContent.add(part);
+    }
+  }
+
+  final newMessages = List<Message>.from(request.messages);
+  newMessages.removeLast();
+  newMessages.add(
+    Message(
+      role: lastMessage.role,
+      content: newContent,
+      metadata: lastMessage.metadata,
+    ),
+  );
+  newMessages.add(Message(role: Role.tool, content: toolResponses));
+
+  return ModelRequest(
+    messages: newMessages,
+    config: request.config,
+    tools: request.tools,
+    toolChoice: request.toolChoice,
+    output: request.output,
+  );
+}
+
+Future<({
+  List<Part> toolResponses,
+  bool interrupted,
+  Map<String, dynamic> toolStatus
+})> _executeTools(
+  Registry registry,
+  List<ToolRequestPart> toolRequests,
+  Map<String, dynamic>? context, {
+  List<GenerateMiddleware>? middlewares,
+}) async {
+  final toolResponses = <Part>[];
+  final toolStatus = <String, dynamic>{};
+  var interrupted = false;
+
+  for (final toolRequest in toolRequests) {
+    final tool = await registry.lookupAction('tool', toolRequest.toolRequest.name)
+        as Tool?;
+    if (tool == null) {
+      throw GenkitException(
+        'Tool ${toolRequest.toolRequest.name} not found',
+        status: StatusCodes.NOT_FOUND,
+      );
+    }
+
+    Future<ToolResponse> coreTool(
+      ToolRequest req,
+      ActionFnArg<void, dynamic, void> c,
+    ) async {
+      final out = await tool.runRaw(req.input, context: c.context);
+      return ToolResponse(ref: req.ref, name: req.name, output: out.result);
+    }
+
+    final composedTool = middlewares?.reversed.fold(
+          coreTool,
+          (next, mw) => (r, c) => mw.tool(r, c, next),
+        ) ??
+        coreTool;
+
+    try {
+      final toolResponse = await composedTool(toolRequest.toolRequest, (
+        streamingRequested: false,
+        sendChunk: (_) {},
+        context: context,
+        inputStream: null,
+        init: null,
+      ));
+      toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
+      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
+          toolResponse.output;
+    } on ToolInterruptException catch (e) {
+      interrupted = true;
+      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
+          e;
+    } catch (e) {
+      toolResponses.add(
+        ToolResponsePart(
+          toolResponse: ToolResponse(
+            ref: toolRequest.toolRequest.ref,
+            name: toolRequest.toolRequest.name,
+            output: 'Error: $e',
+          ),
+        ),
+      );
+    }
+  }
+  return (
+    toolResponses: toolResponses,
+    interrupted: interrupted,
+    toolStatus: toolStatus,
+  );
 }

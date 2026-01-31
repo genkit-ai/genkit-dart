@@ -11,8 +11,8 @@ workspace:
   - packages/genkit_google_genai
   - packages/genkit_shelf
   - packages/schemantic
-  - testapps/basic
   - testapps/ai_features
+  - testapps/basic
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
