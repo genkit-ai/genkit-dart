@@ -118,7 +118,12 @@ class _MenuRagToolInputTypeFactory extends SchemanticType<MenuRagToolInput> {
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
         name: 'MenuRagToolInput',
         definition: Schema.object(
-          properties: {'query': Schema.string()},
+          properties: {
+            'query': Schema.string(
+              description:
+                  'A short, single-word query (important -- only use one word) to search the menu (e.g. "burger" if looking for burgers).',
+            ),
+          },
           required: ['query'],
         ),
         dependencies: [],

@@ -10,6 +10,10 @@ abstract class $AgenticRagInput {
 
 @Schematic()
 abstract class $MenuRagToolInput {
+  @Field(
+    description:
+        'A short, single-word query (important -- only use one word) to search the menu (e.g. "burger" if looking for burgers).',
+  )
   String get query;
 }
 
@@ -26,7 +30,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
     fn: (input, _) async {
       const menuItems = [
         'Classic Burger: A juicy beef patty with lettuce, tomato, and our special sauce.',
-        'Vegetarian Burger: A delicious plant-based patty with avocado and sprouts.',
+        'Vegan Burger: A delicious plant-based patty with avocado and sprouts.',
         'Fries: Crispy golden fries, lightly salted.',
         'Milkshake: A thick and creamy milkshake, available in vanilla, chocolate, and strawberry.',
         'Salad: A fresh garden salad with your choice of dressing.',

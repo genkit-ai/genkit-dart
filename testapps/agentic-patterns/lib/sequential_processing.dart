@@ -14,6 +14,11 @@ abstract class $StoryIdea {
   String get idea;
 }
 
+@Schematic()
+abstract class $ImageGeneratorInput {
+  String get concept;
+}
+
 Flow<StoryInput, String, void, void> defineStoryWriterFlow(
   Genkit ai,
   ModelRef geminiFlash,
@@ -43,6 +48,44 @@ Flow<StoryInput, String, void, void> defineStoryWriterFlow(
       );
 
       return storyResponse.text;
+    },
+  );
+}
+
+Flow<ImageGeneratorInput, String, void, void> defineImageGeneratorFlow(
+  Genkit ai,
+  ModelRef geminiFlash,
+) {
+  final geminiImage = modelRef('googleai/gemini-2.5-flash-image');
+
+  return ai.defineFlow(
+    name: 'imageGeneratorFlow',
+    inputSchema: ImageGeneratorInput.$schema,
+    outputSchema: stringSchema(),
+    fn: (input, _) async {
+      // Step 1: Use a text model to generate a rich image prompt
+      final promptResponse = await ai.generate(
+        model: geminiFlash,
+        prompt:
+            'Create a detailed, artistic prompt for an image generation model. The concept is: "${input.concept}".',
+      );
+
+      final imagePrompt = promptResponse.text;
+
+      // Step 2: Use the generated prompt to create an image
+      final imageResponse = await ai.generate(
+        model: geminiImage,
+        prompt: imagePrompt,
+        config: {
+          'responseModalities': ['image']
+        },
+      );
+
+      final imageUrl = imageResponse.media?.url;
+      if (imageUrl == null) {
+        throw Exception('Failed to generate an image.');
+      }
+      return imageUrl;
     },
   );
 }

@@ -4,6 +4,7 @@ import 'package:agentic_patterns/conditional_routing.dart';
 import 'package:agentic_patterns/iterative_refinement.dart';
 import 'package:agentic_patterns/parallel_execution.dart';
 import 'package:agentic_patterns/sequential_processing.dart';
+import 'package:agentic_patterns/stateful_interactions.dart';
 import 'package:agentic_patterns/tool_calling.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
@@ -28,6 +29,8 @@ void main(List<String> arguments) async {
   final toolCallingFlow = defineToolCallingFlow(ai, geminiFlash);
   final researchAgent = defineResearchAgent(ai, geminiFlash);
   final agenticRagFlow = defineAgenticRagFlow(ai, geminiFlash);
+  final statefulChatFlow = defineStatefulChatFlow(ai, geminiFlash);
+  final imageGeneratorFlow = defineImageGeneratorFlow(ai, geminiFlash);
 
   if (arguments.isEmpty) {
     print('Usage: dart run bin/main.dart <command> [args]');
@@ -39,6 +42,8 @@ void main(List<String> arguments) async {
     print('  toolCalling "<prompt>"');
     print('  autonomousOperation "<task>"');
     print('  agenticRag "<question>"');
+    print('  statefulInteractions "<sessionId>" "<message>"');
+    print('  imageGenerator "<concept>"');
     return;
   }
 
@@ -117,6 +122,34 @@ void main(List<String> arguments) async {
       print('Running Agentic RAG for question: "$question"...\n');
       final result = await agenticRagFlow(AgenticRagInput(question: question));
       print('\nFinal Result:\n$result');
+      break;
+    case 'statefulInteractions':
+      if (args.isEmpty) {
+        print('Usage: statefulInteractions "<sessionId>" "<message>"');
+        return;
+      }
+      if (args.length < 2) {
+        print('Usage: statefulInteractions "<sessionId>" "<message>"');
+        return;
+      }
+      final sessionId = args[0];
+      final message = args[1];
+      print('Running Stateful Interactions for session: "$sessionId"...\n');
+      final result = await statefulChatFlow(
+        StatefulChatInput(sessionId: sessionId, message: message),
+      );
+      print('\nFinal Result:\n$result');
+      break;
+    case 'imageGenerator':
+      if (args.isEmpty) {
+        print('Usage: imageGenerator "<concept>"');
+        return;
+      }
+      final concept = args[0];
+      print('Running Image Generator for concept: "$concept"...\n');
+      final result =
+          await imageGeneratorFlow(ImageGeneratorInput(concept: concept));
+      print('\nFinal Result (Image URL):\n$result');
       break;
     default:
       print('Unknown command: $command');

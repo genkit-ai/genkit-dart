@@ -120,3 +120,56 @@ class _StoryIdeaTypeFactory extends SchemanticType<StoryIdea> {
         dependencies: [],
       );
 }
+
+class ImageGeneratorInput {
+  factory ImageGeneratorInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  ImageGeneratorInput._(this._json);
+
+  ImageGeneratorInput({required String concept}) {
+    _json = {'concept': concept};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<ImageGeneratorInput> $schema =
+      _ImageGeneratorInputTypeFactory();
+
+  String get concept {
+    return _json['concept'] as String;
+  }
+
+  set concept(String value) {
+    _json['concept'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _ImageGeneratorInputTypeFactory
+    extends SchemanticType<ImageGeneratorInput> {
+  const _ImageGeneratorInputTypeFactory();
+
+  @override
+  ImageGeneratorInput parse(Object? json) {
+    return ImageGeneratorInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+        name: 'ImageGeneratorInput',
+        definition: Schema.object(
+          properties: {'concept': Schema.string()},
+          required: ['concept'],
+        ),
+        dependencies: [],
+      );
+}
