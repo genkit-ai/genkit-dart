@@ -1,21 +1,10 @@
-builders:
-  schemantic:
-    import: "package:schemantic/builder.dart"
-    builder_factories: ["schemaBuilder"]
-    build_extensions: {".dart": [".schemantic.g.part"]}
-    auto_apply: dependents
-    build_to: cache
-    applies_builders: ["source_gen:combining_builder"]
-
+# Read about `build.yaml` at https://pub.dev/packages/build_config
 targets:
   $default:
     builders:
-      schemantic:
-        enabled: true
-      source_gen:combining_builder:
-        enabled: true
-        dev_options:
-          header: |
+      source_gen|combining_builder:
+        options:
+          header: |-
             // Copyright 2025 Google LLC
             //
             // Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +18,6 @@ targets:
             // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
             // See the License for the specific language governing permissions and
             // limitations under the License.
-            //
-            // GENERATED CODE BY schemantic - DO NOT MODIFY BY HAND
-            // To regenerate, run `dart run build_runner build -d`
+           
+            // GENERATED CODE - DO NOT MODIFY BY HAND
+            // dart format width=80
