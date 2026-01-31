@@ -5,12 +5,40 @@ import 'package:agentic_patterns/iterative_refinement.dart';
 import 'package:agentic_patterns/parallel_execution.dart';
 import 'package:agentic_patterns/sequential_processing.dart';
 import 'package:agentic_patterns/tool_calling.dart';
+import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 void main(List<String> arguments) async {
+  configureCollectorExporter();
+
+  // Initialize Genkit and Model
+  final ai = Genkit(
+    plugins: [
+      googleAI(),
+    ],
+  );
+  final geminiFlash = googleAI.gemini('gemini-2.5-flash');
+
+  // Initialize Flows
+  final iterativeRefinementFlow =
+      defineIterativeRefinementFlow(ai, geminiFlash);
+  final storyWriterFlow = defineStoryWriterFlow(ai, geminiFlash);
+  final marketingCopyFlow = defineMarketingCopyFlow(ai, geminiFlash);
+  final routerFlow = defineRouterFlow(ai, geminiFlash);
+  final toolCallingFlow = defineToolCallingFlow(ai, geminiFlash);
+  final researchAgent = defineResearchAgent(ai, geminiFlash);
+  final agenticRagFlow = defineAgenticRagFlow(ai, geminiFlash);
+
   if (arguments.isEmpty) {
     print('Usage: dart run bin/main.dart <command> [args]');
     print('Available commands:');
     print('  iterativeRefinement "<topic>"');
+    print('  sequentialProcessing "<topic>"');
+    print('  parallelExecution "<product>"');
+    print('  conditionalRouting "<query>"');
+    print('  toolCalling "<prompt>"');
+    print('  autonomousOperation "<task>"');
+    print('  agenticRag "<question>"');
     return;
   }
 

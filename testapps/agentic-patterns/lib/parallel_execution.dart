@@ -1,8 +1,7 @@
 import 'dart:async';
 
+import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
-
-import 'genkit.dart';
 
 part 'parallel_execution.g.dart';
 
@@ -17,28 +16,34 @@ abstract class $MarketingCopy {
   String get tagline;
 }
 
-final marketingCopyFlow = ai.defineFlow(
-  name: 'marketingCopyFlow',
-  inputSchema: ProductInput.$schema,
-  outputSchema: MarketingCopy.$schema,
-  fn: (input, _) async {
-    // Task 1: Generate a creative name
-    final nameFuture = ai.generate(
-      model: geminiFlash,
-      prompt: 'Generate a creative name for a new product: ${input.product}.',
-    );
+Flow<ProductInput, MarketingCopy, void, void> defineMarketingCopyFlow(
+  Genkit ai,
+  ModelRef geminiFlash,
+) {
+  return ai.defineFlow(
+    name: 'marketingCopyFlow',
+    inputSchema: ProductInput.$schema,
+    outputSchema: MarketingCopy.$schema,
+    fn: (input, _) async {
+      // Task 1: Generate a creative name
+      final nameFuture = ai.generate(
+        model: geminiFlash,
+        prompt: 'Generate a creative name for a new product: ${input.product}.',
+      );
 
-    // Task 2: Generate a catchy tagline
-    final taglineFuture = ai.generate(
-      model: geminiFlash,
-      prompt: 'Generate a catchy tagline for a new product: ${input.product}.',
-    );
+      // Task 2: Generate a catchy tagline
+      final taglineFuture = ai.generate(
+        model: geminiFlash,
+        prompt:
+            'Generate a catchy tagline for a new product: ${input.product}.',
+      );
 
-    final results = await Future.wait([nameFuture, taglineFuture]);
+      final results = await Future.wait([nameFuture, taglineFuture]);
 
-    return MarketingCopy(
-      name: results[0].text,
-      tagline: results[1].text,
-    );
-  },
-);
+      return MarketingCopy(
+        name: results[0].text,
+        tagline: results[1].text,
+      );
+    },
+  );
+}
