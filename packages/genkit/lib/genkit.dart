@@ -35,7 +35,11 @@ import 'src/utils.dart';
 
 export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'
-    show GenerateBidiSession, GenerateResponseChunk, GenerateResponseHelper;
+    show
+        GenerateBidiSession,
+        GenerateResponseChunk,
+        GenerateResponseHelper,
+        InterruptResponse;
 export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
 export 'package:genkit/src/ai/middleware/retry.dart' show RetryMiddleware;
 export 'package:genkit/src/ai/model.dart'
@@ -252,21 +256,15 @@ class Genkit {
 
     /// Optional data to resume an interrupted generation session.
     ///
-    /// The map should contain a `respond` key with a list of tool responses, matching
-    /// the structure of the interrupted tool requests.
+    /// The list should contain [InterruptResponse]s for each interrupted tool request.
     ///
     /// Example:
     /// ```dart
-    /// resume: {
-    ///   'respond': [
-    ///     {
-    ///       'ref': 'toolRef', // or 'name'
-    ///       'output': 'User Answer'
-    ///     }
-    ///   ]
-    /// }
+    /// resume: [
+    ///   InterruptResponse(interruptPart, 'User Answer')
+    /// ]
     /// ```
-    Map<String, dynamic>? resume,
+    List<InterruptResponse>? resume,
   }) async {
     if (outputInstructions != null && outputNoInstructions == true) {
       throw ArgumentError(
@@ -347,7 +345,7 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     List<GenerateMiddleware>? use,
-    Map<String, dynamic>? resume,
+    List<InterruptResponse>? resume,
   }) {
     final streamController = StreamController<GenerateResponseChunk<S>>();
     final actionStream =

@@ -130,7 +130,6 @@ void main() {
         },
       );
 
-      // 1. Initial Call (gets interrupted)
       final response1 = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'trigger interrupt',
@@ -153,21 +152,12 @@ void main() {
         model: modelRef(modelName),
         messages: history,
         tools: [toolName],
-        resume: {
-          'respond': [
-            {
-              'name': toolName,
-              'ref': response1
-                  .message!
-                  .content
-                  .first
-                  .toolRequestPart!
-                  .toolRequest
-                  .ref,
-              'output': 'UserConfirmed',
-            },
-          ],
-        },
+        resume: [
+          InterruptResponse(
+            response1.message!.content.first.toolRequestPart!,
+            'UserConfirmed',
+          ),
+        ],
       );
 
       expect(response2.text, 'Resumed!');

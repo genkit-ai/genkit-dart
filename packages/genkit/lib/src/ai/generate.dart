@@ -113,6 +113,20 @@ class GenerateResponseChunk<O> {
   ModelResponseChunk get rawChunk => _chunk;
 }
 
+/// A response to an interrupted tool request.
+class InterruptResponse {
+  final ToolRequestPart _part;
+  final dynamic output;
+
+  InterruptResponse(this._part, this.output);
+
+  Map<String, dynamic> toJson() => {
+    'name': _part.toolRequest.name,
+    'ref': _part.toolRequest.ref,
+    'output': output,
+  };
+}
+
 /// A response from a generate action.
 class GenerateResponseHelper<O> extends GenerateResponse {
   final ModelResponse _response;
@@ -264,7 +278,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
 
   // Check for resume
   if (requestOptions.resume != null) {
-      currentRequest = _resolveResume(currentRequest, requestOptions.resume!);
+    currentRequest = _resolveResume(currentRequest, requestOptions.resume!);
   }
 
   while (turns < (requestOptions.maxTurns ?? 5)) {
@@ -420,10 +434,17 @@ Future<GenerateResponseHelper> generateHelper<C>(
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
   List<GenerateMiddleware>? middlewares,
-  Map<String, dynamic>? resume, // Added resume
+
+  /// List of interrupt responses to resolve interrupts.
+  List<InterruptResponse>? resume,
 }) async {
   if (messages == null && prompt == null) {
     throw ArgumentError('prompt or messages must be provided');
+  }
+
+  Map<String, dynamic>? resolvedResume;
+  if (resume != null) {
+    resolvedResume = {'respond': resume.map((r) => r.toJson()).toList()};
   }
 
   final resolvedMessages = messages ?? [];
@@ -452,7 +473,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
       returnToolRequests: returnToolRequests,
       maxTurns: maxTurns,
       output: output,
-      resume: resume, // Added resume
+      resume: resolvedResume,
     ),
     (
       streamingRequested: onChunk != null,
@@ -671,9 +692,8 @@ ModelRequest _resolveResume(ModelRequest request, Map<String, dynamic> resume) {
   }
 
   final toolResponses = <Part>[];
-  final resumeRespond = (resume['respond'] as List?)
-          ?.cast<Map<String, dynamic>>() ??
-      [];
+  final resumeRespond =
+      (resume['respond'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
   final newContent = <Part>[];
   for (final part in lastMessage!.content) {
@@ -748,11 +768,14 @@ ModelRequest _resolveResume(ModelRequest request, Map<String, dynamic> resume) {
   );
 }
 
-Future<({
-  List<Part> toolResponses,
-  bool interrupted,
-  Map<String, dynamic> toolStatus
-})> _executeTools(
+Future<
+  ({
+    List<Part> toolResponses,
+    bool interrupted,
+    Map<String, dynamic> toolStatus,
+  })
+>
+_executeTools(
   Registry registry,
   List<ToolRequestPart> toolRequests,
   Map<String, dynamic>? context, {
@@ -763,8 +786,9 @@ Future<({
   var interrupted = false;
 
   for (final toolRequest in toolRequests) {
-    final tool = await registry.lookupAction('tool', toolRequest.toolRequest.name)
-        as Tool?;
+    final tool =
+        await registry.lookupAction('tool', toolRequest.toolRequest.name)
+            as Tool?;
     if (tool == null) {
       throw GenkitException(
         'Tool ${toolRequest.toolRequest.name} not found',
@@ -780,9 +804,11 @@ Future<({
       return ToolResponse(ref: req.ref, name: req.name, output: out.result);
     }
 
-    final composedTool = middlewares?.reversed.fold(
+    final composedTool =
+        middlewares?.reversed.fold(
           coreTool,
-          (next, mw) => (r, c) => mw.tool(r, c, next),
+          (next, mw) =>
+              (r, c) => mw.tool(r, c, next),
         ) ??
         coreTool;
 

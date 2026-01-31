@@ -94,15 +94,9 @@ Future<void> main(List<String> args) async {
       model: googleAI.gemini('gemini-2.5-flash'),
       messages: response.messages,
       tools: ['present_questions'],
-      resume: {
-        'respond': [
-          {
-            'name': 'present_questions',
-            'ref': interruptPart.toolRequest.ref,
-            'output': userSelection,
-          }
-        ]
-      },
+      resume: [
+        InterruptResponse(interruptPart, userSelection),
+      ],
     );
 
     print('\nHost Response:\n${response2.text}');
