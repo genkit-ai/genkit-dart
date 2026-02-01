@@ -26,16 +26,15 @@ abstract class $TriviaQuestions {
   String get question;
 
   @Field(
-      description:
-          'list of multiple choice answers (typically 4), 1 correct 3 wrong')
+    description:
+        'list of multiple choice answers (typically 4), 1 correct 3 wrong',
+  )
   List<String> get answers;
 }
 
 Future<void> main(List<String> args) async {
   // Initialize Genkit with Google AI plugin
-  final ai = Genkit(
-    plugins: [googleAI()],
-  );
+  final ai = Genkit(plugins: [googleAI()]);
 
   // Define the tool
   ai.defineTool(
@@ -91,15 +90,14 @@ Future<void> main(List<String> args) async {
       model: googleAI.gemini('gemini-2.5-flash'),
       messages: response.messages,
       tools: ['present_questions'],
-      resume: [
-        InterruptResponse(interruptPart, userSelection),
-      ],
+      resume: [InterruptResponse(interruptPart, userSelection)],
     );
 
     print('\nHost Response:\n${response2.text}');
   } else {
     print(
-        'Flow finished without interrupt (unexpected): ${response.finishReason}');
+      'Flow finished without interrupt (unexpected): ${response.finishReason}',
+    );
     print(response.text);
   }
 }
