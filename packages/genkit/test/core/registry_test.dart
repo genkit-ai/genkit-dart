@@ -275,55 +275,5 @@ void main() {
       expect(values, containsPair('/test/childValue', 'child'));
       expect(values, containsPair('/test/shared', 'child'));
     });
-
-    test('listActions merges parent and local actions', () async {
-      final parent = Registry();
-      final child = Registry.childOf(parent);
-
-      final parentAction = Action(
-        actionType: 'test',
-        name: 'parentAction',
-        fn: (input, context) async => 'parent',
-      );
-      parent.register(parentAction);
-
-      final sharedParent = Action(
-        actionType: 'test',
-        name: 'shared',
-        fn: (input, context) async => 'parent',
-      );
-      parent.register(sharedParent);
-
-      final childAction = Action(
-        actionType: 'test',
-        name: 'childAction',
-        fn: (input, context) async => 'child',
-      );
-      child.register(childAction);
-
-      final sharedChild = Action(
-        actionType: 'test',
-        name: 'shared',
-        fn: (input, context) async => 'child',
-      );
-      child.register(sharedChild);
-
-      final actions = await child.listActions();
-      expect(actions.length, 3);
-
-      final parentMeta = actions.firstWhere((a) => a.name == 'parentAction');
-      expect(parentMeta.name, 'parentAction');
-
-      final childMeta = actions.firstWhere((a) => a.name == 'childAction');
-      expect(childMeta.name, 'childAction');
-
-      final sharedMeta = actions.firstWhere((a) => a.name == 'shared');
-      // The child one should shadow the parent one, so it should satisfy 'child' check if we inspected implementation,
-      // but listActions returns Metadata.
-      // We can verify it's the child action effectively because `lookupAction` would return it?
-      // Actually `listActions` returns `ActionMetadata` which often IS `Action` (subclass).
-      // Action implements ActionMetadata.
-      expect(sharedMeta, same(sharedChild));
-    });
   });
 }

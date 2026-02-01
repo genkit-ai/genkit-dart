@@ -114,13 +114,6 @@ class Registry {
   Future<List<ActionMetadata>> listActions() async {
     await _ensureAllPluginsInitialized();
     final allActions = <String, ActionMetadata>{};
-    if (parent != null) {
-      final parentActions = await parent!.listActions();
-      for (final action in parentActions) {
-        final key = _getKey(action.actionType, action.name);
-        allActions[key] = action;
-      }
-    }
     for (final action in _actions.values) {
       final key = _getKey(action.actionType, action.name);
       allActions[key] = action;
