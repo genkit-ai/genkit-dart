@@ -11,4 +11,4 @@ dependencies:
   dart_style: ^3.1.4
   http: ^1.6.0
   json_annotation: ^4.9.0
-  source_gen: ^4.1.2
+  source_gen: ^4.2.0
