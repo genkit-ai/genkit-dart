@@ -194,7 +194,7 @@ class ReflectionServer {
         request.response.write(jsonEncode(response.toJson()));
         await request.response.close();
       } catch (e, stack) {
-        print('Error running action: $e\n$stack');
+        printError(e, stack);
         final errorResponse = RunActionResponse(
           error: Status(
             code: StatusCodes.INTERNAL.value,
@@ -217,7 +217,7 @@ class ReflectionServer {
           ..write(jsonEncode(response.toJson()))
           ..close();
       } catch (e, stack) {
-        print('Error running action: $e\n$stack');
+        printError(e, stack);
         final errorResponse = Status(
           code: StatusCodes.INTERNAL.value,
           message: e.toString(),

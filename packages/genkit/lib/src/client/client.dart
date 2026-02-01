@@ -69,7 +69,11 @@ Future<O?> streamFlow<O, S>({
 
     final finalError = error is GenkitException
         ? error
-        : GenkitException('Error in stream', underlyingException: error);
+        : GenkitException(
+            'Error in stream',
+            underlyingException: error,
+            stackTrace: stackTrace,
+          );
 
     if (!responseCompleter.isCompleted) {
       responseCompleter.completeError(finalError, stackTrace);
