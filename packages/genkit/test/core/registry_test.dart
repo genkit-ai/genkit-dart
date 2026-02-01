@@ -188,7 +188,6 @@ void main() {
       final actions = await registry.listActions();
       expect(actions.length, 1);
     });
-
   });
 
   group('Registry Hierarchy', () {
@@ -259,10 +258,7 @@ void main() {
       );
       child.register(childAction);
 
-      expect(
-        await child.lookupAction('test', 'shared'),
-        same(childAction),
-      );
+      expect(await child.lookupAction('test', 'shared'), same(childAction));
     });
 
     test('listValues merges parent and local values', () {
@@ -290,7 +286,7 @@ void main() {
         fn: (input, context) async => 'parent',
       );
       parent.register(parentAction);
-      
+
       final sharedParent = Action(
         actionType: 'test',
         name: 'shared',
@@ -304,7 +300,7 @@ void main() {
         fn: (input, context) async => 'child',
       );
       child.register(childAction);
-      
+
       final sharedChild = Action(
         actionType: 'test',
         name: 'shared',
@@ -314,16 +310,16 @@ void main() {
 
       final actions = await child.listActions();
       expect(actions.length, 3);
-      
+
       final parentMeta = actions.firstWhere((a) => a.name == 'parentAction');
       expect(parentMeta.name, 'parentAction');
 
       final childMeta = actions.firstWhere((a) => a.name == 'childAction');
       expect(childMeta.name, 'childAction');
-      
+
       final sharedMeta = actions.firstWhere((a) => a.name == 'shared');
       // The child one should shadow the parent one, so it should satisfy 'child' check if we inspected implementation,
-      // but listActions returns Metadata. 
+      // but listActions returns Metadata.
       // We can verify it's the child action effectively because `lookupAction` would return it?
       // Actually `listActions` returns `ActionMetadata` which often IS `Action` (subclass).
       // Action implements ActionMetadata.
