@@ -102,6 +102,131 @@ void main() {
       expect(tool2Called, isFalse);
     });
 
+    test('should allow passing Tool objects directly', () async {
+      const modelName = 'toolObjectModel';
+      var directToolCalled = false;
+
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+          if (request.messages.last.role == Role.tool) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Done')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'directTool',
+                    input: {'name': 'world'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final directTool = Tool(
+        name: 'directTool',
+        description: 'Direct Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, context) async {
+          directToolCalled = true;
+          return 'direct output';
+        },
+      );
+
+      await genkit.generate(
+        model: modelRef(modelName),
+        prompt: 'Use direct tool',
+        tools: [directTool],
+      );
+
+      expect(directToolCalled, isTrue);
+    });
+
+    test('should allow mixed String and Tool objects', () async {
+      const modelName = 'mixedToolsModel';
+      const registeredToolName = 'registeredTool';
+      var registeredToolCalled = false;
+      var directToolCalled = false;
+
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+           if (request.messages.last.role == Role.tool) {
+            // Check if both called? No, just finish
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Done')],
+              ),
+            );
+          }
+          // Request both tools
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: registeredToolName,
+                    input: {'name': 'reg'},
+                  ),
+                ),
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'directFunctTool',
+                    input: {'name': 'direct'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: registeredToolName,
+        description: 'Registered Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, context) async {
+          registeredToolCalled = true;
+          return 'reg output';
+        },
+      );
+
+      final directTool = Tool(
+        name: 'directFunctTool',
+        description: 'Direct Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, context) async {
+          directToolCalled = true;
+          return 'direct output';
+        },
+      );
+
+      await genkit.generate(
+        model: modelRef(modelName),
+        prompt: 'Use tools',
+        tools: [registeredToolName, directTool],
+      );
+
+      expect(registeredToolCalled, isTrue);
+      expect(directToolCalled, isTrue);
+    });
+
     test(
       'should return tool requests when returnToolRequests is true',
       () async {
