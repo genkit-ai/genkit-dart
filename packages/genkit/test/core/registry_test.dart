@@ -189,4 +189,91 @@ void main() {
       expect(actions.length, 1);
     });
   });
+
+  group('Registry Hierarchy', () {
+    test('lookupValue delegates to parent if not found locally', () {
+      final parent = Registry();
+      final child = Registry.childOf(parent);
+
+      parent.registerValue('test', 'parentValue', 'parent');
+      child.registerValue('test', 'childValue', 'child');
+
+      expect(child.lookupValue<String>('test', 'childValue'), 'child');
+      expect(child.lookupValue<String>('test', 'parentValue'), 'parent');
+    });
+
+    test('lookupValue prefers local value over parent', () {
+      final parent = Registry();
+      final child = Registry.childOf(parent);
+
+      parent.registerValue('test', 'shared', 'parent');
+      child.registerValue('test', 'shared', 'child');
+
+      expect(child.lookupValue<String>('test', 'shared'), 'child');
+    });
+
+    test('lookupAction delegates to parent if not found locally', () async {
+      final parent = Registry();
+      final child = Registry.childOf(parent);
+
+      final parentAction = Action(
+        actionType: 'test',
+        name: 'parentAction',
+        fn: (input, context) async => 'parent',
+      );
+      parent.register(parentAction);
+
+      final childAction = Action(
+        actionType: 'test',
+        name: 'childAction',
+        fn: (input, context) async => 'child',
+      );
+      child.register(childAction);
+
+      expect(
+        await child.lookupAction('test', 'childAction'),
+        same(childAction),
+      );
+      expect(
+        await child.lookupAction('test', 'parentAction'),
+        same(parentAction),
+      );
+    });
+
+    test('lookupAction prefers local action over parent', () async {
+      final parent = Registry();
+      final child = Registry.childOf(parent);
+
+      final parentAction = Action(
+        actionType: 'test',
+        name: 'shared',
+        fn: (input, context) async => 'parent',
+      );
+      parent.register(parentAction);
+
+      final childAction = Action(
+        actionType: 'test',
+        name: 'shared',
+        fn: (input, context) async => 'child',
+      );
+      child.register(childAction);
+
+      expect(await child.lookupAction('test', 'shared'), same(childAction));
+    });
+
+    test('listValues merges parent and local values', () {
+      final parent = Registry();
+      final child = Registry.childOf(parent);
+
+      parent.registerValue('test', 'parentValue', 'parent');
+      parent.registerValue('test', 'shared', 'parent');
+      child.registerValue('test', 'childValue', 'child');
+      child.registerValue('test', 'shared', 'child');
+
+      final values = child.listValues<String>('test');
+      expect(values, containsPair('/test/parentValue', 'parent'));
+      expect(values, containsPair('/test/childValue', 'child'));
+      expect(values, containsPair('/test/shared', 'child'));
+    });
+  });
 }

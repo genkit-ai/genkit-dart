@@ -20,6 +20,13 @@ class Registry {
   final Map<String, dynamic> _values = {};
   final List<GenkitPlugin> _plugins = [];
   final Set<String> _initializedPlugins = {};
+  final Registry? parent;
+
+  Registry({this.parent});
+
+  factory Registry.childOf(Registry parent) {
+    return Registry(parent: parent);
+  }
 
   Future<void> _ensurePluginInitialized(GenkitPlugin plugin) async {
     if (!_initializedPlugins.contains(plugin.name)) {
@@ -55,12 +62,15 @@ class Registry {
     if (_values.containsKey(key)) {
       return _values[key] as T?;
     }
-    return null;
+    return parent?.lookupValue<T>(type, name);
   }
 
   Map<String, T> listValues<T>(String type) {
     final prefix = '/$type/';
     final result = <String, T>{};
+    if (parent != null) {
+      result.addAll(parent!.listValues<T>(type));
+    }
     for (final key in _values.keys) {
       if (key.startsWith(prefix)) {
         result[key] = _values[key] as T;
@@ -80,26 +90,25 @@ class Registry {
       return _actions[key];
     }
     final parts = name.split('/');
-    if (parts.length != 2) {
-      return null;
-    }
-    final pluginName = parts[0];
-    final resolvedActionName = parts[1];
-    for (final plugin in _plugins) {
-      if (plugin.name == pluginName) {
-        await _ensurePluginInitialized(plugin);
-        // The action might have been registered during init.
-        if (_actions.containsKey(key)) {
-          return _actions[key];
-        }
-        final action = plugin.resolve(actionType, resolvedActionName);
-        if (action != null) {
-          register(action);
-          return action;
+    if (parts.length == 2) {
+      final pluginName = parts[0];
+      final resolvedActionName = parts[1];
+      for (final plugin in _plugins) {
+        if (plugin.name == pluginName) {
+          await _ensurePluginInitialized(plugin);
+          // The action might have been registered during init.
+          if (_actions.containsKey(key)) {
+            return _actions[key];
+          }
+          final action = plugin.resolve(actionType, resolvedActionName);
+          if (action != null) {
+            register(action);
+            return action;
+          }
         }
       }
     }
-    return null;
+    return parent?.lookupAction(actionType, name);
   }
 
   Future<List<ActionMetadata>> listActions() async {
