@@ -48,30 +48,34 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     final service = gcl.ModelService.fromApiKey(apiKey);
-    final gcl.ListModelsResponse modelsResponse;
     try {
-      modelsResponse = await service.listModels(
-        gcl.ListModelsRequest(pageSize: 1000),
-      );
-    } catch (e, stack) {
-      throw _handleException(e, stack);
+      final gcl.ListModelsResponse modelsResponse;
+      try {
+        modelsResponse = await service.listModels(
+          gcl.ListModelsRequest(pageSize: 1000),
+        );
+      } catch (e, stack) {
+        throw _handleException(e, stack);
+      }
+      final models = modelsResponse.models
+          .where((model) {
+            return model.name.startsWith('models/gemini-');
+          })
+          .map((model) {
+            final isTts = model.name.contains('-tts');
+            return modelMetadata(
+              'googleai/${model.name.split('/').last}',
+              customOptions: isTts
+                  ? GeminiTtsOptions.$schema
+                  : GeminiOptions.$schema,
+              modelInfo: commonModelInfo,
+            );
+          })
+          .toList();
+      return models;
+    } finally {
+      service.close();
     }
-    final models = modelsResponse.models
-        .where((model) {
-          return model.name.startsWith('models/gemini-');
-        })
-        .map((model) {
-          final isTts = model.name.contains('-tts');
-          return modelMetadata(
-            'googleai/${model.name.split('/').last}',
-            customOptions: isTts
-                ? GeminiTtsOptions.$schema
-                : GeminiOptions.$schema,
-            modelInfo: commonModelInfo,
-          );
-        })
-        .toList();
-    return models;
   }
 
   @override
