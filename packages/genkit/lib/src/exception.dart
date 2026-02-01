@@ -175,7 +175,7 @@ $error
 ${Trace.from(stack).terse}''');
 }
 
-extension StringIndentation on String {
+extension on String {
   /// Indents each line of the string by the given number of spaces.
   String indent({int spaces = 4}) {
     final indentation = ' ' * spaces;
