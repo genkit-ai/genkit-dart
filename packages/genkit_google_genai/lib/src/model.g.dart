@@ -15,7 +15,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'genkit_google_genai.dart';
+part of 'model.dart';
 
 // **************************************************************************
 // SchemaGenerator

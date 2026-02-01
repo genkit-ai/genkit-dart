@@ -17,52 +17,7 @@ import 'package:genkit/lite.dart' as lite;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'example.g.dart';
-
-// --- Schemas for Tool Calling Example ---
-
-@Schematic()
-abstract class $WeatherToolInput {
-  @Field(
-    description:
-        'The location (ex. city, state, country) to get the weather for',
-  )
-  String get location;
-}
-
-// --- Schemas for Structured Streaming Example ---
-
-@Schematic()
-abstract class $Category {
-  String get name;
-  @Schematic(
-    description: 'make sure there are at least 2-3 levels of subcategories',
-  )
-  List<$Category>? get subcategories;
-}
-
-@Schematic()
-abstract class $Weapon {
-  String get name;
-  double get damage;
-  $Category get category;
-}
-
-@Schematic()
-abstract class $RpgCharacter {
-  @Schematic(description: 'name of the character')
-  String get name;
-
-  @Schematic(description: "character's backstory, about a paragraph")
-  String get backstory;
-
-  List<$Weapon> get weapons;
-
-  @StringField(enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'])
-  String get classType;
-
-  String? get affiliation;
-}
+import 'src/model.dart';
 
 void main(List<String> args) async {
   configureCollectorExporter();

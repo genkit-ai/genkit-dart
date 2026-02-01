@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_google_genai/src/plugin_impl.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
 import 'package:test/test.dart';
