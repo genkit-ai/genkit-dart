@@ -100,8 +100,6 @@ void main() {
 
       expect(tool1Called, isTrue);
       expect(tool2Called, isFalse);
-      expect(tool1Called, isTrue);
-      expect(tool2Called, isFalse);
     });
 
     test('should allow passing Tool objects directly', () async {
