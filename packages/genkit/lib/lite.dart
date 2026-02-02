@@ -12,17 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// A lightweight entry point for Genkit.
+///
+/// Use this library for simple scripts or applications that need to perform
+/// generation tasks (using [generate] or [generateStream]) without setting up
+/// the full Genkit framework or reflection server.
+///
+/// This is useful for quick prototyping or simple LLM interactions.
+library;
+
 import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
-import 'genkit.dart';
+import 'core.dart';
 import 'src/ai/generate.dart';
 import 'src/core/action.dart';
 import 'src/core/registry.dart';
 
-export 'package:genkit/src/schema_extensions.dart';
-export 'package:genkit/src/types.dart';
+export 'core.dart';
 
 Future<GenerateResponseHelper> generate<C>({
   String? prompt,

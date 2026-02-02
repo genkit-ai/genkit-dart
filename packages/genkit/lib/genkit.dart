@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// The core Genkit framework library.
+///
+/// Use this library to define [Flow]s, [Model]s, and [Tool]s, and to start a
+/// [ReflectionServer] for use with the Genkit CLI.
+///
+/// This is the main entry point for creating Genkit applications.
+library;
+
 import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
@@ -33,27 +41,7 @@ import 'src/schema.dart';
 import 'src/types.dart';
 import 'src/utils.dart';
 
-export 'package:genkit/src/ai/formatters/types.dart';
-export 'package:genkit/src/ai/generate.dart'
-    show
-        GenerateBidiSession,
-        GenerateResponseChunk,
-        GenerateResponseHelper,
-        InterruptResponse;
-export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
-export 'package:genkit/src/ai/middleware/retry.dart' show RetryMiddleware;
-export 'package:genkit/src/ai/model.dart'
-    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
-export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
-export 'package:genkit/src/core/action.dart'
-    show Action, ActionFnArg, ActionMetadata;
-export 'package:genkit/src/core/flow.dart';
-export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
-export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
-export 'package:genkit/src/o11y/otlp_http_exporter.dart'
-    show configureCollectorExporter;
-export 'package:genkit/src/schema_extensions.dart';
-export 'package:genkit/src/types.dart';
+export 'core.dart';
 
 bool _isDevEnv() {
   return getEnvVar('GENKIT_ENV') == 'dev';
@@ -272,7 +260,6 @@ class Genkit {
     }
     return (registry: childRegistry, toolNames: toolNames);
   }
-
 
   Future<GenerateResponseHelper<S>> generate<C, S>({
     String? prompt,

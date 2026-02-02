@@ -15,7 +15,7 @@
 import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart' as m;
-import 'package:genkit/genkit.dart';
+import 'package:genkit/core.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';

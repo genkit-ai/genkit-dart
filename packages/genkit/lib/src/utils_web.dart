@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'utils_stub.dart'
-    if (dart.library.io) 'utils_io.dart'
-    if (dart.library.js_interop) 'utils_web.dart';
+String? getEnvVar(String name) {
+  if (Uri.base.queryParameters.containsKey(name)) {
+    return Uri.base.queryParameters[name];
+  }
+
+  return null;
+}
+
+String getPid() => 'web';
