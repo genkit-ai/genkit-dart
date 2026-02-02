@@ -344,12 +344,13 @@ void main(List<String> args) async {
 
 Future<String> _downloadAndEncode(String url, String contentType) async {
   final client = HttpClient();
-  final request = await client.getUrl(Uri.parse(url));
-  final response = await request.close();
-  final bytes = await response.fold<List<int>>(
-    [],
-    (buffer, chunk) => buffer..addAll(chunk),
-  );
-  client.close();
-  return 'data:$contentType;base64,${base64Encode(bytes)}';
+  try {
+    final request = await client.getUrl(Uri.parse(url));
+    final response = await request.close();
+    final builder = BytesBuilder();
+    await response.forEach(builder.add);
+    return 'data:$contentType;base64,${base64Encode(builder.takeBytes())}';
+  } finally {
+    client.close();
+  }
 }
