@@ -335,3 +335,79 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
     dependencies: [Weapon.$schema],
   );
 }
+
+class CharacterProfile {
+  factory CharacterProfile.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  CharacterProfile._(this._json);
+
+  CharacterProfile({
+    required String name,
+    required String bio,
+    required int age,
+  }) {
+    _json = {'name': name, 'bio': bio, 'age': age};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<CharacterProfile> $schema =
+      _CharacterProfileTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  String get bio {
+    return _json['bio'] as String;
+  }
+
+  set bio(String value) {
+    _json['bio'] = value;
+  }
+
+  int get age {
+    return _json['age'] as int;
+  }
+
+  set age(int value) {
+    _json['age'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _CharacterProfileTypeFactory extends SchemanticType<CharacterProfile> {
+  const _CharacterProfileTypeFactory();
+
+  @override
+  CharacterProfile parse(Object? json) {
+    return CharacterProfile._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'CharacterProfile',
+    definition: Schema.object(
+      properties: {
+        'name': Schema.string(),
+        'bio': Schema.string(),
+        'age': Schema.integer(),
+      },
+      required: ['name', 'bio', 'age'],
+    ),
+    dependencies: [],
+  );
+}

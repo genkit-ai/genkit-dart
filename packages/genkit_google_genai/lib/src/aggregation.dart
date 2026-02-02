@@ -59,6 +59,7 @@ class _CandidateState {
   String? finalFinishMessage;
   List<gcl.SafetyRating> safetyRatings = [];
   gcl.CitationMetadata? citationMetadata;
+  gcl.GroundingMetadata? groundingMetadata;
   String role = 'model';
   List<gcl.Part> parts = [];
 
@@ -77,6 +78,9 @@ class _CandidateState {
     }
     if (chunk.citationMetadata != null) {
       citationMetadata = chunk.citationMetadata;
+    }
+    if (chunk.groundingMetadata != null) {
+      groundingMetadata = chunk.groundingMetadata;
     }
     if (chunk.content != null) {
       role = chunk.content!.role;
@@ -109,6 +113,7 @@ class _CandidateState {
       finishMessage: finalFinishMessage,
       safetyRatings: safetyRatings,
       citationMetadata: citationMetadata,
+      groundingMetadata: groundingMetadata,
       content: gcl.Content(role: role, parts: parts),
     );
   }

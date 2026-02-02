@@ -58,3 +58,10 @@ abstract class $RpgCharacter {
 
   String? get affiliation;
 }
+
+@Schematic()
+abstract class $CharacterProfile {
+  String get name;
+  String get bio;
+  int get age;
+}

@@ -75,7 +75,7 @@ ToolDefinition toToolDefinition(Tool tool) {
 abstract class GenerateConfig {}
 
 /// A chunk of a response from a generate action.
-class GenerateResponseChunk<O> {
+class GenerateResponseChunk<O> extends ModelResponseChunk {
   final ModelResponseChunk _chunk;
   final List<ModelResponseChunk> previousChunks;
   final O? output;
@@ -84,13 +84,12 @@ class GenerateResponseChunk<O> {
     this._chunk, {
     this.previousChunks = const [],
     this.output,
-  });
-
-  // Delegate properties to _chunk
-  int? get index => _chunk.index;
-  Role? get role => _chunk.role;
-  List<Part> get content => _chunk.content;
-  Map<String, dynamic>? get custom => _chunk.custom;
+  }) : super(
+         index: _chunk.index,
+         role: _chunk.role,
+         content: _chunk.content,
+         custom: _chunk.custom,
+       );
 
   // Derived properties
   String get text =>
@@ -109,8 +108,6 @@ class GenerateResponseChunk<O> {
     if (output != null) return output;
     return extractJson(accumulatedText) as O?;
   }
-
-  Map<String, dynamic> toJson() => _chunk.toJson();
 
   ModelResponseChunk get rawChunk => _chunk;
 }

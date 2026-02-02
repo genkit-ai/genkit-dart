@@ -118,6 +118,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearchRetrieval: options.googleSearchRetrieval,
+            googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
@@ -135,6 +136,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearchRetrieval: options.googleSearchRetrieval,
+            googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
@@ -189,6 +191,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
               finishReason: finishReason,
               message: message,
               raw: aggregated.toJson() as Map<String, dynamic>,
+              usage: extractUsage(aggregated.usageMetadata),
             );
           } else {
             final response = await service.generateContent(generateRequest);
@@ -199,6 +202,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
               finishReason: finishReason,
               message: message,
               raw: jsonDecode(jsonEncode(response)),
+              usage: extractUsage(response.usageMetadata),
             );
           }
         } catch (e, stack) {
@@ -348,7 +352,30 @@ gcl.GenerationConfig toGeminiTtsSettings(
 
 gcl.SpeechConfig? _toSpeechConfig(SpeechConfig? config) {
   if (config == null) return null;
-  return gcl.SpeechConfig(voiceConfig: _toVoiceConfig(config.voiceConfig));
+  return gcl.SpeechConfig(
+    voiceConfig: _toVoiceConfig(config.voiceConfig),
+    multiSpeakerVoiceConfig: _toMultiSpeakerVoiceConfig(
+      config.multiSpeakerVoiceConfig,
+    ),
+  );
+}
+
+gcl.MultiSpeakerVoiceConfig? _toMultiSpeakerVoiceConfig(
+  MultiSpeakerVoiceConfig? config,
+) {
+  if (config == null) return null;
+  return gcl.MultiSpeakerVoiceConfig(
+    speakerVoiceConfigs: config.speakerVoiceConfigs
+        .map(_toSpeakerVoiceConfig)
+        .toList(),
+  );
+}
+
+gcl.SpeakerVoiceConfig _toSpeakerVoiceConfig(SpeakerVoiceConfig config) {
+  return gcl.SpeakerVoiceConfig(
+    speaker: config.speaker,
+    voiceConfig: _toVoiceConfig(config.voiceConfig),
+  );
 }
 
 gcl.VoiceConfig? _toVoiceConfig(VoiceConfig? config) {
@@ -391,10 +418,12 @@ List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
   GoogleSearchRetrieval? googleSearchRetrieval,
+  GoogleSearch? googleSearch,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
+    if (googleSearch != null) gcl.Tool(googleSearch: gcl.Tool_GoogleSearch()),
     if (googleSearchRetrieval != null)
       gcl.Tool(
         googleSearchRetrieval: gcl.GoogleSearchRetrieval(
@@ -511,6 +540,9 @@ gcl.Part toGeminiPart(Part p) {
 @visibleForTesting
 Part fromGeminiPart(gcl.Part p) {
   if (p.text != null) {
+    if (p.thought == true) {
+      return ReasoningPart(reasoning: p.text!);
+    }
     return TextPart(text: p.text!);
   }
   if (p.functionCall != null) {
@@ -559,5 +591,38 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
             : pb.Value.fromJson(tool.inputSchema),
       ),
     ],
+  );
+}
+
+@visibleForTesting
+GenerationUsage? extractUsage(
+  gcl.GenerateContentResponse_UsageMetadata? metadata,
+) {
+  if (metadata == null) return null;
+  return GenerationUsage(
+    inputTokens: metadata.promptTokenCount.toDouble(),
+    outputTokens: metadata.candidatesTokenCount.toDouble(),
+    totalTokens: metadata.totalTokenCount.toDouble(),
+    thoughtsTokens: metadata.thoughtsTokenCount.toDouble(),
+    cachedContentTokens: metadata.cachedContentTokenCount.toDouble(),
+    custom: {
+      'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
+      if (metadata.promptTokensDetails.isNotEmpty)
+        'promptTokensDetails': metadata.promptTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+      if (metadata.cacheTokensDetails.isNotEmpty)
+        'cacheTokensDetails': metadata.cacheTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+      if (metadata.candidatesTokensDetails.isNotEmpty)
+        'candidatesTokensDetails': metadata.candidatesTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+      if (metadata.toolUsePromptTokensDetails.isNotEmpty)
+        'toolUsePromptTokensDetails': metadata.toolUsePromptTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+    },
   );
 }
