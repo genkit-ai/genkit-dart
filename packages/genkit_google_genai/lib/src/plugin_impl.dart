@@ -478,11 +478,26 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
 
 @visibleForTesting
 gcl.Part toGeminiPart(Part p) {
+  final thoughtSignature = p.metadata?['thoughtSignature'] != null
+      ? base64Decode(p.metadata!['thoughtSignature'] as String)
+      : null;
+
+  if (p.isReasoning) {
+    return gcl.Part(
+      text: p.reasoning,
+      thought: true,
+      thoughtSignature: thoughtSignature,
+    );
+  }
   if (p.isText) {
-    return gcl.Part(text: p.text);
+    return gcl.Part(
+      text: p.text,
+      thoughtSignature: thoughtSignature,
+    );
   }
   if (p.isToolRequest) {
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       functionCall: gcl.FunctionCall(
         name: p.toolRequest!.name,
         args: p.toolRequest!.input == null
@@ -493,6 +508,7 @@ gcl.Part toGeminiPart(Part p) {
   }
   if (p.isToolResponse) {
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       functionResponse: gcl.FunctionResponse(
         name: p.toolResponse!.name,
         response: pb.Struct.fromJson({'output': p.toolResponse!.output}),
@@ -505,6 +521,7 @@ gcl.Part toGeminiPart(Part p) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
         return gcl.Part(
+          thoughtSignature: thoughtSignature,
           inlineData: gcl.Blob(
             mimeType: media.contentType ?? 'application/octet-stream',
             data: uri.data!.contentAsBytes(),
@@ -514,6 +531,7 @@ gcl.Part toGeminiPart(Part p) {
     }
     // Assume HTTP/S or other URLs are File URIs
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       fileData: gcl.FileData(
         mimeType: media.contentType ?? 'application/octet-stream',
         fileUri: media.url,
@@ -523,6 +541,7 @@ gcl.Part toGeminiPart(Part p) {
   if (p.isCustom && p.custom!['codeExecutionResult'] != null) {
     p as CustomPart;
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       codeExecutionResult: gcl.CodeExecutionResult.fromJson(
         p.custom['codeExecutionResult'],
       ),
@@ -531,6 +550,7 @@ gcl.Part toGeminiPart(Part p) {
   if (p.isCustom && p.custom!['executableCode'] != null) {
     p as CustomPart;
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       executableCode: gcl.ExecutableCode.fromJson(p.custom['executableCode']),
     );
   }
@@ -539,11 +559,16 @@ gcl.Part toGeminiPart(Part p) {
 
 @visibleForTesting
 Part fromGeminiPart(gcl.Part p) {
+  final metadata = <String, dynamic>{
+    if (p.thoughtSignature.isNotEmpty)
+      'thoughtSignature': base64Encode(p.thoughtSignature),
+  };
+
   if (p.text != null) {
     if (p.thought == true) {
-      return ReasoningPart(reasoning: p.text!);
+      return ReasoningPart(reasoning: p.text!, metadata: metadata);
     }
-    return TextPart(text: p.text!);
+    return TextPart(text: p.text!, metadata: metadata);
   }
   if (p.functionCall != null) {
     return ToolRequestPart(
@@ -551,6 +576,7 @@ Part fromGeminiPart(gcl.Part p) {
         name: p.functionCall!.name,
         input: p.functionCall!.args?.toJson() as Map<String, dynamic>?,
       ),
+      metadata: metadata,
     );
   }
   if (p.codeExecutionResult != null) {
@@ -559,6 +585,7 @@ Part fromGeminiPart(gcl.Part p) {
         'codeExecutionResult':
             p.codeExecutionResult!.toJson() as Map<String, dynamic>,
       },
+      metadata: metadata,
     );
   }
   if (p.executableCode != null) {
@@ -566,6 +593,7 @@ Part fromGeminiPart(gcl.Part p) {
       custom: {
         'executableCode': p.executableCode!.toJson() as Map<String, dynamic>,
       },
+      metadata: metadata,
     );
   }
   if (p.inlineData != null) {
@@ -575,6 +603,7 @@ Part fromGeminiPart(gcl.Part p) {
             'data:${p.inlineData!.mimeType};base64,${base64Encode(p.inlineData!.data)}',
         contentType: p.inlineData!.mimeType,
       ),
+      metadata: metadata,
     );
   }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');

@@ -73,7 +73,7 @@ void main(List<String> args) async {
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: googleAI.gemini('gemini-3-flash-preview'),
         prompt: prompt,
         tools: ['getWeather'],
       );
