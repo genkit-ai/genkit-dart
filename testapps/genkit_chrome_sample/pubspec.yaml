@@ -11,6 +11,7 @@ dependencies:
   genkit: ^0.10.0-dev.10
   genkit_chrome:
     path: ../../packages/genkit_chrome
+  markdown: ^7.0.0
   web: ^1.0.0
 
 dev_dependencies:
