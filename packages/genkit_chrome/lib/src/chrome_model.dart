@@ -25,8 +25,12 @@ class ChromeModel extends Model<LanguageModelOptions> {
     ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
     LanguageModelOptions? defaultOptions,
   ) async {
-    if (req == null) throw Exception('Request is null');
-    // Availability check
+    if (req == null) {
+      throw GenkitException(
+        'Request is null',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
     // Availability check
     if (languageModel == null) {
       throw GenkitException(
