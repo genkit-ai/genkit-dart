@@ -114,5 +114,45 @@ void main() {
       expect(aggregated.candidates[0].content!.parts.length, 1);
       expect(aggregated.candidates[0].content!.parts[0].text, 'Image: [REF]');
     });
+
+    test('aggregates usage and grounding metadata', () {
+      final responses = [
+        gcl.GenerateContentResponse(
+          candidates: [
+            gcl.Candidate(
+              index: 0,
+              content: gcl.Content(parts: [gcl.Part(text: 'A')]),
+              groundingMetadata: gcl.GroundingMetadata(
+                webSearchQueries: ['query1'],
+              ),
+            ),
+          ],
+        ),
+        gcl.GenerateContentResponse(
+          candidates: [
+            gcl.Candidate(
+              index: 0,
+              content: gcl.Content(parts: [gcl.Part(text: 'B')]),
+              groundingMetadata: gcl.GroundingMetadata(
+                webSearchQueries: ['query2'],
+              ),
+            ),
+          ],
+          usageMetadata: gcl.GenerateContentResponse_UsageMetadata(
+            totalTokenCount: 10,
+          ),
+        ),
+      ];
+
+      final aggregated = aggregateResponses(responses);
+      expect(aggregated.candidates[0].content!.parts[0].text, 'AB');
+      expect(aggregated.candidates[0].groundingMetadata, isNotNull);
+      expect(
+        aggregated.candidates[0].groundingMetadata!.webSearchQueries,
+        contains('query2'),
+      );
+      expect(aggregated.usageMetadata, isNotNull);
+      expect(aggregated.usageMetadata!.totalTokenCount, 10);
+    });
   });
 }

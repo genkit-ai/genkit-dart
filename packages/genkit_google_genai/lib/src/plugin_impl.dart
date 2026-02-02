@@ -499,6 +499,7 @@ gcl.Part toGeminiPart(Part p) {
     return gcl.Part(
       thoughtSignature: thoughtSignature,
       functionCall: gcl.FunctionCall(
+        id: p.toolRequest!.ref ?? '',
         name: p.toolRequest!.name,
         args: p.toolRequest!.input == null
             ? null
@@ -510,6 +511,7 @@ gcl.Part toGeminiPart(Part p) {
     return gcl.Part(
       thoughtSignature: thoughtSignature,
       functionResponse: gcl.FunctionResponse(
+        id: p.toolResponse!.ref ?? '',
         name: p.toolResponse!.name,
         response: pb.Struct.fromJson({'output': p.toolResponse!.output}),
       ),
@@ -573,6 +575,7 @@ Part fromGeminiPart(gcl.Part p) {
   if (p.functionCall != null) {
     return ToolRequestPart(
       toolRequest: ToolRequest(
+        ref: p.functionCall!.id == '' ? null : p.functionCall!.id,
         name: p.functionCall!.name,
         input: p.functionCall!.args?.toJson() as Map<String, dynamic>?,
       ),
