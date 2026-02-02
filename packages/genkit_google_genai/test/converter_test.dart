@@ -17,6 +17,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/src/plugin_impl.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
+import 'package:google_cloud_protobuf/protobuf.dart' as pb;
 import 'package:test/test.dart';
 
 void main() {
@@ -69,6 +70,85 @@ void main() {
       final media = (geminiPart as MediaPart).media;
       expect(media.contentType, 'audio/mp3');
       expect(media.url, 'data:audio/mp3;base64,SGVsbG8=');
+    });
+  });
+
+  group('thought handling', () {
+    final signatureBytes = utf8.encode('my-signature');
+    final signatureBase64 = base64Encode(signatureBytes);
+
+    test('toGeminiPart converts ReasoningPart to thought=true', () {
+      final part = ReasoningPart(
+        reasoning: 'I am thinking',
+        metadata: {'thoughtSignature': signatureBase64},
+      );
+      final geminiPart = toGeminiPart(part);
+      expect(geminiPart.text, 'I am thinking');
+      expect(geminiPart.thought, isTrue);
+      expect(geminiPart.thoughtSignature, signatureBytes);
+    });
+
+    test('toGeminiPart preserves thoughtSignature for TextPart', () {
+      final part = TextPart(
+        text: 'Just text',
+        metadata: {'thoughtSignature': signatureBase64},
+      );
+      final geminiPart = toGeminiPart(part);
+      expect(geminiPart.text, 'Just text');
+      // thought defaults to false/null in gcl.Part usually, or false.
+      // gcl.Part default is false for boolean fields usually?
+      // Actually plugin_impl logic:
+      // if (p.isReasoning) ... thought: true
+      // if (p.isText) ... thought: thought (which comes from metadata['thought'] == true)
+      // Wait, let's double check logic in plugin_impl based on user edits.
+      // User removed `thought` from `isText` branch in step 325!
+      expect(geminiPart.thought, isFalse);
+      expect(geminiPart.thoughtSignature, signatureBytes);
+    });
+
+    test('toGeminiPart preserves thoughtSignature for ToolRequest', () {
+      final part = ToolRequestPart(
+        toolRequest: ToolRequest(name: 'tool', input: {}),
+        metadata: {'thoughtSignature': signatureBase64},
+      );
+      final geminiPart = toGeminiPart(part);
+      expect(geminiPart.functionCall, isNotNull);
+      expect(geminiPart.thought, isFalse);
+      expect(geminiPart.thoughtSignature, signatureBytes);
+    });
+
+    test('fromGeminiPart converts thought=true to ReasoningPart', () {
+      final part = gcl.Part(
+        text: 'thinking...',
+        thought: true,
+        thoughtSignature: signatureBytes,
+      );
+      final genkitPart = fromGeminiPart(part);
+      expect(genkitPart, isA<ReasoningPart>());
+      expect((genkitPart as ReasoningPart).reasoning, 'thinking...');
+      expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
+    });
+
+    test('fromGeminiPart preserves thoughtSignature for normal text', () {
+      final part = gcl.Part(
+        text: 'hello',
+        thought: false,
+        thoughtSignature: signatureBytes,
+      );
+      final genkitPart = fromGeminiPart(part);
+      expect(genkitPart, isA<TextPart>());
+      expect((genkitPart as TextPart).text, 'hello');
+      expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
+    });
+
+    test('fromGeminiPart extracts thoughtSignature from ToolRequest', () {
+      final part = gcl.Part(
+        functionCall: gcl.FunctionCall(name: 'foo', args: pb.Struct()),
+        thoughtSignature: signatureBytes,
+      );
+      final genkitPart = fromGeminiPart(part);
+      expect(genkitPart, isA<ToolRequestPart>());
+      expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
     });
   });
 }

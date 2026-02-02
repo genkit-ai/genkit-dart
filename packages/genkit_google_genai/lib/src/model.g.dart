@@ -35,6 +35,7 @@ class GeminiOptions {
     ThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
     GoogleSearchRetrieval? googleSearchRetrieval,
+    GoogleSearch? googleSearch,
     FileSearch? fileSearch,
     double? temperature,
     double? topP,
@@ -57,6 +58,7 @@ class GeminiOptions {
       'thinkingConfig': ?thinkingConfig?.toJson(),
       'responseModalities': ?responseModalities,
       'googleSearchRetrieval': ?googleSearchRetrieval?.toJson(),
+      'googleSearch': ?googleSearch?.toJson(),
       'fileSearch': ?fileSearch?.toJson(),
       'temperature': ?temperature,
       'topP': ?topP,
@@ -173,6 +175,20 @@ class GeminiOptions {
       _json.remove('googleSearchRetrieval');
     } else {
       _json['googleSearchRetrieval'] = value;
+    }
+  }
+
+  GoogleSearch? get googleSearch {
+    return _json['googleSearch'] == null
+        ? null
+        : GoogleSearch.fromJson(_json['googleSearch'] as Map<String, dynamic>);
+  }
+
+  set googleSearch(GoogleSearch? value) {
+    if (value == null) {
+      _json.remove('googleSearch');
+    } else {
+      _json['googleSearch'] = value;
     }
   }
 
@@ -370,6 +386,7 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'googleSearchRetrieval': Schema.fromMap({
           '\$ref': r'#/$defs/GoogleSearchRetrieval',
         }),
+        'googleSearch': Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
         'fileSearch': Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
         'temperature': Schema.number(minimum: 0.0, maximum: 2.0),
         'topP': Schema.number(minimum: 0.0, maximum: 1.0),
@@ -391,6 +408,7 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       FunctionCallingConfig.$schema,
       ThinkingConfig.$schema,
       GoogleSearchRetrieval.$schema,
+      GoogleSearch.$schema,
       FileSearch.$schema,
     ],
   );
@@ -779,6 +797,7 @@ class GeminiTtsOptions {
     ThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
     GoogleSearchRetrieval? googleSearchRetrieval,
+    GoogleSearch? googleSearch,
     FileSearch? fileSearch,
     double? temperature,
     double? topP,
@@ -802,6 +821,7 @@ class GeminiTtsOptions {
       'thinkingConfig': ?thinkingConfig?.toJson(),
       'responseModalities': ?responseModalities,
       'googleSearchRetrieval': ?googleSearchRetrieval?.toJson(),
+      'googleSearch': ?googleSearch?.toJson(),
       'fileSearch': ?fileSearch?.toJson(),
       'temperature': ?temperature,
       'topP': ?topP,
@@ -919,6 +939,20 @@ class GeminiTtsOptions {
       _json.remove('googleSearchRetrieval');
     } else {
       _json['googleSearchRetrieval'] = value;
+    }
+  }
+
+  GoogleSearch? get googleSearch {
+    return _json['googleSearch'] == null
+        ? null
+        : GoogleSearch.fromJson(_json['googleSearch'] as Map<String, dynamic>);
+  }
+
+  set googleSearch(GoogleSearch? value) {
+    if (value == null) {
+      _json.remove('googleSearch');
+    } else {
+      _json['googleSearch'] = value;
     }
   }
 
@@ -1130,6 +1164,7 @@ class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
         'googleSearchRetrieval': Schema.fromMap({
           '\$ref': r'#/$defs/GoogleSearchRetrieval',
         }),
+        'googleSearch': Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
         'fileSearch': Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
         'temperature': Schema.number(minimum: 0.0, maximum: 2.0),
         'topP': Schema.number(minimum: 0.0, maximum: 1.0),
@@ -1152,6 +1187,7 @@ class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
       FunctionCallingConfig.$schema,
       ThinkingConfig.$schema,
       GoogleSearchRetrieval.$schema,
+      GoogleSearch.$schema,
       FileSearch.$schema,
       SpeechConfig.$schema,
     ],
@@ -1503,6 +1539,47 @@ class _PrebuiltVoiceConfigTypeFactory
       required: [],
       description: 'Configuration for the prebuilt speaker to use',
     ),
+    dependencies: [],
+  );
+}
+
+class GoogleSearch {
+  factory GoogleSearch.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GoogleSearch._(this._json);
+
+  GoogleSearch() {
+    _json = {};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<GoogleSearch> $schema =
+      _GoogleSearchTypeFactory();
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
+  const _GoogleSearchTypeFactory();
+
+  @override
+  GoogleSearch parse(Object? json) {
+    return GoogleSearch._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GoogleSearch',
+    definition: Schema.object(properties: {}, required: []),
     dependencies: [],
   );
 }

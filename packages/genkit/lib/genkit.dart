@@ -273,7 +273,6 @@ class Genkit {
     return (registry: childRegistry, toolNames: toolNames);
   }
 
-
   Future<GenerateResponseHelper<S>> generate<C, S>({
     String? prompt,
     List<Message>? messages,
