@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit/lite.dart' as lite;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
@@ -172,10 +169,7 @@ void main(List<String> args) async {
             content: [
               MediaPart(
                 media: Media(
-                  url: await _downloadAndEncode(
-                    'https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav',
-                    'audio/wav',
-                  ),
+                  url: 'https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Samples/Goldwave/addf8-Alaw-GW.wav',
                   contentType: 'audio/wav',
                 ),
               ),
@@ -340,17 +334,4 @@ void main(List<String> args) async {
       throw Exception('No audio generated');
     },
   );
-}
-
-Future<String> _downloadAndEncode(String url, String contentType) async {
-  final client = HttpClient();
-  try {
-    final request = await client.getUrl(Uri.parse(url));
-    final response = await request.close();
-    final builder = BytesBuilder();
-    await response.forEach(builder.add);
-    return 'data:$contentType;base64,${base64Encode(builder.takeBytes())}';
-  } finally {
-    client.close();
-  }
 }
