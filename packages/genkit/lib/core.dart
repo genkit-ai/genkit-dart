@@ -16,6 +16,9 @@
 ///
 /// Use this library to define [Flow]s, [Model]s, and [Tool]s without
 /// depending on `dart:io` or the Reflection Server.
+/// @docImport 'src/ai/model.dart';
+/// @docImport 'src/ai/tool.dart';
+/// @docImport 'src/core/flow.dart';
 library;
 
 export 'src/ai/formatters/types.dart';
