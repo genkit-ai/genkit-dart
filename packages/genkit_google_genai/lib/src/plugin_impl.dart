@@ -118,6 +118,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearchRetrieval: options.googleSearchRetrieval,
+            googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
@@ -135,6 +136,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearchRetrieval: options.googleSearchRetrieval,
+            googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
@@ -189,6 +191,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
               finishReason: finishReason,
               message: message,
               raw: aggregated.toJson() as Map<String, dynamic>,
+              usage: extractUsage(aggregated.usageMetadata),
             );
           } else {
             final response = await service.generateContent(generateRequest);
@@ -199,6 +202,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
               finishReason: finishReason,
               message: message,
               raw: jsonDecode(jsonEncode(response)),
+              usage: extractUsage(response.usageMetadata),
             );
           }
         } catch (e, stack) {
@@ -348,7 +352,30 @@ gcl.GenerationConfig toGeminiTtsSettings(
 
 gcl.SpeechConfig? _toSpeechConfig(SpeechConfig? config) {
   if (config == null) return null;
-  return gcl.SpeechConfig(voiceConfig: _toVoiceConfig(config.voiceConfig));
+  return gcl.SpeechConfig(
+    voiceConfig: _toVoiceConfig(config.voiceConfig),
+    multiSpeakerVoiceConfig: _toMultiSpeakerVoiceConfig(
+      config.multiSpeakerVoiceConfig,
+    ),
+  );
+}
+
+gcl.MultiSpeakerVoiceConfig? _toMultiSpeakerVoiceConfig(
+  MultiSpeakerVoiceConfig? config,
+) {
+  if (config == null) return null;
+  return gcl.MultiSpeakerVoiceConfig(
+    speakerVoiceConfigs: config.speakerVoiceConfigs
+        .map(_toSpeakerVoiceConfig)
+        .toList(),
+  );
+}
+
+gcl.SpeakerVoiceConfig _toSpeakerVoiceConfig(SpeakerVoiceConfig config) {
+  return gcl.SpeakerVoiceConfig(
+    speaker: config.speaker,
+    voiceConfig: _toVoiceConfig(config.voiceConfig),
+  );
 }
 
 gcl.VoiceConfig? _toVoiceConfig(VoiceConfig? config) {
@@ -391,10 +418,12 @@ List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
   GoogleSearchRetrieval? googleSearchRetrieval,
+  GoogleSearch? googleSearch,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
+    if (googleSearch != null) gcl.Tool(googleSearch: gcl.Tool_GoogleSearch()),
     if (googleSearchRetrieval != null)
       gcl.Tool(
         googleSearchRetrieval: gcl.GoogleSearchRetrieval(
@@ -449,12 +478,28 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
 
 @visibleForTesting
 gcl.Part toGeminiPart(Part p) {
+  final thoughtSignature = p.metadata?['thoughtSignature'] != null
+      ? base64Decode(p.metadata!['thoughtSignature'] as String)
+      : null;
+
+  if (p.isReasoning) {
+    return gcl.Part(
+      text: p.reasoning,
+      thought: true,
+      thoughtSignature: thoughtSignature,
+    );
+  }
   if (p.isText) {
-    return gcl.Part(text: p.text);
+    return gcl.Part(
+      text: p.text,
+      thoughtSignature: thoughtSignature,
+    );
   }
   if (p.isToolRequest) {
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       functionCall: gcl.FunctionCall(
+        id: p.toolRequest!.ref ?? '',
         name: p.toolRequest!.name,
         args: p.toolRequest!.input == null
             ? null
@@ -464,7 +509,9 @@ gcl.Part toGeminiPart(Part p) {
   }
   if (p.isToolResponse) {
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       functionResponse: gcl.FunctionResponse(
+        id: p.toolResponse!.ref ?? '',
         name: p.toolResponse!.name,
         response: pb.Struct.fromJson({'output': p.toolResponse!.output}),
       ),
@@ -476,6 +523,7 @@ gcl.Part toGeminiPart(Part p) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
         return gcl.Part(
+          thoughtSignature: thoughtSignature,
           inlineData: gcl.Blob(
             mimeType: media.contentType ?? 'application/octet-stream',
             data: uri.data!.contentAsBytes(),
@@ -485,6 +533,7 @@ gcl.Part toGeminiPart(Part p) {
     }
     // Assume HTTP/S or other URLs are File URIs
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       fileData: gcl.FileData(
         mimeType: media.contentType ?? 'application/octet-stream',
         fileUri: media.url,
@@ -494,6 +543,7 @@ gcl.Part toGeminiPart(Part p) {
   if (p.isCustom && p.custom!['codeExecutionResult'] != null) {
     p as CustomPart;
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       codeExecutionResult: gcl.CodeExecutionResult.fromJson(
         p.custom['codeExecutionResult'],
       ),
@@ -502,6 +552,7 @@ gcl.Part toGeminiPart(Part p) {
   if (p.isCustom && p.custom!['executableCode'] != null) {
     p as CustomPart;
     return gcl.Part(
+      thoughtSignature: thoughtSignature,
       executableCode: gcl.ExecutableCode.fromJson(p.custom['executableCode']),
     );
   }
@@ -510,15 +561,25 @@ gcl.Part toGeminiPart(Part p) {
 
 @visibleForTesting
 Part fromGeminiPart(gcl.Part p) {
+  final metadata = <String, dynamic>{
+    if (p.thoughtSignature.isNotEmpty)
+      'thoughtSignature': base64Encode(p.thoughtSignature),
+  };
+
   if (p.text != null) {
-    return TextPart(text: p.text!);
+    if (p.thought == true) {
+      return ReasoningPart(reasoning: p.text!, metadata: metadata);
+    }
+    return TextPart(text: p.text!, metadata: metadata);
   }
   if (p.functionCall != null) {
     return ToolRequestPart(
       toolRequest: ToolRequest(
+        ref: p.functionCall!.id == '' ? null : p.functionCall!.id,
         name: p.functionCall!.name,
         input: p.functionCall!.args?.toJson() as Map<String, dynamic>?,
       ),
+      metadata: metadata,
     );
   }
   if (p.codeExecutionResult != null) {
@@ -527,6 +588,7 @@ Part fromGeminiPart(gcl.Part p) {
         'codeExecutionResult':
             p.codeExecutionResult!.toJson() as Map<String, dynamic>,
       },
+      metadata: metadata,
     );
   }
   if (p.executableCode != null) {
@@ -534,6 +596,7 @@ Part fromGeminiPart(gcl.Part p) {
       custom: {
         'executableCode': p.executableCode!.toJson() as Map<String, dynamic>,
       },
+      metadata: metadata,
     );
   }
   if (p.inlineData != null) {
@@ -543,6 +606,7 @@ Part fromGeminiPart(gcl.Part p) {
             'data:${p.inlineData!.mimeType};base64,${base64Encode(p.inlineData!.data)}',
         contentType: p.inlineData!.mimeType,
       ),
+      metadata: metadata,
     );
   }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');
@@ -559,5 +623,38 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
             : pb.Value.fromJson(tool.inputSchema),
       ),
     ],
+  );
+}
+
+@visibleForTesting
+GenerationUsage? extractUsage(
+  gcl.GenerateContentResponse_UsageMetadata? metadata,
+) {
+  if (metadata == null) return null;
+  return GenerationUsage(
+    inputTokens: metadata.promptTokenCount.toDouble(),
+    outputTokens: metadata.candidatesTokenCount.toDouble(),
+    totalTokens: metadata.totalTokenCount.toDouble(),
+    thoughtsTokens: metadata.thoughtsTokenCount.toDouble(),
+    cachedContentTokens: metadata.cachedContentTokenCount.toDouble(),
+    custom: {
+      'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
+      if (metadata.promptTokensDetails.isNotEmpty)
+        'promptTokensDetails': metadata.promptTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+      if (metadata.cacheTokensDetails.isNotEmpty)
+        'cacheTokensDetails': metadata.cacheTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+      if (metadata.candidatesTokensDetails.isNotEmpty)
+        'candidatesTokensDetails': metadata.candidatesTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+      if (metadata.toolUsePromptTokensDetails.isNotEmpty)
+        'toolUsePromptTokensDetails': metadata.toolUsePromptTokensDetails
+            .map((d) => d.toJson())
+            .toList(),
+    },
   );
 }

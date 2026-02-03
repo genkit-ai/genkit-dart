@@ -32,6 +32,7 @@ abstract class $GeminiOptions {
 
   // Retrieval
   $GoogleSearchRetrieval? get googleSearchRetrieval;
+  $GoogleSearch? get googleSearch;
   $FileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
 
@@ -136,6 +137,7 @@ abstract class $GeminiTtsOptions {
 
   // Retrieval
   $GoogleSearchRetrieval? get googleSearchRetrieval;
+  $GoogleSearch? get googleSearch;
   $FileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
 
@@ -199,4 +201,9 @@ abstract class $PrebuiltVoiceConfig {
         'Sadaltager, Sulafat',
   )
   String? get voiceName;
+}
+
+@Schematic()
+abstract class $GoogleSearch {
+  // TODO: Add timeRangeFilter or other configurations if needed
 }
