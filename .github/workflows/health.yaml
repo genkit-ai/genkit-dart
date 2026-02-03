@@ -9,7 +9,7 @@ jobs:
     uses: dart-lang/ecosystem/.github/workflows/health.yaml@main
     with:
       sdk: main
-      checks: changelog,coverage,breaking,do-not-submit,leaking,unused-dependencies
+      checks: changelog,coverage,breaking,do-not-submit,leaking,unused-dependencies,license
       ignore_license: "**.g.dart"
       ignore_coverage: "**.g.dart"
       ignore_breaking: "packages/genkit_firebase_ai/**"
