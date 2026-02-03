@@ -687,11 +687,10 @@ O? _parseChunkOutput<O>(
     );
     return parser(temp);
   }
-  // final dataPart =
-  //     chunk.content.where((p) => p.isData).firstOrNull?.dataPart;
-  // if (dataPart != null && dataPart.data != null) {
-  //   return dataPart.data as O?;
-  // }
+  final dataPart = chunk.content.where((p) => p.isData).firstOrNull?.dataPart;
+  if (dataPart != null && dataPart.data != null) {
+    return dataPart.data as O?;
+  }
   return null;
 }
 
