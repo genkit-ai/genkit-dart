@@ -17,6 +17,7 @@ dependencies:
   opentelemetry: ^0.18.10
   path: ^1.9.0
   schemantic: ^0.0.1-dev.12
+  stack_trace: ^1.12.0
   web_socket_channel: ^3.0.3
 
 dev_dependencies:

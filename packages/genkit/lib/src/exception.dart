@@ -14,6 +14,10 @@
 
 // ignore_for_file: constant_identifier_names
 
+import 'dart:convert';
+
+import 'package:stack_trace/stack_trace.dart';
+
 /// Exception thrown for errors encountered during Genkit flow operations.
 /// Common status codes for Genkit operations.
 ///
@@ -129,19 +133,55 @@ class GenkitException implements Exception {
 
   @override
   String toString() {
-    var str = 'GenkitException: $message';
+    // section 1: message and status
+    final sb = StringBuffer('GenkitException: $message');
     if (status != StatusCodes.UNKNOWN) {
-      str += ' (Status: ${status.name}, Code: ${status.value})';
+      sb.write(' (Status: ${status.name}, Code: ${status.value})');
     }
+
+    // section 2: details
     if (details != null && details!.isNotEmpty) {
-      str += '\nDetails: $details';
+      sb.write('\n\nDetails: $details');
     }
+
+    // section 3: underlying exception
     if (underlyingException != null) {
-      str += '\nUnderlying exception: $underlyingException';
+      sb.write('\n\n');
+      sb.write(
+        '''INNER EXCEPTION:
+$underlyingException'''
+            .indent(),
+      );
     }
+
+    // section 4: stack trace
     if (stackTrace != null) {
-      str += '\nStackTrace:\n$stackTrace';
+      sb.write('\n\n');
+      sb.write(
+        '''INNER STACK TRACE:
+${Trace.from(stackTrace!).terse}'''
+            .indent(),
+      );
     }
-    return str;
+    return sb.toString();
+  }
+}
+
+void printError(Object error, StackTrace stack) {
+  print('''
+Error running action:
+$error
+
+${Trace.from(stack).terse}''');
+}
+
+extension on String {
+  /// Indents each line of the string by the given number of spaces.
+  String indent({int spaces = 4}) {
+    final indentation = ' ' * spaces;
+
+    return LineSplitter.split(
+      this,
+    ).map((line) => '$indentation${line.trimRight()}').join('\n');
   }
 }

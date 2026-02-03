@@ -86,7 +86,7 @@ void main() {
       expect(string, contains('GenkitException: Main error'));
       expect(
         string,
-        contains('Underlying exception: Exception: Network error'),
+        contains('    INNER EXCEPTION:\n    Exception: Network error'),
       );
     });
 
@@ -128,9 +128,9 @@ void main() {
       expect(string, contains('Details: Response body: {"invalid": json}'));
       expect(
         string,
-        contains('Underlying exception: FormatException: Invalid JSON'),
+        contains('    INNER EXCEPTION:\n    FormatException: Invalid JSON'),
       );
-      expect(string, contains('StackTrace:'));
+      expect(string, contains('    INNER STACK TRACE:'));
     });
   });
 }

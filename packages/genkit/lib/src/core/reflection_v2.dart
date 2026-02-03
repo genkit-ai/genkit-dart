@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../exception.dart';
 import '../schema.dart';
 import '../utils.dart';
 import 'registry.dart';
@@ -236,7 +237,7 @@ class ReflectionServerV2 {
         });
       }
     } catch (e, stack) {
-      print('Error running action: $e\n$stack');
+      printError(e, stack);
       final errorResponse = {
         'code': 13, // StatusCodes.INTERNAL
         'message': e.toString(),
