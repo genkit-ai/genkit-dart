@@ -18,7 +18,7 @@ import '../registry.dart';
 import 'reflection_v2.dart';
 
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  final v2ServerUrl = getEnvVar('GENKIT_REFLECTION_V2_SERVER');
+  final v2ServerUrl = getConfigVar('GENKIT_REFLECTION_V2_SERVER');
   if (v2ServerUrl == null) {
     throw UnimplementedError(
       'GENKIT_REFLECTION_V2_SERVER environment variable is not set',

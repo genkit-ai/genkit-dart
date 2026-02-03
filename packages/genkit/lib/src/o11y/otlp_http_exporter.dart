@@ -191,7 +191,7 @@ class CollectorHttpExporter implements sdk.SpanExporter {
 void configureCollectorExporter() {
   // Configure the OTLP HTTP Exporter
   final baseUrl =
-      getEnvVar('GENKIT_TELEMETRY_SERVER') ?? 'http://localhost:4041';
+      getConfigVar('GENKIT_TELEMETRY_SERVER') ?? 'http://localhost:4041';
   final exporter = CollectorHttpExporter('$baseUrl/api/otlp');
   final processor = sdk.SimpleSpanProcessor(exporter);
   final provider = sdk.TracerProviderBase(processors: [processor]);

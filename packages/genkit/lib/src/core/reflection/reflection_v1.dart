@@ -255,7 +255,7 @@ class ReflectionServerV1 {
       final timestamp = date.toIso8601String();
       runtimeFilePath = p.join(runtimesDir, '$_runtimeId-$time.json');
       final fileContent = jsonEncode({
-        'id': getEnvVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
+        'id': getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
         'pid': pid,
         'name': name ?? pid.toString(),
         'reflectionServerUrl': 'http://localhost:${_server!.port}',

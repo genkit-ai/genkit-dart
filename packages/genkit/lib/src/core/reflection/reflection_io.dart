@@ -19,7 +19,7 @@ import 'reflection_v1.dart';
 import 'reflection_v2.dart';
 
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  final v2ServerUrl = getEnvVar('GENKIT_REFLECTION_V2_SERVER');
+  final v2ServerUrl = getConfigVar('GENKIT_REFLECTION_V2_SERVER');
   if (v2ServerUrl != null) {
     final server = ReflectionServerV2(registry, url: v2ServerUrl);
     server.start();

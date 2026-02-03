@@ -14,6 +14,8 @@
 
 import 'dart:io' as io;
 
-String? getEnvVar(String name) => io.Platform.environment[name];
+String? getConfigVar(String name) => io.Platform.environment[name];
 
 String getPid() => '${io.pid}';
+
+const bool isAllowReflection = true;

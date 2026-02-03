@@ -106,7 +106,7 @@ class ReflectionServerV2 {
 
   void _register() {
     final params = {
-      'id': getEnvVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
+      'id': getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
       'pid': _pid,
       'name': name ?? _runtimeId,
       'genkitVersion': genkitVersion,

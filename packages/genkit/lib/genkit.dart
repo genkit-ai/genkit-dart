@@ -63,13 +63,8 @@ export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';
 
 bool _isDevEnv() {
-  return getEnvVar('GENKIT_ENV') == 'dev';
+  return getConfigVar('GENKIT_ENV') == 'dev';
 }
-
-const bool isEnableReflection = bool.fromEnvironment(
-  'GENKIT_DEV',
-  defaultValue: false,
-);
 
 class Genkit {
   final Registry registry = Registry();
@@ -90,7 +85,7 @@ class Genkit {
     // Register default formats
     configureFormats(registry);
 
-    if (isEnableReflection && (isDevEnv ?? _isDevEnv())) {
+    if (isAllowReflection && (isDevEnv ?? _isDevEnv())) {
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
