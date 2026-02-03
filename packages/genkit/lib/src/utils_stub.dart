@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-String? getEnvVar(String name) =>
-    throw UnimplementedError('getEnvVar not implemented on this platform');
+String? getConfigVar(String name) =>
+    throw UnimplementedError('getConfigVar not implemented on this platform');
 
 String getPid() =>
     throw UnimplementedError('getPid not implemented on this platform');
+
+const bool isAllowReflection = true;

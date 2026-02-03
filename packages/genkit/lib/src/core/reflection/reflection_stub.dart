@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:io' as io;
+import '../reflection.dart';
+import '../registry.dart';
 
-String? getConfigVar(String name) => io.Platform.environment[name];
-
-String getPid() => '${io.pid}';
-
-const bool isAllowReflection = true;
+ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
+  throw UnimplementedError(
+    'startReflectionServer not implemented on this platform',
+  );
+}

@@ -14,8 +14,7 @@
 
 /// The core Genkit framework library.
 ///
-/// Use this library to define [Flow]s, [Model]s, and [Tool]s, and to start a
-/// [ReflectionServer] for use with the Genkit CLI.
+/// Use this library to define [Flow]s, [Model]s, and [Tool]s.
 ///
 /// This is the main entry point for creating Genkit applications.
 library;
@@ -33,7 +32,6 @@ import 'src/core/action.dart';
 import 'src/core/flow.dart';
 import 'src/core/plugin.dart';
 import 'src/core/reflection.dart';
-import 'src/core/reflection_v2.dart';
 import 'src/core/registry.dart';
 import 'src/exception.dart';
 import 'src/o11y/instrumentation.dart';
@@ -41,15 +39,35 @@ import 'src/schema.dart';
 import 'src/types.dart';
 import 'src/utils.dart';
 
-export 'core.dart';
+export 'package:genkit/src/ai/formatters/types.dart';
+export 'package:genkit/src/ai/generate.dart'
+    show
+        GenerateBidiSession,
+        GenerateResponseChunk,
+        GenerateResponseHelper,
+        InterruptResponse;
+export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
+export 'package:genkit/src/ai/middleware/retry.dart' show RetryMiddleware;
+export 'package:genkit/src/ai/model.dart'
+    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
+export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
+export 'package:genkit/src/core/action.dart'
+    show Action, ActionFnArg, ActionMetadata;
+export 'package:genkit/src/core/flow.dart';
+export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
+export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
+export 'package:genkit/src/o11y/otlp_http_exporter.dart'
+    show configureCollectorExporter;
+export 'package:genkit/src/schema_extensions.dart';
+export 'package:genkit/src/types.dart';
 
 bool _isDevEnv() {
-  return getEnvVar('GENKIT_ENV') == 'dev';
+  return getConfigVar('GENKIT_ENV') == 'dev';
 }
 
 class Genkit {
   final Registry registry = Registry();
-  Object? _reflectionServer;
+  ReflectionServerHandle? _reflectionServer;
   Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>?
   _generateAction;
 
@@ -66,17 +84,8 @@ class Genkit {
     // Register default formats
     configureFormats(registry);
 
-    if (isDevEnv ?? _isDevEnv()) {
-      final v2ServerUrl = getEnvVar('GENKIT_REFLECTION_V2_SERVER');
-      if (v2ServerUrl != null) {
-        final server = ReflectionServerV2(registry, url: v2ServerUrl);
-        server.start();
-        _reflectionServer = server;
-      } else {
-        final server = ReflectionServer(registry, port: reflectionPort ?? 3110);
-        server.start();
-        _reflectionServer = server;
-      }
+    if (isAllowReflection && (isDevEnv ?? _isDevEnv())) {
+      _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
     _generateAction = defineGenerateAction(registry);
@@ -85,10 +94,8 @@ class Genkit {
   }
 
   Future<void> shutdown() async {
-    if (_reflectionServer is ReflectionServer) {
-      await (_reflectionServer as ReflectionServer).stop();
-    } else if (_reflectionServer is ReflectionServerV2) {
-      await (_reflectionServer as ReflectionServerV2).stop();
+    if (_reflectionServer != null) {
+      await _reflectionServer!.stop();
     }
   }
 
