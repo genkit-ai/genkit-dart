@@ -68,8 +68,8 @@ bool _isDevEnv() {
 class Genkit {
   final Registry registry = Registry();
   ReflectionServerHandle? _reflectionServer;
-  Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>?
-  _generateAction;
+
+  late final GenerateAction _generateAction;
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
@@ -90,7 +90,7 @@ class Genkit {
 
     _generateAction = defineGenerateAction(registry);
 
-    registry.register(_generateAction!);
+    registry.register(_generateAction);
   }
 
   Future<void> shutdown() async {

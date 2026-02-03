@@ -33,9 +33,11 @@ final _logger = Logger('genkit');
 
 const _defaultMaxTurns = 5;
 
+typedef GenerateAction =
+    Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>;
+
 /// Defines the utility 'generate' action.
-Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
-defineGenerateAction(Registry registry) {
+GenerateAction defineGenerateAction(Registry registry) {
   return Action(
     actionType: 'util',
     name: 'generate',

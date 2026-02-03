@@ -18,9 +18,9 @@ import 'package:genkit_chrome/genkit_chrome.dart' as genkit_chrome;
 import 'package:markdown/markdown.dart';
 import 'package:web/web.dart' as web;
 
-final ai = Genkit(plugins: [genkit_chrome.ChromeAIPlugin()]);
-
 void main() {
+  final ai = Genkit(plugins: [genkit_chrome.ChromeAIPlugin()]);
+
   _generateBtn.onClick.listen((event) => _submit(ai));
 
   _promptInput.onKeyDown.listen((event) {
