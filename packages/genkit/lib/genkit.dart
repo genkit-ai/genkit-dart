@@ -96,7 +96,7 @@ class Genkit {
 
   Future<void> shutdown() async {
     if (_reflectionServer != null) {
-      _reflectionServer!.stop();
+      await _reflectionServer!.stop();
     }
   }
 

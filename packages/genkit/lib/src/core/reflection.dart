@@ -17,7 +17,7 @@ export 'reflection/reflection_stub.dart'
     if (dart.library.js_interop) 'reflection/reflection_web.dart';
 
 class ReflectionServerHandle {
-  final void Function() stop;
+  final Future<void> Function() stop;
 
   ReflectionServerHandle(this.stop);
 }
