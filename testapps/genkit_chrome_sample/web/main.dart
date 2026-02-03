@@ -74,18 +74,12 @@ Future<void> _submit(Genkit ai) async {
           model: modelRef('chrome/gemini-nano'),
           prompt: prompt,
           onChunk: (chunk) {
-            print('Chunk: ${chunk}');
-            print(2);
             if (buffer.isEmpty) {
               loadingSpan.remove(); // Remove loading indicator on first chunk
             }
-            print(3);
             final text = chunk.text;
-            print('Text: $text');
-            print(4);
             buffer.write(text);
             contentDiv.innerHTML = markdownToHtml(buffer.toString()).toJS;
-            print(5);
             _scrollToBottom();
           },
         );

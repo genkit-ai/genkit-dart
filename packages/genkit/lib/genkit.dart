@@ -14,8 +14,7 @@
 
 /// The core Genkit framework library.
 ///
-/// Use this library to define [Flow]s, [Model]s, and [Tool]s, and to start a
-/// [ReflectionServer] for use with the Genkit CLI.
+/// Use this library to define [Flow]s, [Model]s, and [Tool]s.
 ///
 /// This is the main entry point for creating Genkit applications.
 library;
