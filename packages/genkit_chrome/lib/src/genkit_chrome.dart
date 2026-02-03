@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/core.dart';
+import 'package:genkit/genkit.dart';
 
 import 'chrome_model.dart';
 

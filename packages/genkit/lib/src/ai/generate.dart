@@ -92,8 +92,7 @@ class GenerateResponseChunk<O> extends ModelResponseChunk {
        );
 
   // Derived properties
-  String get text =>
-      content.where((p) => p.isText).map((p) => p.text!).join('');
+  String get text => content.where((p) => p.isText).map((p) => p.text!).join('');
 
   String get accumulatedText {
     final prev = previousChunks.map((c) => c.text).join('');
@@ -687,11 +686,11 @@ O? _parseChunkOutput<O>(
     );
     return parser(temp);
   }
-  final dataPart =
-      chunk.content.where((p) => p.isData).firstOrNull as DataPart?;
-  if (dataPart != null && dataPart.data != null) {
-    return dataPart.data as O?;
-  }
+  // final dataPart =
+  //     chunk.content.where((p) => p.isData).firstOrNull?.dataPart;
+  // if (dataPart != null && dataPart.data != null) {
+  //   return dataPart.data as O?;
+  // }
   return null;
 }
 

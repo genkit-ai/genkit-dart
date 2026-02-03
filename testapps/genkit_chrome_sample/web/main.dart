@@ -13,18 +13,20 @@
 // limitations under the License.
 
 import 'dart:js_interop';
-import 'package:genkit/lite.dart';
+import 'package:genkit/genkit.dart';
 import 'package:genkit_chrome/genkit_chrome.dart' as genkit_chrome;
 import 'package:markdown/markdown.dart';
 import 'package:web/web.dart' as web;
 
+final ai = Genkit(plugins: [genkit_chrome.ChromeAIPlugin()]);
+
 void main() {
-  _generateBtn.onClick.listen((event) => _submit());
+  _generateBtn.onClick.listen((event) => _submit(ai));
 
   _promptInput.onKeyDown.listen((event) {
     if (event.key == 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      _submit();
+      _submit(ai);
     }
   });
 
@@ -44,7 +46,7 @@ final _promptInput =
 final _generateBtn =
     web.document.querySelector('#generate') as web.HTMLButtonElement;
 
-Future<void> _submit() async {
+Future<void> _submit(Genkit ai) async {
   final prompt = _promptInput.value.trim();
   if (prompt.isEmpty) return;
   if (_running) return;
@@ -68,16 +70,22 @@ Future<void> _submit() async {
       _scrollToBottom();
 
       try {
-        await generate(
-          model: genkit_chrome.ChromeModel(),
+        await ai.generate(
+          model: modelRef('chrome/gemini-nano'),
           prompt: prompt,
           onChunk: (chunk) {
+            print('Chunk: ${chunk}');
+            print(2);
             if (buffer.isEmpty) {
               loadingSpan.remove(); // Remove loading indicator on first chunk
             }
+            print(3);
             final text = chunk.text;
+            print('Text: $text');
+            print(4);
             buffer.write(text);
             contentDiv.innerHTML = markdownToHtml(buffer.toString()).toJS;
+            print(5);
             _scrollToBottom();
           },
         );

@@ -25,12 +25,15 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
-import 'core.dart';
 import 'src/ai/generate.dart';
+import 'src/ai/model.dart';
+import 'src/ai/tool.dart';
 import 'src/core/action.dart';
 import 'src/core/registry.dart';
+import 'src/types.dart';
 
-export 'core.dart';
+export 'src/schema_extensions.dart';
+export 'src/types.dart';
 
 Future<GenerateResponseHelper> generate<C>({
   String? prompt,

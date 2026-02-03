@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'reflection/reflection_stub.dart'
-    if (dart.library.io) 'reflection/reflection_io.dart'
-    if (dart.library.js_interop) 'reflection/reflection_web.dart';
 
-class ReflectionServerHandle {
-  final void Function() stop;
 
-  ReflectionServerHandle(this.stop);
+import '../reflection.dart';
+import '../registry.dart';
+
+ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
+  throw UnimplementedError('startReflectionServer not implemented on this platform');
 }

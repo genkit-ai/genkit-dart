@@ -17,10 +17,10 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../exception.dart';
-import '../schema.dart';
-import '../utils.dart';
-import 'registry.dart';
+import '../../exception.dart';
+import '../../schema.dart';
+import '../../utils.dart';
+import '../registry.dart';
 
 const genkitVersion = '0.9.0';
 const genkitReflectionApiSpecVersion = 2;

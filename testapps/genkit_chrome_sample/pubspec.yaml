@@ -9,8 +9,7 @@ environment:
 
 dependencies:
   genkit: ^0.10.0-dev.10
-  genkit_chrome:
-    path: ../../packages/genkit_chrome
+  genkit_chrome: any
   markdown: ^7.0.0
   web: ^1.0.0
 

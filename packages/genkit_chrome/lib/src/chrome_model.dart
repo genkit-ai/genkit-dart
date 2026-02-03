@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'dart:js_interop';
-import 'package:genkit/core.dart';
+import 'package:genkit/genkit.dart';
 import 'chrome_interop.dart';
 
 class ChromeModel extends Model<LanguageModelOptions> {
