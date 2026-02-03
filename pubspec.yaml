@@ -9,6 +9,7 @@ workspace:
   - packages/_schema_generator
   - packages/genkit
   - packages/genkit_google_genai
+  - packages/genkit_openai_compat
   - packages/genkit_shelf
   - packages/genkit_chrome
   - packages/schemantic
@@ -51,7 +52,7 @@ melos:
 
     build-gen-plugins:
       run: |
-        melos exec --scope="genkit_google_genai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
+        melos exec --scope="genkit_google_genai,genkit_openai_compat,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
       description: Run build_runner for plugins.
 
     build-gen-testapps:
