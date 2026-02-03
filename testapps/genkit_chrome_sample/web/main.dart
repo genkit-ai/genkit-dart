@@ -1,8 +1,24 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:js_interop';
-import 'package:genkit/lite.dart';
+import 'package:genkit/genkit.dart';
 import 'package:genkit_chrome/genkit_chrome.dart' as genkit_chrome;
 import 'package:markdown/markdown.dart';
 import 'package:web/web.dart' as web;
+
+final ai = Genkit(plugins: [genkit_chrome.ChromeAIPlugin()]);
 
 void main() {
   _generateBtn.onClick.listen((event) => _submit());
@@ -54,16 +70,22 @@ Future<void> _submit() async {
       _scrollToBottom();
 
       try {
-        await generate(
-          model: genkit_chrome.ChromeModel(),
+        await ai.generate(
+          model: modelRef('chrome/gemini-nano'),
           prompt: prompt,
           onChunk: (chunk) {
+            print('Chunk: ${chunk}');
+            print(2);
             if (buffer.isEmpty) {
               loadingSpan.remove(); // Remove loading indicator on first chunk
             }
+            print(3);
             final text = chunk.text;
+            print('Text: $text');
+            print(4);
             buffer.write(text);
             contentDiv.innerHTML = markdownToHtml(buffer.toString()).toJS;
+            print(5);
             _scrollToBottom();
           },
         );

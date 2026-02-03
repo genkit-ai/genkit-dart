@@ -18,7 +18,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/src/core/action.dart';
-import 'package:genkit/src/core/reflection.dart';
+import 'package:genkit/src/core/reflection/reflection_v1.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
@@ -31,7 +31,7 @@ void main() {
   group('ReflectionServer lifecycle', () {
     test('should create and clean up runtime file', () async {
       final registry = Registry();
-      final server = ReflectionServer(registry, port: port);
+      final server = ReflectionServerV1(registry, port: port);
       await server.start();
 
       expect(server.runtimeFilePath, isNotNull);
@@ -50,7 +50,7 @@ void main() {
 
   group('ReflectionServer API', () {
     late Registry registry;
-    late ReflectionServer server;
+    late ReflectionServerV1 server;
 
     setUp(() async {
       registry = Registry();
@@ -70,7 +70,7 @@ void main() {
       );
       registry.register(testAction);
 
-      server = ReflectionServer(registry, port: port);
+      server = ReflectionServerV1(registry, port: port);
       await server.start();
     });
 

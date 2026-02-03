@@ -20,7 +20,7 @@ import 'dart:io';
 
 import 'package:async/async.dart';
 import 'package:genkit/src/core/action.dart';
-import 'package:genkit/src/core/reflection_v2.dart';
+import 'package:genkit/src/core/reflection/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';

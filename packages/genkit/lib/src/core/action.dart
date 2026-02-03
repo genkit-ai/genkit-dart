@@ -66,7 +66,7 @@ class ActionMetadata<I, O, S, Init> {
   final SchemanticType<Init>? initSchema;
   final Map<String, dynamic> metadata;
 
-  const ActionMetadata({
+  ActionMetadata({
     required this.name,
     this.actionType = 'custom', // Default or required?
     this.description,
@@ -75,7 +75,7 @@ class ActionMetadata<I, O, S, Init> {
     this.streamSchema,
     this.initSchema,
     Map<String, dynamic>? metadata,
-  }) : metadata = metadata ?? const {};
+  }) : metadata = metadata ?? <String, dynamic>{};
 
   Map<String, dynamic> toJson() {
     return {
@@ -92,7 +92,7 @@ class ActionMetadata<I, O, S, Init> {
 class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
   final InternalActionFn<I, O, S, Init> fn;
 
-  const Action({
+  Action({
     required super.name,
     required super.actionType,
     required this.fn,

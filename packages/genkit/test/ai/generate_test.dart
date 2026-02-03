@@ -163,7 +163,7 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-           if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == Role.tool) {
             // Check if both called? No, just finish
             return ModelResponse(
               finishReason: FinishReason.stop,
