@@ -92,7 +92,8 @@ class GenerateResponseChunk<O> extends ModelResponseChunk {
        );
 
   // Derived properties
-  String get text => content.where((p) => p.isText).map((p) => p.text!).join('');
+  String get text =>
+      content.where((p) => p.isText).map((p) => p.text!).join('');
 
   String get accumulatedText {
     final prev = previousChunks.map((c) => c.text).join('');

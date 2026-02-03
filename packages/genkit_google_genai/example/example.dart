@@ -169,7 +169,8 @@ void main(List<String> args) async {
             content: [
               MediaPart(
                 media: Media(
-                  url: 'https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Samples/Goldwave/addf8-Alaw-GW.wav',
+                  url:
+                      'https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Samples/Goldwave/addf8-Alaw-GW.wav',
                   contentType: 'audio/wav',
                 ),
               ),

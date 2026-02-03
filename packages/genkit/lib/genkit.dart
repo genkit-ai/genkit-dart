@@ -77,7 +77,11 @@ class Genkit {
   Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>?
   _generateAction;
 
-  Genkit({List<GenkitPlugin> plugins = const [], bool? isDevEnv, int? reflectionPort}) {
+  Genkit({
+    List<GenkitPlugin> plugins = const [],
+    bool? isDevEnv,
+    int? reflectionPort,
+  }) {
     // Register plugins
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);

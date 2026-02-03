@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 import '../reflection.dart';
 import '../registry.dart';
 
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  throw UnimplementedError('startReflectionServer not implemented on this platform');
+  throw UnimplementedError(
+    'startReflectionServer not implemented on this platform',
+  );
 }
