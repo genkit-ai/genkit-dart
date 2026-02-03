@@ -33,9 +33,11 @@ final _logger = Logger('genkit');
 
 const _defaultMaxTurns = 5;
 
+typedef GenerateAction =
+    Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>;
+
 /// Defines the utility 'generate' action.
-Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>
-defineGenerateAction(Registry registry) {
+GenerateAction defineGenerateAction(Registry registry) {
   return Action(
     actionType: 'util',
     name: 'generate',
@@ -687,8 +689,7 @@ O? _parseChunkOutput<O>(
     );
     return parser(temp);
   }
-  final dataPart =
-      chunk.content.where((p) => p.isData).firstOrNull as DataPart?;
+  final dataPart = chunk.content.where((p) => p.isData).firstOrNull?.dataPart;
   if (dataPart != null && dataPart.data != null) {
     return dataPart.data as O?;
   }

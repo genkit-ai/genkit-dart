@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// The core Genkit framework library.
+///
+/// Use this library to define [Flow]s, [Model]s, and [Tool]s.
+///
+/// This is the main entry point for creating Genkit applications.
+library;
+
 import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
@@ -25,7 +32,6 @@ import 'src/core/action.dart';
 import 'src/core/flow.dart';
 import 'src/core/plugin.dart';
 import 'src/core/reflection.dart';
-import 'src/core/reflection_v2.dart';
 import 'src/core/registry.dart';
 import 'src/exception.dart';
 import 'src/o11y/instrumentation.dart';
@@ -56,14 +62,14 @@ export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';
 
 bool _isDevEnv() {
-  return getEnvVar('GENKIT_ENV') == 'dev';
+  return getConfigVar('GENKIT_ENV') == 'dev';
 }
 
 class Genkit {
   final Registry registry = Registry();
-  Object? _reflectionServer;
-  Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>?
-  _generateAction;
+  ReflectionServerHandle? _reflectionServer;
+
+  late final GenerateAction _generateAction;
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
@@ -78,29 +84,18 @@ class Genkit {
     // Register default formats
     configureFormats(registry);
 
-    if (isDevEnv ?? _isDevEnv()) {
-      final v2ServerUrl = getEnvVar('GENKIT_REFLECTION_V2_SERVER');
-      if (v2ServerUrl != null) {
-        final server = ReflectionServerV2(registry, url: v2ServerUrl);
-        server.start();
-        _reflectionServer = server;
-      } else {
-        final server = ReflectionServer(registry, port: reflectionPort ?? 3110);
-        server.start();
-        _reflectionServer = server;
-      }
+    if (isAllowReflection && (isDevEnv ?? _isDevEnv())) {
+      _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
     _generateAction = defineGenerateAction(registry);
 
-    registry.register(_generateAction!);
+    registry.register(_generateAction);
   }
 
   Future<void> shutdown() async {
-    if (_reflectionServer is ReflectionServer) {
-      await (_reflectionServer as ReflectionServer).stop();
-    } else if (_reflectionServer is ReflectionServerV2) {
-      await (_reflectionServer as ReflectionServerV2).stop();
+    if (_reflectionServer != null) {
+      await _reflectionServer!.stop();
     }
   }
 

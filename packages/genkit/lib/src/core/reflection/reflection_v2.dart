@@ -17,10 +17,10 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../exception.dart';
-import '../schema.dart';
-import '../utils.dart';
-import 'registry.dart';
+import '../../exception.dart';
+import '../../schema.dart';
+import '../../utils.dart';
+import '../registry.dart';
 
 const genkitVersion = '0.9.0';
 const genkitReflectionApiSpecVersion = 2;
@@ -106,7 +106,7 @@ class ReflectionServerV2 {
 
   void _register() {
     final params = {
-      'id': getEnvVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
+      'id': getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
       'pid': _pid,
       'name': name ?? _runtimeId,
       'genkitVersion': genkitVersion,

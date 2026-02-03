@@ -490,10 +490,7 @@ gcl.Part toGeminiPart(Part p) {
     );
   }
   if (p.isText) {
-    return gcl.Part(
-      text: p.text,
-      thoughtSignature: thoughtSignature,
-    );
+    return gcl.Part(text: p.text, thoughtSignature: thoughtSignature);
   }
   if (p.isToolRequest) {
     return gcl.Part(

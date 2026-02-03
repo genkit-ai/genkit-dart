@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'utils_stub.dart'
-    if (dart.library.io) 'utils_io.dart'
-    if (dart.library.js_interop) 'utils_web.dart';
+import '../../utils.dart';
+import '../reflection.dart';
+import '../registry.dart';
+import 'reflection_v2.dart';
+
+ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
+  final v2ServerUrl = getConfigVar('GENKIT_REFLECTION_V2_SERVER');
+  if (v2ServerUrl == null) {
+    throw UnimplementedError(
+      'GENKIT_REFLECTION_V2_SERVER environment variable is not set',
+    );
+  }
+  final server = ReflectionServerV2(registry, url: v2ServerUrl);
+  server.start();
+  return ReflectionServerHandle(server.stop);
+}

@@ -12,6 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'utils_stub.dart'
-    if (dart.library.io) 'utils_io.dart'
-    if (dart.library.js_interop) 'utils_web.dart';
+export 'src/genkit_chrome.dart';

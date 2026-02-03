@@ -10,10 +10,12 @@ workspace:
   - packages/genkit
   - packages/genkit_google_genai
   - packages/genkit_shelf
+  - packages/genkit_chrome
   - packages/schemantic
   - testapps/agentic_patterns
   - testapps/ai_features
   - testapps/basic
+  - testapps/genkit_chrome_sample
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0

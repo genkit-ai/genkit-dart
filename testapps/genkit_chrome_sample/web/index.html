@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Genkit Chrome Sample</title>
+    <script defer src="main.dart.js"></script>
+    <style>
+        :root {
+            --primary-color: #007AFF;
+            --bg-color: #f7f9fb;
+            --chat-bg: #ffffff;
+            --user-bubble-bg: #007AFF;
+            --user-bubble-text: #ffffff;
+            --model-bubble-bg: #f0f2f5;
+            --model-bubble-text: #1c1e21;
+            --border-color: #e4e6eb;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: var(--chat-bg);
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            height: 100vh;
+        }
+        
+        #header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+        
+        .message-row {
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-row.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .message-row.model {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .speaker {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 4px;
+            margin-left: 16px;
+            margin-right: 4px;
+            display: none; 
+        }
+        
+        .message-row.model .speaker {
+            display: block;
+        }
+
+        .content {
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            word-wrap: break-word;
+        }
+
+        .message-row.user .content {
+            background-color: var(--user-bubble-bg);
+            color: var(--user-bubble-text);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-row.model .content {
+            background-color: var(--model-bubble-bg);
+            color: var(--model-bubble-text);
+            border-bottom-left-radius: 4px;
+        }
+        
+        /* Markdown Styles within Content */
+        .content p { margin: 0 0 10px 0; }
+        .content p:last-child { margin: 0; }
+        .content pre { background: rgba(0,0,0,0.1); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
+        .content code { font-family: 'Menlo', 'Monaco', 'Courier New', monospace; font-size: 0.9em; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 4px; }
+        .content pre code { background: none; padding: 0; }
+        .content ul, .content ol { margin: 0 0 10px 20px; padding: 0; }
+        
+        #input-container {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background: white;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        
+        textarea {
+            flex: 1;
+            height: 50px;
+            padding: 12px;
+            font-family: inherit;
+            resize: none;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            background: #f0f2f5;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        
+        textarea:focus {
+            border-color: var(--primary-color);
+            background: white;
+        }
+        
+        button {
+            height: 46px;
+            padding: 0 24px;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 23px;
+            font-weight: 500;
+            transition: opacity 0.2s;
+            font-family: inherit;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #ccc;
+        }
+        
+        button:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Genkit Chrome Sample</h1>
+    </div>
+    
+    <div id="chat-container"></div>
+    
+    <div id="input-container">
+        <textarea id="prompt" placeholder="waiting to load..." disabled></textarea>
+        <button id="generate" disabled>Send</button>
+    </div>
+</body>
+</html>

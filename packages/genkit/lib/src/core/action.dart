@@ -57,14 +57,14 @@ class RunResult<O> {
 }
 
 class ActionMetadata<I, O, S, Init> {
-  String name;
-  String? description;
-  String actionType;
-  SchemanticType<I>? inputSchema;
-  SchemanticType<O>? outputSchema;
-  SchemanticType<S>? streamSchema;
-  SchemanticType<Init>? initSchema;
-  Map<String, dynamic> metadata;
+  final String name;
+  final String? description;
+  final String actionType;
+  final SchemanticType<I>? inputSchema;
+  final SchemanticType<O>? outputSchema;
+  final SchemanticType<S>? streamSchema;
+  final SchemanticType<Init>? initSchema;
+  final Map<String, dynamic> metadata;
 
   ActionMetadata({
     required this.name,
