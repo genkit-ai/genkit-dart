@@ -13,6 +13,7 @@ jobs:
       ignore_license: "**.g.dart"
       ignore_coverage: "**.g.dart"
       ignore_breaking: "packages/genkit_firebase_ai/**"
+      license_test_string: "// Copyright " 
       license: |
         // Copyright %YEAR% Google LLC
         //
@@ -27,6 +28,5 @@ jobs:
         // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         // See the License for the specific language governing permissions and
         // limitations under the License.
-      license_test_string: // Copyright 
     permissions:
       pull-requests: write
