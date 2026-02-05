@@ -18,47 +18,18 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:logging/logging.dart';
-import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
 import '../../exception.dart';
 import '../../types.dart';
+
+import 'package:schemantic/schemantic.dart';
+
 import '../generate_middleware.dart';
 
 part 'retry.g.dart';
 
 final _logger = Logger('genkit.middleware.retry');
-
-@Schematic()
-abstract class $RetryOptions {
-  int? get maxRetries;
-  List<StatusCodes>? get statuses;
-  int? get initialDelayMs;
-  int? get maxDelayMs;
-  double? get backoffFactor;
-  bool? get noJitter;
-  bool? get retryModel;
-  bool? get retryTools;
-}
-
-final retryMiddleware = defineMiddleware<RetryOptions>(
-  name: 'retry',
-  configSchema: RetryOptions.$schema,
-  create: ([RetryOptions? config]) => RetryMiddleware(
-    maxRetries: config?.maxRetries ?? 3,
-    statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
-    initialDelayMs: config?.initialDelayMs ?? 1000,
-    maxDelayMs: config?.maxDelayMs ?? 60000,
-    backoffFactor: config?.backoffFactor ?? 2.0,
-    noJitter: config?.noJitter ?? false,
-    retryModel: config?.retryModel ?? true,
-    retryTools: config?.retryTools ?? false,
-  ),
-);
-
-GenerateMiddlewareRef<RetryOptions> retry([RetryOptions? config]) {
-  return middlewareRef(name: 'retry', config: config);
-}
 
 /// A middleware that retries model and tool requests on failure.
 ///
@@ -107,6 +78,37 @@ class RetryMiddleware extends GenerateMiddleware {
     StatusCodes.ABORTED,
     StatusCodes.INTERNAL,
   ];
+
+@Schematic()
+abstract class $RetryOptions {
+  int? get maxRetries;
+  List<StatusCodes>? get statuses;
+  int? get initialDelayMs;
+  int? get maxDelayMs;
+  double? get backoffFactor;
+  bool? get noJitter;
+  bool? get retryModel;
+  bool? get retryTools;
+}
+
+final retryMiddleware = defineMiddleware<RetryOptions>(
+  name: 'retry',
+  configSchema: RetryOptions.$schema,
+  create: ([RetryOptions? config]) => RetryMiddleware(
+    maxRetries: config?.maxRetries ?? 3,
+    statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
+    initialDelayMs: config?.initialDelayMs ?? 1000,
+    maxDelayMs: config?.maxDelayMs ?? 60000,
+    backoffFactor: config?.backoffFactor ?? 2.0,
+    noJitter: config?.noJitter ?? false,
+    retryModel: config?.retryModel ?? true,
+    retryTools: config?.retryTools ?? false,
+  ),
+);
+
+GenerateMiddlewareRef<RetryOptions> retry([RetryOptions? config]) {
+  return middlewareRef(name: 'retry', config: config);
+}
 
   /// Creates a [RetryMiddleware].
   RetryMiddleware({

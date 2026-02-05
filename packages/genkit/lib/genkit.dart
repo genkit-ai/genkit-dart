@@ -79,6 +79,9 @@ class Genkit {
     // Register plugins
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);
+      for (final mw in plugin.middleware()) {
+        registry.registerValue('middleware', mw.name, mw);
+      }
     }
 
     // Register default formats
