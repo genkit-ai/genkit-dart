@@ -58,14 +58,14 @@ abstract class $MyMiddlewareOptions {
 
 ### 2. Implement the Middleware Logic
 
-Create the actual middleware implementation. By convention, name the concrete class with an `Impl` suffix (e.g., `MyMiddlewareImpl`) to keep the primary name available for the plugin wrapper.
+Create the actual middleware implementation. By convention, name the concrete class with an `Middleware` suffix (e.g., `MyMiddleware`).
 
 ```dart
-class MyMiddlewareImpl extends GenerateMiddleware {
+class MyMiddleware extends GenerateMiddleware {
   final bool enableFeatureX;
   final int maxRetries;
 
-  MyMiddlewareImpl({
+  MyMiddleware({
     this.enableFeatureX = false,
     this.maxRetries = 3,
   });
@@ -87,25 +87,26 @@ class MyMiddlewareImpl extends GenerateMiddleware {
 
 ### 3. Define the Middleware and Plugin
 
-Use `defineMiddleware` to link your schema and implementation. Then, expose it via a `GenkitPlugin` so it can be registered when Genkit initializes.
+Use `defineMiddleware` to link your schema and implementation. Then, expose it via a `GenkitPlugin` so it can be registered when Genkit initializes. By convention, name the plugin class with a `Plugin` suffix (e.g., `MyMiddlewarePlugin`).
 
 ```dart
-final _myMiddlewareDef = defineMiddleware<MyMiddlewareOptions>(
-  name: 'my-middleware',
-  configSchema: MyMiddlewareOptions.$schema,
-  create: ([MyMiddlewareOptions? config]) => MyMiddlewareImpl(
-    enableFeatureX: config?.enableFeatureX ?? false,
-    maxRetries: config?.maxRetries ?? 3,
-  ),
-);
-
 // The plugin that registers the middleware definition
-class MyMiddleware extends GenkitPlugin {
+class MyMiddlewarePlugin extends GenkitPlugin {
   @override
   String get name => 'my-middleware';
 
   @override
-  List<GenerateMiddlewareDef> middleware() => [_myMiddlewareDef];
+  List<GenerateMiddlewareDef> middleware() => [
+    defineMiddleware<MyMiddlewareOptions>(
+      // name should be reasonably unique to avoid conflicts with other plugins.
+      name: 'my-middleware',
+      configSchema: MyMiddlewareOptions.$schema,
+      create: ([MyMiddlewareOptions? config]) => MyMiddleware(
+        enableFeatureX: config?.enableFeatureX ?? false,
+        maxRetries: config?.maxRetries ?? 3,
+      ),
+    ),
+  ];
 }
 ```
 
@@ -142,8 +143,6 @@ void main() {
   final response = await genkit.generate(
     model: customModel,
     prompt: 'Hello world',
-    // The `use` array accepts dynamic parameters, allowing our DX helper
-    // to map the configuration to the registered middleware transparently!
     use: [
       myMiddleware(
         enableFeatureX: true,
