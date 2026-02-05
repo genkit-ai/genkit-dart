@@ -25,7 +25,6 @@ import 'package:schemantic/schemantic.dart';
 
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
-import 'src/ai/generate_middleware.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
@@ -46,8 +45,15 @@ export 'package:genkit/src/ai/generate.dart'
         GenerateResponseChunk,
         GenerateResponseHelper,
         InterruptResponse;
-export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
-export 'package:genkit/src/ai/middleware/retry.dart' show RetryMiddleware;
+export 'package:genkit/src/ai/generate_middleware.dart'
+    show
+        GenerateMiddleware,
+        GenerateMiddlewareDef,
+        GenerateMiddlewareRef,
+        defineMiddleware,
+        middlewareRef;
+export 'package:genkit/src/ai/middleware/retry.dart'
+    show RetryMiddleware, RetryOptions, retry, retryMiddleware;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
@@ -288,7 +294,7 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
-    List<GenerateMiddleware>? use,
+    List<dynamic>? use,
 
     /// Optional data to resume an interrupted generation session.
     ///
@@ -381,7 +387,7 @@ class Genkit {
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    List<GenerateMiddleware>? use,
+    List<dynamic>? use,
     List<InterruptResponse>? resume,
   }) {
     final streamController = StreamController<GenerateResponseChunk<S>>();

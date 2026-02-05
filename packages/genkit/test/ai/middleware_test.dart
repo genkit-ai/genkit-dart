@@ -249,5 +249,50 @@ void main() {
 
       expect(result.text, 'echo: intercepted: original');
     });
+
+    test('should resolve and execute registered middleware refs', () async {
+      final log = <String>[];
+      
+      // Register a middleware definition manually (as a plugin would).
+      final def = defineMiddleware<dynamic>(
+        name: 'reg-mw',
+        create: ([config]) => TestMiddleware(log, 'reg-mw-${config ?? 'none'}'),
+      );
+      genkit.registry.registerValue('middleware', def.name, def);
+
+      genkit.defineModel(
+        name: 'echo-model-ref',
+        fn: (req, ctx) async {
+          final text = req.messages.last.content.first.text!;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'echo: $text')],
+            ),
+          );
+        },
+      );
+
+      // Use the middleware ref
+      final result = await genkit.generate(
+        model: modelRef('echo-model-ref'),
+        prompt: 'hello ref',
+        use: [
+          middlewareRef(name: 'reg-mw', config: 'conf1')
+        ],
+      );
+
+      expect(result.text, 'echo: hello ref');
+      expect(
+        log,
+        containsAllInOrder([
+          'reg-mw-conf1:generate:start',
+          'reg-mw-conf1:model:start',
+          'reg-mw-conf1:model:end',
+          'reg-mw-conf1:generate:end',
+        ]),
+      );
+    });
   });
 }
