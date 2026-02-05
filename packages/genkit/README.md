@@ -153,22 +153,29 @@ final streamStory = ai.defineFlow(
 
 ### Middleware
 
-Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `RetryMiddleware` for robust error handling.
+Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `retry` for robust error handling.
 
 #### Retry Middleware
 
 Automatically retry failed requests with exponential backoff and jitter:
 
 ```dart
+final ai = Genkit(
+  plugins: [
+    googleAI(),
+    RetryPlugin(), // Required for retry middleware
+  ],
+);
+
 final response = await ai.generate(
   model: googleAI.gemini('gemini-2.5-flash'),
   prompt: 'Reliable request',
   use: [
-    RetryMiddleware(
+    retry(
       maxRetries: 3,
       retryModel: true, // Retry model validation errors (default: true)
       retryTools: false, // Retry tool execution errors (default: false)
-      statuses: [StatusName.UNAVAILABLE], // Retry only on specific errors
+      statuses: [StatusCodes.UNAVAILABLE], // Retry only on specific errors
     ),
   ],
 );
@@ -437,6 +444,36 @@ await for (final chunk in stream) {
 
 final finalResult = await stream.onResult;
 print('Final Response: ${finalResult.text}');
+```
+
+---
+
+## Genkit Lite API
+
+For lightweight applications or scripts where you only need basic model orchestration without the full Genkit framework (no registries, flows, or Dev UI), you can use the Lite API.
+
+```dart
+import 'package:genkit/lite.dart' as lite;
+// Need to import genkit for standard components like RetryMiddleware
+import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
+
+void main() async {
+  // 1. Initialize the plugin directly
+  final gemini = googleAI();
+
+  // 2. Direct generation call without a Genkit instance
+  final response = await lite.generate(
+    model: gemini.model('gemini-2.5-flash'),
+    prompt: 'Hello from Lite API!',
+    // Middleware objects are used directly in the Lite API
+    use: [
+      RetryMiddleware(maxRetries: 2),
+    ],
+  );
+
+  print(response.text);
+}
 ```
 
 ---

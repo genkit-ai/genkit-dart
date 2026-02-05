@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: constant_identifier_names
-
 import 'dart:async';
 import 'dart:math';
 
@@ -42,27 +40,27 @@ abstract class $RetryOptions {
   bool? get retryTools;
 }
 
-final _retryMiddlewareDef = defineMiddleware<RetryOptions>(
-  name: 'retry',
-  configSchema: RetryOptions.$schema,
-  create: ([RetryOptions? config]) => RetryMiddlewareImpl(
-    maxRetries: config?.maxRetries ?? 3,
-    statuses: config?.statuses ?? RetryMiddlewareImpl.defaultRetryStatuses,
-    initialDelayMs: config?.initialDelayMs ?? 1000,
-    maxDelayMs: config?.maxDelayMs ?? 60000,
-    backoffFactor: config?.backoffFactor ?? 2.0,
-    noJitter: config?.noJitter ?? false,
-    retryModel: config?.retryModel ?? true,
-    retryTools: config?.retryTools ?? false,
-  ),
-);
-
-class RetryMiddleware extends GenkitPlugin {
+class RetryPlugin extends GenkitPlugin {
   @override
   String get name => 'retry';
 
   @override
-  List<GenerateMiddlewareDef> middleware() => [_retryMiddlewareDef];
+  List<GenerateMiddlewareDef> middleware() => [
+    defineMiddleware<RetryOptions>(
+      name: 'retry',
+      configSchema: RetryOptions.$schema,
+      create: ([RetryOptions? config]) => RetryMiddleware(
+        maxRetries: config?.maxRetries ?? 3,
+        statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
+        initialDelayMs: config?.initialDelayMs ?? 1000,
+        maxDelayMs: config?.maxDelayMs ?? 60000,
+        backoffFactor: config?.backoffFactor ?? 2.0,
+        noJitter: config?.noJitter ?? false,
+        retryModel: config?.retryModel ?? true,
+        retryTools: config?.retryTools ?? false,
+      ),
+    ),
+  ];
 }
 
 GenerateMiddlewareRef<RetryOptions> retry({
@@ -97,7 +95,7 @@ GenerateMiddlewareRef<RetryOptions> retry({
 /// [StatusCodes.RESOURCE_EXHAUSTED], [StatusCodes.ABORTED], and [StatusCodes.INTERNAL].
 ///
 /// It uses exponential backoff with jitter to calculate the delay between retries.
-class RetryMiddlewareImpl extends GenerateMiddleware {
+class RetryMiddleware extends GenerateMiddleware {
   /// The maximum number of retry attempts.
   final int maxRetries;
 
@@ -138,8 +136,8 @@ class RetryMiddlewareImpl extends GenerateMiddleware {
     StatusCodes.INTERNAL,
   ];
 
-  /// Creates a [RetryMiddlewareImpl].
-  RetryMiddlewareImpl({
+  /// Creates a [RetryMiddleware].
+  RetryMiddleware({
     this.maxRetries = 3,
     this.statuses = defaultRetryStatuses,
     this.initialDelayMs = 1000,

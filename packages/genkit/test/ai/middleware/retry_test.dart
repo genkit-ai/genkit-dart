@@ -20,7 +20,7 @@ void main() {
     late Genkit genkit;
 
     setUp(() {
-      genkit = Genkit(isDevEnv: false, plugins: [RetryMiddleware()]);
+      genkit = Genkit(isDevEnv: false, plugins: [RetryPlugin()]);
     });
 
     tearDown(() async {
@@ -103,13 +103,6 @@ void main() {
 
     test('should NOT retry on unknown status if not in allowed list', () async {
       var attempts = 0;
-      final mw = retry(
-        maxRetries: 3,
-        initialDelayMs: 1,
-        maxDelayMs: 5,
-        noJitter: true,
-        statuses: [StatusCodes.UNAVAILABLE], // Only retry UNAVAILABLE
-      );
 
       genkit.defineModel(
         name: 'fatal-model',
@@ -126,7 +119,15 @@ void main() {
         await genkit.generate(
           model: modelRef('fatal-model'),
           prompt: 'test',
-          use: [mw],
+          use: [
+            retry(
+              maxRetries: 3,
+              initialDelayMs: 1,
+              maxDelayMs: 5,
+              noJitter: true,
+              statuses: [StatusCodes.UNAVAILABLE], // Only retry UNAVAILABLE
+            ),
+          ],
         );
       } catch (e) {
         // Expected
@@ -138,16 +139,6 @@ void main() {
     test('should call onError callback', () async {
       var errors = <Object>[];
       var attemptsInCallback = <int>[];
-      final mw = RetryMiddlewareImpl(
-        maxRetries: 2,
-        initialDelayMs: 1,
-        noJitter: true,
-        onError: (e, attempt) {
-          errors.add(e);
-          attemptsInCallback.add(attempt);
-          return true; // Continue retry
-        },
-      );
 
       genkit.defineModel(
         name: 'callback-model',
@@ -160,7 +151,18 @@ void main() {
         await genkit.generate(
           model: modelRef('callback-model'),
           prompt: 'test',
-          use: [mw],
+          use: [
+            RetryMiddleware(
+              maxRetries: 2,
+              initialDelayMs: 1,
+              noJitter: true,
+              onError: (e, attempt) {
+                errors.add(e);
+                attemptsInCallback.add(attempt);
+                return true; // Continue retry
+              },
+            ),
+          ],
         );
       } catch (e) {
         // Expected
@@ -172,15 +174,6 @@ void main() {
 
     test('should stop retry if onError returns false', () async {
       var attempts = 0;
-      final mw = RetryMiddlewareImpl(
-        maxRetries: 5,
-        initialDelayMs: 1,
-        noJitter: true,
-        onError: (e, attempt) {
-          // Verify we stop after 2 attempts (1 retry)
-          return attempt < 2;
-        },
-      );
 
       genkit.defineModel(
         name: 'cancel-model',
@@ -194,7 +187,17 @@ void main() {
         await genkit.generate(
           model: modelRef('cancel-model'),
           prompt: 'test',
-          use: [mw],
+          use: [
+            RetryMiddleware(
+              maxRetries: 5,
+              initialDelayMs: 1,
+              noJitter: true,
+              onError: (e, attempt) {
+                // Verify we stop after 2 attempts (1 retry)
+                return attempt < 2;
+              },
+            ),
+          ],
         );
       } catch (e) {
         // Expected
@@ -216,12 +219,6 @@ void main() {
     });
     test('should NOT retry model if retryModel is false', () async {
       var attempts = 0;
-      final mw = retry(
-        maxRetries: 3,
-        initialDelayMs: 1,
-        noJitter: true,
-        retryModel: false,
-      );
 
       genkit.defineModel(
         name: 'fail-model-disabled',
@@ -238,7 +235,14 @@ void main() {
         await genkit.generate(
           model: modelRef('fail-model-disabled'),
           prompt: 'test',
-          use: [mw],
+          use: [
+            retry(
+              maxRetries: 3,
+              initialDelayMs: 1,
+              noJitter: true,
+              retryModel: false,
+            ),
+          ],
         );
       } catch (e) {
         // Expected
@@ -250,12 +254,6 @@ void main() {
 
     test('should retry tools if retryTools is true', () async {
       var attempts = 0;
-      final mw = retry(
-        maxRetries: 3,
-        initialDelayMs: 1,
-        noJitter: true,
-        retryTools: true,
-      );
 
       genkit.defineModel(
         name: 'tool-caller',
@@ -304,7 +302,14 @@ void main() {
           model: modelRef('tool-caller'),
           prompt: 'test',
           tools: ['fail-tool'],
-          use: [mw],
+          use: [
+            retry(
+              maxRetries: 3,
+              initialDelayMs: 1,
+              noJitter: true,
+              retryTools: true,
+            ),
+          ],
         );
       } catch (e) {
         // Expected
@@ -315,12 +320,6 @@ void main() {
     });
     test('should use default statuses if statuses is empty', () async {
       var attempts = 0;
-      final mw = retry(
-        maxRetries: 3,
-        initialDelayMs: 1,
-        noJitter: true,
-        statuses: [], // Empty list should trigger defaults
-      );
 
       genkit.defineModel(
         name: 'default-status-model',
@@ -337,7 +336,14 @@ void main() {
         await genkit.generate(
           model: modelRef('default-status-model'),
           prompt: 'test',
-          use: [mw],
+          use: [
+            retry(
+              maxRetries: 3,
+              initialDelayMs: 1,
+              noJitter: true,
+              statuses: [], // Empty list should trigger defaults
+            ),
+          ],
         );
       } catch (e) {
         // Expected
