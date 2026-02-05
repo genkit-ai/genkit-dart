@@ -365,9 +365,7 @@ void main() {
         await genkit.generate(
           model: modelRef('ref-fail-model'),
           prompt: 'test',
-          use: [
-            retry(maxRetries: 2, initialDelayMs: 1, noJitter: true),
-          ],
+          use: [retry(maxRetries: 2, initialDelayMs: 1, noJitter: true)],
         );
       } catch (e) {
         // Expected

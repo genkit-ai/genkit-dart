@@ -252,7 +252,7 @@ void main() {
 
     test('should resolve and execute registered middleware refs', () async {
       final log = <String>[];
-      
+
       // Register a middleware definition manually (as a plugin would).
       final def = defineMiddleware<dynamic>(
         name: 'reg-mw',
@@ -278,9 +278,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef('echo-model-ref'),
         prompt: 'hello ref',
-        use: [
-          middlewareRef(name: 'reg-mw', config: 'conf1')
-        ],
+        use: [middlewareRef(name: 'reg-mw', config: 'conf1')],
       );
 
       expect(result.text, 'echo: hello ref');
