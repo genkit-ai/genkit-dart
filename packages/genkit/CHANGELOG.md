@@ -1,3 +1,18 @@
+## 0.10.0-dev.11
+
+> Note: This release has breaking changes.
+
+ - **FIX**: Coerce `num` values to `double` for generated double fields during JSON parsing. (#65).
+ - **FEAT**: add Google Search and multi-speaker voice config support, extract usage metadata, and introduce reasoning parts (#82).
+ - **FEAT**: allow `generate` and `generateBidi` to accept `Tool` objects directly in the `tools` list alongside tool names (#79).
+ - **FEAT**: Implement hierarchical registry with parent delegation and merging for values and actions (#78).
+ - **FEAT**: Implement streaming chunk indexing across turns and improve `maxTurns` error handling with a new default. (#75).
+ - **FEAT**: implemented interrupts (#73).
+ - **FEAT**: Add retry middleware for AI model and tool calls with configurable backoff and error handling. (#67).
+ - **FEAT**: Add `$GenerateResponse` type, refine schema types, and update generated class constructors to use `late final` and regular constructors. (#66).
+ - **FEAT**: added schemas for gemini models, made sure TTS and nano banana models are working (#63).
+ - **BREAKING** **REFACTOR**: update GenkitException to use a StatusCodes enum instead of raw integer status codes. (#68).
+
 ## 0.10.0-dev.10
 
  - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).
