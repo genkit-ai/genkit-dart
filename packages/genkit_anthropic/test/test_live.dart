@@ -14,6 +14,12 @@ abstract class $Person {
   int get age;
 }
 
+@Schematic()
+abstract class $CalculatorInput {
+  int get a;
+  int get b;
+}
+
 void main() {
   // Check if API key is available
   final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
@@ -94,9 +100,9 @@ void main() {
       final tool = ai.defineTool(
         name: 'calculator',
         description: 'Multiplies two numbers',
-        inputSchema: mapSchema(stringSchema(), intSchema()),
+        inputSchema: CalculatorInput.$schema,
         outputSchema: intSchema(),
-        fn: (input, _) async => (input['a'] as int) * (input['b'] as int),
+        fn: (CalculatorInput input, _) async => input.a * input.b,
       );
 
       final response = await ai.generate(

@@ -63,3 +63,63 @@ class _PersonTypeFactory extends SchemanticType<Person> {
     dependencies: [],
   );
 }
+
+class CalculatorInput {
+  factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  CalculatorInput._(this._json);
+
+  CalculatorInput({required int a, required int b}) {
+    _json = {'a': a, 'b': b};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<CalculatorInput> $schema =
+      _CalculatorInputTypeFactory();
+
+  int get a {
+    return _json['a'] as int;
+  }
+
+  set a(int value) {
+    _json['a'] = value;
+  }
+
+  int get b {
+    return _json['b'] as int;
+  }
+
+  set b(int value) {
+    _json['b'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
+  const _CalculatorInputTypeFactory();
+
+  @override
+  CalculatorInput parse(Object? json) {
+    return CalculatorInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'CalculatorInput',
+    definition: Schema.object(
+      properties: {'a': Schema.integer(), 'b': Schema.integer()},
+      required: ['a', 'b'],
+    ),
+    dependencies: [],
+  );
+}

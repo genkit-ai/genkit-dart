@@ -61,8 +61,9 @@ class AnthropicPluginImpl extends GenkitPlugin {
             ),
           )
           .toList();
-    } catch (_) {
+    } catch (e, s) {
       // Fallback or empty if listing fails/not supported as expected
+      print('Failed to list Anthropic models: $e\n$s');
       return [];
     }
   }
