@@ -291,9 +291,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                   title: options?.title,
                 ),
               );
-              return Embedding(
-                embedding: res.embedding!.values,
-              );
+              return Embedding(embedding: res.embedding!.values);
             });
             final embeddings = await Future.wait(futures);
             return EmbedResponse(embeddings: embeddings);
@@ -308,7 +306,6 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
   }
 
   GenkitException _handleException(Object e, StackTrace stack) {
-
     if (e is GenkitException) return e;
 
     // Check for common HTTP status codes if the exception has them

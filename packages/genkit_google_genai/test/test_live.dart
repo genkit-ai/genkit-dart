@@ -170,13 +170,15 @@ void main() {
       if (apiKey == null) return;
       final embeddings = await ai.embedMany(
         embedder: googleAI.textEmbedding('text-embedding-004'),
-        documents: [DocumentData(content: [TextPart(text: 'Hello')])],
+        documents: [
+          DocumentData(content: [TextPart(text: 'Hello')]),
+        ],
         options: TextEmbedderOptions(
           outputDimensionality: 256,
           taskType: 'RETRIEVAL_DOCUMENT',
         ),
       );
-      
+
       expect(embeddings.length, 1);
       expect(embeddings.first.embedding.length, 256);
     });

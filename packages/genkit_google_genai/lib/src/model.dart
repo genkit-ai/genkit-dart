@@ -210,11 +210,15 @@ abstract class $GoogleSearch {
 
 @Schematic()
 abstract class $TextEmbedderOptions {
-  @IntegerField(description: 'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.')
+  @IntegerField(
+    description:
+        'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',
+  )
   int? get outputDimensionality;
 
   @StringField(
-    description: 'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
+    description:
+        'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
     enumValues: [
       'TASK_TYPE_UNSPECIFIED',
       'RETRIEVAL_QUERY',
@@ -228,6 +232,6 @@ abstract class $TextEmbedderOptions {
     ],
   )
   String? get taskType;
-  
+
   String? get title;
 }

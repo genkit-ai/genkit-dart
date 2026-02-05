@@ -33,6 +33,9 @@ class GoogleGenAiPluginHandle {
   }
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
-    return embedderRef('googleai/$name', customOptions: TextEmbedderOptions.$schema);
+    return embedderRef(
+      'googleai/$name',
+      customOptions: TextEmbedderOptions.$schema,
+    );
   }
 }
