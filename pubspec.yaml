@@ -9,6 +9,7 @@ workspace:
   - packages/_schema_generator
   - packages/genkit
   - packages/genkit_google_genai
+  - packages/genkit_anthropic
   - packages/genkit_shelf
   - packages/genkit_chrome
   - packages/schemantic
