@@ -23,6 +23,7 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
+import 'src/ai/embedder.dart';
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
 import 'src/ai/generate_middleware.dart';
@@ -39,6 +40,8 @@ import 'src/schema.dart';
 import 'src/types.dart';
 import 'src/utils.dart';
 
+export 'package:genkit/src/ai/embedder.dart'
+    show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'
     show
@@ -213,6 +216,63 @@ class Genkit {
     );
     registry.register(model);
     return model;
+  }
+
+  Embedder defineEmbedder({
+    required String name,
+    required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
+  }) {
+    final embedder = Embedder(
+      name: name,
+      fn: (input, context) {
+        return fn(input!, context);
+      },
+    );
+    registry.register(embedder);
+    return embedder;
+  }
+
+  Future<List<Embedding>> embedMany<C>({
+    required EmbedderRef<C> embedder,
+    required List<DocumentData> documents,
+    C? options,
+  }) async {
+    final action = await registry.lookupAction('embedder', embedder.name);
+    if (action == null) {
+      throw GenkitException(
+        'Embedder ${embedder.name} not found',
+        status: StatusCodes.NOT_FOUND,
+      );
+    }
+    
+    final resolvedOptions = options is Map
+        ? options as Map<String, dynamic>
+        : (options as dynamic)?.toJson() as Map<String, dynamic>?;
+
+    final req = EmbedRequest(
+      input: documents,
+      options: resolvedOptions,
+    );
+
+    final response = await action(req) as EmbedResponse;
+    return response.embeddings;
+  }
+
+  Future<List<Embedding>> embed<C>({
+    required EmbedderRef<C> embedder,
+    DocumentData? document,
+    List<DocumentData>? documents,
+    C? options,
+  }) async {
+    final docs = documents ?? (document != null ? [document] : []);
+    if (docs.isEmpty) {
+      throw ArgumentError('Either document or documents must be provided to embed.');
+    }
+    return embedMany(
+      embedder: embedder,
+      documents: docs,
+      options: options,
+    );
   }
 
   Future<GenerateBidiSession> generateBidi({

@@ -207,3 +207,27 @@ abstract class $PrebuiltVoiceConfig {
 abstract class $GoogleSearch {
   // TODO: Add timeRangeFilter or other configurations if needed
 }
+
+@Schematic()
+abstract class $TextEmbedderOptions {
+  @IntegerField(description: 'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.')
+  int? get outputDimensionality;
+
+  @StringField(
+    description: 'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
+    enumValues: [
+      'TASK_TYPE_UNSPECIFIED',
+      'RETRIEVAL_QUERY',
+      'RETRIEVAL_DOCUMENT',
+      'SEMANTIC_SIMILARITY',
+      'CLASSIFICATION',
+      'CLUSTERING',
+      'QUESTION_ANSWERING',
+      'FACT_VERIFICATION',
+      'CODE_RETRIEVAL_QUERY',
+    ],
+  )
+  String? get taskType;
+  
+  String? get title;
+}

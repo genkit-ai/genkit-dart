@@ -72,7 +72,17 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             );
           })
           .toList();
-      return models;
+      final embedders = modelsResponse.models
+          .where(
+            (model) =>
+                model.name.startsWith('models/text-embedding-') ||
+                model.name.startsWith('models/embedding-'),
+          )
+          .map((model) {
+            return embedderMetadata('googleai/${model.name.split('/').last}');
+          })
+          .toList();
+      return [...models, ...embedders];
     } finally {
       service.close();
     }
@@ -80,10 +90,16 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
 
   @override
   Action? resolve(String actionType, String name) {
-    if (name.contains('-tts')) {
-      return _createModel(name, GeminiTtsOptions.$schema);
+    if (actionType == 'embedder') {
+      return _createEmbedder(name);
     }
-    return _createModel(name, GeminiOptions.$schema);
+    if (actionType == 'model') {
+      if (name.contains('-tts')) {
+        return _createModel(name, GeminiTtsOptions.$schema);
+      }
+      return _createModel(name, GeminiOptions.$schema);
+    }
+    return null;
   }
 
   Model _createModel(String modelName, SchemanticType customOptions) {
@@ -214,7 +230,85 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     );
   }
 
+  Embedder _createEmbedder(String name) {
+    return Embedder(
+      name: 'googleai/$name',
+      fn: (req, ctx) async {
+        final service = gcl.GenerativeService.fromApiKey(apiKey);
+        try {
+          // Batch embedding not yet supported in this veneer, iterating.
+          // TODO: Use batchEmbedContents when available/exposed if needed for performance.
+          // Note: The veneer (EmbedRequest) takes a list of documents.
+          // gcl.EmbedContentRequest takes one content.
+          // gcl.BatchEmbedContentsRequest takes a list of requests.
+
+          final options = req?.options != null
+              ? TextEmbedderOptions.fromJson(req!.options!)
+              : null;
+
+          if (req!.input.length == 1) {
+            final doc = req.input.first;
+            final text = doc.content
+                .whereType<TextPart>()
+                .map((p) => p.text)
+                .join('\n');
+            final content = gcl.Content(parts: [gcl.Part(text: text)]);
+            final res = await service.embedContent(
+              gcl.EmbedContentRequest(
+                model: 'models/$name',
+                content: content,
+                outputDimensionality: options?.outputDimensionality,
+                taskType: options?.taskType != null
+                    ? gcl.TaskType(options!.taskType!)
+                    : null,
+                title: options?.title,
+              ),
+            );
+            return EmbedResponse(
+              embeddings: [
+                Embedding(
+                  embedding: res.embedding!.values,
+                  // TODO: Metadata?
+                ),
+              ],
+            );
+          } else {
+            // Use batch embed logic (iteratively for now)
+            final futures = req.input.map((doc) async {
+              final text = doc.content
+                  .whereType<TextPart>()
+                  .map((p) => p.text)
+                  .join('\n');
+              final content = gcl.Content(parts: [gcl.Part(text: text)]);
+              final res = await service.embedContent(
+                gcl.EmbedContentRequest(
+                  model: 'models/$name',
+                  content: content,
+                  outputDimensionality: options?.outputDimensionality,
+                  taskType: options?.taskType != null
+                      ? gcl.TaskType(options!.taskType!)
+                      : null,
+                  title: options?.title,
+                ),
+              );
+              return Embedding(
+                embedding: res.embedding!.values,
+              );
+            });
+            final embeddings = await Future.wait(futures);
+            return EmbedResponse(embeddings: embeddings);
+          }
+        } catch (e, stack) {
+          throw _handleException(e, stack);
+        } finally {
+          service.close();
+        }
+      },
+    );
+  }
+
   GenkitException _handleException(Object e, StackTrace stack) {
+
     if (e is GenkitException) return e;
 
     // Check for common HTTP status codes if the exception has them
