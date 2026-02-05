@@ -24,7 +24,7 @@ void main() async {
 
 ```dart
 final response = await ai.generate(
-  model: anthropic.claude('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-4-5'),
   prompt: 'Tell me a joke about a developer.',
 );
 print(response.text);
@@ -34,7 +34,7 @@ print(response.text);
 
 ```dart
 final stream = ai.generateStream(
-  model: anthropic.claude('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-4-5'),
   prompt: 'Count to 5',
 );
 
@@ -70,7 +70,7 @@ ai.defineTool(
 );
 
 final response = await ai.generate(
-  model: anthropic.claude('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-4-5'),
   prompt: 'What is 123 * 456?',
   tools: ['calculator'],
 );
@@ -82,7 +82,7 @@ print(response.text);
 
 ```dart
 final response = await ai.generate(
-  model: anthropic.claude('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-4-5'),
   prompt: 'Solve this 24 game: 2, 3, 10, 10',
   config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
 );
@@ -103,7 +103,7 @@ abstract class $Person {
 // ... inside main ...
 
 final response = await ai.generate(
-  model: anthropic.claude('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-4-5'),
   prompt: 'Generate a person named John Doe, age 30',
   outputSchema: Person.$schema,
 );

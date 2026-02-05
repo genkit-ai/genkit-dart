@@ -34,7 +34,7 @@ void main(List<String> args) {
     outputSchema: stringSchema(),
     fn: (input, context) async {
       final response = await ai.generate(
-        model: anthropic.claude('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-4-5'),
         prompt: input,
       );
       return response.text;
@@ -49,7 +49,7 @@ void main(List<String> args) {
     streamSchema: stringSchema(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
-        model: anthropic.claude('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-4-5'),
         prompt: input,
       );
 
@@ -77,7 +77,7 @@ void main(List<String> args) {
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
-        model: anthropic.claude('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-4-5'),
         prompt: prompt,
         tools: ['calculator'],
       );
@@ -94,7 +94,7 @@ void main(List<String> args) {
     fn: (prompt, ctx) async {
       final response = await ai.generate(
         // Assuming a model that supports thinking is available or aliased
-        model: anthropic.claude('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-4-5'),
         prompt: prompt,
         onChunk: ctx.sendChunk,
         config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
@@ -115,7 +115,7 @@ void main(List<String> args) {
     streamSchema: Person.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        model: anthropic.claude('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-4-5'),
         prompt: prompt,
         outputSchema: Person.$schema,
         onChunk: (chunk) {
