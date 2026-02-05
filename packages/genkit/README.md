@@ -74,6 +74,21 @@ await for (final chunk in stream) {
 }
 ```
 
+### Embed Text
+
+Turn text into vector embeddings for search and retrieval tasks:
+
+```dart
+final embeddings = await ai.embedMany(
+  documents: [
+    DocumentData(content: [TextPart(text: 'Hello world')]),
+  ],
+  embedder: googleAI.textEmbedding('text-embedding-004'),
+);
+
+print(embeddings.first.embedding);
+```
+
 ### Define Tools
 
 Give models the ability to take actions and access external data:

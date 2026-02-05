@@ -93,4 +93,7 @@ const _allowlist = {
   'DocumentData',
   'GenerateActionOptions',
   'GenerateActionOutputConfig',
+  'EmbedRequest',
+  'EmbedResponse',
+  'Embedding',
 };
