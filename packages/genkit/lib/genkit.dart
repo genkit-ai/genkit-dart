@@ -53,7 +53,7 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         defineMiddleware,
         middlewareRef;
 export 'package:genkit/src/ai/middleware/retry.dart'
-    show RetryMiddleware, RetryOptions, retry, retryMiddleware;
+    show RetryMiddleware, RetryMiddlewareImpl, RetryOptions, retry;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;

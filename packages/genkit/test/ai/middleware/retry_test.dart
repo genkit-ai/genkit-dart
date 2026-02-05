@@ -20,7 +20,7 @@ void main() {
     late Genkit genkit;
 
     setUp(() {
-      genkit = Genkit(isDevEnv: false);
+      genkit = Genkit(isDevEnv: false, plugins: [RetryMiddleware()]);
     });
 
     tearDown(() async {
@@ -29,13 +29,6 @@ void main() {
 
     test('should retry on failure up to maxRetries', () async {
       var attempts = 0;
-      final mw = RetryMiddleware(
-        maxRetries: 3,
-        initialDelayMs: 1,
-        maxDelayMs: 5,
-        noJitter: true,
-      );
-
       genkit.defineModel(
         name: 'fail-model',
         fn: (req, ctx) async {
@@ -51,7 +44,14 @@ void main() {
         await genkit.generate(
           model: modelRef('fail-model'),
           prompt: 'test',
-          use: [mw],
+          use: [
+            retry(
+              maxRetries: 3,
+              initialDelayMs: 1,
+              maxDelayMs: 5,
+              noJitter: true,
+            ),
+          ],
         );
       } catch (e) {
         // Expected
@@ -63,12 +63,6 @@ void main() {
 
     test('should succeed if retry succeeds', () async {
       var attempts = 0;
-      final mw = RetryMiddleware(
-        maxRetries: 3,
-        initialDelayMs: 1,
-        maxDelayMs: 5,
-        noJitter: true,
-      );
 
       genkit.defineModel(
         name: 'flakey-model',
@@ -93,7 +87,14 @@ void main() {
       final result = await genkit.generate(
         model: modelRef('flakey-model'),
         prompt: 'test',
-        use: [mw],
+        use: [
+          retry(
+            maxRetries: 3,
+            initialDelayMs: 1,
+            maxDelayMs: 5,
+            noJitter: true,
+          ),
+        ],
       );
 
       expect(attempts, 3);
@@ -102,7 +103,7 @@ void main() {
 
     test('should NOT retry on unknown status if not in allowed list', () async {
       var attempts = 0;
-      final mw = RetryMiddleware(
+      final mw = retry(
         maxRetries: 3,
         initialDelayMs: 1,
         maxDelayMs: 5,
@@ -137,7 +138,7 @@ void main() {
     test('should call onError callback', () async {
       var errors = <Object>[];
       var attemptsInCallback = <int>[];
-      final mw = RetryMiddleware(
+      final mw = RetryMiddlewareImpl(
         maxRetries: 2,
         initialDelayMs: 1,
         noJitter: true,
@@ -171,7 +172,7 @@ void main() {
 
     test('should stop retry if onError returns false', () async {
       var attempts = 0;
-      final mw = RetryMiddleware(
+      final mw = RetryMiddlewareImpl(
         maxRetries: 5,
         initialDelayMs: 1,
         noJitter: true,
@@ -215,7 +216,7 @@ void main() {
     });
     test('should NOT retry model if retryModel is false', () async {
       var attempts = 0;
-      final mw = RetryMiddleware(
+      final mw = retry(
         maxRetries: 3,
         initialDelayMs: 1,
         noJitter: true,
@@ -249,7 +250,7 @@ void main() {
 
     test('should retry tools if retryTools is true', () async {
       var attempts = 0;
-      final mw = RetryMiddleware(
+      final mw = retry(
         maxRetries: 3,
         initialDelayMs: 1,
         noJitter: true,
@@ -314,7 +315,7 @@ void main() {
     });
     test('should use default statuses if statuses is empty', () async {
       var attempts = 0;
-      final mw = RetryMiddleware(
+      final mw = retry(
         maxRetries: 3,
         initialDelayMs: 1,
         noJitter: true,
@@ -344,6 +345,36 @@ void main() {
 
       // Should retry: 1 + 3 = 4
       expect(attempts, 4);
+    });
+
+    test('should resolve registered RetryMiddleware via retry() ref', () async {
+      var attempts = 0;
+
+      genkit.defineModel(
+        name: 'ref-fail-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException(
+            'Simulated Failure',
+            status: StatusCodes.UNAVAILABLE,
+          );
+        },
+      );
+
+      try {
+        await genkit.generate(
+          model: modelRef('ref-fail-model'),
+          prompt: 'test',
+          use: [
+            retry(maxRetries: 2, initialDelayMs: 1, noJitter: true),
+          ],
+        );
+      } catch (e) {
+        // Expected
+      }
+
+      // Should retry: 1 + 2 = 3
+      expect(attempts, 3);
     });
   });
 }
