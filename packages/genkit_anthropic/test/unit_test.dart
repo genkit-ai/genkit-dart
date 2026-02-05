@@ -14,13 +14,13 @@ void main() {
       expect(result.role, anthropic.MessageRole.user);
       final content = result.content;
       // Accessing .blocks directly as seen in plugin_impl.dart
-      expect(content.blocks.first, isA<anthropic.Block>()); 
+      expect(content.blocks.first, isA<anthropic.Block>());
       final block = content.blocks.first;
       block.map(
         text: (b) => expect(b.type, 'text'),
         toolUse: (_) => fail('Should be text'),
         thinking: (_) => fail('Should be text'),
-        toolResult: (_) => fail('Should be text'), 
+        toolResult: (_) => fail('Should be text'),
         image: (_) => fail('Should be text'),
         redactedThinking: (_) => fail('Should be text'),
         codeExecutionToolResult: (_) => fail('Should be text'),
