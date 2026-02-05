@@ -56,7 +56,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
       return response.data
           .map(
             (m) => modelMetadata(
-              'anthropic/${m.displayName}',
+              'anthropic/${m.id}',
               customOptions: AnthropicOptions.$schema,
             ),
           )
