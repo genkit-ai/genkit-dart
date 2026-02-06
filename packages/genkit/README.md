@@ -155,7 +155,7 @@ final streamStory = ai.defineFlow(
   fn: (topic, context) async {
     final stream = ai.generateStream(
       model: googleAI.gemini('gemini-2.5-flash'),
-      prompt: 'Write a story about $topic',
+      prompt: 'Write a story about: $topic',
     );
 
     await for (final chunk in stream) {
