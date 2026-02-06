@@ -45,14 +45,14 @@ void main() {
         name: toolName,
         description: 'Get weather',
         inputSchema: MyToolInput.$schema,
-        fn: (input, context) async {
+        function: (input, context) async {
           return 'Sunny in ${input.location}';
         },
       );
 
       genkit.defineBidiModel(
         name: modelName,
-        fn: (input, context) async {
+        function: (input, context) async {
           await for (final request in input) {
             final msg = request.messages.first;
             if (msg.role == Role.tool) {
@@ -96,7 +96,7 @@ void main() {
 
       final session = await genkit.generateBidi(
         model: modelName,
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       final outputs = <String>[];
@@ -123,7 +123,7 @@ void main() {
 
       genkit.defineBidiModel(
         name: modelName,
-        fn: (input, context) async {
+        function: (input, context) async {
           final systemMsg = context.init!.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;

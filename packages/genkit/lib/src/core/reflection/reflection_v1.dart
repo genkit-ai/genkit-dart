@@ -18,6 +18,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../../genkit.dart';
 import '../../exception.dart';
 import '../../schema.dart';
 import '../../utils.dart';
@@ -134,9 +135,9 @@ class ReflectionServerV1 {
         'description': action.metadata['description'],
         'metadata': action.metadata,
         if (action.inputSchema != null)
-          'inputSchema': toJsonSchema(type: action.inputSchema),
+          'inputSchema': toJsonSchema(type: action.inputSchema!),
         if (action.outputSchema != null)
-          'outputSchema': toJsonSchema(type: action.outputSchema),
+          'outputSchema': toJsonSchema(type: action.outputSchema!),
       };
     }
     request.response
@@ -160,7 +161,7 @@ class ReflectionServerV1 {
       return;
     }
     final action = await registry.lookupAction(
-      parts[1],
+      ActionType.fromString(parts[1]),
       parts.sublist(2).join('/'),
     );
 

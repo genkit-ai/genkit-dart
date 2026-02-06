@@ -24,5 +24,5 @@ class Flow<Input, Output, Chunk, Init>
     super.streamSchema,
     super.initSchema,
     super.metadata,
-  }) : super(actionType: 'flow');
+  }) : super(actionType: ActionType.flow);
 }

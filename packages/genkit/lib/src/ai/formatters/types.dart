@@ -36,10 +36,10 @@ class FormatterHandlerResult<O> {
 
 /// A formatter defines how to configure a generation request and parse the response
 /// for a specific output format.
-class Formatter<O> {
+class Formatter<Output> {
   final String name;
   final GenerateActionOutputConfig config;
-  final FormatterHandlerResult<O> Function(Map<String, dynamic>? schema)
+  final FormatterHandlerResult<Output> Function(Map<String, dynamic>? schema)
   handler;
 
   Formatter({required this.name, required this.config, required this.handler});

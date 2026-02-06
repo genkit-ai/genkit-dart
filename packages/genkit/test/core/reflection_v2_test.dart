@@ -70,7 +70,7 @@ void main() {
 
     test('should handle listActions', () async {
       final testAction = Action(
-        actionType: 'custom',
+        actionType: ActionType.custom,
         inputSchema: mapSchema(stringSchema(), stringSchema()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
@@ -110,7 +110,7 @@ void main() {
 
     test('should handle runAction', () async {
       final testAction = Action(
-        actionType: 'custom',
+        actionType: ActionType.custom,
         inputSchema: mapSchema(stringSchema(), stringSchema()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
@@ -152,7 +152,7 @@ void main() {
 
     test('should handle streaming runAction', () async {
       final streamAction = Action(
-        actionType: 'custom',
+        actionType: ActionType.custom,
         name: 'streamAction',
         streamSchema: stringSchema(),
         fn: (input, context) async {

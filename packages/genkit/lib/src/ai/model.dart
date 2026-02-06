@@ -18,27 +18,21 @@ import '../core/action.dart';
 import '../schema.dart';
 import '../types.dart';
 
-ModelRef<C> modelRef<C>(String name, {SchemanticType<C>? customOptions}) {
-  return _ModelRef<C>(name, customOptions);
-}
+ModelReference<C> modelRef<C>(
+  String name, {
+  SchemanticType<C>? customOptions,
+}) => ModelReference<C>._(name, customOptions);
 
-abstract class ModelRef<C> {
-  String get name;
-  SchemanticType<C>? get customOptions;
-}
-
-class _ModelRef<C> implements ModelRef<C> {
-  @override
+final class ModelReference<C> {
   final String name;
-  @override
   final SchemanticType<C>? customOptions;
 
-  _ModelRef(this.name, this.customOptions);
+  ModelReference._(this.name, this.customOptions);
 }
 
-class Model<C>
+base class Model<C>
     extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
-    implements ModelRef<C> {
+    implements ModelReference<C> {
   @override
   SchemanticType<C>? customOptions;
 
@@ -48,7 +42,7 @@ class Model<C>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'model',
+         actionType: ActionType.model,
          inputSchema: ModelRequest.$schema,
          outputSchema: ModelResponse.$schema,
          streamSchema: ModelResponseChunk.$schema,
@@ -65,7 +59,7 @@ class Model<C>
     }
     if (customOptions != null) {
       model['customOptions'] = toJsonSchema(
-        type: customOptions,
+        type: customOptions!,
         useRefs: false,
       );
     }
@@ -75,12 +69,12 @@ class Model<C>
 ActionMetadata modelMetadata(
   String name, {
   ModelInfo? modelInfo,
-  SchemanticType<dynamic>? customOptions,
+  SchemanticType<Object>? customOptions,
 }) {
   return ActionMetadata(
     name: name,
     description: name,
-    actionType: 'model',
+    actionType: ActionType.model,
     metadata: {
       'label': name,
       'description': name,
@@ -108,25 +102,16 @@ ActionMetadata modelMetadata(
 BidiModelRef<C> bidiModelRef<C>(
   String name, {
   SchemanticType<C>? customOptions,
-}) {
-  return _BidiModelRef<C>(name, customOptions);
-}
+}) => BidiModelRef<C>._(name, customOptions);
 
-abstract class BidiModelRef<C> {
-  String get name;
-  SchemanticType<C>? get customOptions;
-}
-
-class _BidiModelRef<C> implements BidiModelRef<C> {
-  @override
+final class BidiModelRef<C> {
   final String name;
-  @override
   final SchemanticType<C>? customOptions;
 
-  _BidiModelRef(this.name, this.customOptions);
+  const BidiModelRef._(this.name, this.customOptions);
 }
 
-class BidiModel<C>
+final class BidiModel<C>
     extends
         Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
     implements BidiModelRef<C> {
@@ -139,7 +124,7 @@ class BidiModel<C>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'bidi-model',
+         actionType: ActionType.bidiModel,
          inputSchema: ModelRequest.$schema,
          initSchema: ModelRequest.$schema,
          outputSchema: ModelResponse.$schema,
@@ -150,7 +135,7 @@ class BidiModel<C>
         (metadata['model'] ??= <String, dynamic>{}) as Map<String, dynamic>;
     model['label'] = name;
     if (customOptions != null) {
-      model['customOptions'] = toJsonSchema(type: customOptions);
+      model['customOptions'] = toJsonSchema(type: customOptions!);
     }
   }
 }

@@ -34,7 +34,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -56,7 +56,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: mapSchema(stringSchema(), dynamicSchema()),
-        fn: (input, context) async {
+        function: (input, context) async {
           context.interrupt('CONFIRM_ME');
         },
       );
@@ -64,7 +64,7 @@ void main() {
       final response = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'trigger interrupt',
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       expect(response.finishReason, FinishReason.interrupted);
@@ -91,7 +91,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           modelCallCount++;
           // If it's the resume call (history has tool response)
           if (request.messages.last.role == Role.tool) {
@@ -125,7 +125,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: mapSchema(stringSchema(), dynamicSchema()),
-        fn: (input, context) async {
+        function: (input, context) async {
           context.interrupt('CONFIRM_ME');
         },
       );
@@ -133,7 +133,7 @@ void main() {
       final response1 = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'trigger interrupt',
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       expect(response1.finishReason, FinishReason.interrupted);
@@ -151,7 +151,7 @@ void main() {
       final response2 = await genkit.generate(
         model: modelRef(modelName),
         messages: history,
-        tools: [toolName],
+        toolNames: [toolName],
         resume: [
           InterruptResponse(
             response1.message!.content.first.toolRequestPart!,
@@ -192,7 +192,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -214,19 +214,19 @@ void main() {
         name: toolSafe,
         description: 'Safe',
         inputSchema: mapSchema(stringSchema(), dynamicSchema()),
-        fn: (_, _) async => 'SafeOutput',
+        function: (_, _) async => 'SafeOutput',
       );
       genkit.defineTool(
         name: toolInterrupt,
         description: 'Interrupted',
         inputSchema: mapSchema(stringSchema(), dynamicSchema()),
-        fn: (_, c) async => c.interrupt('STOP'),
+        function: (_, c) async => c.interrupt('STOP'),
       );
 
       final response = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'go',
-        tools: [toolSafe, toolInterrupt],
+        toolNames: [toolSafe, toolInterrupt],
       );
 
       expect(response.finishReason, FinishReason.interrupted);

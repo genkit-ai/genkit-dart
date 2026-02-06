@@ -34,7 +34,7 @@ abstract class $AgentAskUserInput {
 
 Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   // A tool for the agent to search the web
   final searchWeb = ai.defineTool(
@@ -42,7 +42,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     description: 'Search the web for information on a given topic.',
     inputSchema: AgentSearchInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       // In a real app, you would implement a web search API call here.
       return 'You found search results for: ${input.query}';
     },
@@ -54,7 +54,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     description: 'Ask the user a clarifying question.',
     inputSchema: AgentAskUserInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, context) async {
+    function: (input, context) async {
       // Interrupt execution to get user input
       context.interrupt(input.question);
     },
@@ -64,7 +64,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     name: 'researchAgent',
     inputSchema: ResearchAgentInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       var response = await ai.generate(
         model: geminiFlash,
         messages: [
@@ -87,7 +87,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
             ],
           ),
         ],
-        tools: [searchWeb.name, askUser.name],
+        toolNames: [searchWeb.name, askUser.name],
       );
 
       // Handle interrupts loop
@@ -126,7 +126,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
         response = await ai.generate(
           model: geminiFlash,
           messages: [...response.messages, response.message!],
-          tools: [searchWeb.name, askUser.name],
+          toolNames: [searchWeb.name, askUser.name],
           resume: resumeResponses,
         );
       }

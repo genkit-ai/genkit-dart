@@ -34,7 +34,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           // If first turn, return tool request
           if (request.messages.length == 1) {
             context.sendChunk(
@@ -93,7 +93,7 @@ void main() {
         name: toolName,
         description: 'A test tool',
         inputSchema: mapSchema(stringSchema(), dynamicSchema()),
-        fn: (input, context) async {
+        function: (input, context) async {
           return 'tool output';
         },
       );
@@ -102,7 +102,7 @@ void main() {
       await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Start',
-        tools: [toolName],
+        toolNames: [toolName],
         onChunk: chunks.add,
       );
 

@@ -37,13 +37,13 @@ Future<void> _saveHistory(String sessionId, List<Message> history) async {
 
 Flow<StatefulChatInput, String, void, void> defineStatefulChatFlow(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   return ai.defineFlow(
     name: 'statefulChatFlow',
     inputSchema: StatefulChatInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       // 1. Load history
       final history = await _loadHistory(input.sessionId);
 

@@ -76,6 +76,11 @@ abstract class $LiveGenerationConfig {
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
 
+const firebaseModelGemini25Flash = 'gemini-2.5-flash';
+const firebaseModelGemini25Pro = 'gemini-2.5-pro';
+const firebaseModelGemini25FlashNativeAudioPreview =
+    'gemini-2.5-flash-native-audio-preview-12-2025';
+
 class FirebaseGenAiPluginHandle {
   const FirebaseGenAiPluginHandle();
 
@@ -86,7 +91,7 @@ class FirebaseGenAiPluginHandle {
   /// Ref to a model in the Firebase AI plugin.
   ///
   /// The [name] is the model name, e.g. 'gemini-2.5-flash'.
-  ModelRef<GeminiOptions> gemini(String name) {
+  ModelReference<GeminiOptions> gemini(String name) {
     return modelRef('firebaseai/$name', customOptions: GeminiOptions.$schema);
   }
 }
@@ -100,17 +105,19 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     return [
-      _createModel('gemini-2.5-flash'),
-      _createModel('gemini-2.5-pro'),
-      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
+      _createModel(firebaseModelGemini25Flash),
+      _createModel(firebaseModelGemini25Pro),
+      _createBidiModel(firebaseModelGemini25FlashNativeAudioPreview),
     ];
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'model') return _createModel(name);
-    if (actionType == 'bidi-model') return _createBidiModel(name);
-    return null;
+  Action? resolve(ActionType actionType, String name) {
+    return switch (actionType) {
+      ActionType.model => _createModel(name),
+      ActionType.bidiModel => _createBidiModel(name),
+      _ => null,
+    };
   }
 
   Model _createModel(String modelName) {
@@ -335,11 +342,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 }
 
 @visibleForTesting
-Iterable<m.Content> toGeminiContent(List<Message> messages) {
-  return messages.map(
-    (msg) => m.Content(msg.role.value, msg.content.map(toGeminiPart).toList()),
-  );
-}
+Iterable<m.Content> toGeminiContent(List<Message> messages) => messages.map(
+  (msg) => m.Content(msg.role.value, msg.content.map(toGeminiPart).toList()),
+);
 
 @visibleForTesting
 m.Part toGeminiPart(Part p) {
@@ -393,26 +398,20 @@ m.Part toGeminiPart(Part p) {
 }
 
 @visibleForTesting
-@visibleForTesting
 Part fromGeminiPart(m.Part p) {
-  if (p is m.TextPart) {
-    return TextPart(text: p.text);
-  }
-  if (p is m.FunctionCall) {
-    return ToolRequestPart(
-      toolRequest: ToolRequest(name: p.name, input: p.args),
-    );
-  }
-  if (p is m.InlineDataPart) {
-    final base64 = base64Encode(p.bytes);
-    return MediaPart(
+  return switch (p) {
+    m.TextPart() => TextPart(text: p.text),
+    m.InlineDataPart() => MediaPart(
       media: Media(
-        url: 'data:${p.mimeType};base64,$base64',
+        url: 'data:${p.mimeType};base64,${base64Encode(p.bytes)}',
         contentType: p.mimeType,
       ),
-    );
-  }
-  throw UnimplementedError('Part type $p not supported yet in response');
+    ),
+    m.FunctionCall() => ToolRequestPart(
+      toolRequest: ToolRequest(name: p.name, input: p.args),
+    ),
+    _ => throw UnimplementedError('Part type $p not supported yet in response'),
+  };
 }
 
 ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
@@ -433,9 +432,10 @@ m.Tool toGeminiTool(ToolDefinition tool) {
   final schemaMap = tool.inputSchema;
   final propertiesMap = schemaMap?['properties'] as Map<String, dynamic>? ?? {};
 
-  final parameters = propertiesMap.map((key, value) {
-    return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
-  });
+  final parameters = propertiesMap.map(
+    (key, value) =>
+        MapEntry(key, toGeminiSchema(value as Map<String, dynamic>)),
+  );
 
   return m.Tool.functionDeclarations([
     m.FunctionDeclaration(tool.name, tool.description, parameters: parameters),
@@ -455,33 +455,27 @@ m.Schema toGeminiSchema(Map<String, dynamic> json) {
     typeStr = type;
   }
 
-  switch (typeStr) {
-    case 'string':
-      return m.Schema.string(description: description, nullable: nullable);
-    case 'number':
-      return m.Schema.number(description: description, nullable: nullable);
-    case 'integer':
-      return m.Schema.integer(description: description, nullable: nullable);
-    case 'boolean':
-      return m.Schema.boolean(description: description, nullable: nullable);
-    case 'array':
-      return m.Schema.array(
-        description: description,
-        nullable: nullable,
-        items: json['items'] != null
-            ? toGeminiSchema(json['items'] as Map<String, dynamic>)
-            : m.Schema.string(),
-      );
-    case 'object':
-      final properties = (json['properties'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, toGeminiSchema(v as Map<String, dynamic>)),
-      );
-      return m.Schema.object(
-        properties: properties ?? {},
-        description: description,
-        nullable: nullable,
-      );
-    default:
-      return m.Schema.string(description: description, nullable: nullable);
-  }
+  return switch (typeStr) {
+    'string' => m.Schema.string(description: description, nullable: nullable),
+    'number' => m.Schema.number(description: description, nullable: nullable),
+    'integer' => m.Schema.integer(description: description, nullable: nullable),
+    'boolean' => m.Schema.boolean(description: description, nullable: nullable),
+    'array' => m.Schema.array(
+      description: description,
+      nullable: nullable,
+      items: json['items'] != null
+          ? toGeminiSchema(json['items'] as Map<String, dynamic>)
+          : m.Schema.string(),
+    ),
+    'object' => m.Schema.object(
+      properties:
+          (json['properties'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, toGeminiSchema(v as Map<String, dynamic>)),
+          ) ??
+          {},
+      description: description,
+      nullable: nullable,
+    ),
+    _ => m.Schema.string(description: description, nullable: nullable),
+  };
 }

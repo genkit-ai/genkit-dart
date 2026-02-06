@@ -45,7 +45,7 @@ class RetryPlugin extends GenkitPlugin {
   String get name => 'retry';
 
   @override
-  List<GenerateMiddlewareDef> middleware() => [
+  List<GenerateMiddlewareDef<RetryOptions>> middleware() => [
     defineMiddleware<RetryOptions>(
       name: 'retry',
       configSchema: RetryOptions.$schema,
@@ -72,21 +72,19 @@ GenerateMiddlewareRef<RetryOptions> retry({
   bool? noJitter,
   bool? retryModel,
   bool? retryTools,
-}) {
-  return middlewareRef(
-    name: 'retry',
-    config: RetryOptions(
-      maxRetries: maxRetries,
-      statuses: statuses,
-      initialDelayMs: initialDelayMs,
-      maxDelayMs: maxDelayMs,
-      backoffFactor: backoffFactor,
-      noJitter: noJitter,
-      retryModel: retryModel,
-      retryTools: retryTools,
-    ),
-  );
-}
+}) => middlewareRef(
+  name: 'retry',
+  config: RetryOptions(
+    maxRetries: maxRetries,
+    statuses: statuses,
+    initialDelayMs: initialDelayMs,
+    maxDelayMs: maxDelayMs,
+    backoffFactor: backoffFactor,
+    noJitter: noJitter,
+    retryModel: retryModel,
+    retryTools: retryTools,
+  ),
+);
 
 /// A middleware that retries model and tool requests on failure.
 ///
@@ -152,10 +150,10 @@ class RetryMiddleware extends GenerateMiddleware {
   @override
   Future<ModelResponse> model(
     ModelRequest request,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     Future<ModelResponse> Function(
       ModelRequest request,
-      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     )
     next,
   ) {
@@ -168,10 +166,10 @@ class RetryMiddleware extends GenerateMiddleware {
   @override
   Future<ToolResponse> tool(
     ToolRequest request,
-    ActionFnArg<void, dynamic, void> ctx,
+    FunctionContext<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
       ToolRequest request,
-      ActionFnArg<void, dynamic, void> ctx,
+      FunctionContext<void, dynamic, void> ctx,
     )
     next,
   ) {

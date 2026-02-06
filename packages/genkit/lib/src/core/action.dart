@@ -23,30 +23,32 @@ const _genkitContextKey = #genkitContext;
 
 typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
 
-typedef ActionFnArg<Chunk, Input, Init> = ({
-  bool streamingRequested,
-  StreamingCallback<Chunk> sendChunk,
-  Map<String, dynamic>? context,
-  Stream<Input>? inputStream,
-  Init? init,
-});
+class FunctionContext<Chunk, Input, Init> {
+  final bool streamingRequested;
+  final StreamingCallback<Chunk> sendChunk;
+  final Map<String, dynamic>? context;
+  final Stream<Input>? inputStream;
+  final Init? init;
 
-typedef ActionFn<Input, Output, Chunk, Init> =
+  const FunctionContext({
+    required this.streamingRequested,
+    required this.sendChunk,
+    this.context,
+    this.inputStream,
+    this.init,
+  });
+}
+
+typedef ActionFunction<Input, Output, Chunk, Init> =
     Future<Output> Function(
       Input input,
-      ActionFnArg<Chunk, Input, Init> context,
+      FunctionContext<Chunk, Input, Init> context,
     );
 
-typedef BidiActionFn<Input, Output, Chunk, Init> =
+typedef BidiActionFunction<Input, Output, Chunk, Init> =
     Future<Output> Function(
       Stream<Input> inputStream,
-      ActionFnArg<Chunk, Input, Init> context,
-    );
-
-typedef InternalActionFn<Input, Output, Chunk, Init> =
-    Future<Output> Function(
-      Input? input,
-      ActionFnArg<Chunk, Input, Init> context,
+      FunctionContext<Chunk, Input, Init> context,
     );
 
 class RunResult<Output> {
@@ -68,7 +70,7 @@ class RunResult<Output> {
 class ActionMetadata<Input, Output, Chunk, Init> {
   final String name;
   final String? description;
-  final String actionType;
+  final ActionType actionType;
   final SchemanticType<Input>? inputSchema;
   final SchemanticType<Output>? outputSchema;
   final SchemanticType<Chunk>? streamSchema;
@@ -77,7 +79,7 @@ class ActionMetadata<Input, Output, Chunk, Init> {
 
   ActionMetadata({
     required this.name,
-    this.actionType = 'custom', // Default or required?
+    this.actionType = ActionType.custom, // Default or required?
     this.description,
     this.inputSchema,
     this.outputSchema,
@@ -98,9 +100,32 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   }
 }
 
+class ActionType {
+  final String value;
+
+  static const ActionType embedder = ActionType._('embedder');
+  static const ActionType flow = ActionType._('flow');
+  static const ActionType model = ActionType._('model');
+  static const ActionType tool = ActionType._('tool');
+  static const ActionType custom = ActionType._('custom');
+  static const ActionType unknown = ActionType._('unknown');
+  static const ActionType bidiModel = ActionType._('bidi-model');
+  static const ActionType util = ActionType._('util');
+  static const ActionType format = ActionType._('format');
+  static const ActionType middleware = ActionType._('middleware');
+
+  const ActionType._(this.value);
+
+  const ActionType.fromString(this.value);
+}
+
 class Action<Input, Output, Chunk, Init>
     extends ActionMetadata<Input, Output, Chunk, Init> {
-  final InternalActionFn<Input, Output, Chunk, Init> fn;
+  final Future<Output> Function(
+    Input? input,
+    FunctionContext<Chunk, Input, Init> context,
+  )
+  fn;
 
   Action({
     required super.name,
@@ -116,7 +141,7 @@ class Action<Input, Output, Chunk, Init>
 
   @override
   String toString() {
-    return 'Action(name: $name, actionType: $actionType)';
+    return 'Action(name: $name, actionType: ${actionType.value})';
   }
 
   Future<Output> call(
@@ -170,13 +195,16 @@ class Action<Input, Output, Chunk, Init>
         (telemetryContext) async {
           traceId = telemetryContext.traceId;
           spanId = telemetryContext.traceId;
-          return await fn(input, (
-            streamingRequested: onChunk != null,
-            sendChunk: onChunk ?? (chunk) {},
-            context: executionContext,
-            inputStream: inputStream,
-            init: init,
-          ));
+          return await fn(
+            input,
+            FunctionContext(
+              streamingRequested: onChunk != null,
+              sendChunk: onChunk ?? (chunk) {},
+              context: executionContext,
+              inputStream: inputStream,
+              init: init,
+            ),
+          );
         },
         actionType: actionType,
         input: input,

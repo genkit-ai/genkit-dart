@@ -14,28 +14,17 @@
 
 import 'package:genkit/genkit.dart';
 
-import 'src/model.dart';
+import 'genkit_google_genai.dart';
 import 'src/plugin_impl.dart';
 
 export 'src/model.dart';
 
-const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
+class GoogleAI extends GoogleAiPluginImpl {
+  GoogleAI({super.apiKey});
 
-class GoogleGenAiPluginHandle {
-  const GoogleGenAiPluginHandle();
+  static ModelReference<GeminiOptions> gemini(String name) =>
+      modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
 
-  GenkitPlugin call({String? apiKey}) {
-    return GoogleGenAiPluginImpl(apiKey: apiKey);
-  }
-
-  ModelRef<GeminiOptions> gemini(String name) {
-    return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
-  }
-
-  EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
-    return embedderRef(
-      'googleai/$name',
-      customOptions: TextEmbedderOptions.$schema,
-    );
-  }
+  static EmbedderRef<TextEmbedderOptions> textEmbedding(String name) =>
+      embedderRef('googleai/$name', customOptions: TextEmbedderOptions.$schema);
 }

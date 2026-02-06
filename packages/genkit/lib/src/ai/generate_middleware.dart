@@ -32,30 +32,26 @@ abstract class GenerateMiddleware {
   /// [next] is the function to call to proceed with the generation.
   Future<GenerateResponseHelper> generate(
     GenerateActionOptions options,
-    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResponseHelper> Function(
       GenerateActionOptions options,
-      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+      FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
     next,
-  ) {
-    return next(options, ctx);
-  }
+  ) => next(options, ctx);
 
   /// Middleware for the raw model call.
   ///
   /// Wraps the call to the model action.
   Future<ModelResponse> model(
     ModelRequest request,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     Future<ModelResponse> Function(
       ModelRequest request,
-      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     )
     next,
-  ) {
-    return next(request, ctx);
-  }
+  ) => next(request, ctx);
 
   /// Middleware for tool execution.
   ///
@@ -63,39 +59,25 @@ abstract class GenerateMiddleware {
   /// Input is dynamic because tools can have varied input schemas.
   Future<ToolResponse> tool(
     ToolRequest request,
-    ActionFnArg<void, dynamic, void> ctx,
+    FunctionContext<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
       ToolRequest request,
-      ActionFnArg<void, dynamic, void> ctx,
+      FunctionContext<void, dynamic, void> ctx,
     )
     next,
-  ) {
-    return next(request, ctx);
-  }
+  ) => next(request, ctx);
 }
 
-abstract interface class GenerateMiddlewareDef<C> {
-  String get name;
-  SchemanticType<C>? get configSchema;
-  Schema? get configJsonSchema;
-
-  GenerateMiddleware create([C? config]);
-}
-
-class _GenerateMiddlewareDef<C> implements GenerateMiddlewareDef<C> {
-  @override
+final class GenerateMiddlewareDef<C> {
   final String name;
-  @override
   final SchemanticType<C>? configSchema;
   final GenerateMiddleware Function([C? config]) _create;
 
-  _GenerateMiddlewareDef(this.name, this._create, this.configSchema);
-
-  @override
   Schema? get configJsonSchema => configSchema?.jsonSchema();
 
-  @override
   GenerateMiddleware create([C? config]) => _create(config);
+
+  GenerateMiddlewareDef._(this.name, this._create, this.configSchema);
 }
 
 GenerateMiddlewareDef<C> defineMiddleware<C>({
@@ -103,23 +85,16 @@ GenerateMiddlewareDef<C> defineMiddleware<C>({
   required GenerateMiddleware Function([C? config]) create,
   SchemanticType<C>? configSchema,
 }) {
-  return _GenerateMiddlewareDef<C>(name, create, configSchema);
+  return GenerateMiddlewareDef<C>._(name, create, configSchema);
 }
 
-abstract interface class GenerateMiddlewareRef<C> {
-  String get name;
-  C? get config;
-}
-
-class _GenerateMiddlewareRef<C> implements GenerateMiddlewareRef<C> {
-  @override
+final class GenerateMiddlewareRef<C> {
   final String name;
-  @override
   final C? config;
 
-  _GenerateMiddlewareRef(this.name, this.config);
+  const GenerateMiddlewareRef._(this.name, this.config);
 }
 
 GenerateMiddlewareRef<C> middlewareRef<C>({required String name, C? config}) {
-  return _GenerateMiddlewareRef<C>(name, config);
+  return GenerateMiddlewareRef<C>._(name, config);
 }

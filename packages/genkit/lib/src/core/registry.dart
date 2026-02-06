@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import '../../genkit.dart' show Flow;
+import '../ai/formatters/types.dart' show Formatter;
+import '../ai/generate_middleware.dart' show GenerateMiddlewareDef;
+import '../ai/model.dart' show BidiModel, Model;
+import '../ai/tool.dart' show Tool;
 import './action.dart';
 import './plugin.dart';
 
@@ -21,6 +26,7 @@ class Registry {
   final List<GenkitPlugin> _plugins = [];
   final Set<String> _initializedPlugins = {};
   final Registry? parent;
+  final ToolRegistry toolRegistry = ToolRegistry();
 
   Registry({this.parent});
 
@@ -48,16 +54,15 @@ class Registry {
     _plugins.add(plugin);
   }
 
-  String _getKey(String actionType, String name) {
-    return '/$actionType/$name';
-  }
+  String _getKey(ActionType actionType, String name) =>
+      '/${actionType.value}/$name';
 
-  void registerValue(String type, String name, dynamic value) {
+  void registerValue(ActionType type, String name, dynamic value) {
     final key = _getKey(type, name);
     _values[key] = value;
   }
 
-  T? lookupValue<T>(String type, String name) {
+  T? lookupValue<T>(ActionType type, String name) {
     final key = _getKey(type, name);
     if (_values.containsKey(key)) {
       return _values[key] as T?;
@@ -84,10 +89,16 @@ class Registry {
     _actions[key] = action;
   }
 
-  Future<Action?> lookupAction(String actionType, String name) async {
+  Future<T?> lookupAction<
+    T extends Action<Input, Output, Chunk, Init>,
+    Input,
+    Output,
+    Chunk,
+    Init
+  >(ActionType actionType, String name) async {
     final key = _getKey(actionType, name);
     if (_actions.containsKey(key)) {
-      return _actions[key];
+      return _actions[key] as T;
     }
     final parts = name.split('/');
     if (parts.length == 2) {
@@ -98,12 +109,12 @@ class Registry {
           await _ensurePluginInitialized(plugin);
           // The action might have been registered during init.
           if (_actions.containsKey(key)) {
-            return _actions[key];
+            return _actions[key] as T;
           }
           final action = plugin.resolve(actionType, resolvedActionName);
           if (action != null) {
             register(action);
-            return action;
+            return action as T;
           }
         }
       }
@@ -130,8 +141,46 @@ class Registry {
     }
     return allActions.values.toList();
   }
+
+  // First steps to replacing the action storage with individual storages
+
+  Formatter<Output>? lookUpFormatter<Output>(String name) =>
+      lookupValue(ActionType.format, name);
+
+  GenerateMiddlewareDef<C>? lookUpMiddleware<C>(String name) =>
+      lookupValue(ActionType.middleware, name);
+
+  Future<Action<Input, Output, Chunk, Init>?>
+  lookupEmbedder<Input, Output, Chunk, Init>(String name) async =>
+      lookupAction(ActionType.embedder, name);
+
+  Future<Model<C>?> lookUpModel<C>(String name) async =>
+      lookupAction(ActionType.model, name) as Model<C>;
+
+  Future<Tool<Input, Output>?> lookupTool<Input, Output>(
+    String toolName,
+  ) async => lookupAction(ActionType.tool, toolName) as Tool<Input, Output>?;
+
+  Future<BidiModel<C>?> lookUpBidiModel<C>(String name) async =>
+      lookupAction(ActionType.bidiModel, name) as BidiModel<C>?;
+
+  Future<Flow?> lookUpFlow<Input, Output, Chunk, Init>(String flowName) async =>
+      lookupAction(ActionType.flow, flowName)
+          as Flow<Input, Output, Chunk, Init>?;
+
+  void registerFormatter<T>(Formatter<T> formatter) {
+    _values[_getKey(ActionType.format, formatter.name)] = formatter;
+  }
+
+  void registerMiddleware(GenerateMiddlewareDef mw) {
+    _values[_getKey(ActionType.middleware, mw.name)] = mw;
+  }
 }
 
-String getKey(String actionType, String name) {
-  return '/$actionType/$name';
+class ToolRegistry {
+  void register(Tool<Object?, Object?> tool) {}
+}
+
+String getKey(ActionType actionType, String name) {
+  return '/${actionType.value}/$name';
 }

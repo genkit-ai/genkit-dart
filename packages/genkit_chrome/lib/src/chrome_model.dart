@@ -16,7 +16,7 @@ import 'dart:js_interop';
 import 'package:genkit/genkit.dart';
 import 'chrome_interop.dart';
 
-class ChromeModel extends Model<LanguageModelOptions> {
+base class ChromeModel extends Model<LanguageModelOptions> {
   ChromeModel({
     super.name = 'chrome/gemini-nano',
     LanguageModelOptions? options,
@@ -36,7 +36,7 @@ class ChromeModel extends Model<LanguageModelOptions> {
 
   static Future<ModelResponse> _processRequest(
     ModelRequest? req,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     LanguageModelOptions? defaultOptions,
   ) async {
     if (req == null) {

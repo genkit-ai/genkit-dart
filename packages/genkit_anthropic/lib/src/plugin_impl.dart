@@ -31,11 +31,11 @@ final commonModelInfo = ModelInfo(
   },
 );
 
-class AnthropicPluginImpl extends GenkitPlugin {
+class AnthropicPlugin extends GenkitPlugin {
   final String? apiKey;
   sdk.AnthropicClient? _client;
 
-  AnthropicPluginImpl({this.apiKey});
+  AnthropicPlugin({this.apiKey});
 
   @override
   String get name => 'anthropic';
@@ -69,17 +69,20 @@ class AnthropicPluginImpl extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType != 'model') return null;
+  Model<AnthropicOptions>? resolve(ActionType actionType, String name) {
+    if (actionType != ActionType.model) return null;
     return _createModel(name);
   }
 
-  Model _createModel(String modelName) {
+  Model<AnthropicOptions> _createModel(String modelName) {
     return _createModelWithClient(modelName, client);
   }
 
-  Model _createModelWithClient(String modelName, sdk.AnthropicClient client) {
-    return Model(
+  Model<AnthropicOptions> _createModelWithClient(
+    String modelName,
+    sdk.AnthropicClient client,
+  ) {
+    return Model<AnthropicOptions>(
       name: 'anthropic/$modelName',
       customOptions: AnthropicOptions.$schema,
       metadata: {'model': commonModelInfo.toJson()},

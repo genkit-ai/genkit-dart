@@ -44,7 +44,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           if (request.messages.last.role == Role.tool) {
             return ModelResponse(
               finishReason: FinishReason.stop,
@@ -75,7 +75,7 @@ void main() {
         name: tool1Name,
         description: 'Tool 1',
         inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
+        function: (input, context) async {
           tool1Called = true;
           return 'tool 1 output';
         },
@@ -85,7 +85,7 @@ void main() {
         name: tool2Name,
         description: 'Tool 2',
         inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
+        function: (input, context) async {
           tool2Called = true;
           return 'tool 2 output';
         },
@@ -94,7 +94,7 @@ void main() {
       await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Use a tool',
-        tools: [tool1Name, tool2Name],
+        toolNames: [tool1Name, tool2Name],
         toolChoice: tool1Name,
       );
 
@@ -108,7 +108,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           if (request.messages.last.role == Role.tool) {
             return ModelResponse(
               finishReason: FinishReason.stop,
@@ -162,7 +162,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           if (request.messages.last.role == Role.tool) {
             // Check if both called? No, just finish
             return ModelResponse(
@@ -201,7 +201,7 @@ void main() {
         name: registeredToolName,
         description: 'Registered Tool',
         inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
+        function: (input, context) async {
           registeredToolCalled = true;
           return 'reg output';
         },
@@ -220,7 +220,8 @@ void main() {
       await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Use tools',
-        tools: [registeredToolName, directTool],
+        tools: [directTool],
+        toolNames: [registeredToolName],
       );
 
       expect(registeredToolCalled, isTrue);
@@ -236,7 +237,7 @@ void main() {
 
         genkit.defineModel(
           name: modelName,
-          fn: (request, context) async {
+          function: (request, context) async {
             return ModelResponse(
               finishReason: FinishReason.stop,
               message: Message(
@@ -258,7 +259,7 @@ void main() {
           name: toolName,
           description: 'A test tool',
           inputSchema: TestToolInput.$schema,
-          fn: (input, context) async {
+          function: (input, context) async {
             toolCalled = true;
             return 'tool output';
           },
@@ -267,7 +268,7 @@ void main() {
         final result = await genkit.generate(
           model: modelRef(modelName),
           prompt: 'Use a tool',
-          tools: [toolName],
+          toolNames: [toolName],
           returnToolRequests: true,
         );
 
@@ -283,7 +284,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -305,7 +306,7 @@ void main() {
         name: toolName,
         description: 'A test tool',
         inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
+        function: (input, context) async {
           return 'tool output';
         },
       );
@@ -315,7 +316,7 @@ void main() {
           model: modelRef(modelName),
           prompt: 'Use a tool',
           // this tool causes an infinite tool call loop
-          tools: [toolName],
+          toolNames: [toolName],
           maxTurns: 5,
         ),
         throwsA(
@@ -334,7 +335,7 @@ void main() {
           model: modelRef(modelName),
           prompt: 'Use a tool',
           // this tool causes an infinite tool call loop
-          tools: [toolName],
+          toolNames: [toolName],
           // maxTurns is not specified, should still use default (5).
         ),
         throwsA(
@@ -353,7 +354,7 @@ void main() {
       const modelName = 'historyModel';
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(

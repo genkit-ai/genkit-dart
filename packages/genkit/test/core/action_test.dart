@@ -37,7 +37,7 @@ void main() {
   final processor = sdk.SimpleSpanProcessor(exporter);
   final provider = sdk.TracerProviderBase(processors: [processor]);
   api.registerGlobalTracerProvider(provider);
-
+  const actionType = ActionType.fromString('test');
   group('Action', () {
     setUp(exporter.reset);
 
@@ -46,7 +46,7 @@ void main() {
     test('should start and end a span when run', () async {
       final action = Action(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (input, context) async => 'output',
       );
 
@@ -60,7 +60,7 @@ void main() {
     test('should set attributes on the span', () async {
       final action = Action(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (input, context) async => 'output',
       );
 
@@ -69,7 +69,7 @@ void main() {
 
       expect(exporter.spans.length, 1);
       final span = exporter.spans[0];
-      expect(span.attributes.get('genkit:type'), 'test');
+      expect(span.attributes.get('genkit:type'), actionType);
       expect(span.attributes.get('genkit:name'), 'testAction');
       expect(span.attributes.get('genkit:input'), '"input"');
       expect(span.attributes.get('genkit:output'), '"output"');
@@ -78,7 +78,7 @@ void main() {
     test('should run a basic action', () async {
       final action = Action(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (String? input, context) async => 'output',
       );
 
@@ -89,7 +89,7 @@ void main() {
     test('should run an action with schema', () async {
       final action = Action(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         inputSchema: TestInput.$schema,
         outputSchema: TestOutput.$schema,
         fn: (TestInput? input, context) async {
@@ -104,7 +104,7 @@ void main() {
     test('should set attributes on the span with schema', () async {
       final action = Action(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         inputSchema: TestInput.$schema,
         outputSchema: TestOutput.$schema,
         fn: (TestInput? input, context) async {
@@ -117,7 +117,7 @@ void main() {
 
       expect(exporter.spans.length, 1);
       final span = exporter.spans[0];
-      expect(span.attributes.get('genkit:type'), 'test');
+      expect(span.attributes.get('genkit:type'), actionType);
       expect(span.attributes.get('genkit:name'), 'testAction');
       expect(span.attributes.get('genkit:input'), '{"name":"world"}');
       expect(
@@ -129,7 +129,7 @@ void main() {
     test('should stream an action', () async {
       final action = Action<String, String, String, void>(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (input, context) async {
           context.sendChunk('chunk1');
           context.sendChunk('chunk2');
@@ -148,7 +148,7 @@ void main() {
     test('should run an action with telemetry', () async {
       final action = Action(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (String? input, context) async => 'output',
       );
 
@@ -161,9 +161,9 @@ void main() {
     test('should run an action with provided context', () async {
       final action = Action(
         name: 'testAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (input, ctx) async {
-          return ctx.context!['value'];
+          return ctx.context!['value'] as Object?;
         },
       );
 
@@ -174,14 +174,14 @@ void main() {
     test('provided context should be available in a nested action', () async {
       final innerAction = Action(
         name: 'innerAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (input, ctx) async {
           return ctx.context!['value'];
         },
       );
       final outerAction = Action(
         name: 'outerAction',
-        actionType: 'test',
+        actionType: actionType,
         fn: (input, ctx) async {
           return await innerAction(input);
         },

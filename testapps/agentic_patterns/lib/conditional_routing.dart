@@ -30,13 +30,13 @@ abstract class $IntentClassification {
 
 Flow<RouterInput, String, void, void> defineRouterFlow(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   return ai.defineFlow(
     name: 'routerFlow',
     inputSchema: RouterInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       // Step 1: Classify the user's intent
       final intentResponse = await ai.generate(
         model: geminiFlash,

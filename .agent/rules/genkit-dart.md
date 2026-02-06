@@ -78,7 +78,7 @@ ai.defineFlow(
   name: 'my-flow',
   inputSchema: MyObj.$schema,
   outputSchema: stringSchema(),
-  fn: (input, _) async {
+  function: (input, _) async {
     print(input.name); // Typed access
     ...
   }

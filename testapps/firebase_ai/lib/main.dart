@@ -118,7 +118,7 @@ class _ChatScreenState extends State<ChatScreen> {
       name: 'getWeather',
       description: 'Get the weather for a location',
       inputSchema: WeatherToolInput.$schema,
-      fn: (input, context) async {
+      function: (input, context) async {
         if (input.location.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';
         }
@@ -210,7 +210,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       name: 'getWeather',
       description: 'Get the weather for a location',
       inputSchema: WeatherToolInput.$schema,
-      fn: (input, context) async {
+      function: (input, context) async {
         if (input.location.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';
         }

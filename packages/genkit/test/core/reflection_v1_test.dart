@@ -55,7 +55,7 @@ void main() {
     setUp(() async {
       registry = Registry();
       final testAction = Action(
-        actionType: 'test',
+        actionType: ActionType.fromString('test'),
         inputSchema: stringSchema(),
         outputSchema: stringSchema(),
         streamSchema: stringSchema(),

@@ -73,7 +73,7 @@ void main() async {
   // 1. Define a simple unary flow
   final helloFlow = ai.defineFlow(
     name: 'hello',
-    fn: (HelloInput input, _) async {
+    function: (HelloInput input, _) async {
       return HelloOutput(greeting: 'Hello, ${input.name}!');
     },
     inputSchema: HelloInput.$schema,
@@ -83,7 +83,7 @@ void main() async {
   // 2. Define a streaming flow
   final countFlow = ai.defineFlow(
     name: 'count',
-    fn: (int count, ctx) async {
+    function: (int count, ctx) async {
       for (var i = 1; i <= count; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         ctx.sendChunk(CountChunk(count: i));
@@ -98,7 +98,7 @@ void main() async {
   // 3. Define a flow with authentication (context)
   final secureFlow = ai.defineFlow(
     name: 'secure',
-    fn: (String input, ctx) async {
+    function: (String input, ctx) async {
       final user = ctx.context?['user'];
       if (user == null) {
         throw GenkitException(
@@ -115,7 +115,7 @@ void main() async {
   // 4. Define a client flow that acts as a client to call other flows
   final clientFlow = ai.defineFlow(
     name: 'client',
-    fn: (String input, _) async {
+    function: (String input, _) async {
       final results = <String>[];
       results.add('Triggered client flow with input: $input');
 
