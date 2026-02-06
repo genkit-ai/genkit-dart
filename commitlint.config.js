@@ -18,7 +18,7 @@ module.exports = {
         'revert',   // Revert a previous commit
       ],
     ],
-    'subject-case': [2, 'always', 'lower-case'],
+    'subject-case': [0], // Level 0 ignores the rule
     'header-max-length': [2, 'always', 100],
   },
 };
