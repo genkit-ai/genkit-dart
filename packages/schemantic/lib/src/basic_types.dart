@@ -24,6 +24,9 @@ import '../schemantic.dart';
 /// nullable(stringSchema()).parse('hello');
 /// ```
 SchemanticType<T?> nullable<T>(SchemanticType<T> type) {
+  if (type is _NullableSchemaFactory) {
+    return type as SchemanticType<T?>;
+  }
   return _NullableSchemaFactory(type);
 }
 

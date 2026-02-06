@@ -238,6 +238,21 @@ void main() {
       expect(objectTypeSource, isNotNull);
       expect(objectTypeSource['additionalProperties']['type'], 'integer');
     });
+
+    test('nullable() idempotency', () {
+      final s = stringSchema();
+      final n1 = nullable(s);
+      final n2 = nullable(n1);
+
+      expect(n2, same(n1));
+      
+      final json = jsonDecode(n2.jsonSchema().toJson());
+      // Should still be just one level of oneOf
+      expect(json['oneOf'], isNotNull);
+      expect(json['oneOf'].length, 2);
+      expect(json['oneOf'][0]['type'], 'null');
+      expect(json['oneOf'][1]['type'], 'string');
+    });
   });
 }
 
