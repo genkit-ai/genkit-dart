@@ -21,6 +21,8 @@ export 'chrome_model.dart';
 
 const ChromeAIPluginHandle chromeAI = ChromeAIPluginHandle();
 
+const chromeAiGeminiNano = 'gemini-nano';
+
 class ChromeAIPluginHandle {
   const ChromeAIPluginHandle();
 
@@ -44,8 +46,8 @@ class ChromeAIPlugin extends GenkitPlugin {
   }
 
   @override
-  ChromeModel? resolve(String actionType, String name) {
-    if (actionType == 'model' && name == 'gemini-nano') {
+  ChromeModel? resolve(ActionType actionType, String name) {
+    if (actionType == ActionType.model && name == chromeAiGeminiNano) {
       return ChromeModel();
     }
     return null;

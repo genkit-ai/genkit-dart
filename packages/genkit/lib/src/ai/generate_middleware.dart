@@ -19,6 +19,15 @@ import '../types.dart';
 import 'generate.dart';
 import 'tool.dart';
 
+class Middleware {
+  final GenerateMiddleware? middleware;
+  final GenerateMiddlewareRef? ref;
+
+  Middleware.fromGenerateMiddleware(this.middleware) : ref = null;
+
+  Middleware.fromRef(this.ref) : middleware = null;
+}
+
 /// Middleware for the processing of a Generation request.
 abstract class GenerateMiddleware {
   /// Middlewares can act as a "kit" by providing tools directly.
@@ -32,10 +41,10 @@ abstract class GenerateMiddleware {
   /// [next] is the function to call to proceed with the generation.
   Future<GenerateResponseHelper> generate(
     GenerateActionOptions options,
-    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResponseHelper> Function(
       GenerateActionOptions options,
-      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+      FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
     next,
   ) {
@@ -47,10 +56,10 @@ abstract class GenerateMiddleware {
   /// Wraps the call to the model action.
   Future<ModelResponse> model(
     ModelRequest request,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     Future<ModelResponse> Function(
       ModelRequest request,
-      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     )
     next,
   ) {
@@ -63,10 +72,10 @@ abstract class GenerateMiddleware {
   /// Input is dynamic because tools can have varied input schemas.
   Future<ToolResponse> tool(
     ToolRequest request,
-    ActionFnArg<void, dynamic, void> ctx,
+    FunctionContext<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
       ToolRequest request,
-      ActionFnArg<void, dynamic, void> ctx,
+      FunctionContext<void, dynamic, void> ctx,
     )
     next,
   ) {

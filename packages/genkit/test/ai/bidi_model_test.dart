@@ -30,14 +30,14 @@ void main() {
     test('defineBidiModel registers a bidi model', () async {
       final model = genkit.defineBidiModel(
         name: 'myBidiModel',
-        fn: (input, context) async {
+        function: (input, context) async {
           context.sendChunk(ModelResponseChunk(content: []));
           return ModelResponse(finishReason: FinishReason.stop);
         },
       );
       expect(model.name, 'myBidiModel');
       expect(
-        await genkit.registry.lookupAction('bidi-model', 'myBidiModel'),
+        await genkit.registry.lookupAction(ActionType.bidiModel, 'myBidiModel'),
         isNotNull,
       );
     });
@@ -45,7 +45,7 @@ void main() {
     test('can stream to/from bidi model', () async {
       final model = genkit.defineBidiModel(
         name: 'echoBidiModel',
-        fn: (input, context) async {
+        function: (input, context) async {
           await for (final chunk in input) {
             final text = chunk.messages.first.content.first.text;
             context.sendChunk(
@@ -90,7 +90,7 @@ void main() {
     test('bidi model receives init data', () async {
       final model = genkit.defineBidiModel(
         name: 'initBidiModel',
-        fn: (input, context) async {
+        function: (input, context) async {
           final config = context.init?.config;
           final prefix = config?['prefix'] as String? ?? '';
           await for (final chunk in input) {

@@ -33,7 +33,7 @@ abstract class $MenuRagToolInput {
 
 Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   // 1. Define a simulated retrieval tool
   final menuRagTool = ai.defineTool(
@@ -41,7 +41,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
     description: 'Use to retrieve information from the Genkit Grub Pub menu.',
     inputSchema: MenuRagToolInput.$schema,
     outputSchema: listSchema(stringSchema()),
-    fn: (input, _) async {
+    function: (input, _) async {
       const menuItems = [
         'Classic Burger: A juicy beef patty with lettuce, tomato, and our special sauce.',
         'Vegan Burger: A delicious plant-based patty with avocado and sprouts.',
@@ -70,7 +70,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
     name: 'agenticRagFlow',
     inputSchema: AgenticRagInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       final llmResponse = await ai.generate(
         model: geminiFlash,
         messages: [
@@ -88,7 +88,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
           ),
         ],
         prompt: input.question,
-        tools: [menuRagTool.name],
+        toolNames: [menuRagTool.name],
       );
       return llmResponse.text;
     },

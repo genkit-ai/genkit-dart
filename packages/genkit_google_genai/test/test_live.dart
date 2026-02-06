@@ -119,7 +119,7 @@ void main() {
         description: 'Multiplies two numbers',
         inputSchema: CalculatorInput.$schema,
         outputSchema: intSchema(),
-        fn: (CalculatorInput input, _) async => input.a * input.b,
+        function: (CalculatorInput input, _) async => input.a * input.b,
       );
 
       // Note: Gemini 1.5 Flash is good at tool calls

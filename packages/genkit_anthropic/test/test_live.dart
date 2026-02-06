@@ -56,7 +56,7 @@ void main() {
         name: 'testSimple',
         inputSchema: stringSchema(),
         outputSchema: stringSchema(),
-        fn: (input, _) async {
+        function: (input, _) async {
           final response = await ai.generate(
             model: anthropic.model('claude-sonnet-4-5'),
             prompt: 'Say hello to $input',
@@ -116,7 +116,7 @@ void main() {
         description: 'Multiplies two numbers',
         inputSchema: CalculatorInput.$schema,
         outputSchema: intSchema(),
-        fn: (CalculatorInput input, _) async => input.a * input.b,
+        function: (CalculatorInput input, _) async => input.a * input.b,
       );
 
       final response = await ai.generate(

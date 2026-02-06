@@ -27,7 +27,7 @@ class AnthropicPluginHandle {
     return AnthropicPluginImpl(apiKey: apiKey);
   }
 
-  ModelRef<AnthropicOptions> model(String name) {
+  ModelReference<AnthropicOptions> model(String name) {
     return modelRef('anthropic/$name', customOptions: AnthropicOptions.$schema);
   }
 }

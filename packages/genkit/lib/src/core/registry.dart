@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import '../ai/tool.dart';
 import './action.dart';
 import './plugin.dart';
 
@@ -21,6 +22,7 @@ class Registry {
   final List<GenkitPlugin> _plugins = [];
   final Set<String> _initializedPlugins = {};
   final Registry? parent;
+  final ToolRegistry toolRegistry = ToolRegistry();
 
   Registry({this.parent});
 
@@ -48,16 +50,16 @@ class Registry {
     _plugins.add(plugin);
   }
 
-  String _getKey(String actionType, String name) {
+  String _getKey(ActionType actionType, String name) {
     return '/$actionType/$name';
   }
 
-  void registerValue(String type, String name, dynamic value) {
+  void registerValue(ActionType type, String name, dynamic value) {
     final key = _getKey(type, name);
     _values[key] = value;
   }
 
-  T? lookupValue<T>(String type, String name) {
+  T? lookupValue<T>(ActionType type, String name) {
     final key = _getKey(type, name);
     if (_values.containsKey(key)) {
       return _values[key] as T?;
@@ -84,10 +86,16 @@ class Registry {
     _actions[key] = action;
   }
 
-  Future<Action?> lookupAction(String actionType, String name) async {
+  Future<T?> lookupAction<
+    T extends Action<Input, Output, Chunk, Init>,
+    Input,
+    Output,
+    Chunk,
+    Init
+  >(ActionType actionType, String name) async {
     final key = _getKey(actionType, name);
     if (_actions.containsKey(key)) {
-      return _actions[key];
+      return _actions[key] as T;
     }
     final parts = name.split('/');
     if (parts.length == 2) {
@@ -98,12 +106,12 @@ class Registry {
           await _ensurePluginInitialized(plugin);
           // The action might have been registered during init.
           if (_actions.containsKey(key)) {
-            return _actions[key];
+            return _actions[key] as T;
           }
           final action = plugin.resolve(actionType, resolvedActionName);
           if (action != null) {
             register(action);
-            return action;
+            return action as T;
           }
         }
       }
@@ -132,6 +140,10 @@ class Registry {
   }
 }
 
-String getKey(String actionType, String name) {
-  return '/$actionType/$name';
+class ToolRegistry {
+  void register(Tool<Object?, Object?> tool) {}
+}
+
+String getKey(ActionType actionType, String name) {
+  return '/${actionType.value}/$name';
 }

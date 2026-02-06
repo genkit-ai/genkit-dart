@@ -39,7 +39,7 @@ typedef GenerateAction =
 /// Defines the utility 'generate' action.
 GenerateAction defineGenerateAction(Registry registry) {
   return Action(
-    actionType: 'util',
+    actionType: ActionType.util,
     name: 'generate',
     inputSchema: GenerateActionOptions.$schema,
     outputSchema: ModelResponse.$schema,
@@ -57,15 +57,15 @@ GenerateAction defineGenerateAction(Registry registry) {
   );
 }
 
-ToolDefinition toToolDefinition(Tool tool) {
+ToolDefinition toToolDefinition<Input, Output>(Tool<Input, Output> tool) {
   return ToolDefinition(
     name: tool.name,
     description: tool.description!,
     inputSchema: tool.inputSchema?.jsonSchema != null
-        ? toJsonSchema(type: tool.inputSchema)
+        ? toJsonSchema(type: tool.inputSchema!)
         : null,
     outputSchema: tool.outputSchema?.jsonSchema != null
-        ? toJsonSchema(type: tool.outputSchema)
+        ? toJsonSchema(type: tool.outputSchema!)
         : null,
   );
 }
@@ -207,32 +207,25 @@ class GenerateResponseHelper<O> extends GenerateResponse {
 
 ({List<GenerateMiddleware> middlewares, Registry registry}) _resolveMiddlewares(
   Registry registry,
-  List<dynamic>? middlewares,
+  Iterable<GenerateMiddleware>? middlewares,
+  Iterable<GenerateMiddlewareRef>? middlewareRefs,
 ) {
-  final resolvedMiddlewares = <GenerateMiddleware>[];
-  if (middlewares != null) {
-    for (final mw in middlewares) {
-      if (mw is GenerateMiddleware) {
-        resolvedMiddlewares.add(mw);
-      } else if (mw is GenerateMiddlewareRef) {
-        final def = registry.lookupValue<GenerateMiddlewareDef>(
-          'middleware',
-          mw.name,
-        );
-        if (def == null) {
-          throw GenkitException(
-            'Middleware ${mw.name} not found',
-            status: StatusCodes.NOT_FOUND,
-          );
-        }
-        resolvedMiddlewares.add(def.create(mw.config));
-      } else {
-        throw GenkitException(
-          'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',
-          status: StatusCodes.INVALID_ARGUMENT,
-        );
-      }
+  final resolvedMiddlewares = <GenerateMiddleware>[
+    if (middlewares != null) ...middlewares,
+  ];
+
+  for (final mw in middlewareRefs ?? <GenerateMiddlewareRef>[]) {
+    final def = registry.lookupValue<GenerateMiddlewareDef>(
+      ActionType.middleware,
+      mw.name,
+    );
+    if (def == null) {
+      throw GenkitException(
+        'Middleware ${mw.name} not found',
+        status: StatusCodes.NOT_FOUND,
+      );
     }
+    resolvedMiddlewares.add(def.create(mw.config));
   }
 
   final middlewareTools = resolvedMiddlewares
@@ -251,7 +244,7 @@ class GenerateResponseHelper<O> extends GenerateResponse {
 Future<GenerateResponseHelper> _runGenerateLoop(
   Registry registry,
   GenerateActionOptions options,
-  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
+  FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   required List<GenerateMiddleware> resolvedMiddlewares,
 }) async {
   if (options.model == null) {
@@ -261,7 +254,8 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  final model = await registry.lookupAction('model', options.model!) as Model?;
+  final model =
+      await registry.lookupAction(ActionType.model, options.model!) as Model?;
   if (model == null) {
     throw GenkitException(
       'Model ${options.model} not found',
@@ -278,7 +272,8 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   if (requestOptions.tools != null) {
     for (var toolName in requestOptions.tools!) {
       activeToolNames.add(toolName);
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
+      final tool =
+          await registry.lookupAction(ActionType.tool, toolName) as Tool?;
       if (tool != null) {
         toolDefs.add(toToolDefinition(tool));
       }
@@ -315,7 +310,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   // Prepare model middleware chain
   Future<ModelResponse> coreModel(
     ModelRequest req,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> c,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> c,
   ) {
     return model(
       req,
@@ -340,23 +335,26 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   var messageIndex = 0;
   while (turns < (requestOptions.maxTurns ?? _defaultMaxTurns)) {
     // Execute model with middleware
-    var response = await composedModel(currentRequest, (
-      streamingRequested: ctx.streamingRequested,
-      sendChunk: (chunk) {
-        ctx.sendChunk(
-          ModelResponseChunk(
-            index: messageIndex,
-            content: chunk.content,
-            role: chunk.role,
-            custom: chunk.custom,
-            aggregated: chunk.aggregated,
-          ),
-        );
-      },
-      context: ctx.context,
-      inputStream: null,
-      init: null,
-    ));
+    var response = await composedModel(
+      currentRequest,
+      FunctionContext(
+        streamingRequested: ctx.streamingRequested,
+        sendChunk: (chunk) {
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: messageIndex,
+              content: chunk.content,
+              role: chunk.role,
+              custom: chunk.custom,
+              aggregated: chunk.aggregated,
+            ),
+          );
+        },
+        context: ctx.context,
+        inputStream: null,
+        init: null,
+      ),
+    );
     messageIndex++;
 
     final parser = format
@@ -467,16 +465,17 @@ Future<GenerateResponseHelper> _runGenerateLoop(
 Future<GenerateResponseHelper> runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
-  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
-  List<dynamic>? middlewares,
+  FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx, {
+  Iterable<GenerateMiddleware>? middlewares,
+  Iterable<GenerateMiddlewareRef>? middlewareRefs,
 }) async {
-  final resolved = _resolveMiddlewares(registry, middlewares);
+  final resolved = _resolveMiddlewares(registry, middlewares, middlewareRefs);
   final generateRegistry = resolved.registry;
   final resolvedMiddlewares = resolved.middlewares;
 
   Future<GenerateResponseHelper> coreGenerate(
     GenerateActionOptions opts,
-    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
+    FunctionContext<ModelResponseChunk, GenerateActionOptions, void> c,
   ) {
     return _runGenerateLoop(
       generateRegistry,
@@ -499,7 +498,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
-  required ModelRef<C> model,
+  required ModelReference<C> model,
   C? config,
   List<String>? tools,
   String? toolChoice,
@@ -508,7 +507,9 @@ Future<GenerateResponseHelper> generateHelper<C>(
   GenerateActionOutputConfig? output,
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
-  List<dynamic>? middlewares,
+
+  Iterable<GenerateMiddleware>? middlewares,
+  Iterable<GenerateMiddlewareRef>? middlewareRefs,
 
   /// List of interrupt responses to resolve interrupts.
   List<InterruptResponse>? resume,
@@ -550,7 +551,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
       output: output,
       resume: resolvedResume,
     ),
-    (
+    FunctionContext(
       streamingRequested: onChunk != null,
       sendChunk: (chunk) {
         if (onChunk != null) {
@@ -568,6 +569,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
       init: null,
     ),
     middlewares: middlewares,
+    middlewareRefs: middlewareRefs,
   );
 }
 
@@ -616,7 +618,8 @@ Future<GenerateBidiSession> runGenerateBidi(
   String? system,
 }) async {
   final model =
-      await registry.lookupAction('bidi-model', modelName) as BidiModel?;
+      await registry.lookupAction(ActionType.bidiModel, modelName)
+          as BidiModel?;
   if (model == null) {
     throw GenkitException(
       'Bidi Model $modelName not found',
@@ -628,7 +631,8 @@ Future<GenerateBidiSession> runGenerateBidi(
   var toolActions = <Tool>[];
   if (tools != null) {
     for (var toolName in tools) {
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
+      final tool =
+          await registry.lookupAction(ActionType.tool, toolName) as Tool?;
       if (tool != null) {
         toolActions.add(tool);
         toolDefs.add(toToolDefinition(tool));
@@ -861,7 +865,10 @@ _executeTools(
 
   for (final toolRequest in toolRequests) {
     final tool =
-        await registry.lookupAction('tool', toolRequest.toolRequest.name)
+        await registry.lookupAction(
+              ActionType.tool,
+              toolRequest.toolRequest.name,
+            )
             as Tool?;
     if (tool == null) {
       throw GenkitException(
@@ -872,7 +879,7 @@ _executeTools(
 
     Future<ToolResponse> coreTool(
       ToolRequest req,
-      ActionFnArg<void, dynamic, void> c,
+      FunctionContext<void, dynamic, void> c,
     ) async {
       final out = await tool.runRaw(req.input, context: c.context);
       return ToolResponse(ref: req.ref, name: req.name, output: out.result);
@@ -887,13 +894,16 @@ _executeTools(
         coreTool;
 
     try {
-      final toolResponse = await composedTool(toolRequest.toolRequest, (
-        streamingRequested: false,
-        sendChunk: (_) {},
-        context: context,
-        inputStream: null,
-        init: null,
-      ));
+      final toolResponse = await composedTool(
+        toolRequest.toolRequest,
+        FunctionContext(
+          streamingRequested: false,
+          sendChunk: (_) {},
+          context: context,
+          inputStream: null,
+          init: null,
+        ),
+      );
       toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
           toolResponse.output;

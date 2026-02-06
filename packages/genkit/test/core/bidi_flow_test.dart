@@ -29,7 +29,7 @@ void main() {
         outputSchema: stringSchema(),
         streamSchema: stringSchema(),
         initSchema: voidSchema(),
-        fn: (inputStream, context) async {
+        function: (inputStream, context) async {
           await for (final chunk in inputStream) {
             context.sendChunk('echo $chunk');
           }
@@ -57,7 +57,7 @@ void main() {
         outputSchema: stringSchema(),
         streamSchema: stringSchema(),
         initSchema: voidSchema(),
-        fn: (inputStream, context) async {
+        function: (inputStream, context) async {
           await for (final chunk in inputStream) {
             context.sendChunk('echo $chunk');
           }
@@ -84,7 +84,7 @@ void main() {
         outputSchema: stringSchema(),
         streamSchema: stringSchema(),
         initSchema: mapSchema(stringSchema(), stringSchema()),
-        fn: (inputStream, context) async {
+        function: (inputStream, context) async {
           final prefix = context.init?['prefix'] ?? '';
           await for (final chunk in inputStream) {
             context.sendChunk('$prefix$chunk');

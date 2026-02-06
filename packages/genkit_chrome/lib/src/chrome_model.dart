@@ -36,7 +36,7 @@ class ChromeModel extends Model<LanguageModelOptions> {
 
   static Future<ModelResponse> _processRequest(
     ModelRequest? req,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     LanguageModelOptions? defaultOptions,
   ) async {
     if (req == null) {

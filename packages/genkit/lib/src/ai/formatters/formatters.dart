@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import '../../core/action.dart' show ActionType;
 import '../../core/registry.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
@@ -26,7 +27,7 @@ void configureFormats(Registry registry) {
 }
 
 void defineFormat(Registry registry, Formatter formatter) {
-  registry.registerValue('format', formatter.name, formatter);
+  registry.registerValue(ActionType.format, formatter.name, formatter);
 }
 
 Formatter? resolveFormat(
@@ -35,10 +36,10 @@ Formatter? resolveFormat(
 ) {
   if (output == null) return null;
   if (output.format != null) {
-    return registry.lookupValue<Formatter>('format', output.format!);
+    return registry.lookupValue<Formatter>(ActionType.format, output.format!);
   }
   if (output.jsonSchema != null) {
-    return registry.lookupValue<Formatter>('format', 'json');
+    return registry.lookupValue<Formatter>(ActionType.format, 'json');
   }
   return null;
 }

@@ -14,22 +14,12 @@
 
 import 'package:schemantic/schemantic.dart';
 
-Map<String, dynamic> toJsonSchema({
-  SchemanticType? type,
-  Map<String, dynamic>? jsonSchema,
+Map<String, dynamic> toJsonSchema<T>({
+  required SchemanticType<T> type,
   bool useRefs = true,
 }) {
-  var result = Schema.any().value;
-  if (jsonSchema != null) {
-    result = jsonSchema;
-  }
-
-  if (type != null) {
-    result = type.jsonSchema(useRefs: useRefs).value;
-  }
-
+  var result = type.jsonSchema(useRefs: useRefs).value;
   result['\$schema'] = 'http://json-schema.org/draft-07/schema#';
-
   return result;
 }
 

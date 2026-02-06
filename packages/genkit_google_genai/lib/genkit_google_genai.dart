@@ -24,18 +24,11 @@ const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
-  GenkitPlugin call({String? apiKey}) {
-    return GoogleGenAiPluginImpl(apiKey: apiKey);
-  }
+  GenkitPlugin call({String? apiKey}) => GoogleGenAiPluginImpl(apiKey: apiKey);
 
-  ModelRef<GeminiOptions> gemini(String name) {
-    return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
-  }
+  ModelReference<GeminiOptions> gemini(String name) =>
+      modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
 
-  EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
-    return embedderRef(
-      'googleai/$name',
-      customOptions: TextEmbedderOptions.$schema,
-    );
-  }
+  EmbedderRef<TextEmbedderOptions> textEmbedding(String name) =>
+      embedderRef('googleai/$name', customOptions: TextEmbedderOptions.$schema);
 }

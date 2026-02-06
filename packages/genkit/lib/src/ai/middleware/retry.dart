@@ -152,10 +152,10 @@ class RetryMiddleware extends GenerateMiddleware {
   @override
   Future<ModelResponse> model(
     ModelRequest request,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     Future<ModelResponse> Function(
       ModelRequest request,
-      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     )
     next,
   ) {
@@ -168,10 +168,10 @@ class RetryMiddleware extends GenerateMiddleware {
   @override
   Future<ToolResponse> tool(
     ToolRequest request,
-    ActionFnArg<void, dynamic, void> ctx,
+    FunctionContext<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
       ToolRequest request,
-      ActionFnArg<void, dynamic, void> ctx,
+      FunctionContext<void, dynamic, void> ctx,
     )
     next,
   ) {

@@ -29,7 +29,7 @@ abstract class $ToolCallingWeatherInput {
 
 Flow<ToolCallingInput, String, void, void> defineToolCallingFlow(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   // Define a tool that can be called by the LLM
   final getWeather = ai.defineTool(
@@ -37,7 +37,7 @@ Flow<ToolCallingInput, String, void, void> defineToolCallingFlow(
     description: 'Get the current weather in a given location.',
     inputSchema: ToolCallingWeatherInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       // In a real app, you would call a weather API here.
       return 'The weather in ${input.location} is 75°F and sunny.';
     },
@@ -47,11 +47,11 @@ Flow<ToolCallingInput, String, void, void> defineToolCallingFlow(
     name: 'toolCallingFlow',
     inputSchema: ToolCallingInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       final response = await ai.generate(
         model: geminiFlash,
         prompt: input.prompt,
-        tools: [getWeather.name],
+        toolNames: [getWeather.name],
       );
 
       return response.text;

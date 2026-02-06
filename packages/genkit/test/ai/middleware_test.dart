@@ -32,10 +32,10 @@ class TestMiddleware extends GenerateMiddleware {
   @override
   Future<GenerateResponseHelper> generate(
     GenerateActionOptions options,
-    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResponseHelper> Function(
       GenerateActionOptions options,
-      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+      FunctionContext<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
     next,
   ) async {
@@ -48,10 +48,10 @@ class TestMiddleware extends GenerateMiddleware {
   @override
   Future<ModelResponse> model(
     ModelRequest request,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     Future<ModelResponse> Function(
       ModelRequest request,
-      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     )
     next,
   ) async {
@@ -64,10 +64,10 @@ class TestMiddleware extends GenerateMiddleware {
   @override
   Future<ToolResponse> tool(
     ToolRequest request,
-    ActionFnArg<void, dynamic, void> ctx,
+    FunctionContext<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
       ToolRequest request,
-      ActionFnArg<void, dynamic, void> ctx,
+      FunctionContext<void, dynamic, void> ctx,
     )
     next,
   ) async {
@@ -82,10 +82,10 @@ class InterceptorMiddleware extends GenerateMiddleware {
   @override
   Future<ModelResponse> model(
     ModelRequest request,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     Future<ModelResponse> Function(
       ModelRequest request,
-      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      FunctionContext<ModelResponseChunk, ModelRequest, void> ctx,
     )
     next,
   ) async {
@@ -130,7 +130,7 @@ void main() {
 
       genkit.defineModel(
         name: 'test-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           log.add('model:exec');
           if (req.messages.any((m) => m.role == Role.tool)) {
             // After tool execution
@@ -164,7 +164,7 @@ void main() {
         name: 'test-tool',
         description: 'Test Tool',
         inputSchema: TestToolInput.$schema,
-        fn: (input, ctx) async {
+        function: (input, ctx) async {
           log.add('tool:exec');
           return 'bar';
         },
@@ -173,8 +173,8 @@ void main() {
       await genkit.generate(
         model: modelRef('test-model'),
         prompt: 'hello',
-        tools: ['test-tool'],
-        use: [mw1, mw2],
+        toolNames: ['test-tool'],
+        middlewares: [mw1, mw2],
       );
 
       // Verify log order
@@ -229,7 +229,7 @@ void main() {
     test('should intercept model request', () async {
       genkit.defineModel(
         name: 'echo-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           final text = req.messages.last.content.first.text!;
           return ModelResponse(
             finishReason: FinishReason.stop,
@@ -244,7 +244,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef('echo-model'),
         prompt: 'original',
-        use: [InterceptorMiddleware()],
+        middlewares: [InterceptorMiddleware()],
       );
 
       expect(result.text, 'echo: intercepted: original');
@@ -258,11 +258,11 @@ void main() {
         name: 'reg-mw',
         create: ([config]) => TestMiddleware(log, 'reg-mw-${config ?? 'none'}'),
       );
-      genkit.registry.registerValue('middleware', def.name, def);
+      genkit.registry.registerValue(ActionType.middleware, def.name, def);
 
       genkit.defineModel(
         name: 'echo-model-ref',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           final text = req.messages.last.content.first.text!;
           return ModelResponse(
             finishReason: FinishReason.stop,
@@ -278,7 +278,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef('echo-model-ref'),
         prompt: 'hello ref',
-        use: [middlewareRef(name: 'reg-mw', config: 'conf1')],
+        middlewareRefs: [middlewareRef(name: 'reg-mw', config: 'conf1')],
       );
 
       expect(result.text, 'echo: hello ref');
@@ -308,7 +308,7 @@ void main() {
 
       genkit.defineModel(
         name: 'tool-calling-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           if (req.messages.any((m) => m.role == Role.tool)) {
             return ModelResponse(
               finishReason: FinishReason.stop,
@@ -339,7 +339,7 @@ void main() {
       await genkit.generate(
         model: modelRef('tool-calling-model'),
         prompt: 'call tool',
-        use: [
+        middlewares: [
           ToolInjectingMiddleware([injectedTool]),
         ],
       );

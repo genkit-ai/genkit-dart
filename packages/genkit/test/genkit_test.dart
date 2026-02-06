@@ -66,7 +66,7 @@ void main() {
 
       final flow = genkit.defineFlow(
         name: flowName,
-        fn: (String input, context) async => 'output: $input',
+        function: (String input, context) async => 'output: $input',
       );
 
       // Check if the returned flow is correct
@@ -75,7 +75,7 @@ void main() {
 
       // Check if the flow is registered in the registry
       final retrievedAction = await genkit.registry.lookupAction(
-        'flow',
+        ActionType.flow,
         flowName,
       );
       expect(retrievedAction, isNotNull);
@@ -93,7 +93,7 @@ void main() {
       final tool = genkit.defineTool(
         name: toolName,
         description: toolDescription,
-        fn: (String input, context) async => 'output: $input',
+        function: (String input, context) async => 'output: $input',
       );
 
       // Check if the returned tool is correct
@@ -103,7 +103,7 @@ void main() {
 
       // Check if the tool is registered in the registry
       final retrievedAction = await genkit.registry.lookupAction(
-        'tool',
+        ActionType.tool,
         toolName,
       );
       expect(retrievedAction, isNotNull);
@@ -121,7 +121,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           final response = ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -152,7 +152,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           if (request.messages.last.role == Role.tool) {
             return ModelResponse(
               finishReason: FinishReason.stop,
@@ -188,7 +188,7 @@ void main() {
         name: toolName,
         description: 'A test tool',
         inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
+        function: (input, context) async {
           return 'Hello, ${input.name}!';
         },
       );
@@ -196,7 +196,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Use the test tool',
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       expect(result.text, 'Tool output: Hello, world!');
@@ -208,7 +208,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           final chunks = [
             ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk1')]),
             ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk2')]),
@@ -248,7 +248,7 @@ void main() {
 
       genkit.defineModel(
         name: modelName,
-        fn: (request, context) async {
+        function: (request, context) async {
           final chunks = [
             ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk1')]),
             ModelResponseChunk(index: 0, content: [TextPart(text: 'chunk2')]),

@@ -53,7 +53,8 @@ Future<GenerateResponseHelper> generate<C>({
   String? outputContentType,
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
-  List<GenerateMiddleware>? use,
+  Iterable<GenerateMiddleware>? middlewares,
+  Iterable<GenerateMiddlewareRef>? middlewareRefs,
 }) async {
   if (outputInstructions != null && outputNoInstructions == true) {
     throw ArgumentError(
@@ -94,7 +95,8 @@ Future<GenerateResponseHelper> generate<C>({
     output: outputConfig,
     context: context,
     onChunk: onChunk,
-    middlewares: use,
+    middlewares: middlewares,
+    middlewareRefs: middlewareRefs,
   );
 }
 
@@ -142,7 +144,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
           if (streamController.isClosed) return;
           streamController.add(chunk);
         },
-        use: use,
+        middlewares: use,
       )
       .then((result) {
         actionStream.setResult(result);

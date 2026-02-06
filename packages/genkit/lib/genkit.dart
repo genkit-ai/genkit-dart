@@ -26,6 +26,7 @@ import 'package:schemantic/schemantic.dart';
 import 'src/ai/embedder.dart';
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
+import 'src/ai/generate_middleware.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
@@ -58,10 +59,10 @@ export 'package:genkit/src/ai/generate_middleware.dart'
 export 'package:genkit/src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 export 'package:genkit/src/ai/model.dart'
-    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
-export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
+    show BidiModel, Model, ModelReference, modelMetadata, modelRef;
+export 'package:genkit/src/ai/tool.dart' show Tool, ToolContext, ToolFunction;
 export 'package:genkit/src/core/action.dart'
-    show Action, ActionFnArg, ActionMetadata;
+    show Action, ActionMetadata, ActionType, FunctionContext;
 export 'package:genkit/src/core/flow.dart';
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
@@ -89,7 +90,7 @@ class Genkit {
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);
       for (final mw in plugin.middleware()) {
-        registry.registerValue('middleware', mw.name, mw);
+        registry.registerValue(ActionType.middleware, mw.name, mw);
       }
     }
 
@@ -111,25 +112,25 @@ class Genkit {
     }
   }
 
-  Future<O> run<O>(String name, Future<O> Function() fn) {
-    return runInNewSpan(name, (_) => fn());
+  Future<Output> run<Output>(String name, Future<Output> Function() function) {
+    return runInNewSpan<void, Output>(name, (_) => function());
   }
 
-  Flow<I, O, S, Init> defineFlow<I, O, S, Init>({
+  Flow<Input, Output, Chunk, Init> defineFlow<Input, Output, Chunk, Init>({
     required String name,
-    required ActionFn<I, O, S, Init> fn,
-    SchemanticType<I>? inputSchema,
-    SchemanticType<O>? outputSchema,
-    SchemanticType<S>? streamSchema,
+    required ActionFunction<Input, Output, Chunk, Init> function,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    SchemanticType<Chunk>? streamSchema,
     SchemanticType<Init>? initSchema,
   }) {
     final flow = Flow(
       name: name,
       fn: (input, context) {
-        if (input == null && inputSchema != null && null is! I) {
+        if (input == null && inputSchema != null && null is! Input) {
           throw ArgumentError('Flow "$name" requires a non-null input.');
         }
-        return fn(input as I, context);
+        return function(input as Input, context);
       },
       inputSchema: inputSchema,
       outputSchema: outputSchema,
@@ -142,7 +143,7 @@ class Genkit {
 
   Flow<I, O, S, Init> defineBidiFlow<I, O, S, Init>({
     required String name,
-    required BidiActionFn<I, O, S, Init> fn,
+    required BidiActionFunction<I, O, S, Init> function,
     SchemanticType<I>? inputSchema,
     SchemanticType<O>? outputSchema,
     SchemanticType<S>? streamSchema,
@@ -157,7 +158,7 @@ class Genkit {
             status: StatusCodes.INVALID_ARGUMENT,
           );
         }
-        return fn(context.inputStream!, context);
+        return function(context.inputStream!, context);
       },
       inputSchema: inputSchema,
       outputSchema: outputSchema,
@@ -171,7 +172,7 @@ class Genkit {
   Tool<I, O> defineTool<I, O, S>({
     required String name,
     required String description,
-    required ToolFn<I, O> fn,
+    required ToolFunction<I, O> function,
     SchemanticType<I>? inputSchema,
     SchemanticType<O>? outputSchema,
     SchemanticType<S>? streamSchema,
@@ -179,23 +180,27 @@ class Genkit {
     final tool = Tool(
       name: name,
       description: description,
-      fn: fn,
+      fn: function,
       inputSchema: inputSchema,
       outputSchema: outputSchema,
     );
-    registry.register(tool);
+    registry.toolRegistry.register(tool);
     return tool;
   }
 
-  Model defineModel({
+  Model<void> defineModel({
     required String name,
-    required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
+    required ActionFunction<
+      ModelRequest,
+      ModelResponse,
+      ModelResponseChunk,
+      void
+    >
+    function,
   }) {
     final model = Model(
       name: name,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
+      fn: (input, context) => function(input!, context),
     );
     registry.register(model);
     return model;
@@ -203,13 +208,13 @@ class Genkit {
 
   BidiModel defineBidiModel({
     required String name,
-    required BidiActionFn<
+    required BidiActionFunction<
       ModelRequest,
       ModelResponse,
       ModelResponseChunk,
       ModelRequest
     >
-    fn,
+    function,
   }) {
     final model = BidiModel(
       name: name,
@@ -220,7 +225,7 @@ class Genkit {
             status: StatusCodes.INVALID_ARGUMENT,
           );
         }
-        return fn(context.inputStream!, context);
+        return function(context.inputStream!, context);
       },
     );
     registry.register(model);
@@ -229,7 +234,7 @@ class Genkit {
 
   Embedder defineEmbedder({
     required String name,
-    required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
+    required ActionFunction<EmbedRequest, EmbedResponse, void, void> fn,
   }) {
     final embedder = Embedder(
       name: name,
@@ -246,7 +251,10 @@ class Genkit {
     required List<DocumentData> documents,
     C? options,
   }) async {
-    final action = await registry.lookupAction('embedder', embedder.name);
+    final action = await registry.lookupAction(
+      ActionType.embedder,
+      embedder.name,
+    );
     if (action == null) {
       throw GenkitException(
         'Embedder ${embedder.name} not found',
@@ -282,10 +290,11 @@ class Genkit {
   Future<GenerateBidiSession> generateBidi({
     required String model,
     dynamic config,
-    List<dynamic>? tools,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? system,
   }) {
-    final resolved = _resolveTools(registry, tools);
+    final resolved = _resolveTools(registry, toolNames, tools);
     return runGenerateBidi(
       resolved.registry,
       modelName: model,
@@ -300,25 +309,20 @@ class Genkit {
   /// Returns a new registry with embedded tools if necessary.
   ({Registry registry, List<String>? toolNames}) _resolveTools(
     Registry registry,
-    List<dynamic>? tools,
+    Iterable<String>? toolNamesArg,
+    Iterable<Tool>? tools,
   ) {
-    if (tools == null || tools.isEmpty) {
-      return (registry: registry, toolNames: null);
-    }
     final toolNames = <String>[];
     final toolsToRegister = <Tool>[];
 
-    for (final t in tools) {
-      if (t is String) {
-        toolNames.add(t);
-      } else if (t is Tool) {
-        toolsToRegister.add(t);
-        toolNames.add(t.name);
-      } else {
-        throw ArgumentError(
-          'Tools must be either a String (tool name) or a Tool object. Got: $t',
-        );
-      }
+    for (final t in tools ?? <Tool>[]) {
+      toolsToRegister.add(t);
+      toolNames.add(t.name);
+    }
+    toolNames.addAll(toolNamesArg ?? <String>[]);
+
+    if (toolNames.isEmpty) {
+      return (registry: registry, toolNames: null);
     }
 
     if (toolsToRegister.isEmpty) {
@@ -332,16 +336,18 @@ class Genkit {
     return (registry: childRegistry, toolNames: toolNames);
   }
 
-  Future<GenerateResponseHelper<S>> generate<C, S>({
+  Future<GenerateResponseHelper<OutputSchema>>
+  generate<CustomOptionsSchema, OutputSchema>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<C> model,
-    C? config,
-    List<dynamic>? tools,
+    required ModelReference<CustomOptionsSchema> model,
+    CustomOptionsSchema? config,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    SchemanticType<S>? outputSchema,
+    SchemanticType<OutputSchema>? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
@@ -349,7 +355,9 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
-    List<dynamic>? use,
+
+    Iterable<GenerateMiddleware>? middlewares,
+    Iterable<GenerateMiddlewareRef>? middlewareRefs,
 
     /// Optional data to resume an interrupted generation session.
     ///
@@ -386,7 +394,7 @@ class Genkit {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = _resolveTools(registry, tools);
+    final resolved = _resolveTools(registry, toolNames, tools);
     final rawResponse = await generateHelper(
       resolved.registry,
       prompt: prompt,
@@ -399,12 +407,13 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
-      middlewares: use,
+      middlewares: middlewares,
+      middlewareRefs: middlewareRefs,
       resume: resume,
       onChunk: (c) {
         if (outputSchema != null) {
           onChunk?.call(
-            GenerateResponseChunk<S>(
+            GenerateResponseChunk<OutputSchema>(
               c.rawChunk,
               previousChunks: c.previousChunks,
               output: outputSchema.parse(c.output),
@@ -421,35 +430,42 @@ class Genkit {
         output: outputSchema.parse(rawResponse.output),
       );
     } else {
-      return rawResponse as GenerateResponseHelper<S>;
+      return rawResponse as GenerateResponseHelper<OutputSchema>;
     }
   }
 
-  ActionStream<GenerateResponseChunk<S>, GenerateResponseHelper<S>>
-  generateStream<C, S>({
+  ActionStream<
+    GenerateResponseChunk<OutputSchema>,
+    GenerateResponseHelper<OutputSchema>
+  >
+  generateStream<CustomOptionsSchema, OutputSchema>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<C> model,
-    C? config,
-    List<dynamic>? tools,
+    required ModelReference<CustomOptionsSchema> model,
+    CustomOptionsSchema? config,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    SchemanticType<S>? outputSchema,
+    SchemanticType<OutputSchema>? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    List<dynamic>? use,
+    Iterable<GenerateMiddleware>? middlewares,
+    Iterable<GenerateMiddlewareRef>? middlewareRefs,
     List<InterruptResponse>? resume,
   }) {
-    final streamController = StreamController<GenerateResponseChunk<S>>();
+    final streamController =
+        StreamController<GenerateResponseChunk<OutputSchema>>();
     final actionStream =
-        ActionStream<GenerateResponseChunk<S>, GenerateResponseHelper<S>>(
-          streamController.stream,
-        );
+        ActionStream<
+          GenerateResponseChunk<OutputSchema>,
+          GenerateResponseHelper<OutputSchema>
+        >(streamController.stream);
 
     generate(
           prompt: prompt,
@@ -457,6 +473,7 @@ class Genkit {
           model: model,
           config: config,
           tools: tools,
+          toolNames: toolNames,
           toolChoice: toolChoice,
           returnToolRequests: returnToolRequests,
           maxTurns: maxTurns,
@@ -467,11 +484,12 @@ class Genkit {
           outputNoInstructions: outputNoInstructions,
           outputContentType: outputContentType,
           context: context,
-          use: use,
+          middlewares: middlewares,
+          middlewareRefs: middlewareRefs,
           resume: resume,
           onChunk: (chunk) {
             if (streamController.isClosed) return;
-            streamController.add(chunk as GenerateResponseChunk<S>);
+            streamController.add(chunk as GenerateResponseChunk<OutputSchema>);
           },
         )
         .then((result) {
