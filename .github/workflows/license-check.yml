@@ -11,6 +11,6 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Check License Headers
-        uses: ./license-checker
+        uses: genkit-ai/repo-workflows/license-checker@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
