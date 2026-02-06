@@ -306,8 +306,6 @@ void main() {
         },
       );
 
-      final mw = ToolInjectingMiddleware([injectedTool]);
-
       genkit.defineModel(
         name: 'tool-calling-model',
         fn: (req, ctx) async {
@@ -341,7 +339,9 @@ void main() {
       await genkit.generate(
         model: modelRef('tool-calling-model'),
         prompt: 'call tool',
-        use: [mw],
+        use: [
+          ToolInjectingMiddleware([injectedTool]),
+        ],
       );
 
       expect(log, contains('tool:exec'));
