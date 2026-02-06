@@ -215,10 +215,7 @@ class GenerateResponseHelper<O> extends GenerateResponse {
   ];
 
   for (final mw in middlewareRefs ?? <GenerateMiddlewareRef>[]) {
-    final def = registry.lookupValue<GenerateMiddlewareDef>(
-      ActionType.middleware,
-      mw.name,
-    );
+    final def = registry.lookUpMiddleware(mw.name);
     if (def == null) {
       throw GenkitException(
         'Middleware ${mw.name} not found',
@@ -254,8 +251,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  final model =
-      await registry.lookupAction(ActionType.model, options.model!) as Model?;
+  final model = await registry.lookUpModel<ModelRequest>(options.model!);
   if (model == null) {
     throw GenkitException(
       'Model ${options.model} not found',
@@ -272,8 +268,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   if (requestOptions.tools != null) {
     for (var toolName in requestOptions.tools!) {
       activeToolNames.add(toolName);
-      final tool =
-          await registry.lookupAction(ActionType.tool, toolName) as Tool?;
+      final tool = await registry.lookupTool(toolName);
       if (tool != null) {
         toolDefs.add(toToolDefinition(tool));
       }
@@ -617,9 +612,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   List<String>? tools,
   String? system,
 }) async {
-  final model =
-      await registry.lookupAction(ActionType.bidiModel, modelName)
-          as BidiModel?;
+  final model = await registry.lookUpBidiModel(modelName);
   if (model == null) {
     throw GenkitException(
       'Bidi Model $modelName not found',
@@ -631,8 +624,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   var toolActions = <Tool>[];
   if (tools != null) {
     for (var toolName in tools) {
-      final tool =
-          await registry.lookupAction(ActionType.tool, toolName) as Tool?;
+      final tool = await registry.lookupTool(toolName);
       if (tool != null) {
         toolActions.add(tool);
         toolDefs.add(toToolDefinition(tool));
@@ -855,7 +847,7 @@ Future<
 >
 _executeTools(
   Registry registry,
-  List<ToolRequestPart> toolRequests,
+  List<ToolRequestPart> toolRequestParts,
   Map<String, dynamic>? context, {
   List<GenerateMiddleware>? middlewares,
 }) async {
@@ -863,16 +855,11 @@ _executeTools(
   final toolStatus = <String, dynamic>{};
   var interrupted = false;
 
-  for (final toolRequest in toolRequests) {
-    final tool =
-        await registry.lookupAction(
-              ActionType.tool,
-              toolRequest.toolRequest.name,
-            )
-            as Tool?;
+  for (final toolRequestPart in toolRequestParts) {
+    final tool = await registry.lookupTool(toolRequestPart.toolRequest.name);
     if (tool == null) {
       throw GenkitException(
-        'Tool ${toolRequest.toolRequest.name} not found',
+        'Tool ${toolRequestPart.toolRequest.name} not found',
         status: StatusCodes.NOT_FOUND,
       );
     }
@@ -895,7 +882,7 @@ _executeTools(
 
     try {
       final toolResponse = await composedTool(
-        toolRequest.toolRequest,
+        toolRequestPart.toolRequest,
         FunctionContext(
           streamingRequested: false,
           sendChunk: (_) {},
@@ -905,18 +892,20 @@ _executeTools(
         ),
       );
       toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
-      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
+      toolStatus[toolRequestPart.toolRequest.ref ??
+              toolRequestPart.toolRequest.name] =
           toolResponse.output;
     } on ToolInterruptException catch (e) {
       interrupted = true;
-      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
+      toolStatus[toolRequestPart.toolRequest.ref ??
+              toolRequestPart.toolRequest.name] =
           e;
     } catch (e) {
       toolResponses.add(
         ToolResponsePart(
           toolResponse: ToolResponse(
-            ref: toolRequest.toolRequest.ref,
-            name: toolRequest.toolRequest.name,
+            ref: toolRequestPart.toolRequest.ref,
+            name: toolRequestPart.toolRequest.name,
             output: 'Error: $e',
           ),
         ),

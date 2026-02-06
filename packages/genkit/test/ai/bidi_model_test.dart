@@ -36,10 +36,7 @@ void main() {
         },
       );
       expect(model.name, 'myBidiModel');
-      expect(
-        await genkit.registry.lookupAction(ActionType.bidiModel, 'myBidiModel'),
-        isNotNull,
-      );
+      expect(await genkit.registry.lookUpBidiModel('myBidiModel'), isNotNull);
     });
 
     test('can stream to/from bidi model', () async {

@@ -20,7 +20,7 @@ import 'package:schemantic/schemantic.dart';
 void main() async {
   configureCollectorExporter();
 
-  final ai = Genkit(plugins: [googleAI()]);
+  final ai = Genkit(plugins: [GoogleAI()]);
 
   ai.defineModel(
     name: 'echo',
@@ -41,7 +41,7 @@ void main() async {
     name: 'inner',
     function: (String subject, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: 'tell me joke about $subject',
       );
       return response.text;

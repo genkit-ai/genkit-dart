@@ -19,14 +19,14 @@ import 'package:test/test.dart';
 void main() {
   group('GoogleGenAiPluginImpl', () {
     test('resolve returns embedder action', () {
-      final plugin = GoogleGenAiPluginImpl();
+      final plugin = GoogleAiPluginImpl();
       final action = plugin.resolve(ActionType.embedder, 'text-embedding-004');
       expect(action, isNotNull);
       expect(action!.name, 'googleai/text-embedding-004');
     });
 
     test('resolve returns null for unknown action type', () {
-      final plugin = GoogleGenAiPluginImpl();
+      final plugin = GoogleAiPluginImpl();
       final action = plugin.resolve(ActionType.unknown, 'text-embedding-004');
       expect(action, isNull);
     });

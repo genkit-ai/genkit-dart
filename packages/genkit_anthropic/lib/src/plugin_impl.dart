@@ -31,11 +31,11 @@ final commonModelInfo = ModelInfo(
   },
 );
 
-class AnthropicPluginImpl extends GenkitPlugin {
+class AnthropicPlugin extends GenkitPlugin {
   final String? apiKey;
   sdk.AnthropicClient? _client;
 
-  AnthropicPluginImpl({this.apiKey});
+  AnthropicPlugin({this.apiKey});
 
   @override
   String get name => 'anthropic';

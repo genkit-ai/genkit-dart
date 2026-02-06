@@ -14,7 +14,7 @@ void main() async {
 
   // Generate text
   final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
+    model: GoogleAI.gemini('gemini-2.5-flash'),
     prompt: 'Tell me a joke about a developer.',
   );
 
@@ -48,7 +48,7 @@ void main() async {
   );
 
   final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
+    model: GoogleAI.gemini('gemini-2.5-flash'),
     prompt: 'What is the weather in Boston?',
     tools: ['getWeather'],
   );
@@ -67,7 +67,7 @@ void main() async {
   final ai = Genkit(plugins: [googleAI()]);
 
   final embeddings = await ai.embedMany(
-    embedder: googleAI.textEmbedding('text-embedding-004'),
+    embedder: GoogleAI().textEmbedding('text-embedding-004'),
     documents: [
       DocumentData(content: [TextPart(text: 'Hello world')]),
       DocumentData(content: [TextPart(text: 'Genkit is awesome')]),

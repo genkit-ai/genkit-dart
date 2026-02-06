@@ -21,7 +21,7 @@ import 'src/model.dart';
 
 void main(List<String> args) async {
   configureCollectorExporter();
-  final ai = Genkit(plugins: [googleAI()]);
+  final ai = Genkit(plugins: [GoogleAI()]);
 
   // --- Basic Generate Flow ---
   ai.defineFlow(
@@ -30,7 +30,7 @@ void main(List<String> args) async {
     outputSchema: stringSchema(),
     function: (input, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: input,
       );
       return response.text;
@@ -43,9 +43,8 @@ void main(List<String> args) async {
     inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
     outputSchema: stringSchema(),
     function: (input, context) async {
-      final gemini = googleAI();
       final response = await lite.generate(
-        model: gemini.model('gemini-2.5-flash'),
+        model: GoogleAI().model('gemini-2.5-flash'),
         prompt: input,
       );
       return response.text;
@@ -73,7 +72,7 @@ void main(List<String> args) async {
     outputSchema: stringSchema(),
     function: (prompt, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: GoogleAI.gemini('gemini-3-flash-preview'),
         prompt: prompt,
         toolNames: ['getWeather'],
       );
@@ -89,7 +88,7 @@ void main(List<String> args) async {
     outputSchema: RpgCharacter.$schema,
     function: (name, ctx) async {
       final stream = ai.generateStream(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         config: GeminiOptions(temperature: 2.0),
         outputSchema: RpgCharacter.$schema,
         prompt: 'Generate an RPC character called $name',
@@ -116,7 +115,7 @@ void main(List<String> args) async {
     streamSchema: CharacterProfile.$schema,
     function: (prompt, ctx) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         outputSchema: CharacterProfile.$schema,
         prompt: prompt,
         onChunk: (chunk) {
@@ -134,7 +133,7 @@ void main(List<String> args) async {
     outputSchema: stringSchema(),
     function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         messages: [
           Message(
@@ -161,7 +160,7 @@ void main(List<String> args) async {
     outputSchema: stringSchema(),
     function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         messages: [
           Message(
@@ -193,7 +192,7 @@ void main(List<String> args) async {
     streamSchema: ModelResponseChunk.$schema,
     function: (prompt, ctx) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-pro'),
+        model: GoogleAI.gemini('gemini-2.5-pro'),
         prompt: prompt,
         config: GeminiOptions(
           // Configured to return thoughts as ReasoningParts.
@@ -217,7 +216,7 @@ void main(List<String> args) async {
     outputSchema: stringSchema(),
     function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
@@ -241,7 +240,7 @@ void main(List<String> args) async {
     outputSchema: mapSchema(stringSchema(), dynamicSchema()),
     function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         config: GeminiOptions(googleSearch: GoogleSearch()),
       );
@@ -258,7 +257,7 @@ void main(List<String> args) async {
     outputSchema: stringSchema(),
     function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-pro'),
+        model: GoogleAI.gemini('gemini-2.5-pro'),
         prompt: prompt,
         config: GeminiOptions(codeExecution: true),
       );
@@ -275,7 +274,7 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash-preview-tts'),
+        model: GoogleAI.gemini('gemini-2.5-flash-preview-tts'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
@@ -305,7 +304,7 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash-preview-tts'),
+        model: GoogleAI.gemini('gemini-2.5-flash-preview-tts'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
@@ -342,7 +341,7 @@ void main(List<String> args) async {
     outputSchema: listSchema(doubleSchema()),
     function: (input, _) async {
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: GoogleAI.textEmbedding('text-embedding-004'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],

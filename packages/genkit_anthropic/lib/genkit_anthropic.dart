@@ -13,21 +13,15 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'src/model.dart';
+
+import 'genkit_anthropic.dart';
 import 'src/plugin_impl.dart';
 
 export 'src/model.dart';
 
-const AnthropicPluginHandle anthropic = AnthropicPluginHandle();
+class Anthropic extends AnthropicPlugin {
+  Anthropic({super.apiKey});
 
-class AnthropicPluginHandle {
-  const AnthropicPluginHandle();
-
-  GenkitPlugin call({String? apiKey}) {
-    return AnthropicPluginImpl(apiKey: apiKey);
-  }
-
-  ModelReference<AnthropicOptions> model(String name) {
-    return modelRef('anthropic/$name', customOptions: AnthropicOptions.$schema);
-  }
+  static ModelReference<AnthropicOptions> modelReference(String name) =>
+      modelRef('anthropic/$name', customOptions: AnthropicOptions.$schema);
 }

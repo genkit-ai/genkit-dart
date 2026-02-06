@@ -35,11 +35,10 @@ final commonModelInfo = ModelInfo(
   },
 );
 
-@visibleForTesting
-class GoogleGenAiPluginImpl extends GenkitPlugin {
+class GoogleAiPluginImpl extends GenkitPlugin {
   String? apiKey;
 
-  GoogleGenAiPluginImpl({this.apiKey});
+  GoogleAiPluginImpl({this.apiKey});
 
   @override
   String get name => 'googleai';

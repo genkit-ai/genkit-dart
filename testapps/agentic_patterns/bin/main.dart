@@ -31,11 +31,9 @@ void main(List<String> arguments) async {
 
   // Initialize Genkit and Model
   final ai = Genkit(
-    plugins: [
-      googleAI(),
-    ],
+    plugins: [GoogleAI()],
   );
-  final geminiFlash = googleAI.gemini('gemini-2.5-flash');
+  final geminiFlash = GoogleAI.gemini('gemini-2.5-flash');
 
   // Initialize Flows
   final iterativeRefinementFlow =

@@ -16,7 +16,7 @@ import 'dart:js_interop';
 import 'package:genkit/genkit.dart';
 import 'chrome_interop.dart';
 
-class ChromeModel extends Model<LanguageModelOptions> {
+base class ChromeModel extends Model<LanguageModelOptions> {
   ChromeModel({
     super.name = 'chrome/gemini-nano',
     LanguageModelOptions? options,

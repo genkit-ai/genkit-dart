@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import '../ai/tool.dart';
+import '../../genkit.dart' show Flow;
+import '../ai/formatters/types.dart' show Formatter;
+import '../ai/generate_middleware.dart' show GenerateMiddlewareDef;
+import '../ai/model.dart' show BidiModel, Model;
+import '../ai/tool.dart' show Tool;
 import './action.dart';
 import './plugin.dart';
 
@@ -50,9 +54,8 @@ class Registry {
     _plugins.add(plugin);
   }
 
-  String _getKey(ActionType actionType, String name) {
-    return '/$actionType/$name';
-  }
+  String _getKey(ActionType actionType, String name) =>
+      '/${actionType.value}/$name';
 
   void registerValue(ActionType type, String name, dynamic value) {
     final key = _getKey(type, name);
@@ -137,6 +140,40 @@ class Registry {
       }
     }
     return allActions.values.toList();
+  }
+
+  // First steps to replacing the action storage with individual storages
+
+  Formatter<Output>? lookUpFormatter<Output>(String name) =>
+      lookupValue(ActionType.format, name);
+
+  GenerateMiddlewareDef<C>? lookUpMiddleware<C>(String name) =>
+      lookupValue(ActionType.middleware, name);
+
+  Future<Action<Input, Output, Chunk, Init>?>
+  lookupEmbedder<Input, Output, Chunk, Init>(String name) async =>
+      lookupAction(ActionType.embedder, name);
+
+  Future<Model<C>?> lookUpModel<C>(String name) async =>
+      lookupAction(ActionType.model, name) as Model<C>;
+
+  Future<Tool<Input, Output>?> lookupTool<Input, Output>(
+    String toolName,
+  ) async => lookupAction(ActionType.tool, toolName) as Tool<Input, Output>?;
+
+  Future<BidiModel<C>?> lookUpBidiModel<C>(String name) async =>
+      lookupAction(ActionType.bidiModel, name) as BidiModel<C>?;
+
+  Future<Flow?> lookUpFlow<Input, Output, Chunk, Init>(String flowName) async =>
+      lookupAction(ActionType.flow, flowName)
+          as Flow<Input, Output, Chunk, Init>?;
+
+  void registerFormatter<T>(Formatter<T> formatter) {
+    _values[_getKey(ActionType.format, formatter.name)] = formatter;
+  }
+
+  void registerMiddleware(GenerateMiddlewareDef mw) {
+    _values[_getKey(ActionType.middleware, mw.name)] = mw;
   }
 }
 

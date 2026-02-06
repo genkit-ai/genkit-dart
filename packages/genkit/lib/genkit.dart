@@ -90,7 +90,7 @@ class Genkit {
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);
       for (final mw in plugin.middleware()) {
-        registry.registerValue(ActionType.middleware, mw.name, mw);
+        registry.registerMiddleware(mw);
       }
     }
 
@@ -251,10 +251,10 @@ class Genkit {
     required List<DocumentData> documents,
     C? options,
   }) async {
-    final action = await registry.lookupAction(
-      ActionType.embedder,
-      embedder.name,
-    );
+    final action = await registry
+        .lookupEmbedder<EmbedRequest, EmbedResponse, dynamic, dynamic>(
+          embedder.name,
+        );
     if (action == null) {
       throw GenkitException(
         'Embedder ${embedder.name} not found',
@@ -268,23 +268,20 @@ class Genkit {
 
     final req = EmbedRequest(input: documents, options: resolvedOptions);
 
-    final response = await action(req) as EmbedResponse;
+    final response = await action(req);
     return response.embeddings;
   }
 
   Future<List<Embedding>> embed<C>({
     required EmbedderRef<C> embedder,
-    DocumentData? document,
-    List<DocumentData>? documents,
+    required DocumentData document,
     C? options,
   }) async {
-    final docs = documents ?? (document != null ? [document] : []);
-    if (docs.isEmpty) {
-      throw ArgumentError(
-        'Either document or documents must be provided to embed.',
-      );
-    }
-    return embedMany(embedder: embedder, documents: docs, options: options);
+    return embedMany(
+      embedder: embedder,
+      documents: [document],
+      options: options,
+    );
   }
 
   Future<GenerateBidiSession> generateBidi({

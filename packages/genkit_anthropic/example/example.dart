@@ -24,7 +24,7 @@ void main(List<String> args) {
   configureCollectorExporter();
 
   final ai = Genkit(
-    plugins: [anthropic(apiKey: Platform.environment['ANTHROPIC_API_KEY']!)],
+    plugins: [Anthropic(apiKey: Platform.environment['ANTHROPIC_API_KEY']!)],
   );
 
   // --- Basic Generate Flow ---
@@ -34,7 +34,7 @@ void main(List<String> args) {
     outputSchema: stringSchema(),
     function: (input, context) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: input,
       );
       return response.text;
@@ -49,7 +49,7 @@ void main(List<String> args) {
     streamSchema: stringSchema(),
     function: (input, ctx) async {
       final stream = ai.generateStream(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: input,
       );
 
@@ -77,7 +77,7 @@ void main(List<String> args) {
     outputSchema: stringSchema(),
     function: (prompt, context) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: prompt,
         toolNames: ['calculator'],
       );
@@ -94,7 +94,7 @@ void main(List<String> args) {
     function: (prompt, ctx) async {
       final response = await ai.generate(
         // Assuming a model that supports thinking is available or aliased
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: prompt,
         onChunk: ctx.sendChunk,
         config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
@@ -115,7 +115,7 @@ void main(List<String> args) {
     streamSchema: Person.$schema,
     function: (prompt, ctx) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: prompt,
         outputSchema: Person.$schema,
         onChunk: (chunk) {

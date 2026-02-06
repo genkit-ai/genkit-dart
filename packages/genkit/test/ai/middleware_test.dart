@@ -254,11 +254,11 @@ void main() {
       final log = <String>[];
 
       // Register a middleware definition manually (as a plugin would).
-      final def = defineMiddleware<dynamic>(
+      final def = defineMiddleware(
         name: 'reg-mw',
         create: ([config]) => TestMiddleware(log, 'reg-mw-${config ?? 'none'}'),
       );
-      genkit.registry.registerValue(ActionType.middleware, def.name, def);
+      genkit.registry.registerMiddleware(def);
 
       genkit.defineModel(
         name: 'echo-model-ref',

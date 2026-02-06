@@ -40,10 +40,10 @@ void main() {
 
   group('Anthropic Integration', () {
     late Genkit ai;
-    AnthropicPluginImpl? plugin;
+    AnthropicPlugin? plugin;
 
     setUp(() {
-      plugin = AnthropicPluginImpl(apiKey: apiKey);
+      plugin = AnthropicPlugin(apiKey: apiKey);
       ai = Genkit(plugins: [plugin!]);
     });
 
@@ -58,7 +58,7 @@ void main() {
         outputSchema: stringSchema(),
         function: (input, _) async {
           final response = await ai.generate(
-            model: anthropic.model('claude-sonnet-4-5'),
+            model: Anthropic.modelReference('claude-sonnet-4-5'),
             prompt: 'Say hello to $input',
             config: AnthropicOptions(temperature: 0),
           );
@@ -72,7 +72,7 @@ void main() {
 
     test('should stream text', () async {
       final response = ai.generateStream(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: 'Count to 5',
       );
 
@@ -87,7 +87,7 @@ void main() {
 
     test('should generate structured output', () async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: 'Generate a person named John Doe, age 30',
         outputSchema: Person.$schema,
       );
@@ -99,7 +99,7 @@ void main() {
 
     test('should stream structured output', () async {
       final response = ai.generateStream(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: 'Generate a person named Jane Doe, age 25',
         outputSchema: Person.$schema,
       );
@@ -120,7 +120,7 @@ void main() {
       );
 
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: 'What is 123 * 456?',
         tools: [tool],
       );
@@ -136,7 +136,7 @@ void main() {
 
     test('should support thinking', () async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: 'Solve this 24 game: 2, 3, 10, 10',
         config: AnthropicOptions(
           // Thinking requires budget if supported

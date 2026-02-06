@@ -84,8 +84,7 @@ void main() {
       final registry = Registry();
       final plugin = TestPlugin('myPlugin');
       registry.registerPlugin(plugin);
-      final retrievedAction = await registry.lookupAction(
-        ActionType.model,
+      final retrievedAction = await registry.lookUpModel(
         'myPlugin/nonExistent',
       );
       expect(retrievedAction, isNull);
@@ -102,19 +101,13 @@ void main() {
       registry.registerPlugin(plugin);
 
       expect(plugin.initCount, 0);
-      final retrievedAction = await registry.lookupAction(
-        ActionType.model,
-        'myPlugin/myModel',
-      );
+      final retrievedAction = await registry.lookUpModel('myPlugin/myModel');
       expect(plugin.initCount, 1);
       expect(retrievedAction, isNotNull);
       expect(retrievedAction!.name, 'myModel');
 
       // Verify that the action is now cached
-      final cachedAction = await registry.lookupAction(
-        ActionType.model,
-        'myPlugin/myModel',
-      );
+      final cachedAction = await registry.lookUpModel('myPlugin/myModel');
       expect(cachedAction, same(retrievedAction));
     });
 

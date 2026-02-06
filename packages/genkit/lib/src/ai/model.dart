@@ -21,25 +21,16 @@ import '../types.dart';
 ModelReference<C> modelRef<C>(
   String name, {
   SchemanticType<C>? customOptions,
-}) {
-  return _ModelRef<C>(name, customOptions);
-}
+}) => ModelReference<C>._(name, customOptions);
 
-abstract class ModelReference<C> {
-  String get name;
-  SchemanticType<C>? get customOptions;
-}
-
-class _ModelRef<C> implements ModelReference<C> {
-  @override
+final class ModelReference<C> {
   final String name;
-  @override
   final SchemanticType<C>? customOptions;
 
-  _ModelRef(this.name, this.customOptions);
+  ModelReference._(this.name, this.customOptions);
 }
 
-class Model<C>
+base class Model<C>
     extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
     implements ModelReference<C> {
   @override
@@ -111,25 +102,16 @@ ActionMetadata modelMetadata(
 BidiModelRef<C> bidiModelRef<C>(
   String name, {
   SchemanticType<C>? customOptions,
-}) {
-  return _BidiModelRef<C>(name, customOptions);
-}
+}) => BidiModelRef<C>._(name, customOptions);
 
-abstract class BidiModelRef<C> {
-  String get name;
-  SchemanticType<C>? get customOptions;
-}
-
-class _BidiModelRef<C> implements BidiModelRef<C> {
-  @override
+final class BidiModelRef<C> {
   final String name;
-  @override
   final SchemanticType<C>? customOptions;
 
-  _BidiModelRef(this.name, this.customOptions);
+  const BidiModelRef._(this.name, this.customOptions);
 }
 
-class BidiModel<C>
+final class BidiModel<C>
     extends
         Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
     implements BidiModelRef<C> {

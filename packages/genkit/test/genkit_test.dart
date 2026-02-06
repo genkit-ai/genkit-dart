@@ -74,12 +74,8 @@ void main() {
       expect(flow.name, flowName);
 
       // Check if the flow is registered in the registry
-      final retrievedAction = await genkit.registry.lookupAction(
-        ActionType.flow,
-        flowName,
-      );
+      final retrievedAction = await genkit.registry.lookUpFlow(flowName);
       expect(retrievedAction, isNotNull);
-      expect(retrievedAction, isA<Flow>());
       expect(retrievedAction!.name, flowName);
 
       // Check if the returned flow and the registered flow are the same instance
@@ -102,14 +98,10 @@ void main() {
       expect(tool.description, toolDescription);
 
       // Check if the tool is registered in the registry
-      final retrievedAction = await genkit.registry.lookupAction(
-        ActionType.tool,
-        toolName,
-      );
+      final retrievedAction = await genkit.registry.lookupTool(toolName);
       expect(retrievedAction, isNotNull);
-      expect(retrievedAction, isA<Tool>());
       expect(retrievedAction!.name, toolName);
-      expect((retrievedAction as Tool).description, toolDescription);
+      expect(retrievedAction.description, toolDescription);
 
       // Check if the returned tool and the registered tool are the same instance
       expect(identical(tool, retrievedAction), isTrue);
