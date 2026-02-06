@@ -335,4 +335,19 @@ void main(List<String> args) async {
       throw Exception('No audio generated');
     },
   );
+
+  ai.defineFlow(
+    name: 'embedding',
+    inputSchema: stringSchema(defaultValue: 'Hello Genkit'),
+    outputSchema: listSchema(doubleSchema()),
+    fn: (input, _) async {
+      final embeddings = await ai.embedMany(
+        embedder: googleAI.textEmbedding('text-embedding-004'),
+        documents: [
+          DocumentData(content: [TextPart(text: input)]),
+        ],
+      );
+      return embeddings.first.embedding;
+    },
+  );
 }
