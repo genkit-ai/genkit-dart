@@ -194,6 +194,50 @@ void main() {
         );
       });
     });
+
+    test('nullable()', () {
+      final nullableString = nullable(stringSchema());
+      expect(nullableString.parse('hello'), 'hello');
+      expect(nullableString.parse(null), null);
+
+      final json = jsonDecode(nullableString.jsonSchema().toJson());
+      expect(json['oneOf'], isNotNull);
+      expect(json['oneOf'][0]['type'], 'null');
+      expect(json['oneOf'][1]['type'], 'string');
+    });
+
+    test('nullable() round trip', () {
+      final s = nullable(intSchema());
+      expect(s.parse(123), 123);
+      expect(s.parse(null), null);
+    });
+
+    test('nullable() with mapSchema (object)', () {
+      final nullableMap = nullable(mapSchema(stringSchema(), intSchema()));
+
+      // Test parsing map
+      final mapValue = {'a': 1, 'b': 2};
+      expect(nullableMap.parse(mapValue), mapValue);
+
+      // Test parsing null
+      expect(nullableMap.parse(null), null);
+
+      // Test JSON schema
+      final json = jsonDecode(nullableMap.jsonSchema().toJson());
+      expect(json['oneOf'], isNotNull);
+      final nullTypeSource = json['oneOf'].firstWhere(
+        (s) => s['type'] == 'null',
+        orElse: () => null,
+      );
+      final objectTypeSource = json['oneOf'].firstWhere(
+        (s) => s['type'] == 'object',
+        orElse: () => null,
+      );
+
+      expect(nullTypeSource, isNotNull);
+      expect(objectTypeSource, isNotNull);
+      expect(objectTypeSource['additionalProperties']['type'], 'integer');
+    });
   });
 }
 
