@@ -24,18 +24,18 @@ import '../exception.dart';
 
 const _flowStreamDelimiter = '\n\n';
 
-Future<O?> streamFlow<O, S>({
+Future<Output?> streamFlow<Output, Chunk>({
   required String url,
-  required void Function(S chunk) onChunk,
+  required void Function(Chunk chunk) onChunk,
   void Function(StreamSubscription)? onSubscription,
   void Function(void Function() cancelCallback)? setCancelCallback,
   dynamic input,
   Map<String, String>? headers,
   http.Client? httpClient,
-  O Function(dynamic jsonData)? fromResponse,
-  S Function(dynamic jsonData)? fromStreamChunk,
+  Output Function(dynamic jsonData)? fromResponse,
+  Chunk Function(dynamic jsonData)? fromStreamChunk,
 }) async {
-  final responseCompleter = Completer<O?>();
+  final responseCompleter = Completer<Output?>();
 
   httpClient ??= http.Client();
   fromResponse ??= (json) => json;
@@ -164,9 +164,9 @@ Future<O?> streamFlow<O, S>({
 /// a flow client by allowing direct specification of data conversion functions.
 ///
 /// Type parameters:
-///   - `O`: The type of the output data from a non-streaming flow invocation,
+///   - `Output`: The type of the output data from a non-streaming flow invocation,
 ///          or the type of the final response from a streaming flow.
-///   - `S`: The type of the data chunks streamed from the flow.
+///   - `Chunk`: The type of the data chunks streamed from the flow.
 ///
 /// Parameters:
 ///   - `url`: The absolute URL of the Genkit flow.
@@ -176,22 +176,23 @@ Future<O?> streamFlow<O, S>({
 ///                   the caller is responsible for its lifecycle (e.g., closing it).
 ///   - `fromResponse`: An optional function that converts the JSON-decoded response data
 ///                     (typically a `Map<String, dynamic>` or primitive type from `jsonDecode`)
-///                     into the expected output type [O]. If not provided, the
+///                     into the expected output type [Output]. If not provided, the
 ///                     result is a `dynamic` object from `jsonDecode`.
 ///   - `fromStreamChunk`: An optional function that converts the JSON-decoded stream
-///                        chunk data into the expected stream type [S]. If not
+///                        chunk data into the expected stream type [Chunk]. If not
 ///                        provided, chunks are `dynamic` objects from `jsonDecode`.
 ///
-/// Returns a [RemoteAction<O, S>] instance.
-RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
+/// Returns a [RemoteAction<Output, Chunk>] instance.
+RemoteAction<Input, Output, Chunk, Init>
+defineRemoteAction<Input, Output, Chunk, Init>({
   required String url,
   Map<String, String>? defaultHeaders,
   http.Client? httpClient,
-  O Function(dynamic jsonData)? fromResponse,
-  S Function(dynamic jsonData)? fromStreamChunk,
-  SchemanticType<I>? inputSchema,
-  SchemanticType<O>? outputSchema,
-  SchemanticType<S>? streamSchema,
+  Output Function(dynamic jsonData)? fromResponse,
+  Chunk Function(dynamic jsonData)? fromStreamChunk,
+  SchemanticType<Input>? inputSchema,
+  SchemanticType<Output>? outputSchema,
+  SchemanticType<Chunk>? streamSchema,
 }) {
   if (fromResponse != null && outputSchema != null) {
     throw ArgumentError(
@@ -204,16 +205,20 @@ RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
     );
   }
 
-  return RemoteAction<I, O, S, Init>(
+  return RemoteAction<Input, Output, Chunk, Init>(
     url: url,
     defaultHeaders: defaultHeaders,
     httpClient: httpClient,
     fromResponse:
         fromResponse ??
-        (outputSchema != null ? (d) => outputSchema.parse(d) : (d) => d as O),
+        (outputSchema != null
+            ? (d) => outputSchema.parse(d)
+            : (d) => d as Output),
     fromStreamChunk:
         fromStreamChunk ??
-        (streamSchema != null ? (d) => streamSchema.parse(d) : (d) => d as S),
+        (streamSchema != null
+            ? (d) => streamSchema.parse(d)
+            : (d) => d as Chunk),
   );
 }
 
@@ -225,25 +230,25 @@ RemoteAction<I, O, S, Init> defineRemoteAction<I, O, S, Init>({
 /// for a specific flow.
 ///
 /// Type parameters:
-///   - `O`: The type of the output data from a non-streaming flow invocation,
+///   - `Output`: The type of the output data from a non-streaming flow invocation,
 ///          or the type of the final response from a streaming flow.
-///   - `S`: The type of the data chunks streamed from the flow.
+///   - `Chunk`: The type of the data chunks streamed from the flow.
 /// {@endtemplate}
-class RemoteAction<I, O, S, Init> {
+class RemoteAction<Input, Output, Chunk, Init> {
   final String _url;
   final Map<String, String>? _defaultHeaders;
   final http.Client _httpClient;
   final bool _ownsHttpClient;
-  final O Function(dynamic jsonData) _fromResponse;
-  final S Function(dynamic jsonData)? _fromStreamChunk;
+  final Output Function(dynamic jsonData) _fromResponse;
+  final Chunk Function(dynamic jsonData)? _fromStreamChunk;
 
   /// {@macro remote_action}
   RemoteAction({
     required String url,
     Map<String, String>? defaultHeaders,
     http.Client? httpClient,
-    required O Function(dynamic jsonData) fromResponse,
-    required S Function(dynamic jsonData) fromStreamChunk,
+    required Output Function(dynamic jsonData) fromResponse,
+    required Chunk Function(dynamic jsonData) fromStreamChunk,
   }) : _url = url,
        _defaultHeaders = defaultHeaders,
        _httpClient = httpClient ?? http.Client(),
@@ -252,7 +257,10 @@ class RemoteAction<I, O, S, Init> {
        _fromStreamChunk = fromStreamChunk;
 
   /// Invokes the remote flow.
-  Future<O> call({required I input, Map<String, String>? headers}) async {
+  Future<Output> call({
+    required Input input,
+    Map<String, String>? headers,
+  }) async {
     final uri = Uri.parse(_url);
     final requestHeaders = {
       'Content-Type': 'application/json',
@@ -316,24 +324,27 @@ class RemoteAction<I, O, S, Init> {
   }
 
   /// Invokes the remote flow and streams its response.
-  ActionStream<S, O> stream({required I input, Map<String, String>? headers}) {
+  ActionStream<Chunk, Output> stream({
+    required Input input,
+    Map<String, String>? headers,
+  }) {
     final fromStreamChunk = _fromStreamChunk;
     if (fromStreamChunk == null) {
       final error = GenkitException(
         'fromStreamChunk must be provided for streaming operations.',
       );
-      final stream = Stream<S>.error(error);
-      final actionStream = ActionStream<S, O>(stream);
+      final stream = Stream<Chunk>.error(error);
+      final actionStream = ActionStream<Chunk, Output>(stream);
       actionStream.setError(error, StackTrace.current);
       return actionStream;
     }
 
     StreamSubscription? subscription;
-    final streamController = StreamController<S>();
+    final streamController = StreamController<Chunk>();
 
-    final actionStream = ActionStream<S, O>(streamController.stream);
+    final actionStream = ActionStream<Chunk, Output>(streamController.stream);
 
-    streamFlow<O, S>(
+    streamFlow<Output, Chunk>(
       url: _url,
       fromResponse: _fromResponse,
       fromStreamChunk: _fromStreamChunk,
@@ -356,7 +367,7 @@ class RemoteAction<I, O, S, Init> {
       httpClient: _httpClient,
     ).then(
       (d) {
-        actionStream.setResult(d as O);
+        actionStream.setResult(d as Output);
         if (!streamController.isClosed) {
           streamController.close();
         }
