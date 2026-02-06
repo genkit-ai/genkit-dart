@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:schemantic/schemantic.dart';
+
 import '../core/action.dart';
 import '../types.dart';
 import 'generate.dart';
+import 'tool.dart';
 
 /// Middleware for the processing of a Generation request.
 abstract class GenerateMiddleware {
+  /// Middlewares can act as a "kit" by providing tools directly.
+  /// These tools will be added to the tool list of the `generate` call.
+  List<Tool>? get tools => null;
+
   /// Middleware for the top-level generate call.
   ///
   /// Wraps the entire generation process, including the tool loop.
@@ -65,4 +72,54 @@ abstract class GenerateMiddleware {
   ) {
     return next(request, ctx);
   }
+}
+
+abstract interface class GenerateMiddlewareDef<C> {
+  String get name;
+  SchemanticType<C>? get configSchema;
+  Schema? get configJsonSchema;
+
+  GenerateMiddleware create([C? config]);
+}
+
+class _GenerateMiddlewareDef<C> implements GenerateMiddlewareDef<C> {
+  @override
+  final String name;
+  @override
+  final SchemanticType<C>? configSchema;
+  final GenerateMiddleware Function([C? config]) _create;
+
+  _GenerateMiddlewareDef(this.name, this._create, this.configSchema);
+
+  @override
+  Schema? get configJsonSchema => configSchema?.jsonSchema();
+
+  @override
+  GenerateMiddleware create([C? config]) => _create(config);
+}
+
+GenerateMiddlewareDef<C> defineMiddleware<C>({
+  required String name,
+  required GenerateMiddleware Function([C? config]) create,
+  SchemanticType<C>? configSchema,
+}) {
+  return _GenerateMiddlewareDef<C>(name, create, configSchema);
+}
+
+abstract interface class GenerateMiddlewareRef<C> {
+  String get name;
+  C? get config;
+}
+
+class _GenerateMiddlewareRef<C> implements GenerateMiddlewareRef<C> {
+  @override
+  final String name;
+  @override
+  final C? config;
+
+  _GenerateMiddlewareRef(this.name, this.config);
+}
+
+GenerateMiddlewareRef<C> middlewareRef<C>({required String name, C? config}) {
+  return _GenerateMiddlewareRef<C>(name, config);
 }

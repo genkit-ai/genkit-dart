@@ -26,6 +26,7 @@ import 'dart:async';
 import 'package:schemantic/schemantic.dart';
 
 import 'src/ai/generate.dart';
+import 'src/ai/generate_middleware.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
@@ -52,6 +53,7 @@ Future<GenerateResponseHelper> generate<C>({
   String? outputContentType,
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
+  List<GenerateMiddleware>? use,
 }) async {
   if (outputInstructions != null && outputNoInstructions == true) {
     throw ArgumentError(
@@ -92,6 +94,7 @@ Future<GenerateResponseHelper> generate<C>({
     output: outputConfig,
     context: context,
     onChunk: onChunk,
+    middlewares: use,
   );
 }
 
@@ -111,6 +114,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   bool? outputNoInstructions,
   String? outputContentType,
   Map<String, dynamic>? context,
+  List<GenerateMiddleware>? use,
 }) {
   final streamController = StreamController<GenerateResponseChunk>();
   final actionStream =
@@ -138,6 +142,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
           if (streamController.isClosed) return;
           streamController.add(chunk);
         },
+        use: use,
       )
       .then((result) {
         actionStream.setResult(result);
