@@ -18,10 +18,7 @@ import '../core/action.dart';
 import '../schema.dart';
 import '../types.dart';
 
-EmbedderRef<C> embedderRef<C>(
-  String name, {
-  SchemanticType<C>? customOptions,
-}) {
+EmbedderRef<C> embedderRef<C>(String name, {SchemanticType<C>? customOptions}) {
   return _EmbedderRef<C>(name, customOptions);
 }
 

@@ -292,5 +292,68 @@ void main() {
         ]),
       );
     });
+
+    test('should inject tools from middleware', () async {
+      final log = <String>[];
+
+      final injectedTool = Tool(
+        name: 'injected-tool',
+        description: 'Injected Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, ctx) async {
+          log.add('tool:exec');
+          return 'injected-result';
+        },
+      );
+
+      final mw = ToolInjectingMiddleware([injectedTool]);
+
+      genkit.defineModel(
+        name: 'tool-calling-model',
+        fn: (req, ctx) async {
+          if (req.messages.any((m) => m.role == Role.tool)) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Tool Called')],
+              ),
+            );
+          }
+          // Request the injected tool
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'injected-tool',
+                    input: {'name': 'foo'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      await genkit.generate(
+        model: modelRef('tool-calling-model'),
+        prompt: 'call tool',
+        use: [mw],
+      );
+
+      expect(log, contains('tool:exec'));
+    });
   });
+}
+
+class ToolInjectingMiddleware extends GenerateMiddleware {
+  final List<Tool> _tools;
+
+  ToolInjectingMiddleware(this._tools);
+
+  @override
+  List<Tool> get tools => _tools;
 }

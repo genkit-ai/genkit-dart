@@ -205,7 +205,7 @@ class GenerateResponseHelper<O> extends GenerateResponse {
   ModelResponse get rawResponse => _response;
 }
 
-List<GenerateMiddleware> _resolveMiddlewares(
+({List<GenerateMiddleware> middlewares, Registry registry}) _resolveMiddlewares(
   Registry registry,
   List<dynamic>? middlewares,
 ) {
@@ -234,14 +234,25 @@ List<GenerateMiddleware> _resolveMiddlewares(
       }
     }
   }
-  return resolvedMiddlewares;
+
+  final middlewareTools = resolvedMiddlewares
+      .expand((m) => m.tools ?? <Tool>[])
+      .toList();
+  if (middlewareTools.isNotEmpty) {
+    registry = Registry.childOf(registry);
+    for (final tool in middlewareTools) {
+      registry.register(tool);
+    }
+  }
+
+  return (middlewares: resolvedMiddlewares, registry: registry);
 }
 
 Future<GenerateResponseHelper> _runGenerateLoop(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
-  List<dynamic>? middlewares,
+  required List<GenerateMiddleware> resolvedMiddlewares,
 }) async {
   if (options.model == null) {
     throw GenkitException(
@@ -263,12 +274,24 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   final requestOptions = applyFormat(options, format);
 
   var toolDefs = <ToolDefinition>[];
+  final activeToolNames = <String>{};
   if (requestOptions.tools != null) {
     for (var toolName in requestOptions.tools!) {
+      activeToolNames.add(toolName);
       final tool = await registry.lookupAction('tool', toolName) as Tool?;
       if (tool != null) {
         toolDefs.add(toToolDefinition(tool));
       }
+    }
+  }
+
+  final middlewareTools = resolvedMiddlewares
+      .expand((m) => m.tools ?? <Tool>[])
+      .toList();
+  for (final tool in middlewareTools) {
+    if (!activeToolNames.contains(tool.name)) {
+      activeToolNames.add(tool.name);
+      toolDefs.add(toToolDefinition(tool));
     }
   }
 
@@ -301,7 +324,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  final resolvedMiddlewares = _resolveMiddlewares(registry, middlewares);
+  // Middleware is already resolved above
 
   final composedModel = resolvedMiddlewares.reversed.fold(
     coreModel,
@@ -447,14 +470,21 @@ Future<GenerateResponseHelper> runGenerateAction(
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   List<dynamic>? middlewares,
 }) async {
+  final resolved = _resolveMiddlewares(registry, middlewares);
+  final generateRegistry = resolved.registry;
+  final resolvedMiddlewares = resolved.middlewares;
+
   Future<GenerateResponseHelper> coreGenerate(
     GenerateActionOptions opts,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
   ) {
-    return _runGenerateLoop(registry, opts, c, middlewares: middlewares);
+    return _runGenerateLoop(
+      generateRegistry,
+      opts,
+      c,
+      resolvedMiddlewares: resolvedMiddlewares,
+    );
   }
-
-  final resolvedMiddlewares = _resolveMiddlewares(registry, middlewares);
 
   final composedGenerate = resolvedMiddlewares.reversed.fold(
     coreGenerate,

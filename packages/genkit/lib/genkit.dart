@@ -253,15 +253,12 @@ class Genkit {
         status: StatusCodes.NOT_FOUND,
       );
     }
-    
+
     final resolvedOptions = options is Map
         ? options as Map<String, dynamic>
         : (options as dynamic)?.toJson() as Map<String, dynamic>?;
 
-    final req = EmbedRequest(
-      input: documents,
-      options: resolvedOptions,
-    );
+    final req = EmbedRequest(input: documents, options: resolvedOptions);
 
     final response = await action(req) as EmbedResponse;
     return response.embeddings;
@@ -275,13 +272,11 @@ class Genkit {
   }) async {
     final docs = documents ?? (document != null ? [document] : []);
     if (docs.isEmpty) {
-      throw ArgumentError('Either document or documents must be provided to embed.');
+      throw ArgumentError(
+        'Either document or documents must be provided to embed.',
+      );
     }
-    return embedMany(
-      embedder: embedder,
-      documents: docs,
-      options: options,
-    );
+    return embedMany(embedder: embedder, documents: docs, options: options);
   }
 
   Future<GenerateBidiSession> generateBidi({
