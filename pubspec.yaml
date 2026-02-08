@@ -8,6 +8,7 @@ environment:
 workspace:
   - packages/_schema_generator
   - packages/genkit
+  - packages/genkit_mcp
   - packages/genkit_google_genai
   - packages/genkit_anthropic
   - packages/genkit_shelf
@@ -17,6 +18,7 @@ workspace:
   - testapps/ai_features
   - testapps/basic
   - testapps/genkit_chrome_sample
+  - testapps/mcp_server
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
