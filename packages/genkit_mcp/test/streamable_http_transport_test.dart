@@ -283,8 +283,11 @@ void main() {
       expect(first.statusCode, HttpStatus.ok);
       await _closeSse(first);
 
+      // The server probes the old stream before allowing a new one.
+      // The probe timeout is 200ms, so we need to wait long enough for
+      // the probe to fail and the old stream to be cleaned up.
       HttpClientResponse? second;
-      for (var attempt = 0; attempt < 5; attempt += 1) {
+      for (var attempt = 0; attempt < 10; attempt += 1) {
         second = await _getSse(
           client,
           testServer.url,
@@ -292,7 +295,7 @@ void main() {
         );
         if (second.statusCode == HttpStatus.ok) break;
         await second.drain();
-        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       }
       expect(second?.statusCode, HttpStatus.ok);
       if (second != null) {
