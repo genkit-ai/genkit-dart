@@ -733,7 +733,7 @@ ResourceAction _createResourceAction(
       'resource': {'uri': uri, 'template': template},
       if (meta != null) 'mcp': {'_meta': meta},
     },
-    matches: createMcpResourceMatcher(uri: uri, template: template),
+    matches: createResourceMatcher(uri: uri, template: template),
     fn: (input, ctx) async {
       final result = await client.readResource(
         uri: input.uri,

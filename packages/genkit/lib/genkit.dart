@@ -63,7 +63,12 @@ export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/prompt.dart' show PromptAction, PromptFn;
 export 'package:genkit/src/ai/resource.dart'
-    show ResourceAction, ResourceFn, ResourceInput, ResourceOutput;
+    show
+        ResourceAction,
+        ResourceFn,
+        ResourceInput,
+        ResourceOutput,
+        createResourceMatcher;
 export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
 export 'package:genkit/src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata;

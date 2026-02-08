@@ -14,7 +14,6 @@
 
 import 'dart:convert';
 
-import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
 /// Safely casts [value] to a `Map<String, dynamic>`.
@@ -169,56 +168,6 @@ class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
     }),
     dependencies: const [],
   );
-}
-
-/// Creates a matcher function for [ResourceInput] based on a URI or template.
-///
-/// Exactly one of [uri] or [template] must be provided. URI matchers check
-/// for exact equality. Template matchers use simple `{variable}` expansion.
-bool Function(ResourceInput input) createMcpResourceMatcher({
-  required String? uri,
-  required String? template,
-}) {
-  if ((uri == null && template == null) || (uri != null && template != null)) {
-    throw GenkitException(
-      'Resource must specify exactly one of uri or template.',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-
-  if (uri != null) {
-    return (input) => input.uri == uri;
-  }
-
-  final regex = _buildSimpleTemplateRegex(template!);
-  return (input) => regex.hasMatch(input.uri);
-}
-
-RegExp _buildSimpleTemplateRegex(String template) {
-  final matches = RegExp(r'\{([^}]+)\}').allMatches(template);
-  final buffer = StringBuffer('^');
-  var lastIndex = 0;
-
-  for (final match in matches) {
-    final varName = match.group(1) ?? '';
-    if (!_isSimpleTemplateVar(varName)) {
-      throw GenkitException(
-        'Resource template contains unsupported operator: {$varName}',
-        status: StatusCodes.UNIMPLEMENTED,
-      );
-    }
-    buffer.write(RegExp.escape(template.substring(lastIndex, match.start)));
-    buffer.write('(.+?)');
-    lastIndex = match.end;
-  }
-
-  buffer.write(RegExp.escape(template.substring(lastIndex)));
-  buffer.write(r'$');
-  return RegExp(buffer.toString());
-}
-
-bool _isSimpleTemplateVar(String value) {
-  return RegExp(r'^[A-Za-z0-9_]+$').hasMatch(value);
 }
 
 /// Extracts an object schema from a JSON schema, handling `allOf` wrappers.

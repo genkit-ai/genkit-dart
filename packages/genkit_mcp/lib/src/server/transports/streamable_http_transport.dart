@@ -571,9 +571,20 @@ class StreamableHttpServerTransport implements McpServerTransport {
 
   Future<bool> _probeStandaloneStream(_StreamState stream) async {
     try {
+      // First check if the response is already done (client disconnected).
+      // response.done completes when the underlying socket is closed.
+      final alreadyDone = await Future.any<bool>([
+        stream.response.done.then((_) => true),
+        Future<bool>.delayed(Duration.zero, () => false),
+      ]);
+      if (alreadyDone) {
+        throw StateError('Stream already closed');
+      }
+
       stream.response.write(': ping\n\n');
       final flushed = await Future.any<bool>([
         stream.response.flush().then((_) => true),
+        stream.response.done.then((_) => false),
         Future<bool>.delayed(const Duration(milliseconds: 200), () => false),
       ]);
       if (!flushed) {
