@@ -21,16 +21,21 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherInput implements WeatherInputSchema {
-  WeatherInput(this._json);
+class WeatherInputSchema {
+  factory WeatherInputSchema.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory WeatherInput.from({required String location}) {
-    return WeatherInput({'location': location});
+  WeatherInputSchema._(this._json);
+
+  WeatherInputSchema({required String location}) {
+    _json = {'location': location};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<WeatherInputSchema> $schema =
+      _WeatherInputSchemaTypeFactory();
+
   String get location {
     return _json['location'] as String;
   }
@@ -49,17 +54,18 @@ class WeatherInput implements WeatherInputSchema {
   }
 }
 
-class _WeatherInputTypeFactory extends SchemanticType<WeatherInput> {
-  const _WeatherInputTypeFactory();
+class _WeatherInputSchemaTypeFactory
+    extends SchemanticType<WeatherInputSchema> {
+  const _WeatherInputSchemaTypeFactory();
 
   @override
-  WeatherInput parse(Object? json) {
-    return WeatherInput(json as Map<String, dynamic>);
+  WeatherInputSchema parse(Object? json) {
+    return WeatherInputSchema._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'WeatherInput',
+    name: 'WeatherInputSchema',
     definition: Schema.object(
       properties: {'location': Schema.string()},
       required: ['location'],
@@ -67,6 +73,3 @@ class _WeatherInputTypeFactory extends SchemanticType<WeatherInput> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const WeatherInputType = _WeatherInputTypeFactory();

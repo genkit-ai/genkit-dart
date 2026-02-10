@@ -16,7 +16,7 @@ import 'package:genkit/genkit.dart';
 
 /// Default model info for standard OpenAI models
 ModelInfo defaultModelInfo(String model) {
-  return ModelInfo.from(
+  return ModelInfo(
     label: model,
     supports: {
       'multiturn': true,
@@ -29,7 +29,7 @@ ModelInfo defaultModelInfo(String model) {
 
 /// Model info for o1/o3 reasoning models
 ModelInfo o1ModelInfo() {
-  return ModelInfo.from(
+  return ModelInfo(
     label: 'o1',
     supports: {
       'multiturn': true,

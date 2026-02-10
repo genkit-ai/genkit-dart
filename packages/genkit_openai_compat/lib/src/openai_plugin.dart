@@ -81,14 +81,14 @@ class OpenAICompatPlugin extends GenkitPlugin {
   Model _createModel(String modelName, ModelInfo? info) {
     return Model(
       name: 'openai_compat/$modelName',
-      customOptions: OpenAIOptionsType,
+      customOptions: OpenAIOptionsSchema.$schema,
       metadata: {
         'model': (info ?? defaultModelInfo(modelName)).toJson(),
       },
       fn: (req, ctx) async {
         final options = req!.config != null
-            ? OpenAIOptionsType.parse(req.config!)
-            : OpenAIOptions.from();
+            ? OpenAIOptionsSchema.$schema.parse(req.config!)
+            : OpenAIOptionsSchema();
 
         if (apiKey == null) {
           throw GenkitException(
@@ -132,17 +132,17 @@ class OpenAICompatPlugin extends GenkitPlugin {
             rethrow;
           }
 
-          int? statusCode;
+          StatusCodes? status;
           String? details;
 
           if (e is OpenAIClientException) {
-            statusCode = e.code;
+            status = e.code != null ? StatusCodes.fromHttpStatus(e.code!) : null;
             details = e.body?.toString();
           }
 
           throw GenkitException(
             'OpenAI API error: $e',
-            statusCode: statusCode,
+            status: status,
             details: details ?? e.toString(),
             underlyingException: e,
             stackTrace: stackTrace,
@@ -182,7 +182,7 @@ class OpenAICompatPlugin extends GenkitPlugin {
         // Handle text content
         if (delta.content != null) {
           contentBuffer.write(delta.content);
-          parts.add(TextPart.from(text: delta.content!));
+          parts.add(TextPart(text: delta.content!));
         }
 
         // Handle tool calls (accumulated across chunks)
@@ -203,7 +203,7 @@ class OpenAICompatPlugin extends GenkitPlugin {
         }
 
         if (parts.isNotEmpty) {
-          ctx.sendChunk(ModelResponseChunk.from(index: 0, content: parts));
+          ctx.sendChunk(ModelResponseChunk(index: 0, content: parts));
         }
 
         finishReason = chunk.choices.firstOrNull?.finishReason?.name;
@@ -219,7 +219,7 @@ class OpenAICompatPlugin extends GenkitPlugin {
     // Build final message
     final finalParts = <Part>[];
     if (contentBuffer.isNotEmpty) {
-      finalParts.add(TextPart.from(text: contentBuffer.toString()));
+      finalParts.add(TextPart(text: contentBuffer.toString()));
     }
     for (final tc in toolCalls.values) {
       final argumentsJson = tc.arguments.toString();
@@ -227,8 +227,8 @@ class OpenAICompatPlugin extends GenkitPlugin {
           ? jsonDecode(argumentsJson) as Map<String, dynamic>?
           : null;
       finalParts.add(
-        ToolRequestPart.from(
-          toolRequest: ToolRequest.from(
+        ToolRequestPart(
+          toolRequest: ToolRequest(
             ref: tc.id,
             name: tc.name,
             input: input,
@@ -237,9 +237,9 @@ class OpenAICompatPlugin extends GenkitPlugin {
       );
     }
 
-    return ModelResponse.from(
+    return ModelResponse(
       finishReason: mapFinishReason(finishReason),
-      message: Message.from(role: Role.model, content: finalParts),
+      message: Message(role: Role.model, content: finalParts),
     );
   }
 
@@ -257,7 +257,7 @@ class OpenAICompatPlugin extends GenkitPlugin {
     final choice = response.choices.first;
     final message = fromOpenAIAssistantMessage(choice.message);
 
-    return ModelResponse.from(
+    return ModelResponse(
       finishReason: mapFinishReason(choice.finishReason?.name),
       message: message,
       raw: response.toJson(),

@@ -17,6 +17,7 @@ workspace:
   - testapps/ai_features
   - testapps/basic
   - testapps/genkit_chrome_sample
+  - testapps/openai_compat_sample
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
@@ -58,5 +59,5 @@ melos:
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{agentic_patterns,ai_features,basic_sample}"
+        scope: "{agentic_patterns,ai_features,basic_sample,openai_compat_sample}"
       description: Run build_runner for testapps (except the flutter one!)
