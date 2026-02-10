@@ -22,10 +22,37 @@ List<ChatCompletionMessage> toOpenAIMessages(
   List<Message> messages,
   String? visualDetailLevel,
 ) {
-  return messages.map((m) => toOpenAIMessage(m, visualDetailLevel)).toList();
+  final result = <ChatCompletionMessage>[];
+  for (final message in messages) {
+    // Tool messages may contain multiple responses and need to be expanded
+    if (message.role == Role.tool) {
+      final toolResponses = message.content
+          .where((p) => p.isToolResponse)
+          .map((p) => p.toolResponse!)
+          .toList();
+      
+      if (toolResponses.isEmpty) {
+        throw ArgumentError('Tool message must contain at least one ToolResponsePart');
+      }
+      
+      // Create a separate message for each tool response
+      for (final toolResponse in toolResponses) {
+        result.add(
+          ChatCompletionMessage.tool(
+            toolCallId: toolResponse.ref ?? '',
+            content: jsonEncode(toolResponse.output),
+          ),
+        );
+      }
+    } else {
+      result.add(toOpenAIMessage(message, visualDetailLevel));
+    }
+  }
+  return result;
 }
 
 /// Convert a single Genkit message to OpenAI format
+/// Note: Tool messages are handled separately in toOpenAIMessages()
 ChatCompletionMessage toOpenAIMessage(Message msg, String? visualDetailLevel) {
   if (msg.role == Role.system) {
     return ChatCompletionMessage.system(content: msg.text);
@@ -45,16 +72,8 @@ ChatCompletionMessage toOpenAIMessage(Message msg, String? visualDetailLevel) {
     );
   }
   if (msg.role == Role.tool) {
-    final toolResponse = msg.content
-        .where((p) => p.isToolResponse)
-        .map((p) => p.toolResponse!)
-        .firstOrNull;
-    if (toolResponse == null) {
-      throw ArgumentError('Tool message must contain a ToolResponsePart');
-    }
-    return ChatCompletionMessage.tool(
-      toolCallId: toolResponse.ref ?? '',
-      content: jsonEncode(toolResponse.output),
+    throw ArgumentError(
+      'Tool messages should be handled by toOpenAIMessages(), not toOpenAIMessage()',
     );
   }
   throw UnimplementedError('Unsupported role: ${msg.role}');
@@ -112,12 +131,29 @@ List<ChatCompletionMessageToolCall> _extractToolCalls(List<Part> content) {
 
 /// Convert Genkit tool to OpenAI format
 ChatCompletionTool toOpenAITool(ToolDefinition tool) {
+  // OpenAI requires parameters to be a valid JSON Schema object
+  // If no schema is provided, use an empty object schema
+  var parameters = tool.inputSchema;
+  
+  if (parameters == null) {
+    parameters = {
+      'type': 'object',
+      'properties': {},
+    };
+  } else if (!parameters.containsKey('type')) {
+    // Ensure the schema has a type field
+    parameters = {
+      'type': 'object',
+      ...parameters,
+    };
+  }
+  
   return ChatCompletionTool(
     type: ChatCompletionToolType.function,
     function: FunctionObject(
       name: tool.name,
       description: tool.description,
-      parameters: tool.inputSchema,
+      parameters: parameters,
     ),
   );
 }
@@ -132,15 +168,15 @@ Message fromOpenAIAssistantMessage(ChatCompletionAssistantMessage msg) {
 
   // Handle text content (always a String? for assistant messages)
   if (msg.content != null && msg.content!.isNotEmpty) {
-    parts.add(TextPart.from(text: msg.content!));
+    parts.add(TextPart(text: msg.content!));
   }
 
   // Handle tool calls
   if (msg.toolCalls != null) {
     for (final toolCall in msg.toolCalls!) {
       parts.add(
-        ToolRequestPart.from(
-          toolRequest: ToolRequest.from(
+        ToolRequestPart(
+          toolRequest: ToolRequest(
             ref: toolCall.id,
             name: toolCall.function.name,
             input: toolCall.function.arguments.isNotEmpty
@@ -153,7 +189,7 @@ Message fromOpenAIAssistantMessage(ChatCompletionAssistantMessage msg) {
     }
   }
 
-  return Message.from(
+  return Message(
     role: Role.model,
     content: parts,
   );

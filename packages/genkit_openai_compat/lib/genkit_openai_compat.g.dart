@@ -21,10 +21,13 @@ part of 'genkit_openai_compat.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class OpenAIOptions implements OpenAIOptionsSchema {
-  OpenAIOptions(this._json);
+class OpenAIOptionsSchema {
+  factory OpenAIOptionsSchema.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  factory OpenAIOptions.from({
+  OpenAIOptionsSchema._(this._json);
+
+  OpenAIOptionsSchema({
     String? version,
     double? temperature,
     double? topP,
@@ -37,24 +40,26 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     bool? jsonMode,
     String? visualDetailLevel,
   }) {
-    return OpenAIOptions({
-      if (version != null) 'version': version,
-      if (temperature != null) 'temperature': temperature,
-      if (topP != null) 'topP': topP,
-      if (maxTokens != null) 'maxTokens': maxTokens,
-      if (stop != null) 'stop': stop,
-      if (presencePenalty != null) 'presencePenalty': presencePenalty,
-      if (frequencyPenalty != null) 'frequencyPenalty': frequencyPenalty,
-      if (seed != null) 'seed': seed,
-      if (user != null) 'user': user,
-      if (jsonMode != null) 'jsonMode': jsonMode,
-      if (visualDetailLevel != null) 'visualDetailLevel': visualDetailLevel,
-    });
+    _json = {
+      'version': ?version,
+      'temperature': ?temperature,
+      'topP': ?topP,
+      'maxTokens': ?maxTokens,
+      'stop': ?stop,
+      'presencePenalty': ?presencePenalty,
+      'frequencyPenalty': ?frequencyPenalty,
+      'seed': ?seed,
+      'user': ?user,
+      'jsonMode': ?jsonMode,
+      'visualDetailLevel': ?visualDetailLevel,
+    };
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
-  @override
+  static const SchemanticType<OpenAIOptionsSchema> $schema =
+      _OpenAIOptionsSchemaTypeFactory();
+
   String? get version {
     return _json['version'] as String?;
   }
@@ -67,9 +72,8 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   double? get temperature {
-    return _json['temperature'] as double?;
+    return (_json['temperature'] as num?)?.toDouble();
   }
 
   set temperature(double? value) {
@@ -80,9 +84,8 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   double? get topP {
-    return _json['topP'] as double?;
+    return (_json['topP'] as num?)?.toDouble();
   }
 
   set topP(double? value) {
@@ -93,7 +96,6 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   int? get maxTokens {
     return _json['maxTokens'] as int?;
   }
@@ -106,7 +108,6 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   List<String>? get stop {
     return (_json['stop'] as List?)?.cast<String>();
   }
@@ -119,9 +120,8 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   double? get presencePenalty {
-    return _json['presencePenalty'] as double?;
+    return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
   set presencePenalty(double? value) {
@@ -132,9 +132,8 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   double? get frequencyPenalty {
-    return _json['frequencyPenalty'] as double?;
+    return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
   set frequencyPenalty(double? value) {
@@ -145,7 +144,6 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   int? get seed {
     return _json['seed'] as int?;
   }
@@ -158,7 +156,6 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   String? get user {
     return _json['user'] as String?;
   }
@@ -171,7 +168,6 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   bool? get jsonMode {
     return _json['jsonMode'] as bool?;
   }
@@ -184,7 +180,6 @@ class OpenAIOptions implements OpenAIOptionsSchema {
     }
   }
 
-  @override
   String? get visualDetailLevel {
     return _json['visualDetailLevel'] as String?;
   }
@@ -207,17 +202,18 @@ class OpenAIOptions implements OpenAIOptionsSchema {
   }
 }
 
-class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
-  const _OpenAIOptionsTypeFactory();
+class _OpenAIOptionsSchemaTypeFactory
+    extends SchemanticType<OpenAIOptionsSchema> {
+  const _OpenAIOptionsSchemaTypeFactory();
 
   @override
-  OpenAIOptions parse(Object? json) {
-    return OpenAIOptions(json as Map<String, dynamic>);
+  OpenAIOptionsSchema parse(Object? json) {
+    return OpenAIOptionsSchema._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'OpenAIOptions',
+    name: 'OpenAIOptionsSchema',
     definition: Schema.object(
       properties: {
         'version': Schema.string(),
@@ -237,6 +233,3 @@ class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
     dependencies: [],
   );
 }
-
-// ignore: constant_identifier_names
-const OpenAIOptionsType = _OpenAIOptionsTypeFactory();

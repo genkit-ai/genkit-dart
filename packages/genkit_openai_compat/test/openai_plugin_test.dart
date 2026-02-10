@@ -24,29 +24,29 @@ import 'package:openai_dart/openai_dart.dart'
 import 'package:test/test.dart';
 
 void main() {
-  group('OpenAIOptions', () {
+  group('OpenAIOptionsSchema', () {
     test('parses temperature', () {
-      final options = OpenAIOptionsType.parse({'temperature': 0.7});
+      final options = OpenAIOptionsSchema.$schema.parse({'temperature': 0.7});
       expect(options.temperature, 0.7);
     });
 
     test('parses maxTokens', () {
-      final options = OpenAIOptionsType.parse({'maxTokens': 100});
+      final options = OpenAIOptionsSchema.$schema.parse({'maxTokens': 100});
       expect(options.maxTokens, 100);
     });
 
     test('parses jsonMode', () {
-      final options = OpenAIOptionsType.parse({'jsonMode': true});
+      final options = OpenAIOptionsSchema.$schema.parse({'jsonMode': true});
       expect(options.jsonMode, true);
     });
 
     test('parses stop sequences', () {
-      final options = OpenAIOptionsType.parse({'stop': ['stop1', 'stop2']});
+      final options = OpenAIOptionsSchema.$schema.parse({'stop': ['stop1', 'stop2']});
       expect(options.stop, ['stop1', 'stop2']);
     });
 
     test('creates default options', () {
-      final options = OpenAIOptions.from();
+      final options = OpenAIOptionsSchema();
       expect(options.temperature, isNull);
       expect(options.maxTokens, isNull);
     });
@@ -54,9 +54,9 @@ void main() {
 
   group('toOpenAIMessage', () {
     test('converts system message', () {
-      final msg = Message.from(
+      final msg = Message(
         role: Role.system,
-        content: [TextPart.from(text: 'You are helpful.')],
+        content: [TextPart(text: 'You are helpful.')],
       );
       final result = toOpenAIMessage(msg, null);
       expect(result, isA<ChatCompletionSystemMessage>());
@@ -64,21 +64,21 @@ void main() {
     });
 
     test('converts user message with text', () {
-      final msg = Message.from(
+      final msg = Message(
         role: Role.user,
-        content: [TextPart.from(text: 'Hello!')],
+        content: [TextPart(text: 'Hello!')],
       );
       final result = toOpenAIMessage(msg, null);
       expect(result, isA<ChatCompletionUserMessage>());
     });
 
     test('converts model message with tool calls', () {
-      final msg = Message.from(
+      final msg = Message(
         role: Role.model,
         content: [
-          TextPart.from(text: 'I will call a tool.'),
-          ToolRequestPart.from(
-            toolRequest: ToolRequest.from(
+          TextPart(text: 'I will call a tool.'),
+          ToolRequestPart(
+            toolRequest: ToolRequest(
               ref: 'call_123',
               name: 'getWeather',
               input: {'location': 'Boston'},
@@ -94,11 +94,11 @@ void main() {
     });
 
     test('converts tool message', () {
-      final msg = Message.from(
+      final msg = Message(
         role: Role.tool,
         content: [
-          ToolResponsePart.from(
-            toolResponse: ToolResponse.from(
+          ToolResponsePart(
+            toolResponse: ToolResponse(
               ref: 'call_123',
               name: 'getWeather',
               output: {'temperature': 72},
@@ -106,23 +106,54 @@ void main() {
           ),
         ],
       );
-      final result = toOpenAIMessage(msg, null);
-      expect(result, isA<ChatCompletionToolMessage>());
-      final toolMsg = result as ChatCompletionToolMessage;
+      final results = toOpenAIMessages([msg], null);
+      expect(results.length, 1);
+      expect(results[0], isA<ChatCompletionToolMessage>());
+      final toolMsg = results[0] as ChatCompletionToolMessage;
       expect(toolMsg.toolCallId, 'call_123');
+    });
+
+    test('converts tool message with multiple responses', () {
+      final msg = Message(
+        role: Role.tool,
+        content: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: 'call_123',
+              name: 'getWeather',
+              output: {'temperature': 72},
+            ),
+          ),
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: 'call_456',
+              name: 'calculate',
+              output: {'result': 42},
+            ),
+          ),
+        ],
+      );
+      final results = toOpenAIMessages([msg], null);
+      expect(results.length, 2);
+      expect(results[0], isA<ChatCompletionToolMessage>());
+      expect(results[1], isA<ChatCompletionToolMessage>());
+      final toolMsg1 = results[0] as ChatCompletionToolMessage;
+      final toolMsg2 = results[1] as ChatCompletionToolMessage;
+      expect(toolMsg1.toolCallId, 'call_123');
+      expect(toolMsg2.toolCallId, 'call_456');
     });
   });
 
   group('toOpenAIContentPart', () {
     test('converts text part', () {
-      final part = TextPart.from(text: 'Hello');
+      final part = TextPart(text: 'Hello');
       final result = toOpenAIContentPart(part, null);
       expect(result, isA<ChatCompletionMessageContentPart>());
     });
 
     test('converts media part', () {
-      final part = MediaPart.from(
-        media: Media.from(
+      final part = MediaPart(
+        media: Media(
           url: 'https://example.com/image.png',
           contentType: 'image/png',
         ),
@@ -134,7 +165,7 @@ void main() {
 
   group('toOpenAITool', () {
     test('converts tool definition', () {
-      final tool = ToolDefinition.from(
+      final tool = ToolDefinition(
         name: 'getWeather',
         description: 'Get weather for a location',
         inputSchema: {
@@ -221,7 +252,7 @@ void main() {
     test('creates with name and info', () {
       final def = CustomModelDefinition(
         name: 'custom-model',
-        info: ModelInfo.from(
+        info: ModelInfo(
           label: 'Custom Model',
           supports: {'multiturn': true},
         ),

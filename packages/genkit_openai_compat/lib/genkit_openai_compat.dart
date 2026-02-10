@@ -30,16 +30,16 @@ export 'src/models.dart' show defaultModelInfo, o1ModelInfo, supportsVision;
 part 'genkit_openai_compat.g.dart';
 
 @Schematic()
-abstract class OpenAIOptionsSchema {
+abstract class $OpenAIOptionsSchema {
   /// Model version override (e.g., 'gpt-4o-2024-08-06')
   String? get version;
 
   /// Sampling temperature (0.0 - 2.0)
-  @NumberField(minimum: 0.0, maximum: 2.0)
+  @DoubleField(minimum: 0.0, maximum: 2.0)
   double? get temperature;
 
   /// Nucleus sampling (0.0 - 1.0)
-  @NumberField(minimum: 0.0, maximum: 1.0)
+  @DoubleField(minimum: 0.0, maximum: 1.0)
   double? get topP;
 
   /// Maximum tokens to generate
@@ -49,11 +49,11 @@ abstract class OpenAIOptionsSchema {
   List<String>? get stop;
 
   /// Presence penalty (-2.0 - 2.0)
-  @NumberField(minimum: -2.0, maximum: 2.0)
+  @DoubleField(minimum: -2.0, maximum: 2.0)
   double? get presencePenalty;
 
   /// Frequency penalty (-2.0 - 2.0)
-  @NumberField(minimum: -2.0, maximum: 2.0)
+  @DoubleField(minimum: -2.0, maximum: 2.0)
   double? get frequencyPenalty;
 
   /// Seed for deterministic sampling
@@ -104,16 +104,16 @@ class OpenAICompatPluginHandle {
   }
 
   /// Reference to a model
-  ModelRef<OpenAIOptions> model(String name) {
-    return modelRef('openai_compat/$name', customOptions: OpenAIOptionsType);
+  ModelRef<OpenAIOptionsSchema> model(String name) {
+    return modelRef('openai_compat/$name', customOptions: OpenAIOptionsSchema.$schema);
   }
 
   // Pre-defined model references
-  ModelRef<OpenAIOptions> get gpt4o => model('gpt-4o');
-  ModelRef<OpenAIOptions> get gpt4oMini => model('gpt-4o-mini');
-  ModelRef<OpenAIOptions> get gpt4Turbo => model('gpt-4-turbo');
-  ModelRef<OpenAIOptions> get gpt35Turbo => model('gpt-3.5-turbo');
-  ModelRef<OpenAIOptions> get o1 => model('o1');
-  ModelRef<OpenAIOptions> get o1Mini => model('o1-mini');
-  ModelRef<OpenAIOptions> get o3Mini => model('o3-mini');
+  ModelRef<OpenAIOptionsSchema> get gpt4o => model('gpt-4o');
+  ModelRef<OpenAIOptionsSchema> get gpt4oMini => model('gpt-4o-mini');
+  ModelRef<OpenAIOptionsSchema> get gpt4Turbo => model('gpt-4-turbo');
+  ModelRef<OpenAIOptionsSchema> get gpt35Turbo => model('gpt-3.5-turbo');
+  ModelRef<OpenAIOptionsSchema> get o1 => model('o1');
+  ModelRef<OpenAIOptionsSchema> get o1Mini => model('o1-mini');
+  ModelRef<OpenAIOptionsSchema> get o3Mini => model('o3-mini');
 }
