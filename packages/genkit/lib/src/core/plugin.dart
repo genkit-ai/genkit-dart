@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import '../ai/generate_middleware.dart';
 import '../ai/model.dart';
 import '../exception.dart';
 import 'action.dart';
@@ -24,6 +25,11 @@ import 'action.dart';
 /// actions, models, etc.
 abstract class GenkitPlugin {
   String get name;
+
+  /// Middleware provided by the plugin.
+  List<GenerateMiddlewareDef> middleware() {
+    return [];
+  }
 
   /// Called when the plugin is initialized.
   Future<List<Action>> init() async {

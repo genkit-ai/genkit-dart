@@ -57,4 +57,25 @@ void main() async {
 }
 ```
 
+### Embeddings
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
+
+void main() async {
+  final ai = Genkit(plugins: [googleAI()]);
+
+  final embeddings = await ai.embedMany(
+    embedder: googleAI.textEmbedding('text-embedding-004'),
+    documents: [
+      DocumentData(content: [TextPart(text: 'Hello world')]),
+      DocumentData(content: [TextPart(text: 'Genkit is awesome')]),
+    ],
+  );
+
+  print(embeddings[0].embedding);
+}
+```
+
 

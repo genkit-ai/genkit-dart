@@ -1,3 +1,9 @@
+## 0.0.1-dev.11
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **REFACTOR**: update GenkitException to use a StatusCodes enum instead of raw integer status codes. (#68).
+
 ## 0.0.1-dev.10
 
  - **FEAT**: updated AnyOf support for union types in Schemantic, including helper class generation and schema type handling. (#62).

@@ -1,3 +1,8 @@
+## 0.0.1-dev.13
+
+ - **FIX**: Coerce `num` values to `double` for generated double fields during JSON parsing. (#65).
+ - **FEAT**: Add `$GenerateResponse` type, refine schema types, and update generated class constructors to use `late final` and regular constructors. (#66).
+
 ## 0.0.1-dev.12
 
  - **REFACTOR**: Identify schema types using a new `Type.isSchema` getter instead of string-based checks.

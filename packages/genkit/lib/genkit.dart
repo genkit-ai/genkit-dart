@@ -23,9 +23,9 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
+import 'src/ai/embedder.dart';
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
-import 'src/ai/generate_middleware.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
@@ -39,6 +39,8 @@ import 'src/schema.dart';
 import 'src/types.dart';
 import 'src/utils.dart';
 
+export 'package:genkit/src/ai/embedder.dart'
+    show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 export 'package:genkit/src/ai/formatters/types.dart';
 export 'package:genkit/src/ai/generate.dart'
     show
@@ -46,8 +48,15 @@ export 'package:genkit/src/ai/generate.dart'
         GenerateResponseChunk,
         GenerateResponseHelper,
         InterruptResponse;
-export 'package:genkit/src/ai/generate_middleware.dart' show GenerateMiddleware;
-export 'package:genkit/src/ai/middleware/retry.dart' show RetryMiddleware;
+export 'package:genkit/src/ai/generate_middleware.dart'
+    show
+        GenerateMiddleware,
+        GenerateMiddlewareDef,
+        GenerateMiddlewareRef,
+        defineMiddleware,
+        middlewareRef;
+export 'package:genkit/src/ai/middleware/retry.dart'
+    show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
@@ -79,6 +88,9 @@ class Genkit {
     // Register plugins
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);
+      for (final mw in plugin.middleware()) {
+        registry.registerValue('middleware', mw.name, mw);
+      }
     }
 
     // Register default formats
@@ -215,6 +227,58 @@ class Genkit {
     return model;
   }
 
+  Embedder defineEmbedder({
+    required String name,
+    required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
+  }) {
+    final embedder = Embedder(
+      name: name,
+      fn: (input, context) {
+        return fn(input!, context);
+      },
+    );
+    registry.register(embedder);
+    return embedder;
+  }
+
+  Future<List<Embedding>> embedMany<C>({
+    required EmbedderRef<C> embedder,
+    required List<DocumentData> documents,
+    C? options,
+  }) async {
+    final action = await registry.lookupAction('embedder', embedder.name);
+    if (action == null) {
+      throw GenkitException(
+        'Embedder ${embedder.name} not found',
+        status: StatusCodes.NOT_FOUND,
+      );
+    }
+
+    final resolvedOptions = options is Map
+        ? options as Map<String, dynamic>
+        : (options as dynamic)?.toJson() as Map<String, dynamic>?;
+
+    final req = EmbedRequest(input: documents, options: resolvedOptions);
+
+    final response = await action(req) as EmbedResponse;
+    return response.embeddings;
+  }
+
+  Future<List<Embedding>> embed<C>({
+    required EmbedderRef<C> embedder,
+    DocumentData? document,
+    List<DocumentData>? documents,
+    C? options,
+  }) async {
+    final docs = documents ?? (document != null ? [document] : []);
+    if (docs.isEmpty) {
+      throw ArgumentError(
+        'Either document or documents must be provided to embed.',
+      );
+    }
+    return embedMany(embedder: embedder, documents: docs, options: options);
+  }
+
   Future<GenerateBidiSession> generateBidi({
     required String model,
     dynamic config,
@@ -285,7 +349,7 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
-    List<GenerateMiddleware>? use,
+    List<dynamic>? use,
 
     /// Optional data to resume an interrupted generation session.
     ///
@@ -378,7 +442,7 @@ class Genkit {
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    List<GenerateMiddleware>? use,
+    List<dynamic>? use,
     List<InterruptResponse>? resume,
   }) {
     final streamController = StreamController<GenerateResponseChunk<S>>();

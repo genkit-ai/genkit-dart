@@ -3,6 +3,68 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-02-04
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit` - `v0.10.0-dev.11`](#genkit---v0100-dev11)
+ - [`genkit_google_genai` - `v0.0.1-dev.11`](#genkit_google_genai---v001-dev11)
+ - [`genkit_shelf` - `v0.0.1-dev.11`](#genkit_shelf---v001-dev11)
+
+Packages with other changes:
+
+ - [`genkit_anthropic` - `v0.0.1-dev.2`](#genkit_anthropic---v001-dev2)
+ - [`schemantic` - `v0.0.1-dev.13`](#schemantic---v001-dev13)
+ - [`genkit_chrome` - `v0.0.1-dev.2`](#genkit_chrome---v001-dev2)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_chrome` - `v0.0.1-dev.2`
+
+---
+
+#### `genkit` - `v0.10.0-dev.11`
+
+ - **FIX**: Coerce `num` values to `double` for generated double fields during JSON parsing. (#65).
+ - **FEAT**: add Google Search and multi-speaker voice config support, extract usage metadata, and introduce reasoning parts (#82).
+ - **FEAT**: allow `generate` and `generateBidi` to accept `Tool` objects directly in the `tools` list alongside tool names (#79).
+ - **FEAT**: Implement hierarchical registry with parent delegation and merging for values and actions (#78).
+ - **FEAT**: Implement streaming chunk indexing across turns and improve `maxTurns` error handling with a new default. (#75).
+ - **FEAT**: implemented interrupts (#73).
+ - **FEAT**: Add retry middleware for AI model and tool calls with configurable backoff and error handling. (#67).
+ - **FEAT**: Add `$GenerateResponse` type, refine schema types, and update generated class constructors to use `late final` and regular constructors. (#66).
+ - **FEAT**: added schemas for gemini models, made sure TTS and nano banana models are working (#63).
+ - **BREAKING** **REFACTOR**: update GenkitException to use a StatusCodes enum instead of raw integer status codes. (#68).
+
+#### `genkit_google_genai` - `v0.0.1-dev.11`
+
+ - **FIX**: Coerce `num` values to `double` for generated double fields during JSON parsing. (#65).
+ - **FEAT**: add Google Search and multi-speaker voice config support, extract usage metadata, and introduce reasoning parts (#82).
+ - **FEAT**: Add `$GenerateResponse` type, refine schema types, and update generated class constructors to use `late final` and regular constructors. (#66).
+ - **FEAT**: added schemas for gemini models, made sure TTS and nano banana models are working (#63).
+ - **BREAKING** **REFACTOR**: update GenkitException to use a StatusCodes enum instead of raw integer status codes. (#68).
+
+#### `genkit_shelf` - `v0.0.1-dev.11`
+
+ - **BREAKING** **REFACTOR**: update GenkitException to use a StatusCodes enum instead of raw integer status codes. (#68).
+
+#### `genkit_anthropic` - `v0.0.1-dev.2`
+
+ - **REFACTOR**: renamed anthropic.claude to model.
+ - **FEAT**: added anthropic plugin (#86).
+
+#### `schemantic` - `v0.0.1-dev.13`
+
+ - **FIX**: Coerce `num` values to `double` for generated double fields during JSON parsing. (#65).
+ - **FEAT**: Add `$GenerateResponse` type, refine schema types, and update generated class constructors to use `late final` and regular constructors. (#66).
+
+
 ## 2026-01-29
 
 ### Changes

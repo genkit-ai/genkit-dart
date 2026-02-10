@@ -17,6 +17,41 @@ import 'dart:convert';
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import '../schemantic.dart';
 
+/// Makes a schema nullable.
+///
+/// Example:
+/// ```dart
+/// nullable(stringSchema()).parse('hello');
+/// ```
+SchemanticType<T?> nullable<T>(SchemanticType<T> type) {
+  if (type is _NullableSchemaFactory) {
+    return type as SchemanticType<T?>;
+  }
+  return _NullableSchemaFactory(type);
+}
+
+class _NullableSchemaFactory<T> extends SchemanticType<T?> {
+  final SchemanticType<T> _type;
+
+  const _NullableSchemaFactory(this._type);
+
+  @override
+  T? parse(Object? json) {
+    if (json == null) return null;
+    return _type.parse(json);
+  }
+
+  @override
+  jsb.Schema jsonSchema({bool useRefs = false}) {
+    return jsb.Schema.fromMap({
+      'oneOf': [
+        {'type': 'null'},
+        _type.jsonSchema(useRefs: useRefs),
+      ],
+    });
+  }
+}
+
 /// A string schema.
 ///
 /// Example:

@@ -12,20 +12,81 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: constant_identifier_names
-
 import 'dart:async';
 import 'dart:math';
 
 import 'package:logging/logging.dart';
+import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
+import '../../core/plugin.dart';
 import '../../exception.dart';
 import '../../types.dart';
-
 import '../generate_middleware.dart';
 
+part 'retry.g.dart';
+
 final _logger = Logger('genkit.middleware.retry');
+
+@Schematic()
+abstract class $RetryOptions {
+  int? get maxRetries;
+  List<StatusCodes>? get statuses;
+  int? get initialDelayMs;
+  int? get maxDelayMs;
+  double? get backoffFactor;
+  bool? get noJitter;
+  bool? get retryModel;
+  bool? get retryTools;
+}
+
+class RetryPlugin extends GenkitPlugin {
+  @override
+  String get name => 'retry';
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => [
+    defineMiddleware<RetryOptions>(
+      name: 'retry',
+      configSchema: RetryOptions.$schema,
+      create: ([RetryOptions? config]) => RetryMiddleware(
+        maxRetries: config?.maxRetries ?? 3,
+        statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
+        initialDelayMs: config?.initialDelayMs ?? 1000,
+        maxDelayMs: config?.maxDelayMs ?? 60000,
+        backoffFactor: config?.backoffFactor ?? 2.0,
+        noJitter: config?.noJitter ?? false,
+        retryModel: config?.retryModel ?? true,
+        retryTools: config?.retryTools ?? false,
+      ),
+    ),
+  ];
+}
+
+GenerateMiddlewareRef<RetryOptions> retry({
+  int? maxRetries,
+  List<StatusCodes>? statuses,
+  int? initialDelayMs,
+  int? maxDelayMs,
+  double? backoffFactor,
+  bool? noJitter,
+  bool? retryModel,
+  bool? retryTools,
+}) {
+  return middlewareRef(
+    name: 'retry',
+    config: RetryOptions(
+      maxRetries: maxRetries,
+      statuses: statuses,
+      initialDelayMs: initialDelayMs,
+      maxDelayMs: maxDelayMs,
+      backoffFactor: backoffFactor,
+      noJitter: noJitter,
+      retryModel: retryModel,
+      retryTools: retryTools,
+    ),
+  );
+}
 
 /// A middleware that retries model and tool requests on failure.
 ///

@@ -3329,3 +3329,203 @@ class _GenerateActionOutputConfigTypeFactory
     dependencies: [],
   );
 }
+
+class EmbedRequest {
+  factory EmbedRequest.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  EmbedRequest._(this._json);
+
+  EmbedRequest({
+    required List<DocumentData> input,
+    Map<String, dynamic>? options,
+  }) {
+    _json = {
+      'input': input.map((e) => e.toJson()).toList(),
+      'options': ?options,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<EmbedRequest> $schema =
+      _EmbedRequestTypeFactory();
+
+  List<DocumentData> get input {
+    return (_json['input'] as List)
+        .map((e) => DocumentData.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set input(List<DocumentData> value) {
+    _json['input'] = value.toList();
+  }
+
+  Map<String, dynamic>? get options {
+    return _json['options'] as Map<String, dynamic>?;
+  }
+
+  set options(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('options');
+    } else {
+      _json['options'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
+  const _EmbedRequestTypeFactory();
+
+  @override
+  EmbedRequest parse(Object? json) {
+    return EmbedRequest._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'EmbedRequest',
+    definition: Schema.object(
+      properties: {
+        'input': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+        ),
+        'options': Schema.object(additionalProperties: Schema.any()),
+      },
+      required: ['input'],
+    ),
+    dependencies: [DocumentData.$schema],
+  );
+}
+
+class EmbedResponse {
+  factory EmbedResponse.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  EmbedResponse._(this._json);
+
+  EmbedResponse({required List<Embedding> embeddings}) {
+    _json = {'embeddings': embeddings.map((e) => e.toJson()).toList()};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<EmbedResponse> $schema =
+      _EmbedResponseTypeFactory();
+
+  List<Embedding> get embeddings {
+    return (_json['embeddings'] as List)
+        .map((e) => Embedding.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set embeddings(List<Embedding> value) {
+    _json['embeddings'] = value.toList();
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
+  const _EmbedResponseTypeFactory();
+
+  @override
+  EmbedResponse parse(Object? json) {
+    return EmbedResponse._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'EmbedResponse',
+    definition: Schema.object(
+      properties: {
+        'embeddings': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/Embedding'}),
+        ),
+      },
+      required: ['embeddings'],
+    ),
+    dependencies: [Embedding.$schema],
+  );
+}
+
+class Embedding {
+  factory Embedding.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Embedding._(this._json);
+
+  Embedding({required List<double> embedding, Map<String, dynamic>? metadata}) {
+    _json = {'embedding': embedding, 'metadata': ?metadata};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<Embedding> $schema = _EmbeddingTypeFactory();
+
+  List<double> get embedding {
+    return (_json['embedding'] as List).cast<double>();
+  }
+
+  set embedding(List<double> value) {
+    _json['embedding'] = value;
+  }
+
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
+  }
+
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
+  const _EmbeddingTypeFactory();
+
+  @override
+  Embedding parse(Object? json) {
+    return Embedding._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Embedding',
+    definition: Schema.object(
+      properties: {
+        'embedding': Schema.list(items: Schema.number()),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+      },
+      required: ['embedding'],
+    ),
+    dependencies: [],
+  );
+}

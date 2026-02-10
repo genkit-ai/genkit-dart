@@ -1583,3 +1583,113 @@ class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
     dependencies: [],
   );
 }
+
+class TextEmbedderOptions {
+  factory TextEmbedderOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  TextEmbedderOptions._(this._json);
+
+  TextEmbedderOptions({
+    int? outputDimensionality,
+    String? taskType,
+    String? title,
+  }) {
+    _json = {
+      'outputDimensionality': ?outputDimensionality,
+      'taskType': ?taskType,
+      'title': ?title,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<TextEmbedderOptions> $schema =
+      _TextEmbedderOptionsTypeFactory();
+
+  int? get outputDimensionality {
+    return _json['outputDimensionality'] as int?;
+  }
+
+  set outputDimensionality(int? value) {
+    if (value == null) {
+      _json.remove('outputDimensionality');
+    } else {
+      _json['outputDimensionality'] = value;
+    }
+  }
+
+  String? get taskType {
+    return _json['taskType'] as String?;
+  }
+
+  set taskType(String? value) {
+    if (value == null) {
+      _json.remove('taskType');
+    } else {
+      _json['taskType'] = value;
+    }
+  }
+
+  String? get title {
+    return _json['title'] as String?;
+  }
+
+  set title(String? value) {
+    if (value == null) {
+      _json.remove('title');
+    } else {
+      _json['title'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _TextEmbedderOptionsTypeFactory
+    extends SchemanticType<TextEmbedderOptions> {
+  const _TextEmbedderOptionsTypeFactory();
+
+  @override
+  TextEmbedderOptions parse(Object? json) {
+    return TextEmbedderOptions._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TextEmbedderOptions',
+    definition: Schema.object(
+      properties: {
+        'outputDimensionality': Schema.integer(
+          description:
+              'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',
+        ),
+        'taskType': Schema.string(
+          description:
+              'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
+          enumValues: [
+            'TASK_TYPE_UNSPECIFIED',
+            'RETRIEVAL_QUERY',
+            'RETRIEVAL_DOCUMENT',
+            'SEMANTIC_SIMILARITY',
+            'CLASSIFICATION',
+            'CLUSTERING',
+            'QUESTION_ANSWERING',
+            'FACT_VERIFICATION',
+            'CODE_RETRIEVAL_QUERY',
+          ],
+        ),
+        'title': Schema.string(),
+      },
+      required: [],
+    ),
+    dependencies: [],
+  );
+}

@@ -21,27 +21,36 @@ import '../o11y/instrumentation.dart';
 
 const _genkitContextKey = #genkitContext;
 
-typedef StreamingCallback<S> = void Function(S chunk);
+typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
 
-typedef ActionFnArg<S, I, Init> = ({
+typedef ActionFnArg<Chunk, Input, Init> = ({
   bool streamingRequested,
-  StreamingCallback<S> sendChunk,
+  StreamingCallback<Chunk> sendChunk,
   Map<String, dynamic>? context,
-  Stream<I>? inputStream,
+  Stream<Input>? inputStream,
   Init? init,
 });
 
-typedef ActionFn<I, O, S, Init> =
-    Future<O> Function(I input, ActionFnArg<S, I, Init> context);
+typedef ActionFn<Input, Output, Chunk, Init> =
+    Future<Output> Function(
+      Input input,
+      ActionFnArg<Chunk, Input, Init> context,
+    );
 
-typedef BidiActionFn<I, O, S, Init> =
-    Future<O> Function(Stream<I> inputStream, ActionFnArg<S, I, Init> context);
+typedef BidiActionFn<Input, Output, Chunk, Init> =
+    Future<Output> Function(
+      Stream<Input> inputStream,
+      ActionFnArg<Chunk, Input, Init> context,
+    );
 
-typedef InternalActionFn<I, O, S, Init> =
-    Future<O> Function(I? input, ActionFnArg<S, I, Init> context);
+typedef InternalActionFn<Input, Output, Chunk, Init> =
+    Future<Output> Function(
+      Input? input,
+      ActionFnArg<Chunk, Input, Init> context,
+    );
 
-class RunResult<O> {
-  final O result;
+class RunResult<Output> {
+  final Output result;
   final String traceId;
   final String spanId;
 
@@ -56,13 +65,13 @@ class RunResult<O> {
   }
 }
 
-class ActionMetadata<I, O, S, Init> {
+class ActionMetadata<Input, Output, Chunk, Init> {
   final String name;
   final String? description;
   final String actionType;
-  final SchemanticType<I>? inputSchema;
-  final SchemanticType<O>? outputSchema;
-  final SchemanticType<S>? streamSchema;
+  final SchemanticType<Input>? inputSchema;
+  final SchemanticType<Output>? outputSchema;
+  final SchemanticType<Chunk>? streamSchema;
   final SchemanticType<Init>? initSchema;
   final Map<String, dynamic> metadata;
 
@@ -89,8 +98,9 @@ class ActionMetadata<I, O, S, Init> {
   }
 }
 
-class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
-  final InternalActionFn<I, O, S, Init> fn;
+class Action<Input, Output, Chunk, Init>
+    extends ActionMetadata<Input, Output, Chunk, Init> {
+  final InternalActionFn<Input, Output, Chunk, Init> fn;
 
   Action({
     required super.name,
@@ -109,21 +119,21 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     return 'Action(name: $name, actionType: $actionType)';
   }
 
-  Future<O> call(
-    I? input, {
-    StreamingCallback<S>? onChunk,
+  Future<Output> call(
+    Input? input, {
+    StreamingCallback<Chunk>? onChunk,
     Map<String, dynamic>? context,
-    Stream<I>? inputStream,
+    Stream<Input>? inputStream,
     Init? init,
   }) async {
     return (await run(input, onChunk: onChunk, context: context)).result;
   }
 
-  Future<RunResult<O>> runRaw(
+  Future<RunResult<Output>> runRaw(
     dynamic input, {
-    StreamingCallback<S>? onChunk,
+    StreamingCallback<Chunk>? onChunk,
     Map<String, dynamic>? context,
-    Stream<I>? inputStream,
+    Stream<Input>? inputStream,
     dynamic init,
   }) async {
     return await run(
@@ -135,15 +145,15 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     );
   }
 
-  Future<RunResult<O>> run(
-    I? input, {
-    StreamingCallback<S>? onChunk,
+  Future<RunResult<Output>> run(
+    Input? input, {
+    StreamingCallback<Chunk>? onChunk,
     Map<String, dynamic>? context,
-    Stream<I>? inputStream,
+    Stream<Input>? inputStream,
     Init? init,
   }) async {
     if (inputStream == null) {
-      final internalInputController = StreamController<I>();
+      final internalInputController = StreamController<Input>();
       inputStream = internalInputController.stream;
       if (input != null) {
         internalInputController.add(input);
@@ -152,7 +162,7 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     }
 
     final executionContext = context ?? Zone.current[_genkitContextKey];
-    Future<RunResult<O>> runner() async {
+    Future<RunResult<Output>> runner() async {
       var traceId = '';
       var spanId = '';
       final result = await runInNewSpan(
@@ -171,7 +181,11 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
         actionType: actionType,
         input: input,
       );
-      return RunResult<O>(result: result, traceId: traceId, spanId: spanId);
+      return RunResult<Output>(
+        result: result,
+        traceId: traceId,
+        spanId: spanId,
+      );
     }
 
     if (context != null) {
@@ -181,14 +195,14 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     }
   }
 
-  ActionStream<S, O> stream(
-    I? input, {
+  ActionStream<Chunk, Output> stream(
+    Input? input, {
     Map<String, dynamic>? context,
-    Stream<I>? inputStream,
+    Stream<Input>? inputStream,
     Init? init,
   }) {
-    final streamController = StreamController<S>();
-    final actionStream = ActionStream<S, O>(streamController.stream);
+    final streamController = StreamController<Chunk>();
+    final actionStream = ActionStream<Chunk, Output>(streamController.stream);
 
     run(
           input,
@@ -218,20 +232,20 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
     return actionStream;
   }
 
-  BidiActionStream<S, O, I> streamBidi({
-    Stream<I>? inputStream,
-    StreamingCallback<S>? onChunk,
+  BidiActionStream<Chunk, Output, Input> streamBidi({
+    Stream<Input>? inputStream,
+    StreamingCallback<Chunk>? onChunk,
     Map<String, dynamic>? context,
     Init? init,
   }) {
-    StreamController<I>? internalInputController;
+    StreamController<Input>? internalInputController;
     if (inputStream == null) {
-      internalInputController = StreamController<I>();
+      internalInputController = StreamController<Input>();
       inputStream = internalInputController.stream;
     }
 
-    final streamController = StreamController<S>();
-    final bidiStream = BidiActionStream<S, O, I>(
+    final streamController = StreamController<Chunk>();
+    final bidiStream = BidiActionStream<Chunk, Output, Input>(
       streamController.stream,
       internalInputController?.sink,
     );
@@ -268,28 +282,28 @@ class Action<I, O, S, Init> extends ActionMetadata<I, O, S, Init> {
   }
 }
 
-class ActionStream<S, F> extends StreamView<S> {
+class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   bool _done = false;
-  F? _result;
+  Response? _result;
   Object? _streamError;
   StackTrace? _streamStackTrace;
-  Completer<F>? _completer;
+  Completer<Response>? _completer;
 
-  Future<F> get onResult {
+  Future<Response> get onResult {
     if (_completer == null) {
-      _completer = Completer<F>();
+      _completer = Completer<Response>();
       if (_done) {
         if (_streamError != null) {
           _completer!.completeError(_streamError!, _streamStackTrace);
         } else {
-          _completer!.complete(_result as F);
+          _completer!.complete(_result as Response);
         }
       }
     }
     return _completer!.future;
   }
 
-  F get result {
+  Response get result {
     if (!_done) {
       throw GenkitException('Stream not consumed yet');
     }
@@ -297,10 +311,10 @@ class ActionStream<S, F> extends StreamView<S> {
       // ignore: only_throw_errors
       throw _streamError!;
     }
-    return _result as F;
+    return _result as Response;
   }
 
-  void setResult(F result) {
+  void setResult(Response result) {
     _done = true;
     _result = result;
     if (_completer?.isCompleted == false) {
@@ -320,12 +334,13 @@ class ActionStream<S, F> extends StreamView<S> {
   ActionStream(super.stream);
 }
 
-class BidiActionStream<S, F, I> extends ActionStream<S, F> {
-  final StreamSink<I>? _inputSink;
+class BidiActionStream<Chunk, Response, Request>
+    extends ActionStream<Chunk, Response> {
+  final StreamSink<Request>? _inputSink;
 
   BidiActionStream(super.stream, this._inputSink);
 
-  void send(I chunk) {
+  void send(Request chunk) {
     if (_inputSink == null) {
       throw GenkitException('Cannot send to this stream (external input)');
     }
