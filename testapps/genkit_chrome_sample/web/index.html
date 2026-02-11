@@ -171,11 +171,123 @@
         button:hover:not(:disabled) {
             opacity: 0.9;
         }
+
+        #settings-panel {
+            padding: 10px 20px;
+            background: #fff;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        details {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        summary {
+            font-weight: 500;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        
+        .settings-content {
+            padding: 10px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .setting-row {
+            display: flex;
+            gap: 20px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        input[type="number"], 
+        #settings-panel textarea {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: #f9f9f9;
+        }
+
+        #settings-panel textarea {
+            resize: vertical;
+            min-height: 40px;
+        }
+
+        .help-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #eee;
+            color: #666;
+            font-size: 10px;
+            margin-left: 4px;
+            cursor: help;
+        }
+
+        .validation-error {
+            color: red;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            display: none;
+        }
+
+        input.invalid {
+            border-color: red;
+        }
     </style>
 </head>
 <body>
     <div id="header">
         <h1>Genkit Chrome Sample</h1>
+    </div>
+    
+    <div id="settings-panel">
+        <details>
+            <summary>Model Settings</summary>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label for="systemPrompt">System Prompt:</label>
+                    <textarea id="systemPrompt" placeholder="You are a helpful assistant..." rows="2"></textarea>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-group">
+                        <label for="temperature">
+                            Temperature
+                            <span class="help-icon" title="Controls randomness. Lower values are more deterministic.">?</span>
+                        </label>
+                        <input type="number" id="temperature" min="0" max="2" step="0.1" placeholder="default">
+                    </div>
+                    <div class="setting-group">
+                        <label for="topK">
+                            Top K
+                            <span class="help-icon" title="Controls diversity. Lower values limit the token pool.">?</span>
+                        </label>
+                        <input type="number" id="topK" min="1" step="1" placeholder="default">
+                    </div>
+                </div>
+                <div id="validation-error" class="validation-error"></div>
+            </div>
+        </details>
     </div>
     
     <div id="chat-container"></div>

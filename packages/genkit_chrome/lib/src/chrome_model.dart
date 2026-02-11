@@ -66,30 +66,46 @@ class ChromeModel extends Model<LanguageModelOptions> {
       );
     }
 
-    // Create new options object if system prompt exists or use default
-    final options = defaultOptions ?? LanguageModelOptions();
+    final config = req.config ?? const {};
+    final systemPrompt =
+        config['systemPrompt'] as String? ?? defaultOptions?.systemPrompt;
 
-    // TODO: Handle systemMessage from req.messages if possible, though currently separate options.
-    // final systemMessage = req.messages
-    //    .where((m) => m.role == Role.system)
-    //    .map((m) => m.content.map((p) => p.text).join(' '))
-    //    .firstOrNull;
+    final initialPrompts = <LanguageModelInitialPrompt>[];
+
+    if (systemPrompt != null && systemPrompt.isNotEmpty) {
+      initialPrompts.add(
+        LanguageModelInitialPrompt(role: 'system', content: systemPrompt),
+      );
+    }
+
+    // Add all messages except the last one to initialPrompts
+    if (req.messages.isNotEmpty) {
+      for (final m in req.messages.take(req.messages.length - 1)) {
+        initialPrompts.add(
+          LanguageModelInitialPrompt(
+            role: m.role == Role.model ? 'assistant' : m.role.value,
+            content: m.content.map((p) => p.text).join(' '),
+          ),
+        );
+      }
+    }
+
+    final options = LanguageModelOptions(
+      temperature: config['temperature'] as num? ?? defaultOptions?.temperature,
+      topK: config['topK'] as num? ?? defaultOptions?.topK,
+      initialPrompts: initialPrompts,
+    );
 
     final session = await languageModel!.create(options).toDart;
 
     try {
-      final messagesToReplay = req.messages
-          .where((m) => m.role != Role.system)
-          .toList();
-
-      // Simple implementation: text concatenation of the whole history
-      final fullPrompt = messagesToReplay
-          .map((m) => "${m.role}: ${m.content.map((p) => p.text).join(' ')}")
-          .join('\n');
+      final prompt = req.messages.isEmpty
+          ? ''
+          : req.messages.last.content.map((p) => p.text).join(' ');
 
       String? lastResponseText;
       if (ctx.streamingRequested) {
-        final stream = session.promptStreaming(fullPrompt);
+        final stream = session.promptStreaming(prompt);
         final reader = stream.getReader();
         while (true) {
           final result = await reader.read().toDart;
@@ -101,8 +117,16 @@ class ChromeModel extends Model<LanguageModelOptions> {
           lastResponseText = (lastResponseText ?? '') + chunkText;
         }
       } else {
-        lastResponseText = (await session.prompt(fullPrompt).toDart).toDart;
+        lastResponseText = (await session.prompt(prompt).toDart).toDart;
       }
+
+      // Collect usage stats
+      // tokensSoFar and inputUsage are likely the same (renamed)
+      final inputTokens = (session.inputUsage ?? session.tokensSoFar)
+          ?.toDouble();
+      // We don't have output tokens from the session directly usually
+      // Quota is maxTokens or inputQuota
+      // final totalTokens = session.maxTokens ?? session.inputQuota;
 
       return ModelResponse(
         finishReason: FinishReason.stop,
@@ -110,6 +134,13 @@ class ChromeModel extends Model<LanguageModelOptions> {
           role: Role.model,
           content: [TextPart(text: lastResponseText ?? '')],
         ),
+        usage: inputTokens != null
+            ? GenerationUsage(
+                inputTokens: inputTokens,
+                outputTokens: 0, // Not available directly
+                totalTokens: inputTokens,
+              )
+            : null,
       );
     } finally {
       session.destroy();

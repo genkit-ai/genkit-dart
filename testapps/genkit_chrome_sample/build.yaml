@@ -3,7 +3,7 @@ targets:
   $default:
     builders:
       build_web_compilers|entrypoint:
-        options:
+        release_options:
           compilers:
             dart2wasm:
             dart2js:
