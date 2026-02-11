@@ -38,12 +38,19 @@ void main() {
 Use the `chrome/gemini-nano` model to generate text:
 
 ```dart
-final response = await ai.generate(
-  model: modelRef('chrome/gemini-nano'),
-  prompt: 'Explain quantum computing in simple terms.',
-);
+import 'package:genkit/genkit.dart';
+import 'package:genkit_chrome/genkit_chrome.dart';
 
-print(response.text);
+void main() async {
+  final ai = Genkit(plugins: [ChromeAIPlugin()]);
+
+  final response = await ai.generate(
+    model: modelRef('chrome/gemini-nano'),
+    prompt: 'Explain quantum computing in simple terms.',
+  );
+
+  print(response.text);
+}
 ```
 
 ### 3. Streaming Responses
@@ -51,13 +58,20 @@ print(response.text);
 Stream text as it is generated:
 
 ```dart
-final stream = ai.generateStream(
-  model: modelRef('chrome/gemini-nano'),
-  prompt: 'Write a story about a robot.',
-);
+import 'package:genkit/genkit.dart';
+import 'package:genkit_chrome/genkit_chrome.dart';
 
-await for (final chunk in stream) {
-  print(chunk.text);
+void main() async {
+  final ai = Genkit(plugins: [ChromeAIPlugin()]);
+
+  final stream = ai.generateStream(
+    model: modelRef('chrome/gemini-nano'),
+    prompt: 'Write a story about a robot.',
+  );
+
+  await for (final chunk in stream) {
+    print(chunk.text);
+  }
 }
 ```
 
