@@ -32,36 +32,34 @@ void main() async {
 
   // Fetch model params if available
   try {
-    if (genkit_chrome.languageModel != null) {
-      final params = await genkit_chrome.languageModel!.params().toDart;
-      _defaultTopK = params.defaultTopK;
-      _maxTopK = params.maxTopK;
-      _defaultTemperature = params.defaultTemperature.toDouble();
-      _maxTemperature = params.maxTemperature.toDouble();
+    final params = await genkit_chrome.ChromeModel.getParams();
+    _defaultTopK = params.defaultTopK;
+    _maxTopK = params.maxTopK;
+    _defaultTemperature = params.defaultTemperature.toDouble();
+    _maxTemperature = params.maxTemperature.toDouble();
 
-      _topKInput.placeholder = 'default: $_defaultTopK (1-$_maxTopK)';
-      _topKInput.max = '$_maxTopK';
+    _topKInput.placeholder = 'default: $_defaultTopK (1-$_maxTopK)';
+    _topKInput.max = '$_maxTopK';
 
-      _temperatureInput.placeholder =
-          'default: $_defaultTemperature (0.0-${_maxTemperature!.toStringAsFixed(1)})';
-      _temperatureInput.max = '$_maxTemperature';
+    _temperatureInput.placeholder =
+        'default: $_defaultTemperature (0.0-${_maxTemperature!.toStringAsFixed(1)})';
+    _temperatureInput.max = '$_maxTemperature';
 
-      // Update titles for help icons
-      web.document
-          .querySelector('label[for="topK"] .help-icon')
-          ?.setAttribute(
-            'title',
-            'Controls diversity. Lower values limit the token pool. '
-                'Valid range: 1-$_maxTopK. Default: $_defaultTopK.',
-          );
-      web.document
-          .querySelector('label[for="temperature"] .help-icon')
-          ?.setAttribute(
-            'title',
-            'Controls randomness. Lower values are more deterministic. '
-                'Valid range: 0-$_maxTemperature. Default: $_defaultTemperature.',
-          );
-    }
+    // Update titles for help icons
+    web.document
+        .querySelector('label[for="topK"] .help-icon')
+        ?.setAttribute(
+          'title',
+          'Controls diversity. Lower values limit the token pool. '
+              'Valid range: 1-$_maxTopK. Default: $_defaultTopK.',
+        );
+    web.document
+        .querySelector('label[for="temperature"] .help-icon')
+        ?.setAttribute(
+          'title',
+          'Controls randomness. Lower values are more deterministic. '
+              'Valid range: 0-$_maxTemperature. Default: $_defaultTemperature.',
+        );
   } catch (e) {
     print('Error fetching model params: $e');
   }

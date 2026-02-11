@@ -16,7 +16,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
 @JS('LanguageModel')
-external LanguageModelFactory? get languageModel;
+external LanguageModelFactory? get languageModelImpl;
 
 @JS()
 extension type LanguageModelFactory._(JSObject _) implements JSObject {

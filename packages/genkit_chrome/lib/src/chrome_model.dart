@@ -34,6 +34,10 @@ class ChromeModel extends Model<LanguageModelOptions> {
          fn: (req, ctx) => _processRequest(req, ctx, options),
        );
 
+  static Future<LanguageModelParams> getParams() {
+    return _languageModel.params().toDart;
+  }
+
   static Future<ModelResponse> _processRequest(
     ModelRequest? req,
     ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
@@ -46,25 +50,7 @@ class ChromeModel extends Model<LanguageModelOptions> {
       );
     }
     // Availability check
-    if (languageModel == null) {
-      throw GenkitException(
-        'Chrome AI is not available (LanguageModel is undefined).\n'
-        'To enable local AI in Chrome (v128+):\n'
-        '1. Go to chrome://flags/\n'
-        '2. Enable "Prompt API for Gemini Nano"\n'
-        '3. Enable "Enables optimization guide on device" (choose "Enabled BypassPerfRequirement")\n'
-        '4. Relaunch Chrome\n'
-        '5. Go to chrome://components/ to download the model ("Optimization Guide On Device Model")',
-        status: StatusCodes.UNAVAILABLE,
-      );
-    }
-    final availability = (await languageModel!.availability().toDart).toDart;
-    if (availability == 'no') {
-      throw GenkitException(
-        'Chrome AI is not available.',
-        status: StatusCodes.UNAVAILABLE,
-      );
-    }
+    await _ensureAvailability();
 
     final config = req.config ?? const {};
     final systemPrompt =
@@ -96,7 +82,7 @@ class ChromeModel extends Model<LanguageModelOptions> {
       initialPrompts: initialPrompts,
     );
 
-    final session = await languageModel!.create(options).toDart;
+    final session = await _languageModel.create(options).toDart;
 
     try {
       final prompt = req.messages.isEmpty
@@ -146,4 +132,35 @@ class ChromeModel extends Model<LanguageModelOptions> {
       session.destroy();
     }
   }
+}
+
+bool _availabilityChecked = false;
+
+Future<void> _ensureAvailability() async {
+  if (_availabilityChecked) return;
+  _availabilityChecked = true;
+  final availability = (await _languageModel.availability().toDart).toDart;
+  if (availability == 'no') {
+    throw GenkitException(
+      'Chrome AI is not available.',
+      status: StatusCodes.UNAVAILABLE,
+    );
+  }
+}
+
+LanguageModelFactory get _languageModel {
+  if (languageModelImpl == null) {
+    throw GenkitException(
+      '''
+Chrome AI is not available (LanguageModel is undefined).
+To enable local AI in Chrome (v128+):
+1. Go to chrome://flags/
+2. Enable "Prompt API for Gemini Nano"
+3. Enable "Enables optimization guide on device" (choose "Enabled BypassPerfRequirement")
+4. Relaunch Chrome
+5. Go to chrome://components/ to download the model ("Optimization Guide On Device Model")''',
+      status: StatusCodes.UNAVAILABLE,
+    );
+  }
+  return languageModelImpl!;
 }

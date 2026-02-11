@@ -16,8 +16,8 @@ import 'package:genkit/genkit.dart';
 
 import 'chrome_model.dart';
 
-export 'chrome_interop.dart';
-export 'chrome_model.dart';
+export 'chrome_interop.dart' show LanguageModelParams;
+export 'chrome_model.dart' show ChromeModel;
 
 const ChromeAIPluginHandle chromeAI = ChromeAIPluginHandle();
 
