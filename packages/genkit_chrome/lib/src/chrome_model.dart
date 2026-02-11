@@ -138,7 +138,6 @@ bool _availabilityChecked = false;
 
 Future<void> _ensureAvailability() async {
   if (_availabilityChecked) return;
-  _availabilityChecked = true;
   final availability = (await _languageModel.availability().toDart).toDart;
   if (availability == 'no') {
     throw GenkitException(
@@ -146,6 +145,7 @@ Future<void> _ensureAvailability() async {
       status: StatusCodes.UNAVAILABLE,
     );
   }
+  _availabilityChecked = true;
 }
 
 LanguageModelFactory get _languageModel {
