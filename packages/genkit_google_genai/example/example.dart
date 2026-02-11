@@ -21,16 +21,16 @@ import 'src/model.dart';
 
 void main(List<String> args) async {
   configureCollectorExporter();
-  final ai = Genkit(plugins: [googleAI()]);
+  final ai = Genkit(plugins: [GoogleAI()]);
 
   // --- Basic Generate Flow ---
   ai.defineFlow(
     name: 'basicGenerate',
     inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
     outputSchema: stringSchema(),
-    fn: (input, context) async {
+    function: (input, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: input,
       );
       return response.text;
@@ -42,10 +42,9 @@ void main(List<String> args) async {
     name: 'liteGenerate',
     inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
     outputSchema: stringSchema(),
-    fn: (input, context) async {
-      final gemini = googleAI();
+    function: (input, context) async {
       final response = await lite.generate(
-        model: gemini.model('gemini-2.5-flash'),
+        model: GoogleAI().model('gemini-2.5-flash'),
         prompt: input,
       );
       return response.text;
@@ -57,7 +56,7 @@ void main(List<String> args) async {
     name: 'getWeather',
     description: 'Get the weather for a location',
     inputSchema: WeatherToolInput.$schema,
-    fn: (input, context) async {
+    function: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
         return 'The weather in Boston is 72 and sunny.';
       }
@@ -71,11 +70,11 @@ void main(List<String> args) async {
       defaultValue: 'What is the weather like in Boston?',
     ),
     outputSchema: stringSchema(),
-    fn: (prompt, context) async {
+    function: (prompt, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: GoogleAI.gemini('gemini-3-flash-preview'),
         prompt: prompt,
-        tools: ['getWeather'],
+        toolNames: ['getWeather'],
       );
       return response.text;
     },
@@ -87,9 +86,9 @@ void main(List<String> args) async {
     inputSchema: stringSchema(defaultValue: 'Gorble'),
     streamSchema: RpgCharacter.$schema,
     outputSchema: RpgCharacter.$schema,
-    fn: (name, ctx) async {
+    function: (name, ctx) async {
       final stream = ai.generateStream(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         config: GeminiOptions(temperature: 2.0),
         outputSchema: RpgCharacter.$schema,
         prompt: 'Generate an RPC character called $name',
@@ -114,9 +113,9 @@ void main(List<String> args) async {
     ),
     outputSchema: CharacterProfile.$schema,
     streamSchema: CharacterProfile.$schema,
-    fn: (prompt, ctx) async {
+    function: (prompt, ctx) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         outputSchema: CharacterProfile.$schema,
         prompt: prompt,
         onChunk: (chunk) {
@@ -132,9 +131,9 @@ void main(List<String> args) async {
     name: 'multimodalVideo',
     inputSchema: stringSchema(defaultValue: 'What happens in this video?'),
     outputSchema: stringSchema(),
-    fn: (prompt, _) async {
+    function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         messages: [
           Message(
@@ -159,9 +158,9 @@ void main(List<String> args) async {
     name: 'multimodalAudio',
     inputSchema: stringSchema(defaultValue: 'Transcribe this audio'),
     outputSchema: stringSchema(),
-    fn: (prompt, _) async {
+    function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         messages: [
           Message(
@@ -191,9 +190,9 @@ void main(List<String> args) async {
     ),
     outputSchema: Message.$schema,
     streamSchema: ModelResponseChunk.$schema,
-    fn: (prompt, ctx) async {
+    function: (prompt, ctx) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-pro'),
+        model: GoogleAI.gemini('gemini-2.5-pro'),
         prompt: prompt,
         config: GeminiOptions(
           // Configured to return thoughts as ReasoningParts.
@@ -215,9 +214,9 @@ void main(List<String> args) async {
     // Note: The model might not block the default content if it's not harmful enough.
     inputSchema: stringSchema(defaultValue: 'Some potentially harmful content'),
     outputSchema: stringSchema(),
-    fn: (prompt, _) async {
+    function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
@@ -239,9 +238,9 @@ void main(List<String> args) async {
       defaultValue: 'What are the top tech news stories this week?',
     ),
     outputSchema: mapSchema(stringSchema(), dynamicSchema()),
-    fn: (prompt, _) async {
+    function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: prompt,
         config: GeminiOptions(googleSearch: GoogleSearch()),
       );
@@ -256,9 +255,9 @@ void main(List<String> args) async {
       defaultValue: 'Calculate the 20th Fibonacci number',
     ),
     outputSchema: stringSchema(),
-    fn: (prompt, _) async {
+    function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-pro'),
+        model: GoogleAI.gemini('gemini-2.5-pro'),
         prompt: prompt,
         config: GeminiOptions(codeExecution: true),
       );
@@ -273,9 +272,9 @@ void main(List<String> args) async {
       defaultValue: 'Say that Genkit is an amazing AI framework',
     ),
     outputSchema: Media.$schema,
-    fn: (prompt, _) async {
+    function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash-preview-tts'),
+        model: GoogleAI.gemini('gemini-2.5-flash-preview-tts'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
@@ -303,9 +302,9 @@ void main(List<String> args) async {
     ''',
     ),
     outputSchema: Media.$schema,
-    fn: (prompt, _) async {
+    function: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash-preview-tts'),
+        model: GoogleAI.gemini('gemini-2.5-flash-preview-tts'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
@@ -340,9 +339,9 @@ void main(List<String> args) async {
     name: 'embedding',
     inputSchema: stringSchema(defaultValue: 'Hello Genkit'),
     outputSchema: listSchema(doubleSchema()),
-    fn: (input, _) async {
+    function: (input, _) async {
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: GoogleAI.textEmbedding('text-embedding-004'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],

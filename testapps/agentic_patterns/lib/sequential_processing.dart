@@ -35,13 +35,13 @@ abstract class $ImageGeneratorInput {
 
 Flow<StoryInput, String, void, void> defineStoryWriterFlow(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   return ai.defineFlow(
     name: 'storyWriterFlow',
     inputSchema: StoryInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       // Step 1: Generate a creative story idea
       final ideaResponse = await ai.generate(
         model: geminiFlash,
@@ -68,7 +68,7 @@ Flow<StoryInput, String, void, void> defineStoryWriterFlow(
 
 Flow<ImageGeneratorInput, String, void, void> defineImageGeneratorFlow(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   final geminiImage = modelRef('googleai/gemini-2.5-flash-image');
 
@@ -76,7 +76,7 @@ Flow<ImageGeneratorInput, String, void, void> defineImageGeneratorFlow(
     name: 'imageGeneratorFlow',
     inputSchema: ImageGeneratorInput.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       // Step 1: Use a text model to generate a rich image prompt
       final promptResponse = await ai.generate(
         model: geminiFlash,

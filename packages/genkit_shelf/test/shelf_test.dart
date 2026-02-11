@@ -50,7 +50,7 @@ void main() {
   test('Unary flow', () async {
     final echoFlow = ai.defineFlow(
       name: 'echo',
-      fn: (input, _) async => 'Echo: $input',
+      function: (input, _) async => 'Echo: $input',
       inputSchema: stringSchema(),
       outputSchema: stringSchema(),
     );
@@ -70,7 +70,7 @@ void main() {
   test('Streaming flow', () async {
     final streamFlow = ai.defineFlow(
       name: 'stream',
-      fn: (input, ctx) async {
+      function: (input, ctx) async {
         ctx.sendChunk('Chunk 1');
         await Future.delayed(const Duration(milliseconds: 10));
         ctx.sendChunk('Chunk 2');
@@ -103,7 +103,7 @@ void main() {
   test('Context provider', () async {
     final authFlow = ai.defineFlow(
       name: 'auth',
-      fn: (input, ctx) async {
+      function: (input, ctx) async {
         final user = ctx.context?['user'];
         if (user == null) throw Exception('Unauthorized');
         return 'Hello $user';
@@ -153,7 +153,7 @@ void main() {
   test('Direct shelfHandler', () async {
     final echoFlow = ai.defineFlow(
       name: 'echo',
-      fn: (input, _) async => 'Echo: $input',
+      function: (input, _) async => 'Echo: $input',
       inputSchema: stringSchema(),
       outputSchema: stringSchema(),
     );
@@ -177,7 +177,7 @@ void main() {
   test('Client using SchemanticType', () async {
     final echoFlow = ai.defineFlow(
       name: 'echoType',
-      fn: (input, _) async => 'Echo: $input',
+      function: (input, _) async => 'Echo: $input',
       inputSchema: stringSchema(),
       outputSchema: stringSchema(),
     );
@@ -197,7 +197,7 @@ void main() {
   test('Client using Schematic types and Streaming', () async {
     final complexStreamFlow = ai.defineFlow(
       name: 'complexStream',
-      fn: (input, ctx) async {
+      function: (input, ctx) async {
         ctx.sendChunk(ShelfTestStream(chunk: 'chunk1'));
         await Future.delayed(const Duration(milliseconds: 10));
         ctx.sendChunk(ShelfTestStream(chunk: 'chunk2'));
@@ -235,7 +235,7 @@ void main() {
   test('Streaming flow headers and timing', () async {
     final streamFlow = ai.defineFlow(
       name: 'streamHeaders',
-      fn: (input, ctx) async {
+      function: (input, ctx) async {
         ctx.sendChunk('Chunk 1');
         await Future.delayed(const Duration(milliseconds: 100));
         ctx.sendChunk('Chunk 2');

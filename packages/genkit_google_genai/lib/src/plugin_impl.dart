@@ -35,11 +35,10 @@ final commonModelInfo = ModelInfo(
   },
 );
 
-@visibleForTesting
-class GoogleGenAiPluginImpl extends GenkitPlugin {
+class GoogleAiPluginImpl extends GenkitPlugin {
   String? apiKey;
 
-  GoogleGenAiPluginImpl({this.apiKey});
+  GoogleAiPluginImpl({this.apiKey});
 
   @override
   String get name => 'googleai';
@@ -58,9 +57,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
         throw _handleException(e, stack);
       }
       final models = modelsResponse.models
-          .where((model) {
-            return model.name.startsWith('models/gemini-');
-          })
+          .where((model) => model.name.startsWith('models/gemini-'))
           .map((model) {
             final isTts = model.name.contains('-tts');
             return modelMetadata(
@@ -70,18 +67,17 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                   : GeminiOptions.$schema,
               modelInfo: commonModelInfo,
             );
-          })
-          .toList();
+          });
       final embedders = modelsResponse.models
           .where(
             (model) =>
                 model.name.startsWith('models/text-embedding-') ||
                 model.name.startsWith('models/embedding-'),
           )
-          .map((model) {
-            return embedderMetadata('googleai/${model.name.split('/').last}');
-          })
-          .toList();
+          .map(
+            (model) =>
+                embedderMetadata('googleai/${model.name.split('/').last}'),
+          );
       return [...models, ...embedders];
     } finally {
       service.close();
@@ -89,11 +85,11 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'embedder') {
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == ActionType.embedder) {
       return _createEmbedder(name);
     }
-    if (actionType == 'model') {
+    if (actionType == ActionType.model) {
       if (name.contains('-tts')) {
         return _createModel(name, GeminiTtsOptions.$schema);
       }
@@ -102,7 +98,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     return null;
   }
 
-  Model _createModel(String modelName, SchemanticType customOptions) {
+  Model<T> _createModel<T>(String modelName, SchemanticType<T> customOptions) {
     return Model(
       name: 'googleai/$modelName',
       customOptions: customOptions,

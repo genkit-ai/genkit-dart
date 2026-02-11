@@ -24,7 +24,7 @@ void main(List<String> args) {
   configureCollectorExporter();
 
   final ai = Genkit(
-    plugins: [anthropic(apiKey: Platform.environment['ANTHROPIC_API_KEY']!)],
+    plugins: [Anthropic(apiKey: Platform.environment['ANTHROPIC_API_KEY']!)],
   );
 
   // --- Basic Generate Flow ---
@@ -32,9 +32,9 @@ void main(List<String> args) {
     name: 'basicGenerate',
     inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
     outputSchema: stringSchema(),
-    fn: (input, context) async {
+    function: (input, context) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: input,
       );
       return response.text;
@@ -47,9 +47,9 @@ void main(List<String> args) {
     inputSchema: stringSchema(defaultValue: 'Count to 5'),
     outputSchema: stringSchema(),
     streamSchema: stringSchema(),
-    fn: (input, ctx) async {
+    function: (input, ctx) async {
       final stream = ai.generateStream(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: input,
       );
 
@@ -68,18 +68,18 @@ void main(List<String> args) {
     description: 'Multiplies two numbers',
     inputSchema: CalculatorInput.$schema,
     outputSchema: intSchema(),
-    fn: (input, _) async => input.a * input.b,
+    function: (input, _) async => input.a * input.b,
   );
 
   ai.defineFlow(
     name: 'toolCalling',
     inputSchema: stringSchema(defaultValue: 'What is 123 * 456?'),
     outputSchema: stringSchema(),
-    fn: (prompt, context) async {
+    function: (prompt, context) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: prompt,
-        tools: ['calculator'],
+        toolNames: ['calculator'],
       );
       return response.text;
     },
@@ -91,10 +91,10 @@ void main(List<String> args) {
     inputSchema: stringSchema(defaultValue: 'Solve this 24 game: 2, 3, 10, 10'),
     outputSchema: Message.$schema,
     streamSchema: ModelResponseChunk.$schema,
-    fn: (prompt, ctx) async {
+    function: (prompt, ctx) async {
       final response = await ai.generate(
         // Assuming a model that supports thinking is available or aliased
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: prompt,
         onChunk: ctx.sendChunk,
         config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
@@ -113,9 +113,9 @@ void main(List<String> args) {
     ),
     outputSchema: Person.$schema,
     streamSchema: Person.$schema,
-    fn: (prompt, ctx) async {
+    function: (prompt, ctx) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: Anthropic.modelReference('claude-sonnet-4-5'),
         prompt: prompt,
         outputSchema: Person.$schema,
         onChunk: (chunk) {

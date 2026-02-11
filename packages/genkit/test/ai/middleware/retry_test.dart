@@ -31,7 +31,7 @@ void main() {
       var attempts = 0;
       genkit.defineModel(
         name: 'fail-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
@@ -44,7 +44,7 @@ void main() {
         await genkit.generate(
           model: modelRef('fail-model'),
           prompt: 'test',
-          use: [
+          middlewareRefs: [
             retry(
               maxRetries: 3,
               initialDelayMs: 1,
@@ -66,7 +66,7 @@ void main() {
 
       genkit.defineModel(
         name: 'flakey-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           attempts++;
           if (attempts < 3) {
             throw GenkitException(
@@ -87,7 +87,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef('flakey-model'),
         prompt: 'test',
-        use: [
+        middlewareRefs: [
           retry(
             maxRetries: 3,
             initialDelayMs: 1,
@@ -106,7 +106,7 @@ void main() {
 
       genkit.defineModel(
         name: 'fatal-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           attempts++;
           throw GenkitException(
             'Fatal Error',
@@ -119,7 +119,7 @@ void main() {
         await genkit.generate(
           model: modelRef('fatal-model'),
           prompt: 'test',
-          use: [
+          middlewareRefs: [
             retry(
               maxRetries: 3,
               initialDelayMs: 1,
@@ -142,7 +142,7 @@ void main() {
 
       genkit.defineModel(
         name: 'callback-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           throw GenkitException('Fail', status: StatusCodes.UNAVAILABLE);
         },
       );
@@ -151,7 +151,7 @@ void main() {
         await genkit.generate(
           model: modelRef('callback-model'),
           prompt: 'test',
-          use: [
+          middlewares: [
             RetryMiddleware(
               maxRetries: 2,
               initialDelayMs: 1,
@@ -177,7 +177,7 @@ void main() {
 
       genkit.defineModel(
         name: 'cancel-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           attempts++;
           throw GenkitException('Fail', status: StatusCodes.UNAVAILABLE);
         },
@@ -187,7 +187,7 @@ void main() {
         await genkit.generate(
           model: modelRef('cancel-model'),
           prompt: 'test',
-          use: [
+          middlewares: [
             RetryMiddleware(
               maxRetries: 5,
               initialDelayMs: 1,
@@ -222,7 +222,7 @@ void main() {
 
       genkit.defineModel(
         name: 'fail-model-disabled',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
@@ -235,7 +235,7 @@ void main() {
         await genkit.generate(
           model: modelRef('fail-model-disabled'),
           prompt: 'test',
-          use: [
+          middlewareRefs: [
             retry(
               maxRetries: 3,
               initialDelayMs: 1,
@@ -257,7 +257,7 @@ void main() {
 
       genkit.defineModel(
         name: 'tool-caller',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           if (req.messages.any((m) => m.role == Role.tool)) {
             return ModelResponse(
               finishReason: FinishReason.stop,
@@ -288,7 +288,7 @@ void main() {
         name: 'fail-tool',
         description: 'desc',
         inputSchema: null,
-        fn: (input, ctx) async {
+        function: (input, ctx) async {
           attempts++;
           throw GenkitException(
             'Tool Failure',
@@ -301,8 +301,8 @@ void main() {
         await genkit.generate(
           model: modelRef('tool-caller'),
           prompt: 'test',
-          tools: ['fail-tool'],
-          use: [
+          toolNames: ['fail-tool'],
+          middlewareRefs: [
             retry(
               maxRetries: 3,
               initialDelayMs: 1,
@@ -323,7 +323,7 @@ void main() {
 
       genkit.defineModel(
         name: 'default-status-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
@@ -336,7 +336,7 @@ void main() {
         await genkit.generate(
           model: modelRef('default-status-model'),
           prompt: 'test',
-          use: [
+          middlewareRefs: [
             retry(
               maxRetries: 3,
               initialDelayMs: 1,
@@ -358,7 +358,7 @@ void main() {
 
       genkit.defineModel(
         name: 'ref-fail-model',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
@@ -371,7 +371,9 @@ void main() {
         await genkit.generate(
           model: modelRef('ref-fail-model'),
           prompt: 'test',
-          use: [retry(maxRetries: 2, initialDelayMs: 1, noJitter: true)],
+          middlewareRefs: [
+            retry(maxRetries: 2, initialDelayMs: 1, noJitter: true),
+          ],
         );
       } catch (e) {
         // Expected

@@ -70,7 +70,7 @@ void main() {
     test('parses json output', () async {
       genkit.defineModel(
         name: 'jsonModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -94,7 +94,7 @@ void main() {
       String? receivedInstructions;
       genkit.defineModel(
         name: 'instructionModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           for (final m in req.messages) {
             for (final p in m.content) {
               if (p.isText && p.metadata?['purpose'] == 'output') {
@@ -125,7 +125,7 @@ void main() {
     test('defaults to json format when schema is present', () async {
       genkit.defineModel(
         name: 'defaultJsonModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -150,7 +150,7 @@ void main() {
       ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           capturedRequest = req;
           final text = req.messages.last.content.first.isText
               ? req.messages.last.content.first.text!
@@ -202,7 +202,7 @@ void main() {
       ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           capturedRequest = req;
           return ModelResponse(
             finishReason: FinishReason.stop,
@@ -241,7 +241,7 @@ void main() {
       ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           capturedRequest = req;
           return ModelResponse(
             finishReason: FinishReason.stop,
@@ -274,7 +274,7 @@ void main() {
       ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           capturedRequest = req;
           return ModelResponse(
             finishReason: FinishReason.stop,
@@ -321,7 +321,7 @@ void main() {
     test('parses partial json chunks', () async {
       genkit.defineModel(
         name: 'streamingJsonModel',
-        fn: (req, ctx) async {
+        function: (req, ctx) async {
           ctx.sendChunk(ModelResponseChunk(content: [TextPart(text: '{"a":')]));
           ctx.sendChunk(ModelResponseChunk(content: [TextPart(text: ' 1,')]));
           ctx.sendChunk(

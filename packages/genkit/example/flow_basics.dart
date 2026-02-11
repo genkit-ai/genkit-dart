@@ -42,7 +42,7 @@ void main() async {
     name: 'basic',
     inputSchema: stringSchema(),
     outputSchema: stringSchema(),
-    fn: (String subject, _) async {
+    function: (String subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
       });
@@ -56,7 +56,7 @@ void main() async {
   ai.defineFlow(
     name: 'parent',
     outputSchema: stringSchema(),
-    fn: (_, _) async {
+    function: (_, _) async {
       // Dart flow objects are callable, but we need to handle the input.
       // basic expects a string.
       final result = await basic('foo');
@@ -68,7 +68,7 @@ void main() async {
     name: 'withInputSchema',
     inputSchema: Subject.$schema,
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: ${input.subject}';
       });
@@ -83,7 +83,7 @@ void main() async {
     name: 'withListInputSchema',
     inputSchema: listSchema(Subject.$schema),
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subjects: ${input.map((e) => e.subject).join(', ')}';
       });
@@ -98,7 +98,7 @@ void main() async {
     name: 'withContext',
     inputSchema: Subject.$schema,
     outputSchema: stringSchema(),
-    fn: (input, context) async {
+    function: (input, context) async {
       return 'subject: ${input.subject}, context: ${jsonEncode(context.context)}';
     },
   );
@@ -109,7 +109,7 @@ void main() async {
     inputSchema: intSchema(),
     outputSchema: stringSchema(),
     streamSchema: Count.$schema,
-    fn: (count, context) async {
+    function: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
         await Future.delayed(Duration(seconds: 1));
@@ -125,7 +125,7 @@ void main() async {
     inputSchema: intSchema(),
     outputSchema: stringSchema(),
     streamSchema: Count.$schema,
-    fn: (count, context) async {
+    function: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
         if (i == 3) {
@@ -144,7 +144,7 @@ void main() async {
     name: 'throwy',
     inputSchema: stringSchema(),
     outputSchema: stringSchema(),
-    fn: (subject, _) async {
+    function: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
       });
@@ -163,7 +163,7 @@ void main() async {
     name: 'throwy2',
     inputSchema: stringSchema(),
     outputSchema: stringSchema(),
-    fn: (subject, _) async {
+    function: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         if (subject.isNotEmpty) {
           throw Exception(subject);
@@ -180,7 +180,7 @@ void main() async {
     name: 'flowMultiStepCaughtError',
     inputSchema: stringSchema(),
     outputSchema: stringSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       var i = 1;
 
       final result1 = await ai.run('step1', () async {
@@ -209,7 +209,7 @@ void main() async {
     name: 'multiSteps',
     inputSchema: stringSchema(),
     outputSchema: intSchema(),
-    fn: (input, _) async {
+    function: (input, _) async {
       final out1 = await ai.run('step1', () async {
         return 'Hello, $input! step 1';
       });
@@ -232,7 +232,7 @@ void main() async {
   ai.defineFlow(
     name: 'largeSteps',
     outputSchema: stringSchema(),
-    fn: (_, _) async {
+    function: (_, _) async {
       await ai.run('large-step1', () async {
         return generateString(100000);
       });

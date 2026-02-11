@@ -32,13 +32,13 @@ abstract class $MarketingCopy {
 
 Flow<ProductInput, MarketingCopy, void, void> defineMarketingCopyFlow(
   Genkit ai,
-  ModelRef geminiFlash,
+  ModelReference geminiFlash,
 ) {
   return ai.defineFlow(
     name: 'marketingCopyFlow',
     inputSchema: ProductInput.$schema,
     outputSchema: MarketingCopy.$schema,
-    fn: (input, _) async {
+    function: (input, _) async {
       // Task 1: Generate a creative name
       final nameFuture = ai.generate(
         model: geminiFlash,

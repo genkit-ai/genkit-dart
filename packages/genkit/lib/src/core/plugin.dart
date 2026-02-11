@@ -37,7 +37,7 @@ abstract class GenkitPlugin {
   }
 
   /// Called to resolve an action by name.
-  Action? resolve(String actionType, String name) {
+  Action? resolve(ActionType actionType, String name) {
     return null;
   }
 
@@ -46,14 +46,14 @@ abstract class GenkitPlugin {
     return [];
   }
 
-  Model model(String name) {
-    final m = resolve('model', name);
+  Model<T> model<T>(String name) {
+    final m = resolve(ActionType.model, name);
     if (m == null || m is! Model) {
       throw GenkitException(
         'Model $name not found',
         status: StatusCodes.NOT_FOUND,
       );
     }
-    return m;
+    return m as Model<T>;
   }
 }

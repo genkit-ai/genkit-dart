@@ -34,7 +34,7 @@ abstract class $TriviaQuestions {
 
 Future<void> main(List<String> args) async {
   // Initialize Genkit with Google AI plugin
-  final ai = Genkit(plugins: [googleAI()]);
+  final ai = Genkit(plugins: [GoogleAI()]);
 
   // Define the tool
   ai.defineTool(
@@ -42,7 +42,7 @@ Future<void> main(List<String> args) async {
     description:
         "can present questions to the user, responds with the user' selected answer",
     inputSchema: TriviaQuestions.$schema,
-    fn: (input, ctx) async {
+    function: (input, ctx) async {
       // input is TriviaQuestions (generated class)
       ctx.interrupt(input);
     },
@@ -50,13 +50,13 @@ Future<void> main(List<String> args) async {
 
   print('Generating trivia question...');
   final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
+    model: GoogleAI.gemini('gemini-2.5-flash'),
     prompt: '''
       Generate a trivia question and call present_questions tool to present it to the user.
       Answers are provided numbered starting from 1. When answer is provided, be dramatic about
       saying whether the answer is correct or wrong.
     ''',
-    tools: ['present_questions'],
+    toolNames: ['present_questions'],
   );
 
   if (response.finishReason == FinishReason.interrupted) {
@@ -87,9 +87,9 @@ Future<void> main(List<String> args) async {
     // Resume flow
     print('\nResuming flow with answer...');
     final response2 = await ai.generate(
-      model: googleAI.gemini('gemini-2.5-flash'),
+      model: GoogleAI.gemini('gemini-2.5-flash'),
       messages: response.messages,
-      tools: ['present_questions'],
+      toolNames: ['present_questions'],
       resume: [InterruptResponse(interruptPart, userSelection)],
     );
 

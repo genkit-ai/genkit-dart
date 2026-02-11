@@ -21,7 +21,7 @@ void main() {
     test('streamBidi with input stream', () async {
       final action = Action<String, String, String, void>(
         name: 'chat',
-        actionType: 'custom',
+        actionType: ActionType.custom,
         fn: (input, context) async {
           await for (final chunk in context.inputStream!) {
             context.sendChunk('echo $chunk');
@@ -45,7 +45,7 @@ void main() {
     test('streamBidi ergonomic (send)', () async {
       final action = Action<String, String, String, void>(
         name: 'chat',
-        actionType: 'custom',
+        actionType: ActionType.custom,
         fn: (input, context) async {
           await for (final chunk in context.inputStream!) {
             context.sendChunk('echo $chunk');
@@ -67,7 +67,7 @@ void main() {
     test('can run bidi action with unary input', () async {
       final action = Action<String, String, String, void>(
         name: 'chat',
-        actionType: 'custom',
+        actionType: ActionType.custom,
         fn: (input, context) async {
           await for (final chunk in context.inputStream!) {
             context.sendChunk('echo $chunk');
@@ -85,7 +85,7 @@ void main() {
     test('streamBidi pull (generator)', () async {
       final action = Action<String, String, String, void>(
         name: 'chat',
-        actionType: 'custom',
+        actionType: ActionType.custom,
         fn: (input, context) async {
           await for (final chunk in context.inputStream!) {
             context.sendChunk('echo $chunk');
@@ -109,7 +109,7 @@ void main() {
     test('bidi action receives init data', () async {
       final action = Action<String, String, String, Map<String, dynamic>>(
         name: 'chatWithInit',
-        actionType: 'custom',
+        actionType: ActionType.custom,
         fn: (input, context) async {
           final prefix = context.init?['prefix'] ?? '';
           await for (final chunk in context.inputStream!) {

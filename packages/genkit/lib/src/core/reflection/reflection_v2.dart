@@ -15,11 +15,13 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:schemantic/schemantic.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../exception.dart';
 import '../../schema.dart';
 import '../../utils.dart';
+import '../action.dart' show ActionType;
 import '../registry.dart';
 
 const genkitVersion = '0.9.0';
@@ -171,12 +173,12 @@ class ReflectionServerV2 {
         'name': action.name,
         'description': action.metadata['description'],
         'metadata': action.metadata,
-        if (action.inputSchema != null)
-          'inputSchema': toJsonSchema(type: action.inputSchema),
-        if (action.outputSchema != null)
-          'outputSchema': toJsonSchema(type: action.outputSchema),
-        if (action.initSchema != null)
-          'initSchema': toJsonSchema(type: action.initSchema),
+        if (action.inputSchema case final SchemanticType<Object> schema)
+          'inputSchema': toJsonSchema(type: schema),
+        if (action.outputSchema case final SchemanticType<Object> schema)
+          'outputSchema': toJsonSchema(type: schema),
+        if (action.initSchema case final SchemanticType<Object> schema)
+          'initSchema': toJsonSchema(type: schema),
       };
     }
     _sendResponse(id, convertedActions);
@@ -197,15 +199,18 @@ class ReflectionServerV2 {
       return;
     }
 
-    final action = await registry.lookupAction(parts[1], parts[2]);
+    final action = await registry.lookupAction(
+      ActionType.fromString(parts[1]),
+      parts[2],
+    );
     if (action == null) {
       _sendError(id, 404, 'action $key not found');
       return;
     }
 
-    Stream<dynamic>? inputStream;
+    Stream<Object>? inputStream;
     if (streamInput) {
-      final controller = StreamController<dynamic>();
+      final controller = StreamController<Object>();
       _inputStreams[id] = controller;
       inputStream = controller.stream;
     }

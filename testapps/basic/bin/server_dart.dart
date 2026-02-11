@@ -30,7 +30,7 @@ void main() async {
 
   ai.defineModel(
     name: 'echoModel',
-    fn: (request, context) async {
+    function: (request, context) async {
       final input = request;
       for (var i = 0; i < 3; i++) {
         context.sendChunk(
@@ -54,14 +54,14 @@ void main() async {
     name: 'echoString',
     inputSchema: stringSchema(),
     outputSchema: stringSchema(),
-    fn: (input, _) async => input,
+    function: (input, _) async => input,
   );
 
   final processObject = ai.defineFlow(
     name: 'processObject',
     inputSchema: ProcessObjectInput.$schema,
     outputSchema: ProcessObjectOutput.$schema,
-    fn: (input, _) async {
+    function: (input, _) async {
       return ProcessObjectOutput(
         reply: 'reply: ${input.message}',
         newCount: input.count + 1,
@@ -74,7 +74,7 @@ void main() async {
     inputSchema: StreamObjectsInput.$schema,
     outputSchema: StreamObjectsOutput.$schema,
     streamSchema: StreamObjectsOutput.$schema,
-    fn: (input, context) async {
+    function: (input, context) async {
       for (var i = 0; i < 5; i++) {
         context.sendChunk(
           StreamObjectsOutput(text: 'input: $i', summary: 'summary $i'),
@@ -98,7 +98,7 @@ void main() async {
     inputSchema: ModelRequest.$schema,
     outputSchema: ModelResponse.$schema,
     streamSchema: ModelResponseChunk.$schema,
-    fn: (request, context) async {
+    function: (request, context) async {
       // Calling the model directly.
       final response = await ai.generate(
         model: modelRef('echoModel'),
@@ -116,7 +116,7 @@ void main() async {
     inputSchema: intSchema(),
     outputSchema: stringSchema(),
     streamSchema: StreamyThrowyChunk.$schema,
-    fn: (count, context) async {
+    function: (count, context) async {
       var i = 0;
       for (; i < count; i++) {
         if (i == 3) {
@@ -133,7 +133,7 @@ void main() async {
     name: 'throwy',
     inputSchema: stringSchema(),
     outputSchema: stringSchema(),
-    fn: (subject, _) async {
+    function: (subject, _) async {
       // Mocking 'call-llm' calls as simple runs or strings since we don't have that model.
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';

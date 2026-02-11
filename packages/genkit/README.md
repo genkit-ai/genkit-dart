@@ -28,7 +28,7 @@ void main() async {
   final ai = Genkit(plugins: [googleAI()]);
 
   final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
+    model: GoogleAI.gemini('gemini-2.5-flash'),
     prompt: 'Why is Dart a great language for AI applications?',
   );
 
@@ -53,7 +53,7 @@ Call any model with a simple, unified API:
 
 ```dart
 final response = await ai.generate(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: GoogleAI.gemini('gemini-2.5-flash'),
   prompt: 'Explain quantum computing in simple terms.',
 );
 print(response.text);
@@ -65,7 +65,7 @@ Stream text as it's generated for responsive user experiences:
 
 ```dart
 final stream = ai.generateStream(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: GoogleAI.gemini('gemini-2.5-flash'),
   prompt: 'Write a short story about a robot learning to paint.',
 );
 
@@ -83,7 +83,7 @@ final embeddings = await ai.embedMany(
   documents: [
     DocumentData(content: [TextPart(text: 'Hello world')]),
   ],
-  embedder: googleAI.textEmbedding('text-embedding-004'),
+  embedder: GoogleAI().textEmbedding('text-embedding-004'),
 );
 
 print(embeddings.first.embedding);
@@ -113,7 +113,7 @@ final weatherTool = ai.defineTool(
 );
 
 final response = await ai.generate(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: GoogleAI.gemini('gemini-2.5-flash'),
   prompt: 'What\'s the weather like in San Francisco?',
   tools: ['getWeather'],
 );
@@ -131,7 +131,7 @@ final jokeFlow = ai.defineFlow(
   outputSchema: stringSchema(),
   fn: (topic, _) async {
     final response = await ai.generate(
-      model: googleAI.gemini('gemini-2.5-flash'),
+      model: GoogleAI.gemini('gemini-2.5-flash'),
       prompt: 'Tell me a joke about $topic',
     );
     return response.text;
@@ -154,7 +154,7 @@ final streamStory = ai.defineFlow(
   streamSchema: stringSchema(),
   fn: (topic, context) async {
     final stream = ai.generateStream(
-      model: googleAI.gemini('gemini-2.5-flash'),
+      model: GoogleAI.gemini('gemini-2.5-flash'),
       prompt: 'Write a story about $topic',
     );
 
@@ -183,7 +183,7 @@ final ai = Genkit(
 );
 
 final response = await ai.generate(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: GoogleAI.gemini('gemini-2.5-flash'),
   prompt: 'Reliable request',
   use: [
     retry(

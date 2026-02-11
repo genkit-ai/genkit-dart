@@ -18,38 +18,39 @@ import '../core/action.dart';
 import 'interrupt.dart';
 
 /// Arguments passed to a tool function execution.
-class ToolFnArgs<I> {
-  final ActionFnArg<void, I, void> _base;
+class ToolContext<I> {
+  final FunctionContext<void, I, void> _base;
 
-  ToolFnArgs(this._base);
+  ToolContext(this._base);
 
   /// The execution context.
   Map<String, dynamic>? get context => _base.context;
 
   /// Interrupts the generation loop with optional [data].
-  Never interrupt([dynamic data]) {
+  void interrupt([dynamic data]) {
     throw ToolInterruptException(data ?? true);
   }
 }
 
 /// A function that implements a tool.
-typedef ToolFn<I, O> = Future<O> Function(I input, ToolFnArgs<I> context);
+typedef ToolFunction<Input, Output> =
+    Future<Output> Function(Input input, ToolContext<Input> context);
 
-class Tool<I, O> extends Action<I, O, void, void> {
+class Tool<Input, Output> extends Action<Input, Output, void, void> {
   Tool({
     required super.name,
     required super.description,
-    required ToolFn<I, O> fn,
+    required ToolFunction<Input, Output> fn,
     super.inputSchema,
     super.outputSchema,
     super.metadata,
   }) : super(
          fn: (input, ctx) {
-           if (input == null && inputSchema != null && null is! I) {
+           if (input == null && inputSchema != null && null is! Input) {
              throw ArgumentError('Tool "$name" requires a non-null input.');
            }
-           return fn(input as I, ToolFnArgs(ctx));
+           return fn(input as Input, ToolContext(ctx));
          },
-         actionType: 'tool',
+         actionType: ActionType.tool,
        );
 }

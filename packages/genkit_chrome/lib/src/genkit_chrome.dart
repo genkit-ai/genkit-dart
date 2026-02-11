@@ -19,12 +19,12 @@ import 'chrome_model.dart';
 export 'chrome_interop.dart';
 export 'chrome_model.dart';
 
-const ChromeAIPluginHandle chromeAI = ChromeAIPluginHandle();
+const chromeAiGeminiNano = 'gemini-nano';
 
-class ChromeAIPluginHandle {
-  const ChromeAIPluginHandle();
+extension type ChromeAI._(ChromeAIPlugin plugin) {
+  ChromeAI() : plugin = ChromeAIPlugin();
 
-  ChromeAIPlugin call() => ChromeAIPlugin();
+  Model<dynamic> model(String name) => plugin.model(name);
 }
 
 class ChromeAIPlugin extends GenkitPlugin {
@@ -37,15 +37,15 @@ class ChromeAIPlugin extends GenkitPlugin {
     // But listing usually just returns what *could* be available.
     return [
       modelMetadata(
-        'chrome/gemini-nano',
+        'chrome/$chromeAiGeminiNano',
         modelInfo: ModelInfo(supports: {'multiturn': true, 'systemRole': true}),
       ),
     ];
   }
 
   @override
-  ChromeModel? resolve(String actionType, String name) {
-    if (actionType == 'model' && name == 'gemini-nano') {
+  ChromeModel? resolve(ActionType actionType, String name) {
+    if (actionType == ActionType.model && name == chromeAiGeminiNano) {
       return ChromeModel();
     }
     return null;

@@ -39,7 +39,7 @@ class TestPlugin extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
+  Action? resolve(ActionType _, String name) {
     if (resolvedAction != null && resolvedAction!.name == name) {
       return resolvedAction;
     }
@@ -53,23 +53,28 @@ class TestPlugin extends GenkitPlugin {
 }
 
 void main() {
+  const actionType = ActionType.fromString('test');
+
   group('Registry', () {
     test('register and get action', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'test',
+        actionType: actionType,
         name: 'testAction',
         fn: (input, context) async => 'output',
       );
       registry.register(action);
-      final retrievedAction = await registry.lookupAction('test', 'testAction');
+      final retrievedAction = await registry.lookupAction(
+        actionType,
+        'testAction',
+      );
       expect(retrievedAction, same(action));
     });
 
     test('get returns null when action not found', () async {
       final registry = Registry();
       final retrievedAction = await registry.lookupAction(
-        'test',
+        actionType,
         'nonExistent',
       );
       expect(retrievedAction, isNull);
@@ -79,8 +84,7 @@ void main() {
       final registry = Registry();
       final plugin = TestPlugin('myPlugin');
       registry.registerPlugin(plugin);
-      final retrievedAction = await registry.lookupAction(
-        'model',
+      final retrievedAction = await registry.lookUpModel(
         'myPlugin/nonExistent',
       );
       expect(retrievedAction, isNull);
@@ -89,7 +93,7 @@ void main() {
     test('get action from plugin', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'model',
+        actionType: ActionType.model,
         name: 'myModel',
         fn: (input, context) async => 'output',
       );
@@ -97,33 +101,27 @@ void main() {
       registry.registerPlugin(plugin);
 
       expect(plugin.initCount, 0);
-      final retrievedAction = await registry.lookupAction(
-        'model',
-        'myPlugin/myModel',
-      );
+      final retrievedAction = await registry.lookUpModel('myPlugin/myModel');
       expect(plugin.initCount, 1);
       expect(retrievedAction, isNotNull);
       expect(retrievedAction!.name, 'myModel');
 
       // Verify that the action is now cached
-      final cachedAction = await registry.lookupAction(
-        'model',
-        'myPlugin/myModel',
-      );
+      final cachedAction = await registry.lookUpModel('myPlugin/myModel');
       expect(cachedAction, same(retrievedAction));
     });
 
     test('list actions with plugins', () async {
       final registry = Registry();
       final directAction = Action(
-        actionType: 'flow',
+        actionType: ActionType.flow,
         name: 'directFlow',
         fn: (input, context) async => 'output',
       );
       registry.register(directAction);
 
       final pluginAction = Action(
-        actionType: 'flow',
+        actionType: ActionType.flow,
         name: 'pluginFlow',
         fn: (input, context) async => 'output',
       );
@@ -144,12 +142,16 @@ void main() {
       expect(plugin.initCount, 1);
       expect(actions.length, 2);
       expect(
-        actions.any((a) => a.actionType == 'flow' && a.name == 'directFlow'),
+        actions.any(
+          (a) => a.actionType == ActionType.flow && a.name == 'directFlow',
+        ),
         isTrue,
       );
       expect(
         actions.any(
-          (a) => a.actionType == 'flow' && a.name == 'myPlugin/pluginFlow',
+          (a) =>
+              a.actionType == ActionType.flow &&
+              a.name == 'myPlugin/pluginFlow',
         ),
         isTrue,
       );
@@ -158,7 +160,7 @@ void main() {
     test('list actions without plugins', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'test',
+        actionType: actionType,
         name: 'testAction',
         fn: (input, context) async => 'output',
       );
@@ -171,7 +173,7 @@ void main() {
     test('list actions does not add duplicates', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'model',
+        actionType: ActionType.model,
         name: 'myModel',
         fn: (input, context) async => 'output',
       );
@@ -195,21 +197,21 @@ void main() {
       final parent = Registry();
       final child = Registry.childOf(parent);
 
-      parent.registerValue('test', 'parentValue', 'parent');
-      child.registerValue('test', 'childValue', 'child');
+      parent.registerValue(actionType, 'parentValue', 'parent');
+      child.registerValue(actionType, 'childValue', 'child');
 
-      expect(child.lookupValue<String>('test', 'childValue'), 'child');
-      expect(child.lookupValue<String>('test', 'parentValue'), 'parent');
+      expect(child.lookupValue<String>(actionType, 'childValue'), 'child');
+      expect(child.lookupValue<String>(actionType, 'parentValue'), 'parent');
     });
 
     test('lookupValue prefers local value over parent', () {
       final parent = Registry();
       final child = Registry.childOf(parent);
 
-      parent.registerValue('test', 'shared', 'parent');
-      child.registerValue('test', 'shared', 'child');
+      parent.registerValue(actionType, 'shared', 'parent');
+      child.registerValue(actionType, 'shared', 'child');
 
-      expect(child.lookupValue<String>('test', 'shared'), 'child');
+      expect(child.lookupValue<String>(actionType, 'shared'), 'child');
     });
 
     test('lookupAction delegates to parent if not found locally', () async {
@@ -217,25 +219,25 @@ void main() {
       final child = Registry.childOf(parent);
 
       final parentAction = Action(
-        actionType: 'test',
+        actionType: actionType,
         name: 'parentAction',
         fn: (input, context) async => 'parent',
       );
       parent.register(parentAction);
 
       final childAction = Action(
-        actionType: 'test',
+        actionType: actionType,
         name: 'childAction',
         fn: (input, context) async => 'child',
       );
       child.register(childAction);
 
       expect(
-        await child.lookupAction('test', 'childAction'),
+        await child.lookupAction(actionType, 'childAction'),
         same(childAction),
       );
       expect(
-        await child.lookupAction('test', 'parentAction'),
+        await child.lookupAction(actionType, 'parentAction'),
         same(parentAction),
       );
     });
@@ -245,30 +247,30 @@ void main() {
       final child = Registry.childOf(parent);
 
       final parentAction = Action(
-        actionType: 'test',
+        actionType: actionType,
         name: 'shared',
         fn: (input, context) async => 'parent',
       );
       parent.register(parentAction);
 
       final childAction = Action(
-        actionType: 'test',
+        actionType: actionType,
         name: 'shared',
         fn: (input, context) async => 'child',
       );
       child.register(childAction);
 
-      expect(await child.lookupAction('test', 'shared'), same(childAction));
+      expect(await child.lookupAction(actionType, 'shared'), same(childAction));
     });
 
     test('listValues merges parent and local values', () {
       final parent = Registry();
       final child = Registry.childOf(parent);
 
-      parent.registerValue('test', 'parentValue', 'parent');
-      parent.registerValue('test', 'shared', 'parent');
-      child.registerValue('test', 'childValue', 'child');
-      child.registerValue('test', 'shared', 'child');
+      parent.registerValue(actionType, 'parentValue', 'parent');
+      parent.registerValue(actionType, 'shared', 'parent');
+      child.registerValue(actionType, 'childValue', 'child');
+      child.registerValue(actionType, 'shared', 'child');
 
       final values = child.listValues<String>('test');
       expect(values, containsPair('/test/parentValue', 'parent'));

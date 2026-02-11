@@ -42,13 +42,13 @@ void main() {
 
   group('Google AI Integration (Live)', () {
     late Genkit ai;
-    GoogleGenAiPluginImpl? plugin;
+    GoogleAiPluginImpl? plugin;
 
     setUp(() {
       if (apiKey == null) {
         return;
       }
-      plugin = GoogleGenAiPluginImpl(apiKey: apiKey);
+      plugin = GoogleAiPluginImpl(apiKey: apiKey);
       ai = Genkit(plugins: [plugin!]);
     });
 
@@ -62,7 +62,7 @@ void main() {
         return;
       }
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: GoogleAI.gemini('gemini-3-flash-preview'),
         prompt: 'Say hello to World',
         config: GeminiOptions(temperature: 0),
       );
@@ -72,7 +72,7 @@ void main() {
     test('should stream text', () async {
       if (apiKey == null) return;
       final response = ai.generateStream(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: GoogleAI.gemini('gemini-3-flash-preview'),
         prompt: 'Count to 5',
       );
 
@@ -88,7 +88,7 @@ void main() {
     test('should generate structured output', () async {
       if (apiKey == null) return;
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: GoogleAI.gemini('gemini-3-flash-preview'),
         prompt: 'Generate a person named John Doe, age 30',
         outputSchema: Person.$schema,
       );
@@ -101,7 +101,7 @@ void main() {
     test('should stream structured output', () async {
       if (apiKey == null) return;
       final response = ai.generateStream(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: GoogleAI.gemini('gemini-3-flash-preview'),
         prompt: 'Generate a person named Jane Doe, age 25',
         outputSchema: Person.$schema,
       );
@@ -119,12 +119,12 @@ void main() {
         description: 'Multiplies two numbers',
         inputSchema: CalculatorInput.$schema,
         outputSchema: intSchema(),
-        fn: (CalculatorInput input, _) async => input.a * input.b,
+        function: (CalculatorInput input, _) async => input.a * input.b,
       );
 
       // Note: Gemini 1.5 Flash is good at tool calls
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: GoogleAI.gemini('gemini-3-flash-preview'),
         prompt: 'What is 123 * 456?',
         tools: [tool],
       );
@@ -135,7 +135,7 @@ void main() {
     test('should embed text', () async {
       if (apiKey == null) return;
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: GoogleAI.textEmbedding('text-embedding-004'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello world')]),
         ],
@@ -154,7 +154,7 @@ void main() {
     test('should embed multiple texts', () async {
       if (apiKey == null) return;
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: GoogleAI.textEmbedding('text-embedding-004'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
           DocumentData(content: [TextPart(text: 'World')]),
@@ -169,7 +169,7 @@ void main() {
     test('should embed with options', () async {
       if (apiKey == null) return;
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: GoogleAI.textEmbedding('text-embedding-004'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
         ],

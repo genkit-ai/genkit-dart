@@ -44,14 +44,14 @@ void main() {
       () async {
         final childFlow = genkit.defineFlow(
           name: 'childFlow',
-          fn: (String input, context) async {
+          function: (String input, context) async {
             return 'Hello, $input!';
           },
         );
 
         final parentFlow = genkit.defineFlow(
           name: 'parentFlow',
-          fn: (String input, context) async {
+          function: (String input, context) async {
             return await childFlow(input);
           },
         );

@@ -17,6 +17,8 @@ import 'dart:convert';
 
 import 'package:opentelemetry/api.dart' as api;
 
+import '../core/action.dart';
+
 final _tracer = api.globalTracerProvider.getTracer('genkit-dart');
 
 typedef TelemetryContext = ({
@@ -25,11 +27,11 @@ typedef TelemetryContext = ({
   String spanId,
 });
 
-Future<O> runInNewSpan<I, O>(
+Future<Output> runInNewSpan<Input, Output>(
   String name,
-  Future<O> Function(TelemetryContext) fn, {
-  String? actionType,
-  I? input,
+  Future<Output> Function(TelemetryContext) function, {
+  ActionType? actionType,
+  Input? input,
   Map<String, String>? attributes,
 }) async {
   final parentContext = Zone.current[#api.context] as api.Context?;
@@ -43,10 +45,10 @@ Future<O> runInNewSpan<I, O>(
         span.setAttribute(api.Attribute.fromString('genkit:name', name));
         if (actionType != null) {
           span.setAttribute(
-            api.Attribute.fromString('genkit:type', actionType),
+            api.Attribute.fromString('genkit:type', actionType.value),
           );
           // tmp hack...
-          if (actionType == 'flow') {
+          if (actionType == ActionType.flow) {
             span.setAttribute(
               api.Attribute.fromString('genkit:metadata:flow:name', name),
             );
@@ -74,7 +76,7 @@ Future<O> runInNewSpan<I, O>(
           traceId: span.spanContext.traceId.toString(),
           spanId: span.spanContext.spanId.toString(),
         );
-        final output = await fn(telemetryContext);
+        final output = await function(telemetryContext);
         telemetryContext.attributes.forEach((key, value) {
           span.setAttribute(api.Attribute.fromString(key, value));
         });

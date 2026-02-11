@@ -20,11 +20,11 @@ import 'package:schemantic/schemantic.dart';
 void main() async {
   configureCollectorExporter();
 
-  final ai = Genkit(plugins: [googleAI()]);
+  final ai = Genkit(plugins: [GoogleAI()]);
 
   ai.defineModel(
     name: 'echo',
-    fn: (req, ctx) async {
+    function: (req, ctx) async {
       return ModelResponse(
         finishReason: FinishReason.stop,
         message: Message(
@@ -39,9 +39,9 @@ void main() async {
 
   final inner = ai.defineFlow(
     name: 'inner',
-    fn: (String subject, context) async {
+    function: (String subject, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: GoogleAI.gemini('gemini-2.5-flash'),
         prompt: 'tell me joke about $subject',
       );
       return response.text;
@@ -53,7 +53,7 @@ void main() async {
     inputSchema: stringSchema(),
     outputSchema: stringSchema(),
     streamSchema: stringSchema(),
-    fn: (String name, context) async {
+    function: (String name, context) async {
       if (context.streamingRequested) {
         for (var i = 0; i < 5; i++) {
           context.sendChunk('Thinking... $i');
@@ -68,7 +68,7 @@ void main() async {
     name: 'recipeTransformer',
     inputSchema: Recipe.$schema,
     outputSchema: Recipe.$schema,
-    fn: (recipe, context) async {
+    function: (recipe, context) async {
       final hasSalt = recipe.ingredients.any(
         (i) => i.name.toLowerCase() == 'salt',
       );

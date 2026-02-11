@@ -26,19 +26,19 @@ void configureFormats(Registry registry) {
 }
 
 void defineFormat(Registry registry, Formatter formatter) {
-  registry.registerValue('format', formatter.name, formatter);
+  registry.registerFormatter(formatter);
 }
 
-Formatter? resolveFormat(
+Formatter<T>? resolveFormat<T>(
   Registry registry,
   GenerateActionOutputConfig? output,
 ) {
   if (output == null) return null;
   if (output.format != null) {
-    return registry.lookupValue<Formatter>('format', output.format!);
+    return registry.lookUpFormatter(output.format!) as Formatter<T>?;
   }
   if (output.jsonSchema != null) {
-    return registry.lookupValue<Formatter>('format', 'json');
+    return registry.lookUpFormatter('json') as Formatter<T>?;
   }
   return null;
 }

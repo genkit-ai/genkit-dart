@@ -47,7 +47,7 @@ class Embedder<C> extends Action<EmbedRequest, EmbedResponse, void, void>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'embedder',
+         actionType: ActionType.embedder,
          inputSchema: EmbedRequest.$schema,
          outputSchema: EmbedResponse.$schema,
        ) {
@@ -63,7 +63,7 @@ class Embedder<C> extends Action<EmbedRequest, EmbedResponse, void, void>
     }
     if (customOptions != null) {
       model['customOptions'] = toJsonSchema(
-        type: customOptions,
+        type: customOptions!,
         useRefs: false,
       );
     }
@@ -72,12 +72,12 @@ class Embedder<C> extends Action<EmbedRequest, EmbedResponse, void, void>
 
 ActionMetadata embedderMetadata(
   String name, {
-  SchemanticType<dynamic>? customOptions,
+  SchemanticType<Object>? customOptions,
 }) {
   return ActionMetadata(
     name: name,
     description: name,
-    actionType: 'embedder',
+    actionType: ActionType.embedder,
     metadata: {
       'label': name,
       'description': name,
