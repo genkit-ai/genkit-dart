@@ -8,7 +8,7 @@ To use this plugin, you must be running Chrome 128 or later and enable the neces
 
 1.  Open `chrome://flags`
 2.  Enable **"Prompt API for Gemini Nano"** (`chrome://flags/#prompt-api-for-gemini-nano`)
-3.  Enable **"Enables optimization guide on device"** (`chrome://flags/#optimization-guide-on-device-model`) -> Select **"Enabled BypassPerfRequirement"**
+3.  Set **"Enables optimization guide on device"** (`chrome://flags/#optimization-guide-on-device-model`) to **"Enabled BypassPerfRequirement"**
 4.  Relaunch Chrome.
 5.  Open `chrome://components` and find **"Optimization Guide On Device Model"**. Click **"Check for update"** to download the model.
 
