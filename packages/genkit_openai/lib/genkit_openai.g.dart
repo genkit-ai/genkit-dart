@@ -15,7 +15,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'genkit_openai_compat.dart';
+part of 'genkit_openai.dart';
 
 // **************************************************************************
 // SchemaGenerator

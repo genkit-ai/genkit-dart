@@ -1,4 +1,4 @@
-name: openai_compat_sample
+name: openai_sample
 publish_to: none
 description: Genkit Dart OpenAI compatibility test application
 resolution: workspace
@@ -8,7 +8,7 @@ environment:
 
 dependencies:
   genkit: ^0.10.0-dev.10
-  genkit_openai_compat: ^0.0.1-dev.1
+  genkit_openai: ^0.0.1-dev.1
   schemantic: ^0.0.1-dev.12
 
 dev_dependencies:

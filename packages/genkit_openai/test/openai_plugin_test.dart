@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_openai_compat/genkit_openai_compat.dart';
+import 'package:genkit_openai/genkit_openai.dart';
 import 'package:openai_dart/openai_dart.dart'
     show
         ChatCompletionAssistantMessage,
@@ -52,13 +52,13 @@ void main() {
     });
   });
 
-  group('toOpenAIMessage', () {
+  group('GenkitConverter.toOpenAIMessage', () {
     test('converts system message', () {
       final msg = Message(
         role: Role.system,
         content: [TextPart(text: 'You are helpful.')],
       );
-      final result = toOpenAIMessage(msg, null);
+      final result = GenkitConverter.toOpenAIMessage(msg, null);
       expect(result, isA<ChatCompletionSystemMessage>());
       expect((result as ChatCompletionSystemMessage).content, 'You are helpful.');
     });
@@ -68,7 +68,7 @@ void main() {
         role: Role.user,
         content: [TextPart(text: 'Hello!')],
       );
-      final result = toOpenAIMessage(msg, null);
+      final result = GenkitConverter.toOpenAIMessage(msg, null);
       expect(result, isA<ChatCompletionUserMessage>());
     });
 
@@ -86,7 +86,7 @@ void main() {
           ),
         ],
       );
-      final result = toOpenAIMessage(msg, null);
+      final result = GenkitConverter.toOpenAIMessage(msg, null);
       expect(result, isA<ChatCompletionAssistantMessage>());
       final assistantMsg = result as ChatCompletionAssistantMessage;
       expect(assistantMsg.toolCalls, isNotNull);
@@ -106,7 +106,7 @@ void main() {
           ),
         ],
       );
-      final results = toOpenAIMessages([msg], null);
+      final results = GenkitConverter.toOpenAIMessages([msg], null);
       expect(results.length, 1);
       expect(results[0], isA<ChatCompletionToolMessage>());
       final toolMsg = results[0] as ChatCompletionToolMessage;
@@ -133,7 +133,7 @@ void main() {
           ),
         ],
       );
-      final results = toOpenAIMessages([msg], null);
+      final results = GenkitConverter.toOpenAIMessages([msg], null);
       expect(results.length, 2);
       expect(results[0], isA<ChatCompletionToolMessage>());
       expect(results[1], isA<ChatCompletionToolMessage>());
@@ -144,10 +144,10 @@ void main() {
     });
   });
 
-  group('toOpenAIContentPart', () {
+  group('GenkitConverter.toOpenAIContentPart', () {
     test('converts text part', () {
       final part = TextPart(text: 'Hello');
-      final result = toOpenAIContentPart(part, null);
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
       expect(result, isA<ChatCompletionMessageContentPart>());
     });
 
@@ -158,12 +158,12 @@ void main() {
           contentType: 'image/png',
         ),
       );
-      final result = toOpenAIContentPart(part, 'high');
+      final result = GenkitConverter.toOpenAIContentPart(part, 'high');
       expect(result, isA<ChatCompletionMessageContentPart>());
     });
   });
 
-  group('toOpenAITool', () {
+  group('GenkitConverter.toOpenAITool', () {
     test('converts tool definition', () {
       final tool = ToolDefinition(
         name: 'getWeather',
@@ -175,32 +175,32 @@ void main() {
           },
         },
       );
-      final result = toOpenAITool(tool);
+      final result = GenkitConverter.toOpenAITool(tool);
       expect(result.function.name, 'getWeather');
       expect(result.function.description, 'Get weather for a location');
     });
   });
 
-  group('mapFinishReason', () {
+  group('GenkitConverter.mapFinishReason', () {
     test('maps stop', () {
-      expect(mapFinishReason('stop'), FinishReason.stop);
+      expect(GenkitConverter.mapFinishReason('stop'), FinishReason.stop);
     });
 
     test('maps length', () {
-      expect(mapFinishReason('length'), FinishReason.length);
+      expect(GenkitConverter.mapFinishReason('length'), FinishReason.length);
     });
 
     test('maps content_filter', () {
-      expect(mapFinishReason('content_filter'), FinishReason.blocked);
+      expect(GenkitConverter.mapFinishReason('content_filter'), FinishReason.blocked);
     });
 
     test('maps tool_calls', () {
-      expect(mapFinishReason('tool_calls'), FinishReason.stop);
+      expect(GenkitConverter.mapFinishReason('tool_calls'), FinishReason.stop);
     });
 
     test('maps unknown', () {
-      expect(mapFinishReason('unknown'), FinishReason.unknown);
-      expect(mapFinishReason(null), FinishReason.unknown);
+      expect(GenkitConverter.mapFinishReason('unknown'), FinishReason.unknown);
+      expect(GenkitConverter.mapFinishReason(null), FinishReason.unknown);
     });
   });
 
@@ -213,19 +213,78 @@ void main() {
       expect(info.supports?['media'], true);
     });
 
-    test('o1ModelInfo sets correct supports', () {
-      final info = o1ModelInfo();
+    test('oSeriesModelInfo sets correct supports', () {
+      final info = oSeriesModelInfo('o1');
       expect(info.supports?['multiturn'], true);
       expect(info.supports?['tools'], false);
       expect(info.supports?['systemRole'], false);
-      expect(info.supports?['media'], false);
+      expect(info.supports?['media'], true); // O-series models support vision
     });
 
     test('supportsVision identifies vision models', () {
+      // GPT-4o variants
       expect(supportsVision('gpt-4o'), true);
+      expect(supportsVision('gpt-4o-mini'), true);
+      expect(supportsVision('gpt-4o-2024-05-13'), true);
+
+      // GPT-4 Turbo variants
       expect(supportsVision('gpt-4-turbo'), true);
+      expect(supportsVision('gpt-4-1106-preview'), true);
+      expect(supportsVision('gpt-4-0125-preview'), true);
+
+      // Explicit vision models
       expect(supportsVision('gpt-4-vision'), true);
+      expect(supportsVision('gpt-4-vision-preview'), true);
+
+      // O-series reasoning models
+      expect(supportsVision('o1'), true);
+      expect(supportsVision('o1-preview'), true);
+      expect(supportsVision('o3'), true);
+      expect(supportsVision('o3-mini'), true);
+
+      // Future GPT models with "o" suffix
+      expect(supportsVision('gpt-5o'), true);
+      expect(supportsVision('gpt-5.1o'), true);
+      expect(supportsVision('gpt-6o-mini'), true);
+
+      // ChatGPT models
+      expect(supportsVision('chatgpt-4o-latest'), true);
+
+      // Non-vision models
       expect(supportsVision('gpt-3.5-turbo'), false);
+      expect(supportsVision('gpt-4'), false);
+      expect(supportsVision('text-embedding-3-small'), false);
+    });
+
+    test('supportsTools identifies models with function calling support', () {
+      // Standard GPT models that support tools
+      expect(supportsTools('gpt-4'), true);
+      expect(supportsTools('gpt-4o'), true);
+      expect(supportsTools('gpt-4o-mini'), true);
+      expect(supportsTools('gpt-4-turbo'), true);
+      expect(supportsTools('gpt-3.5-turbo'), true);
+      expect(supportsTools('gpt-5'), true);
+      expect(supportsTools('gpt-5.1'), true);
+
+      // ChatGPT-branded models don't support tools
+      expect(supportsTools('chatgpt-4o-latest'), false);
+      expect(supportsTools('chatgpt-5-latest'), false);
+
+      // Legacy completion models don't support tools
+      expect(supportsTools('gpt-3.5-turbo-instruct'), false);
+      expect(supportsTools('davinci-002'), false);
+      expect(supportsTools('babbage-002'), false);
+
+      // Specialized models don't support tools
+      expect(supportsTools('text-embedding-3-small'), false);
+      expect(supportsTools('text-embedding-3-large'), false);
+      expect(supportsTools('tts-1'), false);
+      expect(supportsTools('tts-1-hd'), false);
+      expect(supportsTools('whisper-1'), false);
+      expect(supportsTools('dall-e-3'), false);
+      expect(supportsTools('dall-e-2'), false);
+      expect(supportsTools('omni-moderation-latest'), false);
+      expect(supportsTools('sora-2'), false);
     });
   });
 
@@ -237,14 +296,14 @@ void main() {
 
     test('creates model reference', () {
       final ref = openAI.model('gpt-4o');
-      expect(ref.name, 'openai_compat/gpt-4o');
+      expect(ref.name, 'openai/gpt-4o');
     });
 
     test('pre-defined model getters work', () {
-      expect(openAI.gpt4o.name, 'openai_compat/gpt-4o');
-      expect(openAI.gpt4oMini.name, 'openai_compat/gpt-4o-mini');
-      expect(openAI.gpt4Turbo.name, 'openai_compat/gpt-4-turbo');
-      expect(openAI.gpt35Turbo.name, 'openai_compat/gpt-3.5-turbo');
+      expect(openAI.gpt4o.name, 'openai/gpt-4o');
+      expect(openAI.gpt4oMini.name, 'openai/gpt-4o-mini');
+      expect(openAI.gpt4Turbo.name, 'openai/gpt-4-turbo');
+      expect(openAI.gpt35Turbo.name, 'openai/gpt-3.5-turbo');
     });
   });
 

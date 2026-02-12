@@ -15,7 +15,7 @@
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_openai_compat/genkit_openai_compat.dart';
+import 'package:genkit_openai/genkit_openai.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -25,14 +25,10 @@ void main() {
   final apiKey = Platform.environment['OPENAI_API_KEY'];
 
   group('Integration Tests', () {
-    setUpAll(() {
-      if (apiKey == null || apiKey.isEmpty) {
-        print('Skipping integration tests: OPENAI_API_KEY not set');
-      }
-    });
-
     test('generates text with GPT-4o', () async {
-      if (apiKey == null || apiKey.isEmpty) return;
+      if (apiKey == null || apiKey.isEmpty) {
+        fail('OPENAI_API_KEY environment variable must be set to run integration tests');
+      }
 
       final ai = Genkit(plugins: [
         openAI(apiKey: apiKey),
@@ -45,10 +41,12 @@ void main() {
 
       expect(response.text, isNotEmpty);
       expect(response.text.toLowerCase(), contains('hello'));
-    }, skip: apiKey == null || apiKey.isEmpty);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
     test('generates text with custom options', () async {
-      if (apiKey == null || apiKey.isEmpty) return;
+      if (apiKey == null || apiKey.isEmpty) {
+        fail('OPENAI_API_KEY environment variable must be set to run integration tests');
+      }
 
       final ai = Genkit(plugins: [
         openAI(apiKey: apiKey),
@@ -65,10 +63,12 @@ void main() {
 
       expect(response.text, isNotEmpty);
       expect(response.text.length, lessThan(200));
-    }, skip: apiKey == null || apiKey.isEmpty);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
     test('streaming generation', () async {
-      if (apiKey == null || apiKey.isEmpty) return;
+      if (apiKey == null || apiKey.isEmpty) {
+        fail('OPENAI_API_KEY environment variable must be set to run integration tests');
+      }
 
       final ai = Genkit(plugins: [
         openAI(apiKey: apiKey),
@@ -89,10 +89,12 @@ void main() {
           .map((p) => p.text!)
           .join('');
       expect(fullText.toLowerCase(), contains('1'));
-    }, skip: apiKey == null || apiKey.isEmpty);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
     test('tool calling', () async {
-      if (apiKey == null || apiKey.isEmpty) return;
+      if (apiKey == null || apiKey.isEmpty) {
+        fail('OPENAI_API_KEY environment variable must be set to run integration tests');
+      }
 
       final ai = Genkit(plugins: [
         openAI(apiKey: apiKey),
@@ -123,10 +125,12 @@ void main() {
       // Verify the response has either text or tool requests (both are valid)
       final hasContent = response.message!.content.any((p) => p.isText || p.isToolRequest);
       expect(hasContent, isTrue);
-    }, skip: apiKey == null || apiKey.isEmpty);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
     test('multi-turn conversation', () async {
-      if (apiKey == null || apiKey.isEmpty) return;
+      if (apiKey == null || apiKey.isEmpty) {
+        fail('OPENAI_API_KEY environment variable must be set to run integration tests');
+      }
 
       final ai = Genkit(plugins: [
         openAI(apiKey: apiKey),
@@ -148,7 +152,7 @@ void main() {
 
       expect(response2.text, isNotEmpty);
       expect(response2.text.toLowerCase(), contains('alice'));
-    }, skip: apiKey == null || apiKey.isEmpty);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
 

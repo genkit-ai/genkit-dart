@@ -1,4 +1,4 @@
-name: genkit_openai_compat
+name: genkit_openai
 description: OpenAI-compatible API plugin for Genkit Dart.
 resolution: workspace
 version: 0.0.1-dev.1
@@ -11,7 +11,7 @@ environment:
 dependencies:
   genkit: ^0.10.0-dev.8
   meta: ^1.17.0
-  openai_dart: ^0.4.0
+  openai_dart: ^0.5.5
   schemantic: ^0.0.1-dev.9
 
 dev_dependencies:
