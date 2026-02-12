@@ -594,7 +594,7 @@ class GenkitMcpClient {
         final messages = asListOfMaps(
           result['messages'],
         ).map(fromMcpPromptMessage).toList();
-        return GenerateRequest(messages: messages);
+        return GenerateActionOptions(messages: messages);
       },
     );
   }
@@ -1154,7 +1154,7 @@ class McpClientPlugin extends GenkitPlugin {
           actionType: 'prompt',
           description: prompt['description']?.toString(),
           inputSchema: promptSchemaFromArgs(args),
-          outputSchema: GenerateRequest.$schema,
+          outputSchema: GenerateActionOptions.$schema,
           metadata: meta == null
               ? null
               : {
@@ -1290,7 +1290,7 @@ class McpClientPlugin extends GenkitPlugin {
         final messages = asListOfMaps(
           result['messages'],
         ).map(fromMcpPromptMessage).toList();
-        return GenerateRequest(messages: messages);
+        return GenerateActionOptions(messages: messages);
       },
     );
   }

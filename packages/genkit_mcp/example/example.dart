@@ -51,7 +51,7 @@ Future<void> main() async {
     description: 'Returns a simple prompt with one user message.',
     inputSchema: PromptInput.$schema,
     fn: (input, _) async {
-      return GenerateRequest(
+      return GenerateActionOptions(
         messages: [
           Message(
             role: Role.user,

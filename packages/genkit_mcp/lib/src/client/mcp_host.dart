@@ -518,7 +518,7 @@ class McpHostPlugin extends GenkitPlugin {
             actionType: 'prompt',
             description: prompt['description']?.toString(),
             inputSchema: promptSchemaFromArgs(args),
-            outputSchema: GenerateRequest.$schema,
+            outputSchema: GenerateActionOptions.$schema,
             metadata: metadata,
           ),
         );
@@ -711,7 +711,7 @@ PromptAction<Map<String, dynamic>> _createPromptAction(
       final messages = asListOfMaps(
         result['messages'],
       ).map(fromMcpPromptMessage).toList();
-      return GenerateRequest(messages: messages);
+      return GenerateActionOptions(messages: messages);
     },
   );
 }

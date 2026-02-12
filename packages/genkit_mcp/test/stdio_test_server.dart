@@ -54,7 +54,7 @@ Future<void> main() async {
     description: 'test prompt',
     inputSchema: const _PromptInputSchema(),
     fn: (input, _) async {
-      return GenerateRequest(
+      return GenerateActionOptions(
         messages: [
           Message(
             role: Role.user,

@@ -135,7 +135,7 @@ void main() {
       description: 'test prompt',
       inputSchema: const _PromptInputSchema(),
       fn: (input, _) async {
-        return GenerateRequest(
+        return GenerateActionOptions(
           messages: [
             Message(
               role: Role.user,
@@ -254,7 +254,7 @@ void main() {
     ai.definePrompt<Map<String, dynamic>>(
       name: 'enumPrompt',
       inputSchema: const _EnumPromptSchema(),
-      fn: (_, _) async => GenerateRequest(messages: []),
+      fn: (_, _) async => GenerateActionOptions(messages: []),
     );
 
     final server = _createServer(ai);
@@ -669,7 +669,7 @@ void main() {
         },
       },
       fn: (input, _) async {
-        return GenerateRequest(
+        return GenerateActionOptions(
           messages: [
             Message(
               role: Role.user,
@@ -769,7 +769,7 @@ void main() {
       description: 'bad prompt',
       inputSchema: const _PromptInputSchema(),
       fn: (input, _) async {
-        return GenerateRequest(
+        return GenerateActionOptions(
           messages: [
             Message(
               role: Role.system,
