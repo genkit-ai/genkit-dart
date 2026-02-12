@@ -18,7 +18,7 @@ workspace:
   - testapps/agentic_patterns
   - testapps/ai_features
   - testapps/basic
-  - testapps/genkit_chrome_sample
+  - testapps/chrome_example
   - testapps/mcp_server
 
 dev_dependencies:
