@@ -3,6 +3,53 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-02-12
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit` - `v0.10.0-dev.12`](#genkit---v0100-dev12)
+ - [`genkit_chrome` - `v0.0.1-dev.3`](#genkit_chrome---v001-dev3)
+ - [`genkit_google_genai` - `v0.0.1-dev.12`](#genkit_google_genai---v001-dev12)
+ - [`schemantic` - `v0.0.1-dev.14`](#schemantic---v001-dev14)
+ - [`genkit_anthropic` - `v0.0.1-dev.3`](#genkit_anthropic---v001-dev3)
+ - [`genkit_shelf` - `v0.0.1-dev.12`](#genkit_shelf---v001-dev12)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_anthropic` - `v0.0.1-dev.3`
+ - `genkit_shelf` - `v0.0.1-dev.12`
+
+---
+
+#### `genkit` - `v0.10.0-dev.12`
+
+ - **FEAT**: introducing registered middleware (#87).
+ - **FEAT**: added support for embedders (embedding models) (#88).
+
+#### `genkit_chrome` - `v0.0.1-dev.3`
+
+ - **FEAT**: more complete implementation of the Chrome API (#97).
+ - **FEAT**: added readme to genkit_chrome (#96).
+
+#### `genkit_google_genai` - `v0.0.1-dev.12`
+
+ - **FEAT**: added support for embedders (embedding models) (#88).
+
+#### `schemantic` - `v0.0.1-dev.14`
+
+ - **FEAT**: Added `nullable` that makes any schema nullable (#93).
+
+
 ## 2026-02-04
 
 ### Changes

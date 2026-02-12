@@ -1,3 +1,7 @@
+## 0.0.1-dev.14
+
+ - **FEAT**: Added `nullable` that makes any schema nullable (#93).
+
 ## 0.0.1-dev.13
 
  - **FIX**: Coerce `num` values to `double` for generated double fields during JSON parsing. (#65).

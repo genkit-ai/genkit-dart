@@ -1,3 +1,8 @@
+## 0.10.0-dev.12
+
+ - **FEAT**: introducing registered middleware (#87).
+ - **FEAT**: added support for embedders (embedding models) (#88).
+
 ## 0.10.0-dev.11
 
 > Note: This release has breaking changes.

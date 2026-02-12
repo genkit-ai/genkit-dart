@@ -1,3 +1,7 @@
+## 0.0.1-dev.12
+
+ - **FEAT**: added support for embedders (embedding models) (#88).
+
 ## 0.0.1-dev.11
 
 > Note: This release has breaking changes.
