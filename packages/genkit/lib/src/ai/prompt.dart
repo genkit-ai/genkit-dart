@@ -27,7 +27,7 @@ class PromptAction<I> extends Action<I, GenerateActionOptions, void, void> {
     Map<String, dynamic>? metadata,
   }) : super(
          actionType: 'prompt',
-         outputSchema: GenerateRequest.$schema,
+         outputSchema: GenerateActionOptions.$schema,
          metadata: _promptMetadata(description, metadata),
          fn: (input, ctx) {
            if (input == null && inputSchema != null && null is! I) {
