@@ -16,7 +16,7 @@ import '../core/action.dart';
 import '../types.dart';
 
 typedef PromptFn<I> =
-    Future<GenerateRequest> Function(I input, ActionFnArg<void, I, void> ctx);
+    Future<GenerateActionOptions> Function(I input, ActionFnArg<void, I, void> ctx);
 
 class PromptAction<I> extends Action<I, GenerateActionOptions, void, void> {
   PromptAction({
