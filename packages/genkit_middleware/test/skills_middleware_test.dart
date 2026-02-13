@@ -192,15 +192,16 @@ This is a test skill.
           int skillsTagCount = 0;
           for (final msg in req.messages) {
             for (final part in msg.content) {
-               if (part is TextPart && part.text.trim().startsWith('<skills>')) {
-                 skillsTagCount++;
+               if (part.isText) {
+                   final hasTags = part.text!.contains('<skills>');
+                   if (hasTags) {
+                     skillsTagCount++;
+                   }
                }
             }
           }
           
-          if (executionCount == 2) {
-             expect(skillsTagCount, equals(1), reason: 'Skills metadata should not be duplicated');
-          }
+          expect(skillsTagCount, equals(1), reason: 'Skills metadata should not be duplicated on turn $executionCount');
           
           return ModelResponse(
              finishReason: FinishReason.stop,
@@ -209,32 +210,20 @@ This is a test skill.
         },
       );
       
-      final systemPromptText = '''<skills>
-You have access to a library of skills that serve as specialized instructions/personas.
-Strongly prefer to use them when working on anything related to them.
-Only use them once to load the context.
-Here are the available skills:
- - test_skill - A test description.
-</skills>''';
+      final result1 = await genkit.generate(
+         model: modelRef('idempotent-model'),
+         prompt: 'First call',
+         use: [mw],
+      );
 
-      final optionsMessages = [
-        Message(role: Role.system, content: [
-           TextPart(text: 'System msg'),
-           TextPart(text: systemPromptText, metadata: {'skills-instructions': true})
-        ]),
-        Message(role: Role.user, content: [TextPart(text: 'Hello')]),
-        Message(role: Role.model, content: [TextPart(text: 'ok')])
-      ];
-
-      // We run generate with the already populated array simulation of Turn 2
       await genkit.generate(
          model: modelRef('idempotent-model'),
-         messages: optionsMessages,
+         prompt: 'Second call',
+         messages: result1.messages,
          use: [mw],
       );
       
-      // executionCount should be 1, because we skipped Turn 1
-      expect(executionCount, equals(1));
+      expect(executionCount, equals(2));
     });
   });
 }

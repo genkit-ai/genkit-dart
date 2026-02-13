@@ -186,8 +186,8 @@ class SkillsMiddleware extends GenerateMiddleware {
         final msg = messages[i];
         for (int j = 0; j < msg.content.length; j++) {
           final part = msg.content[j];
-          if (part is TextPart) {
-            if (part.metadata?[metadataKey] == true || part.text.trim().startsWith(skillsTag)) {
+          if (part.isText) {
+            if (part.metadata?[metadataKey] == true || part.text!.trim().startsWith(skillsTag)) {
               injectedPart = part;
               injectedMessage = msg;
               injectedMsgIndex = i;
