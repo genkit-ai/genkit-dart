@@ -365,7 +365,7 @@ class Genkit {
     List<InterruptResponse>? interruptRespond,
 
     /// Optional list of tool requests to restart during an interrupted generation session.
-    /// 
+    ///
     /// Restarts the execution of the specified tool part instead of providing a reply.
     /// Example:
     /// ```dart

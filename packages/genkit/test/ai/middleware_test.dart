@@ -422,9 +422,7 @@ void main() {
         messages: history,
         tools: ['test-tool'],
         use: [mw1],
-        interruptRestart: [
-          ToolRequestPart(toolRequest: toolReq.toolRequest),
-        ],
+        interruptRestart: [ToolRequestPart(toolRequest: toolReq.toolRequest)],
       );
 
       expect(response2.text, 'Final Answer');
