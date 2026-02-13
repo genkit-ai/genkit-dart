@@ -257,11 +257,25 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   required List<GenerateMiddleware> resolvedMiddlewares,
+  required Future<GenerateResponseHelper> Function(
+    GenerateActionOptions opts,
+    int currentTurn,
+  ) composedGenerate,
+  int currentTurn = 0,
 }) async {
   if (options.model == null) {
     throw GenkitException(
       'Model must be provided',
       status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
+  // Check turn limits
+  final maxTurns = options.maxTurns ?? _defaultMaxTurns;
+  if (currentTurn >= maxTurns) {
+    throw GenkitException(
+      'Reached max turns of $maxTurns. Adjust maxTurns option to increase the max number of turns.',
+      status: StatusCodes.ABORTED,
     );
   }
 
@@ -314,7 +328,6 @@ Future<GenerateResponseHelper> _runGenerateLoop(
           ),
   );
   var currentRequest = request;
-  var turns = 0;
 
   // Prepare model middleware chain
   Future<ModelResponse> coreModel(
@@ -327,8 +340,6 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       context: c.context,
     );
   }
-
-  // Middleware is already resolved above
 
   final composedModel = resolvedMiddlewares.reversed.fold(
     coreModel,
@@ -355,93 +366,94 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     currentRequest = resumed.request!;
   }
 
-  var messageIndex = 0;
-  while (turns < (requestOptions.maxTurns ?? _defaultMaxTurns)) {
-    // Execute model with middleware
-    var response = await composedModel(currentRequest, (
-      streamingRequested: ctx.streamingRequested,
-      sendChunk: (chunk) {
-        ctx.sendChunk(
-          ModelResponseChunk(
-            index: messageIndex,
-            content: chunk.content,
-            role: chunk.role,
-            custom: chunk.custom,
-            aggregated: chunk.aggregated,
-          ),
-        );
-      },
-      context: ctx.context,
-      inputStream: null,
-      init: null,
-    ));
-    messageIndex++;
-
-    final parser = format
-        ?.handler(requestOptions.output?.jsonSchema)
-        .parseMessage;
-
-    if (requestOptions.returnToolRequests ?? false) {
-      return GenerateResponseHelper(
-        response,
-        request: currentRequest,
-        output: null,
+  // Execute model with middleware
+  var response = await composedModel(currentRequest, (
+    streamingRequested: ctx.streamingRequested,
+    sendChunk: (chunk) {
+      ctx.sendChunk(
+        ModelResponseChunk(
+          index: currentTurn, // Use currentTurn to indicate the loop iteration
+          content: chunk.content,
+          role: chunk.role,
+          custom: chunk.custom,
+          aggregated: chunk.aggregated,
+        ),
       );
-    }
+    },
+    context: ctx.context,
+    inputStream: null,
+    init: null,
+  ));
 
-    final toolRequests = response.message?.content
-        .map((c) => c.toolRequestPart)
-        .nonNulls
-        .toList();
-    if (toolRequests == null || toolRequests.isEmpty) {
-      return GenerateResponseHelper(
-        response,
-        request: currentRequest,
-        output: _parseOutput(response.message, parser),
-      );
-    }
+  final parser = format
+      ?.handler(requestOptions.output?.jsonSchema)
+      .parseMessage;
 
-    final execution = await _executeTools(
-      registry,
-      toolRequests,
-      ctx.context,
-      middlewares: resolvedMiddlewares,
+  if (requestOptions.returnToolRequests ?? false) {
+    return GenerateResponseHelper(
+      response,
+      request: currentRequest,
+      output: null,
     );
-    final toolResponses = execution.toolResponses;
-    final toolStatus = execution.toolStatus;
-    final interrupted = execution.interrupted;
-
-    if (interrupted) {
-      final newResponse = _buildInterruptedResponse(
-        response.message!,
-        toolStatus,
-        originalResponse: response,
-      );
-
-      return GenerateResponseHelper(
-        newResponse,
-        request: currentRequest,
-        output: null,
-      );
-    }
-
-    final newMessages = List<Message>.from(currentRequest.messages)
-      ..add(response.message!)
-      ..add(Message(role: Role.tool, content: toolResponses));
-
-    currentRequest = ModelRequest(
-      messages: newMessages,
-      config: currentRequest.config,
-      tools: currentRequest.tools,
-      toolChoice: currentRequest.toolChoice,
-      output: currentRequest.output,
-    );
-    turns++;
   }
-  throw GenkitException(
-    'Reached max turns of ${requestOptions.maxTurns ?? _defaultMaxTurns}. Adjust maxTurns option to increase the max number of turns.',
-    status: StatusCodes.ABORTED,
+
+  final toolRequests = response.message?.content
+      .map((c) => c.toolRequestPart)
+      .nonNulls
+      .toList();
+      
+  if (toolRequests == null || toolRequests.isEmpty) {
+    return GenerateResponseHelper(
+      response,
+      request: currentRequest,
+      output: _parseOutput(response.message, parser),
+    );
+  }
+
+  final execution = await _executeTools(
+    registry,
+    toolRequests,
+    ctx.context,
+    middlewares: resolvedMiddlewares,
   );
+  final toolResponses = execution.toolResponses;
+  final toolStatus = execution.toolStatus;
+  final interrupted = execution.interrupted;
+
+  if (interrupted) {
+    final newResponse = _buildInterruptedResponse(
+      response.message!,
+      toolStatus,
+      originalResponse: response,
+    );
+
+    return GenerateResponseHelper(
+      newResponse,
+      request: currentRequest,
+      output: null,
+    );
+  }
+
+  final newMessages = List<Message>.from(currentRequest.messages)
+    ..add(response.message!)
+    ..add(Message(role: Role.tool, content: toolResponses));
+
+  final nextOptions = GenerateActionOptions(
+    model: options.model,
+    docs: options.docs,
+    messages: newMessages,
+    tools: options.tools,
+    toolChoice: options.toolChoice,
+    config: options.config,
+    output: options.output,
+    resume: null, // Clear resume as we handled it
+    returnToolRequests: options.returnToolRequests,
+    maxTurns: options.maxTurns,
+    stepName: options.stepName,
+  );
+
+  // Recursively call composedGenerate for the next turn
+  return composedGenerate(nextOptions, currentTurn + 1);
 }
 
 Future<GenerateResponseHelper> runGenerateAction(
@@ -457,12 +469,14 @@ Future<GenerateResponseHelper> runGenerateAction(
   late Future<GenerateResponseHelper> Function(
     GenerateActionOptions opts,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
+    int currentTurn,
   )
   composedGenerate;
 
   Future<GenerateResponseHelper> coreGenerate(
     GenerateActionOptions opts,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
+    int currentTurn,
   ) async {
     final resumeRestart = opts.resume?.restart ?? [];
     final toolStatus = <String, dynamic>{};
@@ -527,7 +541,7 @@ Future<GenerateResponseHelper> runGenerateAction(
         ),
       );
 
-      return composedGenerate(opts, c);
+      return composedGenerate(opts, c, currentTurn);
     }
 
     return _runGenerateLoop(
@@ -535,16 +549,22 @@ Future<GenerateResponseHelper> runGenerateAction(
       opts,
       c,
       resolvedMiddlewares: resolvedMiddlewares,
+      composedGenerate: (opt, ct) => composedGenerate(opt, c, ct),
+      currentTurn: currentTurn,
     );
   }
 
   composedGenerate = resolvedMiddlewares.reversed.fold(
     coreGenerate,
-    (next, mw) =>
-        (o, c) => mw.generate(o, c, next),
+    // Add currentTurn here since GenerateMiddleware.generate doesn't take it!
+    (next, mw) => (o, c, ct) => mw.generate(
+          o,
+          c,
+          (no, nctx) => next(no, nctx, ct),
+        ),
   );
 
-  return composedGenerate(options, ctx);
+  return composedGenerate(options, ctx, 0);
 }
 
 Future<GenerateResponseHelper> generateHelper<C>(
