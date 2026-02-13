@@ -18,45 +18,46 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'tool_interrupt_sample.g.dart';
+part 'tool_restart_sample.g.dart';
 
 @Schematic()
-abstract class $TriviaQuestions {
+abstract class $ApprovalRequest {
   @Field(description: 'the main question')
   String get question;
 
-  @Field(
-    description:
-        'list of multiple choice answers (typically 4), 1 correct 3 wrong',
-  )
-  List<String> get answers;
+  @Field(description: 'request for approval details')
+  String get details;
 }
 
 Future<void> main(List<String> args) async {
+  configureCollectorExporter();
+
   // Initialize Genkit with Google AI plugin
   final ai = Genkit(plugins: [googleAI()]);
 
+  var isApproved = false;
+
   // Define the tool
   ai.defineTool(
-    name: 'present_questions',
-    description:
-        "can present questions to the user, responds with the user' selected answer",
-    inputSchema: TriviaQuestions.$schema,
+    name: 'transfer_funds',
+    description: "transfer funds, requires user approval",
+    inputSchema: ApprovalRequest.$schema,
     fn: (input, ctx) async {
-      // input is TriviaQuestions (generated class)
-      ctx.interrupt(input);
+      // Check if context has approval flag to simulate state or auth passing
+      if (!isApproved) {
+        ctx.interrupt(input);
+      }
+      return 'Successfully transferred funds! Details: ${input.details}';
     },
   );
 
-  print('Generating trivia question...');
+  print('Generating fund transfer request...');
   final response = await ai.generate(
     model: googleAI.gemini('gemini-2.5-flash'),
     prompt: '''
-      Generate a trivia question and call present_questions tool to present it to the user.
-      Answers are provided numbered starting from 1. When answer is provided, be dramatic about
-      saying whether the answer is correct or wrong.
+      Transfer \$500 to the account '12345-6789'.
     ''',
-    tools: ['present_questions'],
+    tools: ['transfer_funds'],
   );
 
   if (response.finishReason == FinishReason.interrupted) {
@@ -65,35 +66,42 @@ Future<void> main(List<String> args) async {
     // interruptData from metadata
     final interruptData = interruptPart.metadata?['interrupt'];
 
-    final questions = interruptData as TriviaQuestions;
-
-    print('\n--- TRIVIA TIME ---');
-    print('Q: ${questions.question}');
-    for (var i = 0; i < questions.answers.length; i++) {
-      print('   (${i + 1}) ${questions.answers[i]}');
+    if (interruptData is! ApprovalRequest) {
+      print(
+        'Error: Unexpected interrupt data type: ${interruptData?.runtimeType}',
+      );
+      return;
     }
-    print('-------------------\n');
+    final request = interruptData;
+
+    print('\n--- APPROVAL REQUIRED ---');
+    print('Action: ${request.details}');
+    print('-------------------------\n');
 
     // Read user input
-    stdout.write('Your Answer (number): ');
-    final userSelection = stdin.readLineSync()?.trim();
-    if (userSelection == null || userSelection.isEmpty) {
-      print('No answer provided. Exiting.');
+    stdout.write('Approve this transfer? (y/n): ');
+    final userSelection = stdin.readLineSync()?.trim().toLowerCase();
+    if (userSelection != 'y') {
+      print('Transfer rejected. Exiting.');
       return;
     }
 
-    print('User selected: $userSelection');
+    print('User approved the transfer.');
 
     // Resume flow
-    print('\nResuming flow with answer...');
+    print('\nRestarting tool execution with approval...');
+
+    // Pass approval flag through action context so the tool succeeds on restart
+    isApproved = true;
+
     final response2 = await ai.generate(
       model: googleAI.gemini('gemini-2.5-flash'),
       messages: response.messages,
-      tools: ['present_questions'],
-      interruptRespond: [InterruptResponse(interruptPart, userSelection)],
+      tools: ['transfer_funds'],
+      interruptRestart: [interruptPart], // Null output = Restart
     );
 
-    print('\nHost Response:\n${response2.text}');
+    print('\nModel Response:\n${response2.text}');
   } else {
     print(
       'Flow finished without interrupt (unexpected): ${response.finishReason}',

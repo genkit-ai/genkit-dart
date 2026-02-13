@@ -97,7 +97,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
           break;
         }
 
-        final resumeResponses = <InterruptResponse>[];
+        final interruptResponses = <InterruptResponse>[];
 
         for (final interrupt in interrupts) {
           if (interrupt.toolRequest.name == askUser.name) {
@@ -109,7 +109,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
                 'I am interested in efficiency and scalability. Linux OS. My budget is \$1500.';
             print('[User answered]: $simulatedAnswer\n');
 
-            resumeResponses.add(
+            interruptResponses.add(
               InterruptResponse(
                 interrupt,
                 simulatedAnswer,
@@ -118,7 +118,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
           }
         }
 
-        if (resumeResponses.isEmpty) {
+        if (interruptResponses.isEmpty) {
           break;
         }
 
@@ -127,7 +127,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
           model: geminiFlash,
           messages: [...response.messages, response.message!],
           tools: [searchWeb.name, askUser.name],
-          resume: resumeResponses,
+          interruptRespond: interruptResponses,
         );
       }
 

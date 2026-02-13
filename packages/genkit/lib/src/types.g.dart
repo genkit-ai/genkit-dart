@@ -2987,7 +2987,7 @@ class GenerateActionOptions {
     String? toolChoice,
     Map<String, dynamic>? config,
     GenerateActionOutputConfig? output,
-    Map<String, dynamic>? resume,
+    GenerateResumeOptions? resume,
     bool? returnToolRequests,
     int? maxTurns,
     String? stepName,
@@ -3000,7 +3000,7 @@ class GenerateActionOptions {
       'toolChoice': ?toolChoice,
       'config': ?config,
       'output': ?output?.toJson(),
-      'resume': ?resume,
+      'resume': ?resume?.toJson(),
       'returnToolRequests': ?returnToolRequests,
       'maxTurns': ?maxTurns,
       'stepName': ?stepName,
@@ -3100,11 +3100,15 @@ class GenerateActionOptions {
     }
   }
 
-  Map<String, dynamic>? get resume {
-    return _json['resume'] as Map<String, dynamic>?;
+  GenerateResumeOptions? get resume {
+    return _json['resume'] == null
+        ? null
+        : GenerateResumeOptions.fromJson(
+            _json['resume'] as Map<String, dynamic>,
+          );
   }
 
-  set resume(Map<String, dynamic>? value) {
+  set resume(GenerateResumeOptions? value) {
     if (value == null) {
       _json.remove('resume');
     } else {
@@ -3185,7 +3189,7 @@ class _GenerateActionOptionsTypeFactory
         'output': Schema.fromMap({
           '\$ref': r'#/$defs/GenerateActionOutputConfig',
         }),
-        'resume': Schema.object(additionalProperties: Schema.any()),
+        'resume': Schema.fromMap({'\$ref': r'#/$defs/GenerateResumeOptions'}),
         'returnToolRequests': Schema.boolean(),
         'maxTurns': Schema.integer(),
         'stepName': Schema.string(),
@@ -3196,7 +3200,109 @@ class _GenerateActionOptionsTypeFactory
       DocumentData.$schema,
       Message.$schema,
       GenerateActionOutputConfig.$schema,
+      GenerateResumeOptions.$schema,
     ],
+  );
+}
+
+class GenerateResumeOptions {
+  factory GenerateResumeOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GenerateResumeOptions._(this._json);
+
+  GenerateResumeOptions({
+    List<ToolResponsePart>? respond,
+    List<ToolRequestPart>? restart,
+    Map<String, dynamic>? metadata,
+  }) {
+    _json = {
+      'respond': ?respond?.map((e) => e.toJson()).toList(),
+      'restart': ?restart?.map((e) => e.toJson()).toList(),
+      'metadata': ?metadata,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<GenerateResumeOptions> $schema =
+      _GenerateResumeOptionsTypeFactory();
+
+  List<ToolResponsePart>? get respond {
+    return (_json['respond'] as List?)
+        ?.map((e) => ToolResponsePart.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set respond(List<ToolResponsePart>? value) {
+    if (value == null) {
+      _json.remove('respond');
+    } else {
+      _json['respond'] = value.toList();
+    }
+  }
+
+  List<ToolRequestPart>? get restart {
+    return (_json['restart'] as List?)
+        ?.map((e) => ToolRequestPart.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set restart(List<ToolRequestPart>? value) {
+    if (value == null) {
+      _json.remove('restart');
+    } else {
+      _json['restart'] = value.toList();
+    }
+  }
+
+  Map<String, dynamic>? get metadata {
+    return _json['metadata'] as Map<String, dynamic>?;
+  }
+
+  set metadata(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('metadata');
+    } else {
+      _json['metadata'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _GenerateResumeOptionsTypeFactory
+    extends SchemanticType<GenerateResumeOptions> {
+  const _GenerateResumeOptionsTypeFactory();
+
+  @override
+  GenerateResumeOptions parse(Object? json) {
+    return GenerateResumeOptions._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GenerateResumeOptions',
+    definition: Schema.object(
+      properties: {
+        'respond': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
+        ),
+        'restart': Schema.list(
+          items: Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
+        ),
+        'metadata': Schema.object(additionalProperties: Schema.any()),
+      },
+      required: [],
+    ),
+    dependencies: [ToolResponsePart.$schema, ToolRequestPart.$schema],
   );
 }
 
