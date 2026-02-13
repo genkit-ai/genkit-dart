@@ -108,6 +108,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
       customOptions: customOptions,
       metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
+        print(const JsonEncoder.withIndent('  ').convert(req?.messages));
         final gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
         List<gcl.Tool>? tools;

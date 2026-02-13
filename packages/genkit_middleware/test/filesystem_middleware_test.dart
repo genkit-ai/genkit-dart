@@ -33,7 +33,7 @@ void main() {
 
       final result = await listTool.runRaw({'dirPath': ''});
       final list = result.result as List<ListFileOutputItem>;
-      
+
       expect(list.any((i) => i.path == 'file1.txt' && !i.isDirectory), isTrue);
       expect(list.any((i) => i.path == 'subdir' && i.isDirectory), isTrue);
     });
@@ -43,45 +43,61 @@ void main() {
       await file.writeAsString('hello world');
 
       final mw = FilesystemMiddleware(tempDir.path);
-      
+
       genkit.defineModel(
         name: 'read-test-model',
         fn: (req, ctx) async {
-           // Check if we have the injected message
-           final injectedMsg = req.messages.where((m) => 
-             m.role == Role.user && 
-             m.content.any((part) => part.text != null && part.text!.contains('<read_file'))
-           ).firstOrNull;
+          // Check if we have the injected message
+          final injectedMsg = req.messages
+              .where(
+                (m) =>
+                    m.role == Role.user &&
+                    m.content.any(
+                      (part) =>
+                          part.text != null &&
+                          part.text!.contains('<read_file'),
+                    ),
+              )
+              .firstOrNull;
 
-           if (injectedMsg != null) {
-              final content = injectedMsg.content.first.text!;
-              if (content.contains('hello world')) {
-                return ModelResponse(
-                  finishReason: FinishReason.stop,
-                  message: Message(role: Role.model, content: [TextPart(text: 'Content read')]),
-                );
-              }
-           }
-           
-           if (!req.messages.any((m) => m.role == Role.tool)) {
-             return ModelResponse(
-               finishReason: FinishReason.stop,
-               message: Message(
-                 role: Role.model, 
-                 content: [
-                   ToolRequestPart(
-                     toolRequest: ToolRequest(name: 'read_file', input: {'filePath': 'test.txt'}),
-                   )
-                 ],
-               ),
-             );
-           }
-           
-           return ModelResponse(
-             finishReason: FinishReason.stop,
-             message: Message(role: Role.model, content: [TextPart(text: 'No content')]),
-           );
-        }
+          if (injectedMsg != null) {
+            final content = injectedMsg.content.first.text!;
+            if (content.contains('hello world')) {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'Content read')],
+                ),
+              );
+            }
+          }
+
+          if (!req.messages.any((m) => m.role == Role.tool)) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'read_file',
+                      input: {'filePath': 'test.txt'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'No content')],
+            ),
+          );
+        },
       );
 
       final result = await genkit.generate(
@@ -89,7 +105,7 @@ void main() {
         prompt: 'read',
         use: [mw],
       );
-      
+
       expect(result.text, 'No content');
 
       final result2 = await genkit.generate(
@@ -97,7 +113,7 @@ void main() {
         messages: result.messages,
         use: [mw],
       );
-      
+
       expect(result2.text, 'Content read');
     });
 
@@ -107,11 +123,13 @@ void main() {
 
       expect(
         () => readTool.runRaw({'filePath': '../outside.txt'}),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Access denied'),
-        )),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Access denied'),
+          ),
+        ),
       );
     });
 
@@ -119,7 +137,10 @@ void main() {
       final mw = FilesystemMiddleware(tempDir.path);
       final writeTool = mw.tools.firstWhere((t) => t.name == 'write_file');
 
-      final result = await writeTool.runRaw({'filePath': 'new.txt', 'content': 'new content'});
+      final result = await writeTool.runRaw({
+        'filePath': 'new.txt',
+        'content': 'new content',
+      });
       expect(result.result, contains('written successfully'));
 
       final file = File(p.join(tempDir.path, 'new.txt'));
@@ -134,8 +155,9 @@ void main() {
         file = File(p.join(tempDir.path, 'replace.txt'));
         await file.writeAsString('hello world');
         final mw = FilesystemMiddleware(tempDir.path);
-        searchAndReplaceTool =
-            mw.tools.firstWhere((t) => t.name == 'search_and_replace');
+        searchAndReplaceTool = mw.tools.firstWhere(
+          (t) => t.name == 'search_and_replace',
+        );
       });
 
       test('should search and replace single occurrence', () async {
@@ -186,11 +208,13 @@ hello universe
             'filePath': 'replace.txt',
             'edits': [badEditBlock],
           }),
-          throwsA(isA<Exception>().having(
-            (e) => e.toString(),
-            'message',
-            contains('Invalid edit block format. Block must start with'),
-          )),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('Invalid edit block format. Block must start with'),
+            ),
+          ),
         );
       });
 
@@ -205,11 +229,13 @@ hello universe''';
             'filePath': 'replace.txt',
             'edits': [badEditBlock],
           }),
-          throwsA(isA<Exception>().having(
-            (e) => e.toString(),
-            'message',
-            contains('Invalid edit block format. Block must start with'),
-          )),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('Invalid edit block format. Block must start with'),
+            ),
+          ),
         );
       });
 
@@ -224,11 +250,13 @@ hello universe
             'filePath': 'replace.txt',
             'edits': [badEditBlock],
           }),
-          throwsA(isA<Exception>().having(
-            (e) => e.toString(),
-            'message',
-            contains('Missing separator'),
-          )),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('Missing separator'),
+            ),
+          ),
         );
       });
 
@@ -244,31 +272,34 @@ hello universe
             'filePath': 'replace.txt',
             'edits': [editBlock],
           }),
-          throwsA(isA<Exception>().having(
-            (e) => e.toString(),
-            'message',
-            contains('Search content not found in file'),
-          )),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('Search content not found in file'),
+            ),
+          ),
         );
       });
 
-      test('should find correct split when target file contains the separator',
-          () async {
-        await file.writeAsString('code with\n=======\nseparator');
+      test(
+        'should find correct split when target file contains the separator',
+        () async {
+          await file.writeAsString('code with\n=======\nseparator');
 
-        // The replacement also contains a separator, just to make sure
-        // it doesn't get confused splitting.
-        // The block is:
-        // <<<<<<< SEARCH\n
-        // code with\n
-        // =======\n
-        // separator\n
-        // =======\n
-        // new code with\n
-        // =======\n
-        // separator\n
-        // >>>>>>> REPLACE
-        final complexEditBlock = '''<<<<<<< SEARCH
+          // The replacement also contains a separator, just to make sure
+          // it doesn't get confused splitting.
+          // The block is:
+          // <<<<<<< SEARCH\n
+          // code with\n
+          // =======\n
+          // separator\n
+          // =======\n
+          // new code with\n
+          // =======\n
+          // separator\n
+          // >>>>>>> REPLACE
+          final complexEditBlock = '''<<<<<<< SEARCH
 code with
 =======
 separator
@@ -278,34 +309,41 @@ new code with
 separator
 >>>>>>> REPLACE''';
 
-        final result = await searchAndReplaceTool.runRaw({
-          'filePath': 'replace.txt',
-          'edits': [complexEditBlock],
-        });
+          final result = await searchAndReplaceTool.runRaw({
+            'filePath': 'replace.txt',
+            'edits': [complexEditBlock],
+          });
 
-        expect(result.result, contains('Successfully applied'));
+          expect(result.result, contains('Successfully applied'));
 
-        // 'code with\n=======\nseparator' was exactly found as search block,
-        // and 'new code with\n=======\nseparator' is the replacement.
-        expect(await file.readAsString(), 'new code with\n=======\nseparator');
-      });
+          // 'code with\n=======\nseparator' was exactly found as search block,
+          // and 'new code with\n=======\nseparator' is the replacement.
+          expect(
+            await file.readAsString(),
+            'new code with\n=======\nseparator',
+          );
+        },
+      );
 
-      test('should only replace the first occurrence of multiple identical search strings', () async {
-        await file.writeAsString('hello\nhello\nhello');
+      test(
+        'should only replace the first occurrence of multiple identical search strings',
+        () async {
+          await file.writeAsString('hello\nhello\nhello');
 
-        final editBlock = '''<<<<<<< SEARCH
+          final editBlock = '''<<<<<<< SEARCH
 hello
 =======
 hi
 >>>>>>> REPLACE''';
 
-        await searchAndReplaceTool.runRaw({
-          'filePath': 'replace.txt',
-          'edits': [editBlock],
-        });
+          await searchAndReplaceTool.runRaw({
+            'filePath': 'replace.txt',
+            'edits': [editBlock],
+          });
 
-        expect(await file.readAsString(), 'hi\nhello\nhello');
-      });
+          expect(await file.readAsString(), 'hi\nhello\nhello');
+        },
+      );
     });
 
     test('should intercept image reads and inject pending message', () async {
@@ -325,44 +363,55 @@ hi
           final imageMessage = req.messages.where((m) {
             if (m.role != Role.user) return false;
             return m.content.any((p) {
-               final json = p.toJson();
-               if (json['media'] is Map<String, dynamic>) {
-                  final media = json['media'] as Map<String, dynamic>;
-                  return (media['url'] as String?)?.startsWith('data:image/gif') ?? false;
-               }
-               return false;
+              final json = p.toJson();
+              if (json['media'] is Map<String, dynamic>) {
+                final media = json['media'] as Map<String, dynamic>;
+                return (media['url'] as String?)?.startsWith(
+                      'data:image/gif',
+                    ) ??
+                    false;
+              }
+              return false;
             });
           }).firstOrNull;
-          
+
           if (imageMessage != null) {
-              return ModelResponse(
-                finishReason: FinishReason.stop,
-                message: Message(role: Role.model, content: [TextPart(text: 'Received image')]),
-              );
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Received image')],
+              ),
+            );
           }
 
           // Initial request
           if (!req.messages.any((m) => m.role == Role.tool)) {
-             return ModelResponse(
-                finishReason: FinishReason.stop,
-                message: Message(
-                  role: Role.model,
-                  content: [
-                     ToolRequestPart(
-                      toolRequest: ToolRequest(
-                        name: 'read_file',
-                        input: {'filePath': 'test.gif'},
-                      ),
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'read_file',
+                      input: {'filePath': 'test.gif'},
                     ),
-                  ],
-                ),
-             );
+                  ),
+                ],
+              ),
+            );
           }
-           
-           return ModelResponse(
-             finishReason: FinishReason.stop, 
-             message: Message(role: Role.model, content: [TextPart(text: 'Loop continued without image detection')]),
-           );
+
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                TextPart(text: 'Loop continued without image detection'),
+              ],
+            ),
+          );
         },
       );
 
@@ -371,7 +420,7 @@ hi
         prompt: 'read image',
         use: [mw],
       );
-      
+
       expect(result.text, 'Loop continued without image detection');
 
       final result2 = await genkit.generate(
@@ -379,65 +428,103 @@ hi
         messages: result.messages,
         use: [mw],
       );
-      
-      expect(result2.text, 'Received image');
-    });
-    
-    test('should handle tool errors by injecting user message', () async {
-       final mw = FilesystemMiddleware(tempDir.path);
-       
-       genkit.defineModel(
-         name: 'error-model',
-         fn: (req, ctx) async {
-           // Check for error message
-           final errorMsg = req.messages.where((m) => 
-             m.role == Role.user && 
-             m.content.any((p) => p.text != null && p.text!.contains("Tool 'read_file' failed"))
-           ).firstOrNull;
-           
-           if (errorMsg != null) {
-              return ModelResponse(
-                finishReason: FinishReason.stop,
-                message: Message(role: Role.model, content: [TextPart(text: 'Error caught')]),
-              );
-           }
-           
-           if (!req.messages.any((m) => m.role == Role.tool)) {
-              return ModelResponse(
-                finishReason: FinishReason.stop,
-                message: Message(
-                  role: Role.model,
-                  content: [
-                     ToolRequestPart(
-                       toolRequest: ToolRequest(name: 'read_file', input: {'filePath': 'nonexistent.txt'}),
-                     )
-                  ]
-                )
-              );
-           }
-           
-           return ModelResponse(
-             finishReason: FinishReason.stop,
-             message: Message(role: Role.model, content: [TextPart(text: 'No error caught')]),
-           );
-         }
-       );
-       
-       final result = await genkit.generate(
-         model: modelRef('error-model'),
-         prompt: 'cause error',
-         use: [mw],
-       );
-       
-       expect(result.text, 'No error caught');
 
-       final result2 = await genkit.generate(
-         model: modelRef('error-model'),
-         messages: result.messages,
-         use: [mw],
-       );
-       
-       expect(result2.text, 'Error caught');
+      expect(result2.text, 'Received image');
+      expect(
+        result2.messages.map(
+          (m) =>
+              '${m.role} - ${m.content.map((c) => c.isText
+                  ? 'text'
+                  : c.isToolRequest
+                  ? 'toolRequest'
+                  : c.isToolResponse
+                  ? 'toolResponse'
+                  : c.isMedia
+                  ? 'media'
+                  : 'unknown')}',
+        ),
+        [
+          'user - (text)',
+          'model - (toolRequest)',
+          'tool - (toolResponse)',
+          'model - (text)',
+          'user - (text, media)',
+          'model - (text)',
+        ],
+      );
+    });
+
+    test('should handle tool errors by injecting user message', () async {
+      final mw = FilesystemMiddleware(tempDir.path);
+
+      genkit.defineModel(
+        name: 'error-model',
+        fn: (req, ctx) async {
+          // Check for error message
+          final errorMsg = req.messages
+              .where(
+                (m) =>
+                    m.role == Role.user &&
+                    m.content.any(
+                      (p) =>
+                          p.text != null &&
+                          p.text!.contains("Tool 'read_file' failed"),
+                    ),
+              )
+              .firstOrNull;
+
+          if (errorMsg != null) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Error caught')],
+              ),
+            );
+          }
+
+          if (!req.messages.any((m) => m.role == Role.tool)) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'read_file',
+                      input: {'filePath': 'nonexistent.txt'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'No error caught')],
+            ),
+          );
+        },
+      );
+
+      final result = await genkit.generate(
+        model: modelRef('error-model'),
+        prompt: 'cause error',
+        use: [mw],
+      );
+
+      expect(result.text, 'No error caught');
+
+      final result2 = await genkit.generate(
+        model: modelRef('error-model'),
+        messages: result.messages,
+        use: [mw],
+      );
+
+      expect(result2.text, 'Error caught');
     });
   });
 }
