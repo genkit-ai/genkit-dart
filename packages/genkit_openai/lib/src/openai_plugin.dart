@@ -303,7 +303,7 @@ class OpenAICompatPlugin extends GenkitPlugin {
 
         try {
           final supports = modelInfo.supports;
-          final supportsTools = supports != null && supports is Map && supports['tools'] == true;
+          final supportsTools = supports?['tools'] == true;
           final request = CreateChatCompletionRequest(
             model: ChatCompletionModel.modelId(options.version ?? modelName),
             messages: GenkitConverter.toOpenAIMessages(req.messages, options.visualDetailLevel),

@@ -77,12 +77,12 @@ import 'package:schemantic/schemantic.dart';
 part 'example.g.dart';
 
 @Schematic()
-abstract class $WeatherInput {
+abstract class $WeatherInputSchema {
   String get location;
 }
 
 @Schematic()
-abstract class $WeatherOutput {
+abstract class $WeatherOutputSchema {
   int get temperature;
   String get condition;
 }
@@ -95,8 +95,8 @@ void main() async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the weather for a location',
-    inputSchema: WeatherInput.$schema,
-    outputSchema: WeatherOutput.$schema,
+    inputSchema: WeatherInputSchema.$schema,
+    outputSchema: WeatherOutputSchema.$schema,
     fn: (input, ctx) async {
       return WeatherOutput(
         temperature: 72,

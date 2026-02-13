@@ -48,8 +48,8 @@ Future<void> main(List<String> args) async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the current weather for a specific location. Returns temperature and conditions.',
-    inputSchema: WeatherInput.$schema,
-    outputSchema: WeatherOutput.$schema,
+    inputSchema: WeatherInputSchema.$schema,
+    outputSchema: WeatherOutputSchema.$schema,
     fn: (input, ctx) async {
       final location = input.location;
       final unit = input.unit ?? 'celsius';
@@ -66,7 +66,7 @@ Future<void> main(List<String> args) async {
       final conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'];
       final condition = conditions[random.nextInt(conditions.length)];
       
-      return WeatherOutput(
+      return WeatherOutputSchema(
         temperature: temperature,
         condition: condition,
         unit: unit,
@@ -198,14 +198,4 @@ Future<void> main(List<String> args) async {
       return response.text;
     },
   );
-
-  print('Flows defined successfully!');
-  print('Available flows:');
-  print('  - simpleGenerate: Basic text generation');
-  print('  - creativeGenerate: Creative generation with high temperature');
-  print('  - streamGenerate: Streaming text generation');
-  print('  - weatherQuery: Get weather using tool calling');
-  print('  - assistant: AI assistant with weather tool');
-  print('  - dartExpert: Dart/Flutter expert with system prompt');
-  print('\nReady for Genkit UI or direct execution!');
 }

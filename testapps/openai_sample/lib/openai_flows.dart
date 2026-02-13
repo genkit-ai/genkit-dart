@@ -22,7 +22,7 @@ import 'package:schemantic/schemantic.dart';
 part 'openai_flows.g.dart';
 
 @Schematic()
-abstract class $WeatherInput {
+abstract class $WeatherInputSchema {
   /// The location to get weather for (city name or coordinates)
   String get location;
 
@@ -32,7 +32,7 @@ abstract class $WeatherInput {
 }
 
 @Schematic()
-abstract class $WeatherOutput {
+abstract class $WeatherOutputSchema {
   /// Temperature value
   double get temperature;
 
@@ -98,8 +98,8 @@ Future<void> toolCallingExample(String apiKey) async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the current weather for a specific location. Returns temperature and conditions.',
-    inputSchema: WeatherInput.$schema,
-    outputSchema: WeatherOutput.$schema,
+    inputSchema: WeatherInputSchema.$schema,
+    outputSchema: WeatherOutputSchema.$schema,
     fn: (input, ctx) async {
       final location = input.location;
       final unit = input.unit ?? 'celsius';
@@ -116,7 +116,7 @@ Future<void> toolCallingExample(String apiKey) async {
       final conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'];
       final condition = conditions[random.nextInt(conditions.length)];
       
-      return WeatherOutput(
+      return WeatherOutputSchema(
         temperature: temperature,
         condition: condition,
         unit: unit,
@@ -175,10 +175,66 @@ Future<void> conversationExample(String apiKey) async {
   print('Assistant: ${response.text}\n');
 }
 
+/// Model resolution example - shows how to resolve a model by name
+Future<void> modelResolveExample(String apiKey) async {
+  print('=== Model Resolution Example ===\n');
+  
+  final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+  // Resolve a specific model by name
+  final modelName = 'gpt-4o-mini';
+  print('Attempting to resolve model: openai/$modelName\n');
+
+  try {
+    final action = await ai.registry.lookupAction('model', 'openai/$modelName');
+    
+    if (action != null) {
+      print('✓ Successfully resolved model: ${action.name}');
+      print('  Action type: ${action.actionType}');
+      print('  Metadata: ${action.metadata}');
+    } else {
+      print('✗ Model not found');
+    }
+  } catch (e) {
+    print('Error resolving model: $e');
+  }
+
+  print('\n');
+}
+
+/// Model listing example - lists all available models
+Future<void> modelListExample(String apiKey) async {
+  print('=== Model Listing Example ===\n');
+  
+  final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+  print('Fetching all available models from OpenAI...\n');
+
+  try {
+    // List all actions (includes models)
+    final actions = await ai.registry.listActions();
+    
+    // Filter to only models
+    final models = actions.where((action) => action.actionType == 'model').toList();
+    
+    print('Found ${models.length} models:\n');
+    
+    for (final model in models) {
+      print('  - ${model.name}');
+    }
+  } catch (e) {
+    print('Error listing models: $e');
+  }
+
+  print('\n');
+}
+
 /// Run all examples
 Future<void> runAllExamples(String apiKey) async {
   await simpleGenerateExample(apiKey);
   await streamingExample(apiKey);
   await toolCallingExample(apiKey);
   await conversationExample(apiKey);
+  await modelResolveExample(apiKey);
+  await modelListExample(apiKey);
 }
