@@ -66,7 +66,13 @@ Future<void> main(List<String> args) async {
     // interruptData from metadata
     final interruptData = interruptPart.metadata?['interrupt'];
 
-    final request = interruptData as ApprovalRequest;
+    if (interruptData is! ApprovalRequest) {
+      print(
+        'Error: Unexpected interrupt data type: ${interruptData?.runtimeType}',
+      );
+      return;
+    }
+    final request = interruptData;
 
     print('\n--- APPROVAL REQUIRED ---');
     print('Action: ${request.details}');

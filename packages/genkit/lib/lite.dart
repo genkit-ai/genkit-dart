@@ -62,7 +62,7 @@ Future<GenerateResponseHelper> generate<C>({
   ///
   /// Example (providing a response):
   /// ```dart
-  /// resume: [
+  /// interruptRespond: [
   ///   InterruptResponse(interruptPart, 'User Answer')
   /// ]
   /// ```
@@ -73,7 +73,7 @@ Future<GenerateResponseHelper> generate<C>({
   /// Restarts the execution of the specified tool part instead of providing a reply.
   /// Example:
   /// ```dart
-  /// restart: [interruptPart]
+  /// interruptRestart: [interruptPart]
   /// ```
   List<ToolRequestPart>? interruptRestart,
 }) async {
