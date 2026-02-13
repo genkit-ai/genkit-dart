@@ -9,11 +9,14 @@ void main() {
 
     setUp(() {
       genkit = Genkit(isDevEnv: false, plugins: [ToolApprovalPlugin()]);
-      
+
       genkit.defineTool(
         name: 'dangerous_tool',
         description: 'Does something dangerous',
-        inputSchema: mapSchema(stringSchema(), boolSchema()), // Input is Map<String, dynamic> at runtime
+        inputSchema: mapSchema(
+          stringSchema(),
+          boolSchema(),
+        ), // Input is Map<String, dynamic> at runtime
         fn: (input, context) async {
           return 'Dangerous action confirmed: $input';
         },
@@ -22,7 +25,10 @@ void main() {
       genkit.defineTool(
         name: 'safe_tool',
         description: 'Does something safe',
-        inputSchema: mapSchema(stringSchema(), boolSchema()), // Input is Map<String, dynamic> at runtime
+        inputSchema: mapSchema(
+          stringSchema(),
+          boolSchema(),
+        ), // Input is Map<String, dynamic> at runtime
         fn: (input, context) async {
           return 'Safe action confirmed: $input';
         },
@@ -46,14 +52,18 @@ void main() {
                 role: Role.model,
                 content: [
                   ToolRequestPart(
-                    toolRequest: ToolRequest(name: 'safe_tool', input: {'test': true}),
-                  )
+                    toolRequest: ToolRequest(
+                      name: 'safe_tool',
+                      input: {'test': true},
+                    ),
+                  ),
                 ],
               ),
             );
           }
 
-          final toolResponse = req.messages.last.content.first.toolResponsePart!.toolResponse;
+          final toolResponse =
+              req.messages.last.content.first.toolResponsePart!.toolResponse;
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -85,8 +95,11 @@ void main() {
               role: Role.model,
               content: [
                 ToolRequestPart(
-                  toolRequest: ToolRequest(name: 'dangerous_tool', input: {'test': true}),
-                )
+                  toolRequest: ToolRequest(
+                    name: 'dangerous_tool',
+                    input: {'test': true},
+                  ),
+                ),
               ],
             ),
           );
@@ -103,71 +116,87 @@ void main() {
       expect(response.interrupts.length, 1);
       final interrupt = response.interrupts.first;
       expect(interrupt.toolRequest.name, 'dangerous_tool');
-      
+
       final part = response.message!.content.first;
       expect(part.toolRequestPart, isNotNull);
       expect(part.metadata?['interrupt'], 'Tool not in approved list');
     });
 
-    test('should resume successfully with user approval via tool-approved metadata', () async {
-      final mw = toolApproval(approved: ['safe_tool']);
-      var modelCallCount = 0;
+    test(
+      'should resume successfully with user approval via tool-approved metadata',
+      () async {
+        final mw = toolApproval(approved: ['safe_tool']);
+        var modelCallCount = 0;
 
-      genkit.defineModel(
-        name: 'approval-test-model-resume',
-        fn: (req, ctx) async {
-          modelCallCount++;
-          
-          if (req.messages.last.role == Role.tool) {
-            final toolResponse = req.messages.last.content.first.toolResponsePart!.toolResponse;
+        genkit.defineModel(
+          name: 'approval-test-model-resume',
+          fn: (req, ctx) async {
+            modelCallCount++;
+
+            if (req.messages.last.role == Role.tool) {
+              final toolResponse = req
+                  .messages
+                  .last
+                  .content
+                  .first
+                  .toolResponsePart!
+                  .toolResponse;
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'Model: ${toolResponse.output}')],
+                ),
+              );
+            }
+
             return ModelResponse(
               finishReason: FinishReason.stop,
               message: Message(
                 role: Role.model,
-                content: [TextPart(text: 'Model: ${toolResponse.output}')],
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'dangerous_tool',
+                      input: {'test': true},
+                    ),
+                  ),
+                ],
               ),
             );
-          }
-          
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [
-                ToolRequestPart(
-                  toolRequest: ToolRequest(name: 'dangerous_tool', input: {'test': true}),
-                )
-              ],
+          },
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('approval-test-model-resume'),
+          prompt: 'run dangerous tool',
+          use: [mw],
+        );
+
+        expect(response1.finishReason, FinishReason.interrupted);
+
+        // User confirms execution by re-running and placing 'tool-approved': true
+        // inside the interruptRestart configuration
+
+        final response2 = await genkit.generate(
+          model: modelRef('approval-test-model-resume'),
+          messages: response1.messages,
+          use: [mw],
+          interruptRestart: [
+            ToolRequestPart(
+              toolRequest:
+                  response1.message!.content.first.toolRequestPart!.toolRequest,
+              metadata: {'tool-approved': true},
             ),
-          );
-        },
-      );
+          ],
+        );
 
-      final response1 = await genkit.generate(
-        model: modelRef('approval-test-model-resume'),
-        prompt: 'run dangerous tool',
-        use: [mw],
-      );
-
-      expect(response1.finishReason, FinishReason.interrupted);
-
-      // User confirms execution by re-running and placing 'tool-approved': true
-      // inside the interruptRestart configuration
-      
-      final response2 = await genkit.generate(
-        model: modelRef('approval-test-model-resume'),
-        messages: response1.messages,
-        use: [mw],
-        interruptRestart: [
-           ToolRequestPart(
-             toolRequest: response1.message!.content.first.toolRequestPart!.toolRequest,
-             metadata: {'tool-approved': true},
-           )
-        ],
-      );
-
-      expect(modelCallCount, 2);
-      expect(response2.text, 'Model: Dangerous action confirmed: {test: true}');
-    });
+        expect(modelCallCount, 2);
+        expect(
+          response2.text,
+          'Model: Dangerous action confirmed: {test: true}',
+        );
+      },
+    );
   });
 }

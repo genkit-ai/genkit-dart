@@ -8,7 +8,9 @@ import 'package:genkit_middleware/filesystem.dart';
 import 'package:genkit_middleware/skills.dart';
 import 'package:genkit_middleware/tool_approval.dart';
 
-final _lines = StreamIterator(stdin.transform(utf8.decoder).transform(const LineSplitter()));
+final _lines = StreamIterator(
+  stdin.transform(utf8.decoder).transform(const LineSplitter()),
+);
 
 Future<String?> _readLineAsync() async {
   if (await _lines.moveNext()) {
@@ -51,7 +53,7 @@ void main() async {
   print('--- Coding Agent ---');
   print('Type your request. To exit, type "exit".');
 
-  final messages = <Message>[
+  var messages = <Message>[
     Message(
       role: Role.system,
       content: [
@@ -74,20 +76,19 @@ void main() async {
 
     try {
       List<ToolRequestPart>? interruptRestart;
-      var currentMessages = List<Message>.from(messages);
       late GenerateResponseHelper response;
 
       while (true) {
         response = await ai.generate(
           model: googleAI.gemini('gemini-3-flash-preview'),
           prompt: interruptRestart == null ? input : null,
-          messages: currentMessages,
+          interruptRestart: interruptRestart,
+          messages: messages,
           use: [
             toolApproval(approved: ['read_file', 'list_files', 'read_skill']),
             skills(skillPaths: [skillsRoot]),
             filesystem(rootDirectory: fsRoot),
           ],
-          interruptRestart: interruptRestart,
           maxTurns: 20,
         );
 
@@ -122,7 +123,7 @@ void main() async {
         if (approvedInterrupts.isNotEmpty) {
           print('Resuming...');
           interruptRestart = approvedInterrupts;
-          currentMessages = response.messages;
+          messages = response.messages;
         } else {
           print('Tool denied.');
           break;
@@ -131,8 +132,7 @@ void main() async {
 
       print('\nAI Response:\n${response.text}');
 
-      messages.clear();
-      messages.addAll(response.messages);
+      messages = response.messages;
     } catch (e) {
       print('Error during generation: $e');
     }

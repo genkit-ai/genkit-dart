@@ -11,12 +11,15 @@ void main() async {
   genkit.defineTool(
     name: 'transferFunds',
     description: 'Transfers funds between accounts. Requires user approval.',
-    inputSchema: mapSchema(stringSchema(), stringSchema()), // simpler string-map schema
+    inputSchema: mapSchema(
+      stringSchema(),
+      stringSchema(),
+    ), // simpler string-map schema
     fn: (input, context) async {
-       // Since it's a generic Map<String, String> we access safely:
-       final from = input['from'];
-       final to = input['to'];
-       return 'SUCCESS: Transferred funds from $from to $to';
+      // Since it's a generic Map<String, String> we access safely:
+      final from = input['from'];
+      final to = input['to'];
+      return 'SUCCESS: Transferred funds from $from to $to';
     },
   );
 
@@ -26,16 +29,21 @@ void main() async {
     fn: (req, ctx) async {
       // If we resumed from an interrupt, there will be a tool response
       if (req.messages.last.role == Role.tool) {
-         final toolResponse = req.messages.last.content.first.toolResponsePart!.toolResponse;
-         return ModelResponse(
-           finishReason: FinishReason.stop,
-           message: Message(
-             role: Role.model,
-             content: [TextPart(text: 'Bank Agent: Action complete. ${toolResponse.output}')],
-           ),
-         );
+        final toolResponse =
+            req.messages.last.content.first.toolResponsePart!.toolResponse;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [
+              TextPart(
+                text: 'Bank Agent: Action complete. ${toolResponse.output}',
+              ),
+            ],
+          ),
+        );
       }
-      
+
       // Initially trigger the tool
       return ModelResponse(
         finishReason: FinishReason.stop,
@@ -44,10 +52,10 @@ void main() async {
           content: [
             ToolRequestPart(
               toolRequest: ToolRequest(
-                name: 'transferFunds', 
+                name: 'transferFunds',
                 input: {'from': 'Checking', 'to': 'Savings'},
               ),
-            )
+            ),
           ],
         ),
       );
@@ -55,20 +63,26 @@ void main() async {
   );
 
   // Create the middleware, note how transferFunds is NOT approved
-  final approvalMw = toolApproval(approved: ['checkBalance', 'findNearestBranch']);
+  final approvalMw = toolApproval(
+    approved: ['checkBalance', 'findNearestBranch'],
+  );
 
   print('--- Initial Run ---');
   final response1 = await genkit.generate(
     model: modelRef('banking-assistant'),
     prompt: 'transfer my funds',
     use: [approvalMw],
-    tools: ['transferFunds'],
+    toolNames: ['transferFunds'],
   );
 
   if (response1.finishReason == FinishReason.interrupted) {
-    print('Execution interrupted! Reason: ${response1.message?.content.first.metadata?['interrupt']}');
-    final interrupt = response1.interrupts!.first;
-    print('Intercepted Tool Call: ${interrupt.toolRequest.name}(${jsonEncode(interrupt.toolRequest.input)})');
+    print(
+      'Execution interrupted! Reason: ${response1.message?.content.first.metadata?['interrupt']}',
+    );
+    final interrupt = response1.interrupts.first;
+    print(
+      'Intercepted Tool Call: ${interrupt.toolRequest.name}(${jsonEncode(interrupt.toolRequest.input)})',
+    );
     print('Awaiting User Approval...');
 
     // Simulate user approval by resuming the execution and passing the appropriate metadata
@@ -77,16 +91,16 @@ void main() async {
       model: modelRef('banking-assistant'),
       messages: response1.messages,
       use: [approvalMw],
-      tools: ['transferFunds'],
+      toolNames: ['transferFunds'],
       interruptRestart: [
-         ToolRequestPart(
-           toolRequest: interrupt.toolRequest,
-           // Inject metadata indicating the tool call was approved by the user
-           metadata: {'tool-approved': true},
-         )
+        ToolRequestPart(
+          toolRequest: interrupt.toolRequest,
+          // Inject metadata indicating the tool call was approved by the user
+          metadata: {'tool-approved': true},
+        ),
       ],
     );
-    
+
     print(response2.text);
   }
 

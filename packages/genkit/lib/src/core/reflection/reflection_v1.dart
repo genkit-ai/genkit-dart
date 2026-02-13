@@ -16,12 +16,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
 import '../../exception.dart';
 import '../../schema.dart';
 import '../../utils.dart';
 import '../registry.dart';
+
+final _logger = Logger('genkit.reflection.v1');
 
 const genkitVersion = '0.1.0';
 const genkitReflectionApiSpecVersion = '1';
@@ -78,7 +81,9 @@ class ReflectionServerV1 {
       port,
       shared: true,
     );
-    print('Reflection server running on http://localhost:${_server!.port}');
+    _logger.fine(
+      'Reflection server running on http://localhost:${_server!.port}',
+    );
 
     _server!.listen((HttpRequest request) async {
       request.response.headers.add('x-genkit-version', genkitVersion);
@@ -112,7 +117,7 @@ class ReflectionServerV1 {
             ..close();
         }
       } catch (e, stack) {
-        print('Error handling request: $e\n$stack');
+        _logger.severe('Error handling request: $e\n$stack');
         request.response
           ..statusCode = HttpStatus.internalServerError
           ..write('Internal Server Error')
@@ -265,9 +270,9 @@ class ReflectionServerV1 {
       });
       await Directory(runtimesDir).create(recursive: true);
       await File(runtimeFilePath!).writeAsString(fileContent);
-      print('Runtime file written: $runtimeFilePath');
+      _logger.fine('Runtime file written: $runtimeFilePath');
     } catch (e) {
-      print('Error writing runtime file: $e');
+      _logger.severe('Error writing runtime file: $e');
     }
   }
 
@@ -281,11 +286,11 @@ class ReflectionServerV1 {
         final data = await _jsonDecodeStream(file.openRead());
         if (data['pid'] == pid) {
           await file.delete();
-          print('Runtime file cleaned up: $runtimeFilePath');
+          _logger.fine('Runtime file cleaned up: $runtimeFilePath');
         }
       }
     } catch (e) {
-      print('Error cleaning up runtime file: $e');
+      _logger.severe('Error cleaning up runtime file: $e');
     }
   }
 }

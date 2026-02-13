@@ -19,7 +19,13 @@ void main() async {
   final middlewarePlugin = FilesystemPlugin();
   final skillsPlugin = SkillsPlugin();
 
-  final ai = Genkit(plugins: [googleAI(apiKey: apiKey), middlewarePlugin, skillsPlugin]);
+  final ai = Genkit(
+    plugins: [
+      googleAI(apiKey: apiKey),
+      middlewarePlugin,
+      skillsPlugin,
+    ],
+  );
 
   ai.defineFlow(
     name: 'agenticFlow',

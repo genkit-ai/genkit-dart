@@ -13,7 +13,7 @@ void main() {
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('genkit_fs_test');
-      genkit = Genkit(isDevEnv: false);
+      genkit = Genkit(isDevEnv: false, plugins: [FilesystemPlugin()]);
     });
 
     tearDown(() async {
@@ -42,7 +42,7 @@ void main() {
       final file = File(p.join(tempDir.path, 'test.txt'));
       await file.writeAsString('hello world');
 
-      final mw = FilesystemMiddleware(tempDir.path);
+      final mw = filesystem(rootDirectory: tempDir.path);
 
       genkit.defineModel(
         name: 'read-test-model',
@@ -346,7 +346,7 @@ hi
       final file = File(p.join(tempDir.path, 'test.gif'));
       await file.writeAsBytes(gifBytes);
 
-      final mw = FilesystemMiddleware(tempDir.path);
+      final mw = filesystem(rootDirectory: tempDir.path);
 
       genkit.defineModel(
         name: 'fs-image-model',
@@ -438,7 +438,7 @@ hi
     });
 
     test('should handle tool errors by injecting user message', () async {
-      final mw = FilesystemMiddleware(tempDir.path);
+      final mw = filesystem(rootDirectory: tempDir.path);
 
       genkit.defineModel(
         name: 'error-model',
@@ -502,71 +502,74 @@ hi
       expect(result.text, 'Error caught');
     });
 
-    test('should inject file contents in the same multi-turn generate loop', () async {
-      final file = File(p.join(tempDir.path, 'multi_turn.txt'));
-      await file.writeAsString('multi-turn-content');
+    test(
+      'should inject file contents in the same multi-turn generate loop',
+      () async {
+        final file = File(p.join(tempDir.path, 'multi_turn.txt'));
+        await file.writeAsString('multi-turn-content');
 
-      final mw = FilesystemMiddleware(tempDir.path);
+        final mw = filesystem(rootDirectory: tempDir.path);
 
-      genkit.defineModel(
-        name: 'multi-turn-model',
-        fn: (req, ctx) async {
-          // If no injected message found, and we haven't requested the tool yet, request it
-          if (req.messages.length <= 1) {
+        genkit.defineModel(
+          name: 'multi-turn-model',
+          fn: (req, ctx) async {
+            // If no injected message found, and we haven't requested the tool yet, request it
+            if (req.messages.length <= 1) {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: 'read_file',
+                        input: {'filePath': 'multi_turn.txt'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // If we get here, it means the tool was requested and executed, but injected message wasn't seen
             return ModelResponse(
               finishReason: FinishReason.stop,
               message: Message(
                 role: Role.model,
-                content: [
-                  ToolRequestPart(
-                    toolRequest: ToolRequest(
-                      name: 'read_file',
-                      input: {'filePath': 'multi_turn.txt'},
-                    ),
-                  ),
-                ],
+                content: [TextPart(text: 'done')],
               ),
             );
-          }
+          },
+        );
 
-          // If we get here, it means the tool was requested and executed, but injected message wasn't seen
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: 'done')],
-            ),
-          );
-        },
-      );
+        final result = await genkit.generate(
+          model: modelRef('multi-turn-model'),
+          prompt: 'read multi-turn',
+          use: [mw],
+        );
 
-      final result = await genkit.generate(
-        model: modelRef('multi-turn-model'),
-        prompt: 'read multi-turn',
-        use: [mw],
-      );
-
-      expect(
-        result.messages.map(
-          (m) =>
-              '${m.role} - ${m.content.map((c) => c.isText
-                  ? 'text'
-                  : c.isToolRequest
-                  ? 'toolRequest'
-                  : c.isToolResponse
-                  ? 'toolResponse'
-                  : c.isMedia
-                  ? 'media'
-                  : 'unknown')}',
-        ),
-        [
-          'user - (text)',
-          'model - (toolRequest)',
-          'tool - (toolResponse)',
-          'user - (text)',
-          'model - (text)',
-        ],
-      );
-    });
+        expect(
+          result.messages.map(
+            (m) =>
+                '${m.role} - ${m.content.map((c) => c.isText
+                    ? 'text'
+                    : c.isToolRequest
+                    ? 'toolRequest'
+                    : c.isToolResponse
+                    ? 'toolResponse'
+                    : c.isMedia
+                    ? 'media'
+                    : 'unknown')}',
+          ),
+          [
+            'user - (text)',
+            'model - (toolRequest)',
+            'tool - (toolResponse)',
+            'user - (text)',
+            'model - (text)',
+          ],
+        );
+      },
+    );
   });
 }

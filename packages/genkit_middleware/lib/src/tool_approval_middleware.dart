@@ -1,6 +1,5 @@
-import 'package:genkit/genkit.dart';
 import 'dart:async';
-import 'package:genkit/src/ai/interrupt.dart';
+import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
 part 'tool_approval_middleware.g.dart';
@@ -24,7 +23,8 @@ class ToolApprovalPlugin extends GenkitPlugin {
       name: 'toolApproval',
       configSchema: ToolApprovalOptions.$schema,
       create: ([ToolApprovalOptions? config]) {
-        final options = config ?? ToolApprovalOptions(approved: approvedTools ?? []);
+        final options =
+            config ?? ToolApprovalOptions(approved: approvedTools ?? []);
         return ToolApprovalMiddleware(options);
       },
     ),
@@ -50,7 +50,7 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
   // genkit doesn't run multiple generates concurrently on the same options object natively,
   // we can use an Expando keyed by the options object!
   ToolApprovalMiddleware(ToolApprovalOptions options)
-      : approvedTools = options.approved;
+    : approvedTools = options.approved;
 
   static final _approvedRestartsKey = Object();
 
@@ -88,10 +88,12 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
     )
     next,
   ) async {
-    final approvedRestarts = (Zone.current[_approvedRestartsKey] as Set<String>?) ?? {};
+    final approvedRestarts =
+        (Zone.current[_approvedRestartsKey] as Set<String>?) ?? {};
 
     // Check if the tool is implicitly approved or explicitly approved via restart
-    if (!approvedTools.contains(request.name) && !approvedRestarts.contains(request.name)) {
+    if (!approvedTools.contains(request.name) &&
+        !approvedRestarts.contains(request.name)) {
       throw ToolInterruptException('Tool not in approved list');
     }
 

@@ -123,7 +123,8 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   required Future<GenerateResponseHelper> Function(
     GenerateActionOptions opts,
     int currentTurn,
-  ) composedGenerate,
+  )
+  composedGenerate,
   int currentTurn = 0,
 }) async {
   if (options.model == null) {
@@ -264,7 +265,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       .map((c) => c.toolRequestPart)
       .nonNulls
       .toList();
-      
+
   if (toolRequests == null || toolRequests.isEmpty) {
     return GenerateResponseHelper(
       response,
@@ -420,11 +421,8 @@ Future<GenerateResponseHelper> runGenerateAction(
   composedGenerate = resolvedMiddlewares.reversed.fold(
     coreGenerate,
     // Add currentTurn here since GenerateMiddleware.generate doesn't take it!
-    (next, mw) => (o, c, ct) => mw.generate(
-          o,
-          c,
-          (no, nctx) => next(no, nctx, ct),
-        ),
+    (next, mw) =>
+        (o, c, ct) => mw.generate(o, c, (no, nctx) => next(no, nctx, ct)),
   );
 
   return composedGenerate(options, ctx, 0);
