@@ -140,7 +140,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final response = await _ai.generate(
         model: firebaseAI.gemini('gemini-2.5-flash'),
         prompt: text,
-        tools: ['getWeather'],
+        toolNames: ['getWeather'],
       );
       setState(() {
         _messages.add('AI: ${response.text}');
@@ -246,7 +246,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
           ),
         ),
         system: 'Talk like pirate',
-        tools: ['getWeather'],
+        toolNames: ['getWeather'],
       );
       newSession.send('Hello');
 

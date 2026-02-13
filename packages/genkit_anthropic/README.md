@@ -72,7 +72,7 @@ ai.defineTool(
 final response = await ai.generate(
   model: anthropic.model('claude-sonnet-4-5'),
   prompt: 'What is 123 * 456?',
-  tools: ['calculator'],
+  toolNames: ['calculator'],
 );
 
 print(response.text);
