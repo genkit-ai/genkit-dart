@@ -54,6 +54,28 @@ Future<GenerateResponseHelper> generate<C>({
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
   List<GenerateMiddleware>? use,
+
+  /// Optional data to resume an interrupted generation session.
+  ///
+  /// The list should contain [InterruptResponse]s for each interrupted tool request
+  /// that is providing an explicit output reply.
+  ///
+  /// Example (providing a response):
+  /// ```dart
+  /// resume: [
+  ///   InterruptResponse(interruptPart, 'User Answer')
+  /// ]
+  /// ```
+  List<InterruptResponse>? interruptRespond,
+
+  /// Optional list of tool requests to restart during an interrupted generation session.
+  /// 
+  /// Restarts the execution of the specified tool part instead of providing a reply.
+  /// Example:
+  /// ```dart
+  /// restart: [interruptPart]
+  /// ```
+  List<ToolRequestPart>? interruptRestart,
 }) async {
   if (outputInstructions != null && outputNoInstructions == true) {
     throw ArgumentError(
@@ -95,6 +117,8 @@ Future<GenerateResponseHelper> generate<C>({
     context: context,
     onChunk: onChunk,
     middlewares: use,
+    resume: interruptRespond,
+    restart: interruptRestart,
   );
 }
 
@@ -115,6 +139,8 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   String? outputContentType,
   Map<String, dynamic>? context,
   List<GenerateMiddleware>? use,
+  List<InterruptResponse>? interruptRespond,
+  List<ToolRequestPart>? interruptRestart,
 }) {
   final streamController = StreamController<GenerateResponseChunk>();
   final actionStream =
@@ -143,6 +169,8 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
           streamController.add(chunk);
         },
         use: use,
+        interruptRespond: interruptRespond,
+        interruptRestart: interruptRestart,
       )
       .then((result) {
         actionStream.setResult(result);

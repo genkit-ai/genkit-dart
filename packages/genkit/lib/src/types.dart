@@ -263,10 +263,17 @@ abstract class $GenerateActionOptions {
   String? get toolChoice;
   Map<String, dynamic>? get config;
   $GenerateActionOutputConfig? get output;
-  Map<String, dynamic>? get resume;
+  $GenerateResumeOptions? get resume;
   bool? get returnToolRequests;
   int? get maxTurns;
   String? get stepName;
+}
+
+@Schematic()
+abstract class $GenerateResumeOptions {
+  List<$ToolResponsePart>? get respond;
+  List<$ToolRequestPart>? get restart;
+  Map<String, dynamic>? get metadata;
 }
 
 @Schematic()

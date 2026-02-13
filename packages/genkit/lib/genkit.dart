@@ -353,15 +353,25 @@ class Genkit {
 
     /// Optional data to resume an interrupted generation session.
     ///
-    /// The list should contain [InterruptResponse]s for each interrupted tool request.
+    /// The list should contain [InterruptResponse]s for each interrupted tool request
+    /// that is providing an explicit output reply.
     ///
-    /// Example:
+    /// Example (providing a response):
     /// ```dart
     /// resume: [
     ///   InterruptResponse(interruptPart, 'User Answer')
     /// ]
     /// ```
-    List<InterruptResponse>? resume,
+    List<InterruptResponse>? interruptRespond,
+
+    /// Optional list of tool requests to restart during an interrupted generation session.
+    /// 
+    /// Restarts the execution of the specified tool part instead of providing a reply.
+    /// Example:
+    /// ```dart
+    /// restart: [interruptPart]
+    /// ```
+    List<ToolRequestPart>? interruptRestart,
   }) async {
     if (outputInstructions != null && outputNoInstructions == true) {
       throw ArgumentError(
@@ -400,7 +410,8 @@ class Genkit {
       output: outputConfig,
       context: context,
       middlewares: use,
-      resume: resume,
+      resume: interruptRespond,
+      restart: interruptRestart,
       onChunk: (c) {
         if (outputSchema != null) {
           onChunk?.call(
@@ -443,7 +454,8 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     List<dynamic>? use,
-    List<InterruptResponse>? resume,
+    List<InterruptResponse>? interruptRespond,
+    List<ToolRequestPart>? interruptRestart,
   }) {
     final streamController = StreamController<GenerateResponseChunk<S>>();
     final actionStream =
@@ -466,9 +478,9 @@ class Genkit {
           outputInstructions: outputInstructions,
           outputNoInstructions: outputNoInstructions,
           outputContentType: outputContentType,
-          context: context,
           use: use,
-          resume: resume,
+          interruptRespond: interruptRespond,
+          interruptRestart: interruptRestart,
           onChunk: (chunk) {
             if (streamController.isClosed) return;
             streamController.add(chunk as GenerateResponseChunk<S>);
