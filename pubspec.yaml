@@ -46,10 +46,7 @@ melos:
       description: Run build_runner in topological order (core -> plugins -> app) to avoid race conditions.
 
     build-gen-core:
-      run: |
-        melos exec --scope="genkit" -- dart run build_runner build
-        # For mockito generated files
-        dart run tools/apply_license.dart
+      run: melos exec --scope="genkit" -- dart run build_runner build && dart run tools/apply_license.dart
       description: Run build_runner for genkit.
 
     build-gen-plugins:
