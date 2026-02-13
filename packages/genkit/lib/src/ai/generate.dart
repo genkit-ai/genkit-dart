@@ -14,22 +14,18 @@
 
 import 'dart:async';
 
-import 'package:logging/logging.dart';
-
 import '../core/action.dart';
 import '../core/registry.dart';
 import '../exception.dart';
-import '../extract.dart';
 import '../schema.dart';
 import '../schema_extensions.dart';
 import '../types.dart';
 import 'formatters/formatters.dart';
 import 'generate_middleware.dart';
+import 'generate_types.dart';
 import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
-
-final _logger = Logger('genkit');
 
 const _defaultMaxTurns = 5;
 
@@ -75,139 +71,6 @@ ToolDefinition toToolDefinition(Tool tool) {
 /// Model providers can extend this class to provide their own configuration
 /// options.
 abstract class GenerateConfig {}
-
-/// A chunk of a response from a generate action.
-class GenerateResponseChunk<O> extends ModelResponseChunk {
-  final ModelResponseChunk _chunk;
-  final List<ModelResponseChunk> previousChunks;
-  final O? output;
-
-  GenerateResponseChunk(
-    this._chunk, {
-    this.previousChunks = const [],
-    this.output,
-  }) : super(
-         index: _chunk.index,
-         role: _chunk.role,
-         content: _chunk.content,
-         custom: _chunk.custom,
-       );
-
-  // Derived properties
-  String get text =>
-      content.where((p) => p.isText).map((p) => p.text!).join('');
-
-  String get accumulatedText {
-    final prev = previousChunks.map((c) => c.text).join('');
-    return prev + text;
-  }
-
-  /// Tries to parse the output as JSON.
-  ///
-  /// This will be populated if the output format is JSON, or if the output is
-  /// arbitrarily parsed as JSON.
-  O? get jsonOutput {
-    if (output != null) return output;
-    return extractJson(accumulatedText) as O?;
-  }
-
-  ModelResponseChunk get rawChunk => _chunk;
-}
-
-/// A response to an interrupted tool request.
-class InterruptResponse {
-  final ToolRequestPart _part;
-  final dynamic output;
-
-  InterruptResponse(this._part, this.output);
-
-  String? get ref => _part.toolRequest.ref;
-  String get name => _part.toolRequest.name;
-  ToolRequestPart get toolRequestPart => _part;
-
-  Map<String, dynamic> toJson() => {
-    'name': _part.toolRequest.name,
-    'ref': _part.toolRequest.ref,
-    'output': output,
-  };
-}
-
-/// A response from a generate action.
-class GenerateResponseHelper<O> extends GenerateResponse {
-  final ModelResponse _response;
-  final ModelRequest? _request;
-  final O? output;
-
-  GenerateResponseHelper(this._response, {ModelRequest? request, this.output})
-    : _request = request,
-      super(
-        message: _response.message,
-        finishReason: _response.finishReason,
-        finishMessage: _response.finishMessage,
-        latencyMs: _response.latencyMs,
-        usage: _response.usage,
-        custom: _response.custom,
-        raw: _response.raw,
-        request: _response.request, // This uses ModelResponse.request
-        operation: _response.operation,
-        candidates: [
-          Candidate(
-            index: 0,
-            message: _response.message!,
-            finishReason: _response.finishReason,
-            finishMessage: _response.finishMessage,
-            usage: _response.usage,
-            custom: _response.custom,
-          ),
-        ],
-      );
-
-  /// The full history of the conversation, including the request messages and
-  /// the final model response.
-  ///
-  /// This is useful for continuing the conversation in multi-turn scenarios.
-  List<Message> get messages => [
-    ...(_request?.messages ?? _response.request?.messages ?? []),
-    _response.message!,
-  ];
-
-  ModelResponse get modelResponse => _response;
-
-  /// The text content of the response.
-  String get text => _response.text;
-
-  /// The media content of the response.
-  Media? get media => _response.media;
-
-  /// The tool requests in the response.
-  List<ToolRequest> get toolRequests => _response.toolRequests;
-
-  /// The list of tool requests that triggered an interrupt.
-  ///
-  /// These parts contain metadata with the interrupt payload.
-  List<ToolRequestPart> get interrupts {
-    return _response.message?.content
-            .where(
-              (p) =>
-                  p.isToolRequest &&
-                  (p.metadata?.containsKey('interrupt') ?? false),
-            )
-            .map((p) => p.toolRequestPart!)
-            .toList() ??
-        [];
-  }
-
-  /// Tries to parse the output as JSON.
-  ///
-  /// This will be populated if the output format is JSON, or if the output is
-  /// arbitrarily parsed as JSON.
-  O? get jsonOutput {
-    if (output != null) return output;
-    return extractJson(text) as O?;
-  }
-
-  ModelResponse get rawResponse => _response;
-}
 
 ({List<GenerateMiddleware> middlewares, Registry registry}) _resolveMiddlewares(
   Registry registry,
@@ -631,7 +494,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
           final wrapped = GenerateResponseChunk(
             chunk,
             previousChunks: previousChunks,
-            output: _parseChunkOutput(chunk, previousChunks, chunkParser),
+            output: parseChunkOutput(chunk, previousChunks, chunkParser),
           );
           previousChunks.add(chunk);
           onChunk(wrapped);
@@ -645,166 +508,6 @@ Future<GenerateResponseHelper> generateHelper<C>(
   );
 }
 
-class GenerateBidiSession {
-  final BidiActionStream<ModelResponseChunk, ModelResponse, ModelRequest>
-  _session;
-  final Stream<GenerateResponseChunk> stream;
-
-  GenerateBidiSession._(this._session, this.stream);
-
-  void send(dynamic promptOrMessages) {
-    if (promptOrMessages is String) {
-      _session.send(
-        ModelRequest(
-          messages: [
-            Message(
-              role: Role.user,
-              content: [TextPart(text: promptOrMessages)],
-            ),
-          ],
-        ),
-      );
-    } else if (promptOrMessages is List<Part>) {
-      _session.send(
-        ModelRequest(
-          messages: [Message(role: Role.user, content: promptOrMessages)],
-        ),
-      );
-    } else if (promptOrMessages is ModelRequest) {
-      _session.send(promptOrMessages);
-    } else {
-      throw ArgumentError(
-        'Invalid argument type. Expected String, List<Part>, or ModelRequest.',
-      );
-    }
-  }
-
-  Future<void> close() => _session.close();
-}
-
-Future<GenerateBidiSession> runGenerateBidi(
-  Registry registry, {
-  required String modelName,
-  dynamic config,
-  List<String>? tools,
-  String? system,
-}) async {
-  final model =
-      await registry.lookupAction('bidi-model', modelName) as BidiModel?;
-  if (model == null) {
-    throw GenkitException(
-      'Bidi Model $modelName not found',
-      status: StatusCodes.NOT_FOUND,
-    );
-  }
-
-  var toolDefs = <ToolDefinition>[];
-  var toolActions = <Tool>[];
-  if (tools != null) {
-    for (var toolName in tools) {
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
-      if (tool != null) {
-        toolActions.add(tool);
-        toolDefs.add(toToolDefinition(tool));
-      }
-    }
-  }
-
-  final initRequest = ModelRequest(
-    messages: [
-      if (system != null)
-        Message(
-          role: Role.system,
-          content: [TextPart(text: system)],
-        ),
-    ],
-    config: config is Map
-        ? config as Map<String, dynamic>
-        : (config as dynamic)?.toJson(),
-    tools: toolDefs,
-  );
-
-  final session = model.streamBidi(init: initRequest);
-
-  // ignore: close_sinks
-  final outputController = StreamController<GenerateResponseChunk>();
-  final previousChunks = <ModelResponseChunk>[];
-
-  void handleStream() async {
-    try {
-      await for (final chunk in session) {
-        final wrapped = GenerateResponseChunk(
-          chunk,
-          previousChunks: previousChunks,
-          output: _parseChunkOutput(chunk, previousChunks, null),
-        );
-        previousChunks.add(chunk);
-        if (!outputController.isClosed) {
-          outputController.add(wrapped);
-        }
-
-        final toolRequests = chunk.content
-            .where((p) => p.isToolRequest)
-            .map((p) => ToolRequestPart.fromJson(p.toJson()))
-            .toList();
-
-        if (toolRequests.isNotEmpty) {
-          _logger.fine('Processing ${toolRequests.length} tool requests');
-          final toolResponses = <Part>[];
-          for (final toolRequest in toolRequests) {
-            final tool = toolActions.firstWhere(
-              (t) => t.name == toolRequest.toolRequest.name,
-              orElse: () => throw GenkitException(
-                'Tool ${toolRequest.toolRequest.name} not found',
-                status: StatusCodes.NOT_FOUND,
-              ),
-            );
-
-            try {
-              final output = await tool.runRaw(toolRequest.toolRequest.input);
-              toolResponses.add(
-                ToolResponsePart(
-                  toolResponse: ToolResponse(
-                    ref: toolRequest.toolRequest.ref,
-                    name: toolRequest.toolRequest.name,
-                    output: output.result,
-                  ),
-                ),
-              );
-            } catch (e) {
-              toolResponses.add(
-                ToolResponsePart(
-                  toolResponse: ToolResponse(
-                    ref: toolRequest.toolRequest.ref,
-                    name: toolRequest.toolRequest.name,
-                    output: 'Error: $e',
-                  ),
-                ),
-              );
-            }
-          }
-          _logger.fine('toolResponses: $toolResponses');
-          session.send(
-            ModelRequest(
-              messages: [Message(role: Role.tool, content: toolResponses)],
-            ),
-          );
-        }
-      }
-      if (!outputController.isClosed) outputController.close();
-    } catch (e, st) {
-      if (!outputController.isClosed) {
-        outputController.addError(e, st);
-        outputController.close();
-      }
-    }
-  }
-
-  handleStream();
-
-  return GenerateBidiSession._(session, outputController.stream);
-}
-
 dynamic _parseOutput<O>(Message? message, MessageParser? parser) {
   if (parser != null && message != null) {
     return parser(message);
@@ -812,7 +515,7 @@ dynamic _parseOutput<O>(Message? message, MessageParser? parser) {
   return null;
 }
 
-O? _parseChunkOutput<O>(
+O? parseChunkOutput<O>(
   ModelResponseChunk chunk,
   List<ModelResponseChunk> previousChunks,
   ChunkParser<O>? parser,

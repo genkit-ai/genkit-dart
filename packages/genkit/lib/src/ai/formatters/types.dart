@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import '../../types.dart';
-import '../generate.dart';
+import '../generate_types.dart';
 
 /// Function type for parsing a message.
 typedef MessageParser<O> = O Function(Message message);

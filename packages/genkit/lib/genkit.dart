@@ -26,6 +26,9 @@ import 'package:schemantic/schemantic.dart';
 import 'src/ai/embedder.dart';
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
+import 'src/ai/generate_bidi.dart';
+import 'src/ai/generate_middleware.dart';
+import 'src/ai/generate_types.dart';
 import 'src/ai/model.dart';
 import 'src/ai/prompt.dart';
 import 'src/ai/resource.dart';
@@ -44,12 +47,7 @@ import 'src/utils.dart';
 export 'package:genkit/src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 export 'package:genkit/src/ai/formatters/types.dart';
-export 'package:genkit/src/ai/generate.dart'
-    show
-        GenerateBidiSession,
-        GenerateResponseChunk,
-        GenerateResponseHelper,
-        InterruptResponse;
+export 'package:genkit/src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'package:genkit/src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
@@ -57,6 +55,8 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         GenerateMiddlewareRef,
         defineMiddleware,
         middlewareRef;
+export 'package:genkit/src/ai/generate_types.dart'
+    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
 export 'package:genkit/src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 export 'package:genkit/src/ai/model.dart'
@@ -407,7 +407,7 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
-    List<dynamic>? use,
+    List<GenerateMiddlewareRef>? use,
 
     /// Optional data to resume an interrupted generation session.
     ///
@@ -511,7 +511,7 @@ class Genkit {
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    List<dynamic>? use,
+    List<GenerateMiddlewareRef>? use,
     List<InterruptResponse>? interruptRespond,
     List<ToolRequestPart>? interruptRestart,
   }) {
