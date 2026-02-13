@@ -27,6 +27,8 @@ import 'src/ai/embedder.dart';
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
 import 'src/ai/model.dart';
+import 'src/ai/prompt.dart';
+import 'src/ai/resource.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
 import 'src/core/flow.dart';
@@ -59,6 +61,14 @@ export 'package:genkit/src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
+export 'package:genkit/src/ai/prompt.dart' show PromptAction, PromptFn;
+export 'package:genkit/src/ai/resource.dart'
+    show
+        ResourceAction,
+        ResourceFn,
+        ResourceInput,
+        ResourceOutput,
+        createResourceMatcher;
 export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
 export 'package:genkit/src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata;
@@ -185,6 +195,54 @@ class Genkit {
     );
     registry.register(tool);
     return tool;
+  }
+
+  PromptAction<I> definePrompt<I>({
+    required String name,
+    String? description,
+    SchemanticType<I>? inputSchema,
+    required PromptFn<I> fn,
+    Map<String, dynamic>? metadata,
+  }) {
+    final prompt = PromptAction<I>(
+      name: name,
+      description: description,
+      inputSchema: inputSchema,
+      fn: fn,
+      metadata: metadata,
+    );
+    registry.register(prompt);
+    return prompt;
+  }
+
+  ResourceAction defineResource({
+    String? name,
+    String? uri,
+    String? template,
+    String? description,
+    Map<String, dynamic>? metadata,
+    required ResourceFn fn,
+  }) {
+    final resourceName = name ?? uri ?? template;
+    if (resourceName == null) {
+      throw GenkitException(
+        'Resource must specify a name, uri, or template.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    final resourceMetadata = <String, dynamic>{
+      ...?metadata,
+      'resource': {'uri': uri, 'template': template},
+    };
+    final resource = ResourceAction(
+      name: resourceName,
+      description: description,
+      metadata: resourceMetadata,
+      matches: createResourceMatcher(uri: uri, template: template),
+      fn: fn,
+    );
+    registry.register(resource);
+    return resource;
   }
 
   Model defineModel({
