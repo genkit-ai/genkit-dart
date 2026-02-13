@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,6 +7,15 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_middleware/filesystem.dart';
 import 'package:genkit_middleware/skills.dart';
 import 'package:genkit_middleware/tool_approval.dart';
+
+final _lines = StreamIterator(stdin.transform(utf8.decoder).transform(const LineSplitter()));
+
+Future<String?> _readLineAsync() async {
+  if (await _lines.moveNext()) {
+    return _lines.current;
+  }
+  return null;
+}
 
 void main() async {
   configureCollectorExporter();
@@ -57,7 +67,7 @@ void main() async {
 
   while (true) {
     stdout.write('\n> ');
-    final input = stdin.readLineSync();
+    final input = await _readLineAsync();
     if (input == null || input.trim().toLowerCase() == 'exit') {
       break;
     }
@@ -98,7 +108,7 @@ void main() async {
           print('Input: ${jsonEncode(interrupt.toolRequest.input)}');
 
           stdout.write('Approve? (y/N): ');
-          final approval = stdin.readLineSync();
+          final approval = await _readLineAsync();
           if (approval != null && approval.trim().toLowerCase() == 'y') {
             approvedInterrupts.add(
               ToolRequestPart(
