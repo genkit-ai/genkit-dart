@@ -14,6 +14,7 @@ workspace:
   - packages/genkit_shelf
   - packages/genkit_chrome
   - packages/schemantic
+  - packages/genkit_middleware
   - testapps/agentic_patterns
   - testapps/ai_features
   - testapps/basic
