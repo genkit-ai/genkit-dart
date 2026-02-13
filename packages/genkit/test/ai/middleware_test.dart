@@ -130,7 +130,12 @@ void main() {
         create: ([c]) => TestMiddleware(log, 'mw2'),
       );
 
-      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([mw1, mw2])]);
+      genkit = Genkit(
+        isDevEnv: false,
+        plugins: [
+          MiddlewarePlugin([mw1, mw2]),
+        ],
+      );
 
       genkit.defineModel(
         name: 'test-model',
@@ -178,7 +183,10 @@ void main() {
         model: modelRef('test-model'),
         prompt: 'hello',
         toolNames: ['test-tool'],
-        use: [middlewareRef(name: 'mw1'), middlewareRef(name: 'mw2')],
+        use: [
+          middlewareRef(name: 'mw1'),
+          middlewareRef(name: 'mw2'),
+        ],
       );
 
       // Verify log order
@@ -235,7 +243,12 @@ void main() {
         name: 'interceptor',
         create: ([_]) => InterceptorMiddleware(),
       );
-      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([interceptor])]);
+      genkit = Genkit(
+        isDevEnv: false,
+        plugins: [
+          MiddlewarePlugin([interceptor]),
+        ],
+      );
 
       genkit.defineModel(
         name: 'echo-model',
@@ -320,7 +333,12 @@ void main() {
         name: 'injected-tool-mw',
         create: ([_]) => ToolInjectingMiddleware([injectedTool]),
       );
-      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([mw])]);
+      genkit = Genkit(
+        isDevEnv: false,
+        plugins: [
+          MiddlewarePlugin([mw]),
+        ],
+      );
 
       genkit.defineModel(
         name: 'tool-calling-model',
@@ -355,9 +373,7 @@ void main() {
       await genkit.generate(
         model: modelRef('tool-calling-model'),
         prompt: 'call tool',
-        use: [
-          middlewareRef(name: 'injected-tool-mw'),
-        ],
+        use: [middlewareRef(name: 'injected-tool-mw')],
       );
 
       expect(log, contains('tool:exec'));
@@ -368,12 +384,14 @@ void main() {
       final mw1 = TestMiddleware(log, 'mw1');
       var toolCallCount = 0;
 
-      final mdef1 = defineMiddleware(
-        name: 'mw1',
-        create: ([_]) => mw1,
-      );
+      final mdef1 = defineMiddleware(name: 'mw1', create: ([_]) => mw1);
 
-      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([mdef1])]);
+      genkit = Genkit(
+        isDevEnv: false,
+        plugins: [
+          MiddlewarePlugin([mdef1]),
+        ],
+      );
 
       genkit.defineModel(
         name: 'test-model-resume',

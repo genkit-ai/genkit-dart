@@ -111,10 +111,7 @@ Future<GenerateResponseHelper> generate<C>({
     messages: messages,
     model: model,
     config: config,
-    tools: [
-      ...?tools?.map((t) => t.name),
-      ...?toolNames,
-    ],
+    tools: [...?tools?.map((t) => t.name), ...?toolNames],
     toolChoice: toolChoice,
     returnToolRequests: returnToolRequests,
     maxTurns: maxTurns,

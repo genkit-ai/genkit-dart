@@ -344,7 +344,11 @@ class Genkit {
     List<String>? toolNames,
     String? system,
   }) {
-    final resolved = _resolveTools(registry, tools: tools, toolNames: toolNames);
+    final resolved = _resolveTools(
+      registry,
+      tools: tools,
+      toolNames: toolNames,
+    );
     return runGenerateBidi(
       resolved.registry,
       modelName: model,
@@ -362,10 +366,11 @@ class Genkit {
     List<Tool>? tools,
     List<String>? toolNames,
   }) {
-    if ((tools == null || tools.isEmpty) && (toolNames == null || toolNames.isEmpty)) {
+    if ((tools == null || tools.isEmpty) &&
+        (toolNames == null || toolNames.isEmpty)) {
       return (registry: registry, toolNames: null);
     }
-    
+
     final resolvedToolNames = <String>[...?toolNames];
 
     if (tools == null || tools.isEmpty) {
@@ -447,7 +452,11 @@ class Genkit {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = _resolveTools(registry, tools: tools, toolNames: toolNames);
+    final resolved = _resolveTools(
+      registry,
+      tools: tools,
+      toolNames: toolNames,
+    );
     final rawResponse = await generateHelper(
       resolved.registry,
       prompt: prompt,
@@ -460,7 +469,11 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
-      middlewares: use?.map<GenerateMiddlewareOneof>((mw) => (middlewareRef: mw, middlewareInstance: null)).toList(),
+      middlewares: use
+          ?.map<GenerateMiddlewareOneof>(
+            (mw) => (middlewareRef: mw, middlewareInstance: null),
+          )
+          .toList(),
       resume: interruptRespond,
       restart: interruptRestart,
       onChunk: (c) {

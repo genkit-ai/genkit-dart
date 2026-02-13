@@ -410,8 +410,10 @@ Future<GenerateResponseHelper> runGenerateAction(
   return composedGenerate(options, ctx);
 }
 
-typedef GenerateMiddlewareOneof = ({GenerateMiddleware? middlewareInstance, GenerateMiddlewareRef? middlewareRef});
-
+typedef GenerateMiddlewareOneof = ({
+  GenerateMiddleware? middlewareInstance,
+  GenerateMiddlewareRef? middlewareRef,
+});
 
 Future<GenerateResponseHelper> generateHelper<C>(
   Registry registry, {

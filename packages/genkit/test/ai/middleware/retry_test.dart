@@ -136,7 +136,6 @@ void main() {
       expect(attempts, 1);
     });
 
-
     test('should NOT retry model if retryModel is false', () async {
       var attempts = 0;
 
