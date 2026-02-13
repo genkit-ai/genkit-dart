@@ -10,11 +10,14 @@ A collection of useful middleware for Genkit Dart to enhance your agent's capabi
 
 ## Installation
 
-Add the dependency to your `pubspec.yaml`:
+Install `genkit_middleware` package:
 
-```yaml
-dependencies:
-  genkit_middleware: ^0.0.1
+```bash
+dart pub add genkit_middleware
+
+# or
+
+flutter pub add genkit_middleware
 ```
 
 ## Setup
