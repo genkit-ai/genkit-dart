@@ -26,6 +26,9 @@ import 'package:schemantic/schemantic.dart';
 import 'src/ai/embedder.dart';
 import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
+import 'src/ai/generate_bidi.dart';
+import 'src/ai/generate_middleware.dart';
+import 'src/ai/generate_types.dart';
 import 'src/ai/model.dart';
 import 'src/ai/prompt.dart';
 import 'src/ai/resource.dart';
@@ -44,12 +47,7 @@ import 'src/utils.dart';
 export 'package:genkit/src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 export 'package:genkit/src/ai/formatters/types.dart';
-export 'package:genkit/src/ai/generate.dart'
-    show
-        GenerateBidiSession,
-        GenerateResponseChunk,
-        GenerateResponseHelper,
-        InterruptResponse;
+export 'package:genkit/src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'package:genkit/src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
@@ -57,6 +55,8 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         GenerateMiddlewareRef,
         defineMiddleware,
         middlewareRef;
+export 'package:genkit/src/ai/generate_types.dart'
+    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
 export 'package:genkit/src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 export 'package:genkit/src/ai/model.dart'
@@ -340,10 +340,15 @@ class Genkit {
   Future<GenerateBidiSession> generateBidi({
     required String model,
     dynamic config,
-    List<dynamic>? tools,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? system,
   }) {
-    final resolved = _resolveTools(registry, tools);
+    final resolved = _resolveTools(
+      registry,
+      tools: tools,
+      toolNames: toolNames,
+    );
     return runGenerateBidi(
       resolved.registry,
       modelName: model,
@@ -357,37 +362,29 @@ class Genkit {
   ///
   /// Returns a new registry with embedded tools if necessary.
   ({Registry registry, List<String>? toolNames}) _resolveTools(
-    Registry registry,
-    List<dynamic>? tools,
-  ) {
-    if (tools == null || tools.isEmpty) {
+    Registry registry, {
+    List<Tool>? tools,
+    List<String>? toolNames,
+  }) {
+    if ((tools == null || tools.isEmpty) &&
+        (toolNames == null || toolNames.isEmpty)) {
       return (registry: registry, toolNames: null);
     }
-    final toolNames = <String>[];
-    final toolsToRegister = <Tool>[];
 
-    for (final t in tools) {
-      if (t is String) {
-        toolNames.add(t);
-      } else if (t is Tool) {
-        toolsToRegister.add(t);
-        toolNames.add(t.name);
-      } else {
-        throw ArgumentError(
-          'Tools must be either a String (tool name) or a Tool object. Got: $t',
-        );
-      }
-    }
+    final resolvedToolNames = <String>[...?toolNames];
 
-    if (toolsToRegister.isEmpty) {
-      return (registry: registry, toolNames: toolNames);
+    if (tools == null || tools.isEmpty) {
+      return (registry: registry, toolNames: resolvedToolNames);
     }
 
     final childRegistry = Registry.childOf(registry);
-    for (final tool in toolsToRegister) {
+    for (final tool in tools) {
       childRegistry.register(tool);
+      if (!resolvedToolNames.contains(tool.name)) {
+        resolvedToolNames.add(tool.name);
+      }
     }
-    return (registry: childRegistry, toolNames: toolNames);
+    return (registry: childRegistry, toolNames: resolvedToolNames);
   }
 
   Future<GenerateResponseHelper<S>> generate<C, S>({
@@ -395,7 +392,8 @@ class Genkit {
     List<Message>? messages,
     required ModelRef<C> model,
     C? config,
-    List<dynamic>? tools,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
@@ -407,7 +405,7 @@ class Genkit {
     String? outputContentType,
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk>? onChunk,
-    List<dynamic>? use,
+    List<GenerateMiddlewareRef>? use,
 
     /// Optional data to resume an interrupted generation session.
     ///
@@ -454,7 +452,11 @@ class Genkit {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = _resolveTools(registry, tools);
+    final resolved = _resolveTools(
+      registry,
+      tools: tools,
+      toolNames: toolNames,
+    );
     final rawResponse = await generateHelper(
       resolved.registry,
       prompt: prompt,
@@ -467,7 +469,11 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
-      middlewares: use,
+      middlewares: use
+          ?.map<GenerateMiddlewareOneof>(
+            (mw) => (middlewareRef: mw, middlewareInstance: null),
+          )
+          .toList(),
       resume: interruptRespond,
       restart: interruptRestart,
       onChunk: (c) {
@@ -500,7 +506,8 @@ class Genkit {
     List<Message>? messages,
     required ModelRef<C> model,
     C? config,
-    List<dynamic>? tools,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
@@ -511,7 +518,7 @@ class Genkit {
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    List<dynamic>? use,
+    List<GenerateMiddlewareRef>? use,
     List<InterruptResponse>? interruptRespond,
     List<ToolRequestPart>? interruptRestart,
   }) {
@@ -527,6 +534,7 @@ class Genkit {
           model: model,
           config: config,
           tools: tools,
+          toolNames: toolNames,
           toolChoice: toolChoice,
           returnToolRequests: returnToolRequests,
           maxTurns: maxTurns,

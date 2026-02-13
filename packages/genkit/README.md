@@ -115,7 +115,7 @@ final weatherTool = ai.defineTool(
 final response = await ai.generate(
   model: googleAI.gemini('gemini-2.5-flash'),
   prompt: 'What\'s the weather like in San Francisco?',
-  tools: ['getWeather'],
+  toolNames: ['getWeather'],
 );
 print(response.text);
 ```

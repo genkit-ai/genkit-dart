@@ -65,7 +65,7 @@ void main() {
       final response = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'trigger interrupt',
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       expect(response.finishReason, FinishReason.interrupted);
@@ -134,7 +134,7 @@ void main() {
       final response1 = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'trigger interrupt',
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       expect(response1.finishReason, FinishReason.interrupted);
@@ -152,7 +152,7 @@ void main() {
       final response2 = await genkit.generate(
         model: modelRef(modelName),
         messages: history,
-        tools: [toolName],
+        toolNames: [toolName],
         interruptRespond: [
           InterruptResponse(
             response1.message!.content.first.toolRequestPart!,
@@ -227,7 +227,7 @@ void main() {
       final response = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'go',
-        tools: [toolSafe, toolInterrupt],
+        toolNames: [toolSafe, toolInterrupt],
       );
 
       expect(response.finishReason, FinishReason.interrupted);

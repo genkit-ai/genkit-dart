@@ -39,7 +39,7 @@ ai.defineTool(
 final response = await ai.generate(
   model: firebaseAI.gemini('gemini-2.5-flash'),
   prompt: 'What is the weather in Boston?',
-  tools: ['getWeather'],
+  toolNames: ['getWeather'],
 );
 ```
 

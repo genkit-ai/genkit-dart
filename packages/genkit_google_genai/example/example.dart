@@ -75,7 +75,7 @@ void main(List<String> args) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-3-flash-preview'),
         prompt: prompt,
-        tools: ['getWeather'],
+        toolNames: ['getWeather'],
       );
       return response.text;
     },

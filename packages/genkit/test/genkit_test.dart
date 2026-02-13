@@ -196,7 +196,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Use the test tool',
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       expect(result.text, 'Tool output: Hello, world!');

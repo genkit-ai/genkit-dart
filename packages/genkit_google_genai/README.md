@@ -50,7 +50,7 @@ void main() async {
   final response = await ai.generate(
     model: googleAI.gemini('gemini-2.5-flash'),
     prompt: 'What is the weather in Boston?',
-    tools: ['getWeather'],
+    toolNames: ['getWeather'],
   );
   
   print(response.text);

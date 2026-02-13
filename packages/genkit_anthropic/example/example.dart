@@ -79,7 +79,7 @@ void main(List<String> args) {
       final response = await ai.generate(
         model: anthropic.model('claude-sonnet-4-5'),
         prompt: prompt,
-        tools: ['calculator'],
+        toolNames: ['calculator'],
       );
       return response.text;
     },

@@ -27,6 +27,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'src/ai/generate.dart';
 import 'src/ai/generate_middleware.dart';
+import 'src/ai/generate_types.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
@@ -42,6 +43,7 @@ Future<GenerateResponseHelper> generate<C>({
   required Model<C> model,
   C? config,
   List<Tool>? tools,
+  List<String>? toolNames,
   String? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
@@ -109,14 +111,16 @@ Future<GenerateResponseHelper> generate<C>({
     messages: messages,
     model: model,
     config: config,
-    tools: tools?.map((t) => t.name).toList(),
+    tools: [...?tools?.map((t) => t.name), ...?toolNames],
     toolChoice: toolChoice,
     returnToolRequests: returnToolRequests,
     maxTurns: maxTurns,
     output: outputConfig,
     context: context,
     onChunk: onChunk,
-    middlewares: use,
+    middlewares: use
+        ?.map((mw) => (middlewareInstance: mw, middlewareRef: null))
+        .toList(),
     resume: interruptRespond,
     restart: interruptRestart,
   );
@@ -128,6 +132,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   List<Message>? messages,
   C? config,
   List<Tool>? tools,
+  List<String>? toolNames,
   String? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
@@ -154,6 +159,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
         model: model,
         config: config,
         tools: tools,
+        toolNames: toolNames,
         toolChoice: toolChoice,
         returnToolRequests: returnToolRequests,
         maxTurns: maxTurns,

@@ -88,7 +88,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
           ),
         ],
         prompt: input.question,
-        tools: [menuRagTool.name],
+        toolNames: [menuRagTool.name],
       );
       return llmResponse.text;
     },

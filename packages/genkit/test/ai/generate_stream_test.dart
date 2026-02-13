@@ -102,7 +102,7 @@ void main() {
       await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Start',
-        tools: [toolName],
+        toolNames: [toolName],
         onChunk: chunks.add,
       );
 

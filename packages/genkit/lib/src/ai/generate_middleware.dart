@@ -16,7 +16,7 @@ import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
 import '../types.dart';
-import 'generate.dart';
+import 'generate_types.dart';
 import 'tool.dart';
 
 /// Middleware for the processing of a Generation request.
