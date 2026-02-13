@@ -346,6 +346,106 @@ void main() {
 
       expect(log, contains('tool:exec'));
     });
+
+    test('should trigger middleware when restarting tools via resume', () async {
+      final log = <String>[];
+      final mw1 = TestMiddleware(log, 'mw1');
+      var toolCallCount = 0;
+
+      genkit.defineModel(
+        name: 'test-model-resume',
+        fn: (req, ctx) async {
+          log.add('model:exec');
+          if (req.messages.any((m) => m.role == Role.tool)) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Final Answer')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'test-tool',
+                    ref: 'ref1',
+                    input: {'name': 'foo'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'test-tool',
+        description: 'Test Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, ctx) async {
+          log.add('tool:exec');
+          if (toolCallCount == 0) {
+            toolCallCount++;
+            ctx.interrupt('PLZ_RESTART');
+          }
+          return 'bar';
+        },
+      );
+
+      final response1 = await genkit.generate(
+        model: modelRef('test-model-resume'),
+        prompt: 'hello',
+        tools: ['test-tool'],
+        use: [mw1],
+      );
+
+      expect(response1.finishReason, FinishReason.interrupted);
+      final toolReq = response1.message!.content.first.toolRequestPart!;
+
+      final history = [
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'hello')],
+        ),
+        response1.message!,
+      ];
+
+      log.clear(); // Reset log to only test restart behavior
+
+      final response2 = await genkit.generate(
+        model: modelRef('test-model-resume'),
+        messages: history,
+        tools: ['test-tool'],
+        use: [mw1],
+        interruptRestart: [ToolRequestPart(toolRequest: toolReq.toolRequest)],
+      );
+
+      expect(response2.text, 'Final Answer');
+
+      // The restart should trigger the tool middleware specifically.
+      // Additionally, the generate middleware around the initial generate() call should wrap it.
+      // Verify log order
+      expect(
+        log,
+        containsAllInOrder([
+          'mw1:generate:start',
+          'mw1:tool:test-tool:start',
+          'tool:exec',
+          'mw1:tool:test-tool:end',
+          'mw1:generate:start',
+          'mw1:model:start',
+          'model:exec',
+          'mw1:model:end',
+          'mw1:generate:end',
+          'mw1:generate:end',
+        ]),
+      );
+    });
   });
 }
 

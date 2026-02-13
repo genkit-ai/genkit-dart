@@ -29,6 +29,15 @@ void main() async {
     final schema = json.decode(response.body) as Map<String, dynamic>;
     final definitions = schema['\$defs'] as Map<String, dynamic>;
 
+    if (definitions.containsKey('GenerateActionOptions')) {
+      final genOptions =
+          definitions['GenerateActionOptions'] as Map<String, dynamic>;
+      final props = genOptions['properties'] as Map<String, dynamic>? ?? {};
+      if (props.containsKey('resume')) {
+        definitions['GenerateResumeOptions'] = props['resume'];
+      }
+    }
+
     final classGenerator = ClassGenerator(definitions);
     final generatedContent = classGenerator.generate(_allowlist);
 
@@ -92,6 +101,7 @@ const _allowlist = {
   'Role',
   'DocumentData',
   'GenerateActionOptions',
+  'GenerateResumeOptions',
   'GenerateActionOutputConfig',
   'EmbedRequest',
   'EmbedResponse',

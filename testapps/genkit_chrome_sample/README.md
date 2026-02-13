@@ -7,3 +7,5 @@ dart run build_runner serve
 *   Run `await LanguageModel.availability()` -> should return `"readily"`.
 
 Then open [http://localhost:8080](http://localhost:8080) in Chrome.
+
+For Chrome setup requirements, see the [genkit_chrome README](../../packages/genkit_chrome/README.md).
