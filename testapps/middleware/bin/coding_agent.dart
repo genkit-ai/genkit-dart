@@ -68,7 +68,6 @@ void main() async {
       late GenerateResponseHelper response;
 
       while (true) {
-        print(const JsonEncoder.withIndent('  ').convert(currentMessages));
         response = await ai.generate(
           model: googleAI.gemini('gemini-3-flash-preview'),
           prompt: interruptRestart == null ? input : null,
@@ -79,6 +78,7 @@ void main() async {
             filesystem(rootDirectory: fsRoot),
           ],
           interruptRestart: interruptRestart,
+          maxTurns: 20,
         );
 
         if (response.finishReason != FinishReason.interrupted) {

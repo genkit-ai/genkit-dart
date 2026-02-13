@@ -179,13 +179,21 @@ class SkillsMiddleware extends GenerateMiddleware {
       
       Part? injectedPart;
       Message? injectedMessage;
+      int injectedMsgIndex = -1;
+      int injectedPartIndex = -1;
 
-      for (final msg in messages) {
-        for (final part in msg.content) {
-          if (part is TextPart && part.metadata?[metadataKey] == true) {
-            injectedPart = part;
-            injectedMessage = msg;
-            break;
+      for (int i = 0; i < messages.length; i++) {
+        final msg = messages[i];
+        for (int j = 0; j < msg.content.length; j++) {
+          final part = msg.content[j];
+          if (part is TextPart) {
+            if (part.metadata?[metadataKey] == true || part.text.trim().startsWith(skillsTag)) {
+              injectedPart = part;
+              injectedMessage = msg;
+              injectedMsgIndex = i;
+              injectedPartIndex = j;
+              break;
+            }
           }
         }
         if (injectedPart != null) break;
@@ -194,18 +202,15 @@ class SkillsMiddleware extends GenerateMiddleware {
       if (injectedPart != null) {
          // Found existing part
          if (injectedPart.text != systemPromptText) {
-            // Update text. Since Part is immutable in Dart usually (or effectively), 
-            // we need to replace the part in the message.
-            final newContent = injectedMessage!.content.map((p) {
-               if (p == injectedPart) {
-                 return TextPart(text: systemPromptText, metadata: {metadataKey: true});
-               }
-               return p;
-            }).toList();
+            final newContent = List<Part>.from(injectedMessage!.content);
+            newContent[injectedPartIndex] = TextPart(text: systemPromptText, metadata: {metadataKey: true});
             
-            final newMsg = Message(role: injectedMessage.role, content: newContent);
-            final index = messages.indexOf(injectedMessage);
-            messages[index] = newMsg;
+            final newMsg = Message(
+              role: injectedMessage.role, 
+              content: newContent,
+              metadata: injectedMessage.metadata,
+            );
+            messages[injectedMsgIndex] = newMsg;
          }
       } else {
         // Not found, find system message

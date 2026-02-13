@@ -180,5 +180,61 @@ This is a test skill.
         use: [mw],
       );
     });
+    test('should NOT duplicate skill metadata upon repeated generate calls (idempotency)', () async {
+      final mw = SkillsMiddleware([skillsDir.path]);
+      
+      int executionCount = 0;
+      genkit.defineModel(
+        name: 'idempotent-model',
+        fn: (req, ctx) async {
+          executionCount++;
+          
+          int skillsTagCount = 0;
+          for (final msg in req.messages) {
+            for (final part in msg.content) {
+               if (part is TextPart && part.text.trim().startsWith('<skills>')) {
+                 skillsTagCount++;
+               }
+            }
+          }
+          
+          if (executionCount == 2) {
+             expect(skillsTagCount, equals(1), reason: 'Skills metadata should not be duplicated');
+          }
+          
+          return ModelResponse(
+             finishReason: FinishReason.stop,
+             message: Message(role: Role.model, content: [TextPart(text: 'ok')]),
+          );
+        },
+      );
+      
+      final systemPromptText = '''<skills>
+You have access to a library of skills that serve as specialized instructions/personas.
+Strongly prefer to use them when working on anything related to them.
+Only use them once to load the context.
+Here are the available skills:
+ - test_skill - A test description.
+</skills>''';
+
+      final optionsMessages = [
+        Message(role: Role.system, content: [
+           TextPart(text: 'System msg'),
+           TextPart(text: systemPromptText, metadata: {'skills-instructions': true})
+        ]),
+        Message(role: Role.user, content: [TextPart(text: 'Hello')]),
+        Message(role: Role.model, content: [TextPart(text: 'ok')])
+      ];
+
+      // We run generate with the already populated array simulation of Turn 2
+      await genkit.generate(
+         model: modelRef('idempotent-model'),
+         messages: optionsMessages,
+         use: [mw],
+      );
+      
+      // executionCount should be 1, because we skipped Turn 1
+      expect(executionCount, equals(1));
+    });
   });
 }
