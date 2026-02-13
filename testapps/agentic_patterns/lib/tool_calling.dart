@@ -51,7 +51,7 @@ Flow<ToolCallingInput, String, void, void> defineToolCallingFlow(
       final response = await ai.generate(
         model: geminiFlash,
         prompt: input.prompt,
-        tools: [getWeather.name],
+        toolNames: [getWeather.name],
       );
 
       return response.text;

@@ -56,7 +56,7 @@ Future<void> main(List<String> args) async {
       Answers are provided numbered starting from 1. When answer is provided, be dramatic about
       saying whether the answer is correct or wrong.
     ''',
-    tools: ['present_questions'],
+    toolNames: ['present_questions'],
   );
 
   if (response.finishReason == FinishReason.interrupted) {
@@ -89,7 +89,7 @@ Future<void> main(List<String> args) async {
     final response2 = await ai.generate(
       model: googleAI.gemini('gemini-2.5-flash'),
       messages: response.messages,
-      tools: ['present_questions'],
+      toolNames: ['present_questions'],
       interruptRespond: [InterruptResponse(interruptPart, userSelection)],
     );
 
