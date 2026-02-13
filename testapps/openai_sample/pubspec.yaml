@@ -1,6 +1,6 @@
 name: openai_sample
 publish_to: none
-description: Genkit Dart OpenAI compatibility test application
+description: Genkit Dart OpenAI test application
 resolution: workspace
 
 environment:

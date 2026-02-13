@@ -48,7 +48,7 @@ class _ToolCallAccumulator {
 }
 
 /// Core plugin implementation
-class OpenAICompatPlugin extends GenkitPlugin {
+class OpenAIPlugin extends GenkitPlugin {
   @override
   String get name => 'openai';
 
@@ -57,7 +57,7 @@ class OpenAICompatPlugin extends GenkitPlugin {
   final List<CustomModelDefinition> customModels;
   final Map<String, String>? headers;
 
-  OpenAICompatPlugin({
+  OpenAIPlugin({
     this.apiKey,
     this.baseUrl,
     this.customModels = const [],

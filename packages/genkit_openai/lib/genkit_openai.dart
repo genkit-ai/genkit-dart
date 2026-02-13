@@ -88,7 +88,7 @@ class OpenAICompatPluginHandle {
     List<CustomModelDefinition>? models,
     Map<String, String>? headers,
   }) {
-    return OpenAICompatPlugin(
+    return OpenAIPlugin(
       apiKey: apiKey,
       baseUrl: baseUrl,
       customModels: models ?? const [],

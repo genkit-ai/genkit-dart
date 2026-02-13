@@ -41,7 +41,7 @@ Future<void> main(List<String> args) async {
   // Initialize Genkit with OpenAI plugin
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
-  print('OpenAI Compatibility Test Application');
+  print('OpenAI Test Application');
   print('======================================\n');
 
   // Define weather tool

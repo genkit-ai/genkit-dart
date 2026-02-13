@@ -1,4 +1,4 @@
-# OpenAI Compatibility Test Application
+# OpenAI Test Application
 
 This directory contains a test application for the `genkit_openai` package, demonstrating various features and use cases.
 
