@@ -223,8 +223,7 @@ class SkillsMiddleware extends GenerateMiddleware {
         for (var j = 0; j < msg.content.length; j++) {
           final part = msg.content[j];
           if (part.isText) {
-            if (part.metadata?[metadataKey] == true ||
-                part.text!.trim().startsWith(skillsTag)) {
+            if (part.metadata?[metadataKey] == true) {
               injectedPart = part;
               injectedMessage = msg;
               injectedMsgIndex = i;
