@@ -470,7 +470,7 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
-      middlewares: use
+      middleware: use
           ?.map<GenerateMiddlewareOneof>(
             (mw) => (middlewareRef: mw, middlewareInstance: null),
           )

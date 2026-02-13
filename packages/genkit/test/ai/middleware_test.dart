@@ -507,10 +507,10 @@ class MiddlewarePlugin extends GenkitPlugin {
   @override
   String name = 'mw-plugin';
 
-  final List<GenerateMiddlewareDef> _middlewares;
+  final List<GenerateMiddlewareDef> _middleware;
 
-  MiddlewarePlugin(this._middlewares);
+  MiddlewarePlugin(this._middleware);
 
   @override
-  List<GenerateMiddlewareDef> middleware() => _middlewares;
+  List<GenerateMiddlewareDef> middleware() => _middleware;
 }

@@ -14,6 +14,7 @@
 
 import 'dart:io';
 import 'package:genkit/genkit.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
 
@@ -63,6 +64,8 @@ class _SkillInfo {
   _SkillInfo(this.path, this.description);
 }
 
+final _logger = Logger('genkit_middleware.skills');
+
 class SkillsMiddleware extends GenerateMiddleware {
   final List<String> skillPaths;
   final Map<String, _SkillInfo> _skillCache = {};
@@ -88,28 +91,39 @@ class SkillsMiddleware extends GenerateMiddleware {
     };
   }
 
-  void _scanSkills() {
+  bool _scanned = false;
+
+  Future<void> _ensureSkillsScanned() async {
+    if (_scanned) return;
+    _scanned = true;
     _skillCache.clear();
+
     for (final path in skillPaths) {
       final dir = Directory(path);
-      if (!dir.existsSync()) continue;
+      if (!await dir.exists()) {
+        _logger.warning('Skills directory not found: $path');
+        continue;
+      }
 
       try {
-        for (final entity in dir.listSync()) {
+        await for (final entity in dir.list()) {
           if (entity is Directory && !p.basename(entity.path).startsWith('.')) {
             final skillMd = File(p.join(entity.path, 'SKILL.md'));
-            if (skillMd.existsSync()) {
+            if (await skillMd.exists()) {
               final skillName = p.basename(entity.path);
               String? description;
 
               try {
-                final content = skillMd.readAsStringSync();
+                final content = await skillMd.readAsString();
                 final fm = _parseFrontmatter(content);
                 if (fm != null) {
                   description = fm['description'];
                 }
               } catch (e) {
-                // Ignore errors reading description
+                _logger.warning(
+                  'Failed to read skill metadata for $skillName',
+                  e,
+                );
               }
 
               _skillCache[skillName] = _SkillInfo(
@@ -120,14 +134,13 @@ class SkillsMiddleware extends GenerateMiddleware {
           }
         }
       } catch (e) {
-        // Ignore directory listing errors
+        _logger.warning('Error scanning skills directory: $path', e);
       }
     }
   }
 
   @override
   List<Tool> get tools {
-    _scanSkills();
     return [
       Tool<UseSkillInput, String>(
         name: 'use_skill',
@@ -135,6 +148,7 @@ class SkillsMiddleware extends GenerateMiddleware {
         inputSchema: UseSkillInput.$schema,
         outputSchema: stringSchema(),
         fn: (input, _) async {
+          await _ensureSkillsScanned();
           final skillName = input.skillName;
           final info = _skillCache[skillName];
           if (info == null) {
@@ -142,14 +156,12 @@ class SkillsMiddleware extends GenerateMiddleware {
               'Access denied: Path is outside of skills directory or skill not found.',
             );
           }
-          // In TS, there is a check for path traversal inside resolvePath.
-          // Here, we rely on _skillCache which is built from scanning valid directories,
-          // so we only access files we explicitly found.
 
           try {
             final content = await File(info.path).readAsString();
             return content;
           } catch (e) {
+            _logger.severe('Failed to read skill content "$skillName"', e);
             throw Exception('Failed to read skill "$skillName": $e');
           }
         },
@@ -167,7 +179,7 @@ class SkillsMiddleware extends GenerateMiddleware {
     )
     next,
   ) async {
-    _scanSkills();
+    await _ensureSkillsScanned();
     // TS impl: if (skillsList.length > 0)
     // Here we check _skillCache which corresponds to skillsList
 

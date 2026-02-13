@@ -118,7 +118,7 @@ Future<GenerateResponseHelper> generate<C>({
     output: outputConfig,
     context: context,
     onChunk: onChunk,
-    middlewares: use
+    middleware: use
         ?.map((mw) => (middlewareInstance: mw, middlewareRef: null))
         .toList(),
     resume: interruptRespond,

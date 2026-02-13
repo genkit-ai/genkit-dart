@@ -21,7 +21,7 @@ import 'tool.dart';
 
 /// Middleware for the processing of a Generation request.
 abstract class GenerateMiddleware {
-  /// Middlewares can act as a "kit" by providing tools directly.
+  /// Middleware can act as a "kit" by providing tools directly.
   /// These tools will be added to the tool list of the `generate` call.
   List<Tool>? get tools => null;
 
