@@ -340,10 +340,11 @@ class Genkit {
   Future<GenerateBidiSession> generateBidi({
     required String model,
     dynamic config,
-    List<dynamic>? tools,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? system,
   }) {
-    final resolved = _resolveTools(registry, tools);
+    final resolved = _resolveTools(registry, tools: tools, toolNames: toolNames);
     return runGenerateBidi(
       resolved.registry,
       modelName: model,
@@ -357,37 +358,28 @@ class Genkit {
   ///
   /// Returns a new registry with embedded tools if necessary.
   ({Registry registry, List<String>? toolNames}) _resolveTools(
-    Registry registry,
-    List<dynamic>? tools,
-  ) {
-    if (tools == null || tools.isEmpty) {
+    Registry registry, {
+    List<Tool>? tools,
+    List<String>? toolNames,
+  }) {
+    if ((tools == null || tools.isEmpty) && (toolNames == null || toolNames.isEmpty)) {
       return (registry: registry, toolNames: null);
     }
-    final toolNames = <String>[];
-    final toolsToRegister = <Tool>[];
+    
+    final resolvedToolNames = <String>[...?toolNames];
 
-    for (final t in tools) {
-      if (t is String) {
-        toolNames.add(t);
-      } else if (t is Tool) {
-        toolsToRegister.add(t);
-        toolNames.add(t.name);
-      } else {
-        throw ArgumentError(
-          'Tools must be either a String (tool name) or a Tool object. Got: $t',
-        );
-      }
-    }
-
-    if (toolsToRegister.isEmpty) {
-      return (registry: registry, toolNames: toolNames);
+    if (tools == null || tools.isEmpty) {
+      return (registry: registry, toolNames: resolvedToolNames);
     }
 
     final childRegistry = Registry.childOf(registry);
-    for (final tool in toolsToRegister) {
+    for (final tool in tools) {
       childRegistry.register(tool);
+      if (!resolvedToolNames.contains(tool.name)) {
+        resolvedToolNames.add(tool.name);
+      }
     }
-    return (registry: childRegistry, toolNames: toolNames);
+    return (registry: childRegistry, toolNames: resolvedToolNames);
   }
 
   Future<GenerateResponseHelper<S>> generate<C, S>({
@@ -395,7 +387,8 @@ class Genkit {
     List<Message>? messages,
     required ModelRef<C> model,
     C? config,
-    List<dynamic>? tools,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
@@ -454,7 +447,7 @@ class Genkit {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = _resolveTools(registry, tools);
+    final resolved = _resolveTools(registry, tools: tools, toolNames: toolNames);
     final rawResponse = await generateHelper(
       resolved.registry,
       prompt: prompt,
@@ -467,7 +460,7 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
-      middlewares: use,
+      middlewares: use?.map<GenerateMiddlewareOneof>((mw) => (middlewareRef: mw, middlewareInstance: null)).toList(),
       resume: interruptRespond,
       restart: interruptRestart,
       onChunk: (c) {
@@ -500,7 +493,8 @@ class Genkit {
     List<Message>? messages,
     required ModelRef<C> model,
     C? config,
-    List<dynamic>? tools,
+    List<Tool>? tools,
+    List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
@@ -527,6 +521,7 @@ class Genkit {
           model: model,
           config: config,
           tools: tools,
+          toolNames: toolNames,
           toolChoice: toolChoice,
           returnToolRequests: returnToolRequests,
           maxTurns: maxTurns,

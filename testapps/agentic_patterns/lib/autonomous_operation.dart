@@ -87,7 +87,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
             ],
           ),
         ],
-        tools: [searchWeb.name, askUser.name],
+        toolNames: [searchWeb.name, askUser.name],
       );
 
       // Handle interrupts loop
@@ -126,7 +126,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
         response = await ai.generate(
           model: geminiFlash,
           messages: [...response.messages, response.message!],
-          tools: [searchWeb.name, askUser.name],
+          toolNames: [searchWeb.name, askUser.name],
           interruptRespond: interruptResponses,
         );
       }

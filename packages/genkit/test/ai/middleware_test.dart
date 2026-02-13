@@ -115,18 +115,22 @@ void main() {
   group('Generate Middleware', () {
     late Genkit genkit;
 
-    setUp(() {
-      genkit = Genkit(isDevEnv: false);
-    });
-
     tearDown(() async {
       await genkit.shutdown();
     });
 
     test('should execute middleware in order', () async {
       final log = <String>[];
-      final mw1 = TestMiddleware(log, 'mw1');
-      final mw2 = TestMiddleware(log, 'mw2');
+      final mw1 = defineMiddleware(
+        name: 'mw1',
+        create: ([c]) => TestMiddleware(log, 'mw1'),
+      );
+      final mw2 = defineMiddleware(
+        name: 'mw2',
+        create: ([c]) => TestMiddleware(log, 'mw2'),
+      );
+
+      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([mw1, mw2])]);
 
       genkit.defineModel(
         name: 'test-model',
@@ -173,8 +177,8 @@ void main() {
       await genkit.generate(
         model: modelRef('test-model'),
         prompt: 'hello',
-        tools: ['test-tool'],
-        use: [mw1, mw2],
+        toolNames: ['test-tool'],
+        use: [middlewareRef(name: 'mw1'), middlewareRef(name: 'mw2')],
       );
 
       // Verify log order
@@ -227,6 +231,12 @@ void main() {
     });
 
     test('should intercept model request', () async {
+      final interceptor = defineMiddleware(
+        name: 'interceptor',
+        create: ([_]) => InterceptorMiddleware(),
+      );
+      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([interceptor])]);
+
       genkit.defineModel(
         name: 'echo-model',
         fn: (req, ctx) async {
@@ -244,7 +254,7 @@ void main() {
       final result = await genkit.generate(
         model: modelRef('echo-model'),
         prompt: 'original',
-        use: [InterceptorMiddleware()],
+        use: [middlewareRef(name: 'interceptor')],
       );
 
       expect(result.text, 'echo: intercepted: original');
@@ -306,6 +316,12 @@ void main() {
         },
       );
 
+      final mw = defineMiddleware(
+        name: 'injected-tool-mw',
+        create: ([_]) => ToolInjectingMiddleware([injectedTool]),
+      );
+      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([mw])]);
+
       genkit.defineModel(
         name: 'tool-calling-model',
         fn: (req, ctx) async {
@@ -340,7 +356,7 @@ void main() {
         model: modelRef('tool-calling-model'),
         prompt: 'call tool',
         use: [
-          ToolInjectingMiddleware([injectedTool]),
+          middlewareRef(name: 'injected-tool-mw'),
         ],
       );
 
@@ -351,6 +367,13 @@ void main() {
       final log = <String>[];
       final mw1 = TestMiddleware(log, 'mw1');
       var toolCallCount = 0;
+
+      final mdef1 = defineMiddleware(
+        name: 'mw1',
+        create: ([_]) => mw1,
+      );
+
+      genkit = Genkit(isDevEnv: false, plugins: [MiddlewarePlugin([mdef1])]);
 
       genkit.defineModel(
         name: 'test-model-resume',
@@ -400,8 +423,8 @@ void main() {
       final response1 = await genkit.generate(
         model: modelRef('test-model-resume'),
         prompt: 'hello',
-        tools: ['test-tool'],
-        use: [mw1],
+        toolNames: ['test-tool'],
+        use: [middlewareRef(name: 'mw1')],
       );
 
       expect(response1.finishReason, FinishReason.interrupted);
@@ -420,8 +443,8 @@ void main() {
       final response2 = await genkit.generate(
         model: modelRef('test-model-resume'),
         messages: history,
-        tools: ['test-tool'],
-        use: [mw1],
+        toolNames: ['test-tool'],
+        use: [middlewareRef(name: 'mw1')],
         interruptRestart: [ToolRequestPart(toolRequest: toolReq.toolRequest)],
       );
 
@@ -456,4 +479,16 @@ class ToolInjectingMiddleware extends GenerateMiddleware {
 
   @override
   List<Tool> get tools => _tools;
+}
+
+class MiddlewarePlugin extends GenkitPlugin {
+  @override
+  String name = 'mw-plugin';
+
+  final List<GenerateMiddlewareDef> _middlewares;
+
+  MiddlewarePlugin(this._middlewares);
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => _middlewares;
 }

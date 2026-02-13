@@ -19,15 +19,10 @@ import 'package:logging/logging.dart';
 import '../core/action.dart';
 import '../core/registry.dart';
 import '../exception.dart';
-import '../extract.dart';
-import '../schema.dart';
 import '../schema_extensions.dart';
 import '../types.dart';
-import 'formatters/formatters.dart';
 import 'generate.dart';
-import 'generate_middleware.dart';
 import 'generate_types.dart';
-import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
 

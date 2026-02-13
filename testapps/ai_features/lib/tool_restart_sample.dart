@@ -57,7 +57,7 @@ Future<void> main(List<String> args) async {
     prompt: '''
       Transfer \$500 to the account '12345-6789'.
     ''',
-    tools: ['transfer_funds'],
+    toolNames: ['transfer_funds'],
   );
 
   if (response.finishReason == FinishReason.interrupted) {
@@ -97,7 +97,7 @@ Future<void> main(List<String> args) async {
     final response2 = await ai.generate(
       model: googleAI.gemini('gemini-2.5-flash'),
       messages: response.messages,
-      tools: ['transfer_funds'],
+      toolNames: ['transfer_funds'],
       interruptRestart: [interruptPart], // Null output = Restart
     );
 

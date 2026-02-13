@@ -74,25 +74,25 @@ abstract class GenerateConfig {}
 
 ({List<GenerateMiddleware> middlewares, Registry registry}) _resolveMiddlewares(
   Registry registry,
-  List<dynamic>? middlewares,
+  List<GenerateMiddlewareOneof>? middlewares,
 ) {
   final resolvedMiddlewares = <GenerateMiddleware>[];
   if (middlewares != null) {
     for (final mw in middlewares) {
-      if (mw is GenerateMiddleware) {
-        resolvedMiddlewares.add(mw);
-      } else if (mw is GenerateMiddlewareRef) {
+      if (mw.middlewareInstance != null) {
+        resolvedMiddlewares.add(mw.middlewareInstance!);
+      } else if (mw.middlewareRef != null) {
         final def = registry.lookupValue<GenerateMiddlewareDef>(
           'middleware',
-          mw.name,
+          mw.middlewareRef!.name,
         );
         if (def == null) {
           throw GenkitException(
-            'Middleware ${mw.name} not found',
+            'Middleware ${mw.middlewareRef!.name} not found',
             status: StatusCodes.NOT_FOUND,
           );
         }
-        resolvedMiddlewares.add(def.create(mw.config));
+        resolvedMiddlewares.add(def.create(mw.middlewareRef!.config));
       } else {
         throw GenkitException(
           'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',
@@ -311,7 +311,7 @@ Future<GenerateResponseHelper> runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
-  List<dynamic>? middlewares,
+  List<GenerateMiddlewareOneof>? middlewares,
 }) async {
   final resolved = _resolveMiddlewares(registry, middlewares);
   final generateRegistry = resolved.registry;
@@ -410,6 +410,9 @@ Future<GenerateResponseHelper> runGenerateAction(
   return composedGenerate(options, ctx);
 }
 
+typedef GenerateMiddlewareOneof = ({GenerateMiddleware? middlewareInstance, GenerateMiddlewareRef? middlewareRef});
+
+
 Future<GenerateResponseHelper> generateHelper<C>(
   Registry registry, {
   String? prompt,
@@ -423,7 +426,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
   GenerateActionOutputConfig? output,
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
-  List<dynamic>? middlewares,
+  List<GenerateMiddlewareOneof>? middlewares,
 
   /// List of interrupt responses to resolve interrupts.
   List<InterruptResponse>? resume,

@@ -94,7 +94,7 @@ void main() {
       await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Use a tool',
-        tools: [tool1Name, tool2Name],
+        toolNames: [tool1Name, tool2Name],
         toolChoice: tool1Name,
       );
 
@@ -220,7 +220,8 @@ void main() {
       await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Use tools',
-        tools: [registeredToolName, directTool],
+        toolNames: [registeredToolName],
+        tools: [directTool],
       );
 
       expect(registeredToolCalled, isTrue);
@@ -267,7 +268,7 @@ void main() {
         final result = await genkit.generate(
           model: modelRef(modelName),
           prompt: 'Use a tool',
-          tools: [toolName],
+          toolNames: [toolName],
           returnToolRequests: true,
         );
 
@@ -315,7 +316,7 @@ void main() {
           model: modelRef(modelName),
           prompt: 'Use a tool',
           // this tool causes an infinite tool call loop
-          tools: [toolName],
+          toolNames: [toolName],
           maxTurns: 5,
         ),
         throwsA(
@@ -334,7 +335,7 @@ void main() {
           model: modelRef(modelName),
           prompt: 'Use a tool',
           // this tool causes an infinite tool call loop
-          tools: [toolName],
+          toolNames: [toolName],
           // maxTurns is not specified, should still use default (5).
         ),
         throwsA(

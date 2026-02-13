@@ -96,7 +96,7 @@ void main() {
 
       final session = await genkit.generateBidi(
         model: modelName,
-        tools: [toolName],
+        toolNames: [toolName],
       );
 
       final outputs = <String>[];

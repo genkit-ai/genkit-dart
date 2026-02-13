@@ -17,7 +17,6 @@ import 'dart:convert';
 import '../../extract.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
-import '../generate_types.dart';
 import 'types.dart';
 
 final jsonFormatter = Formatter(
