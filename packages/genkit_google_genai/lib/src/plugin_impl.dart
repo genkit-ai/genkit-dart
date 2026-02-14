@@ -725,8 +725,6 @@ GenerationUsage? extractUsage(
     totalTokens: metadata.totalTokenCount.toDouble(),
     thoughtsTokens: metadata.thoughtsTokenCount.toDouble(),
     cachedContentTokens: metadata.cachedContentTokenCount.toDouble(),
-    custom: {
-      'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
-    },
+    custom: {'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount},
   );
 }
