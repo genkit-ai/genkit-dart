@@ -177,6 +177,26 @@ class ReflectionServerV1 {
       return;
     }
 
+    var headersFlushed = false;
+
+    void onTraceStart({required String traceId, required String spanId}) {
+      if (headersFlushed) return;
+      try {
+        request.response.headers.add('x-genkit-trace-id', traceId);
+        request.response.headers.add('x-genkit-span-id', spanId);
+        request.response.headers.add('x-genkit-version', genkitVersion);
+        // Force headers to be sent immediately
+        request.response.headers.chunkedTransferEncoding = true;
+        // Write a whitespace character to trigger header flush.
+        // This is valid leading whitespace for both JSON and NDJSON.
+        request.response.write(' ');
+        request.response.flush();
+        headersFlushed = true;
+      } catch (e) {
+        _logger.warning('Failed to set trace headers: $e');
+      }
+    }
+
     if (stream) {
       request.response.headers.contentType = ContentType(
         'application',
@@ -191,6 +211,7 @@ class ReflectionServerV1 {
           onChunk: (chunk) {
             request.response.writeln(jsonEncode(chunk));
           },
+          onTraceStart: onTraceStart,
         );
         final response = RunActionResponse(
           result: result.result,
@@ -199,7 +220,7 @@ class ReflectionServerV1 {
         request.response.write(jsonEncode(response.toJson()));
         await request.response.close();
       } catch (e, stack) {
-        printError(e, stack);
+        _logger.severe('Error running action: $e', stack);
         final errorResponse = RunActionResponse(
           error: Status(
             code: StatusCodes.INTERNAL.value,
@@ -207,32 +228,37 @@ class ReflectionServerV1 {
             details: {'stack': stack.toString()},
           ),
         );
+        if (!headersFlushed) {
+          request.response.statusCode = HttpStatus.internalServerError;
+          // For streaming, we already set content type to x-ndjson
+        }
         request.response.write(jsonEncode(errorResponse.toJson()));
         await request.response.close();
       }
     } else {
       try {
-        final result = await action.runRaw(input);
+        // Set contentType early as onTraceStart will flush headers
+        request.response.headers.contentType = ContentType.json;
+        final result = await action.runRaw(input, onTraceStart: onTraceStart);
         final response = RunActionResponse(
           result: result.result,
           telemetry: {'traceId': result.traceId},
         );
-        request.response
-          ..headers.contentType = ContentType.json
-          ..write(jsonEncode(response.toJson()))
-          ..close();
+        request.response.write(jsonEncode(response.toJson()));
+        await request.response.close();
       } catch (e, stack) {
-        printError(e, stack);
+        _logger.severe('Error running action: $e', stack);
         final errorResponse = Status(
           code: StatusCodes.INTERNAL.value,
           message: e.toString(),
           details: {'stack': stack.toString()},
         );
-        request.response
-          ..statusCode = HttpStatus.internalServerError
-          ..headers.contentType = ContentType.json
-          ..write(jsonEncode(errorResponse.toJson()))
-          ..close();
+        if (!headersFlushed) {
+          request.response.statusCode = HttpStatus.internalServerError;
+          // contentType is already set to JSON
+        }
+        request.response.write(jsonEncode(errorResponse.toJson()));
+        await request.response.close();
       }
     }
   }

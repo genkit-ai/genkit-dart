@@ -22,6 +22,7 @@ import '../o11y/instrumentation.dart';
 const _genkitContextKey = #genkitContext;
 
 typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
+typedef TraceStartCallback = void Function({required String traceId, required String spanId});
 
 typedef ActionFnArg<Chunk, Input, Init> = ({
   bool streamingRequested,
@@ -125,8 +126,14 @@ class Action<Input, Output, Chunk, Init>
     Map<String, dynamic>? context,
     Stream<Input>? inputStream,
     Init? init,
+    TraceStartCallback? onTraceStart,
   }) async {
-    return (await run(input, onChunk: onChunk, context: context)).result;
+    return (await run(
+      input,
+      onChunk: onChunk,
+      context: context,
+      onTraceStart: onTraceStart,
+    )).result;
   }
 
   Future<RunResult<Output>> runRaw(
@@ -135,6 +142,7 @@ class Action<Input, Output, Chunk, Init>
     Map<String, dynamic>? context,
     Stream<Input>? inputStream,
     dynamic init,
+    TraceStartCallback? onTraceStart,
   }) async {
     return await run(
       inputSchema != null ? inputSchema!.parse(input) : input,
@@ -142,6 +150,7 @@ class Action<Input, Output, Chunk, Init>
       context: context,
       inputStream: inputStream,
       init: initSchema != null ? initSchema!.parse(init) : init,
+      onTraceStart: onTraceStart,
     );
   }
 
@@ -151,6 +160,7 @@ class Action<Input, Output, Chunk, Init>
     Map<String, dynamic>? context,
     Stream<Input>? inputStream,
     Init? init,
+    TraceStartCallback? onTraceStart,
   }) async {
     if (inputStream == null) {
       final internalInputController = StreamController<Input>();
@@ -169,7 +179,10 @@ class Action<Input, Output, Chunk, Init>
         name,
         (telemetryContext) async {
           traceId = telemetryContext.traceId;
-          spanId = telemetryContext.traceId;
+          spanId = telemetryContext.spanId;
+          if (onTraceStart != null) {
+            onTraceStart(traceId: traceId, spanId: spanId);
+          }
           return await fn(input, (
             streamingRequested: onChunk != null,
             sendChunk: onChunk ?? (chunk) {},
