@@ -37,7 +37,10 @@ void main() {
 
       final content = jsonDecode(await runtimeFile.readAsString());
       expect(content['pid'], isNotNull);
-      expect(content['reflectionServerUrl'], 'http://localhost:${server.actualPort}');
+      expect(
+        content['reflectionServerUrl'],
+        'http://localhost:${server.actualPort}',
+      );
 
       await server.stop();
 

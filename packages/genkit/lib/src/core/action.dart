@@ -22,7 +22,8 @@ import '../o11y/instrumentation.dart';
 const _genkitContextKey = #genkitContext;
 
 typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
-typedef TraceStartCallback = void Function({required String traceId, required String spanId});
+typedef TraceStartCallback =
+    void Function({required String traceId, required String spanId});
 
 typedef ActionFnArg<Chunk, Input, Init> = ({
   bool streamingRequested,
