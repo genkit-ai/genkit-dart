@@ -151,4 +151,33 @@ void main() {
       expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
     });
   });
+
+  group('extractUsage', () {
+    test('extracts standard usage', () {
+      final usage = gcl.GenerateContentResponse_UsageMetadata(
+        promptTokenCount: 10,
+        candidatesTokenCount: 20,
+        totalTokenCount: 30,
+      );
+      final derived = extractUsage(usage);
+      expect(derived!.inputTokens, 10);
+      expect(derived.outputTokens, 20);
+      expect(derived.totalTokens, 30);
+    });
+
+    test('extracts custom tool usage but ignores details arrays', () {
+      final usage = gcl.GenerateContentResponse_UsageMetadata(
+        promptTokenCount: 10,
+        candidatesTokenCount: 20,
+        totalTokenCount: 30,
+        toolUsePromptTokenCount: 5,
+        promptTokensDetails: [
+          gcl.ModalityTokenCount(modality: gcl.Modality.text, tokenCount: 10),
+        ],
+      );
+      final derived = extractUsage(usage);
+      expect(derived!.custom!['toolUsePromptTokenCount'], 5);
+      expect(derived.custom!.containsKey('promptTokensDetails'), isFalse);
+    });
+  });
 }

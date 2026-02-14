@@ -727,22 +727,6 @@ GenerationUsage? extractUsage(
     cachedContentTokens: metadata.cachedContentTokenCount.toDouble(),
     custom: {
       'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
-      if (metadata.promptTokensDetails.isNotEmpty)
-        'promptTokensDetails': metadata.promptTokensDetails
-            .map((d) => d.toJson())
-            .toList(),
-      if (metadata.cacheTokensDetails.isNotEmpty)
-        'cacheTokensDetails': metadata.cacheTokensDetails
-            .map((d) => d.toJson())
-            .toList(),
-      if (metadata.candidatesTokensDetails.isNotEmpty)
-        'candidatesTokensDetails': metadata.candidatesTokensDetails
-            .map((d) => d.toJson())
-            .toList(),
-      if (metadata.toolUsePromptTokensDetails.isNotEmpty)
-        'toolUsePromptTokensDetails': metadata.toolUsePromptTokensDetails
-            .map((d) => d.toJson())
-            .toList(),
     },
   );
 }
