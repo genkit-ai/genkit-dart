@@ -25,13 +25,10 @@ import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
-  const port = 3110;
-  final url = 'http://localhost:$port';
-
   group('ReflectionServer lifecycle', () {
     test('should create and clean up runtime file', () async {
       final registry = Registry();
-      final server = ReflectionServerV1(registry, port: port);
+      final server = ReflectionServerV1(registry, port: 0);
       await server.start();
 
       expect(server.runtimeFilePath, isNotNull);
@@ -40,7 +37,7 @@ void main() {
 
       final content = jsonDecode(await runtimeFile.readAsString());
       expect(content['pid'], isNotNull);
-      expect(content['reflectionServerUrl'], url);
+      expect(content['reflectionServerUrl'], 'http://localhost:${server.actualPort}');
 
       await server.stop();
 
@@ -51,6 +48,7 @@ void main() {
   group('ReflectionServer API', () {
     late Registry registry;
     late ReflectionServerV1 server;
+    late String url;
 
     setUp(() async {
       registry = Registry();
@@ -70,8 +68,9 @@ void main() {
       );
       registry.register(testAction);
 
-      server = ReflectionServerV1(registry, port: port);
+      server = ReflectionServerV1(registry, port: 0);
       await server.start();
+      url = 'http://localhost:${server.actualPort}';
     });
 
     tearDown(() async {

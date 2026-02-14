@@ -187,10 +187,12 @@ class ReflectionServerV1 {
         request.response.headers.add('x-genkit-version', genkitVersion);
         // Force headers to be sent immediately
         request.response.headers.chunkedTransferEncoding = true;
+        // Disable buffering so the write triggers a flush immediately
+        request.response.bufferOutput = false;
         // Write a whitespace character to trigger header flush.
         // This is valid leading whitespace for both JSON and NDJSON.
         request.response.write(' ');
-        request.response.flush();
+        // Do NOT call flush() as we cannot await it and it blocks future writes
         headersFlushed = true;
       } catch (e) {
         _logger.warning('Failed to set trace headers: $e');
@@ -203,6 +205,8 @@ class ReflectionServerV1 {
         'x-ndjson',
         charset: 'utf-8',
       );
+      // bufferOutput is set to false in onTraceStart if called,
+      // or we can set it here too to be safe/explicit for streaming.
       request.response.bufferOutput = false;
 
       try {
@@ -270,6 +274,8 @@ class ReflectionServerV1 {
     runtimeFilePath = null;
     print('Reflection server stopped.');
   }
+
+  int get actualPort => _server?.port ?? 0;
 
   String get _runtimeId => '$pid${_server != null ? '-${_server!.port}' : ''}';
 
