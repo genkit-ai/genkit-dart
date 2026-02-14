@@ -1,0 +1,16 @@
+name: middleware_sample
+description: Genkit Middleware test app
+publish_to: none
+resolution: workspace
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  genkit: ^0.10.0-dev.11
+  genkit_google_genai: ^0.0.1-dev.11
+  genkit_middleware: ^0.0.1
+  schemantic: ^0.0.1-dev.13
+
+dev_dependencies:
+  build_runner: ^2.10.5
+  test: ^1.29.0

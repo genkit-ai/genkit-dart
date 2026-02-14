@@ -72,15 +72,15 @@ ToolDefinition toToolDefinition(Tool tool) {
 /// options.
 abstract class GenerateConfig {}
 
-({List<GenerateMiddleware> middlewares, Registry registry}) _resolveMiddlewares(
+({List<GenerateMiddleware> middleware, Registry registry}) _resolveMiddleware(
   Registry registry,
-  List<GenerateMiddlewareOneof>? middlewares,
+  List<GenerateMiddlewareOneof>? middleware,
 ) {
-  final resolvedMiddlewares = <GenerateMiddleware>[];
-  if (middlewares != null) {
-    for (final mw in middlewares) {
+  final resolvedMiddleware = <GenerateMiddleware>[];
+  if (middleware != null) {
+    for (final mw in middleware) {
       if (mw.middlewareInstance != null) {
-        resolvedMiddlewares.add(mw.middlewareInstance!);
+        resolvedMiddleware.add(mw.middlewareInstance!);
       } else if (mw.middlewareRef != null) {
         final def = registry.lookupValue<GenerateMiddlewareDef>(
           'middleware',
@@ -92,7 +92,7 @@ abstract class GenerateConfig {}
             status: StatusCodes.NOT_FOUND,
           );
         }
-        resolvedMiddlewares.add(def.create(mw.middlewareRef!.config));
+        resolvedMiddleware.add(def.create(mw.middlewareRef!.config));
       } else {
         throw GenkitException(
           'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',
@@ -102,7 +102,7 @@ abstract class GenerateConfig {}
     }
   }
 
-  final middlewareTools = resolvedMiddlewares
+  final middlewareTools = resolvedMiddleware
       .expand((m) => m.tools ?? <Tool>[])
       .toList();
   if (middlewareTools.isNotEmpty) {
@@ -112,19 +112,34 @@ abstract class GenerateConfig {}
     }
   }
 
-  return (middlewares: resolvedMiddlewares, registry: registry);
+  return (middleware: resolvedMiddleware, registry: registry);
 }
 
 Future<GenerateResponseHelper> _runGenerateLoop(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
-  required List<GenerateMiddleware> resolvedMiddlewares,
+  required List<GenerateMiddleware> resolvedMiddleware,
+  required Future<GenerateResponseHelper> Function(
+    GenerateActionOptions opts,
+    int currentTurn,
+  )
+  composedGenerate,
+  int currentTurn = 0,
 }) async {
   if (options.model == null) {
     throw GenkitException(
       'Model must be provided',
       status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
+  // Check turn limits
+  final maxTurns = options.maxTurns ?? _defaultMaxTurns;
+  if (currentTurn >= maxTurns) {
+    throw GenkitException(
+      'Reached max turns of $maxTurns. Adjust maxTurns option to increase the max number of turns.',
+      status: StatusCodes.ABORTED,
     );
   }
 
@@ -152,7 +167,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     }
   }
 
-  final middlewareTools = resolvedMiddlewares
+  final middlewareTools = resolvedMiddleware
       .expand((m) => m.tools ?? <Tool>[])
       .toList();
   for (final tool in middlewareTools) {
@@ -177,7 +192,6 @@ Future<GenerateResponseHelper> _runGenerateLoop(
           ),
   );
   var currentRequest = request;
-  var turns = 0;
 
   // Prepare model middleware chain
   Future<ModelResponse> coreModel(
@@ -191,9 +205,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  // Middleware is already resolved above
-
-  final composedModel = resolvedMiddlewares.reversed.fold(
+  final composedModel = resolvedMiddleware.reversed.fold(
     coreModel,
     (next, mw) =>
         (r, c) => mw.model(r, c, next),
@@ -206,7 +218,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       currentRequest,
       requestOptions.resume!,
       ctx.context,
-      resolvedMiddlewares,
+      resolvedMiddleware,
     );
     if (resumed.interruptedResponse != null) {
       return GenerateResponseHelper(
@@ -218,114 +230,117 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     currentRequest = resumed.request!;
   }
 
-  var messageIndex = 0;
-  while (turns < (requestOptions.maxTurns ?? _defaultMaxTurns)) {
-    // Execute model with middleware
-    var response = await composedModel(currentRequest, (
-      streamingRequested: ctx.streamingRequested,
-      sendChunk: (chunk) {
-        ctx.sendChunk(
-          ModelResponseChunk(
-            index: messageIndex,
-            content: chunk.content,
-            role: chunk.role,
-            custom: chunk.custom,
-            aggregated: chunk.aggregated,
-          ),
-        );
-      },
-      context: ctx.context,
-      inputStream: null,
-      init: null,
-    ));
-    messageIndex++;
-
-    final parser = format
-        ?.handler(requestOptions.output?.jsonSchema)
-        .parseMessage;
-
-    if (requestOptions.returnToolRequests ?? false) {
-      return GenerateResponseHelper(
-        response,
-        request: currentRequest,
-        output: null,
+  // Execute model with middleware
+  var response = await composedModel(currentRequest, (
+    streamingRequested: ctx.streamingRequested,
+    sendChunk: (chunk) {
+      ctx.sendChunk(
+        ModelResponseChunk(
+          index: currentTurn, // Use currentTurn to indicate the loop iteration
+          content: chunk.content,
+          role: chunk.role,
+          custom: chunk.custom,
+          aggregated: chunk.aggregated,
+        ),
       );
-    }
+    },
+    context: ctx.context,
+    inputStream: null,
+    init: null,
+  ));
 
-    final toolRequests = response.message?.content
-        .map((c) => c.toolRequestPart)
-        .nonNulls
-        .toList();
-    if (toolRequests == null || toolRequests.isEmpty) {
-      return GenerateResponseHelper(
-        response,
-        request: currentRequest,
-        output: _parseOutput(response.message, parser),
-      );
-    }
+  final parser = format
+      ?.handler(requestOptions.output?.jsonSchema)
+      .parseMessage;
 
-    final execution = await _executeTools(
-      registry,
-      toolRequests,
-      ctx.context,
-      middlewares: resolvedMiddlewares,
+  if (requestOptions.returnToolRequests ?? false) {
+    return GenerateResponseHelper(
+      response,
+      request: currentRequest,
+      output: null,
     );
-    final toolResponses = execution.toolResponses;
-    final toolStatus = execution.toolStatus;
-    final interrupted = execution.interrupted;
-
-    if (interrupted) {
-      final newResponse = _buildInterruptedResponse(
-        response.message!,
-        toolStatus,
-        originalResponse: response,
-      );
-
-      return GenerateResponseHelper(
-        newResponse,
-        request: currentRequest,
-        output: null,
-      );
-    }
-
-    final newMessages = List<Message>.from(currentRequest.messages)
-      ..add(response.message!)
-      ..add(Message(role: Role.tool, content: toolResponses));
-
-    currentRequest = ModelRequest(
-      messages: newMessages,
-      config: currentRequest.config,
-      tools: currentRequest.tools,
-      toolChoice: currentRequest.toolChoice,
-      output: currentRequest.output,
-    );
-    turns++;
   }
-  throw GenkitException(
-    'Reached max turns of ${requestOptions.maxTurns ?? _defaultMaxTurns}. Adjust maxTurns option to increase the max number of turns.',
-    status: StatusCodes.ABORTED,
+
+  final toolRequests = response.message?.content
+      .map((c) => c.toolRequestPart)
+      .nonNulls
+      .toList();
+
+  if (toolRequests == null || toolRequests.isEmpty) {
+    return GenerateResponseHelper(
+      response,
+      request: currentRequest,
+      output: _parseOutput(response.message, parser),
+    );
+  }
+
+  final execution = await _executeTools(
+    registry,
+    toolRequests,
+    ctx.context,
+    middleware: resolvedMiddleware,
   );
+  final toolResponses = execution.toolResponses;
+  final toolStatus = execution.toolStatus;
+  final interrupted = execution.interrupted;
+
+  if (interrupted) {
+    final newResponse = _buildInterruptedResponse(
+      response.message!,
+      toolStatus,
+      originalResponse: response,
+    );
+
+    return GenerateResponseHelper(
+      newResponse,
+      request: currentRequest,
+      output: null,
+    );
+  }
+
+  final newMessages = List<Message>.from(currentRequest.messages)
+    ..add(response.message!)
+    ..add(Message(role: Role.tool, content: toolResponses));
+
+  final nextOptions = GenerateActionOptions(
+    model: options.model,
+    docs: options.docs,
+    messages: newMessages,
+    tools: options.tools,
+    toolChoice: options.toolChoice,
+    config: options.config,
+    output: options.output,
+    resume: null, // Clear resume as we handled it
+    returnToolRequests: options.returnToolRequests,
+    maxTurns: options.maxTurns,
+    stepName: options.stepName,
+  );
+
+  // Recursively call composedGenerate for the next turn
+  return composedGenerate(nextOptions, currentTurn + 1);
 }
 
 Future<GenerateResponseHelper> runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
-  List<GenerateMiddlewareOneof>? middlewares,
+  List<GenerateMiddlewareOneof>? middleware,
 }) async {
-  final resolved = _resolveMiddlewares(registry, middlewares);
+  final resolved = _resolveMiddleware(registry, middleware);
   final generateRegistry = resolved.registry;
-  final resolvedMiddlewares = resolved.middlewares;
+  final resolvedMiddleware = resolved.middleware;
 
   late Future<GenerateResponseHelper> Function(
     GenerateActionOptions opts,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
+    int currentTurn,
   )
   composedGenerate;
 
   Future<GenerateResponseHelper> coreGenerate(
     GenerateActionOptions opts,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
+    int currentTurn,
   ) async {
     final resumeRestart = opts.resume?.restart ?? [];
     final toolStatus = <String, dynamic>{};
@@ -335,7 +350,7 @@ Future<GenerateResponseHelper> runGenerateAction(
         generateRegistry,
         resumeRestart.cast<ToolRequestPart>().toList(),
         c.context,
-        middlewares: resolvedMiddlewares,
+        middleware: resolvedMiddleware,
       );
       toolStatus.addAll(execution.toolStatus);
 
@@ -390,24 +405,27 @@ Future<GenerateResponseHelper> runGenerateAction(
         ),
       );
 
-      return composedGenerate(opts, c);
+      return composedGenerate(opts, c, currentTurn);
     }
 
     return _runGenerateLoop(
       generateRegistry,
       opts,
       c,
-      resolvedMiddlewares: resolvedMiddlewares,
+      resolvedMiddleware: resolvedMiddleware,
+      composedGenerate: (opt, ct) => composedGenerate(opt, c, ct),
+      currentTurn: currentTurn,
     );
   }
 
-  composedGenerate = resolvedMiddlewares.reversed.fold(
+  composedGenerate = resolvedMiddleware.reversed.fold(
     coreGenerate,
+    // Add currentTurn here since GenerateMiddleware.generate doesn't take it!
     (next, mw) =>
-        (o, c) => mw.generate(o, c, next),
+        (o, c, ct) => mw.generate(o, c, (no, nctx) => next(no, nctx, ct)),
   );
 
-  return composedGenerate(options, ctx);
+  return composedGenerate(options, ctx, 0);
 }
 
 typedef GenerateMiddlewareOneof = ({
@@ -428,7 +446,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
   GenerateActionOutputConfig? output,
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
-  List<GenerateMiddlewareOneof>? middlewares,
+  List<GenerateMiddlewareOneof>? middleware,
 
   /// List of interrupt responses to resolve interrupts.
   List<InterruptResponse>? resume,
@@ -509,7 +527,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
       inputStream: null,
       init: null,
     ),
-    middlewares: middlewares,
+    middleware: middleware,
   );
 }
 
@@ -546,7 +564,7 @@ _resolveResume(
   ModelRequest request,
   GenerateResumeOptions resume,
   Map<String, dynamic>? context,
-  List<GenerateMiddleware>? middlewares,
+  List<GenerateMiddleware>? middleware,
 ) async {
   final lastMessage = request.messages.lastOrNull;
   if (lastMessage?.role != Role.model ||
@@ -698,7 +716,7 @@ _executeTools(
   Registry registry,
   List<ToolRequestPart> toolRequests,
   Map<String, dynamic>? context, {
-  List<GenerateMiddleware>? middlewares,
+  List<GenerateMiddleware>? middleware,
 }) async {
   final toolResponses = <Part>[];
   final toolStatus = <String, dynamic>{};
@@ -724,7 +742,7 @@ _executeTools(
     }
 
     final composedTool =
-        middlewares?.reversed.fold(
+        middleware?.reversed.fold(
           coreTool,
           (next, mw) =>
               (r, c) => mw.tool(r, c, next),

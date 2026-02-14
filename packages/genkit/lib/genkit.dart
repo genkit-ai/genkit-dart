@@ -57,6 +57,7 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         middlewareRef;
 export 'package:genkit/src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
+export 'package:genkit/src/ai/interrupt.dart' show ToolInterruptException;
 export 'package:genkit/src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 export 'package:genkit/src/ai/model.dart'
@@ -469,7 +470,7 @@ class Genkit {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
-      middlewares: use
+      middleware: use
           ?.map<GenerateMiddlewareOneof>(
             (mw) => (middlewareRef: mw, middlewareInstance: null),
           )

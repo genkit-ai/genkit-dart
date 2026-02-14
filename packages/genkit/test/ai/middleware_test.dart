@@ -227,11 +227,15 @@ void main() {
           'tool:exec',
           'mw2:tool:test-tool:end',
           'mw1:tool:test-tool:end',
+          'mw1:generate:start',
+          'mw2:generate:start',
           'mw1:model:start',
           'mw2:model:start',
           'model:exec',
           'mw2:model:end',
           'mw1:model:end',
+          'mw2:generate:end',
+          'mw1:generate:end',
           'mw2:generate:end',
           'mw1:generate:end',
         ]),
@@ -503,10 +507,10 @@ class MiddlewarePlugin extends GenkitPlugin {
   @override
   String name = 'mw-plugin';
 
-  final List<GenerateMiddlewareDef> _middlewares;
+  final List<GenerateMiddlewareDef> _middleware;
 
-  MiddlewarePlugin(this._middlewares);
+  MiddlewarePlugin(this._middleware);
 
   @override
-  List<GenerateMiddlewareDef> middleware() => _middlewares;
+  List<GenerateMiddlewareDef> middleware() => _middleware;
 }
