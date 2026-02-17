@@ -78,7 +78,7 @@ Future<void> main(List<String> args) async {
   // Flow 1: Simple text generation
   ai.defineFlow(
     name: 'simpleGenerate',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'Explain how LLMs work'),
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
@@ -92,7 +92,7 @@ Future<void> main(List<String> args) async {
   // Flow 2: Creative generation with higher temperature
   ai.defineFlow(
     name: 'creativeGenerate',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'Explain how LLMs work'),
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
@@ -110,7 +110,7 @@ Future<void> main(List<String> args) async {
   // Flow 3: Streaming generation
   ai.defineFlow(
     name: 'streamGenerate',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'Explain how LLMs work'),
     outputSchema: stringSchema(),
     streamSchema: stringSchema(),
     fn: (prompt, context) async {
@@ -172,7 +172,7 @@ Future<void> main(List<String> args) async {
   // Flow 6: Chat with system prompt
   ai.defineFlow(
     name: 'dartExpert',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'Explain flutter'),
     outputSchema: stringSchema(),
     fn: (userMessage, context) async {
       final messages = <Message>[
