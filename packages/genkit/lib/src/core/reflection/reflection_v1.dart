@@ -262,7 +262,6 @@ class ReflectionServerV1 {
           // contentType is already set to JSON
         }
         request.response.write(jsonEncode({'error': errorResponse.toJson()}));
-
         await request.response.close();
       }
     }
