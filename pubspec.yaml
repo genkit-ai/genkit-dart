@@ -10,6 +10,7 @@ workspace:
   - packages/genkit
   - packages/genkit_mcp
   - packages/genkit_google_genai
+  - packages/genkit_openai
   - packages/genkit_anthropic
   - packages/genkit_shelf
   - packages/genkit_chrome
@@ -19,6 +20,7 @@ workspace:
   - testapps/ai_features
   - testapps/basic
   - testapps/chrome_example
+  - testapps/openai_sample
   - testapps/mcp_server
 
 dev_dependencies:
@@ -47,19 +49,16 @@ melos:
       description: Run build_runner in topological order (core -> plugins -> app) to avoid race conditions.
 
     build-gen-core:
-      run: |
-        melos exec --scope="genkit" -- dart run build_runner build
-        # For mockito generated files
-        dart run tools/apply_license.dart
+      run: melos exec --scope="genkit" -- dart run build_runner build && dart run tools/apply_license.dart
       description: Run build_runner for genkit.
 
     build-gen-plugins:
       run: |
-        melos exec --scope="genkit_google_genai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
+        melos exec --scope="genkit_google_genai,genkit_openai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
       description: Run build_runner for plugins.
 
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{agentic_patterns,ai_features,basic_sample}"
+        scope: "{agentic_patterns,ai_features,basic_sample,openai_sample}"
       description: Run build_runner for testapps (except the flutter one!)
