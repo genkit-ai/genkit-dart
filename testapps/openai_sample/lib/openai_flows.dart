@@ -49,7 +49,7 @@ abstract class $WeatherOutputSchema {
 /// Simple text generation example
 Future<void> simpleGenerateExample(String apiKey) async {
   print('=== Simple Text Generation ===\n');
-  
+
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
   final response = await ai.generate(
@@ -64,7 +64,7 @@ Future<void> simpleGenerateExample(String apiKey) async {
 /// Streaming generation example
 Future<void> streamingExample(String apiKey) async {
   print('=== Streaming Text Generation ===\n');
-  
+
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
   print('Prompt: Write a very short story about a robot learning to laugh.\n');
@@ -72,11 +72,9 @@ Future<void> streamingExample(String apiKey) async {
 
   await for (final chunk in ai.generateStream(
     model: openAI.model('gpt-4o-mini'),
-    prompt: 'Write a very short story about a robot learning to laugh. Keep it under 100 words.',
-    config: OpenAIOptions(
-      temperature: 0.8,
-      maxTokens: 150,
-    ),
+    prompt:
+        'Write a very short story about a robot learning to laugh. Keep it under 100 words.',
+    config: OpenAIOptions(temperature: 0.8, maxTokens: 150),
   )) {
     for (final part in chunk.content) {
       if (part.isText && part.text != null) {
@@ -91,31 +89,32 @@ Future<void> streamingExample(String apiKey) async {
 /// Tool calling example with weather
 Future<void> toolCallingExample(String apiKey) async {
   print('=== Tool Calling with Weather ===\n');
-  
+
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
   // Define weather tool
   ai.defineTool(
     name: 'getWeather',
-    description: 'Get the current weather for a specific location. Returns temperature and conditions.',
+    description:
+        'Get the current weather for a specific location. Returns temperature and conditions.',
     inputSchema: WeatherInputSchema.$schema,
     outputSchema: WeatherOutputSchema.$schema,
     fn: (input, ctx) async {
       final location = input.location;
       final unit = input.unit ?? 'celsius';
-      
+
       print('  [Tool Called] Getting weather for: $location (unit: $unit)');
-      
+
       // Mock weather data
       final random = Random();
       final tempCelsius = 15 + random.nextInt(20);
-      final temperature = unit == 'fahrenheit' 
-          ? (tempCelsius * 9 / 5) + 32 
+      final temperature = unit == 'fahrenheit'
+          ? (tempCelsius * 9 / 5) + 32
           : tempCelsius.toDouble();
-      
+
       final conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'];
       final condition = conditions[random.nextInt(conditions.length)];
-      
+
       return WeatherOutputSchema(
         temperature: temperature,
         condition: condition,
@@ -139,17 +138,21 @@ Future<void> toolCallingExample(String apiKey) async {
 /// Conversation with context example
 Future<void> conversationExample(String apiKey) async {
   print('=== Multi-turn Conversation ===\n');
-  
+
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
   final messages = <Message>[];
 
   // Turn 1
   print('User: My name is Alice and I love Dart programming.');
-  messages.add(Message(
-    role: Role.user,
-    content: [TextPart(text: 'My name is Alice and I love Dart programming.')],
-  ));
+  messages.add(
+    Message(
+      role: Role.user,
+      content: [
+        TextPart(text: 'My name is Alice and I love Dart programming.'),
+      ],
+    ),
+  );
 
   var response = await ai.generate(
     model: openAI.model('gpt-4o-mini'),
@@ -162,10 +165,12 @@ Future<void> conversationExample(String apiKey) async {
 
   // Turn 2
   print('User: What is my name?');
-  messages.add(Message(
-    role: Role.user,
-    content: [TextPart(text: 'What is my name?')],
-  ));
+  messages.add(
+    Message(
+      role: Role.user,
+      content: [TextPart(text: 'What is my name?')],
+    ),
+  );
 
   response = await ai.generate(
     model: openAI.model('gpt-4o-mini'),
@@ -178,7 +183,7 @@ Future<void> conversationExample(String apiKey) async {
 /// Model resolution example - shows how to resolve a model by name
 Future<void> modelResolveExample(String apiKey) async {
   print('=== Model Resolution Example ===\n');
-  
+
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
   // Resolve a specific model by name
@@ -187,7 +192,7 @@ Future<void> modelResolveExample(String apiKey) async {
 
   try {
     final action = await ai.registry.lookupAction('model', 'openai/$modelName');
-    
+
     if (action != null) {
       print('✓ Successfully resolved model: ${action.name}');
       print('  Action type: ${action.actionType}');
@@ -205,7 +210,7 @@ Future<void> modelResolveExample(String apiKey) async {
 /// Model listing example - lists all available models
 Future<void> modelListExample(String apiKey) async {
   print('=== Model Listing Example ===\n');
-  
+
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
   print('Fetching all available models from OpenAI...\n');
@@ -213,12 +218,14 @@ Future<void> modelListExample(String apiKey) async {
   try {
     // List all actions (includes models)
     final actions = await ai.registry.listActions();
-    
+
     // Filter to only models
-    final models = actions.where((action) => action.actionType == 'model').toList();
-    
+    final models = actions
+        .where((action) => action.actionType == 'model')
+        .toList();
+
     print('Found ${models.length} models:\n');
-    
+
     for (final model in models) {
       print('  - ${model.name}');
     }
