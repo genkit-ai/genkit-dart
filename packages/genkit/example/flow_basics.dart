@@ -32,8 +32,6 @@ abstract class $Count {
 }
 
 void main() async {
-  configureCollectorExporter();
-
   final ai = Genkit();
 
   // To run this flow;

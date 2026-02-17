@@ -20,8 +20,6 @@ import 'package:genkit_middleware/skills.dart';
 import 'package:schemantic/schemantic.dart';
 
 void main() async {
-  configureCollectorExporter();
-
   final apiKey = Platform.environment['GEMINI_API_KEY'];
   if (apiKey == null) {
     print('GEMINI_API_KEY environment variable is required.');

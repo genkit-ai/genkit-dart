@@ -33,8 +33,6 @@ abstract class $Person {
 }
 
 void main(List<String> args) {
-  configureCollectorExporter();
-
   final ai = Genkit(
     plugins: [openAI(apiKey: Platform.environment['OPENAI_API_KEY'])],
   );

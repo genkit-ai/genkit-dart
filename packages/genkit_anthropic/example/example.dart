@@ -21,8 +21,6 @@ import 'package:schemantic/schemantic.dart';
 import 'src/model.dart';
 
 void main(List<String> args) {
-  configureCollectorExporter();
-
   final ai = Genkit(
     plugins: [anthropic(apiKey: Platform.environment['ANTHROPIC_API_KEY']!)],
   );

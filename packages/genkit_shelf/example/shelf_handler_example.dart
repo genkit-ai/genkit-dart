@@ -47,8 +47,6 @@ abstract class $HandlerOutput {
 // curl -X POST http://localhost:8080/api/client -H "Content-Type: application/json" -d '{"data": "start"}'
 
 void main() async {
-  configureCollectorExporter();
-
   final ai = Genkit();
 
   // Define client action

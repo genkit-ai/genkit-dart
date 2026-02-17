@@ -27,8 +27,6 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 void main(List<String> arguments) async {
-  configureCollectorExporter();
-
   // Initialize Genkit and Model
   final ai = Genkit(
     plugins: [

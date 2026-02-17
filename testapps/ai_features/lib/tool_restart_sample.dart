@@ -30,8 +30,6 @@ abstract class $ApprovalRequest {
 }
 
 Future<void> main(List<String> args) async {
-  configureCollectorExporter();
-
   // Initialize Genkit with Google AI plugin
   final ai = Genkit(plugins: [googleAI()]);
 

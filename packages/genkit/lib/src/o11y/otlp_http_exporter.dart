@@ -189,13 +189,23 @@ class CollectorHttpExporter implements sdk.SpanExporter {
 }
 
 void configureCollectorExporter() {
-  // Configure the OTLP HTTP Exporter
-  final baseUrl =
-      getConfigVar('GENKIT_TELEMETRY_SERVER') ?? 'http://localhost:4041';
-  final exporter = CollectorHttpExporter('$baseUrl/api/otlp');
-  final processor = RealtimeSpanProcessor(exporter);
-  final provider = sdk.TracerProviderBase(processors: [processor]);
-  api.registerGlobalTracerProvider(provider);
+  try {
+    // Configure the OTLP HTTP Exporter
+    final baseUrl = getConfigVar('GENKIT_TELEMETRY_SERVER');
+    if (baseUrl == null) {
+      return;
+    }
+    final exporter = CollectorHttpExporter('$baseUrl/api/otlp');
+    final processor = RealtimeSpanProcessor(exporter);
+    final provider = sdk.TracerProviderBase(processors: [processor]);
+    api.registerGlobalTracerProvider(provider);
+  } catch (e, stackTrace) {
+    _logger.warning(
+      'Failed to configure telemetry exporter: $e',
+      e,
+      stackTrace,
+    );
+  }
 }
 
 class RealtimeSpanProcessor implements sdk.SpanProcessor {
