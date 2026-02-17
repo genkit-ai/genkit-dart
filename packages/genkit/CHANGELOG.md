@@ -1,3 +1,14 @@
+## 0.10.0-dev.13
+
+> Note: This release has breaking changes.
+
+ - **FIX**: Wrap error responses in a JSON object under an 'error' key (#130).
+ - **FEAT**: Implemented real-time tracing (#128).
+ - **FEAT**: created a genkit_middleware package with skills, filesystem and toolApproval middleware (#126).
+ - **FEAT**: add MCP (Model Context Protocol) plugin (#94).
+ - **FEAT**: implemented interrupt restart (#124).
+ - **BREAKING** **REFACTOR**: generate api cleanup (#125).
+
 ## 0.10.0-dev.12
 
  - **FEAT**: introducing registered middleware (#87).

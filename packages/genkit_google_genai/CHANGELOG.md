@@ -1,3 +1,11 @@
+## 0.0.1-dev.13
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: remove detailed token usage arrays from usage metadata and add tests for usage extraction. (#127).
+ - **FEAT**: Implemented real-time tracing (#128).
+ - **BREAKING** **REFACTOR**: generate api cleanup (#125).
+
 ## 0.0.1-dev.12
 
  - **FEAT**: added support for embedders (embedding models) (#88).

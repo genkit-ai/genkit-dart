@@ -3,6 +3,77 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-02-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit` - `v0.10.0-dev.13`](#genkit---v0100-dev13)
+ - [`genkit_anthropic` - `v0.0.1-dev.4`](#genkit_anthropic---v001-dev4)
+ - [`genkit_google_genai` - `v0.0.1-dev.13`](#genkit_google_genai---v001-dev13)
+
+Packages with other changes:
+
+ - [`genkit_chrome` - `v0.0.1-dev.4`](#genkit_chrome---v001-dev4)
+ - [`genkit_mcp` - `v0.0.1-dev.2`](#genkit_mcp---v001-dev2)
+ - [`genkit_middleware` - `v0.0.1-dev.2`](#genkit_middleware---v001-dev2)
+ - [`genkit_openai` - `v0.0.1-dev.2`](#genkit_openai---v001-dev2)
+ - [`schemantic` - `v0.0.1-dev.15`](#schemantic---v001-dev15)
+ - [`genkit_shelf` - `v0.0.1-dev.13`](#genkit_shelf---v001-dev13)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_shelf` - `v0.0.1-dev.13`
+
+---
+
+#### `genkit` - `v0.10.0-dev.13`
+
+ - **FIX**: Wrap error responses in a JSON object under an 'error' key (#130).
+ - **FEAT**: Implemented real-time tracing (#128).
+ - **FEAT**: created a genkit_middleware package with skills, filesystem and toolApproval middleware (#126).
+ - **FEAT**: add MCP (Model Context Protocol) plugin (#94).
+ - **FEAT**: implemented interrupt restart (#124).
+ - **BREAKING** **REFACTOR**: generate api cleanup (#125).
+
+#### `genkit_anthropic` - `v0.0.1-dev.4`
+
+ - **BREAKING** **REFACTOR**: generate api cleanup (#125).
+
+#### `genkit_google_genai` - `v0.0.1-dev.13`
+
+ - **REFACTOR**: remove detailed token usage arrays from usage metadata and add tests for usage extraction. (#127).
+ - **FEAT**: Implemented real-time tracing (#128).
+ - **BREAKING** **REFACTOR**: generate api cleanup (#125).
+
+#### `genkit_chrome` - `v0.0.1-dev.4`
+
+ - **FEAT**: add language config options to Chrome plugin (#123).
+
+#### `genkit_mcp` - `v0.0.1-dev.2`
+
+ - **FEAT**: add MCP (Model Context Protocol) plugin (#94).
+
+#### `genkit_middleware` - `v0.0.1-dev.2`
+
+ - **FEAT**: add initial CHANGELOG.md for genkit_middleware.
+ - **FEAT**: created a genkit_middleware package with skills, filesystem and toolApproval middleware (#126).
+
+#### `genkit_openai` - `v0.0.1-dev.2`
+
+ - **REFACTOR**: minor cleanup for the new openai plugin (#129).
+ - **FEAT**(plugins): add OpenAI plugin (#95).
+
+#### `schemantic` - `v0.0.1-dev.15`
+
+ - **FEAT**: implemented interrupt restart (#124).
+
+
 ## 2026-02-12
 
 ### Changes
