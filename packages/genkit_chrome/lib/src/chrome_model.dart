@@ -49,8 +49,6 @@ class ChromeModel extends Model<LanguageModelOptions> {
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
-    // Availability check
-    await _ensureAvailability();
 
     final config = req.config ?? const {};
     final systemPrompt =
@@ -80,7 +78,16 @@ class ChromeModel extends Model<LanguageModelOptions> {
       temperature: config['temperature'] as num? ?? defaultOptions?.temperature,
       topK: config['topK'] as num? ?? defaultOptions?.topK,
       initialPrompts: initialPrompts,
+      expectedInputs:
+          _parseExpectedInputs(config) ??
+          defaultOptions?.expectedInputs?.toDart,
+      expectedOutputs:
+          _parseExpectedOutputs(config) ??
+          defaultOptions?.expectedOutputs?.toDart,
     );
+
+    // Availability check
+    await _ensureAvailability(options);
 
     final session = await _languageModel.create(options).toDart;
 
@@ -134,18 +141,15 @@ class ChromeModel extends Model<LanguageModelOptions> {
   }
 }
 
-bool _availabilityChecked = false;
-
-Future<void> _ensureAvailability() async {
-  if (_availabilityChecked) return;
-  final availability = (await _languageModel.availability().toDart).toDart;
+Future<void> _ensureAvailability([LanguageModelOptions? options]) async {
+  final availability =
+      (await _languageModel.availability(options).toDart).toDart;
   if (availability == 'no') {
     throw GenkitException(
       'Chrome AI is not available.',
       status: StatusCodes.UNAVAILABLE,
     );
   }
-  _availabilityChecked = true;
 }
 
 LanguageModelFactory get _languageModel {
@@ -163,4 +167,49 @@ To enable local AI in Chrome (v128+):
     );
   }
   return languageModelImpl!;
+}
+
+List<T>? _parseExpected<T>({
+  required Map<String, dynamic> config,
+  required String key,
+  required T Function({String type, JSArray<JSString>? languages}) constructor,
+}) {
+  final items = config[key];
+  if (items is List) {
+    return items.map((e) {
+      if (e is Map) {
+        return constructor(
+          type: e['type'] as String? ?? 'text',
+          languages: (e['languages'] as List?)
+              ?.map((l) => (l as String).toJS)
+              .toList()
+              .toJS,
+        );
+      }
+      throw ArgumentError('Invalid item in $key: $e');
+    }).toList();
+  }
+  return null;
+}
+
+List<LanguageModelExpectedInput>? _parseExpectedInputs(
+  Map<String, dynamic> config,
+) {
+  return _parseExpected(
+    config: config,
+    key: 'expectedInputs',
+    constructor: ({String type = '', JSArray<JSString>? languages}) =>
+        LanguageModelExpectedInput(type: type, languages: languages),
+  );
+}
+
+List<LanguageModelExpectedOutput>? _parseExpectedOutputs(
+  Map<String, dynamic> config,
+) {
+  return _parseExpected(
+    config: config,
+    key: 'expectedOutputs',
+    constructor: ({String type = '', JSArray<JSString>? languages}) =>
+        LanguageModelExpectedOutput(type: type, languages: languages),
+  );
 }

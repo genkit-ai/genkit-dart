@@ -23,7 +23,7 @@ extension type LanguageModelFactory._(JSObject _) implements JSObject {
   /// Returns the availability of the language model.
   ///
   /// Returns a promise that resolves to "readily", "after-download", or "no".
-  external JSPromise<JSString> availability();
+  external JSPromise<JSString> availability([LanguageModelOptions? options]);
 
   /// Creates a new session with the language model.
   external JSPromise<LanguageModel> create([LanguageModelOptions? options]);
@@ -49,6 +49,8 @@ extension type LanguageModelOptions._(JSObject _) implements JSObject {
     num? topK,
     String? systemPrompt,
     List<LanguageModelInitialPrompt>? initialPrompts,
+    List<LanguageModelExpectedInput>? expectedInputs,
+    List<LanguageModelExpectedOutput>? expectedOutputs,
   }) {
     final options = JSObject();
     if (temperature != null) options['temperature'] = temperature.toJS;
@@ -57,13 +59,37 @@ extension type LanguageModelOptions._(JSObject _) implements JSObject {
     if (initialPrompts != null && initialPrompts.isNotEmpty) {
       options['initialPrompts'] = initialPrompts.toJS;
     }
+    if (expectedInputs != null && expectedInputs.isNotEmpty) {
+      options['expectedInputs'] = expectedInputs.toJS;
+    }
+    if (expectedOutputs != null && expectedOutputs.isNotEmpty) {
+      options['expectedOutputs'] = expectedOutputs.toJS;
+    }
     return options as LanguageModelOptions;
   }
 
   external num? get temperature;
   external num? get topK;
   external String? get systemPrompt;
-  external JSArray<LanguageModelInitialPrompt> get initialPrompts;
+  external JSArray<LanguageModelInitialPrompt>? get initialPrompts;
+  external JSArray<LanguageModelExpectedInput>? get expectedInputs;
+  external JSArray<LanguageModelExpectedOutput>? get expectedOutputs;
+}
+
+@JS()
+extension type LanguageModelExpectedInput._(JSObject _) implements JSObject {
+  external factory LanguageModelExpectedInput({
+    String type,
+    JSArray<JSString>? languages,
+  });
+}
+
+@JS()
+extension type LanguageModelExpectedOutput._(JSObject _) implements JSObject {
+  external factory LanguageModelExpectedOutput({
+    String type,
+    JSArray<JSString>? languages,
+  });
 }
 
 @JS()

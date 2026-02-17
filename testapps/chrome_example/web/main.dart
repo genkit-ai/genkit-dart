@@ -158,6 +158,12 @@ final _systemPromptInput =
 final _temperatureInput =
     web.document.querySelector('#temperature') as web.HTMLInputElement;
 final _topKInput = web.document.querySelector('#topK') as web.HTMLInputElement;
+final _expectedInputLanguages =
+    web.document.querySelector('#expectedInputLanguages')
+        as web.HTMLSelectElement;
+final _expectedOutputLanguages =
+    web.document.querySelector('#expectedOutputLanguages')
+        as web.HTMLSelectElement;
 
 final List<Message> _history = [];
 
@@ -189,6 +195,17 @@ Future<void> _submit(Genkit ai) async {
     final systemPrompt = _systemPromptInput.value.trim();
     final temperature = double.tryParse(_temperatureInput.value);
     final topK = int.tryParse(_topKInput.value);
+    List<String> parseSelectedLangs(web.HTMLSelectElement selectElement) {
+      final selected = <String>[];
+      final options = selectElement.selectedOptions;
+      for (var i = 0; i < options.length; i++) {
+        selected.add((options.item(i) as web.HTMLOptionElement).value);
+      }
+      return selected;
+    }
+
+    final inputLangs = parseSelectedLangs(_expectedInputLanguages);
+    final outputLangs = parseSelectedLangs(_expectedOutputLanguages);
 
     // Update system prompt in history if it changed or is new
     // For simplicity in this sample, we'll just prepend it if it exists
@@ -206,6 +223,12 @@ Future<void> _submit(Genkit ai) async {
       }
       if (topK != null && _defaultTopK != null && topK != _defaultTopK) {
         settingsList.add('Top K: $topK');
+      }
+      if (inputLangs.isNotEmpty) {
+        settingsList.add('Input Langs: ${inputLangs.join(", ")}');
+      }
+      if (outputLangs.isNotEmpty) {
+        settingsList.add('Output Langs: ${outputLangs.join(", ")}');
       }
 
       final contentDiv = _appendMessage(
@@ -229,6 +252,14 @@ Future<void> _submit(Genkit ai) async {
             if (systemPrompt.isNotEmpty) 'systemPrompt': systemPrompt,
             'temperature': ?temperature,
             'topK': ?topK,
+            if (inputLangs.isNotEmpty)
+              'expectedInputs': [
+                {'type': 'text', 'languages': inputLangs},
+              ],
+            if (outputLangs.isNotEmpty)
+              'expectedOutputs': [
+                {'type': 'text', 'languages': outputLangs},
+              ],
           },
           onChunk: (chunk) {
             if (buffer.isEmpty) {
