@@ -108,7 +108,7 @@ void main() async {
   final response = await ai.generate(
     model: openAI.model('gpt-4o'),
     prompt: 'What\'s the weather in Boston?',
-    tools: ['getWeather'],
+    toolNames: ['getWeather'],
   );
 
   print(response.text);
