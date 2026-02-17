@@ -43,7 +43,7 @@ void main() async {
 final response = await ai.generate(
   model: openAI.model('gpt-4o'),
   prompt: 'Write a haiku about Dart.',
-  config: OpenAIOptionsSchema(
+  config: OpenAIOptions(
     temperature: 0.7,
     maxTokens: 100,
     jsonMode: false,
@@ -183,7 +183,7 @@ final response = await ai.generate(
 
 ## Options
 
-The `OpenAIOptionsSchema` class supports the following options:
+The `OpenAIOptions` class supports the following options:
 
 - `temperature` (double?, 0.0-2.0) - Sampling temperature
 - `topP` (double?, 0.0-1.0) - Nucleus sampling

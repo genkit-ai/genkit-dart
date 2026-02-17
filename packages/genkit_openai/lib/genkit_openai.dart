@@ -24,7 +24,7 @@ export 'src/models.dart'
 part 'genkit_openai.g.dart';
 
 @Schematic()
-abstract class $OpenAIOptionsSchema {
+abstract class $OpenAIOptions {
   /// Model version override (e.g., 'gpt-4o-2024-08-06')
   String? get version;
 
@@ -95,7 +95,7 @@ class OpenAICompatPluginHandle {
   }
 
   /// Reference to a model
-  ModelRef<OpenAIOptionsSchema> model(String name) {
-    return modelRef('openai/$name', customOptions: OpenAIOptionsSchema.$schema);
+  ModelRef<OpenAIOptions> model(String name) {
+    return modelRef('openai/$name', customOptions: OpenAIOptions.$schema);
   }
 }

@@ -255,7 +255,7 @@ class OpenAIPlugin extends GenkitPlugin {
             return modelMetadata(
               'openai/$modelId',
               modelInfo: modelInfo,
-              customOptions: OpenAIOptionsSchema.$schema,
+              customOptions: OpenAIOptions.$schema,
             );
           })
           .toList();
@@ -283,12 +283,12 @@ class OpenAIPlugin extends GenkitPlugin {
 
     return Model(
       name: 'openai/$modelName',
-      customOptions: OpenAIOptionsSchema.$schema,
+      customOptions: OpenAIOptions.$schema,
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
         final options = req!.config != null
-            ? OpenAIOptionsSchema.$schema.parse(req.config!)
-            : OpenAIOptionsSchema();
+            ? OpenAIOptions.$schema.parse(req.config!)
+            : OpenAIOptions();
 
         if (apiKey == null) {
           throw GenkitException(

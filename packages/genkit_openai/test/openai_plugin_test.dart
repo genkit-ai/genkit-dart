@@ -24,31 +24,31 @@ import 'package:openai_dart/openai_dart.dart'
 import 'package:test/test.dart';
 
 void main() {
-  group('OpenAIOptionsSchema', () {
+  group('OpenAIOptions', () {
     test('parses temperature', () {
-      final options = OpenAIOptionsSchema.$schema.parse({'temperature': 0.7});
+      final options = OpenAIOptions.$schema.parse({'temperature': 0.7});
       expect(options.temperature, 0.7);
     });
 
     test('parses maxTokens', () {
-      final options = OpenAIOptionsSchema.$schema.parse({'maxTokens': 100});
+      final options = OpenAIOptions.$schema.parse({'maxTokens': 100});
       expect(options.maxTokens, 100);
     });
 
     test('parses jsonMode', () {
-      final options = OpenAIOptionsSchema.$schema.parse({'jsonMode': true});
+      final options = OpenAIOptions.$schema.parse({'jsonMode': true});
       expect(options.jsonMode, true);
     });
 
     test('parses stop sequences', () {
-      final options = OpenAIOptionsSchema.$schema.parse({
+      final options = OpenAIOptions.$schema.parse({
         'stop': ['stop1', 'stop2'],
       });
       expect(options.stop, ['stop1', 'stop2']);
     });
 
     test('creates default options', () {
-      final options = OpenAIOptionsSchema();
+      final options = OpenAIOptions();
       expect(options.temperature, isNull);
       expect(options.maxTokens, isNull);
     });

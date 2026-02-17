@@ -61,7 +61,7 @@ void main() {
         final response = await ai.generate(
           model: openAI.model('gpt-4o'),
           prompt: 'Write a haiku about Dart.',
-          config: OpenAIOptionsSchema(temperature: 0.7, maxTokens: 100),
+          config: OpenAIOptions(temperature: 0.7, maxTokens: 100),
         );
 
         expect(response.text, isNotEmpty);

@@ -53,7 +53,7 @@ Future<void> simpleGenerateExample(String apiKey) async {
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
   final response = await ai.generate(
-    model: openAI.gpt4oMini,
+    model: openAI.model('gpt-4o-mini'),
     prompt: 'Tell me a joke about Dart programming.',
   );
 
@@ -71,9 +71,9 @@ Future<void> streamingExample(String apiKey) async {
   print('Streaming response:\n');
 
   await for (final chunk in ai.generateStream(
-    model: openAI.gpt4oMini,
+    model: openAI.model('gpt-4o-mini'),
     prompt: 'Write a very short story about a robot learning to laugh. Keep it under 100 words.',
-    config: OpenAIOptionsSchema(
+    config: OpenAIOptions(
       temperature: 0.8,
       maxTokens: 150,
     ),
@@ -128,9 +128,9 @@ Future<void> toolCallingExample(String apiKey) async {
   print('Query: What\'s the weather in Boston?\n');
 
   final response = await ai.generate(
-    model: openAI.gpt4oMini,
+    model: openAI.model('gpt-4o-mini'),
     prompt: 'What\'s the weather in Boston? Use the getWeather tool.',
-    tools: ['getWeather'],
+    toolNames: ['getWeather'],
   );
 
   print('\nAssistant: ${response.text}\n');
@@ -152,7 +152,7 @@ Future<void> conversationExample(String apiKey) async {
   ));
 
   var response = await ai.generate(
-    model: openAI.gpt4oMini,
+    model: openAI.model('gpt-4o-mini'),
     messages: messages,
   );
 
@@ -168,7 +168,7 @@ Future<void> conversationExample(String apiKey) async {
   ));
 
   response = await ai.generate(
-    model: openAI.gpt4oMini,
+    model: openAI.model('gpt-4o-mini'),
     messages: messages,
   );
 

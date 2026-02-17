@@ -82,7 +82,7 @@ Future<void> main(List<String> args) async {
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
-        model: openAI.gpt4oMini,
+        model: openAI.model('gpt-4o-mini'),
         prompt: prompt,
       );
       return response.text;
@@ -96,9 +96,9 @@ Future<void> main(List<String> args) async {
     outputSchema: stringSchema(),
     fn: (prompt, context) async {
       final response = await ai.generate(
-        model: openAI.gpt4oMini,
+        model: openAI.model('gpt-4o-mini'),
         prompt: prompt,
-        config: OpenAIOptionsSchema(
+        config: OpenAIOptions(
           temperature: 0.9,
           maxTokens: 300,
         ),
@@ -118,7 +118,7 @@ Future<void> main(List<String> args) async {
       
       if (context.streamingRequested) {
         await for (final chunk in ai.generateStream(
-          model: openAI.gpt4oMini,
+          model: openAI.model('gpt-4o-mini'),
           prompt: prompt,
         )) {
           for (final part in chunk.content) {
@@ -132,7 +132,7 @@ Future<void> main(List<String> args) async {
       }
       
       final response = await ai.generate(
-        model: openAI.gpt4oMini,
+        model: openAI.model('gpt-4o-mini'),
         prompt: prompt,
       );
       return response.text;
@@ -146,9 +146,9 @@ Future<void> main(List<String> args) async {
     outputSchema: stringSchema(),
     fn: (query, context) async {
       final response = await ai.generate(
-        model: openAI.gpt4oMini,
+        model: openAI.model('gpt-4o-mini'),
         prompt: 'Answer this weather question: $query. Use the getWeather tool.',
-        tools: ['getWeather'],
+        toolNames: ['getWeather'],
       );
       return response.text;
     },
@@ -157,13 +157,13 @@ Future<void> main(List<String> args) async {
   // Flow 5: Multi-tool assistant
   ai.defineFlow(
     name: 'assistant',
-    inputSchema: stringSchema(),
+    inputSchema: stringSchema(defaultValue: 'What is the weather like in San Francisco?'),
     outputSchema: stringSchema(),
     fn: (query, context) async {
       final response = await ai.generate(
-        model: openAI.gpt4oMini,
+        model: openAI.model('gpt-4o-mini'),
         prompt: query,
-        tools: ['getWeather'],
+        toolNames: ['getWeather'],
       );
       return response.text;
     },
@@ -192,7 +192,7 @@ Future<void> main(List<String> args) async {
       ];
 
       final response = await ai.generate(
-        model: openAI.gpt4oMini,
+        model: openAI.model('gpt-4o-mini'),
         messages: messages,
       );
       return response.text;
