@@ -54,8 +54,6 @@ abstract class $CountChunk {
 // curl -X POST http://localhost:3400/client -H "Content-Type: application/json" -d '{"data": "start"}'
 
 void main() async {
-  configureCollectorExporter();
-
   final ai = Genkit();
 
   // Define remote actions for the client flow

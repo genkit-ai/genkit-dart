@@ -16,7 +16,7 @@
 
 import 'dart:convert';
 
-import 'package:genkit/src/o11y/otlp_http_exporter.dart';
+import 'package:genkit/src/o11y/telemetry/exporter_impl.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:opentelemetry/api.dart' as api;

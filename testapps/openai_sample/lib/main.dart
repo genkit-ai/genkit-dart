@@ -38,7 +38,6 @@ Future<void> main(List<String> args) async {
   }
 
   // Configure telemetry for Genkit UI
-  configureCollectorExporter();
 
   // Initialize Genkit with OpenAI plugin
   final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);

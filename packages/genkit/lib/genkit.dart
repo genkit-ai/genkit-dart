@@ -40,6 +40,7 @@ import 'src/core/reflection.dart';
 import 'src/core/registry.dart';
 import 'src/exception.dart';
 import 'src/o11y/instrumentation.dart';
+import 'src/o11y/otlp_http_exporter.dart' show configureCollectorExporter;
 import 'src/schema.dart';
 import 'src/types.dart';
 import 'src/utils.dart';
@@ -76,8 +77,6 @@ export 'package:genkit/src/core/action.dart'
 export 'package:genkit/src/core/flow.dart';
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
-export 'package:genkit/src/o11y/otlp_http_exporter.dart'
-    show configureCollectorExporter;
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';
 
@@ -96,6 +95,8 @@ class Genkit {
     bool? isDevEnv,
     int? reflectionPort,
   }) {
+    configureCollectorExporter();
+
     // Register plugins
     for (final plugin in plugins) {
       registry.registerPlugin(plugin);

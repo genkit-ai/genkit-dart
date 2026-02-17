@@ -20,7 +20,6 @@ import 'package:schemantic/schemantic.dart';
 import 'src/model.dart';
 
 void main(List<String> args) async {
-  configureCollectorExporter();
   final ai = Genkit(plugins: [googleAI()]);
 
   // --- Basic Generate Flow ---

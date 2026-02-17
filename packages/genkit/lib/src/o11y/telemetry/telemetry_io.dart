@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'telemetry/telemetry_stub.dart'
-    if (dart.library.io) 'telemetry/telemetry_io.dart'
-    if (dart.library.js_interop) 'telemetry/telemetry_web.dart';
+import 'dart:io' as io;
+import 'exporter_impl.dart';
+
+void configureCollectorExporter() {
+  final telemetryServer = io.Platform.environment['GENKIT_TELEMETRY_SERVER'];
+  if (telemetryServer != null) {
+    setupExporter(telemetryServer);
+  }
+}
