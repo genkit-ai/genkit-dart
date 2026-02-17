@@ -10,7 +10,7 @@ dependencies:
   logging: ^1.3.0
   mime: ^1.0.4
   path: ^1.9.0
-  schemantic: 0.0.1-dev.14
+  schemantic: ^0.0.1-dev.14
 
 dev_dependencies:
   lints: ^5.0.0
