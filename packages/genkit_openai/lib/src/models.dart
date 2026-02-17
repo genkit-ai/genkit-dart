@@ -67,7 +67,7 @@ bool supportsTools(String model) {
     'moderation',
     'sora',
     'search',
-    'research'
+    'research',
   ];
 
   for (final keyword in nonToolKeywords) {
@@ -101,7 +101,9 @@ bool supportsVision(String model) {
   }
 
   // GPT-4 Turbo variants
-  if (id.contains('gpt-4-turbo') || id.contains('gpt-4-1106') || id.contains('gpt-4-0125')) {
+  if (id.contains('gpt-4-turbo') ||
+      id.contains('gpt-4-1106') ||
+      id.contains('gpt-4-0125')) {
     return true;
   }
 
@@ -119,7 +121,8 @@ bool supportsVision(String model) {
   }
 
   // ChatGPT models with vision indicators
-  if (id.startsWith('chatgpt-') && (id.contains('4o') || id.contains('vision'))) {
+  if (id.startsWith('chatgpt-') &&
+      (id.contains('4o') || id.contains('vision'))) {
     return true;
   }
 
