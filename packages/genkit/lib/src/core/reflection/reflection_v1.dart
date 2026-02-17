@@ -261,7 +261,9 @@ class ReflectionServerV1 {
           request.response.statusCode = HttpStatus.internalServerError;
           // contentType is already set to JSON
         }
-        request.response.write(jsonEncode(errorResponse.toJson()));
+        request.response.write(jsonEncode({'error': errorResponse.toJson()}));
+        print(' - - - - -:' + jsonEncode({'error': errorResponse.toJson()}));
+
         await request.response.close();
       }
     }
