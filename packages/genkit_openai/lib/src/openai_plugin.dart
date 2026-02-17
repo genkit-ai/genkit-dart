@@ -160,7 +160,7 @@ class OpenAIPlugin extends GenkitPlugin {
     // Research-specific models
     if (id.contains('research')) {
       return 'research';
-    } 
+    }
 
     // Search-specific models
     if (id.contains('search')) {
@@ -198,9 +198,7 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Fetch available model IDs from OpenAI API
   Future<List<String>> _fetchAvailableModels() async {
     if (apiKey == null) {
-      throw GenkitException(
-        'API key is required to fetch models from OpenAI.',
-      );
+      throw GenkitException('API key is required to fetch models from OpenAI.');
     }
 
     final client = OpenAIClient(
@@ -239,20 +237,25 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   @override
-  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> list() async {
+  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
+  list() async {
     try {
       final modelIds = await _fetchAvailableModels();
 
       // Filter to only chat models and generate their metadata
       final modelMetadataList = modelIds
-          .where((modelId) => getModelType(modelId) == 'chat' || getModelType(modelId) == 'unknown')
+          .where(
+            (modelId) =>
+                getModelType(modelId) == 'chat' ||
+                getModelType(modelId) == 'unknown',
+          )
           .map((modelId) {
             final modelInfo = _getModelInfo(modelId);
 
             return modelMetadata(
               'openai/$modelId',
               modelInfo: modelInfo,
-              customOptions: OpenAIOptionsSchema.$schema,
+              customOptions: OpenAIOptions.$schema,
             );
           })
           .toList();
@@ -280,14 +283,12 @@ class OpenAIPlugin extends GenkitPlugin {
 
     return Model(
       name: 'openai/$modelName',
-      customOptions: OpenAIOptionsSchema.$schema,
-      metadata: {
-        'model': modelInfo.toJson(),
-      },
+      customOptions: OpenAIOptions.$schema,
+      metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
         final options = req!.config != null
-            ? OpenAIOptionsSchema.$schema.parse(req.config!)
-            : OpenAIOptionsSchema();
+            ? OpenAIOptions.$schema.parse(req.config!)
+            : OpenAIOptions();
 
         if (apiKey == null) {
           throw GenkitException(
@@ -306,8 +307,13 @@ class OpenAIPlugin extends GenkitPlugin {
           final supportsTools = supports?['tools'] == true;
           final request = CreateChatCompletionRequest(
             model: ChatCompletionModel.modelId(options.version ?? modelName),
-            messages: GenkitConverter.toOpenAIMessages(req.messages, options.visualDetailLevel),
-            tools: supportsTools ? req.tools?.map(GenkitConverter.toOpenAITool).toList() : null,
+            messages: GenkitConverter.toOpenAIMessages(
+              req.messages,
+              options.visualDetailLevel,
+            ),
+            tools: supportsTools
+                ? req.tools?.map(GenkitConverter.toOpenAITool).toList()
+                : null,
             temperature: options.temperature,
             topP: options.topP,
             maxTokens: options.maxTokens,
@@ -337,7 +343,9 @@ class OpenAIPlugin extends GenkitPlugin {
           String? details;
 
           if (e is OpenAIClientException) {
-            status = e.code != null ? StatusCodes.fromHttpStatus(e.code!) : null;
+            status = e.code != null
+                ? StatusCodes.fromHttpStatus(e.code!)
+                : null;
             details = e.body?.toString();
           }
 
@@ -365,7 +373,8 @@ class OpenAIPlugin extends GenkitPlugin {
       Map<String, dynamic>? context,
       Stream<ModelRequest>? inputStream,
       void init,
-    }) ctx,
+    })
+    ctx,
   ) async {
     final stream = client.createChatCompletionStream(request: request);
 
@@ -375,7 +384,9 @@ class OpenAIPlugin extends GenkitPlugin {
 
     try {
       await for (final chunk in stream) {
-        final choice = (chunk.choices != null && chunk.choices!.isNotEmpty) ? chunk.choices!.first : null;
+        final choice = (chunk.choices != null && chunk.choices!.isNotEmpty)
+            ? chunk.choices!.first
+            : null;
         final delta = choice?.delta;
         if (delta == null) continue;
 
@@ -393,10 +404,7 @@ class OpenAIPlugin extends GenkitPlugin {
             final index = tc.index.toString();
             final acc = toolCalls.putIfAbsent(
               index,
-              () => _ToolCallAccumulator(
-                tc.id ?? '',
-                tc.function?.name ?? '',
-              ),
+              () => _ToolCallAccumulator(tc.id ?? '', tc.function?.name ?? ''),
             );
             // Update ID and name if new values arrive
             acc.updateId(tc.id);
@@ -412,7 +420,8 @@ class OpenAIPlugin extends GenkitPlugin {
         }
 
         // Only update finishReason when a non-null/non-empty value appears
-        final newFinishReason = chunk.choices != null && chunk.choices!.isNotEmpty
+        final newFinishReason =
+            chunk.choices != null && chunk.choices!.isNotEmpty
             ? chunk.choices!.first.finishReason?.name
             : null;
         if (newFinishReason != null && newFinishReason.isNotEmpty) {
@@ -421,10 +430,7 @@ class OpenAIPlugin extends GenkitPlugin {
       }
     } catch (e) {
       if (e is GenkitException) rethrow;
-      throw GenkitException(
-        'Error in streaming: $e',
-        underlyingException: e,
-      );
+      throw GenkitException('Error in streaming: $e', underlyingException: e);
     }
 
     // Build final message
@@ -445,11 +451,7 @@ class OpenAIPlugin extends GenkitPlugin {
           : null;
       finalParts.add(
         ToolRequestPart(
-          toolRequest: ToolRequest(
-            ref: tc.id,
-            name: tc.name,
-            input: input,
-          ),
+          toolRequest: ToolRequest(ref: tc.id, name: tc.name, input: input),
         ),
       );
     }
@@ -480,6 +482,4 @@ class OpenAIPlugin extends GenkitPlugin {
       raw: response.toJson(),
     );
   }
-
-  
 }
