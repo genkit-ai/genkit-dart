@@ -29,7 +29,7 @@ void main() async {
 
   // Generate text
   final response = await ai.generate(
-    model: openAI.gpt4o,
+    model: openAI.model('gpt-4o'),
     prompt: 'Tell me a joke.',
   );
 
@@ -41,9 +41,9 @@ void main() async {
 
 ```dart
 final response = await ai.generate(
-  model: openAI.gpt4o,
+  model: openAI.model('gpt-4o'),
   prompt: 'Write a haiku about Dart.',
-  config: OpenAIOptionsSchema(
+  config: OpenAIOptions(
     temperature: 0.7,
     maxTokens: 100,
     jsonMode: false,
@@ -55,7 +55,7 @@ final response = await ai.generate(
 
 ```dart
 await for (final chunk in ai.generateStream(
-  model: openAI.gpt4o,
+  model: openAI.model('gpt-4o'),
   prompt: 'Count from 1 to 10.',
 )) {
   for (final part in chunk.content) {
@@ -106,9 +106,9 @@ void main() async {
   );
 
   final response = await ai.generate(
-    model: openAI.gpt4o,
+    model: openAI.model('gpt-4o'),
     prompt: 'What\'s the weather in Boston?',
-    tools: ['getWeather'],
+    toolNames: ['getWeather'],
   );
 
   print(response.text);
@@ -119,7 +119,7 @@ void main() async {
 
 ```dart
 final response = await ai.generate(
-  model: openAI.gpt4o,
+  model: openAI.model('gpt-4o'),
   messages: [
     Message(
       role: Role.user,
@@ -172,97 +172,7 @@ final response = await ai.generate(
 
 ## Available Models
 
-### GPT-5.x Series
-
-- `openAI.gpt5` - gpt-5
-- `openAI.gpt520250807` - gpt-5-2025-08-07
-- `openAI.gpt5ChatLatest` - gpt-5-chat-latest
-- `openAI.gpt5Mini` - gpt-5-mini
-- `openAI.gpt5Mini20250807` - gpt-5-mini-2025-08-07
-- `openAI.gpt5Nano` - gpt-5-nano
-- `openAI.gpt5Nano20250807` - gpt-5-nano-2025-08-07
-- `openAI.gpt5Pro` - gpt-5-pro
-- `openAI.gpt5Pro20251006` - gpt-5-pro-2025-10-06
-- `openAI.gpt5Codex` - gpt-5-codex
-- `openAI.gpt5SearchApi` - gpt-5-search-api
-- `openAI.gpt5SearchApi20251014` - gpt-5-search-api-2025-10-14
-- `openAI.gpt51` - gpt-5.1
-- `openAI.gpt5120251113` - gpt-5.1-2025-11-13
-- `openAI.gpt51ChatLatest` - gpt-5.1-chat-latest
-- `openAI.gpt51Codex` - gpt-5.1-codex
-- `openAI.gpt51CodexMini` - gpt-5.1-codex-mini
-- `openAI.gpt51CodexMax` - gpt-5.1-codex-max
-- `openAI.gpt52` - gpt-5.2
-- `openAI.gpt5220251211` - gpt-5.2-2025-12-11
-- `openAI.gpt52ChatLatest` - gpt-5.2-chat-latest
-- `openAI.gpt52Pro` - gpt-5.2-pro
-- `openAI.gpt52Pro20251211` - gpt-5.2-pro-2025-12-11
-- `openAI.gpt52Codex` - gpt-5.2-codex
-
-### GPT-4.x Series
-
-- `openAI.gpt4` - gpt-4
-- `openAI.gpt40613` - gpt-4-0613
-- `openAI.gpt41106Preview` - gpt-4-1106-preview
-- `openAI.gpt40125Preview` - gpt-4-0125-preview
-- `openAI.gpt4Turbo` - gpt-4-turbo
-- `openAI.gpt4TurboPreview` - gpt-4-turbo-preview
-- `openAI.gpt4Turbo20240409` - gpt-4-turbo-2024-04-09
-- `openAI.gpt41` - gpt-4.1
-- `openAI.gpt4120250414` - gpt-4.1-2025-04-14
-- `openAI.gpt41Mini` - gpt-4.1-mini
-- `openAI.gpt41Mini20250414` - gpt-4.1-mini-2025-04-14
-- `openAI.gpt41Nano` - gpt-4.1-nano
-- `openAI.gpt41Nano20250414` - gpt-4.1-nano-2025-04-14
-
-### GPT-4o Series
-
-- `openAI.gpt4o` - gpt-4o
-- `openAI.gpt4o20240513` - gpt-4o-2024-05-13
-- `openAI.gpt4o20240806` - gpt-4o-2024-08-06
-- `openAI.gpt4o20241120` - gpt-4o-2024-11-20
-- `openAI.chatgpt4oLatest` - chatgpt-4o-latest
-- `openAI.gpt4oMini` - gpt-4o-mini
-- `openAI.gpt4oMini20240718` - gpt-4o-mini-2024-07-18
-
-### GPT-4o Search
-
-- `openAI.gpt4oSearchPreview` - gpt-4o-search-preview
-- `openAI.gpt4oSearchPreview20250311` - gpt-4o-search-preview-2025-03-11
-- `openAI.gpt4oMiniSearchPreview` - gpt-4o-mini-search-preview
-- `openAI.gpt4oMiniSearchPreview20250311` - gpt-4o-mini-search-preview-2025-03-11
-
-### GPT-3.5 Series
-
-- `openAI.gpt35Turbo` - gpt-3.5-turbo
-- `openAI.gpt35Turbo16k` - gpt-3.5-turbo-16k
-- `openAI.gpt35Turbo1106` - gpt-3.5-turbo-1106
-- `openAI.gpt35Turbo0125` - gpt-3.5-turbo-0125
-- `openAI.gpt35TurboInstruct` - gpt-3.5-turbo-instruct
-- `openAI.gpt35TurboInstruct0914` - gpt-3.5-turbo-instruct-0914
-
-### O-Series Models
-
-- `openAI.o1` - o1
-- `openAI.o120241217` - o1-2024-12-17
-- `openAI.o1Pro` - o1-pro
-- `openAI.o1Pro20250319` - o1-pro-2025-03-19
-- `openAI.o3` - o3
-- `openAI.o320250416` - o3-2025-04-16
-- `openAI.o3Mini` - o3-mini
-- `openAI.o3Mini20250131` - o3-mini-2025-01-31
-- `openAI.o4Mini` - o4-mini
-- `openAI.o4Mini20250416` - o4-mini-2025-04-16
-- `openAI.o4MiniDeepResearch` - o4-mini-deep-research
-- `openAI.o4MiniDeepResearch20250626` - o4-mini-deep-research-2025-06-26
-
-### Codex Models
-
-- `openAI.codexMiniLatest` - codex-mini-latest
-
-### Using Any Model by Name
-
-Or use any model by name with the `model()` method:
+Any OpenAI-compatible model can be used by providing its name to the `model()` method:
 
 ```dart
 final response = await ai.generate(
@@ -273,7 +183,7 @@ final response = await ai.generate(
 
 ## Options
 
-The `OpenAIOptionsSchema` class supports the following options:
+The `OpenAIOptions` class supports the following options:
 
 - `temperature` (double?, 0.0-2.0) - Sampling temperature
 - `topP` (double?, 0.0-1.0) - Nucleus sampling

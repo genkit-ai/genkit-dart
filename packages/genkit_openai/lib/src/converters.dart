@@ -35,7 +35,8 @@ class GenkitConverter {
 
         if (toolResponses.isEmpty) {
           throw ArgumentError(
-              'Tool message must contain at least one ToolResponsePart');
+            'Tool message must contain at least one ToolResponsePart',
+          );
         }
 
         // Create a separate message for each tool response
@@ -63,7 +64,9 @@ class GenkitConverter {
   /// Convert a single Genkit message to OpenAI format
   /// Note: Tool messages are handled separately in toOpenAIMessages()
   static ChatCompletionMessage toOpenAIMessage(
-      Message msg, String? visualDetailLevel) {
+    Message msg,
+    String? visualDetailLevel,
+  ) {
     if (msg.role == Role.system) {
       return ChatCompletionMessage.system(content: msg.text);
     }
@@ -121,7 +124,8 @@ class GenkitConverter {
 
   /// Extract tool calls from message content
   static List<ChatCompletionMessageToolCall> _extractToolCalls(
-      List<Part> content) {
+    List<Part> content,
+  ) {
     final toolCalls = <ChatCompletionMessageToolCall>[];
     for (final part in content) {
       if (part.isToolRequest) {
@@ -154,16 +158,10 @@ class GenkitConverter {
     var parameters = tool.inputSchema;
 
     if (parameters == null) {
-      parameters = {
-        'type': 'object',
-        'properties': {},
-      };
+      parameters = {'type': 'object', 'properties': {}};
     } else if (!parameters.containsKey('type')) {
       // Ensure the schema has a type field
-      parameters = {
-        'type': 'object',
-        ...parameters,
-      };
+      parameters = {'type': 'object', ...parameters};
     }
 
     return ChatCompletionTool(
@@ -182,7 +180,8 @@ class GenkitConverter {
   /// For responses, we always get a ChatCompletionAssistantMessage with
   /// optional text content and/or tool calls.
   static Message fromOpenAIAssistantMessage(
-      ChatCompletionAssistantMessage msg) {
+    ChatCompletionAssistantMessage msg,
+  ) {
     final parts = <Part>[];
 
     // Handle text content (always a String? for assistant messages)
@@ -200,7 +199,7 @@ class GenkitConverter {
               name: toolCall.function.name,
               input: toolCall.function.arguments.isNotEmpty
                   ? jsonDecode(toolCall.function.arguments)
-                      as Map<String, dynamic>?
+                        as Map<String, dynamic>?
                   : null,
             ),
           ),
@@ -208,10 +207,7 @@ class GenkitConverter {
       }
     }
 
-    return Message(
-      role: Role.model,
-      content: parts,
-    );
+    return Message(role: Role.model, content: parts);
   }
 
   /// Map OpenAI finish reason to Genkit FinishReason

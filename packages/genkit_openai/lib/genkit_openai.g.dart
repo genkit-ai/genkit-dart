@@ -21,13 +21,13 @@ part of 'genkit_openai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class OpenAIOptionsSchema {
-  factory OpenAIOptionsSchema.fromJson(Map<String, dynamic> json) =>
+class OpenAIOptions {
+  factory OpenAIOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  OpenAIOptionsSchema._(this._json);
+  OpenAIOptions._(this._json);
 
-  OpenAIOptionsSchema({
+  OpenAIOptions({
     String? version,
     double? temperature,
     double? topP,
@@ -57,8 +57,8 @@ class OpenAIOptionsSchema {
 
   late final Map<String, dynamic> _json;
 
-  static const SchemanticType<OpenAIOptionsSchema> $schema =
-      _OpenAIOptionsSchemaTypeFactory();
+  static const SchemanticType<OpenAIOptions> $schema =
+      _OpenAIOptionsTypeFactory();
 
   String? get version {
     return _json['version'] as String?;
@@ -202,18 +202,17 @@ class OpenAIOptionsSchema {
   }
 }
 
-class _OpenAIOptionsSchemaTypeFactory
-    extends SchemanticType<OpenAIOptionsSchema> {
-  const _OpenAIOptionsSchemaTypeFactory();
+class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
+  const _OpenAIOptionsTypeFactory();
 
   @override
-  OpenAIOptionsSchema parse(Object? json) {
-    return OpenAIOptionsSchema._(json as Map<String, dynamic>);
+  OpenAIOptions parse(Object? json) {
+    return OpenAIOptions._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'OpenAIOptionsSchema',
+    name: 'OpenAIOptions',
     definition: Schema.object(
       properties: {
         'version': Schema.string(),

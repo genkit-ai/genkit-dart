@@ -24,29 +24,31 @@ import 'package:openai_dart/openai_dart.dart'
 import 'package:test/test.dart';
 
 void main() {
-  group('OpenAIOptionsSchema', () {
+  group('OpenAIOptions', () {
     test('parses temperature', () {
-      final options = OpenAIOptionsSchema.$schema.parse({'temperature': 0.7});
+      final options = OpenAIOptions.$schema.parse({'temperature': 0.7});
       expect(options.temperature, 0.7);
     });
 
     test('parses maxTokens', () {
-      final options = OpenAIOptionsSchema.$schema.parse({'maxTokens': 100});
+      final options = OpenAIOptions.$schema.parse({'maxTokens': 100});
       expect(options.maxTokens, 100);
     });
 
     test('parses jsonMode', () {
-      final options = OpenAIOptionsSchema.$schema.parse({'jsonMode': true});
+      final options = OpenAIOptions.$schema.parse({'jsonMode': true});
       expect(options.jsonMode, true);
     });
 
     test('parses stop sequences', () {
-      final options = OpenAIOptionsSchema.$schema.parse({'stop': ['stop1', 'stop2']});
+      final options = OpenAIOptions.$schema.parse({
+        'stop': ['stop1', 'stop2'],
+      });
       expect(options.stop, ['stop1', 'stop2']);
     });
 
     test('creates default options', () {
-      final options = OpenAIOptionsSchema();
+      final options = OpenAIOptions();
       expect(options.temperature, isNull);
       expect(options.maxTokens, isNull);
     });
@@ -60,7 +62,10 @@ void main() {
       );
       final result = GenkitConverter.toOpenAIMessage(msg, null);
       expect(result, isA<ChatCompletionSystemMessage>());
-      expect((result as ChatCompletionSystemMessage).content, 'You are helpful.');
+      expect(
+        (result as ChatCompletionSystemMessage).content,
+        'You are helpful.',
+      );
     });
 
     test('converts user message with text', () {
@@ -191,7 +196,10 @@ void main() {
     });
 
     test('maps content_filter', () {
-      expect(GenkitConverter.mapFinishReason('content_filter'), FinishReason.blocked);
+      expect(
+        GenkitConverter.mapFinishReason('content_filter'),
+        FinishReason.blocked,
+      );
     });
 
     test('maps tool_calls', () {
@@ -298,23 +306,13 @@ void main() {
       final ref = openAI.model('gpt-4o');
       expect(ref.name, 'openai/gpt-4o');
     });
-
-    test('pre-defined model getters work', () {
-      expect(openAI.gpt4o.name, 'openai/gpt-4o');
-      expect(openAI.gpt4oMini.name, 'openai/gpt-4o-mini');
-      expect(openAI.gpt4Turbo.name, 'openai/gpt-4-turbo');
-      expect(openAI.gpt35Turbo.name, 'openai/gpt-3.5-turbo');
-    });
   });
 
   group('CustomModelDefinition', () {
     test('creates with name and info', () {
       final def = CustomModelDefinition(
         name: 'custom-model',
-        info: ModelInfo(
-          label: 'Custom Model',
-          supports: {'multiturn': true},
-        ),
+        info: ModelInfo(label: 'Custom Model', supports: {'multiturn': true}),
       );
       expect(def.name, 'custom-model');
       expect(def.info?.label, 'Custom Model');
