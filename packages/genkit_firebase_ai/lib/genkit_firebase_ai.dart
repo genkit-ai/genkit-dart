@@ -378,61 +378,96 @@ m.Part toGeminiPart(Part p) {
   final isThought = p.metadata?['isThought'] == true;
   final thoughtSignature = p.metadata?['thoughtSignature'] as String?;
 
+  // firebase_ai does not officially expose thoughtSignature in its public constructors
+  // yet. It only exposes them via `.forTest` constructors meant for internal testing.
+  // We use them here but defensively fallback to standard constructors if they
+  // are ever removed or changed.
   if (p.isReasoning) {
-    return m.TextPart.forTest(
-      p.reasoning!,
-      isThought: true,
-      thoughtSignature: thoughtSignature,
-    );
+    try {
+      return m.TextPart.forTest(
+        p.reasoning!,
+        isThought: true,
+        thoughtSignature: thoughtSignature,
+      );
+    } catch (_) {
+      return m.TextPart(p.reasoning!, isThought: true);
+    }
   }
   if (p.isText) {
-    return m.TextPart.forTest(
-      p.text!,
-      isThought: isThought,
-      thoughtSignature: thoughtSignature,
-    );
+    try {
+      return m.TextPart.forTest(
+        p.text!,
+        isThought: isThought,
+        thoughtSignature: thoughtSignature,
+      );
+    } catch (_) {
+      return m.TextPart(p.text!, isThought: isThought);
+    }
   }
   if (p.isMedia) {
     final media = p.media!;
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
-        return m.InlineDataPart.forTest(
-          media.contentType ?? 'application/octet-stream',
-          uri.data!.contentAsBytes(),
-          isThought: isThought,
-          thoughtSignature: thoughtSignature,
-        );
+        try {
+          return m.InlineDataPart.forTest(
+            media.contentType ?? 'application/octet-stream',
+            uri.data!.contentAsBytes(),
+            isThought: isThought,
+            thoughtSignature: thoughtSignature,
+          );
+        } catch (_) {
+          return m.InlineDataPart(
+            media.contentType ?? 'application/octet-stream',
+            uri.data!.contentAsBytes(),
+            isThought: isThought,
+          );
+        }
       }
     }
     // Assume HTTP/S or other URLs are File URIs
-    return m.FileData.forTest(
-      media.contentType ?? 'application/octet-stream',
-      media.url,
-      isThought: isThought,
-      thoughtSignature: thoughtSignature,
-    );
+    try {
+      return m.FileData.forTest(
+        media.contentType ?? 'application/octet-stream',
+        media.url,
+        isThought: isThought,
+        thoughtSignature: thoughtSignature,
+      );
+    } catch (_) {
+      return m.FileData(
+        media.contentType ?? 'application/octet-stream',
+        media.url,
+        isThought: isThought,
+      );
+    }
   }
   if (p.isToolResponse) {
     final toolResponse = p.toolResponse!;
     return m.FunctionResponse(
       toolResponse.name,
-      {
-        'result': toolResponse.output,
-      },
+      {'result': toolResponse.output},
       id: toolResponse.ref,
       isThought: isThought,
     );
   }
   if (p.isToolRequest) {
     final toolRequest = p.toolRequest!;
-    return m.FunctionCall.forTest(
-      toolRequest.name,
-      toolRequest.input ?? {},
-      id: toolRequest.ref,
-      isThought: isThought,
-      thoughtSignature: thoughtSignature,
-    );
+    try {
+      return m.FunctionCall.forTest(
+        toolRequest.name,
+        toolRequest.input ?? {},
+        id: toolRequest.ref,
+        isThought: isThought,
+        thoughtSignature: thoughtSignature,
+      );
+    } catch (_) {
+      return m.FunctionCall(
+        toolRequest.name,
+        toolRequest.input ?? {},
+        id: toolRequest.ref,
+        isThought: isThought,
+      );
+    }
   }
   throw UnimplementedError('Part type $p not supported yet');
 }
