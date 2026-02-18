@@ -40,6 +40,11 @@ class GeminiOptions {
     Map<String, dynamic>? responseSchema,
     Map<String, dynamic>? responseJsonSchema,
     ThinkingConfig? thinkingConfig,
+    int? candidateCount,
+    bool? codeExecution,
+    FunctionCallingConfig? functionCallingConfig,
+    bool? responseLogprobs,
+    int? logprobs,
   }) {
     _json = {
       'stopSequences': ?stopSequences,
@@ -54,6 +59,11 @@ class GeminiOptions {
       'responseSchema': ?responseSchema,
       'responseJsonSchema': ?responseJsonSchema,
       'thinkingConfig': ?thinkingConfig?.toJson(),
+      'candidateCount': ?candidateCount,
+      'codeExecution': ?codeExecution,
+      'functionCallingConfig': ?functionCallingConfig?.toJson(),
+      'responseLogprobs': ?responseLogprobs,
+      'logprobs': ?logprobs,
     };
   }
 
@@ -210,6 +220,70 @@ class GeminiOptions {
     }
   }
 
+  int? get candidateCount {
+    return _json['candidateCount'] as int?;
+  }
+
+  set candidateCount(int? value) {
+    if (value == null) {
+      _json.remove('candidateCount');
+    } else {
+      _json['candidateCount'] = value;
+    }
+  }
+
+  bool? get codeExecution {
+    return _json['codeExecution'] as bool?;
+  }
+
+  set codeExecution(bool? value) {
+    if (value == null) {
+      _json.remove('codeExecution');
+    } else {
+      _json['codeExecution'] = value;
+    }
+  }
+
+  FunctionCallingConfig? get functionCallingConfig {
+    return _json['functionCallingConfig'] == null
+        ? null
+        : FunctionCallingConfig.fromJson(
+            _json['functionCallingConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set functionCallingConfig(FunctionCallingConfig? value) {
+    if (value == null) {
+      _json.remove('functionCallingConfig');
+    } else {
+      _json['functionCallingConfig'] = value;
+    }
+  }
+
+  bool? get responseLogprobs {
+    return _json['responseLogprobs'] as bool?;
+  }
+
+  set responseLogprobs(bool? value) {
+    if (value == null) {
+      _json.remove('responseLogprobs');
+    } else {
+      _json['responseLogprobs'] = value;
+    }
+  }
+
+  int? get logprobs {
+    return _json['logprobs'] as int?;
+  }
+
+  set logprobs(int? value) {
+    if (value == null) {
+      _json.remove('logprobs');
+    } else {
+      _json['logprobs'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -245,10 +319,91 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'responseSchema': Schema.object(additionalProperties: Schema.any()),
         'responseJsonSchema': Schema.object(additionalProperties: Schema.any()),
         'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
+        'candidateCount': Schema.integer(),
+        'codeExecution': Schema.boolean(),
+        'functionCallingConfig': Schema.fromMap({
+          '\$ref': r'#/$defs/FunctionCallingConfig',
+        }),
+        'responseLogprobs': Schema.boolean(),
+        'logprobs': Schema.integer(),
       },
       required: [],
     ),
-    dependencies: [ThinkingConfig.$schema],
+    dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
+  );
+}
+
+class FunctionCallingConfig {
+  factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  FunctionCallingConfig._(this._json);
+
+  FunctionCallingConfig({String? mode, List<String>? allowedFunctionNames}) {
+    _json = {'mode': ?mode, 'allowedFunctionNames': ?allowedFunctionNames};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<FunctionCallingConfig> $schema =
+      _FunctionCallingConfigTypeFactory();
+
+  String? get mode {
+    return _json['mode'] as String?;
+  }
+
+  set mode(String? value) {
+    if (value == null) {
+      _json.remove('mode');
+    } else {
+      _json['mode'] = value;
+    }
+  }
+
+  List<String>? get allowedFunctionNames {
+    return (_json['allowedFunctionNames'] as List?)?.cast<String>();
+  }
+
+  set allowedFunctionNames(List<String>? value) {
+    if (value == null) {
+      _json.remove('allowedFunctionNames');
+    } else {
+      _json['allowedFunctionNames'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _FunctionCallingConfigTypeFactory
+    extends SchemanticType<FunctionCallingConfig> {
+  const _FunctionCallingConfigTypeFactory();
+
+  @override
+  FunctionCallingConfig parse(Object? json) {
+    return FunctionCallingConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'FunctionCallingConfig',
+    definition: Schema.object(
+      properties: {
+        'mode': Schema.string(
+          enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
+        ),
+        'allowedFunctionNames': Schema.list(items: Schema.string()),
+      },
+      required: [],
+    ),
+    dependencies: [],
   );
 }
 

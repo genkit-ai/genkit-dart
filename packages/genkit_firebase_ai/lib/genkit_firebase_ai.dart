@@ -38,6 +38,18 @@ abstract class $GeminiOptions {
   Map<String, dynamic>? get responseSchema;
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
+  int? get candidateCount;
+  bool? get codeExecution;
+  $FunctionCallingConfig? get functionCallingConfig;
+  bool? get responseLogprobs;
+  int? get logprobs;
+}
+
+@Schematic()
+abstract class $FunctionCallingConfig {
+  @StringField(enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'])
+  String? get mode;
+  List<String>? get allowedFunctionNames;
 }
 
 @Schematic()
@@ -117,63 +129,43 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     return Model(
       name: 'firebaseai/$modelName',
       fn: (req, ctx) async {
-        if (req == null) throw ArgumentError('Request cannot be null');
+        final isJsonMode = req!.output?.format == 'json' ||
+            req.output?.contentType == 'application/json';
+        
+        final options = req.config == null
+            ? GeminiOptions()
+            : GeminiOptions.$schema.parse(req.config!);
+
         final instance = m.FirebaseAI.googleAI();
         final model = instance.generativeModel(
           model: modelName,
-          generationConfig: m.GenerationConfig(
-            candidateCount: req.config?['candidateCount'] as int?,
-            stopSequences: (req.config?['stopSequences'] as List?)
-                ?.cast<String>(),
-            maxOutputTokens: req.config?['maxOutputTokens'] as int?,
-            temperature: (req.config?['temperature'] as num?)?.toDouble(),
-            topP: (req.config?['topP'] as num?)?.toDouble(),
-            topK: req.config?['topK'] as int?,
-            presencePenalty: (req.config?['presencePenalty'] as num?)
-                ?.toDouble(),
-            frequencyPenalty: (req.config?['frequencyPenalty'] as num?)
-                ?.toDouble(),
-            responseModalities: (req.config?['responseModalities'] as List?)
-                ?.map((e) => m.ResponseModalities.values.byName(e as String))
-                .toList(),
-            responseMimeType: req.config?['responseMimeType'] as String?,
-            responseSchema: req.config?['responseSchema'] != null
-                ? toGeminiSchema(
-                    req.config!['responseSchema'] as Map<String, dynamic>,
-                  )
-                : null,
-            responseJsonSchema:
-                req.config?['responseJsonSchema'] as Map<String, dynamic>?,
-            thinkingConfig: req.config?['thinkingConfig'] != null
-                ?
-                  // ignore: deprecated_member_use
-                  m.ThinkingConfig(
-                    thinkingBudget:
-                        (req.config!['thinkingConfig'] as Map)['thinkingBudget']
-                            as int?,
-                    includeThoughts:
-                        (req.config!['thinkingConfig']
-                                as Map)['includeThoughts']
-                            as bool?,
-                  )
-                : null,
+          generationConfig: toGeminiSettings(
+            options,
+            req.output?.schema,
+            isJsonMode,
           ),
+          tools: toGeminiTools(
+            req.tools,
+            codeExecution: options.codeExecution,
+          ),
+          toolConfig: toGeminiToolConfig(options.functionCallingConfig),
         );
 
         final response = await model.generateContent(
           toGeminiContent(req.messages),
-          tools: req.tools?.map(toGeminiTool).toList(),
         );
 
         if (response.candidates.isEmpty) {
           // TODO: Consider inspecting response.promptFeedback for the block reason.
           throw GenkitException('Model returned no candidates.');
         }
+        
         final (message, finishReason) = fromGeminiCandidate(
           response.candidates.first,
         );
 
         final raw = <String, dynamic>{
+          // Recreate structure
           'candidates': response.candidates
               .map(
                 (c) => {
@@ -191,6 +183,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           finishReason: finishReason,
           message: message,
           raw: raw,
+          usage: extractUsage(response.usageMetadata),
         );
       },
     );
@@ -201,7 +194,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       name: 'firebaseai/$modelName',
       fn: (stream, ctx) async {
         final configMap = ctx.init?.config;
-        final tools = ctx.init?.tools?.map(toGeminiTool).toList();
+        final tools = toGeminiTools(ctx.init?.tools);
         final systemMessage = ctx.init?.messages
             .where((m) => m.role == Role.system)
             .firstOrNull;
@@ -427,21 +420,52 @@ ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
 }
 
 @visibleForTesting
-m.Tool toGeminiTool(ToolDefinition tool) {
-  final schemaMap = tool.inputSchema;
-  final propertiesMap = schemaMap?['properties'] as Map<String, dynamic>? ?? {};
+List<m.Tool>? toGeminiTools(
+  List<ToolDefinition>? tools, {
+  bool? codeExecution,
+}) {
+  if ((tools == null || tools.isEmpty) && codeExecution != true) return null;
+  
+  return [
+    if (tools != null) ...(tools.map(_toGeminiTool)),
+    if (codeExecution == true) m.Tool.codeExecution(),
+  ];
+}
+
+m.Tool _toGeminiTool(ToolDefinition tool) {
+  final rawSchema = tool.inputSchema as Map<String, dynamic>?;
+
+  Map<String, dynamic> flattened = {};
+  if (rawSchema != null) {
+    flattened = Schema.fromMap(rawSchema).flatten().value;
+  }
+
+  final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
+  final requiredList = (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
 
   final parameters = propertiesMap.map((key, value) {
     return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
   });
 
+  final optionalParameters = propertiesMap.keys.where((k) => !requiredList.contains(k)).toList();
+
   return m.Tool.functionDeclarations([
-    m.FunctionDeclaration(tool.name, tool.description, parameters: parameters),
+    m.FunctionDeclaration(
+      tool.name,
+      tool.description,
+      parameters: parameters,
+      optionalParameters: optionalParameters,
+    ),
   ]);
 }
 
 @visibleForTesting
 m.Schema toGeminiSchema(Map<String, dynamic> json) {
+  final flattened = Schema.fromMap(json).flatten().value;
+  return _toGeminiSchemaInternal(flattened);
+}
+
+m.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
   final type = json['type']; // dynamic
   final description = json['description'] as String?;
   final nullable = json['nullable'] as bool? ?? false;
@@ -467,12 +491,12 @@ m.Schema toGeminiSchema(Map<String, dynamic> json) {
         description: description,
         nullable: nullable,
         items: json['items'] != null
-            ? toGeminiSchema(json['items'] as Map<String, dynamic>)
+            ? _toGeminiSchemaInternal(json['items'] as Map<String, dynamic>)
             : m.Schema.string(),
       );
     case 'object':
       final properties = (json['properties'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, toGeminiSchema(v as Map<String, dynamic>)),
+        (k, v) => MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
       );
       return m.Schema.object(
         properties: properties ?? {},
@@ -482,4 +506,78 @@ m.Schema toGeminiSchema(Map<String, dynamic> json) {
     default:
       return m.Schema.string(description: description, nullable: nullable);
   }
+}
+
+@visibleForTesting
+m.GenerationConfig toGeminiSettings(
+  GeminiOptions options,
+  Map<String, dynamic>? outputSchema,
+  bool isJsonMode,
+) {
+  return m.GenerationConfig(
+    candidateCount: options.candidateCount,
+    stopSequences: options.stopSequences ?? [],
+    maxOutputTokens: options.maxOutputTokens,
+    temperature: options.temperature,
+    topP: options.topP,
+    topK: options.topK,
+    responseMimeType: isJsonMode
+        ? 'application/json'
+        : (options.responseMimeType ?? ''),
+    responseSchema: outputSchema != null
+        ? toGeminiSchema(outputSchema)
+        : (options.responseSchema != null
+            ? toGeminiSchema(options.responseSchema!)
+            : null),
+    presencePenalty: options.presencePenalty,
+    frequencyPenalty: options.frequencyPenalty,
+    responseModalities: options.responseModalities
+        ?.map((e) => m.ResponseModalities.values.byName(e.toLowerCase()))
+        .toList(),
+    thinkingConfig: options.thinkingConfig == null
+        ? null
+        : m.ThinkingConfig(
+            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
+            thinkingBudget: options.thinkingConfig!.thinkingBudget,
+          ),
+  );
+}
+
+@visibleForTesting
+m.ToolConfig? toGeminiToolConfig(
+  FunctionCallingConfig? functionCallingConfig,
+) {
+  if (functionCallingConfig == null) return null;
+  final modeStr = functionCallingConfig.mode;
+  final m.FunctionCallingConfig mConfig;
+  if (modeStr == null) {
+    mConfig = m.FunctionCallingConfig.auto();
+  } else {
+    switch (modeStr.toUpperCase()) {
+      case 'ANY':
+        mConfig = m.FunctionCallingConfig.any(
+            functionCallingConfig.allowedFunctionNames?.toSet() ?? {});
+        break;
+      case 'NONE':
+        mConfig = m.FunctionCallingConfig.none();
+        break;
+      case 'AUTO':
+      default:
+        mConfig = m.FunctionCallingConfig.auto();
+        break;
+    }
+  }
+  return m.ToolConfig(functionCallingConfig: mConfig);
+}
+
+@visibleForTesting
+GenerationUsage? extractUsage(
+  m.UsageMetadata? metadata,
+) {
+  if (metadata == null) return null;
+  return GenerationUsage(
+    inputTokens: metadata.promptTokenCount?.toDouble() ?? 0,
+    outputTokens: metadata.candidatesTokenCount?.toDouble() ?? 0,
+    totalTokens: metadata.totalTokenCount?.toDouble() ?? 0,
+  );
 }

@@ -139,7 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final response = await _ai.generate(
-        model: firebaseAI.gemini('gemini-2.5-flash'),
+        model: firebaseAI.gemini('gemini-2.5-pro'),
         prompt: text,
         toolNames: ['getWeather'],
       );
