@@ -1,5 +1,5 @@
 name: genkit_openai
-description: OpenAI-compatible API plugin for Genkit Dart.
+description: OpenAI plugin for Genkit Dart, provides seamless model integration, generative AI capabilities, and tooling support.
 resolution: workspace
 version: 0.0.1-dev.2
 repository: https://github.com/genkit-ai/genkit-dart
@@ -11,7 +11,7 @@ environment:
 dependencies:
   genkit: ^0.10.0-dev.13
   meta: ^1.17.0
-  openai_dart: ^0.5.5
+  openai_dart: ^0.6.2
   schemantic: ^0.0.1-dev.15
 
 dev_dependencies:

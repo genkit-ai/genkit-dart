@@ -56,6 +56,38 @@ ai.defineFlow(
     return response.media!;
   },
 );
+The media (url field) contain base64 encoded data uri. You can decode it and save it as a file.
+
+## Text-to-Speech (TTS)
+
+You can use text-to-speech models to generate audio from text. The generated `Media` object will contain base64 encoded PCM audio in its data URI.
+
+```dart
+// Define a TTS flow
+ai.defineFlow(
+  name: 'textToSpeech',
+  inputSchema: stringSchema(defaultValue: 'Genkit is an amazing AI framework!'),
+  outputSchema: Media.$schema,
+  fn: (prompt, _) async {
+    final response = await ai.generate(
+      model: googleAI.gemini('gemini-2.5-flash-preview-tts'),
+      prompt: prompt,
+      config: GeminiTtsOptions(
+        responseModalities: ['AUDIO'],
+        speechConfig: SpeechConfig(
+          voiceConfig: VoiceConfig(
+            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+          ),
+        ),
+      ),
+    );
+    
+    if (response.media != null) {
+      return response.media!;
+    }
+    throw Exception('No audio generated');
+  },
+);
 ```
 
-The media (url field) contain base64 encoded data uri. You can decode it and save it as a file.
+Google AI also supports multi-speaker TTS by configuring a `MultiSpeakerVoiceConfig` inside `SpeechConfig`.
