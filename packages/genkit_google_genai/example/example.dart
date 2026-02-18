@@ -36,6 +36,23 @@ void main(List<String> args) async {
     },
   );
 
+  // --- Image Generator Flow using Nano Banana ---
+  ai.defineFlow(
+    name: 'imageGenerator',
+    inputSchema: stringSchema(defaultValue: 'A banana riding a bike'),
+    outputSchema: Media.$schema,
+    fn: (input, context) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-2.5-flash-image'),
+        prompt: input,
+      );
+      if (response.media == null) {
+        throw Exception('No media generated');
+      }
+      return response.media!;
+    },
+  );
+
   // --- Lite Generate Flow (Wrapped) ---
   ai.defineFlow(
     name: 'liteGenerate',

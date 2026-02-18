@@ -32,3 +32,28 @@ final embeddings = await ai.embedMany(
   ],
 );
 ```
+
+## Image Generation
+
+The plugin also supports image generation models such as `gemini-2.5-flash-image`.
+
+### Example (Nano Banana)
+
+```dart
+// Define an image generation flow
+ai.defineFlow(
+  name: 'imageGenerator',
+  inputSchema: stringSchema(defaultValue: 'A banana riding a bike'),
+  outputSchema: Media.$schema,
+  fn: (input, context) async {
+    final response = await ai.generate(
+      model: googleAI.gemini('gemini-2.5-flash-image'),
+      prompt: input,
+    );
+    if (response.media == null) {
+      throw Exception('No media generated');
+    }
+    return response.media!;
+  },
+);
+```
