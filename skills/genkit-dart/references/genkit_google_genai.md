@@ -57,3 +57,5 @@ ai.defineFlow(
   },
 );
 ```
+
+The media (url field) contain base64 encoded data uri. You can decode it and save it as a file.
