@@ -85,7 +85,7 @@ class RpgCharacter {
     required String name,
     required String description,
     required String background,
-    required Map<String, int> skills,
+    required List<String> skills,
     required List<String> inventory,
   }) {
     _json = {
@@ -126,11 +126,11 @@ class RpgCharacter {
     _json['background'] = value;
   }
 
-  Map<String, int> get skills {
-    return (_json['skills'] as Map).cast<String, int>();
+  List<String> get skills {
+    return (_json['skills'] as List).cast<String>();
   }
 
-  set skills(Map<String, int> value) {
+  set skills(List<String> value) {
     _json['skills'] = value;
   }
 
@@ -168,7 +168,7 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
         'name': Schema.string(),
         'description': Schema.string(),
         'background': Schema.string(),
-        'skills': Schema.object(additionalProperties: Schema.integer()),
+        'skills': Schema.list(items: Schema.string()),
         'inventory': Schema.list(items: Schema.string()),
       },
       required: ['name', 'description', 'background', 'skills', 'inventory'],

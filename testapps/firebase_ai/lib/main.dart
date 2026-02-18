@@ -39,7 +39,7 @@ abstract class $RpgCharacter {
   String get name;
   String get description;
   String get background;
-  Map<String, int> get skills;
+  List<String> get skills;
   List<String> get inventory;
 }
 
@@ -779,8 +779,8 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
                         'Skills:',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      ..._finalCharacter!.skills.entries.map(
-                        (e) => Text('- ${e.key}: ${e.value}'),
+                      ..._finalCharacter!.skills.map(
+                        (skill) => Text('- $skill'),
                       ),
                       const SizedBox(height: 8),
                       const Text(

@@ -530,14 +530,22 @@ m.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
             : m.Schema.string(),
       );
     case 'object':
-      final properties = (json['properties'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
-      );
-      return m.Schema.object(
-        properties: properties ?? {},
-        description: description,
-        nullable: nullable,
-      );
+      if (json.containsKey('properties')) {
+        final properties = (json['properties'] as Map<String, dynamic>?)?.map(
+          (k, v) => MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
+        );
+        return m.Schema.object(
+          properties: properties ?? {},
+          description: description,
+          nullable: nullable,
+        );
+      } else {
+        return m.Schema(
+          m.SchemaType.object,
+          description: description,
+          nullable: nullable,
+        );
+      }
     default:
       return m.Schema.string(description: description, nullable: nullable);
   }

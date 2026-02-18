@@ -41,6 +41,18 @@ void main() {
       expect(schema, isA<m.Schema>());
     });
 
+    test('converts object schema with additionalProperties', () {
+      final json = {
+        'type': 'object',
+        'additionalProperties': {'type': 'integer'},
+      };
+      final schema = toGeminiSchema(json);
+      expect(schema, isA<m.Schema>());
+
+      final jsonOutput = schema.toJson();
+      expect(jsonOutput, {'type': 'OBJECT', 'nullable': false});
+    });
+
     test('converts array schema', () {
       final json = {
         'type': 'array',
