@@ -54,6 +54,8 @@ Models can use define actions and access external data via custom defined tools.
 Requires the `schemantic` library for schema definitions.
 
 ```dart
+import 'package:schemantic/schemantic.dart';
+
 @Schematic()
 abstract class $WeatherInput {
   String get location;
@@ -143,7 +145,7 @@ final streamStory = ai.defineFlow(
 );
 ```
 
-## Calling Flows on Flow Servers
+## Calling remote Flows from a dart client
 The `genkit` package provides `package:genkit/client.dart` representing remote Genkit actions that can be invoked or streamed using type-safe definitions.
 
 1. Defines a remote action
@@ -185,6 +187,62 @@ final finalResult = await stream.onResult;
 print('\nFinal Response: $finalResult');
 ```
 
+## Calling remote Flows from a Javascript client
+
+Install `genkit` npm package:
+
+```bash
+npm install genkit
+```
+
+1. Call a remote flow (non-streaming)
+
+```ts
+import { runFlow } from 'genkit/beta/client';
+
+async function callHelloFlow() {
+  try {
+    const result = await runFlow({
+      url: 'http://127.0.0.1:3400/helloFlow', // Replace with your deployed flow's URL
+      input: { name: 'Genkit User' },
+    });
+    console.log('Non-streaming result:', result.greeting);
+  } catch (error) {
+    console.error('Error calling helloFlow:', error);
+  }
+}
+
+callHelloFlow();
+```
+
+2. Call a remote flow (streaming)
+
+```ts
+import { streamFlow } from 'genkit/beta/client';
+
+async function streamHelloFlow() {
+  try {
+    const result = streamFlow({
+      url: 'http://127.0.0.1:3400/helloFlow', // Replace with your deployed flow's URL
+      input: { name: 'Streaming User' },
+    });
+
+    // Process the stream chunks as they arrive
+    for await (const chunk of result.stream) {
+      console.log('Stream chunk:', chunk);
+    }
+
+    // Get the final complete response
+    const finalOutput = await result.output;
+    console.log('Final streaming output:', finalOutput.greeting);
+  } catch (error) {
+    console.error('Error streaming helloFlow:', error);
+  }
+}
+
+streamHelloFlow();
+```
+
 ## Data Models
 
 Genkit uses standard data models for representing prompts (messages & parts) and responses. These classes are implemented using schemantic library.
@@ -192,6 +250,13 @@ Genkit uses standard data models for representing prompts (messages & parts) and
 ```dart
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
+
+@Schematic()
+abstract class $MyDataModel {
+  // uses Genkit's Message schema (not schemantic's Message)
+  List<$Message> get messages;
+  List<$Part> get parts;
+}
 
 void example() {
   // --- Parts ---
