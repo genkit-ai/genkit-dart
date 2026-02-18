@@ -30,7 +30,8 @@ part 'main.g.dart';
 
 @Schematic()
 abstract class $WeatherToolInput {
-  String get location;
+  @Field(description: 'The city to get the weather for')
+  String get city;
 }
 
 void main() async {
@@ -119,10 +120,10 @@ class _ChatScreenState extends State<ChatScreen> {
       description: 'Get the weather for a location',
       inputSchema: WeatherToolInput.$schema,
       fn: (input, context) async {
-        if (input.location.toLowerCase().contains('boston')) {
+        if (input.city.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';
         }
-        return 'The weather in ${input.location} is 75 and cloudy.';
+        return 'The weather in ${input.city} is 75 and cloudy.';
       },
     );
   }
@@ -145,7 +146,9 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _messages.add('AI: ${response.text}');
       });
-    } catch (e) {
+    } catch (e, st) {
+      print(e);
+      print(st);
       setState(() {
         _messages.add('Error: $e');
       });
@@ -211,10 +214,10 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       description: 'Get the weather for a location',
       inputSchema: WeatherToolInput.$schema,
       fn: (input, context) async {
-        if (input.location.toLowerCase().contains('boston')) {
+        if (input.city.toLowerCase().contains('boston')) {
           return 'The weather in Boston is 72 and sunny.';
         }
-        return 'The weather in ${input.location} is 75 and cloudy.';
+        return 'The weather in ${input.city} is 75 and cloudy.';
       },
     );
     _initSession();
@@ -260,12 +263,12 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
           if (_session != newSession) return;
           for (final part in chunk.content) {
             if (part.isText) {
-              _addMessage('AI: ${(part as TextPart).text}');
+              _addMessage('AI: ${part.text}');
             }
             if (part.isMedia) {
-              final mediaPart = part as MediaPart;
-              if (mediaPart.media.url.startsWith('data:')) {
-                final data = Uri.parse(mediaPart.media.url).data;
+              final media = part.media!;
+              if (media.url.startsWith('data:')) {
+                final data = Uri.parse(media.url).data;
                 if (data != null) {
                   _audioQueue.enqueue(data.contentAsBytes());
                 }

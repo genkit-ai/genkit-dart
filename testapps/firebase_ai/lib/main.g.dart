@@ -27,8 +27,8 @@ class WeatherToolInput {
 
   WeatherToolInput._(this._json);
 
-  WeatherToolInput({required String location}) {
-    _json = {'location': location};
+  WeatherToolInput({required String city}) {
+    _json = {'city': city};
   }
 
   late final Map<String, dynamic> _json;
@@ -36,12 +36,12 @@ class WeatherToolInput {
   static const SchemanticType<WeatherToolInput> $schema =
       _WeatherToolInputTypeFactory();
 
-  String get location {
-    return _json['location'] as String;
+  String get city {
+    return _json['city'] as String;
   }
 
-  set location(String value) {
-    _json['location'] = value;
+  set city(String value) {
+    _json['city'] = value;
   }
 
   @override
@@ -66,8 +66,10 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
     definition: Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
+      properties: {
+        'city': Schema.string(description: 'The city to get the weather for'),
+      },
+      required: ['city'],
     ),
     dependencies: [],
   );

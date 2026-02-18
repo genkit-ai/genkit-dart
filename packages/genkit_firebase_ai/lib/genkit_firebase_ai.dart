@@ -344,12 +344,10 @@ Iterable<m.Content> toGeminiContent(List<Message> messages) {
 @visibleForTesting
 m.Part toGeminiPart(Part p) {
   if (p.isText) {
-    p as TextPart;
-    return m.TextPart(p.text);
+    return m.TextPart(p.text!);
   }
   if (p.isMedia) {
-    p as MediaPart;
-    final media = p.media;
+    final media = p.media!;
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
@@ -366,17 +364,17 @@ m.Part toGeminiPart(Part p) {
     );
   }
   if (p.isToolResponse) {
-    p as ToolResponsePart;
-    return m.FunctionResponse(p.toolResponse.name, {
-      'result': p.toolResponse.output,
-    }, id: p.toolResponse.ref);
+    final toolResponse = p.toolResponse!;
+    return m.FunctionResponse(toolResponse.name, {
+      'result': toolResponse.output,
+    }, id: toolResponse.ref);
   }
   if (p.isToolRequest) {
-    p as ToolRequestPart;
+    final toolRequest = p.toolRequest!;
     return m.FunctionCall(
-      p.toolRequest.name,
-      p.toolRequest.input ?? {},
-      id: p.toolRequest.ref,
+      toolRequest.name,
+      toolRequest.input ?? {},
+      id: toolRequest.ref,
     );
   }
   throw UnimplementedError('Part type $p not supported yet');
