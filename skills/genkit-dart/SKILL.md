@@ -1,6 +1,6 @@
 ---
 name: genkit-dart
-description: Instructions and resources for building applications using the Genkit Dart framework and its plugins.
+description: Instructions and resources for building applications using the Genkit Dart framework -- general purpose, multi-model Generative AI SDK for Dart.
 ---
 
 # Genkit Dart
