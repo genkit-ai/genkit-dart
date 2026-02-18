@@ -119,7 +119,7 @@ class User {
       'name': name,
       'years_old': ?age,
       'isAdmin': isAdmin,
-      if (address != null) 'address': address.toJson(),
+      'address': ?address?.toJson(),
     };
   }
 

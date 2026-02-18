@@ -731,10 +731,9 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
                 const SizedBox(width: 16),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _generateCharacter,
-                  child:
-                      _isLoading
-                          ? const CircularProgressIndicator()
-                          : const Text('Generate'),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text('Generate'),
                 ),
               ],
             ),
@@ -750,7 +749,10 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      Text(_streamedText, style: const TextStyle(fontFamily: 'monospace')),
+                      Text(
+                        _streamedText,
+                        style: const TextStyle(fontFamily: 'monospace'),
+                      ),
                     ],
                   ),
                 ),
@@ -763,19 +765,28 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
                     children: [
                       const Text(
                         'Final Parsed Character:',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text('Name: ${_finalCharacter!.name}'),
                       Text('Description: ${_finalCharacter!.description}'),
                       Text('Background: ${_finalCharacter!.background}'),
                       const SizedBox(height: 8),
-                      const Text('Skills:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Skills:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       ..._finalCharacter!.skills.entries.map(
                         (e) => Text('- ${e.key}: ${e.value}'),
                       ),
                       const SizedBox(height: 8),
-                      const Text('Inventory:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Inventory:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       ..._finalCharacter!.inventory.map((i) => Text('- $i')),
                     ],
                   ),

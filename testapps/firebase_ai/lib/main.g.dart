@@ -127,7 +127,7 @@ class RpgCharacter {
   }
 
   Map<String, int> get skills {
-    return _json['skills'] as Map<String, int>;
+    return (_json['skills'] as Map).cast<String, int>();
   }
 
   set skills(Map<String, int> value) {

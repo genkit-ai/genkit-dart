@@ -99,7 +99,7 @@ class Candidate {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -186,7 +186,7 @@ class Message {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -276,7 +276,7 @@ class ToolDefinition {
   }
 
   Map<String, dynamic>? get inputSchema {
-    return _json['inputSchema'] as Map<String, dynamic>?;
+    return (_json['inputSchema'] as Map?)?.cast<String, dynamic>();
   }
 
   set inputSchema(Map<String, dynamic>? value) {
@@ -288,7 +288,7 @@ class ToolDefinition {
   }
 
   Map<String, dynamic>? get outputSchema {
-    return _json['outputSchema'] as Map<String, dynamic>?;
+    return (_json['outputSchema'] as Map?)?.cast<String, dynamic>();
   }
 
   set outputSchema(Map<String, dynamic>? value) {
@@ -300,7 +300,7 @@ class ToolDefinition {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -418,7 +418,7 @@ class TextPart implements Part {
   }
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -430,7 +430,7 @@ class TextPart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -442,7 +442,7 @@ class TextPart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -521,7 +521,7 @@ class MediaPart implements Part {
   }
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -533,7 +533,7 @@ class MediaPart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -545,7 +545,7 @@ class MediaPart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -626,7 +626,7 @@ class ToolRequestPart implements Part {
   }
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -638,7 +638,7 @@ class ToolRequestPart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -650,7 +650,7 @@ class ToolRequestPart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -731,7 +731,7 @@ class ToolResponsePart implements Part {
   }
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -743,7 +743,7 @@ class ToolResponsePart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -755,7 +755,7 @@ class ToolResponsePart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -820,7 +820,7 @@ class DataPart implements Part {
   static const SchemanticType<DataPart> $schema = _DataPartTypeFactory();
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -832,7 +832,7 @@ class DataPart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -844,7 +844,7 @@ class DataPart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -908,7 +908,7 @@ class CustomPart implements Part {
   static const SchemanticType<CustomPart> $schema = _CustomPartTypeFactory();
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -920,7 +920,7 @@ class CustomPart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -932,7 +932,7 @@ class CustomPart implements Part {
   }
 
   Map<String, dynamic> get custom {
-    return _json['custom'] as Map<String, dynamic>;
+    return (_json['custom'] as Map).cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic> value) {
@@ -1000,7 +1000,7 @@ class ReasoningPart implements Part {
       _ReasoningPartTypeFactory();
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -1012,7 +1012,7 @@ class ReasoningPart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -1024,7 +1024,7 @@ class ReasoningPart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -1105,7 +1105,7 @@ class ResourcePart implements Part {
       _ResourcePartTypeFactory();
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -1117,7 +1117,7 @@ class ResourcePart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -1129,7 +1129,7 @@ class ResourcePart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -1141,7 +1141,7 @@ class ResourcePart implements Part {
   }
 
   Map<String, dynamic> get resource {
-    return _json['resource'] as Map<String, dynamic>;
+    return (_json['resource'] as Map).cast<String, dynamic>();
   }
 
   set resource(Map<String, dynamic> value) {
@@ -1285,7 +1285,7 @@ class ToolRequest {
   }
 
   Map<String, dynamic>? get input {
-    return _json['input'] as Map<String, dynamic>?;
+    return (_json['input'] as Map?)?.cast<String, dynamic>();
   }
 
   set input(Map<String, dynamic>? value) {
@@ -1486,7 +1486,7 @@ class ModelInfo {
   }
 
   Map<String, dynamic>? get configSchema {
-    return _json['configSchema'] as Map<String, dynamic>?;
+    return (_json['configSchema'] as Map?)?.cast<String, dynamic>();
   }
 
   set configSchema(Map<String, dynamic>? value) {
@@ -1498,7 +1498,7 @@ class ModelInfo {
   }
 
   Map<String, dynamic>? get supports {
-    return _json['supports'] as Map<String, dynamic>?;
+    return (_json['supports'] as Map?)?.cast<String, dynamic>();
   }
 
   set supports(Map<String, dynamic>? value) {
@@ -1596,7 +1596,7 @@ class ModelRequest {
   }
 
   Map<String, dynamic>? get config {
-    return _json['config'] as Map<String, dynamic>?;
+    return (_json['config'] as Map?)?.cast<String, dynamic>();
   }
 
   set config(Map<String, dynamic>? value) {
@@ -1804,7 +1804,7 @@ class ModelResponse {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -1816,7 +1816,7 @@ class ModelResponse {
   }
 
   Map<String, dynamic>? get raw {
-    return _json['raw'] as Map<String, dynamic>?;
+    return (_json['raw'] as Map?)?.cast<String, dynamic>();
   }
 
   set raw(Map<String, dynamic>? value) {
@@ -1961,7 +1961,7 @@ class ModelResponseChunk {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -2124,7 +2124,7 @@ class GenerateResponse {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -2136,7 +2136,7 @@ class GenerateResponse {
   }
 
   Map<String, dynamic>? get raw {
-    return _json['raw'] as Map<String, dynamic>?;
+    return (_json['raw'] as Map?)?.cast<String, dynamic>();
   }
 
   set raw(Map<String, dynamic>? value) {
@@ -2279,7 +2279,7 @@ class GenerateRequest {
   }
 
   Map<String, dynamic>? get config {
-    return _json['config'] as Map<String, dynamic>?;
+    return (_json['config'] as Map?)?.cast<String, dynamic>();
   }
 
   set config(Map<String, dynamic>? value) {
@@ -2582,7 +2582,7 @@ class GenerationUsage {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {
@@ -2721,7 +2721,7 @@ class Operation {
   }
 
   Map<String, dynamic>? get output {
-    return _json['output'] as Map<String, dynamic>?;
+    return (_json['output'] as Map?)?.cast<String, dynamic>();
   }
 
   set output(Map<String, dynamic>? value) {
@@ -2733,7 +2733,7 @@ class Operation {
   }
 
   Map<String, dynamic>? get error {
-    return _json['error'] as Map<String, dynamic>?;
+    return (_json['error'] as Map?)?.cast<String, dynamic>();
   }
 
   set error(Map<String, dynamic>? value) {
@@ -2745,7 +2745,7 @@ class Operation {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -2830,7 +2830,7 @@ class OutputConfig {
   }
 
   Map<String, dynamic>? get schema {
-    return _json['schema'] as Map<String, dynamic>?;
+    return (_json['schema'] as Map?)?.cast<String, dynamic>();
   }
 
   set schema(Map<String, dynamic>? value) {
@@ -2928,7 +2928,7 @@ class DocumentData {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -3073,7 +3073,7 @@ class GenerateActionOptions {
   }
 
   Map<String, dynamic>? get config {
-    return _json['config'] as Map<String, dynamic>?;
+    return (_json['config'] as Map?)?.cast<String, dynamic>();
   }
 
   set config(Map<String, dynamic>? value) {
@@ -3257,7 +3257,7 @@ class GenerateResumeOptions {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -3367,7 +3367,7 @@ class GenerateActionOutputConfig {
   }
 
   Map<String, dynamic>? get jsonSchema {
-    return _json['jsonSchema'] as Map<String, dynamic>?;
+    return (_json['jsonSchema'] as Map?)?.cast<String, dynamic>();
   }
 
   set jsonSchema(Map<String, dynamic>? value) {
@@ -3468,7 +3468,7 @@ class EmbedRequest {
   }
 
   Map<String, dynamic>? get options {
-    return _json['options'] as Map<String, dynamic>?;
+    return (_json['options'] as Map?)?.cast<String, dynamic>();
   }
 
   set options(Map<String, dynamic>? value) {
@@ -3593,7 +3593,7 @@ class Embedding {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {

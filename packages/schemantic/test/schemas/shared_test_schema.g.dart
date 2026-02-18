@@ -144,7 +144,7 @@ class TextPart implements Part {
   }
 
   Map<String, dynamic>? get data {
-    return _json['data'] as Map<String, dynamic>?;
+    return (_json['data'] as Map?)?.cast<String, dynamic>();
   }
 
   set data(Map<String, dynamic>? value) {
@@ -156,7 +156,7 @@ class TextPart implements Part {
   }
 
   Map<String, dynamic>? get metadata {
-    return _json['metadata'] as Map<String, dynamic>?;
+    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
   }
 
   set metadata(Map<String, dynamic>? value) {
@@ -168,7 +168,7 @@ class TextPart implements Part {
   }
 
   Map<String, dynamic>? get custom {
-    return _json['custom'] as Map<String, dynamic>?;
+    return (_json['custom'] as Map?)?.cast<String, dynamic>();
   }
 
   set custom(Map<String, dynamic>? value) {

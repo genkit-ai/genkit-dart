@@ -473,7 +473,7 @@ class ComplexObject {
   }
 
   Map<String, String> get metadata {
-    return _json['metadata'] as Map<String, String>;
+    return (_json['metadata'] as Map).cast<String, String>();
   }
 
   set metadata(Map<String, String> value) {
