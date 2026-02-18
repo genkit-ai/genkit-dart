@@ -433,9 +433,9 @@ List<m.Tool>? toGeminiTools(
 }
 
 m.Tool _toGeminiTool(ToolDefinition tool) {
-  final rawSchema = tool.inputSchema as Map<String, dynamic>?;
+  final rawSchema = tool.inputSchema;
 
-  Map<String, dynamic> flattened = {};
+  var flattened = <String, dynamic>{};
   if (rawSchema != null) {
     flattened = Schema.fromMap(rawSchema).flatten().value;
   }

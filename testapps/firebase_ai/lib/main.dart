@@ -147,7 +147,9 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add('AI: ${response.text}');
       });
     } catch (e, st) {
+      // ignore: avoid_print
       print(e);
+      // ignore: avoid_print
       print(st);
       setState(() {
         _messages.add('Error: $e');
