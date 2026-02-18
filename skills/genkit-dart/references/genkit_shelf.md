@@ -55,3 +55,5 @@ void main() async {
   await io.serve(router.call, 'localhost', 8080);
 }
 ```
+
+Access deployed flows using genkit client libraries (from Dart or JS).
