@@ -465,9 +465,7 @@ void main() {
 
   group('Map Tests', () {
     test('Map with primitive values', () {
-      final m = MapSchema(
-        stringToInt: {'a': 1, 'b': 2},
-      );
+      final m = MapSchema(stringToInt: {'a': 1, 'b': 2});
       final json = m.toJson();
       expect(json, {
         'stringToInt': {'a': 1, 'b': 2},
@@ -487,7 +485,7 @@ void main() {
       );
       final json = m.toJson();
       final parsed = MapSchema.$schema.parse(json);
-      
+
       expect(parsed.stringToUser, isNotNull);
       expect(parsed.stringToUser!['admin']!.isAdmin, true);
       expect(parsed.stringToUser!['guest']!.name, 'Guest');
@@ -495,4 +493,3 @@ void main() {
     });
   });
 }
-

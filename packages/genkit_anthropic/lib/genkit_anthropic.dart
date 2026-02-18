@@ -19,7 +19,9 @@ import 'src/plugin_impl.dart';
 export 'src/model.dart';
 
 /// An instance of [AnthropicPluginHandle] that provides entry points into the plugin.
-const AnthropicPluginHandle anthropic = AnthropicPluginHandle();/// Plugin handle for the Genkit Anthropic integration.
+const AnthropicPluginHandle anthropic = AnthropicPluginHandle();
+
+/// Plugin handle for the Genkit Anthropic integration.
 class AnthropicPluginHandle {
   /// Internal constructor. Use the exported [anthropic] instance.
   const AnthropicPluginHandle();

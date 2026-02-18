@@ -131,9 +131,10 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     return Model(
       name: 'firebaseai/$modelName',
       fn: (req, ctx) async {
-        final isJsonMode = req!.output?.format == 'json' ||
+        final isJsonMode =
+            req!.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
-        
+
         final options = req.config == null
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
@@ -146,10 +147,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             req.output?.schema,
             isJsonMode,
           ),
-          tools: toGeminiTools(
-            req.tools,
-            codeExecution: options.codeExecution,
-          ),
+          tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
           toolConfig: toGeminiToolConfig(options.functionCallingConfig),
         );
 
@@ -177,10 +175,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             finishReason: finishReason,
             message: message,
             raw: {
-              'candidates': aggregated.candidates.map((c) => {
-                'content': c.content.parts.length,
-                'finishReason': c.finishReason?.name,
-              }).toList(),
+              'candidates': aggregated.candidates
+                  .map(
+                    (c) => {
+                      'content': c.content.parts.length,
+                      'finishReason': c.finishReason?.name,
+                    },
+                  )
+                  .toList(),
             },
             usage: extractUsage(aggregated.usageMetadata),
           );
@@ -193,7 +195,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             // TODO: Consider inspecting response.promptFeedback for the block reason.
             throw GenkitException('Model returned no candidates.');
           }
-          
+
           final (message, finishReason) = fromGeminiCandidate(
             response.candidates.first,
           );
@@ -460,7 +462,7 @@ List<m.Tool>? toGeminiTools(
   bool? codeExecution,
 }) {
   if ((tools == null || tools.isEmpty) && codeExecution != true) return null;
-  
+
   return [
     if (tools != null) ...(tools.map(_toGeminiTool)),
     if (codeExecution == true) m.Tool.codeExecution(),
@@ -476,13 +478,16 @@ m.Tool _toGeminiTool(ToolDefinition tool) {
   }
 
   final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
-  final requiredList = (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
+  final requiredList =
+      (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
 
   final parameters = propertiesMap.map((key, value) {
     return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
   });
 
-  final optionalParameters = propertiesMap.keys.where((k) => !requiredList.contains(k)).toList();
+  final optionalParameters = propertiesMap.keys
+      .where((k) => !requiredList.contains(k))
+      .toList();
 
   return m.Tool.functionDeclarations([
     m.FunctionDeclaration(
@@ -532,7 +537,8 @@ m.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
     case 'object':
       if (json.containsKey('properties')) {
         final properties = (json['properties'] as Map<String, dynamic>?)?.map(
-          (k, v) => MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
+          (k, v) =>
+              MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
         );
         return m.Schema.object(
           properties: properties ?? {},
@@ -570,8 +576,8 @@ m.GenerationConfig toGeminiSettings(
     responseSchema: outputSchema != null
         ? toGeminiSchema(outputSchema)
         : (options.responseSchema != null
-            ? toGeminiSchema(options.responseSchema!)
-            : null),
+              ? toGeminiSchema(options.responseSchema!)
+              : null),
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseModalities: options.responseModalities
@@ -587,9 +593,7 @@ m.GenerationConfig toGeminiSettings(
 }
 
 @visibleForTesting
-m.ToolConfig? toGeminiToolConfig(
-  FunctionCallingConfig? functionCallingConfig,
-) {
+m.ToolConfig? toGeminiToolConfig(FunctionCallingConfig? functionCallingConfig) {
   if (functionCallingConfig == null) return null;
   final modeStr = functionCallingConfig.mode;
   final m.FunctionCallingConfig mConfig;
@@ -599,7 +603,8 @@ m.ToolConfig? toGeminiToolConfig(
     switch (modeStr.toUpperCase()) {
       case 'ANY':
         mConfig = m.FunctionCallingConfig.any(
-            functionCallingConfig.allowedFunctionNames?.toSet() ?? {});
+          functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
+        );
         break;
       case 'NONE':
         mConfig = m.FunctionCallingConfig.none();
@@ -614,9 +619,7 @@ m.ToolConfig? toGeminiToolConfig(
 }
 
 @visibleForTesting
-GenerationUsage? extractUsage(
-  m.UsageMetadata? metadata,
-) {
+GenerationUsage? extractUsage(m.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
     inputTokens: metadata.promptTokenCount?.toDouble() ?? 0,

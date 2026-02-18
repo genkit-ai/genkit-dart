@@ -296,8 +296,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                         ..requiredParameters.add(Parameter((p) => p.name = 'k'))
                         ..requiredParameters.add(Parameter((p) => p.name = 'v'))
                         ..body = refer('MapEntry').newInstance([
-                           refer('k'),
-                           refer('v').maybeNullSafeProperty(isValNullable, 'toJson').call([])
+                          refer('k'),
+                          refer('v')
+                              .maybeNullSafeProperty(isValNullable, 'toJson')
+                              .call([]),
                         ]).code,
                     ).closure;
                     valueExpression = refer(paramName!)
@@ -458,7 +460,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (valueType.isSchema) {
         final keyTypeName = keyType.getDisplayString();
         final nestedBaseName = _resolveBaseName(valueType.element!.name!);
-        final nullability = valueType.getDisplayString().endsWith('?') ? '?' : '';
+        final nullability = valueType.getDisplayString().endsWith('?')
+            ? '?'
+            : '';
         final mapNullability = typeName.endsWith('?') ? '?' : '';
         return 'Map<$keyTypeName, $nestedBaseName$nullability>$mapNullability';
       }
@@ -511,7 +515,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
               "return (_json['$jsonFieldName'] as List?)?.cast<$itemTypeName>();";
         }
       } else if (returnType.isDartCoreMap) {
-        final keyTypeName = (returnType as InterfaceType).typeArguments[0].getDisplayString().replaceAll('?', '');
+        final keyTypeName = (returnType as InterfaceType).typeArguments[0]
+            .getDisplayString()
+            .replaceAll('?', '');
         final valueType = returnType.typeArguments[1];
         final valueTypeName = valueType.getDisplayString().replaceAll('?', '');
         final valueIsNullable = valueType.isNullable;
@@ -558,7 +564,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             "return (_json['$jsonFieldName'] as List).cast<$itemTypeName>();";
       }
     } else if (returnType.isDartCoreMap) {
-      final keyTypeName = (returnType as InterfaceType).typeArguments[0].getDisplayString().replaceAll('?', '');
+      final keyTypeName = (returnType as InterfaceType).typeArguments[0]
+          .getDisplayString()
+          .replaceAll('?', '');
       final valueType = returnType.typeArguments[1];
       final valueTypeName = valueType.getDisplayString().replaceAll('?', '');
       final valueIsNullable = valueType.isNullable;

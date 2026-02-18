@@ -35,10 +35,7 @@ m.GenerateContentResponse aggregateResponses(
     if (response.candidates.isNotEmpty) {
       // Firebase AI Candidates don't expose index, assume single candidate.
       final index = 0;
-      final state = candidateStates.putIfAbsent(
-        index,
-        () => _CandidateState(),
-      );
+      final state = candidateStates.putIfAbsent(index, () => _CandidateState());
       state.merge(response.candidates.first);
     }
   }
@@ -90,10 +87,9 @@ class _CandidateState {
           parts.removeLast();
           parts.add(m.TextPart(newText)); // Ignore thought stuff for now
           continue;
-        }
-        else if (lastPart is m.FunctionCall && part is m.FunctionCall) {
+        } else if (lastPart is m.FunctionCall && part is m.FunctionCall) {
           // Firebase AI currently returns completed tool calls, no need to merge partials manually.
-          // Will replace the last if it's identical ID or name as an edge case, 
+          // Will replace the last if it's identical ID or name as an edge case,
           // but generally streaming function calls don't chunk in Firebase AI natively
         }
       }
