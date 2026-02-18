@@ -184,3 +184,132 @@ await for (final chunk in stream) {
 final finalResult = await stream.onResult;
 print('\nFinal Response: $finalResult');
 ```
+
+## Data Models
+
+Genkit uses standard data models for representing prompts (messages & parts) and responses. These classes are implemented using schemantic library.
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:schemantic/schemantic.dart';
+
+void example() {
+  // --- Parts ---
+  // A Text part
+  final textPart = TextPart(text: 'some text', metadata: {'foo': 'bar'});
+
+  // A Media/Image part
+  final mediaPart = MediaPart(
+    media: Media(url: 'https://...', contentType: 'image/png'),
+    metadata: {'foo': 'bar'},
+  );
+
+  // A Tool Request initiated by the model
+  final toolRequestPart = ToolRequestPart(
+    toolRequest: ToolRequest(
+      name: 'get_weather',
+      ref: 'abc',
+      input: {'location': 'Paris, France'},
+    ),
+    metadata: {'foo': 'bar'},
+  );
+
+  // The resulting data from a Tool execution
+  final toolResponsePart = ToolResponsePart(
+    toolResponse: ToolResponse(
+      name: 'get_weather',
+      ref: 'abc',
+      output: {'temperature': '20C'},
+    ),
+    metadata: {'foo': 'bar'},
+  );
+
+  // Model reasoning (e.g. for Claude's "thinking" models)
+  final reasoningPart = ReasoningPart(
+    reasoning: 'thinking...',
+    metadata: {'foo': 'bar'},
+  );
+
+  // A custom fallback part
+  final customPart = CustomPart(
+    custom: {'provider': {'specific': 'data'}},
+    metadata: {'foo': 'bar'},
+  );
+
+  // --- Messages ---
+  final systemMessage = Message(
+    role: Role.system,
+    content: [textPart, mediaPart],
+    metadata: {'foo': 'bar'},
+  );
+
+  final userMessage = Message(
+    role: Role.user,
+    content: [textPart, mediaPart], // Can contain media (multimodal)
+  );
+
+  final modelMessage = Message(
+    role: Role.model,
+    // Models can emit text, tool requests, reasoning, or custom parts
+    content: [textPart, toolRequestPart, reasoningPart, customPart],
+  );
+
+  // --- Ergonomic Data Access (schema_extensions.dart) ---
+  // The Genkit SDK provides extensions on `Message` and `Part` to easily access fields
+  // without needing to cast them manually.
+
+  // Get concatenated text from all TextParts in a Message
+  print(modelMessage.text); 
+  
+  // Get the first Media object from a Message
+  print(modelMessage.media?.url);
+
+  // Iterate over tool requests in a Message
+  for (final toolReq in modelMessage.toolRequests) {
+    print(toolReq.name);
+  }
+
+  // Inspect individual parts
+  for (final part in modelMessage.content) {
+    if (part.isText) print(part.text);
+    if (part.isMedia) print(part.media?.url);
+    if (part.isToolRequest) print(part.toolRequest?.name);
+    if (part.isToolResponse) print(part.toolResponse?.name);
+    if (part.isReasoning) print(part.reasoning);
+    if (part.isCustom) print(part.custom);
+  }
+
+  // --- Streaming Chunks ---
+  // Data emitted by ai.generateStream() calls
+  final generateResponseChunk = ModelResponseChunk(
+    content: [textPart],
+    index: 0, // Index of the message this chunk belongs to
+    aggregated: false, 
+  );
+
+  // Chunks also have text and media accessors
+  print(generateResponseChunk.text);
+
+  // --- Advanced: Schemas ---
+  // Use Genkit type schemas directly in Schemantic validations
+  final messageSchema = Message.$schema;
+  final partSchema = Part.$schema;
+  
+  final mySchema = mapSchema(
+    stringSchema(),
+    listSchema(Message.$schema), // Requires a list of Messages
+  );
+
+  // --- Generate Response ---
+  // ai.generate() returns a GenerateResponseHelper which provides ergonomic getters
+  // over the underlying ModelResponse:
+  final response = await ai.generate(...);
+  
+  print(response.text); // Concatenated text
+  print(response.media?.url); // First media part
+  print(response.toolRequests); // All tool requests
+  print(response.interrupts); // Tool requests that triggered an interrupt
+  print(response.messages); // Full history of the conversation, including the request and response
+  print(response.output); // Structured typed output (if outputSchema was used)
+}
+```
