@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: invalid_use_of_visible_for_testing_member, deprecated_member_use
+
 import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart' as m;
@@ -373,38 +375,63 @@ Iterable<m.Content> toGeminiContent(List<Message> messages) {
 
 @visibleForTesting
 m.Part toGeminiPart(Part p) {
+  final isThought = p.metadata?['isThought'] == true;
+  final thoughtSignature = p.metadata?['thoughtSignature'] as String?;
+
+  if (p.isReasoning) {
+    return m.TextPart.forTest(
+      p.reasoning!,
+      isThought: true,
+      thoughtSignature: thoughtSignature,
+    );
+  }
   if (p.isText) {
-    return m.TextPart(p.text!);
+    return m.TextPart.forTest(
+      p.text!,
+      isThought: isThought,
+      thoughtSignature: thoughtSignature,
+    );
   }
   if (p.isMedia) {
     final media = p.media!;
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
-        return m.InlineDataPart(
+        return m.InlineDataPart.forTest(
           media.contentType ?? 'application/octet-stream',
           uri.data!.contentAsBytes(),
+          isThought: isThought,
+          thoughtSignature: thoughtSignature,
         );
       }
     }
     // Assume HTTP/S or other URLs are File URIs
-    return m.FileData(
+    return m.FileData.forTest(
       media.contentType ?? 'application/octet-stream',
       media.url,
+      isThought: isThought,
+      thoughtSignature: thoughtSignature,
     );
   }
   if (p.isToolResponse) {
     final toolResponse = p.toolResponse!;
-    return m.FunctionResponse(toolResponse.name, {
-      'result': toolResponse.output,
-    }, id: toolResponse.ref);
+    return m.FunctionResponse(
+      toolResponse.name,
+      {
+        'result': toolResponse.output,
+      },
+      id: toolResponse.ref,
+      isThought: isThought,
+    );
   }
   if (p.isToolRequest) {
     final toolRequest = p.toolRequest!;
-    return m.FunctionCall(
+    return m.FunctionCall.forTest(
       toolRequest.name,
       toolRequest.input ?? {},
       id: toolRequest.ref,
+      isThought: isThought,
+      thoughtSignature: thoughtSignature,
     );
   }
   throw UnimplementedError('Part type $p not supported yet');
@@ -421,14 +448,25 @@ m.Part toGeminiPart(Part p) {
 }
 
 @visibleForTesting
-@visibleForTesting
 Part fromGeminiPart(m.Part p) {
+  final pJson = p.toJson() as Map<String, dynamic>;
+  final thoughtSignature = pJson['thoughtSignature'] as String?;
+
+  final metadata = <String, dynamic>{
+    if (p.isThought == true) 'isThought': true,
+    if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
+  };
+
   if (p is m.TextPart) {
-    return TextPart(text: p.text);
+    if (p.isThought == true) {
+      return ReasoningPart(reasoning: p.text, metadata: metadata);
+    }
+    return TextPart(text: p.text, metadata: metadata);
   }
   if (p is m.FunctionCall) {
     return ToolRequestPart(
-      toolRequest: ToolRequest(name: p.name, input: p.args),
+      toolRequest: ToolRequest(name: p.name, input: p.args, ref: p.id),
+      metadata: metadata,
     );
   }
   if (p is m.InlineDataPart) {
@@ -438,6 +476,7 @@ Part fromGeminiPart(m.Part p) {
         url: 'data:${p.mimeType};base64,$base64',
         contentType: p.mimeType,
       ),
+      metadata: metadata,
     );
   }
   throw UnimplementedError('Part type $p not supported yet in response');
