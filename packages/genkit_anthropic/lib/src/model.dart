@@ -16,8 +16,10 @@ import 'package:schemantic/schemantic.dart';
 
 part 'model.g.dart';
 
+/// Generation options specific to Anthropic models.
 @Schematic()
 abstract class $AnthropicOptions {
+  /// Custom API key to use for this specific request. Overrides plugin config.
   String? get apiKey;
 
   @IntegerField(
@@ -54,11 +56,14 @@ abstract class $AnthropicOptions {
   )
   int? get topK;
 
+  /// Stop sequences to use for this generation.
   List<String>? get stopSequences;
 
+  /// Extended thinking configuration for support Anthropic models (like Claude 3.7 Sonnet).
   $ThinkingConfig? get thinking;
 }
 
+/// Configuration for Anthropic's extended thinking mode.
 @Schematic()
 abstract class $ThinkingConfig {
   @IntegerField(
