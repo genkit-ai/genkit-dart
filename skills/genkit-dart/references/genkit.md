@@ -51,7 +51,7 @@ print(embeddings.first.embedding);
 
 ## Define Tools
 Models can use define actions and access external data via custom defined tools.
-Requires the [Schemantic](schemantic) library for schema definitions.
+Requires the `schemantic` library for schema definitions.
 
 ```dart
 @Schematic()
@@ -159,7 +159,7 @@ final stringAction = defineRemoteAction(
 
 2. Call the Remote Action (Non-streaming)
 ```dart
-final response = await action(input: 'Hello from Dart!');
+final response = await stringAction(input: 'Hello from Dart!');
 print('Flow Response: $response');
 ```
 
