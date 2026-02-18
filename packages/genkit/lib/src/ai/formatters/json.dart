@@ -37,6 +37,7 @@ final jsonFormatter = Formatter(
         return extractJson(message.text);
       },
       parseChunk: (chunk) {
+        print(chunk.accumulatedText);
         return extractJson(chunk.accumulatedText, allowPartial: true);
       },
       instructions: instructions,

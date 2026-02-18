@@ -20,6 +20,8 @@ import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
+import 'src/aggregation.dart';
+
 part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
@@ -151,40 +153,73 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           toolConfig: toGeminiToolConfig(options.functionCallingConfig),
         );
 
-        final response = await model.generateContent(
-          toGeminiContent(req.messages),
-        );
+        if (ctx.streamingRequested) {
+          final stream = model.generateContentStream(
+            toGeminiContent(req.messages),
+          );
+          final chunks = <m.GenerateContentResponse>[];
+          await for (final chunk in stream) {
+            chunks.add(chunk);
+            if (chunk.candidates.isNotEmpty) {
+              final (message, finishReason) = fromGeminiCandidate(
+                chunk.candidates.first,
+              );
+              ctx.sendChunk(
+                ModelResponseChunk(index: 0, content: message.content),
+              );
+            }
+          }
+          final aggregated = aggregateResponses(chunks);
+          final (message, finishReason) = fromGeminiCandidate(
+            aggregated.candidates.first,
+          );
+          return ModelResponse(
+            finishReason: finishReason,
+            message: message,
+            raw: {
+              'candidates': aggregated.candidates.map((c) => {
+                'content': c.content.parts.length,
+                'finishReason': c.finishReason?.name,
+              }).toList(),
+            },
+            usage: extractUsage(aggregated.usageMetadata),
+          );
+        } else {
+          final response = await model.generateContent(
+            toGeminiContent(req.messages),
+          );
 
-        if (response.candidates.isEmpty) {
-          // TODO: Consider inspecting response.promptFeedback for the block reason.
-          throw GenkitException('Model returned no candidates.');
+          if (response.candidates.isEmpty) {
+            // TODO: Consider inspecting response.promptFeedback for the block reason.
+            throw GenkitException('Model returned no candidates.');
+          }
+          
+          final (message, finishReason) = fromGeminiCandidate(
+            response.candidates.first,
+          );
+
+          final raw = <String, dynamic>{
+            // Recreate structure
+            'candidates': response.candidates
+                .map(
+                  (c) => {
+                    'content': c
+                        .content
+                        .parts
+                        .length, // content.toJson() might not exist or be simple
+                    'finishReason': c.finishReason?.name,
+                  },
+                )
+                .toList(),
+          };
+
+          return ModelResponse(
+            finishReason: finishReason,
+            message: message,
+            raw: raw,
+            usage: extractUsage(response.usageMetadata),
+          );
         }
-        
-        final (message, finishReason) = fromGeminiCandidate(
-          response.candidates.first,
-        );
-
-        final raw = <String, dynamic>{
-          // Recreate structure
-          'candidates': response.candidates
-              .map(
-                (c) => {
-                  'content': c
-                      .content
-                      .parts
-                      .length, // content.toJson() might not exist or be simple
-                  'finishReason': c.finishReason?.name,
-                },
-              )
-              .toList(),
-        };
-
-        return ModelResponse(
-          finishReason: finishReason,
-          message: message,
-          raw: raw,
-          usage: extractUsage(response.usageMetadata),
-        );
       },
     );
   }

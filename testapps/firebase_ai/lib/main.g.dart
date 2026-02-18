@@ -74,3 +74,105 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
     dependencies: [],
   );
 }
+
+class RpgCharacter {
+  factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  RpgCharacter._(this._json);
+
+  RpgCharacter({
+    required String name,
+    required String description,
+    required String background,
+    required Map<String, int> skills,
+    required List<String> inventory,
+  }) {
+    _json = {
+      'name': name,
+      'description': description,
+      'background': background,
+      'skills': skills,
+      'inventory': inventory,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<RpgCharacter> $schema =
+      _RpgCharacterTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  String get description {
+    return _json['description'] as String;
+  }
+
+  set description(String value) {
+    _json['description'] = value;
+  }
+
+  String get background {
+    return _json['background'] as String;
+  }
+
+  set background(String value) {
+    _json['background'] = value;
+  }
+
+  Map<String, int> get skills {
+    return _json['skills'] as Map<String, int>;
+  }
+
+  set skills(Map<String, int> value) {
+    _json['skills'] = value;
+  }
+
+  List<String> get inventory {
+    return (_json['inventory'] as List).cast<String>();
+  }
+
+  set inventory(List<String> value) {
+    _json['inventory'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
+  const _RpgCharacterTypeFactory();
+
+  @override
+  RpgCharacter parse(Object? json) {
+    return RpgCharacter._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'RpgCharacter',
+    definition: Schema.object(
+      properties: {
+        'name': Schema.string(),
+        'description': Schema.string(),
+        'background': Schema.string(),
+        'skills': Schema.object(additionalProperties: Schema.integer()),
+        'inventory': Schema.list(items: Schema.string()),
+      },
+      required: ['name', 'description', 'background', 'skills', 'inventory'],
+    ),
+    dependencies: [],
+  );
+}

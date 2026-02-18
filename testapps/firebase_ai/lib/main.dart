@@ -34,6 +34,15 @@ abstract class $WeatherToolInput {
   String get city;
 }
 
+@Schematic()
+abstract class $RpgCharacter {
+  String get name;
+  String get description;
+  String get background;
+  Map<String, int> get skills;
+  List<String> get inventory;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Keep logging minimal
@@ -90,6 +99,17 @@ class HomeScreen extends StatelessWidget {
               },
               icon: const Icon(Icons.mic),
               label: const Text('Live Conversation (Bidi)'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const StructuredStreamingScreen(),
+                  ),
+                );
+              },
+              child: const Text('Structured Streaming'),
             ),
           ],
         ),
@@ -604,5 +624,166 @@ class AudioPlayerQueue {
     for (int i = 0; i < s.length; i++) {
       view.setUint8(offset + i, s.codeUnitAt(i));
     }
+  }
+}
+
+class StructuredStreamingScreen extends StatefulWidget {
+  const StructuredStreamingScreen({super.key});
+
+  @override
+  State<StructuredStreamingScreen> createState() =>
+      _StructuredStreamingScreenState();
+}
+
+class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
+  final _controller = TextEditingController();
+  late final Genkit _ai;
+  late final dynamic _flow;
+  String _streamedText = '';
+  RpgCharacter? _finalCharacter;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ai = Genkit(plugins: [firebaseAI()]);
+
+    _flow = _ai.defineFlow(
+      name: 'structuredStreaming',
+      inputSchema: stringSchema(defaultValue: 'Gorble'),
+      streamSchema: RpgCharacter.$schema,
+      outputSchema: RpgCharacter.$schema,
+      fn: (name, ctx) async {
+        final stream = _ai.generateStream(
+          model: firebaseAI.gemini('gemini-2.5-flash'),
+          config: GeminiOptions(temperature: 1.0),
+          outputSchema: RpgCharacter.$schema,
+          prompt: 'Generate an RPG character called $name',
+        );
+
+        await for (final chunk in stream) {
+          if (ctx.streamingRequested) {
+            ctx.sendChunk(chunk.output!);
+          }
+        }
+
+        final response = await stream.onResult;
+        return response.output!;
+      },
+    );
+  }
+
+  Future<void> _generateCharacter() async {
+    final text = _controller.text;
+    if (text.isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+      _streamedText = '';
+      _finalCharacter = null;
+    });
+
+    try {
+      final stream = _flow.stream(text);
+
+      await for (final chunk in stream) {
+        setState(() {
+          _streamedText = chunk.toString();
+        });
+      }
+
+      final result = await stream.onResult;
+      setState(() {
+        _isLoading = false;
+        _finalCharacter = result as RpgCharacter;
+      });
+    } catch (e, st) {
+      // ignore: avoid_print
+      print(e);
+      // ignore: avoid_print
+      print(st);
+      setState(() {
+        _isLoading = false;
+        _streamedText = 'Error: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Structured Streaming')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      labelText: 'Character Name',
+                      hintText: 'e.g. Gorble',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _generateCharacter,
+                  child:
+                      _isLoading
+                          ? const CircularProgressIndicator()
+                          : const Text('Generate'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            if (_isLoading || _streamedText.isNotEmpty)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Streaming Result:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(_streamedText, style: const TextStyle(fontFamily: 'monospace')),
+                    ],
+                  ),
+                ),
+              ),
+            if (_finalCharacter != null)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Final Parsed Character:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Name: ${_finalCharacter!.name}'),
+                      Text('Description: ${_finalCharacter!.description}'),
+                      Text('Background: ${_finalCharacter!.background}'),
+                      const SizedBox(height: 8),
+                      const Text('Skills:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ..._finalCharacter!.skills.entries.map(
+                        (e) => Text('- ${e.key}: ${e.value}'),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('Inventory:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ..._finalCharacter!.inventory.map((i) => Text('- $i')),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
