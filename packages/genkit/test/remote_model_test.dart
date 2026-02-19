@@ -112,7 +112,7 @@ void main() {
       final response = await ai.generate(
         model: remoteModel,
         prompt: 'stream it',
-        onChunk: (c) => receivedChunks.add(c.text!),
+        onChunk: (c) => receivedChunks.add(c.text),
       );
 
       expect(receivedChunks, ['Part 1 ', 'Part 2']);
