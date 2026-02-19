@@ -183,9 +183,11 @@ String _repairJson(String json) {
   }
 
   // 2. Fix partial keys (e.g. {"key" -> {"key": null)
-  final tailStringPattern = RegExp(r'([{,])\s*("(?:[^"\\]|\\.)*")\s*$');
-  if (tailStringPattern.hasMatch(repaired)) {
-    repaired += ': null';
+  if (stack.isNotEmpty && stack.last == '}') {
+    final tailStringPattern = RegExp(r'([{,])\s*("(?:[^"\\]|\\.)*")\s*$');
+    if (tailStringPattern.hasMatch(repaired)) {
+      repaired += ': null';
+    }
   }
 
   // 3. Handle trailing comma or colon

@@ -222,5 +222,19 @@ void main() {
         equals([1, 2]),
       );
     });
+
+    test('handles incomplete string inside an array', () {
+      expect(
+        extractJson(
+          '["1/4 cup lemon juice", "1/4 cup olive oil", "1/4 cup nutritional yeast (optional, for cheesy',
+          allowPartial: true,
+        ),
+        equals([
+          "1/4 cup lemon juice",
+          "1/4 cup olive oil",
+          "1/4 cup nutritional yeast (optional, for cheesy",
+        ]),
+      );
+    });
   });
 }
