@@ -471,7 +471,7 @@ class Genkit {
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    StreamingCallback<GenerateResponseChunk>? onChunk,
+    StreamingCallback<GenerateResponseChunk<S>>? onChunk,
     List<GenerateMiddlewareRef>? use,
 
     /// Optional data to resume an interrupted generation session.
@@ -550,12 +550,18 @@ class Genkit {
                 onChunk.call(
                   GenerateResponseChunk<S>(
                     c.rawChunk,
-                    previousChunks: c.previousChunks,
+                    previousChunks: List.from(c.previousChunks),
                     output: outputSchema.parse(c.output),
                   ),
                 );
               } else {
-                onChunk.call(c as GenerateResponseChunk<S>);
+                onChunk.call(
+                  GenerateResponseChunk<S>(
+                    c.rawChunk,
+                    previousChunks: List.from(c.previousChunks),
+                    output: c.output as S?,
+                  ),
+                );
               }
             },
     );
@@ -565,7 +571,11 @@ class Genkit {
         output: outputSchema.parse(rawResponse.output),
       );
     } else {
-      return rawResponse as GenerateResponseHelper<S>;
+      return GenerateResponseHelper(
+        rawResponse.rawResponse,
+        request: rawResponse.modelRequest,
+        output: rawResponse.output as S?,
+      );
     }
   }
 
@@ -618,7 +628,7 @@ class Genkit {
           interruptRestart: interruptRestart,
           onChunk: (chunk) {
             if (streamController.isClosed) return;
-            streamController.add(chunk as GenerateResponseChunk<S>);
+            streamController.add(chunk);
           },
         )
         .then((result) {
