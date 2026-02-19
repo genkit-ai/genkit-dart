@@ -330,5 +330,44 @@ void main() {
         );
       },
     );
+
+    test(
+      'generate with outputSchema and onChunk should request streaming',
+      () async {
+        const modelName = 'streamingOutputModel';
+
+        bool? wasStreamingRequested;
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            wasStreamingRequested = context.streamingRequested;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  TextPart(text: '{"title": "Test", "rating": 5}'),
+                ],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'test',
+          outputSchema: TestOutputSchema.$schema,
+          onChunk: (_) {},
+        );
+
+        expect(
+          wasStreamingRequested,
+          isTrue,
+          reason:
+              'generate() with onChunk should set streamingRequested=true',
+        );
+      },
+    );
   });
 }
