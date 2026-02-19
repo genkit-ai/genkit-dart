@@ -46,6 +46,7 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
   bool isObject;
 
   if (firstOpenBrace == -1 && firstOpenBracket == -1) {
+    if (allowPartial) return null;
     throw FormatException('No JSON object or array found');
   } else if (firstOpenBrace != -1 &&
       (firstOpenBracket == -1 || firstOpenBrace < firstOpenBracket)) {
