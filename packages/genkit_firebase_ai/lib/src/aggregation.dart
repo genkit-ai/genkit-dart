@@ -91,6 +91,9 @@ class _CandidateState {
           // Firebase AI currently returns completed tool calls, no need to merge partials manually.
           // Will replace the last if it's identical ID or name as an edge case,
           // but generally streaming function calls don't chunk in Firebase AI natively
+          if (part.id == lastPart.id || part.name == lastPart.name) {
+            parts.removeLast();
+          }
         }
       }
       parts.add(part);
