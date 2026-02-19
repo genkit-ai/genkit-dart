@@ -222,5 +222,17 @@ void main() {
         equals([1, 2]),
       );
     });
+
+    test('returns null on empty string', () {
+      expect(extractJson('', allowPartial: true), isNull);
+    });
+
+    test('returns null on whitespace-only string', () {
+      expect(extractJson('   \n  ', allowPartial: true), isNull);
+    });
+
+    test('returns null on text with no JSON characters yet', () {
+      expect(extractJson('Hello', allowPartial: true), isNull);
+    });
   });
 }

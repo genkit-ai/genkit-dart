@@ -369,5 +369,62 @@ void main() {
         );
       },
     );
+
+    test(
+      'streaming with outputSchema should handle partial JSON chunks',
+      () async {
+        const modelName = 'streamingJsonModel';
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            final chunks = [
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: '')],
+              ),
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: '{"titl')],
+              ),
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: 'e": "Test", ')],
+              ),
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: '"rating": 5}')],
+              ),
+            ];
+
+            for (final chunk in chunks) {
+              context.sendChunk(chunk);
+            }
+
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  TextPart(text: '{"title": "Test", "rating": 5}'),
+                ],
+              ),
+            );
+          },
+        );
+
+        final receivedChunks = <GenerateResponseChunk>[];
+        final result = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'test',
+          outputSchema: TestOutputSchema.$schema,
+          onChunk: receivedChunks.add,
+        );
+
+        expect(receivedChunks.length, 4);
+        expect(result.output?.title, 'Test');
+        expect(result.output?.rating, 5);
+      },
+    );
   });
 }
