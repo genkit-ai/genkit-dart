@@ -21,12 +21,25 @@ This is a sample Flutter application demonstrating how to use the `genkit_fireba
    ```
    Select your project and platforms (iOS, Android, macOS, Web).
 
-3. **Run the App**
-   ```bash
-   # Run with Genkit tools (optional, for traces/DevUI)
-   genkit start -- flutter run -d macos
+3. **Run the App with Observability (Telemetry)**
+   To see Genkit traces and telemetry during development:
 
-   # Or standard Flutter run
+   First, start the Genkit Developer UI:
+   ```bash
+   genkit start
+   ```
+   Look for the output line: `Telemetry API running on http://localhost:4033`. (Usually it's port 4033, but it can be different).
+
+   Then, in another terminal, run your Flutter app and pass the telemetry server address:
+   ```bash
+   flutter run --dart-define=GENKIT_ENV=dev --dart-define=GENKIT_TELEMETRY_SERVER=http://localhost:4033
+   ```
+   *(Adjust the port if Genkit assigned a different one)*
+
+   Open http://localhost:4000 in your browser to see the Genkit Developer UI.
+
+   **Standard Flutter run (No Telemetry)**
+   ```bash
    flutter run
    ```
 
