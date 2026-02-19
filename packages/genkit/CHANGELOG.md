@@ -1,3 +1,8 @@
+## 0.10.0-dev.14
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+ - **FEAT**: implemented/fixed tools calling and structured output for firebase_ai (#138).
+
 ## 0.10.0-dev.13
 
 > Note: This release has breaking changes.

@@ -1,3 +1,9 @@
+## 0.0.1-dev.5
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+ - **FEAT**: implemented/fixed tools calling and structured output for firebase_ai (#138).
+ - **DOCS**: improve documentation for Anthropic plugin options and methods, and update the package description.
+
 ## 0.0.1-dev.4
 
 > Note: This release has breaking changes.

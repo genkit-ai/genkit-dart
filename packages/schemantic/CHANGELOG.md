@@ -1,3 +1,8 @@
+## 0.0.1-dev.16
+
+ - **FIX**: correct string interpolation in `FormatException` messages.
+ - **FEAT**: implemented/fixed tools calling and structured output for firebase_ai (#138).
+
 ## 0.0.1-dev.15
 
  - **FEAT**: implemented interrupt restart (#124).

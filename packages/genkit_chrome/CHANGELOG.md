@@ -1,3 +1,7 @@
+## 0.0.1-dev.5
+
+ - Update a dependency to the latest release.
+
 ## 0.0.1-dev.4
 
  - **FEAT**: add language config options to Chrome plugin (#123).

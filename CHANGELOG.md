@@ -3,6 +3,69 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-02-18
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit` - `v0.10.0-dev.14`](#genkit---v0100-dev14)
+ - [`genkit_anthropic` - `v0.0.1-dev.5`](#genkit_anthropic---v001-dev5)
+ - [`genkit_google_genai` - `v0.0.1-dev.14`](#genkit_google_genai---v001-dev14)
+ - [`genkit_openai` - `v0.0.1-dev.3`](#genkit_openai---v001-dev3)
+ - [`genkit_shelf` - `v0.0.1-dev.14`](#genkit_shelf---v001-dev14)
+ - [`schemantic` - `v0.0.1-dev.16`](#schemantic---v001-dev16)
+ - [`genkit_mcp` - `v0.0.1-dev.3`](#genkit_mcp---v001-dev3)
+ - [`genkit_chrome` - `v0.0.1-dev.5`](#genkit_chrome---v001-dev5)
+ - [`genkit_middleware` - `v0.0.1-dev.3`](#genkit_middleware---v001-dev3)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_mcp` - `v0.0.1-dev.3`
+ - `genkit_chrome` - `v0.0.1-dev.5`
+ - `genkit_middleware` - `v0.0.1-dev.3`
+
+---
+
+#### `genkit` - `v0.10.0-dev.14`
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+ - **FEAT**: implemented/fixed tools calling and structured output for firebase_ai (#138).
+
+#### `genkit_anthropic` - `v0.0.1-dev.5`
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+ - **FEAT**: implemented/fixed tools calling and structured output for firebase_ai (#138).
+ - **DOCS**: improve documentation for Anthropic plugin options and methods, and update the package description.
+
+#### `genkit_google_genai` - `v0.0.1-dev.14`
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+ - **DOCS**: added skills (#132).
+
+#### `genkit_openai` - `v0.0.1-dev.3`
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+ - **DOCS**: Add best practices, a Text-to-Speech example, and update the OpenAI package license to the full Apache 2.0 text.
+
+#### `genkit_shelf` - `v0.0.1-dev.14`
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+
+#### `schemantic` - `v0.0.1-dev.16`
+
+ - **FIX**: correct string interpolation in `FormatException` messages.
+ - **FEAT**: implemented/fixed tools calling and structured output for firebase_ai (#138).
+
+
 ## 2026-02-17
 
 ### Changes

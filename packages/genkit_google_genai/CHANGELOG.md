@@ -1,3 +1,8 @@
+## 0.0.1-dev.14
+
+ - **REFACTOR**: automate telemetry exporter configuration (#131).
+ - **DOCS**: added skills (#132).
+
 ## 0.0.1-dev.13
 
 > Note: This release has breaking changes.
