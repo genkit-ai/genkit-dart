@@ -223,7 +223,7 @@ void main() {
       );
     });
 
-    test('error i am running into', () {
+    test('does not treat array elements as object keys during repair', () {
       expect(
         extractJson(
           '{"title": "Creamy Avocado Pasta", "description": "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It\'s a healthy and satisfying meal that comes together in minutes.", "prepTime": "15 minutes", "cookTime": "15 minutes", "servings": 4, "ingredients": ["2 ripe avocados, pitted and scooped", "250',
