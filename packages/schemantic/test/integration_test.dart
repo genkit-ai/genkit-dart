@@ -125,6 +125,12 @@ abstract class $Poly {
   Object? get id;
 }
 
+@Schematic()
+abstract class $MapSchema {
+  Map<String, int> get stringToInt;
+  Map<String, $User>? get stringToUser;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -454,6 +460,36 @@ void main() {
       // For now, raw map is expected behavior for AnyOf getter if it's an object.
       expect(parsed.id, isA<Map>());
       expect((parsed.id as Map)['name'], 'UserInPoly');
+    });
+  });
+
+  group('Map Tests', () {
+    test('Map with primitive values', () {
+      final m = MapSchema(stringToInt: {'a': 1, 'b': 2});
+      final json = m.toJson();
+      expect(json, {
+        'stringToInt': {'a': 1, 'b': 2},
+      });
+      final parsed = MapSchema.$schema.parse(json);
+      expect(parsed.stringToInt, {'a': 1, 'b': 2});
+      expect(parsed.stringToInt, isA<Map<String, int>>());
+    });
+
+    test('Map with object values', () {
+      final m = MapSchema(
+        stringToInt: {},
+        stringToUser: <String, User>{
+          'admin': User(name: 'Admin', isAdmin: true),
+          'guest': User(name: 'Guest', isAdmin: false),
+        },
+      );
+      final json = m.toJson();
+      final parsed = MapSchema.$schema.parse(json);
+
+      expect(parsed.stringToUser, isNotNull);
+      expect(parsed.stringToUser!['admin']!.isAdmin, true);
+      expect(parsed.stringToUser!['guest']!.name, 'Guest');
+      expect(parsed.stringToUser, isA<Map<String, User>>());
     });
   });
 }

@@ -108,7 +108,7 @@ class Group {
     _json = {
       'groupName': groupName,
       'members': members.map((e) => e.toJson()).toList(),
-      if (leader != null) 'leader': leader.toJson(),
+      'leader': ?leader?.toJson(),
     };
   }
 
@@ -189,11 +189,7 @@ class Node {
   Node._(this._json);
 
   Node({required String id, List<Node>? children}) {
-    _json = {
-      'id': id,
-      if (children != null)
-        'children': children.map((e) => e.toJson()).toList(),
-    };
+    _json = {'id': id, 'children': ?children?.map((e) => e.toJson()).toList()};
   }
 
   late final Map<String, dynamic> _json;
@@ -633,8 +629,8 @@ class Poly {
 
   Poly._(this._json);
 
-  Poly({required PolyId id}) {
-    _json = {'id': id.value};
+  Poly({PolyId? id}) {
+    _json = {if (id != null) 'id': id.value};
   }
 
   late final Map<String, dynamic> _json;
@@ -692,6 +688,81 @@ class _PolyTypeFactory extends SchemanticType<Poly> {
         ),
       },
       required: [],
+    ),
+    dependencies: [User.$schema],
+  );
+}
+
+class MapSchema {
+  factory MapSchema.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  MapSchema._(this._json);
+
+  MapSchema({
+    required Map<String, int> stringToInt,
+    Map<String, User>? stringToUser,
+  }) {
+    _json = {
+      'stringToInt': stringToInt,
+      'stringToUser': ?stringToUser?.map((k, v) => MapEntry(k, v.toJson())),
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<MapSchema> $schema = _MapSchemaTypeFactory();
+
+  Map<String, int> get stringToInt {
+    return (_json['stringToInt'] as Map).cast<String, int>();
+  }
+
+  set stringToInt(Map<String, int> value) {
+    _json['stringToInt'] = value;
+  }
+
+  Map<String, User>? get stringToUser {
+    return (_json['stringToUser'] as Map?)?.map<String, User>(
+      (k, v) => MapEntry(k as String, User.fromJson(v as Map<String, dynamic>)),
+    );
+  }
+
+  set stringToUser(Map<String, User>? value) {
+    if (value == null) {
+      _json.remove('stringToUser');
+    } else {
+      _json['stringToUser'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
+  const _MapSchemaTypeFactory();
+
+  @override
+  MapSchema parse(Object? json) {
+    return MapSchema._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MapSchema',
+    definition: Schema.object(
+      properties: {
+        'stringToInt': Schema.object(additionalProperties: Schema.integer()),
+        'stringToUser': Schema.object(
+          additionalProperties: Schema.fromMap({'\$ref': r'#/$defs/User'}),
+        ),
+      },
+      required: ['stringToInt'],
     ),
     dependencies: [User.$schema],
   );
