@@ -478,21 +478,17 @@ class Genkit {
           .toList(),
       resume: interruptRespond,
       restart: interruptRestart,
-      onChunk: onChunk != null
-          ? (c) {
-              if (outputSchema != null) {
-                onChunk.call(
-                  GenerateResponseChunk<S>(
-                    c.rawChunk,
-                    previousChunks: c.previousChunks,
-                    output: outputSchema.parse(c.output),
-                  ),
-                );
-              } else {
-                onChunk.call(c);
-              }
-            }
-          : null,
+      onChunk: onChunk == null
+          ? null
+          : (c) => onChunk(
+                outputSchema != null
+                    ? GenerateResponseChunk<S>(
+                        c.rawChunk,
+                        previousChunks: c.previousChunks,
+                        output: outputSchema.parse(c.output),
+                      )
+                    : c,
+              ),
     );
     if (outputSchema != null) {
       return GenerateResponseHelper(
