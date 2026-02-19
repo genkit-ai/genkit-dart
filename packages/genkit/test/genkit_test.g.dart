@@ -124,3 +124,63 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
     dependencies: [],
   );
 }
+
+class TestOutputSchema {
+  factory TestOutputSchema.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  TestOutputSchema._(this._json);
+
+  TestOutputSchema({required String title, required int rating}) {
+    _json = {'title': title, 'rating': rating};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<TestOutputSchema> $schema =
+      _TestOutputSchemaTypeFactory();
+
+  String get title {
+    return _json['title'] as String;
+  }
+
+  set title(String value) {
+    _json['title'] = value;
+  }
+
+  int get rating {
+    return _json['rating'] as int;
+  }
+
+  set rating(int value) {
+    _json['rating'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _TestOutputSchemaTypeFactory extends SchemanticType<TestOutputSchema> {
+  const _TestOutputSchemaTypeFactory();
+
+  @override
+  TestOutputSchema parse(Object? json) {
+    return TestOutputSchema._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TestOutputSchema',
+    definition: Schema.object(
+      properties: {'title': Schema.string(), 'rating': Schema.integer()},
+      required: ['title', 'rating'],
+    ),
+    dependencies: [],
+  );
+}
