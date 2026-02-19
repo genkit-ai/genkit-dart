@@ -184,7 +184,9 @@ String _repairJson(String json) {
 
   // 2. Fix partial keys (e.g. {"key" -> {"key": null)
   final tailStringPattern = RegExp(r'([{,])\s*("(?:[^"\\]|\\.)*")\s*$');
-  if (tailStringPattern.hasMatch(repaired)) {
+  if (stack.isNotEmpty &&
+      stack.last == '}' &&
+      tailStringPattern.hasMatch(repaired)) {
     repaired += ': null';
   }
 
