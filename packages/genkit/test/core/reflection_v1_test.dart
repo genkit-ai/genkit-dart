@@ -46,6 +46,21 @@ void main() {
 
       expect(await runtimeFile.exists(), isFalse);
     });
+
+    test('should pick first available port >= 3100 if port is null', () async {
+      final registry = Registry();
+      final server1 = ReflectionServerV1(registry);
+      await server1.start();
+      expect(server1.actualPort, greaterThanOrEqualTo(3100));
+
+      final server2 = ReflectionServerV1(registry);
+      await server2.start();
+      expect(server2.actualPort, greaterThanOrEqualTo(3100));
+      expect(server2.actualPort, isNot(server1.actualPort));
+
+      await server1.stop();
+      await server2.stop();
+    });
   });
 
   group('ReflectionServer API', () {

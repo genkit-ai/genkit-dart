@@ -25,7 +25,7 @@ ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
     server.start();
     return ReflectionServerHandle(server.stop);
   } else {
-    final server = ReflectionServerV1(registry, port: port ?? 3110);
+    final server = ReflectionServerV1(registry, port: port);
     server.start();
     return ReflectionServerHandle(server.stop);
   }
