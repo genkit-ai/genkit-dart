@@ -4,7 +4,7 @@ Shelf integration for Genkit Dart.
 
 ## Usage
 
-### Standalone Server
+### Serving Flows
 
 The easiest way to serve your flows is using `startFlowServer`:
 
@@ -29,12 +29,34 @@ void main() async {
 }
 ```
 
-### Existing Shelf Application
+### Serving Models
 
-You can also integrate Genkit flows into an existing Shelf application using `shelfHandler`. This allows you to use your own routing, middleware, and server configuration.
+You can also serve AI models (and other actions) using `startFlowServer` or `shelfHandler`:
 
 ```dart
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_shelf/genkit_shelf.dart';
+
+void main() async {
+  // Just an example, can use Anthropic, OpenAI, etc. models
+  final geminiApi = googleAI();
+  final geminiFlash = geminiApi.model('gemini-2.5-flash');
+
+  await startFlowServer(
+    flows: [geminiFlash],
+    port: 8080,
+  );
+}
+```
+
+### Existing Shelf Application
+
+You can also integrate Genkit flows and actions (like models) into an existing Shelf application using `shelfHandler`. This allows you to use your own routing, middleware, and server configuration.
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -50,11 +72,15 @@ void main() async {
     fn: (String input, _) async => 'Hello $input',
   );
 
+  final geminiApi = googleAI();
+  final geminiFlash = geminiApi.model('gemini-2.5-flash');
+
   // Create a Shelf Router
   final router = Router();
 
-  // Mount the flow handler at a specific path
+  // Mount handlers
   router.post('/myFlow', shelfHandler(flow));
+  router.post('/geminiFlash', shelfHandler(geminiFlash));
 
   // Add other application routes
   router.get('/health', (Request request) => Response.ok('OK'));
@@ -62,4 +88,24 @@ void main() async {
   // Start the server
   await io.serve(router.call, 'localhost', 8080);
 }
+```
+
+## Consuming Remote Models
+
+When you serve a model using `genkit_shelf`, you can consume it from another Genkit application using `defineRemoteModel`:
+
+```dart
+final ai = Genkit();
+
+final remoteModel = ai.defineRemoteModel(
+  name: 'myRemoteModel',
+  url: 'http://localhost:8080/googleai/gemini-2.5-flash',
+);
+
+final response = await ai.generate(
+  model: remoteModel,
+  prompt: 'Hello!',
+);
+
+print(response.text);
 ```

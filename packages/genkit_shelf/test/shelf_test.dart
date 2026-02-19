@@ -298,4 +298,47 @@ void main() {
       reason: 'First chunk should arrive quickly',
     );
   });
+
+  test('Remote model', () async {
+    final myModel = ai.defineModel(
+      name: 'my-model',
+      fn: (request, context) async {
+        if (context.streamingRequested) {
+          context.sendChunk(
+            ModelResponseChunk(content: [TextPart(text: 'remote chunk')]),
+          );
+        }
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: 'hello from model')],
+          ),
+        );
+      },
+    );
+
+    server = await startFlowServer(flows: [myModel], port: 0);
+    port = server!.port;
+
+    final remoteModel = ai.defineRemoteModel(
+      name: 'remote-model',
+      url: 'http://localhost:$port/my-model',
+    );
+
+    // Unary
+    final response = await ai.generate(model: remoteModel, prompt: 'hi');
+    expect(response.text, 'hello from model');
+
+    // Streaming
+    final receivedChunks = <String>[];
+    final streamResponse = await ai.generate(
+      model: remoteModel,
+      prompt: 'hi',
+      onChunk: (c) => receivedChunks.add(c.text),
+    );
+
+    expect(receivedChunks, ['remote chunk']);
+    expect(streamResponse.text, 'hello from model');
+  });
 }
