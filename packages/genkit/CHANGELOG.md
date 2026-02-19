@@ -1,3 +1,8 @@
+## 0.10.0-dev.15
+
+ - **FIX**: prevent incorrect partial JSON repair by validating stack state (#144).
+ - **FEAT**: Add remote model support and enable serving actions via shelf (#143).
+
 ## 0.10.0-dev.14
 
  - **REFACTOR**: automate telemetry exporter configuration (#131).

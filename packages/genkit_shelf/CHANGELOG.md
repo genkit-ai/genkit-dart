@@ -1,3 +1,7 @@
+## 0.0.1-dev.15
+
+ - **FEAT**: Add remote model support and enable serving actions via shelf (#143).
+
 ## 0.0.1-dev.14
 
  - **REFACTOR**: automate telemetry exporter configuration (#131).
