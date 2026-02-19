@@ -112,6 +112,7 @@ class GenerateResponseHelper<O> extends GenerateResponse {
   ];
 
   ModelResponse get modelResponse => _response;
+  ModelRequest? get modelRequest => _request;
 
   /// The text content of the response.
   String get text => _response.text;

@@ -516,7 +516,7 @@ Future<GenerateResponseHelper> generateHelper<C>(
         if (onChunk != null) {
           final wrapped = GenerateResponseChunk(
             chunk,
-            previousChunks: previousChunks,
+            previousChunks: List.from(previousChunks),
             output: parseChunkOutput(chunk, previousChunks, chunkParser),
           );
           previousChunks.add(chunk);

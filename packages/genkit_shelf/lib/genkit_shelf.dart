@@ -190,6 +190,8 @@ Future<HttpServer> startFlowServer({
         '/${item.flow.name}',
         shelfHandler(item.flow, contextProvider: item.context),
       );
+    } else if (item is Action) {
+      app.post('/${item.name}', shelfHandler(item));
     }
   }
 
