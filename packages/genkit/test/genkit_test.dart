@@ -31,6 +31,12 @@ abstract class $TestToolInput {
   String get name;
 }
 
+@Schematic()
+abstract class $TestOutputSchema {
+  String get title;
+  int get rating;
+}
+
 void main() {
   group('Genkit', () {
     const reflectionPort = 3111;
@@ -286,5 +292,43 @@ void main() {
       expect(receivedChunks[1].text, 'chunk2');
       expect(result.text, 'final response');
     });
+
+    test(
+      'generate with outputSchema but no onChunk should not request streaming',
+      () async {
+        const modelName = 'nonStreamingOutputModel';
+
+        bool? wasStreamingRequested;
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            wasStreamingRequested = context.streamingRequested;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  TextPart(text: '{"title": "Test", "rating": 5}'),
+                ],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'test',
+          outputSchema: TestOutputSchema.$schema,
+        );
+
+        expect(
+          wasStreamingRequested,
+          isFalse,
+          reason:
+              'generate() without onChunk should not set streamingRequested=true',
+        );
+      },
+    );
   });
 }
