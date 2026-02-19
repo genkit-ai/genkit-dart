@@ -121,10 +121,10 @@ class FirebaseGenAiPluginHandle {
 }
 
 class _FirebaseGenAiPlugin extends GenkitPlugin {
-  late final fcore.FirebaseApp? _app;
-  late final fac.FirebaseAppCheck? _appCheck;
-  late final fauth.FirebaseAuth? _auth;
-  late final bool? _useLimitedUseAppCheckTokens;
+  final fcore.FirebaseApp? _app;
+  final fac.FirebaseAppCheck? _appCheck;
+  final fauth.FirebaseAuth? _auth;
+  final bool? _useLimitedUseAppCheckTokens;
 
   @override
   String get name => 'firebaseai';
@@ -134,12 +134,10 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     fac.FirebaseAppCheck? appCheck,
     fauth.FirebaseAuth? auth,
     bool? useLimitedUseAppCheckTokens,
-  }) {
-    _app = app;
-    _appCheck = appCheck;
-    _auth = auth;
-    _useLimitedUseAppCheckTokens = useLimitedUseAppCheckTokens;
-  }
+  }) : _app = app,
+       _appCheck = appCheck,
+       _auth = auth,
+       _useLimitedUseAppCheckTokens = useLimitedUseAppCheckTokens;
 
   @override
   Future<List<Action>> init() async {
@@ -303,7 +301,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               ?.toDouble(),
         );
 
-        final instance = fai.FirebaseAI.googleAI();
+        final instance = fai.FirebaseAI.googleAI(
+          app: _app,
+          appCheck: _appCheck,
+          auth: _auth,
+          useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+        );
         final model = instance.liveGenerativeModel(
           model: modelName,
           liveGenerationConfig: liveConfig,
