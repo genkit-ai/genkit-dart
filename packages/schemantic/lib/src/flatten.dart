@@ -50,7 +50,7 @@ Map<String, dynamic> flattenSchemaMap(Map<String, dynamic> schema) {
     if (s.containsKey('\$ref')) {
       final ref = s['\$ref'] as String;
       if (visitedRefs.contains(ref)) {
-        throw FormatException('Circular reference detected: \$ref');
+        throw FormatException('Circular reference detected: $ref');
       }
 
       // Parse ref (assuming local ref #/$defs/Name or #/definitions/Name)
@@ -62,7 +62,7 @@ Map<String, dynamic> flattenSchemaMap(Map<String, dynamic> schema) {
       final defName = parts.last;
       final definition = defs[defName];
       if (definition == null) {
-        throw FormatException('Reference not found: \$ref');
+        throw FormatException('Reference not found: $ref');
       }
 
       final newVisited = Set<String>.from(visitedRefs)..add(ref);
