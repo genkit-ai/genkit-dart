@@ -181,7 +181,7 @@ class GeminiOptions {
   }
 
   Map<String, dynamic>? get responseSchema {
-    return _json['responseSchema'] as Map<String, dynamic>?;
+    return (_json['responseSchema'] as Map?)?.cast<String, dynamic>();
   }
 
   set responseSchema(Map<String, dynamic>? value) {
@@ -193,7 +193,7 @@ class GeminiOptions {
   }
 
   Map<String, dynamic>? get responseJsonSchema {
-    return _json['responseJsonSchema'] as Map<String, dynamic>?;
+    return (_json['responseJsonSchema'] as Map?)?.cast<String, dynamic>();
   }
 
   set responseJsonSchema(Map<String, dynamic>? value) {
