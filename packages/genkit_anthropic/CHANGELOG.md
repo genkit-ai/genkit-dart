@@ -1,3 +1,7 @@
+## 0.0.1-dev.7
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+
 ## 0.0.1-dev.6
 
  - Update a dependency to the latest release.

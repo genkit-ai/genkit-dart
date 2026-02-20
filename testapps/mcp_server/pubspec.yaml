@@ -7,8 +7,8 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.10.0-dev.15
-  genkit_mcp: ^0.0.1-dev.4
+  genkit: ^0.10.0-dev.16
+  genkit_mcp: ^0.0.1-dev.5
   schemantic: ^0.0.1-dev.16
 
 dev_dependencies:

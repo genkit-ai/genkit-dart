@@ -1,3 +1,7 @@
+## 0.0.1-dev.16
+
+ - Update a dependency to the latest release.
+
 ## 0.0.1-dev.15
 
  - **FEAT**: Add remote model support and enable serving actions via shelf (#143).

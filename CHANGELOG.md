@@ -15,6 +15,68 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`genkit` - `v0.10.0-dev.16`](#genkit---v0100-dev16)
+ - [`genkit_anthropic` - `v0.0.1-dev.7`](#genkit_anthropic---v001-dev7)
+ - [`genkit_chrome` - `v0.0.1-dev.7`](#genkit_chrome---v001-dev7)
+ - [`genkit_google_genai` - `v0.0.1-dev.16`](#genkit_google_genai---v001-dev16)
+ - [`genkit_mcp` - `v0.0.1-dev.5`](#genkit_mcp---v001-dev5)
+ - [`genkit_middleware` - `v0.0.1-dev.5`](#genkit_middleware---v001-dev5)
+ - [`genkit_openai` - `v0.0.1-dev.5`](#genkit_openai---v001-dev5)
+ - [`genkit_shelf` - `v0.0.1-dev.16`](#genkit_shelf---v001-dev16)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_shelf` - `v0.0.1-dev.16`
+
+---
+
+#### `genkit` - `v0.10.0-dev.16`
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+ - **FEAT**: improve partial json extraction (#150).
+ - **FEAT**: add error handling for plugin action listing and report failures to stderr (#148).
+ - **FEAT**: Allow ReflectionServerV1 to automatically find an available port if none is specified. (#146).
+
+#### `genkit_anthropic` - `v0.0.1-dev.7`
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+
+#### `genkit_chrome` - `v0.0.1-dev.7`
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+
+#### `genkit_google_genai` - `v0.0.1-dev.16`
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+ - **REFACTOR**: remove GoogleSearchRetrieval option (deprecated) (#147).
+
+#### `genkit_mcp` - `v0.0.1-dev.5`
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+
+#### `genkit_middleware` - `v0.0.1-dev.5`
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+
+#### `genkit_openai` - `v0.0.1-dev.5`
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+
+
+## 2026-02-19
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`genkit` - `v0.10.0-dev.15`](#genkit---v0100-dev15)
  - [`genkit_shelf` - `v0.0.1-dev.15`](#genkit_shelf---v001-dev15)
  - [`genkit_mcp` - `v0.0.1-dev.4`](#genkit_mcp---v001-dev4)

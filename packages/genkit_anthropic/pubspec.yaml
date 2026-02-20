@@ -1,7 +1,7 @@
 name: genkit_anthropic
 description: Anthropic plugin for Genkit Dart. Provides full support for the Claude family of models with advanced features like tool calling, multimodal inputs, and Genkit's unified generate API.
 resolution: workspace
-version: 0.0.1-dev.6
+version: 0.0.1-dev.7
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
@@ -10,7 +10,7 @@ environment:
 
 dependencies:
   anthropic_sdk_dart: ^0.3.1
-  genkit: ^0.10.0-dev.15
+  genkit: ^0.10.0-dev.16
   meta: ^1.17.0
   schemantic: ^0.0.1-dev.16
 

@@ -1,3 +1,10 @@
+## 0.10.0-dev.16
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+ - **FEAT**: improve partial json extraction (#150).
+ - **FEAT**: add error handling for plugin action listing and report failures to stderr (#148).
+ - **FEAT**: Allow ReflectionServerV1 to automatically find an available port if none is specified. (#146).
+
 ## 0.10.0-dev.15
 
  - **FIX**: prevent incorrect partial JSON repair by validating stack state (#144).
