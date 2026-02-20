@@ -17,159 +17,179 @@ import 'package:test/test.dart';
 
 void main() {
   group('extractJson', () {
-    test('extracts simple object', () {
-      final input = '{"a": 1}';
-      expect(extractJson(input), equals({'a': 1}));
-    });
+    final testCases = [
+      (
+        description: 'extracts simple object',
+        input: '{"a": 1}',
+        expected: {'a': 1},
+        throws: false,
+      ),
+      (
+        description: 'extracts simple array',
+        input: '[1, 2, 3]',
+        expected: [1, 2, 3],
+        throws: false,
+      ),
+      (
+        description: 'extracts from markdown block',
+        input: 'Here is the json:\n```json\n{"a": 1}\n```',
+        expected: {'a': 1},
+        throws: false,
+      ),
+      (
+        description: 'extracts from markdown block without lang',
+        input: '```\n{"a": 1}\n```',
+        expected: {'a': 1},
+        throws: false,
+      ),
+      (
+        description: 'extracts with surrounding text',
+        input: 'prefix {"a": 1} suffix',
+        expected: {'a': 1},
+        throws: false,
+      ),
+      (
+        description: 'extracts array with surrounding text',
+        input: 'prefix [1, 2] suffix',
+        expected: [1, 2],
+        throws: false,
+      ),
+      (
+        description: 'throws on no json',
+        input: 'no json here',
+        expected: null,
+        throws: true,
+      ),
+      (
+        description: 'throws on unclosed json',
+        input: '{"a": 1',
+        expected: null,
+        throws: true,
+      ),
+      (
+        description: 'throws on malformed json inside text',
+        input: 'some text {"a": } end',
+        expected: null,
+        throws: true,
+      ),
+    ];
 
-    test('extracts simple array', () {
-      final input = '[1, 2, 3]';
-      expect(extractJson(input), equals([1, 2, 3]));
-    });
-
-    test('extracts from markdown block', () {
-      final input = 'Here is the json:\n```json\n{"a": 1}\n```';
-      expect(extractJson(input), equals({'a': 1}));
-    });
-
-    test('extracts from markdown block without lang', () {
-      final input = '```\n{"a": 1}\n```';
-      expect(extractJson(input), equals({'a': 1}));
-    });
-
-    test('extracts with surrounding text', () {
-      final input = 'prefix {"a": 1} suffix';
-      expect(extractJson(input), equals({'a': 1}));
-    });
-
-    test('extracts array with surrounding text', () {
-      final input = 'prefix [1, 2] suffix';
-      expect(extractJson(input), equals([1, 2]));
-    });
-
-    test('throws on no json', () {
-      final input = 'no json here';
-      expect(() => extractJson(input), throwsFormatException);
-    });
-
-    test('throws on unclosed json', () {
-      final input = '{"a": 1';
-      expect(() => extractJson(input), throwsFormatException);
-    });
-
-    test('throws on malformed json inside text', () {
-      final input = 'some text {"a": } end';
-      expect(() => extractJson(input), throwsFormatException);
-    });
+    for (final t in testCases) {
+      test(t.description, () {
+        if (t.throws) {
+          expect(() => extractJson(t.input), throwsFormatException);
+        } else {
+          expect(extractJson(t.input), equals(t.expected));
+        }
+      });
+    }
   });
 
   group('extractJson (partial)', () {
-    test('parses complete json', () {
-      expect(extractJson('{"a": 1}', allowPartial: true), equals({'a': 1}));
-    });
-
-    test('closes unclosed object', () {
-      expect(extractJson('{"a": 1', allowPartial: true), equals({'a': 1}));
-    });
-
-    test('closes unclosed array', () {
-      expect(extractJson('[1, 2', allowPartial: true), equals([1, 2]));
-    });
-
-    test('closes unclosed string', () {
-      expect(
-        extractJson('{"a": "hello', allowPartial: true),
-        equals({'a': 'hello'}),
-      );
-    });
-
-    test('closes nested structures', () {
-      expect(
-        extractJson('{"a": {"b": [1', allowPartial: true),
-        equals({
+    final testCases = [
+      (
+        description: 'parses complete json',
+        input: '{"a": 1}',
+        expected: {'a': 1},
+      ),
+      (description: 'closes unclosed empty object', input: '{', expected: {}),
+      (
+        description: 'closes unclosed object',
+        input: '{"a": 1',
+        expected: {'a': 1},
+      ),
+      (description: 'closes unclosed empty array', input: '[', expected: []),
+      (description: 'closes unclosed array', input: '[1, 2', expected: [1, 2]),
+      (
+        description: 'closes unclosed string',
+        input: '{"a": "hello',
+        expected: {'a': 'hello'},
+      ),
+      (
+        description: 'closes bare nested array',
+        input: '{"a": {"b": [',
+        expected: {
+          'a': {'b': []},
+        },
+      ),
+      (
+        description: 'closes nested array',
+        input: '{"a": {"b": [1',
+        expected: {
           'a': {
             'b': [1],
           },
-        }),
-      );
-    });
-
-    test('handles trailing comma in object', () {
-      expect(extractJson('{"a": 1,', allowPartial: true), equals({'a': 1}));
-    });
-
-    test('handles trailing comma in array', () {
-      expect(extractJson('[1,', allowPartial: true), equals([1]));
-    });
-
-    test('handles incomplete key-value pair', () {
-      expect(extractJson('{"a":', allowPartial: true), equals({'a': null}));
-    });
-
-    test('handles incomplete key-value pair with space', () {
-      expect(extractJson('{"a": ', allowPartial: true), equals({'a': null}));
-    });
-
-    test('handles partial string value with escaped quote', () {
-      expect(
-        extractJson('{"a": "he\\"Mq', allowPartial: true),
-        equals({'a': 'he"Mq'}),
-      );
-    });
-
-    test('handles partial string value with escaped characters', () {
-      expect(
-        extractJson('{"a": "line1\\nline2', allowPartial: true),
-        equals({'a': 'line1\nline2'}),
-      );
-    });
-
-    test('works with markdown blocks', () {
-      expect(
-        extractJson('```json\n{"a": 1\n```', allowPartial: true),
-        equals({'a': 1}),
-      );
-    });
-
-    test('works with unterminated markdown blocks', () {
-      expect(
-        extractJson('```json\n{"a": "banana', allowPartial: true),
-        equals({'a': "banana"}),
-      );
-    });
-
-    test('handles partial true', () {
-      expect(extractJson('{"a": tr', allowPartial: true), equals({'a': true}));
-    });
-
-    test('handles partial false', () {
-      expect(
-        extractJson('{"a": fal', allowPartial: true),
-        equals({'a': false}),
-      );
-    });
-
-    test('handles partial null', () {
-      expect(extractJson('{"a": nu', allowPartial: true), equals({'a': null}));
-    });
-
-    test('handles partial undefined', () {
-      expect(
-        extractJson('{"a": unde', allowPartial: true),
-        equals({'a': null}),
-      );
-    });
-
-    test('handles partial number with decimal point', () {
-      expect(extractJson('{"a": 12.', allowPartial: true), equals({'a': 12}));
-    });
-
-    test('handles deeply nested partial structure', () {
-      final input = '{"a": [{"b": {"c": [1, 2,';
-      // expect closing ] } ] }
-      expect(
-        extractJson(input, allowPartial: true),
-        equals({
+        },
+      ),
+      (
+        description: 'handles trailing comma in object',
+        input: '{"a": 1,',
+        expected: {'a': 1},
+      ),
+      (
+        description: 'handles trailing comma in array',
+        input: '[1,',
+        expected: [1],
+      ),
+      (
+        description: 'handles incomplete key-value pair',
+        input: '{"a":',
+        expected: {'a': null},
+      ),
+      (
+        description: 'handles incomplete key-value pair with space',
+        input: '{"a": ',
+        expected: {'a': null},
+      ),
+      (
+        description: 'handles partial string value with escaped quote',
+        input: '{"a": "he\\"Mq',
+        expected: {'a': 'he"Mq'},
+      ),
+      (
+        description: 'handles partial string value with escaped characters',
+        input: '{"a": "line1\\nline2',
+        expected: {'a': 'line1\nline2'},
+      ),
+      (
+        description: 'works with markdown blocks',
+        input: '```json\n{"a": 1\n```',
+        expected: {'a': 1},
+      ),
+      (
+        description: 'works with unterminated markdown blocks',
+        input: '```json\n{"a": "banana',
+        expected: {'a': "banana"},
+      ),
+      (
+        description: 'handles partial true',
+        input: '{"a": tr',
+        expected: {'a': true},
+      ),
+      (
+        description: 'handles partial false',
+        input: '{"a": fal',
+        expected: {'a': false},
+      ),
+      (
+        description: 'handles partial null',
+        input: '{"a": nu',
+        expected: {'a': null},
+      ),
+      (
+        description: 'handles partial undefined',
+        input: '{"a": unde',
+        expected: {'a': null},
+      ),
+      (
+        description: 'handles partial number with decimal point',
+        input: '{"a": 12.',
+        expected: {'a': 12},
+      ),
+      (
+        description: 'handles deeply nested partial structure',
+        input: '{"a": [{"b": {"c": [1, 2,',
+        expected: {
           'a': [
             {
               'b': {
@@ -177,59 +197,49 @@ void main() {
               },
             },
           ],
-        }),
-      );
-    });
-
-    test('handles partial key', () {
-      expect(extractJson('{"ke', allowPartial: true), equals({'ke': null}));
-    });
-
-    test('handles partial key (quoted)', () {
-      // '{"key"' -> '{"key": null}'
-      expect(extractJson('{"key"', allowPartial: true), equals({'key': null}));
-    });
-
-    test('handles partial key (unquoted start)', () {
-      // '{"key' -> '{"key": null}'
-      expect(extractJson('{"key', allowPartial: true), equals({'key': null}));
-    });
-
-    test('handles trailing garbage containing braces', () {
-      expect(extractJson('{"a": 1} }', allowPartial: true), equals({'a': 1}));
-    });
-
-    test('handles trailing garbage containing braces and text', () {
-      expect(
-        extractJson('{"a": 1} some text }', allowPartial: true),
-        equals({'a': 1}),
-      );
-    });
-
-    test('handles trailing comma with whitespace', () {
-      expect(
-        extractJson(
-          '  \n\n{   \n    "a"   :       \n  1\n,  \n ',
-          allowPartial: true,
-        ),
-        equals({'a': 1}),
-      );
-    });
-
-    test('handles trailing comma in array with whitespace', () {
-      expect(
-        extractJson('     \n   [  1,  \n\n    2,\n   ', allowPartial: true),
-        equals([1, 2]),
-      );
-    });
-
-    test('does not treat array elements as object keys during repair', () {
-      expect(
-        extractJson(
-          '{"title": "Creamy Avocado Pasta", "description": "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It\'s a healthy and satisfying meal that comes together in minutes.", "prepTime": "15 minutes", "cookTime": "15 minutes", "servings": 4, "ingredients": ["2 ripe avocados, pitted and scooped", "250',
-          allowPartial: true,
-        ),
-        equals({
+        },
+      ),
+      (
+        description: 'handles partial key',
+        input: '{"ke',
+        expected: {'ke': null},
+      ),
+      (
+        description: 'handles partial key (quoted)',
+        input: '{"key"',
+        expected: {'key': null},
+      ),
+      (
+        description: 'handles partial key (unquoted start)',
+        input: '{"key',
+        expected: {'key': null},
+      ),
+      (
+        description: 'handles trailing garbage containing braces',
+        input: '{"a": 1} }',
+        expected: {'a': 1},
+      ),
+      (
+        description: 'handles trailing garbage containing braces and text',
+        input: '{"a": 1} some text }',
+        expected: {'a': 1},
+      ),
+      (
+        description: 'handles trailing comma with whitespace',
+        input: '  \n\n{   \n    "a"   :       \n  1\n,  \n ',
+        expected: {'a': 1},
+      ),
+      (
+        description: 'handles trailing comma in array with whitespace',
+        input: '     \n   [  1,  \n\n    2,\n   ',
+        expected: [1, 2],
+      ),
+      (
+        description:
+            'does not treat array elements as object keys during repair',
+        input:
+            '{"title": "Creamy Avocado Pasta", "description": "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It\'s a healthy and satisfying meal that comes together in minutes.", "prepTime": "15 minutes", "cookTime": "15 minutes", "servings": 4, "ingredients": ["2 ripe avocados, pitted and scooped", "250',
+        expected: {
           "title": "Creamy Avocado Pasta",
           "description":
               "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It's a healthy and satisfying meal that comes together in minutes.",
@@ -237,8 +247,140 @@ void main() {
           "cookTime": "15 minutes",
           "servings": 4,
           "ingredients": ["2 ripe avocados, pitted and scooped", "250"],
-        }),
-      );
-    });
+        },
+      ),
+      (
+        description: 'handles truncated string with trailing backslash',
+        input: '{"a": "hello\\',
+        expected: {'a': 'hello'},
+      ),
+      (
+        description: 'handles truncated number with exponent',
+        input: '{"a": 1.2e',
+        expected: {'a': 1.2},
+      ),
+      (
+        description: 'handles truncated number with exponent and sign',
+        input: '{"a": 1.2e+',
+        expected: {'a': 1.2},
+      ),
+      (
+        description: 'handles truncated number with capital exponent',
+        input: '{"a": 1.2E-',
+        expected: {'a': 1.2},
+      ),
+      (
+        description: 'handles multiple objects with partial second one',
+        input: '{"a": 1} {"b": 2',
+        expected: {'a': 1},
+      ),
+      (
+        description: 'handles partial json in markdown with trailing text',
+        input: '```json\n{"a": 1\n``` more text',
+        expected: {'a': 1},
+      ),
+      (
+        description: 'closes unclosed nested string',
+        input: '{"a": {"b": "hell',
+        expected: {
+          'a': {'b': 'hell'},
+        },
+      ),
+      (
+        description: 'handles partial boolean in array',
+        input: '[true, fal',
+        expected: [true, false],
+      ),
+      (
+        description: 'handles partial null in array',
+        input: '[1, n',
+        expected: [1, null],
+      ),
+      (
+        description: 'handles partial number in array',
+        input: '[1, 2.',
+        expected: [1, 2],
+      ),
+      (
+        description: 'closes partial object in array',
+        input: '[{"a": 1, "b"',
+        expected: [
+          {'a': 1, 'b': null},
+        ],
+      ),
+      (
+        description: 'handles partial key in nested object',
+        input: '{"a": {"ke',
+        expected: {
+          'a': {'ke': null},
+        },
+      ),
+      (
+        description: 'handles nested incomplete key-value pair',
+        input: '{"a": {"b":',
+        expected: {
+          'a': {'b': null},
+        },
+      ),
+      (
+        description: 'handles deeply nested mixed containers',
+        input: '{"a": [{"b": {"c": [1, ',
+        expected: {
+          'a': [
+            {
+              'b': {
+                'c': [1],
+              },
+            },
+          ],
+        },
+      ),
+      (
+        description: 'handles multiple nested objects',
+        input: '[{"a":1}, {"b":',
+        expected: [
+          {'a': 1},
+          {'b': null},
+        ],
+      ),
+      (
+        description: 'handles truncated number in nested object',
+        input: '{"a": {"b": 1.2e',
+        expected: {
+          'a': {'b': 1.2},
+        },
+      ),
+      (
+        description: 'handles partial string with space in key',
+        input: '{"key with space',
+        expected: {'key with space': null},
+      ),
+      (
+        description: 'handles partial emoji in string',
+        input: '{"a": "🌟st',
+        expected: {'a': '🌟st'},
+      ),
+      (
+        description: 'handles partial non-ASCII characters',
+        input: '{"a": "ñó',
+        expected: {'a': 'ñó'},
+      ),
+      (
+        description: 'handles partial unicode escape',
+        input: '{"a": "u\\u12',
+        expected: {'a': "u\\u12"},
+      ),
+      (
+        description: 'handles partial special character escape',
+        input: '{"a": "hello\\n',
+        expected: {'a': 'hello\n'},
+      ),
+    ];
+
+    for (final t in testCases) {
+      test(t.description, () {
+        expect(extractJson(t.input, allowPartial: true), equals(t.expected));
+      });
+    }
   });
 }

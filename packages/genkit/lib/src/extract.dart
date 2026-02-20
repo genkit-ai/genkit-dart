@@ -136,7 +136,18 @@ String _repairJson(String json) {
 
   // 1. Close string if open
   if (inString) {
-    repaired += '"';
+    // If the string ends with an unescaped backslash, remove it
+    // as it's a partial escape sequence.
+    var s = buffer.toString();
+    if (escaped) {
+      s = s.substring(0, s.length - 1);
+    }
+    // Handle partial \uXXXX escape by escaping the backslash
+    final unicodePattern = RegExp(r'\\u[0-9a-fA-F]{0,3}$');
+    if (unicodePattern.hasMatch(s)) {
+      s = s.replaceFirstMapped(unicodePattern, (m) => '\\${m.group(0)}');
+    }
+    repaired = '$s"';
   } else {
     // Attempt to fix partial primitives (true, false, null)
     // and partial numbers.
@@ -172,11 +183,11 @@ String _repairJson(String json) {
       );
     }
 
-    // Fix partial number ending with dot
-    final numberDotPattern = RegExp(r'(-?\d+)\.\s*$');
-    if (numberDotPattern.hasMatch(repaired)) {
+    // Fix partial number ending with dot or exponent e/E
+    final numberSuffixPattern = RegExp(r'(-?\d+(?:\.\d+)?)[.eE][-+]?\s*$');
+    if (numberSuffixPattern.hasMatch(repaired)) {
       repaired = repaired.replaceFirstMapped(
-        numberDotPattern,
+        numberSuffixPattern,
         (m) => '${m.group(1)}',
       );
     }
