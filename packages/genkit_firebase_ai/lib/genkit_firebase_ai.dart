@@ -20,7 +20,7 @@ import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:firebase_app_check/firebase_app_check.dart' as fac;
 import 'package:firebase_auth/firebase_auth.dart' as fauth;
 import 'package:firebase_core/firebase_core.dart' as fcore;
-import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';

@@ -19,6 +19,7 @@
 library;
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 
 import 'src/client/mcp_client.dart';
 import 'src/client/mcp_host.dart';

@@ -13,14 +13,12 @@
 // limitations under the License.
 
 String? getConfigVar(String name) {
-  if (Uri.base.queryParameters.containsKey(name)) {
-    return Uri.base.queryParameters[name];
-  }
-
-  return null;
+  return String.fromEnvironment(name);
 }
 
 String getPid() => 'web';
+
+String getPlatformLanguageVersion() => 'web';
 
 const bool isAllowReflection = bool.fromEnvironment(
   'GENKIT_DEV',

@@ -131,7 +131,9 @@ class Registry {
           }
         }
       } catch (e, st) {
-        stderr.writeln('Failed to list actions from plugin ${plugin.name}: $e $st');
+        stderr.writeln(
+          'Failed to list actions from plugin ${plugin.name}: $e $st',
+        );
       }
     }
     return allActions.values.toList();
