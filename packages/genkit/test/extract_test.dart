@@ -279,6 +279,102 @@ void main() {
         input: '```json\n{"a": 1\n``` more text',
         expected: {'a': 1},
       ),
+      (
+        description: 'closes unclosed nested string',
+        input: '{"a": {"b": "hell',
+        expected: {
+          'a': {'b': 'hell'},
+        },
+      ),
+      (
+        description: 'handles partial boolean in array',
+        input: '[true, fal',
+        expected: [true, false],
+      ),
+      (
+        description: 'handles partial null in array',
+        input: '[1, n',
+        expected: [1, null],
+      ),
+      (
+        description: 'handles partial number in array',
+        input: '[1, 2.',
+        expected: [1, 2],
+      ),
+      (
+        description: 'closes partial object in array',
+        input: '[{"a": 1, "b"',
+        expected: [
+          {'a': 1, 'b': null},
+        ],
+      ),
+      (
+        description: 'handles partial key in nested object',
+        input: '{"a": {"ke',
+        expected: {
+          'a': {'ke': null},
+        },
+      ),
+      (
+        description: 'handles nested incomplete key-value pair',
+        input: '{"a": {"b":',
+        expected: {
+          'a': {'b': null},
+        },
+      ),
+      (
+        description: 'handles deeply nested mixed containers',
+        input: '{"a": [{"b": {"c": [1, ',
+        expected: {
+          'a': [
+            {
+              'b': {
+                'c': [1],
+              },
+            },
+          ],
+        },
+      ),
+      (
+        description: 'handles multiple nested objects',
+        input: '[{"a":1}, {"b":',
+        expected: [
+          {'a': 1},
+          {'b': null},
+        ],
+      ),
+      (
+        description: 'handles truncated number in nested object',
+        input: '{"a": {"b": 1.2e',
+        expected: {
+          'a': {'b': 1.2},
+        },
+      ),
+      (
+        description: 'handles partial string with space in key',
+        input: '{"key with space',
+        expected: {'key with space': null},
+      ),
+      (
+        description: 'handles partial emoji in string',
+        input: '{"a": "🌟st',
+        expected: {'a': '🌟st'},
+      ),
+      (
+        description: 'handles partial non-ASCII characters',
+        input: '{"a": "ñó',
+        expected: {'a': 'ñó'},
+      ),
+      (
+        description: 'handles partial unicode escape',
+        input: '{"a": "u\\u12',
+        expected: {'a': "u\\u12"},
+      ),
+      (
+        description: 'handles partial special character escape',
+        input: '{"a": "hello\\n',
+        expected: {'a': 'hello\n'},
+      ),
     ];
 
     for (final t in testCases) {

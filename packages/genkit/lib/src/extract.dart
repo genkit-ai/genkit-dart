@@ -142,6 +142,11 @@ String _repairJson(String json) {
     if (escaped) {
       s = s.substring(0, s.length - 1);
     }
+    // Handle partial \uXXXX escape by escaping the backslash
+    final unicodePattern = RegExp(r'\\u[0-9a-fA-F]{0,3}$');
+    if (unicodePattern.hasMatch(s)) {
+      s = s.replaceFirstMapped(unicodePattern, (m) => '\\${m.group(0)}');
+    }
     repaired = '$s"';
   } else {
     // Attempt to fix partial primitives (true, false, null)
