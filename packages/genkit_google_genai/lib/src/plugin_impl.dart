@@ -58,7 +58,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           gcl.ListModelsRequest(pageSize: 1000),
         );
       } catch (e, stack) {
-        _logger.warning('Failed to list models: $e $stack');
+        _logger.warning('Failed to list models: $e', e, stack);
         throw _handleException(e, stack);
       }
       final models = modelsResponse.models
