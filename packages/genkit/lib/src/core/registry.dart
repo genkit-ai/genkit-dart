@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
+
 import './action.dart';
 import './plugin.dart';
 
@@ -120,12 +122,16 @@ class Registry {
     }
 
     for (final plugin in _plugins) {
-      final pluginActions = await plugin.list();
-      for (final action in pluginActions) {
-        final key = _getKey(action.actionType, action.name);
-        if (!allActions.containsKey(key)) {
-          allActions[key] = action;
+      try {
+        final pluginActions = await plugin.list();
+        for (final action in pluginActions) {
+          final key = _getKey(action.actionType, action.name);
+          if (!allActions.containsKey(key)) {
+            allActions[key] = action;
+          }
         }
+      } catch (e, st) {
+        stderr.writeln('Failed to list actions from plugin ${plugin.name}: $e $st');
       }
     }
     return allActions.values.toList();
