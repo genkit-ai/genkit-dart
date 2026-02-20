@@ -31,6 +31,12 @@ abstract class $TestToolInput {
   String get name;
 }
 
+@Schematic()
+abstract class $TestOutputSchema {
+  String get title;
+  int get rating;
+}
+
 void main() {
   group('Genkit', () {
     const reflectionPort = 3111;
@@ -286,5 +292,139 @@ void main() {
       expect(receivedChunks[1].text, 'chunk2');
       expect(result.text, 'final response');
     });
+
+    test(
+      'generate with outputSchema but no onChunk should not request streaming',
+      () async {
+        const modelName = 'nonStreamingOutputModel';
+
+        bool? wasStreamingRequested;
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            wasStreamingRequested = context.streamingRequested;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  TextPart(text: '{"title": "Test", "rating": 5}'),
+                ],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'test',
+          outputSchema: TestOutputSchema.$schema,
+        );
+
+        expect(
+          wasStreamingRequested,
+          isFalse,
+          reason:
+              'generate() without onChunk should not set streamingRequested=true',
+        );
+      },
+    );
+
+    test(
+      'generate with outputSchema and onChunk should request streaming',
+      () async {
+        const modelName = 'streamingOutputModel';
+
+        bool? wasStreamingRequested;
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            wasStreamingRequested = context.streamingRequested;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  TextPart(text: '{"title": "Test", "rating": 5}'),
+                ],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'test',
+          outputSchema: TestOutputSchema.$schema,
+          onChunk: (_) {},
+        );
+
+        expect(
+          wasStreamingRequested,
+          isTrue,
+          reason:
+              'generate() with onChunk should set streamingRequested=true',
+        );
+      },
+    );
+
+    test(
+      'streaming with outputSchema should handle partial JSON chunks',
+      () async {
+        const modelName = 'streamingJsonModel';
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            final chunks = [
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: '')],
+              ),
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: '{"titl')],
+              ),
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: 'e": "Test", ')],
+              ),
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: '"rating": 5}')],
+              ),
+            ];
+
+            for (final chunk in chunks) {
+              context.sendChunk(chunk);
+            }
+
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  TextPart(text: '{"title": "Test", "rating": 5}'),
+                ],
+              ),
+            );
+          },
+        );
+
+        final receivedChunks = <GenerateResponseChunk>[];
+        final result = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'test',
+          outputSchema: TestOutputSchema.$schema,
+          onChunk: receivedChunks.add,
+        );
+
+        expect(receivedChunks.length, 4);
+        expect(result.output?.title, 'Test');
+        expect(result.output?.rating, 5);
+      },
+    );
   });
 }

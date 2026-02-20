@@ -375,6 +375,21 @@ void main() {
         input: '{"a": "hello\\n',
         expected: {'a': 'hello\n'},
       ),
+      (
+        description: 'returns null on empty string',
+        input: '',
+        expected: null,
+      ),
+      (
+        description: 'returns null on whitespace-only string',
+        input: '   \n  ',
+        expected: null,
+      ),
+      (
+        description: 'returns null on text with no JSON characters yet',
+        input: 'Hello',
+        expected: null,
+      ),
     ];
 
     for (final t in testCases) {
