@@ -14,7 +14,7 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';

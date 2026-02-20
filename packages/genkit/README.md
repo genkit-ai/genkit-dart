@@ -461,6 +461,29 @@ final finalResult = await stream.onResult;
 print('Final Response: ${finalResult.text}');
 ```
 
+### Remote Models
+
+You can also define and use remotely deployed models as if they were local models using `defineRemoteModel`. This is particularly useful when you have models hosted via `genkit_shelf` or other compatible Genkit servers.
+
+```dart
+final remoteModel = ai.defineRemoteModel(
+  name: 'my-remote-model',
+  url: 'http://localhost:3400/my-model',
+  // Optional: Provide custom headers dynamically based on context
+  headers: (context) {
+    return {'Authorization': 'Bearer ${context['token']}'};
+  },
+);
+
+final response = await ai.generate(
+  model: remoteModel,
+  prompt: 'say hello',
+  context: {'token': 'my-secret-token'},
+);
+
+print(response.text);
+```
+
 ---
 
 ## Genkit Lite API

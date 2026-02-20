@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'dart:io';
-import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';

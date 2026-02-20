@@ -59,7 +59,7 @@ class RunActionResponse {
 
 class ReflectionServerV1 {
   final Registry registry;
-  final int port;
+  final int? port;
   final String bodyLimit;
   final List<String> configuredEnvs;
   final String? name;
@@ -69,18 +69,33 @@ class ReflectionServerV1 {
 
   ReflectionServerV1(
     this.registry, {
-    this.port = 3110,
+    this.port,
     this.bodyLimit = '30mb',
     this.configuredEnvs = const ['dev'],
     this.name,
   });
 
   Future<void> start() async {
-    _server = await HttpServer.bind(
-      InternetAddress.loopbackIPv4,
-      port,
-      shared: true,
-    );
+    if (port != null) {
+      _server = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        port!,
+        shared: false,
+      );
+    } else {
+      for (var p = 3100; p < 3200; p++) {
+        try {
+          _server = await HttpServer.bind(
+            InternetAddress.loopbackIPv4,
+            p,
+            shared: false,
+          );
+          break;
+        } on SocketException catch (_) {
+          if (p == 3199) rethrow;
+        }
+      }
+    }
     _logger.fine(
       'Reflection server running on http://localhost:${_server!.port}',
     );

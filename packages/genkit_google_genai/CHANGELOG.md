@@ -1,3 +1,12 @@
+## 0.0.1-dev.16
+
+ - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
+ - **REFACTOR**: remove GoogleSearchRetrieval option (deprecated) (#147).
+
+## 0.0.1-dev.15
+
+ - Update a dependency to the latest release.
+
 ## 0.0.1-dev.14
 
  - **REFACTOR**: automate telemetry exporter configuration (#131).

@@ -31,7 +31,6 @@ abstract class $GeminiOptions {
   List<String>? get responseModalities;
 
   // Retrieval
-  $GoogleSearchRetrieval? get googleSearchRetrieval;
   $GoogleSearch? get googleSearch;
   $FileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
@@ -110,13 +109,6 @@ abstract class $FunctionCallingConfig {
 }
 
 @Schematic()
-abstract class $GoogleSearchRetrieval {
-  @StringField(enumValues: ['MODE_UNSPECIFIED', 'MODE_DYNAMIC'])
-  String? get mode;
-  double? get dynamicThreshold;
-}
-
-@Schematic()
 abstract class $FileSearch {
   List<String>? get fileSearchStoreNames;
 }
@@ -136,7 +128,6 @@ abstract class $GeminiTtsOptions {
   List<String>? get responseModalities;
 
   // Retrieval
-  $GoogleSearchRetrieval? get googleSearchRetrieval;
   $GoogleSearch? get googleSearch;
   $FileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage

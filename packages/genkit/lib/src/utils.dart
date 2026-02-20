@@ -15,3 +15,4 @@
 export 'utils_stub.dart'
     if (dart.library.io) 'utils_io.dart'
     if (dart.library.js_interop) 'utils_web.dart';
+export 'version.dart';

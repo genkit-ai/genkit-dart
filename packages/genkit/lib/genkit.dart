@@ -21,6 +21,7 @@ library;
 
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'src/ai/embedder.dart';
@@ -33,6 +34,7 @@ import 'src/ai/model.dart';
 import 'src/ai/prompt.dart';
 import 'src/ai/resource.dart';
 import 'src/ai/tool.dart';
+import 'src/client/client.dart';
 import 'src/core/action.dart';
 import 'src/core/flow.dart';
 import 'src/core/plugin.dart';
@@ -75,7 +77,6 @@ export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
 export 'package:genkit/src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata;
 export 'package:genkit/src/core/flow.dart';
-export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';
@@ -287,6 +288,69 @@ class Genkit {
     return model;
   }
 
+  /// Defines a remote Genkit model.
+  Model defineRemoteModel({
+    required String name,
+    required String url,
+    Map<String, String>? Function(Map<String, dynamic> context)? headers,
+    ModelInfo? modelInfo,
+    http.Client? httpClient,
+  }) {
+    final remoteAction =
+        defineRemoteAction<
+          ModelRequest,
+          ModelResponse,
+          ModelResponseChunk,
+          void
+        >(
+          url: url,
+          httpClient: httpClient,
+          inputSchema: ModelRequest.$schema,
+          outputSchema: ModelResponse.$schema,
+          streamSchema: ModelResponseChunk.$schema,
+        );
+
+    return defineModel(
+        name: name,
+        fn: (input, context) async {
+          if (context.streamingRequested) {
+            final stream = remoteAction.stream(
+              input: input,
+              headers: headers?.call(context.context ?? {}),
+            );
+
+            await for (final chunk in stream) {
+              context.sendChunk(chunk);
+            }
+
+            return stream.result;
+          }
+
+          return await remoteAction(
+            input: input,
+            headers: headers?.call(context.context ?? {}),
+          );
+        },
+      )
+      ..metadata.addAll(
+        modelMetadata(
+          name,
+          modelInfo:
+              modelInfo ??
+              ModelInfo(
+                supports: {
+                  'multiturn': true,
+                  'media': true,
+                  'tools': true,
+                  'toolChoice': true,
+                  'systemRole': true,
+                  'constrained': true,
+                },
+              ),
+        ).metadata,
+      );
+  }
+
   Embedder defineEmbedder({
     required String name,
     required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
@@ -406,7 +470,7 @@ class Genkit {
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    StreamingCallback<GenerateResponseChunk>? onChunk,
+    StreamingCallback<GenerateResponseChunk<S>>? onChunk,
     List<GenerateMiddlewareRef>? use,
 
     /// Optional data to resume an interrupted generation session.
@@ -480,15 +544,25 @@ class Genkit {
       restart: interruptRestart,
       onChunk: onChunk == null
           ? null
-          : (c) => onChunk(
-                outputSchema != null
-                    ? GenerateResponseChunk<S>(
-                        c.rawChunk,
-                        previousChunks: c.previousChunks,
-                        output: c.output != null ? outputSchema.parse(c.output) : null,
-                      )
-                    : c,
-              ),
+          : (c) {
+              if (outputSchema != null) {
+                onChunk.call(
+                  GenerateResponseChunk<S>(
+                    c.rawChunk,
+                    previousChunks: List.from(c.previousChunks),
+                    output: c.output != null ? outputSchema.parse(c.output) : null,
+                  ),
+                );
+              } else {
+                onChunk.call(
+                  GenerateResponseChunk<S>(
+                    c.rawChunk,
+                    previousChunks: List.from(c.previousChunks),
+                    output: c.output as S?,
+                  ),
+                );
+              }
+            },
     );
     if (outputSchema != null) {
       return GenerateResponseHelper(
@@ -496,7 +570,11 @@ class Genkit {
         output: outputSchema.parse(rawResponse.output),
       );
     } else {
-      return rawResponse as GenerateResponseHelper<S>;
+      return GenerateResponseHelper(
+        rawResponse.rawResponse,
+        request: rawResponse.modelRequest,
+        output: rawResponse.output as S?,
+      );
     }
   }
 
@@ -549,7 +627,7 @@ class Genkit {
           interruptRestart: interruptRestart,
           onChunk: (chunk) {
             if (streamController.isClosed) return;
-            streamController.add(chunk as GenerateResponseChunk<S>);
+            streamController.add(chunk);
           },
         )
         .then((result) {

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
-import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 
 part 'tool_approval_middleware.g.dart';

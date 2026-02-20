@@ -16,8 +16,11 @@
 
 import 'dart:convert';
 
-import 'package:firebase_ai/firebase_ai.dart' as m;
-import 'package:genkit/genkit.dart';
+import 'package:firebase_ai/firebase_ai.dart' as fai;
+import 'package:firebase_app_check/firebase_app_check.dart' as fac;
+import 'package:firebase_auth/firebase_auth.dart' as fauth;
+import 'package:firebase_core/firebase_core.dart' as fcore;
+import 'package:genkit/plugin.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
@@ -95,8 +98,18 @@ const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
 class FirebaseGenAiPluginHandle {
   const FirebaseGenAiPluginHandle();
 
-  GenkitPlugin call() {
-    return _FirebaseGenAiPlugin();
+  GenkitPlugin call({
+    fcore.FirebaseApp? app,
+    fac.FirebaseAppCheck? appCheck,
+    fauth.FirebaseAuth? auth,
+    bool? useLimitedUseAppCheckTokens,
+  }) {
+    return _FirebaseGenAiPlugin(
+      app: app,
+      appCheck: appCheck,
+      auth: auth,
+      useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
+    );
   }
 
   /// Ref to a model in the Firebase AI plugin.
@@ -108,10 +121,23 @@ class FirebaseGenAiPluginHandle {
 }
 
 class _FirebaseGenAiPlugin extends GenkitPlugin {
+  final fcore.FirebaseApp? _app;
+  final fac.FirebaseAppCheck? _appCheck;
+  final fauth.FirebaseAuth? _auth;
+  final bool? _useLimitedUseAppCheckTokens;
+
   @override
   String get name => 'firebaseai';
 
-  _FirebaseGenAiPlugin();
+  _FirebaseGenAiPlugin({
+    fcore.FirebaseApp? app,
+    fac.FirebaseAppCheck? appCheck,
+    fauth.FirebaseAuth? auth,
+    bool? useLimitedUseAppCheckTokens,
+  }) : _app = app,
+       _appCheck = appCheck,
+       _auth = auth,
+       _useLimitedUseAppCheckTokens = useLimitedUseAppCheckTokens;
 
   @override
   Future<List<Action>> init() async {
@@ -141,7 +167,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
-        final instance = m.FirebaseAI.googleAI();
+        final instance = fai.FirebaseAI.googleAI(
+          app: _app,
+          appCheck: _appCheck,
+          auth: _auth,
+          useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+        );
         final model = instance.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -157,7 +188,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           final stream = model.generateContentStream(
             toGeminiContent(req.messages),
           );
-          final chunks = <m.GenerateContentResponse>[];
+          final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
             chunks.add(chunk);
             if (chunk.candidates.isNotEmpty) {
@@ -238,22 +269,22 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             .where((m) => m.role == Role.system)
             .firstOrNull;
         final systemInstruction = systemMessage != null
-            ? m.Content(
+            ? fai.Content(
                 'system',
                 systemMessage.content.map(toGeminiPart).toList(),
               )
             : null;
 
-        final liveConfig = m.LiveGenerationConfig(
+        final liveConfig = fai.LiveGenerationConfig(
           responseModalities: (configMap?['responseModalities'] as List?)?.map((
             e,
           ) {
-            return m.ResponseModalities.values.byName(
+            return fai.ResponseModalities.values.byName(
               (e as String).toLowerCase(),
             );
           }).toList(),
           speechConfig: configMap?['speechConfig'] != null
-              ? m.SpeechConfig(
+              ? fai.SpeechConfig(
                   voiceName:
                       (((configMap!['speechConfig'] as Map)['voiceConfig']
                                   as Map)['prebuiltVoiceConfig']
@@ -270,7 +301,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               ?.toDouble(),
         );
 
-        final instance = m.FirebaseAI.googleAI();
+        final instance = fai.FirebaseAI.googleAI(
+          app: _app,
+          appCheck: _appCheck,
+          auth: _auth,
+          useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+        );
         final model = instance.liveGenerativeModel(
           model: modelName,
           liveGenerationConfig: liveConfig,
@@ -339,22 +375,22 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     );
   }
 
-  Future<void> _sendToSession(m.LiveSession session, Message msg) async {
+  Future<void> _sendToSession(fai.LiveSession session, Message msg) async {
     _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
 
     final contentParts = msg.content.map(toGeminiPart).toList();
 
     for (final part in contentParts) {
       try {
-        if (part is m.InlineDataPart) {
+        if (part is fai.InlineDataPart) {
           // TODO: Check mimeType for video vs audio
           await session.sendAudioRealtime(part);
-        } else if (part is m.FunctionResponse) {
+        } else if (part is fai.FunctionResponse) {
           await session.sendToolResponse([part]);
         } else {
           // Fallback for others
           await session.send(
-            input: m.Content(msg.role.value, [part]),
+            input: fai.Content(msg.role.value, [part]),
             turnComplete: true,
           );
         }
@@ -367,14 +403,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 }
 
 @visibleForTesting
-Iterable<m.Content> toGeminiContent(List<Message> messages) {
+Iterable<fai.Content> toGeminiContent(List<Message> messages) {
   return messages.map(
-    (msg) => m.Content(msg.role.value, msg.content.map(toGeminiPart).toList()),
+    (msg) =>
+        fai.Content(msg.role.value, msg.content.map(toGeminiPart).toList()),
   );
 }
 
 @visibleForTesting
-m.Part toGeminiPart(Part p) {
+fai.Part toGeminiPart(Part p) {
   final isThought = p.metadata?['isThought'] == true;
   final thoughtSignature = p.metadata?['thoughtSignature'] as String?;
 
@@ -384,24 +421,24 @@ m.Part toGeminiPart(Part p) {
   // are ever removed or changed.
   if (p.isReasoning) {
     try {
-      return m.TextPart.forTest(
+      return fai.TextPart.forTest(
         p.reasoning!,
         isThought: true,
         thoughtSignature: thoughtSignature,
       );
     } catch (_) {
-      return m.TextPart(p.reasoning!, isThought: true);
+      return fai.TextPart(p.reasoning!, isThought: true);
     }
   }
   if (p.isText) {
     try {
-      return m.TextPart.forTest(
+      return fai.TextPart.forTest(
         p.text!,
         isThought: isThought,
         thoughtSignature: thoughtSignature,
       );
     } catch (_) {
-      return m.TextPart(p.text!, isThought: isThought);
+      return fai.TextPart(p.text!, isThought: isThought);
     }
   }
   if (p.isMedia) {
@@ -410,14 +447,14 @@ m.Part toGeminiPart(Part p) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
         try {
-          return m.InlineDataPart.forTest(
+          return fai.InlineDataPart.forTest(
             media.contentType ?? 'application/octet-stream',
             uri.data!.contentAsBytes(),
             isThought: isThought,
             thoughtSignature: thoughtSignature,
           );
         } catch (_) {
-          return m.InlineDataPart(
+          return fai.InlineDataPart(
             media.contentType ?? 'application/octet-stream',
             uri.data!.contentAsBytes(),
             isThought: isThought,
@@ -427,14 +464,14 @@ m.Part toGeminiPart(Part p) {
     }
     // Assume HTTP/S or other URLs are File URIs
     try {
-      return m.FileData.forTest(
+      return fai.FileData.forTest(
         media.contentType ?? 'application/octet-stream',
         media.url,
         isThought: isThought,
         thoughtSignature: thoughtSignature,
       );
     } catch (_) {
-      return m.FileData(
+      return fai.FileData(
         media.contentType ?? 'application/octet-stream',
         media.url,
         isThought: isThought,
@@ -443,7 +480,7 @@ m.Part toGeminiPart(Part p) {
   }
   if (p.isToolResponse) {
     final toolResponse = p.toolResponse!;
-    return m.FunctionResponse(
+    return fai.FunctionResponse(
       toolResponse.name,
       {'result': toolResponse.output},
       id: toolResponse.ref,
@@ -453,7 +490,7 @@ m.Part toGeminiPart(Part p) {
   if (p.isToolRequest) {
     final toolRequest = p.toolRequest!;
     try {
-      return m.FunctionCall.forTest(
+      return fai.FunctionCall.forTest(
         toolRequest.name,
         toolRequest.input ?? {},
         id: toolRequest.ref,
@@ -461,7 +498,7 @@ m.Part toGeminiPart(Part p) {
         thoughtSignature: thoughtSignature,
       );
     } catch (_) {
-      return m.FunctionCall(
+      return fai.FunctionCall(
         toolRequest.name,
         toolRequest.input ?? {},
         id: toolRequest.ref,
@@ -473,7 +510,7 @@ m.Part toGeminiPart(Part p) {
 }
 
 @visibleForTesting
-(Message, FinishReason) fromGeminiCandidate(m.Candidate candidate) {
+(Message, FinishReason) fromGeminiCandidate(fai.Candidate candidate) {
   final finishReason = FinishReason(candidate.finishReason?.name ?? 'unknown');
   final message = Message(
     role: Role(candidate.content.role ?? 'model'),
@@ -483,7 +520,7 @@ m.Part toGeminiPart(Part p) {
 }
 
 @visibleForTesting
-Part fromGeminiPart(m.Part p) {
+Part fromGeminiPart(fai.Part p) {
   final pJson = p.toJson() as Map<String, dynamic>;
   final thoughtSignature = pJson['thoughtSignature'] as String?;
 
@@ -492,19 +529,19 @@ Part fromGeminiPart(m.Part p) {
     if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
   };
 
-  if (p is m.TextPart) {
+  if (p is fai.TextPart) {
     if (p.isThought == true) {
       return ReasoningPart(reasoning: p.text, metadata: metadata);
     }
     return TextPart(text: p.text, metadata: metadata);
   }
-  if (p is m.FunctionCall) {
+  if (p is fai.FunctionCall) {
     return ToolRequestPart(
       toolRequest: ToolRequest(name: p.name, input: p.args, ref: p.id),
       metadata: metadata,
     );
   }
-  if (p is m.InlineDataPart) {
+  if (p is fai.InlineDataPart) {
     final base64 = base64Encode(p.bytes);
     return MediaPart(
       media: Media(
@@ -517,11 +554,12 @@ Part fromGeminiPart(m.Part p) {
   throw UnimplementedError('Part type $p not supported yet in response');
 }
 
-ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
-  final liveParts = event.message is m.LiveServerContent
-      ? (event.message as m.LiveServerContent).modelTurn?.parts
-      : event.message is m.LiveServerToolCall
-      ? (event.message as m.LiveServerToolCall).functionCalls as List<m.Part>
+ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
+  final liveParts = event.message is fai.LiveServerContent
+      ? (event.message as fai.LiveServerContent).modelTurn?.parts
+      : event.message is fai.LiveServerToolCall
+      ? (event.message as fai.LiveServerToolCall).functionCalls
+            as List<fai.Part>
       : null;
   if (liveParts == null) return null;
   // We only care about content updates for now
@@ -531,7 +569,7 @@ ModelResponseChunk? _fromGeminiLiveEvent(m.LiveServerResponse event) {
 }
 
 @visibleForTesting
-List<m.Tool>? toGeminiTools(
+List<fai.Tool>? toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
 }) {
@@ -539,11 +577,11 @@ List<m.Tool>? toGeminiTools(
 
   return [
     if (tools != null) ...(tools.map(_toGeminiTool)),
-    if (codeExecution == true) m.Tool.codeExecution(),
+    if (codeExecution == true) fai.Tool.codeExecution(),
   ];
 }
 
-m.Tool _toGeminiTool(ToolDefinition tool) {
+fai.Tool _toGeminiTool(ToolDefinition tool) {
   final rawSchema = tool.inputSchema;
 
   var flattened = <String, dynamic>{};
@@ -563,8 +601,8 @@ m.Tool _toGeminiTool(ToolDefinition tool) {
       .where((k) => !requiredList.contains(k))
       .toList();
 
-  return m.Tool.functionDeclarations([
-    m.FunctionDeclaration(
+  return fai.Tool.functionDeclarations([
+    fai.FunctionDeclaration(
       tool.name,
       tool.description,
       parameters: parameters,
@@ -574,12 +612,12 @@ m.Tool _toGeminiTool(ToolDefinition tool) {
 }
 
 @visibleForTesting
-m.Schema toGeminiSchema(Map<String, dynamic> json) {
+fai.Schema toGeminiSchema(Map<String, dynamic> json) {
   final flattened = Schema.fromMap(json).flatten().value;
   return _toGeminiSchemaInternal(flattened);
 }
 
-m.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
+fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
   final type = json['type']; // dynamic
   final description = json['description'] as String?;
   final nullable = json['nullable'] as bool? ?? false;
@@ -593,20 +631,20 @@ m.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 
   switch (typeStr) {
     case 'string':
-      return m.Schema.string(description: description, nullable: nullable);
+      return fai.Schema.string(description: description, nullable: nullable);
     case 'number':
-      return m.Schema.number(description: description, nullable: nullable);
+      return fai.Schema.number(description: description, nullable: nullable);
     case 'integer':
-      return m.Schema.integer(description: description, nullable: nullable);
+      return fai.Schema.integer(description: description, nullable: nullable);
     case 'boolean':
-      return m.Schema.boolean(description: description, nullable: nullable);
+      return fai.Schema.boolean(description: description, nullable: nullable);
     case 'array':
-      return m.Schema.array(
+      return fai.Schema.array(
         description: description,
         nullable: nullable,
         items: json['items'] != null
             ? _toGeminiSchemaInternal(json['items'] as Map<String, dynamic>)
-            : m.Schema.string(),
+            : fai.Schema.string(),
       );
     case 'object':
       if (json.containsKey('properties')) {
@@ -614,30 +652,30 @@ m.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
           (k, v) =>
               MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
         );
-        return m.Schema.object(
+        return fai.Schema.object(
           properties: properties ?? {},
           description: description,
           nullable: nullable,
         );
       } else {
-        return m.Schema(
-          m.SchemaType.object,
+        return fai.Schema(
+          fai.SchemaType.object,
           description: description,
           nullable: nullable,
         );
       }
     default:
-      return m.Schema.string(description: description, nullable: nullable);
+      return fai.Schema.string(description: description, nullable: nullable);
   }
 }
 
 @visibleForTesting
-m.GenerationConfig toGeminiSettings(
+fai.GenerationConfig toGeminiSettings(
   GeminiOptions options,
   Map<String, dynamic>? outputSchema,
   bool isJsonMode,
 ) {
-  return m.GenerationConfig(
+  return fai.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences ?? [],
     maxOutputTokens: options.maxOutputTokens,
@@ -655,11 +693,11 @@ m.GenerationConfig toGeminiSettings(
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseModalities: options.responseModalities
-        ?.map((e) => m.ResponseModalities.values.byName(e.toLowerCase()))
+        ?.map((e) => fai.ResponseModalities.values.byName(e.toLowerCase()))
         .toList(),
     thinkingConfig: options.thinkingConfig == null
         ? null
-        : m.ThinkingConfig(
+        : fai.ThinkingConfig(
             includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
             thinkingBudget: options.thinkingConfig!.thinkingBudget,
           ),
@@ -667,33 +705,35 @@ m.GenerationConfig toGeminiSettings(
 }
 
 @visibleForTesting
-m.ToolConfig? toGeminiToolConfig(FunctionCallingConfig? functionCallingConfig) {
+fai.ToolConfig? toGeminiToolConfig(
+  FunctionCallingConfig? functionCallingConfig,
+) {
   if (functionCallingConfig == null) return null;
   final modeStr = functionCallingConfig.mode;
-  final m.FunctionCallingConfig mConfig;
+  final fai.FunctionCallingConfig mConfig;
   if (modeStr == null) {
-    mConfig = m.FunctionCallingConfig.auto();
+    mConfig = fai.FunctionCallingConfig.auto();
   } else {
     switch (modeStr.toUpperCase()) {
       case 'ANY':
-        mConfig = m.FunctionCallingConfig.any(
+        mConfig = fai.FunctionCallingConfig.any(
           functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
         );
         break;
       case 'NONE':
-        mConfig = m.FunctionCallingConfig.none();
+        mConfig = fai.FunctionCallingConfig.none();
         break;
       case 'AUTO':
       default:
-        mConfig = m.FunctionCallingConfig.auto();
+        mConfig = fai.FunctionCallingConfig.auto();
         break;
     }
   }
-  return m.ToolConfig(functionCallingConfig: mConfig);
+  return fai.ToolConfig(functionCallingConfig: mConfig);
 }
 
 @visibleForTesting
-GenerationUsage? extractUsage(m.UsageMetadata? metadata) {
+GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
     inputTokens: metadata.promptTokenCount?.toDouble() ?? 0,

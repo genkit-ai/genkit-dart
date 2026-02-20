@@ -12,12 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:io' as io;
-
-String? getConfigVar(String name) => io.Platform.environment[name];
-
-String getPid() => '${io.pid}';
-
-String getPlatformLanguageVersion() => io.Platform.version;
-
-const bool isAllowReflection = true;
+const genkitVersion = '0.10.0-dev.15';

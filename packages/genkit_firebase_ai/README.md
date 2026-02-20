@@ -22,6 +22,22 @@ void main() async {
 }
 ```
 
+### Configuration
+
+You can optionally pass in `FirebaseApp`, `FirebaseAppCheck`, `FirebaseAuth` 
+instances, and `useLimitedUseAppCheckTokens` flag when initializing the plugin:
+
+```dart
+final firebasePlugin = firebaseAI(
+  app: Firebase.app('my-app'),
+  appCheck: FirebaseAppCheck.instanceFor(app: Firebase.app('my-app')),
+  auth: FirebaseAuth.instanceFor(app: Firebase.app('my-app')),
+  useLimitedUseAppCheckTokens: true,
+);
+
+final ai = Genkit(plugins: [firebasePlugin]);
+```
+
 ### Tool Calling
 
 ```dart

@@ -14,15 +14,20 @@
 
 import 'dart:convert';
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
 import 'package:google_cloud_protobuf/protobuf.dart' as pb;
+import 'package:googleapis_auth/googleapis_auth.dart' as auth;
+import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
 import 'model.dart';
+
+final _logger = Logger('genkit_google_genai');
 
 final commonModelInfo = ModelInfo(
   supports: {
@@ -55,6 +60,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           gcl.ListModelsRequest(pageSize: 1000),
         );
       } catch (e, stack) {
+        _logger.warning('Failed to list models: $e', e, stack);
         throw _handleException(e, stack);
       }
       final models = modelsResponse.models
@@ -133,7 +139,6 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
-            googleSearchRetrieval: options.googleSearchRetrieval,
             googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
@@ -151,7 +156,6 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
-            googleSearchRetrieval: options.googleSearchRetrieval,
             googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
@@ -234,7 +238,9 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     return Embedder(
       name: 'googleai/$name',
       fn: (req, ctx) async {
-        final service = gcl.GenerativeService.fromApiKey(apiKey);
+        final service = gcl.GenerativeService(
+          client: httpClientFromApiKey(apiKey),
+        );
         try {
           // Batch embedding not yet supported in this veneer, iterating.
           // TODO: Use batchEmbedContents when available/exposed if needed for performance.
@@ -508,25 +514,12 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
 List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
-  GoogleSearchRetrieval? googleSearchRetrieval,
   GoogleSearch? googleSearch,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.Tool_GoogleSearch()),
-    if (googleSearchRetrieval != null)
-      gcl.Tool(
-        googleSearchRetrieval: gcl.GoogleSearchRetrieval(
-          dynamicRetrievalConfig: gcl.DynamicRetrievalConfig(
-            mode: switch (googleSearchRetrieval.mode) {
-              null => gcl.DynamicRetrievalConfig_Mode.modeUnspecified,
-              String m => gcl.DynamicRetrievalConfig_Mode.fromJson(m),
-            },
-            dynamicThreshold: googleSearchRetrieval.dynamicThreshold,
-          ),
-        ),
-      ),
   ];
 }
 
@@ -727,4 +720,41 @@ GenerationUsage? extractUsage(
     cachedContentTokens: metadata.cachedContentTokenCount.toDouble(),
     custom: {'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount},
   );
+}
+
+const _apiKeyEnvVars = ['GOOGLE_API_KEY', 'GEMINI_API_KEY'];
+
+http.Client httpClientFromApiKey(String? apiKey) {
+  apiKey ??= _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
+  var headers = {
+    'x-goog-api-client':
+        'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
+  };
+  print('headers: $headers');
+  if (apiKey == null) {
+    throw GenkitException(
+      'apiKey must be set to an API key',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  final baseClient = CustomClient(defaultHeaders: headers);
+  return auth.clientViaApiKey(apiKey, baseClient: baseClient);
+}
+
+class CustomClient extends http.BaseClient {
+  final http.Client _inner = http.Client();
+  final Map<String, String> defaultHeaders;
+
+  CustomClient({required this.defaultHeaders});
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers.addAll(defaultHeaders);
+    return _inner.send(request);
+  }
+
+  @override
+  void close() {
+    _inner.close();
+  }
 }
