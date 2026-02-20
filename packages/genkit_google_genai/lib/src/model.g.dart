@@ -34,7 +34,6 @@ class GeminiOptions {
     FunctionCallingConfig? functionCallingConfig,
     ThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
-    GoogleSearchRetrieval? googleSearchRetrieval,
     GoogleSearch? googleSearch,
     FileSearch? fileSearch,
     double? temperature,
@@ -57,7 +56,6 @@ class GeminiOptions {
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
       'thinkingConfig': ?thinkingConfig?.toJson(),
       'responseModalities': ?responseModalities,
-      'googleSearchRetrieval': ?googleSearchRetrieval?.toJson(),
       'googleSearch': ?googleSearch?.toJson(),
       'fileSearch': ?fileSearch?.toJson(),
       'temperature': ?temperature,
@@ -159,22 +157,6 @@ class GeminiOptions {
       _json.remove('responseModalities');
     } else {
       _json['responseModalities'] = value;
-    }
-  }
-
-  GoogleSearchRetrieval? get googleSearchRetrieval {
-    return _json['googleSearchRetrieval'] == null
-        ? null
-        : GoogleSearchRetrieval.fromJson(
-            _json['googleSearchRetrieval'] as Map<String, dynamic>,
-          );
-  }
-
-  set googleSearchRetrieval(GoogleSearchRetrieval? value) {
-    if (value == null) {
-      _json.remove('googleSearchRetrieval');
-    } else {
-      _json['googleSearchRetrieval'] = value;
     }
   }
 
@@ -383,9 +365,6 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         }),
         'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
         'responseModalities': Schema.list(items: Schema.string()),
-        'googleSearchRetrieval': Schema.fromMap({
-          '\$ref': r'#/$defs/GoogleSearchRetrieval',
-        }),
         'googleSearch': Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
         'fileSearch': Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
         'temperature': Schema.number(minimum: 0.0, maximum: 2.0),
@@ -407,7 +386,6 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       SafetySettings.$schema,
       FunctionCallingConfig.$schema,
       ThinkingConfig.$schema,
-      GoogleSearchRetrieval.$schema,
       GoogleSearch.$schema,
       FileSearch.$schema,
     ],
@@ -657,78 +635,6 @@ class _FunctionCallingConfigTypeFactory
   );
 }
 
-class GoogleSearchRetrieval {
-  factory GoogleSearchRetrieval.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  GoogleSearchRetrieval._(this._json);
-
-  GoogleSearchRetrieval({String? mode, double? dynamicThreshold}) {
-    _json = {'mode': ?mode, 'dynamicThreshold': ?dynamicThreshold};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  static const SchemanticType<GoogleSearchRetrieval> $schema =
-      _GoogleSearchRetrievalTypeFactory();
-
-  String? get mode {
-    return _json['mode'] as String?;
-  }
-
-  set mode(String? value) {
-    if (value == null) {
-      _json.remove('mode');
-    } else {
-      _json['mode'] = value;
-    }
-  }
-
-  double? get dynamicThreshold {
-    return (_json['dynamicThreshold'] as num?)?.toDouble();
-  }
-
-  set dynamicThreshold(double? value) {
-    if (value == null) {
-      _json.remove('dynamicThreshold');
-    } else {
-      _json['dynamicThreshold'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-class _GoogleSearchRetrievalTypeFactory
-    extends SchemanticType<GoogleSearchRetrieval> {
-  const _GoogleSearchRetrievalTypeFactory();
-
-  @override
-  GoogleSearchRetrieval parse(Object? json) {
-    return GoogleSearchRetrieval._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'GoogleSearchRetrieval',
-    definition: Schema.object(
-      properties: {
-        'mode': Schema.string(enumValues: ['MODE_UNSPECIFIED', 'MODE_DYNAMIC']),
-        'dynamicThreshold': Schema.number(),
-      },
-      required: [],
-    ),
-    dependencies: [],
-  );
-}
-
 class FileSearch {
   factory FileSearch.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
@@ -796,7 +702,6 @@ class GeminiTtsOptions {
     FunctionCallingConfig? functionCallingConfig,
     ThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
-    GoogleSearchRetrieval? googleSearchRetrieval,
     GoogleSearch? googleSearch,
     FileSearch? fileSearch,
     double? temperature,
@@ -820,7 +725,6 @@ class GeminiTtsOptions {
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
       'thinkingConfig': ?thinkingConfig?.toJson(),
       'responseModalities': ?responseModalities,
-      'googleSearchRetrieval': ?googleSearchRetrieval?.toJson(),
       'googleSearch': ?googleSearch?.toJson(),
       'fileSearch': ?fileSearch?.toJson(),
       'temperature': ?temperature,
@@ -923,22 +827,6 @@ class GeminiTtsOptions {
       _json.remove('responseModalities');
     } else {
       _json['responseModalities'] = value;
-    }
-  }
-
-  GoogleSearchRetrieval? get googleSearchRetrieval {
-    return _json['googleSearchRetrieval'] == null
-        ? null
-        : GoogleSearchRetrieval.fromJson(
-            _json['googleSearchRetrieval'] as Map<String, dynamic>,
-          );
-  }
-
-  set googleSearchRetrieval(GoogleSearchRetrieval? value) {
-    if (value == null) {
-      _json.remove('googleSearchRetrieval');
-    } else {
-      _json['googleSearchRetrieval'] = value;
     }
   }
 
@@ -1161,9 +1049,6 @@ class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
         }),
         'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
         'responseModalities': Schema.list(items: Schema.string()),
-        'googleSearchRetrieval': Schema.fromMap({
-          '\$ref': r'#/$defs/GoogleSearchRetrieval',
-        }),
         'googleSearch': Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
         'fileSearch': Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
         'temperature': Schema.number(minimum: 0.0, maximum: 2.0),
@@ -1186,7 +1071,6 @@ class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
       SafetySettings.$schema,
       FunctionCallingConfig.$schema,
       ThinkingConfig.$schema,
-      GoogleSearchRetrieval.$schema,
       GoogleSearch.$schema,
       FileSearch.$schema,
       SpeechConfig.$schema,

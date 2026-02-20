@@ -18,11 +18,14 @@ import 'package:genkit/genkit.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
 import 'package:google_cloud_protobuf/protobuf.dart' as pb;
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
 import 'model.dart';
+
+final _logger = Logger('genkit_google_genai');
 
 final commonModelInfo = ModelInfo(
   supports: {
@@ -55,6 +58,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           gcl.ListModelsRequest(pageSize: 1000),
         );
       } catch (e, stack) {
+        _logger.warning('Failed to list models: $e', e, stack);
         throw _handleException(e, stack);
       }
       final models = modelsResponse.models
@@ -133,7 +137,6 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
-            googleSearchRetrieval: options.googleSearchRetrieval,
             googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
@@ -151,7 +154,6 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
-            googleSearchRetrieval: options.googleSearchRetrieval,
             googleSearch: options.googleSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
@@ -508,25 +510,12 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
 List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
-  GoogleSearchRetrieval? googleSearchRetrieval,
   GoogleSearch? googleSearch,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.Tool_GoogleSearch()),
-    if (googleSearchRetrieval != null)
-      gcl.Tool(
-        googleSearchRetrieval: gcl.GoogleSearchRetrieval(
-          dynamicRetrievalConfig: gcl.DynamicRetrievalConfig(
-            mode: switch (googleSearchRetrieval.mode) {
-              null => gcl.DynamicRetrievalConfig_Mode.modeUnspecified,
-              String m => gcl.DynamicRetrievalConfig_Mode.fromJson(m),
-            },
-            dynamicThreshold: googleSearchRetrieval.dynamicThreshold,
-          ),
-        ),
-      ),
   ];
 }
 
