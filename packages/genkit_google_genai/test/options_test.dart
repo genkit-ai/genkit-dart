@@ -106,31 +106,11 @@ void main() {
     });
 
     test('maps google search retrieval', () {
-      final options = GeminiOptions(
-        googleSearchRetrieval: GoogleSearchRetrieval(
-          mode: 'MODE_DYNAMIC',
-          dynamicThreshold: 0.8,
-        ),
-      );
-      final tools = toGeminiTools(
-        null,
-        googleSearchRetrieval: options.googleSearchRetrieval,
-      );
+      final options = GeminiOptions(googleSearch: GoogleSearch());
+      final tools = toGeminiTools(null, googleSearch: options.googleSearch);
 
       expect(tools, hasLength(1));
-      expect(tools.first.googleSearchRetrieval, isNotNull);
-      expect(
-        tools.first.googleSearchRetrieval?.dynamicRetrievalConfig?.mode,
-        gcl.DynamicRetrievalConfig_Mode.modeDynamic,
-      );
-      expect(
-        tools
-            .first
-            .googleSearchRetrieval
-            ?.dynamicRetrievalConfig
-            ?.dynamicThreshold,
-        0.8,
-      );
+      expect(tools.first.googleSearch, isNotNull);
     });
   });
 
