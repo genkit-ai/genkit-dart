@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../util/common.dart';

@@ -13,9 +13,8 @@
 // limitations under the License.
 
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
     as gcl;
 import 'package:google_cloud_protobuf/protobuf.dart' as pb;
@@ -726,12 +725,10 @@ GenerationUsage? extractUsage(
 const _apiKeyEnvVars = ['GOOGLE_API_KEY', 'GEMINI_API_KEY'];
 
 http.Client httpClientFromApiKey(String? apiKey) {
-  apiKey ??= _apiKeyEnvVars
-      .map((n) => Platform.environment[n])
-      .nonNulls
-      .firstOrNull;
+  apiKey ??= _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
   var headers = {
-    'x-goog-api-client': 'genkit-dart/0.10.0 gl-dart/${Platform.version}',
+    'x-goog-api-client':
+        'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
   };
   print('headers: $headers');
   if (apiKey == null) {

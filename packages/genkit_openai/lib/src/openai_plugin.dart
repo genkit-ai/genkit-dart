@@ -14,7 +14,7 @@
 
 import 'dart:convert';
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 
 import '../genkit_openai.dart';
