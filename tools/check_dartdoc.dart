@@ -25,7 +25,42 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:path/path.dart' as p;
+
+final _isGitHubActions = Platform.environment['GITHUB_ACTIONS'] == 'true';
+
+void _print(
+  String message, {
+  bool isWarning = false,
+  String? file,
+  int? line,
+  int? col,
+}) {
+  if (_isGitHubActions && isWarning) {
+    final fileStr = file != null ? 'file=$file,' : '';
+    final lineStr = line != null ? 'line=$line,' : '';
+    final colStr = col != null ? 'col=$col,' : '';
+    print('::warning $fileStr$lineStr$colStr::$message');
+  } else {
+    final prefix = isWarning ? '🔶 warning: ' : '';
+    print('$prefix$message');
+  }
+}
+
+void _startGroup(String name) {
+  if (_isGitHubActions) {
+    print('::group::Checking documentation for $name...');
+  } else {
+    print('Checking documentation for $name...');
+  }
+}
+
+void _endGroup() {
+  if (_isGitHubActions) {
+    print('::endgroup::');
+  }
+}
 
 Future<void> main(List<String> args) async {
   // Get list of non-private packages using melos
@@ -95,7 +130,7 @@ Future<void> main(List<String> args) async {
 }
 
 Future<bool> _checkPackage(String name, String location) async {
-  print('Checking documentation for $name...');
+  _startGroup(name);
 
   final tempDir = Directory.systemTemp.createTempSync('dartdoc_$name');
 
@@ -109,23 +144,54 @@ Future<bool> _checkPackage(String name, String location) async {
   var globalHasWarning = false;
 
   final summaryRegex = RegExp(r'Found (\d+) warning[s]? and (\d+) error[s]?');
+  final locationRegex = RegExp(r'from [^:]+: \(file://([^:]+):(\d+):(\d+)\)');
 
   var inWarningBlock = false;
+  String? currentWarningMessage;
 
   void processLine(String line) {
     if (line.isEmpty) return;
 
     final trimmed = line.trim();
     if (trimmed.startsWith('warning:') || trimmed.startsWith('error:')) {
-      print('[$name] $trimmed');
+      currentWarningMessage = trimmed;
       hasWarning = true;
       globalHasWarning = true;
       inWarningBlock = true;
     } else if (inWarningBlock && trimmed.startsWith('from ')) {
-      // Capture the location line which immediately follows the warning line.
-      print('[$name]   $trimmed');
-    } else {
+      final match = locationRegex.firstMatch(trimmed);
+      if (match != null) {
+        final filePath = p.relative(match.group(1)!);
+        final lineNum = int.tryParse(match.group(2) ?? '');
+        final colNum = int.tryParse(match.group(3) ?? '');
+
+        _print(
+          '[$name] ${currentWarningMessage ?? 'warning'}',
+          isWarning: true,
+          file: filePath,
+          line: lineNum,
+          col: colNum,
+        );
+      } else {
+        // Fallback if regex fails to match
+        _print(
+          '[$name] ${currentWarningMessage ?? 'warning'}\n  $trimmed',
+          isWarning: true,
+        );
+      }
       inWarningBlock = false;
+      currentWarningMessage = null;
+    } else {
+      if (inWarningBlock) {
+        // Warning block ended without a location line
+        _print(
+          '[$name] ${currentWarningMessage ?? 'warning'}',
+          isWarning: true,
+        );
+        inWarningBlock = false;
+        currentWarningMessage = null;
+      }
+
       final match = summaryRegex.firstMatch(line);
       if (match != null) {
         final warnings = int.parse(match.group(1)!);
@@ -168,6 +234,8 @@ Future<bool> _checkPackage(String name, String location) async {
   } catch (e) {
     print('Failed to delete temp dir ${tempDir.path}: $e');
   }
+
+  _endGroup();
 
   return globalHasWarning;
 }
