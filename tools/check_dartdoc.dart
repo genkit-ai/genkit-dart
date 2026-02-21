@@ -38,10 +38,12 @@ void _print(
   int? col,
 }) {
   if (_isGitHubActions && isWarning) {
-    final fileStr = file != null ? 'file=$file,' : '';
-    final lineStr = line != null ? 'line=$line,' : '';
-    final colStr = col != null ? 'col=$col,' : '';
-    print('::warning $fileStr$lineStr$colStr::$message');
+    final props = <String>[];
+    if (file != null) props.add('file=$file');
+    if (line != null) props.add('line=$line');
+    if (col != null) props.add('col=$col');
+    final propStr = props.isEmpty ? '' : ' ${props.join(',')}';
+    print('::warning$propStr::$message');
   } else {
     final prefix = isWarning ? '🔶 warning: ' : '';
     print('$prefix$message');
