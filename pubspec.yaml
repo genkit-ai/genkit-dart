@@ -26,6 +26,7 @@ workspace:
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
   melos: ^7.0.0
+  path: ^1.9.1
   
 melos:
   name: genkit_workspace
@@ -62,3 +63,7 @@ melos:
       packageFilters:
         scope: "{agentic_patterns,ai_features,basic_sample,openai_sample}"
       description: Run build_runner for testapps (except the flutter one!)
+
+    dartdoc-check:
+      run: dart tools/check_dartdoc.dart
+      description: Run dartdoc over all non-private packages and check for warnings.
