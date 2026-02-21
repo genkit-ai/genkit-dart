@@ -62,11 +62,7 @@ Future<void> main(List<String> args) async {
       final pkgPath = p.canonicalize(
         Directory(pkg['location'] as String).absolute.path,
       );
-      return targetNames.contains(pkg['name']) ||
-          targetPaths.any(
-            (targetPath) =>
-                pkgPath == targetPath || pkgPath.startsWith(targetPath),
-          );
+      return targetNames.contains(pkg['name']) || targetPaths.contains(pkgPath);
     }).toList();
 
     if (packages.isEmpty) {
@@ -104,49 +100,54 @@ Future<bool> _checkPackage(String name, String location) async {
   final tempDir = Directory.systemTemp.createTempSync('dartdoc_$name');
 
   final process = await Process.start(Platform.executable, [
-    'run',
-    '${Platform.environment['HOME']}/github/dartdoc/bin/dartdoc.dart',
+    'doc',
     '--output',
     tempDir.path,
-    '--json',
   ], workingDirectory: location);
 
   var hasWarning = false;
   var globalHasWarning = false;
 
+  final summaryRegex = RegExp(r'Found (\d+) warning[s]? and (\d+) error[s]?');
+
+  var inWarningBlock = false;
+
+  void processLine(String line) {
+    if (line.isEmpty) return;
+
+    final trimmed = line.trim();
+    if (trimmed.startsWith('warning:') || trimmed.startsWith('error:')) {
+      print('[$name] $trimmed');
+      hasWarning = true;
+      globalHasWarning = true;
+      inWarningBlock = true;
+    } else if (inWarningBlock && trimmed.startsWith('from ')) {
+      // Capture the location line which immediately follows the warning line.
+      print('[$name]   $trimmed');
+    } else {
+      inWarningBlock = false;
+      final match = summaryRegex.firstMatch(line);
+      if (match != null) {
+        final warnings = int.parse(match.group(1)!);
+        final errors = int.parse(match.group(2)!);
+        if (warnings > 0 || errors > 0) {
+          hasWarning = true;
+          globalHasWarning = true;
+        }
+      }
+    }
+  }
+
   final stdoutFuture = process.stdout
       .transform(utf8.decoder)
       .transform(const LineSplitter())
-      .listen((line) {
-        if (line.isEmpty) return;
-        try {
-          final json = jsonDecode(line) as Map<String, dynamic>;
-          final level = json['level'] as String?;
-          final message = json['message'] as String? ?? '';
-
-          if (level == 'WARNING' || level == 'ERROR') {
-            if (message.contains('Found 0 warnings and 0 errors')) {
-              return;
-            }
-            print('[$name] $level: $message');
-            hasWarning = true;
-            globalHasWarning = true;
-          }
-        } catch (e) {
-          // Not JSON
-        }
-      })
+      .listen(processLine)
       .asFuture();
 
   final stderrFuture = process.stderr
       .transform(utf8.decoder)
       .transform(const LineSplitter())
-      .listen((line) {
-        if (line.isNotEmpty) {
-          print('[$name] STDERR: $line');
-          globalHasWarning = true;
-        }
-      })
+      .listen(processLine)
       .asFuture();
 
   final exitCode = await process.exitCode;
