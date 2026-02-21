@@ -46,21 +46,12 @@ void _print(
     print('::warning$propStr::$message');
   } else {
     final prefix = isWarning ? '🔶 warning: ' : '';
-    print('$prefix$message');
-  }
-}
-
-void _startGroup(String name) {
-  if (_isGitHubActions) {
-    print('::group::Checking documentation for $name...');
-  } else {
-    print('Checking documentation for $name...');
-  }
-}
-
-void _endGroup() {
-  if (_isGitHubActions) {
-    print('::endgroup::');
+    final locParts = <String>[];
+    if (file != null) locParts.add(file);
+    if (line != null) locParts.add(line.toString());
+    if (col != null) locParts.add(col.toString());
+    final suffix = locParts.isEmpty ? '' : ' (${locParts.join(':')})';
+    print('$prefix$message$suffix');
   }
 }
 
@@ -132,7 +123,7 @@ Future<void> main(List<String> args) async {
 }
 
 Future<bool> _checkPackage(String name, String location) async {
-  _startGroup(name);
+  print('Checking documentation for $name...');
 
   final tempDir = Directory.systemTemp.createTempSync('dartdoc_$name');
 
@@ -236,8 +227,6 @@ Future<bool> _checkPackage(String name, String location) async {
   } catch (e) {
     print('Failed to delete temp dir ${tempDir.path}: $e');
   }
-
-  _endGroup();
 
   return globalHasWarning;
 }
