@@ -326,8 +326,4 @@ This package implements the MCP specification version **2025-11-25**.
 
 ---
 
-## License
-
-Apache 2.0 — see [LICENSE](LICENSE) for details.
-
 Built by [Google](https://firebase.google.com/) with contributions from the [Open Source Community](https://github.com/genkit-ai/genkit-dart/graphs/contributors).

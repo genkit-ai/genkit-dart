@@ -17,6 +17,7 @@
 /// Use this library to define [Flow]s, [Model]s, and [Tool]s.
 ///
 /// This is the main entry point for creating Genkit applications.
+/// [no_exist_silly]
 library;
 
 import 'dart:async';
@@ -85,6 +86,7 @@ bool _isDevEnv() {
   return getConfigVar('GENKIT_ENV') == 'dev';
 }
 
+/// The main entry point for creating Genkit applications. [magical]
 class Genkit {
   final Registry registry = Registry();
   ReflectionServerHandle? _reflectionServer;
@@ -550,7 +552,9 @@ class Genkit {
                   GenerateResponseChunk<S>(
                     c.rawChunk,
                     previousChunks: List.from(c.previousChunks),
-                    output: c.output != null ? outputSchema.parse(c.output) : null,
+                    output: c.output != null
+                        ? outputSchema.parse(c.output)
+                        : null,
                   ),
                 );
               } else {
