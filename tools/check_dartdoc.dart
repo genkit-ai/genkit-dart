@@ -151,6 +151,14 @@ Future<bool> _checkPackage(String name, String location) async {
 
     final trimmed = line.trim();
     if (trimmed.startsWith('warning:') || trimmed.startsWith('error:')) {
+      if (inWarningBlock) {
+        // A new warning/error starts, but the previous one didn't have a location.
+        // Print the previous one without location info.
+        _print(
+          '[$name] ${currentWarningMessage ?? 'warning'}',
+          isWarning: true,
+        );
+      }
       currentWarningMessage = trimmed;
       hasWarning = true;
       packageHadIssues = true;
