@@ -70,15 +70,18 @@ Future<void> main(List<String> args) async {
   }
 
   final stdout = melosResult.stdout as String;
-  final jsonStart = stdout.indexOf('[');
-  if (jsonStart == -1) {
+  final jsonStartIndex = stdout.indexOf('[');
+  final jsonEndIndex = stdout.lastIndexOf(']');
+  if (jsonStartIndex == -1 ||
+      jsonEndIndex == -1 ||
+      jsonEndIndex < jsonStartIndex) {
     print('Could not find JSON output in melos list result.');
     print('Output was: $stdout');
     exitCode = 1;
     return;
   }
 
-  final jsonString = stdout.substring(jsonStart);
+  final jsonString = stdout.substring(jsonStartIndex, jsonEndIndex + 1);
   var packages = (jsonDecode(jsonString) as List).cast<Map<String, dynamic>>();
 
   if (args.isNotEmpty) {
@@ -135,7 +138,7 @@ Future<bool> _checkPackage(String name, String location) async {
   ], workingDirectory: location);
 
   var hasWarning = false;
-  var globalHasWarning = false;
+  var packageHadIssues = false;
 
   final summaryRegex = RegExp(r'Found (\d+) warning[s]? and (\d+) error[s]?');
   final locationRegex = RegExp(r'from [^:]+: \(file://([^:]+):(\d+):(\d+)\)');
@@ -150,7 +153,7 @@ Future<bool> _checkPackage(String name, String location) async {
     if (trimmed.startsWith('warning:') || trimmed.startsWith('error:')) {
       currentWarningMessage = trimmed;
       hasWarning = true;
-      globalHasWarning = true;
+      packageHadIssues = true;
       inWarningBlock = true;
     } else if (inWarningBlock && trimmed.startsWith('from ')) {
       final match = locationRegex.firstMatch(trimmed);
@@ -192,7 +195,7 @@ Future<bool> _checkPackage(String name, String location) async {
         final errors = int.parse(match.group(2)!);
         if (warnings > 0 || errors > 0) {
           hasWarning = true;
-          globalHasWarning = true;
+          packageHadIssues = true;
         }
       }
     }
@@ -215,7 +218,7 @@ Future<bool> _checkPackage(String name, String location) async {
 
   if (exitCode != 0) {
     print('[$name] dartdoc exited with code $exitCode');
-    globalHasWarning = true;
+    packageHadIssues = true;
   }
 
   if (!hasWarning && exitCode == 0) {
@@ -229,5 +232,5 @@ Future<bool> _checkPackage(String name, String location) async {
     print('Failed to delete temp dir ${tempDir.path}: $e');
   }
 
-  return globalHasWarning;
+  return packageHadIssues;
 }
