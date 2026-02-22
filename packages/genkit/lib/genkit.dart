@@ -550,7 +550,9 @@ class Genkit {
                   GenerateResponseChunk<S>(
                     c.rawChunk,
                     previousChunks: List.from(c.previousChunks),
-                    output: c.output != null ? outputSchema.parse(c.output) : null,
+                    output: c.output != null
+                        ? outputSchema.parse(c.output)
+                        : null,
                   ),
                 );
               } else {
