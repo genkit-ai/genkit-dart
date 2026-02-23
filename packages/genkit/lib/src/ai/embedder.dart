@@ -18,28 +18,32 @@ import '../core/action.dart';
 import '../schema.dart';
 import '../types.dart';
 
-EmbedderRef<C> embedderRef<C>(String name, {SchemanticType<C>? customOptions}) {
-  return _EmbedderRef<C>(name, customOptions);
+EmbedderRef<CustomOptions> embedderRef<CustomOptions>(
+  String name, {
+  SchemanticType<CustomOptions>? customOptions,
+}) {
+  return _EmbedderRef<CustomOptions>(name, customOptions);
 }
 
-abstract class EmbedderRef<C> {
+abstract class EmbedderRef<CustomOptions> {
   String get name;
-  SchemanticType<C>? get customOptions;
+  SchemanticType<CustomOptions>? get customOptions;
 }
 
-class _EmbedderRef<C> implements EmbedderRef<C> {
+class _EmbedderRef<CustomOptions> implements EmbedderRef<CustomOptions> {
   @override
   final String name;
   @override
-  final SchemanticType<C>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   _EmbedderRef(this.name, this.customOptions);
 }
 
-class Embedder<C> extends Action<EmbedRequest, EmbedResponse, void, void>
-    implements EmbedderRef<C> {
+class Embedder<CustomOptions>
+    extends Action<EmbedRequest, EmbedResponse, void, void>
+    implements EmbedderRef<CustomOptions> {
   @override
-  SchemanticType<C>? customOptions;
+  SchemanticType<CustomOptions>? customOptions;
 
   Embedder({
     required super.name,

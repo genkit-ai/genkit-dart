@@ -25,11 +25,11 @@ typedef TelemetryContext = ({
   String spanId,
 });
 
-Future<O> runInNewSpan<I, O>(
+Future<Output> runInNewSpan<Input, Output>(
   String name,
-  Future<O> Function(TelemetryContext) fn, {
+  Future<Output> Function(TelemetryContext) fn, {
   String? actionType,
-  I? input,
+  Input? input,
   Map<String, String>? attributes,
 }) async {
   final parentContext = Zone.current[#api.context] as api.Context?;

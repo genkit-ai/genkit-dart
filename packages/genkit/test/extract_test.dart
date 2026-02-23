@@ -375,11 +375,7 @@ void main() {
         input: '{"a": "hello\\n',
         expected: {'a': 'hello\n'},
       ),
-      (
-        description: 'returns null on empty string',
-        input: '',
-        expected: null,
-      ),
+      (description: 'returns null on empty string', input: '', expected: null),
       (
         description: 'returns null on whitespace-only string',
         input: '   \n  ',

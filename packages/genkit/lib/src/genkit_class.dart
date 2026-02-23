@@ -93,25 +93,25 @@ final class Genkit {
     }
   }
 
-  Future<O> run<O>(String name, Future<O> Function() fn) {
+  Future<Output> run<Output>(String name, Future<Output> Function() fn) {
     return runInNewSpan(name, (_) => fn());
   }
 
-  Flow<I, O, S, Init> defineFlow<I, O, S, Init>({
+  Flow<Input, Output, Chunk, Init> defineFlow<Input, Output, Chunk, Init>({
     required String name,
-    required ActionFn<I, O, S, Init> fn,
-    SchemanticType<I>? inputSchema,
-    SchemanticType<O>? outputSchema,
-    SchemanticType<S>? streamSchema,
+    required ActionFn<Input, Output, Chunk, Init> fn,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    SchemanticType<Chunk>? streamSchema,
     SchemanticType<Init>? initSchema,
   }) {
     final flow = Flow(
       name: name,
       fn: (input, context) {
-        if (input == null && inputSchema != null && null is! I) {
+        if (input == null && inputSchema != null && null is! Input) {
           throw ArgumentError('Flow "$name" requires a non-null input.');
         }
-        return fn(input as I, context);
+        return fn(input as Input, context);
       },
       inputSchema: inputSchema,
       outputSchema: outputSchema,
@@ -122,12 +122,12 @@ final class Genkit {
     return flow;
   }
 
-  Flow<I, O, S, Init> defineBidiFlow<I, O, S, Init>({
+  Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({
     required String name,
-    required BidiActionFn<I, O, S, Init> fn,
-    SchemanticType<I>? inputSchema,
-    SchemanticType<O>? outputSchema,
-    SchemanticType<S>? streamSchema,
+    required BidiActionFn<Input, Output, Chunk, Init> fn,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    SchemanticType<Chunk>? streamSchema,
     SchemanticType<Init>? initSchema,
   }) {
     final flow = Flow(
@@ -150,13 +150,13 @@ final class Genkit {
     return flow;
   }
 
-  Tool<I, O> defineTool<I, O, S>({
+  Tool<Input, Output> defineTool<Input, Output, Chunk>({
     required String name,
     required String description,
-    required ToolFn<I, O> fn,
-    SchemanticType<I>? inputSchema,
-    SchemanticType<O>? outputSchema,
-    SchemanticType<S>? streamSchema,
+    required ToolFn<Input, Output> fn,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    SchemanticType<Chunk>? streamSchema,
   }) {
     final tool = Tool(
       name: name,
@@ -169,14 +169,14 @@ final class Genkit {
     return tool;
   }
 
-  PromptAction<I> definePrompt<I>({
+  PromptAction<Input> definePrompt<Input>({
     required String name,
     String? description,
-    SchemanticType<I>? inputSchema,
-    required PromptFn<I> fn,
+    SchemanticType<Input>? inputSchema,
+    required PromptFn<Input> fn,
     Map<String, dynamic>? metadata,
   }) {
-    final prompt = PromptAction<I>(
+    final prompt = PromptAction<Input>(
       name: name,
       description: description,
       inputSchema: inputSchema,
@@ -334,10 +334,10 @@ final class Genkit {
     return embedder;
   }
 
-  Future<List<Embedding>> embedMany<C>({
-    required EmbedderRef<C> embedder,
+  Future<List<Embedding>> embedMany<CustomOptions>({
+    required EmbedderRef<CustomOptions> embedder,
     required List<DocumentData> documents,
-    C? options,
+    CustomOptions? options,
   }) async {
     final action = await registry.lookupAction('embedder', embedder.name);
     if (action == null) {
@@ -357,11 +357,11 @@ final class Genkit {
     return response.embeddings;
   }
 
-  Future<List<Embedding>> embed<C>({
-    required EmbedderRef<C> embedder,
+  Future<List<Embedding>> embed<CustomOptions>({
+    required EmbedderRef<CustomOptions> embedder,
     DocumentData? document,
     List<DocumentData>? documents,
-    C? options,
+    CustomOptions? options,
   }) async {
     final docs = documents ?? (document != null ? [document] : []);
     if (docs.isEmpty) {
@@ -422,24 +422,24 @@ final class Genkit {
     return (registry: childRegistry, toolNames: resolvedToolNames);
   }
 
-  Future<GenerateResponseHelper<S>> generate<C, S>({
+  Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<C> model,
-    C? config,
+    required ModelRef<CustomOptions> model,
+    CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    SchemanticType<S>? outputSchema,
+    SchemanticType<Output>? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
     bool? outputNoInstructions,
     String? outputContentType,
     Map<String, dynamic>? context,
-    StreamingCallback<GenerateResponseChunk<S>>? onChunk,
+    StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
     List<GenerateMiddlewareRef>? use,
 
     /// Optional data to resume an interrupted generation session.
@@ -516,7 +516,7 @@ final class Genkit {
           : (c) {
               if (outputSchema != null) {
                 onChunk.call(
-                  GenerateResponseChunk<S>(
+                  GenerateResponseChunk<Output>(
                     c.rawChunk,
                     previousChunks: List.from(c.previousChunks),
                     output: c.output != null
@@ -526,10 +526,10 @@ final class Genkit {
                 );
               } else {
                 onChunk.call(
-                  GenerateResponseChunk<S>(
+                  GenerateResponseChunk<Output>(
                     c.rawChunk,
                     previousChunks: List.from(c.previousChunks),
-                    output: c.output as S?,
+                    output: c.output as Output?,
                   ),
                 );
               }
@@ -544,23 +544,23 @@ final class Genkit {
       return GenerateResponseHelper(
         rawResponse.rawResponse,
         request: rawResponse.modelRequest,
-        output: rawResponse.output as S?,
+        output: rawResponse.output as Output?,
       );
     }
   }
 
-  ActionStream<GenerateResponseChunk<S>, GenerateResponseHelper<S>>
-  generateStream<C, S>({
+  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
+  generateStream<CustomOptions, Output>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<C> model,
-    C? config,
+    required ModelRef<CustomOptions> model,
+    CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
     String? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
-    SchemanticType<S>? outputSchema,
+    SchemanticType<Output>? outputSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
@@ -571,11 +571,12 @@ final class Genkit {
     List<InterruptResponse>? interruptRespond,
     List<ToolRequestPart>? interruptRestart,
   }) {
-    final streamController = StreamController<GenerateResponseChunk<S>>();
+    final streamController = StreamController<GenerateResponseChunk<Output>>();
     final actionStream =
-        ActionStream<GenerateResponseChunk<S>, GenerateResponseHelper<S>>(
-          streamController.stream,
-        );
+        ActionStream<
+          GenerateResponseChunk<Output>,
+          GenerateResponseHelper<Output>
+        >(streamController.stream);
 
     generate(
           prompt: prompt,
