@@ -23,6 +23,7 @@ import '../schemantic.dart';
 /// ```dart
 /// nullable(stringSchema()).parse('hello');
 /// ```
+@Deprecated('Use SchemanticType.nullable')
 SchemanticType<T?> nullable<T>(SchemanticType<T> type) {
   if (type is _NullableSchemaFactory) {
     return type as SchemanticType<T?>;
@@ -58,6 +59,7 @@ class _NullableSchemaFactory<T> extends SchemanticType<T?> {
 /// ```dart
 /// stringSchema().parse('hello');
 /// ```
+@Deprecated('Use SchemanticType.string')
 SchemanticType<String> stringSchema({
   String? description,
   int? minLength,
@@ -122,6 +124,7 @@ class _StringSchemaFactory extends SchemanticType<String> {
 /// intSchema().parse(123);
 /// ```
 
+@Deprecated('Use SchemanticType.integer')
 SchemanticType<int> intSchema({
   String? description,
   int? minimum,
@@ -186,6 +189,7 @@ class _IntSchemaFactory extends SchemanticType<int> {
 /// doubleSchema().parse(12.34);
 /// ```
 
+@Deprecated('Use SchemanticType.doubleSchema')
 SchemanticType<double> doubleSchema({
   String? description,
   double? minimum,
@@ -252,6 +256,7 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
 /// ```dart
 /// boolSchema().parse(true);
 /// ```
+@Deprecated('Use SchemanticType.boolean')
 SchemanticType<bool> boolSchema({String? description, bool? defaultValue}) {
   return _BoolSchemaFactory(
     description: description,
@@ -284,6 +289,7 @@ class _BoolSchemaFactory extends SchemanticType<bool> {
 /// ```dart
 /// voidSchema().parse(null);
 /// ```
+@Deprecated('Use SchemanticType.voidSchema')
 SchemanticType<void> voidSchema({String? description}) {
   return _VoidSchemaFactory(description: description);
 }
@@ -309,6 +315,7 @@ class _VoidSchemaFactory extends SchemanticType<void> {
 /// ```dart
 /// dynamicSchema().parse(anything);
 /// ```
+@Deprecated('Use SchemanticType.dynamicSchema')
 SchemanticType<dynamic> dynamicSchema({String? description}) {
   return _DynamicSchemaFactory(description: description);
 }
@@ -335,6 +342,7 @@ class _DynamicSchemaFactory extends SchemanticType<dynamic> {
 /// final stringList = listSchema(stringSchema(), description: 'List of strings');
 /// stringList.parse(['a', 'b']);
 /// ```
+@Deprecated('Use SchemanticType.list')
 SchemanticType<List<T>> listSchema<T>(
   SchemanticType<T> itemType, {
   String? description,
@@ -410,6 +418,7 @@ class _ListSchemaFactory<T> extends SchemanticType<List<T>> {
 /// final myMap = mapSchema(stringSchema(), intSchema(), description: 'My Map');
 /// myMap.parse({'a': 1, 'b': 2});
 /// ```
+@Deprecated('Use SchemanticType.map')
 SchemanticType<Map<K, V>> mapSchema<K, V>(
   SchemanticType<K> keyType,
   SchemanticType<V> valueType, {
