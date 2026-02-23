@@ -35,7 +35,7 @@ m.GenerateContentResponse aggregateResponses(
     if (response.candidates.isNotEmpty) {
       // Firebase AI Candidates don't expose index, assume single candidate.
       final index = 0;
-      final state = candidateStates.putIfAbsent(index, () => _CandidateState());
+      final state = candidateStates.putIfAbsent(index, _CandidateState.new);
       state.merge(response.candidates.first);
     }
   }
