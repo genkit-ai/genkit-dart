@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:convert';
+
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 export 'package:json_schema_builder/json_schema_builder.dart'
@@ -23,8 +24,8 @@ export 'package:schemantic/src/flatten.dart' show SchemaFlatten;
 
 /// Annotation to mark a class as a schema definition.
 ///
-/// This annotation triggers the generation of a counterpart `Schema.g.dart` file
-/// with a concrete implementation of the schema class and a type utility.
+/// This annotation triggers the generation of a counterpart `Schema.g.dart`
+/// file with a concrete implementation of the schema class and a type utility.
 class Schematic {
   /// A description of the schema, to be included in the generated JSON Schema.
   final String? description;
@@ -40,13 +41,16 @@ class AnyOf {
 
 /// Annotation to customize valid JSON fields.
 ///
-/// Use this annotation (or a subclass like [StringField], [IntegerField]) on a getter
-/// to specify a custom JSON key name, description, and other schema constraints.
+/// Use this annotation (or a subclass like [StringField], [IntegerField]) on a
+/// getter
+/// to specify a custom JSON key name, description, and other schema
+/// constraints.
 class Field {
   /// The key name to use in the JSON map.
   final String? name;
 
-  /// A description of the field, which will be included in the generated JSON Schema.
+  /// A description of the field, which will be included in the generated JSON
+  /// Schema.
   final String? description;
 
   /// The default value for the field.
@@ -96,7 +100,6 @@ class IntegerField extends Field {
 }
 
 /// Annotation for Number (double) fields with specific schema constraints.
-/// Annotation for Number (double) fields with specific schema constraints.
 class DoubleField extends Field {
   final num? minimum;
   final num? maximum;
@@ -116,7 +119,8 @@ class DoubleField extends Field {
   }) : super(defaultValue: defaultValue);
 }
 
-/// Metadata associated with a [SchemanticType], primarily used for schema generation.
+/// Metadata associated with a [SchemanticType], primarily used for schema
+/// generation.
 class JsonSchemaMetadata {
   /// The name of the type in the schema (e.g. for $defs).
   final String? name;
@@ -145,11 +149,10 @@ abstract class SchemanticType<T> {
   /// Throws if the JSON data does not match the expected structure.
   T parse(Object? json);
 
-  // ignore: avoid_renaming_method_parameters
   /// Returns the [jsb.Schema] for this type.
   ///
-  /// If [useRefs] is true, the schema will use `$ref` to reference dependent types
-  /// in a global `$defs` section. This is required for recursive schemas.
+  /// If [useRefs] is true, the schema will use `$ref` to reference dependent
+  /// types in a global `$defs` section. This is required for recursive schemas.
   jsb.Schema jsonSchema({bool useRefs = false}) {
     if (!useRefs) {
       if (schemaMetadata == null) return jsb.Schema.any();

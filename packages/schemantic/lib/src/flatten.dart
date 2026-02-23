@@ -16,16 +16,18 @@ import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 extension SchemaFlatten on jsb.Schema {
   /// Flattens a JSON schema by dereferencing all `$ref`s and removing `$defs`.
+  ///
+  /// Throws [FormatException] if recursive references are detected.
   jsb.Schema flatten() {
-    final flatMap = flattenSchemaMap(value);
+    final flatMap = _flatten(value);
     return jsb.Schema.fromMap(flatMap);
   }
 }
 
-/// Flattens a JSON schema map by dereferencing all `$ref`s and removing `$defs`.
+/// Flattens a JSON schema by dereferencing all `$ref`s and removing `$defs`.
 ///
 /// Throws [FormatException] if recursive references are detected.
-Map<String, dynamic> flattenSchemaMap(Map<String, dynamic> schema) {
+Map<String, dynamic> _flatten(Map<String, dynamic> schema) {
   // 1. Identify definitions
   final defs = <String, Map<String, dynamic>>{};
   // Check for both $defs (modern) and definitions (legacy)
