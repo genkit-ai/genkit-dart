@@ -21,7 +21,6 @@ import 'package:genkit/client.dart';
 import 'package:http/http.dart' as http;
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 @GenerateMocks([http.Client])
@@ -253,7 +252,7 @@ void main() {
     test('should create RemoteAction instance', () {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/helper',
-        inputSchema: stringSchema(),
+        inputSchema: .string(),
         fromResponse: (data) => data as String,
       );
 
@@ -275,9 +274,9 @@ void main() {
     test('should work with SchemanticType', () async {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/test',
-        inputSchema: stringSchema(),
+        inputSchema: .string(),
         httpClient: mockClient,
-        outputSchema: stringSchema(),
+        outputSchema: .string(),
       );
 
       when(
@@ -298,9 +297,9 @@ void main() {
       final action = defineRemoteAction(
         url: 'http://localhost:3400/stream',
         httpClient: mockClient,
-        inputSchema: stringSchema(),
-        outputSchema: stringSchema(),
-        streamSchema: stringSchema(),
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
       );
 
       final expectedChunks = ['chunk1', 'chunk2'];
@@ -330,7 +329,7 @@ void main() {
         () => defineRemoteAction(
           url: 'http://localhost:3400/helper',
           fromResponse: (data) => data as String,
-          outputSchema: stringSchema(),
+          outputSchema: .string(),
         ),
         throwsArgumentError,
       );
@@ -340,7 +339,7 @@ void main() {
           url: 'http://localhost:3400/test',
           fromResponse: (d) => d as String,
           fromStreamChunk: (d) => d as String,
-          streamSchema: stringSchema(),
+          streamSchema: .string(),
         ),
         throwsArgumentError,
       );

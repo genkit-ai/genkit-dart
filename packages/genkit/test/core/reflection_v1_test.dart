@@ -21,7 +21,6 @@ import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v1.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:http/http.dart' as http;
-import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -72,9 +71,9 @@ void main() {
       registry = Registry();
       final testAction = Action(
         actionType: 'test',
-        inputSchema: stringSchema(),
-        outputSchema: stringSchema(),
-        streamSchema: stringSchema(),
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
         name: 'testAction',
         fn: (input, context) async {
           if (context.streamingRequested) {

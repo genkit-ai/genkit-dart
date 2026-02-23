@@ -23,7 +23,7 @@ import 'package:test/test.dart';
 void main() {
   group('Basic Types', () {
     test('stringSchema()', () {
-      expect(stringSchema().parse('hello'), 'hello');
+      expect(SchemanticType.string().parse('hello'), 'hello');
       final json = jsonDecode(stringSchema().jsonSchema().toJson());
       expect(json['type'], 'string');
     });
