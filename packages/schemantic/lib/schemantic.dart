@@ -262,7 +262,7 @@ abstract class SchemanticType<T> {
     bool? defaultValue,
   }) => bt.boolSchema(description: description, defaultValue: defaultValue);
 
-  /// Creates A void schema.
+  /// Creates a void schema.
   ///
   /// Example:
   /// ```dart
