@@ -208,7 +208,7 @@ void main() {
       final message = GenkitConverter.fromOpenAIAssistantMessage(
         aggregated.choices.first.message,
       );
-      final parsed = jsonDecode(message.text!) as Map<String, dynamic>;
+      final parsed = jsonDecode(message.text) as Map<String, dynamic>;
       expect(parsed['name'], 'John Doe');
       expect(parsed['age'], 30);
       // ignore: avoid_dynamic_calls
