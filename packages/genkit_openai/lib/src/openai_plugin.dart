@@ -14,6 +14,7 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
+import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
 import 'aggregation.dart';
@@ -24,22 +25,19 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
   return format == 'json' || contentType == 'application/json';
 }
 
-/// Builds an OpenAI [ResponseFormat] from a Genkit output schema that uses
-/// `$defs` and a top-level `$ref`. Returns null if [schema] is null or
-/// has no definitions (empty `$defs`).
+/// Builds an OpenAI [ResponseFormat] from a Genkit output schema.
+/// Flattens `$ref`/`$defs` since OpenAI requires `type` at the top level.
+/// Returns null if [schema] is null.
 ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   if (schema == null) return null;
-  final defs = schema[r'$defs'] as Map<String, dynamic>? ?? {};
-  if (defs.isEmpty) return null;
-  final schemaShell = defs.values.first as Map<String, dynamic>;
-  final schemaWithType = {
-    ...schemaShell,
-    'additionalProperties': false,
-  };
+  final flattened = Schema.fromMap(schema).flatten().value;
   return ResponseFormat.jsonSchema(
     jsonSchema: JsonSchemaObject(
-      name: defs.keys.first,
-      schema: schemaWithType,
+      name: 'output',
+      schema: {
+        ...flattened,
+        'additionalProperties': false,
+      },
       strict: true,
     ),
   );

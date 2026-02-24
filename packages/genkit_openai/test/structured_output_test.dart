@@ -98,18 +98,23 @@ void main() {
       final result = buildOpenAIResponseFormat(_createPersonSchema());
       expect(result, isNotNull);
       final js = _jsonSchema(result!);
-      expect(js.name, 'Person');
+      expect(js.name, 'output');
       expect(js.schema['type'], 'object');
       expect(js.schema['additionalProperties'], false);
       expect(js.schema['properties'], isNotNull);
     });
 
-    test('returns null for null or empty \$defs', () {
+    test('returns null only for null schema', () {
       expect(buildOpenAIResponseFormat(null), isNull);
-      expect(
-        buildOpenAIResponseFormat({'type': 'object'}),
-        isNull,
-      );
+    });
+
+    test('builds ResponseFormat from schema without \$defs', () {
+      final result = buildOpenAIResponseFormat({'type': 'object'});
+      expect(result, isNotNull);
+      final js = _jsonSchema(result!);
+      expect(js.name, 'output');
+      expect(js.schema['type'], 'object');
+      expect(js.schema['additionalProperties'], false);
     });
   });
 
