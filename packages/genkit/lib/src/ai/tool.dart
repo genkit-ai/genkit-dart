@@ -18,8 +18,8 @@ import '../core/action.dart';
 import 'interrupt.dart';
 
 /// Arguments passed to a tool function execution.
-class ToolFnArgs<I> {
-  final ActionFnArg<void, I, void> _base;
+class ToolFnArgs<Input> {
+  final ActionFnArg<void, Input, void> _base;
 
   ToolFnArgs(this._base);
 
@@ -33,22 +33,23 @@ class ToolFnArgs<I> {
 }
 
 /// A function that implements a tool.
-typedef ToolFn<I, O> = Future<O> Function(I input, ToolFnArgs<I> context);
+typedef ToolFn<Input, Output> =
+    Future<Output> Function(Input input, ToolFnArgs<Input> context);
 
-class Tool<I, O> extends Action<I, O, void, void> {
+class Tool<Input, Output> extends Action<Input, Output, void, void> {
   Tool({
     required super.name,
     required super.description,
-    required ToolFn<I, O> fn,
+    required ToolFn<Input, Output> fn,
     super.inputSchema,
     super.outputSchema,
     super.metadata,
   }) : super(
          fn: (input, ctx) {
-           if (input == null && inputSchema != null && null is! I) {
+           if (input == null && inputSchema != null && null is! Input) {
              throw ArgumentError('Tool "$name" requires a non-null input.');
            }
-           return fn(input as I, ToolFnArgs(ctx));
+           return fn(input as Input, ToolFnArgs(ctx));
          },
          actionType: 'tool',
        );

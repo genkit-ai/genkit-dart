@@ -49,8 +49,7 @@ export 'src/ai/resource.dart'
         ResourceOutput,
         createResourceMatcher;
 export 'src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
-export 'src/core/action.dart'
-    show Action, ActionFnArg, ActionMetadata;
+export 'src/core/action.dart' show Action, ActionFnArg, ActionMetadata;
 export 'src/core/flow.dart';
 export 'src/exception.dart' show GenkitException, StatusCodes;
 export 'src/genkit_class.dart';

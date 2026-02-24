@@ -38,7 +38,7 @@ void main() async {
 
   // --- Tools ---
 
-  ai.defineTool<Map<String, dynamic>, String, void>(
+  ai.defineTool<Map<String, dynamic>, String>(
     name: 'greet',
     description: 'Greets a user by name.',
     inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -48,7 +48,7 @@ void main() async {
     },
   );
 
-  ai.defineTool<Map<String, dynamic>, String, void>(
+  ai.defineTool<Map<String, dynamic>, String>(
     name: 'add',
     description: 'Adds two numbers together.',
     inputSchema: mapSchema(stringSchema(), dynamicSchema()),

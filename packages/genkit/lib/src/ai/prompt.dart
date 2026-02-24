@@ -15,16 +15,17 @@
 import '../core/action.dart';
 import '../types.dart';
 
-typedef PromptFn<I> =
+typedef PromptFn<Input> =
     Future<GenerateActionOptions> Function(
-      I input,
-      ActionFnArg<void, I, void> ctx,
+      Input input,
+      ActionFnArg<void, Input, void> ctx,
     );
 
-class PromptAction<I> extends Action<I, GenerateActionOptions, void, void> {
+class PromptAction<Input>
+    extends Action<Input, GenerateActionOptions, void, void> {
   PromptAction({
     required super.name,
-    required PromptFn<I> fn,
+    required PromptFn<Input> fn,
     super.inputSchema,
     super.description,
     Map<String, dynamic>? metadata,
@@ -33,10 +34,10 @@ class PromptAction<I> extends Action<I, GenerateActionOptions, void, void> {
          outputSchema: GenerateActionOptions.$schema,
          metadata: _promptMetadata(description, metadata),
          fn: (input, ctx) {
-           if (input == null && inputSchema != null && null is! I) {
+           if (input == null && inputSchema != null && null is! Input) {
              throw ArgumentError('Prompt "$name" requires a non-null input.');
            }
-           return fn(input as I, ctx);
+           return fn(input as Input, ctx);
          },
        );
 }
