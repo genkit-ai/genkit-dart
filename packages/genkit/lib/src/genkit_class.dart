@@ -150,13 +150,12 @@ final class Genkit {
     return flow;
   }
 
-  Tool<Input, Output> defineTool<Input, Output, Chunk>({
+  Tool<Input, Output> defineTool<Input, Output>({
     required String name,
     required String description,
     required ToolFn<Input, Output> fn,
     SchemanticType<Input>? inputSchema,
     SchemanticType<Output>? outputSchema,
-    SchemanticType<Chunk>? streamSchema,
   }) {
     final tool = Tool(
       name: name,
