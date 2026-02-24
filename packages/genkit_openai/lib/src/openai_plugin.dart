@@ -12,39 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 
 import '../genkit_openai.dart';
+import 'aggregation.dart';
 
-/// Internal tool call accumulator for streaming responses
-class _ToolCallAccumulator {
-  String id;
-  String name;
-  final StringBuffer arguments = StringBuffer();
+/// Returns true when the output config indicates JSON-structured output
+/// (format is 'json' or contentType is 'application/json').
+bool isJsonStructuredOutput(String? format, String? contentType) {
+  return format == 'json' || contentType == 'application/json';
+}
 
-  _ToolCallAccumulator(this.id, this.name);
-
-  /// Update ID if a non-empty value is provided
-  void updateId(String? newId) {
-    if (newId != null && newId.isNotEmpty) {
-      id = newId;
-    }
-  }
-
-  /// Update name if a non-empty value is provided
-  void updateName(String? newName) {
-    if (newName != null && newName.isNotEmpty) {
-      name = newName;
-    }
-  }
-
-  /// Validate that the accumulator has valid ID and name before emitting
-  bool isValid() {
-    return id.isNotEmpty && name.isNotEmpty;
-  }
+/// Builds an OpenAI [ResponseFormat] from a Genkit output schema that uses
+/// `$defs` and a top-level `$ref`. Returns null if [schema] is null or
+/// has no definitions (empty `$defs`).
+ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
+  if (schema == null) return null;
+  final defs = schema[r'$defs'] as Map<String, dynamic>? ?? {};
+  if (defs.isEmpty) return null;
+  final schemaShell = defs.values.first as Map<String, dynamic>;
+  final schemaWithType = {
+    ...schemaShell,
+    'additionalProperties': false,
+  };
+  return ResponseFormat.jsonSchema(
+    jsonSchema: JsonSchemaObject(
+      name: defs.keys.first,
+      schema: schemaWithType,
+      strict: true,
+    ),
+  );
 }
 
 /// Core plugin implementation
@@ -305,6 +303,13 @@ class OpenAIPlugin extends GenkitPlugin {
         try {
           final supports = modelInfo.supports;
           final supportsTools = supports?['tools'] == true;
+
+          final isJsonMode = isJsonStructuredOutput(
+            req.output?.format,
+            req.output?.contentType,
+          );
+          final responseFormat =
+              buildOpenAIResponseFormat(req.output?.schema);
           final request = CreateChatCompletionRequest(
             model: ChatCompletionModel.modelId(options.version ?? modelName),
             messages: GenkitConverter.toOpenAIMessages(
@@ -324,11 +329,8 @@ class OpenAIPlugin extends GenkitPlugin {
             frequencyPenalty: options.frequencyPenalty,
             seed: options.seed,
             user: options.user,
-            responseFormat: options.jsonMode == true
-                ? const ResponseFormat.jsonObject()
-                : null,
+            responseFormat: isJsonMode ? responseFormat : null,
           );
-
           if (ctx.streamingRequested) {
             return await _handleStreaming(client, request, ctx);
           } else {
@@ -377,55 +379,25 @@ class OpenAIPlugin extends GenkitPlugin {
     ctx,
   ) async {
     final stream = client.createChatCompletionStream(request: request);
-
-    final contentBuffer = StringBuffer();
-    final toolCalls = <String, _ToolCallAccumulator>{};
-    String? finishReason;
+    final chunks = <CreateChatCompletionStreamResponse>[];
 
     try {
       await for (final chunk in stream) {
+        chunks.add(chunk);
+
         final choice = (chunk.choices != null && chunk.choices!.isNotEmpty)
             ? chunk.choices!.first
             : null;
         final delta = choice?.delta;
         if (delta == null) continue;
 
-        final parts = <Part>[];
-
-        // Handle text content
         if (delta.content != null) {
-          contentBuffer.write(delta.content);
-          parts.add(TextPart(text: delta.content!));
-        }
-
-        // Handle tool calls (accumulated across chunks)
-        if (delta.toolCalls != null) {
-          for (final tc in delta.toolCalls!) {
-            final index = tc.index.toString();
-            final acc = toolCalls.putIfAbsent(
-              index,
-              () => _ToolCallAccumulator(tc.id ?? '', tc.function?.name ?? ''),
-            );
-            // Update ID and name if new values arrive
-            acc.updateId(tc.id);
-            acc.updateName(tc.function?.name);
-            if (tc.function?.arguments != null) {
-              acc.arguments.write(tc.function!.arguments);
-            }
-          }
-        }
-
-        if (parts.isNotEmpty) {
-          ctx.sendChunk(ModelResponseChunk(index: 0, content: parts));
-        }
-
-        // Only update finishReason when a non-null/non-empty value appears
-        final newFinishReason =
-            chunk.choices != null && chunk.choices!.isNotEmpty
-            ? chunk.choices!.first.finishReason?.name
-            : null;
-        if (newFinishReason != null && newFinishReason.isNotEmpty) {
-          finishReason = newFinishReason;
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: 0,
+              content: [TextPart(text: delta.content!)],
+            ),
+          );
         }
       }
     } catch (e) {
@@ -433,32 +405,14 @@ class OpenAIPlugin extends GenkitPlugin {
       throw GenkitException('Error in streaming: $e', underlyingException: e);
     }
 
-    // Build final message
-    final finalParts = <Part>[];
-    if (contentBuffer.isNotEmpty) {
-      finalParts.add(TextPart(text: contentBuffer.toString()));
-    }
-    for (final tc in toolCalls.values) {
-      // Validate that tool call has valid ID and name before emitting
-      if (!tc.isValid()) {
-        throw GenkitException(
-          'Streaming tool call must have non-empty ID and name. Got: id="${tc.id}", name="${tc.name}"',
-        );
-      }
-      final argumentsJson = tc.arguments.toString();
-      final input = argumentsJson.isNotEmpty
-          ? jsonDecode(argumentsJson) as Map<String, dynamic>?
-          : null;
-      finalParts.add(
-        ToolRequestPart(
-          toolRequest: ToolRequest(ref: tc.id, name: tc.name, input: input),
-        ),
-      );
-    }
+    final response = aggregateStreamResponses(chunks);
+    final choice = response.choices.first;
+    final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
 
     return ModelResponse(
-      finishReason: GenkitConverter.mapFinishReason(finishReason),
-      message: Message(role: Role.model, content: finalParts),
+      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
+      message: message,
+      raw: response.toJson(),
     );
   }
 
