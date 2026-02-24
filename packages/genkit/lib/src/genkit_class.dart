@@ -97,7 +97,8 @@ final class Genkit {
     return runInNewSpan(name, (_) => fn());
   }
 
-  Flow<Input, Output, Chunk, Init> defineFlow<Input, Output, Chunk, Init>({
+  Flow<Input, Output, Chunk, Init>
+  defineFlow<Input extends Object, Output, Chunk, Init>({
     required String name,
     required ActionFn<Input, Output, Chunk, Init> fn,
     SchemanticType<Input>? inputSchema,
@@ -108,7 +109,7 @@ final class Genkit {
     final flow = Flow(
       name: name,
       fn: (input, context) {
-        if (input == null && inputSchema != null && null is! Input) {
+        if (input == null && inputSchema != null) {
           throw ArgumentError('Flow "$name" requires a non-null input.');
         }
         return fn(input as Input, context);
@@ -150,7 +151,7 @@ final class Genkit {
     return flow;
   }
 
-  Tool<Input, Output> defineTool<Input, Output>({
+  Tool<Input, Output> defineTool<Input extends Object, Output>({
     required String name,
     required String description,
     required ToolFn<Input, Output> fn,
@@ -168,7 +169,7 @@ final class Genkit {
     return tool;
   }
 
-  PromptAction<Input> definePrompt<Input>({
+  PromptAction<Input> definePrompt<Input extends Object>({
     required String name,
     String? description,
     SchemanticType<Input>? inputSchema,

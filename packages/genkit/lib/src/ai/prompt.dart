@@ -21,7 +21,7 @@ typedef PromptFn<Input> =
       ActionFnArg<void, Input, void> ctx,
     );
 
-class PromptAction<Input>
+class PromptAction<Input extends Object>
     extends Action<Input, GenerateActionOptions, void, void> {
   PromptAction({
     required super.name,
@@ -34,7 +34,7 @@ class PromptAction<Input>
          outputSchema: GenerateActionOptions.$schema,
          metadata: _promptMetadata(description, metadata),
          fn: (input, ctx) {
-           if (input == null && inputSchema != null && null is! Input) {
+           if (input == null && inputSchema != null) {
              throw ArgumentError('Prompt "$name" requires a non-null input.');
            }
            return fn(input as Input, ctx);

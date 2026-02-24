@@ -36,7 +36,8 @@ class ToolFnArgs<Input> {
 typedef ToolFn<Input, Output> =
     Future<Output> Function(Input input, ToolFnArgs<Input> context);
 
-class Tool<Input, Output> extends Action<Input, Output, void, void> {
+class Tool<Input extends Object, Output>
+    extends Action<Input, Output, void, void> {
   Tool({
     required super.name,
     required super.description,
@@ -46,7 +47,7 @@ class Tool<Input, Output> extends Action<Input, Output, void, void> {
     super.metadata,
   }) : super(
          fn: (input, ctx) {
-           if (input == null && inputSchema != null && null is! Input) {
+           if (input == null && inputSchema != null) {
              throw ArgumentError('Tool "$name" requires a non-null input.');
            }
            return fn(input as Input, ToolFnArgs(ctx));
