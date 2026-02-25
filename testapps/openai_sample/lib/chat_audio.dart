@@ -44,22 +44,6 @@ Flow<String, Media, void, void> defineChatAudioFlow(Genkit ai) {
   );
 }
 
-/// Async version of chat-driven audio that directly takes a prompt string
-/// and returns a [Media] object via OpenAI chat audio model.
-Future<Media> chatAudioAsync(Genkit ai, String prompt) async {
-  final response = await ai.generate(
-    model: openAI.model('gpt-4o-audio-preview'),
-    prompt: prompt,
-    config: OpenAIOptions(responseModalities: ['text', 'audio']),
-  );
-
-  final media = response.media;
-  if (media == null) {
-    throw StateError('Model returned no audio media.');
-  }
-  return media;
-}
-
 void main() {
   final ai = Genkit(
     plugins: [openAI(apiKey: Platform.environment['OPENAI_API_KEY'])],
