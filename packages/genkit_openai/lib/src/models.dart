@@ -41,6 +41,21 @@ ModelInfo oSeriesModelInfo(String model) {
   );
 }
 
+/// Model info for DeepSeek models
+ModelInfo deepSeekModelInfo(String model) {
+  final isReasoner = model.toLowerCase().contains('reasoner');
+  return ModelInfo(
+    label: model,
+    supports: {
+      'multiturn': true,
+      'tools': !isReasoner,
+      'systemRole': !isReasoner,
+      'media': false,
+      'output': ['text', 'json'],
+    },
+  );
+}
+
 /// Check if a model supports tools/function calling
 bool supportsTools(String model) {
   final id = model.toLowerCase();
