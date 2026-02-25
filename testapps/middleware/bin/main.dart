@@ -17,7 +17,6 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_middleware/filesystem.dart';
 import 'package:genkit_middleware/skills.dart';
-import 'package:schemantic/schemantic.dart';
 
 void main() async {
   final apiKey = Platform.environment['GEMINI_API_KEY'];

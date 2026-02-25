@@ -17,7 +17,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
-import 'package:schemantic/schemantic.dart';
 
 import 'types.dart';
 

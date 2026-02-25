@@ -14,7 +14,6 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_middleware/tool_approval.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {

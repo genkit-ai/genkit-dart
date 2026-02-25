@@ -15,7 +15,6 @@
 import 'dart:convert';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_middleware/tool_approval.dart';
-import 'package:schemantic/schemantic.dart';
 
 void main() async {
   // Initialize standard framework

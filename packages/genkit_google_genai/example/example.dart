@@ -17,7 +17,6 @@ import 'dart:io';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/lite.dart' as lite;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:schemantic/schemantic.dart';
 
 import 'src/model.dart';
 

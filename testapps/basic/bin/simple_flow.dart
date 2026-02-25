@@ -15,7 +15,6 @@
 import 'package:basic_sample/simple_flow_types.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:schemantic/schemantic.dart';
 
 void main() async {
   final ai = Genkit(plugins: [googleAI()]);

@@ -17,7 +17,6 @@ import 'dart:math';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:schemantic/schemantic.dart';
 
 import 'openai_flows.dart';
 
