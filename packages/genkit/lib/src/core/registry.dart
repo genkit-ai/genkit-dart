@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:io';
-
 import './action.dart';
 import './plugin.dart';
 
@@ -131,9 +129,7 @@ class Registry {
           }
         }
       } catch (e, st) {
-        stderr.writeln(
-          'Failed to list actions from plugin ${plugin.name}: $e $st',
-        );
+        print('Failed to list actions from plugin ${plugin.name}: $e $st');
       }
     }
     return allActions.values.toList();

@@ -18,29 +18,32 @@ import '../core/action.dart';
 import '../schema.dart';
 import '../types.dart';
 
-ModelRef<C> modelRef<C>(String name, {SchemanticType<C>? customOptions}) {
-  return _ModelRef<C>(name, customOptions);
+ModelRef<CustomOptions> modelRef<CustomOptions>(
+  String name, {
+  SchemanticType<CustomOptions>? customOptions,
+}) {
+  return _ModelRef<CustomOptions>(name, customOptions);
 }
 
-abstract class ModelRef<C> {
+abstract class ModelRef<CustomOptions> {
   String get name;
-  SchemanticType<C>? get customOptions;
+  SchemanticType<CustomOptions>? get customOptions;
 }
 
-class _ModelRef<C> implements ModelRef<C> {
+class _ModelRef<CustomOptions> implements ModelRef<CustomOptions> {
   @override
   final String name;
   @override
-  final SchemanticType<C>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   _ModelRef(this.name, this.customOptions);
 }
 
-class Model<C>
+class Model<CustomOptions>
     extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
-    implements ModelRef<C> {
+    implements ModelRef<CustomOptions> {
   @override
-  SchemanticType<C>? customOptions;
+  SchemanticType<CustomOptions>? customOptions;
 
   Model({
     required super.name,
@@ -105,33 +108,33 @@ ActionMetadata modelMetadata(
   );
 }
 
-BidiModelRef<C> bidiModelRef<C>(
+BidiModelRef<CustomOptions> bidiModelRef<CustomOptions>(
   String name, {
-  SchemanticType<C>? customOptions,
+  SchemanticType<CustomOptions>? customOptions,
 }) {
-  return _BidiModelRef<C>(name, customOptions);
+  return _BidiModelRef<CustomOptions>(name, customOptions);
 }
 
-abstract class BidiModelRef<C> {
+abstract class BidiModelRef<CustomOptions> {
   String get name;
-  SchemanticType<C>? get customOptions;
+  SchemanticType<CustomOptions>? get customOptions;
 }
 
-class _BidiModelRef<C> implements BidiModelRef<C> {
+class _BidiModelRef<CustomOptions> implements BidiModelRef<CustomOptions> {
   @override
   final String name;
   @override
-  final SchemanticType<C>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   _BidiModelRef(this.name, this.customOptions);
 }
 
-class BidiModel<C>
+class BidiModel<CustomOptions>
     extends
         Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
-    implements BidiModelRef<C> {
+    implements BidiModelRef<CustomOptions> {
   @override
-  SchemanticType<C>? customOptions;
+  SchemanticType<CustomOptions>? customOptions;
 
   BidiModel({
     required super.name,

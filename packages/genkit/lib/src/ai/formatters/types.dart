@@ -16,15 +16,16 @@ import '../../types.dart';
 import '../generate_types.dart';
 
 /// Function type for parsing a message.
-typedef MessageParser<O> = O Function(Message message);
+typedef MessageParser<Output> = Output Function(Message message);
 
 /// Function type for parsing a chunk.
-typedef ChunkParser<O> = O Function(GenerateResponseChunk<O> chunk);
+typedef ChunkParser<Output> =
+    Output Function(GenerateResponseChunk<Output> chunk);
 
 /// Return type for formatter handlers.
-class FormatterHandlerResult<O> {
-  final MessageParser<O> parseMessage;
-  final ChunkParser<O>? parseChunk;
+class FormatterHandlerResult<Output> {
+  final MessageParser<Output> parseMessage;
+  final ChunkParser<Output>? parseChunk;
   final String? instructions;
 
   FormatterHandlerResult({
@@ -36,10 +37,10 @@ class FormatterHandlerResult<O> {
 
 /// A formatter defines how to configure a generation request and parse the response
 /// for a specific output format.
-class Formatter<O> {
+class Formatter<Output> {
   final String name;
   final GenerateActionOutputConfig config;
-  final FormatterHandlerResult<O> Function(Map<String, dynamic>? schema)
+  final FormatterHandlerResult<Output> Function(Map<String, dynamic>? schema)
   handler;
 
   Formatter({required this.name, required this.config, required this.handler});

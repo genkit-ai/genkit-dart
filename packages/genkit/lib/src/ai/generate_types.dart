@@ -17,10 +17,10 @@ import '../schema_extensions.dart';
 import '../types.dart';
 
 /// A chunk of a response from a generate action.
-class GenerateResponseChunk<O> extends ModelResponseChunk {
+class GenerateResponseChunk<Output> extends ModelResponseChunk {
   final ModelResponseChunk _chunk;
   final List<ModelResponseChunk> previousChunks;
-  final O? output;
+  final Output? output;
 
   GenerateResponseChunk(
     this._chunk, {
@@ -46,9 +46,9 @@ class GenerateResponseChunk<O> extends ModelResponseChunk {
   ///
   /// This will be populated if the output format is JSON, or if the output is
   /// arbitrarily parsed as JSON.
-  O? get jsonOutput {
+  Output? get jsonOutput {
     if (output != null) return output;
-    return extractJson(accumulatedText) as O?;
+    return extractJson(accumulatedText) as Output?;
   }
 
   ModelResponseChunk get rawChunk => _chunk;
@@ -73,10 +73,10 @@ class InterruptResponse {
 }
 
 /// A response from a generate action.
-class GenerateResponseHelper<O> extends GenerateResponse {
+class GenerateResponseHelper<Output> extends GenerateResponse {
   final ModelResponse _response;
   final ModelRequest? _request;
-  final O? output;
+  final Output? output;
 
   GenerateResponseHelper(this._response, {ModelRequest? request, this.output})
     : _request = request,
@@ -142,9 +142,9 @@ class GenerateResponseHelper<O> extends GenerateResponse {
   ///
   /// This will be populated if the output format is JSON, or if the output is
   /// arbitrarily parsed as JSON.
-  O? get jsonOutput {
+  Output? get jsonOutput {
     if (output != null) return output;
-    return extractJson(text) as O?;
+    return extractJson(text) as Output?;
   }
 
   ModelResponse get rawResponse => _response;

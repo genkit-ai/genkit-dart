@@ -308,9 +308,7 @@ void main() {
               finishReason: FinishReason.stop,
               message: Message(
                 role: Role.model,
-                content: [
-                  TextPart(text: '{"title": "Test", "rating": 5}'),
-                ],
+                content: [TextPart(text: '{"title": "Test", "rating": 5}')],
               ),
             );
           },
@@ -346,9 +344,7 @@ void main() {
               finishReason: FinishReason.stop,
               message: Message(
                 role: Role.model,
-                content: [
-                  TextPart(text: '{"title": "Test", "rating": 5}'),
-                ],
+                content: [TextPart(text: '{"title": "Test", "rating": 5}')],
               ),
             );
           },
@@ -364,8 +360,7 @@ void main() {
         expect(
           wasStreamingRequested,
           isTrue,
-          reason:
-              'generate() with onChunk should set streamingRequested=true',
+          reason: 'generate() with onChunk should set streamingRequested=true',
         );
       },
     );
@@ -379,14 +374,8 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             final chunks = [
-              ModelResponseChunk(
-                index: 0,
-                content: [TextPart(text: '')],
-              ),
-              ModelResponseChunk(
-                index: 0,
-                content: [TextPart(text: '{"titl')],
-              ),
+              ModelResponseChunk(index: 0, content: [TextPart(text: '')]),
+              ModelResponseChunk(index: 0, content: [TextPart(text: '{"titl')]),
               ModelResponseChunk(
                 index: 0,
                 content: [TextPart(text: 'e": "Test", ')],
@@ -405,9 +394,7 @@ void main() {
               finishReason: FinishReason.stop,
               message: Message(
                 role: Role.model,
-                content: [
-                  TextPart(text: '{"title": "Test", "rating": 5}'),
-                ],
+                content: [TextPart(text: '{"title": "Test", "rating": 5}')],
               ),
             );
           },

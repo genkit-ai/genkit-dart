@@ -83,7 +83,7 @@ void main() {
 
   test('tool conversion uses default object schema when input missing', () {
     final ai = Genkit();
-    final tool = ai.defineTool<Map<String, dynamic>, String, void>(
+    final tool = ai.defineTool<Map<String, dynamic>, String>(
       name: 'plainTool',
       description: 'plain tool',
       fn: (input, _) async => 'ok',
@@ -97,7 +97,7 @@ void main() {
 
   test('tool conversion includes execution.taskSupport by default', () {
     final ai = Genkit();
-    final tool = ai.defineTool<Map<String, dynamic>, String, void>(
+    final tool = ai.defineTool<Map<String, dynamic>, String>(
       name: 'defaultTaskTool',
       description: 'default task tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
