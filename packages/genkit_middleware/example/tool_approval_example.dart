@@ -25,10 +25,7 @@ void main() async {
   genkit.defineTool(
     name: 'transferFunds',
     description: 'Transfers funds between accounts. Requires user approval.',
-    inputSchema: mapSchema(
-      stringSchema(),
-      stringSchema(),
-    ), // simpler string-map schema
+    inputSchema: .map(.string(), .string()), // simpler string-map schema
     fn: (input, context) async {
       // Since it's a generic Map<String, String> we access safely:
       final from = input['from'];

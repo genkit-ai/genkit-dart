@@ -27,9 +27,9 @@ void main() {
       genkit.defineTool(
         name: 'dangerous_tool',
         description: 'Does something dangerous',
-        inputSchema: mapSchema(
-          stringSchema(),
-          boolSchema(),
+        inputSchema: .map(
+          .string(),
+          .boolean(),
         ), // Input is Map<String, dynamic> at runtime
         fn: (input, context) async {
           return 'Dangerous action confirmed: $input';
@@ -39,9 +39,9 @@ void main() {
       genkit.defineTool(
         name: 'safe_tool',
         description: 'Does something safe',
-        inputSchema: mapSchema(
-          stringSchema(),
-          boolSchema(),
+        inputSchema: .map(
+          .string(),
+          .boolean(),
         ), // Input is Map<String, dynamic> at runtime
         fn: (input, context) async {
           return 'Safe action confirmed: $input';

@@ -91,7 +91,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String, void>(
       name: 'testTool',
       description: 'test tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async => 'yep ${input['foo']}',
     );
     ai.definePrompt<Map<String, dynamic>>(

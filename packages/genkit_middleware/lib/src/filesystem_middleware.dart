@@ -123,7 +123,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
       description:
           'Lists files and directories in a given path. Returns a list of objects with path and type.',
       inputSchema: ListFilesInput.$schema,
-      outputSchema: listSchema(ListFileOutputItem.$schema),
+      outputSchema: .list(ListFileOutputItem.$schema),
       fn: (input, _) async {
         final dirPath = _resolvePath(input.dirPath ?? '');
         final recursive = input.recursive ?? false;
@@ -156,7 +156,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
       name: 'read_file',
       description: 'Reads the contents of a file',
       inputSchema: ReadFileInput.$schema,
-      outputSchema: stringSchema(),
+      outputSchema: .string(),
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
@@ -211,7 +211,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
       name: 'write_file',
       description: 'Writes content to a file, overwriting it if it exists.',
       inputSchema: WriteFileInput.$schema,
-      outputSchema: stringSchema(),
+      outputSchema: .string(),
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
@@ -224,7 +224,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
       name: 'search_and_replace',
       description: 'Replaces text in a file using search and replace blocks. ',
       inputSchema: SearchAndReplaceInput.$schema,
-      outputSchema: stringSchema(),
+      outputSchema: .string(),
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
