@@ -72,7 +72,7 @@ class OpenAIPlugin extends GenkitPlugin {
         for (final modelId in availableModelIds) {
           final modelType = getModelType(modelId);
 
-          if (modelType != 'chat' && modelType != "unknown") {
+          if (modelType != 'chat' && modelType != 'unknown') {
             continue;
           }
 

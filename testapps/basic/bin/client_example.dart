@@ -133,15 +133,15 @@ Future<void> _runStreamingGenerateFlow() async {
       messages: [
         Message(
           role: Role.user,
-          content: [TextPart(text: "hello")],
+          content: [TextPart(text: 'hello')],
         ),
         Message(
           role: Role.model,
-          content: [TextPart(text: "Hello, how can I help you?")],
+          content: [TextPart(text: 'Hello, how can I help you?')],
         ),
         Message(
           role: Role.user,
-          content: [TextPart(text: "Sing me a song.")],
+          content: [TextPart(text: 'Sing me a song.')],
         ),
       ],
     ),

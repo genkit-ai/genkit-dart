@@ -21,6 +21,5 @@ analyzer:
   errors:
     lines_longer_than_80_chars: ignore
     prefer_const_constructors: ignore
-    prefer_single_quotes: ignore
     unawaited_futures: ignore
     unreachable_from_main: ignore
