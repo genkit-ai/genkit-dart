@@ -507,19 +507,19 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           if (itemIsNullable) {
             getterBody =
                 "return (_json['$jsonFieldName'] as List?)"
-                "?.map((e) => e == null ? null : "
-                "$nestedBaseName(e as Map<String, dynamic>)).toList();";
+                '?.map((e) => e == null ? null : '
+                '$nestedBaseName(e as Map<String, dynamic>)).toList();';
           } else {
             getterBody =
                 "return (_json['$jsonFieldName'] as List?)"
-                "?.map((e) => "
-                "$nestedBaseName.fromJson(e as Map<String, dynamic>))"
-                ".toList();";
+                '?.map((e) => '
+                '$nestedBaseName.fromJson(e as Map<String, dynamic>))'
+                '.toList();';
           }
         } else {
           getterBody =
               "return (_json['$jsonFieldName'] as List?)"
-              "?.cast<$itemTypeName>();";
+              '?.cast<$itemTypeName>();';
         }
       } else if (returnType.isDartCoreMap) {
         final keyTypeName = (returnType as InterfaceType).typeArguments[0]
@@ -533,27 +533,27 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           if (valueIsNullable) {
             getterBody =
                 "return (_json['$jsonFieldName'] as Map?)"
-                "?.map<$keyTypeName, $nestedBaseName?>((k, v) => "
-                "MapEntry(k as $keyTypeName, v == null ? null : "
-                "$nestedBaseName.fromJson(v as Map<String, dynamic>)));";
+                '?.map<$keyTypeName, $nestedBaseName?>((k, v) => '
+                'MapEntry(k as $keyTypeName, v == null ? null : '
+                '$nestedBaseName.fromJson(v as Map<String, dynamic>)));';
           } else {
             getterBody =
                 "return (_json['$jsonFieldName'] as Map?)"
-                "?.map<$keyTypeName, $nestedBaseName>((k, v) => "
-                "MapEntry(k as $keyTypeName, "
-                "$nestedBaseName.fromJson(v as Map<String, dynamic>)));";
+                '?.map<$keyTypeName, $nestedBaseName>((k, v) => '
+                'MapEntry(k as $keyTypeName, '
+                '$nestedBaseName.fromJson(v as Map<String, dynamic>)));';
           }
         } else {
           getterBody =
               "return (_json['$jsonFieldName'] as Map?)"
-              "?.cast<$keyTypeName, $valueTypeName>();";
+              '?.cast<$keyTypeName, $valueTypeName>();';
         }
       } else if (returnType.isSchema) {
         final nestedBaseName = _resolveBaseName(returnType.element!.name!);
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : "
             "$nestedBaseName.fromJson(_json['$jsonFieldName'] "
-            "as Map<String, dynamic>);";
+            'as Map<String, dynamic>);';
       } else if (nonNullableTypeName == 'DateTime') {
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : "
@@ -572,13 +572,13 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (itemIsNullable) {
           getterBody =
               "return (_json['$jsonFieldName'] as List).map((e) => e == null ? "
-              "null : $nestedBaseName.fromJson(e as Map<String, dynamic>))"
-              ".toList();";
+              'null : $nestedBaseName.fromJson(e as Map<String, dynamic>))'
+              '.toList();';
         } else {
           getterBody =
               "return (_json['$jsonFieldName'] as List)"
-              ".map((e) => $nestedBaseName.fromJson(e as Map<String, dynamic>))"
-              ".toList();";
+              '.map((e) => $nestedBaseName.fromJson(e as Map<String, dynamic>))'
+              '.toList();';
         }
       } else {
         getterBody =
@@ -596,27 +596,27 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         if (valueIsNullable) {
           getterBody =
               "return (_json['$jsonFieldName'] as Map)"
-              ".map<$keyTypeName, $nestedBaseName?>((k, v) => "
-              "MapEntry(k as $keyTypeName, v == null ? null : "
-              "$nestedBaseName.fromJson(v as Map<String, dynamic>)));";
+              '.map<$keyTypeName, $nestedBaseName?>((k, v) => '
+              'MapEntry(k as $keyTypeName, v == null ? null : '
+              '$nestedBaseName.fromJson(v as Map<String, dynamic>)));';
         } else {
           getterBody =
               "return (_json['$jsonFieldName'] as Map)"
-              ".map<$keyTypeName, $nestedBaseName>((k, v) => "
-              "MapEntry(k as $keyTypeName, "
-              "$nestedBaseName.fromJson(v as Map<String, dynamic>)));";
+              '.map<$keyTypeName, $nestedBaseName>((k, v) => '
+              'MapEntry(k as $keyTypeName, '
+              '$nestedBaseName.fromJson(v as Map<String, dynamic>)));';
         }
       } else {
         getterBody =
             "return (_json['$jsonFieldName'] as Map)"
-            ".cast<$keyTypeName, $valueTypeName>();";
+            '.cast<$keyTypeName, $valueTypeName>();';
       }
     } else if (nonNullableTypeName == 'DateTime') {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
     } else if (returnType.isSchema) {
       final nestedBaseName = _resolveBaseName(returnType.element!.name!);
       getterBody =
-          "return $nestedBaseName.fromJson("
+          'return $nestedBaseName.fromJson('
           "_json['$jsonFieldName'] as Map<String, dynamic>);";
     }
 

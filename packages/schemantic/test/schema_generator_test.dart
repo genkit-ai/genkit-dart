@@ -235,7 +235,7 @@ abstract class $Config {
               contains("'type': 'string'"),
               contains("'type': 'integer'"),
               contains("'type': 'boolean'"),
-              contains("Schema.fromMap"),
+              contains('Schema.fromMap'),
             ),
           ),
         },
@@ -266,7 +266,7 @@ abstract class $Outer {
         {
           'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
-              contains("Schema.fromMap({"),
+              contains('Schema.fromMap({'),
               contains("'allOf':"),
               contains(r"Schema.fromMap({'$ref': r'#/$defs/Inner'})"),
               contains("'default': {'val': 'default'}"),
