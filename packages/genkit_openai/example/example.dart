@@ -72,6 +72,41 @@ void main(List<String> args) {
     },
   );
 
+  // --- Text-to-Speech Flow ---
+  ai.defineFlow(
+    name: 'textToSpeech',
+    inputSchema: stringSchema(
+      defaultValue: 'Say that Genkit Dart supports OpenAI text to speech.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o-mini-tts'),
+        prompt: prompt,
+        config: OpenAIOptions(audioVoice: 'alloy', audioFormat: 'mp3'),
+      );
+      if (response.media == null) {
+        throw Exception('No audio generated');
+      }
+      return response.media!;
+    },
+  );
+
+  // --- Chat Audio Models Flow ---
+  ai.defineFlow(
+    name: 'chatAudioModels',
+    inputSchema: stringSchema(defaultValue: 'Say hello from Genkit Dart.'),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o-audio-preview'),
+        prompt: prompt,
+        config: OpenAIOptions(responseModalities: ['text', 'audio']),
+      );
+      return response.media!;
+    },
+  );
+
   // --- Tool Calling Flow ---
   ai.defineTool(
     name: 'calculator',

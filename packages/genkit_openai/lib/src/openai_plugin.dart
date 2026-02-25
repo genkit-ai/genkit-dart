@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
+// ignore: implementation_imports
+import 'package:openai_dart/src/generated/client.dart' as openai_generated;
 import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
@@ -34,13 +38,49 @@ ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   return ResponseFormat.jsonSchema(
     jsonSchema: JsonSchemaObject(
       name: 'output',
-      schema: {
-        ...flattened,
-        'additionalProperties': false,
-      },
+      schema: {...flattened, 'additionalProperties': false},
       strict: true,
     ),
   );
+}
+
+/// Resolves and normalizes OpenAI chat completion modalities.
+///
+/// OpenAI currently accepts only:
+/// - `['text']`
+/// - `['text', 'audio']`
+///
+/// If audio is requested, this function always includes `text`.
+List<ChatCompletionModality>? resolveOpenAIModalities({
+  required String modelType,
+  required List<String>? configured,
+}) {
+  final requested = configured ?? (modelType == 'audio' ? ['audio'] : null);
+  if (requested == null || requested.isEmpty) {
+    return null;
+  }
+
+  final parsed = <ChatCompletionModality>{};
+  for (final modality in requested) {
+    parsed.add(_parseOpenAIModality(modality));
+  }
+
+  if (parsed.contains(ChatCompletionModality.audio)) {
+    return [ChatCompletionModality.text, ChatCompletionModality.audio];
+  }
+
+  return [ChatCompletionModality.text];
+}
+
+ChatCompletionModality _parseOpenAIModality(String modality) {
+  return switch (modality.toLowerCase()) {
+    'text' => ChatCompletionModality.text,
+    'audio' => ChatCompletionModality.audio,
+    _ => throw GenkitException(
+      'Unsupported response modality "$modality". OpenAI chat completions support only "text" and "audio".',
+      status: StatusCodes.INVALID_ARGUMENT,
+    ),
+  };
 }
 
 /// Core plugin implementation
@@ -72,7 +112,10 @@ class OpenAIPlugin extends GenkitPlugin {
         for (final modelId in availableModelIds) {
           final modelType = getModelType(modelId);
 
-          if (modelType != 'chat' && modelType != "unknown") {
+          if (modelType != 'chat' &&
+              modelType != 'audio' &&
+              modelType != 'tts' &&
+              modelType != "unknown") {
             continue;
           }
 
@@ -101,6 +144,8 @@ class OpenAIPlugin extends GenkitPlugin {
   /// - 'chat': Chat completion models (gpt-4, gpt-4o, o1, etc.)
   /// - 'embedding': Text embedding models
   /// - 'audio': Audio processing models (TTS, transcription, realtime)
+  /// - 'tts': Text-to-speech models (TTS)
+  /// - 'stt': Speech-to-text models (STT)
   /// - 'image': Image generation models (DALL-E, gpt-image)
   /// - 'video': Video generation models (Sora)
   /// - 'moderation': Content moderation models
@@ -138,12 +183,16 @@ class OpenAIPlugin extends GenkitPlugin {
     }
 
     // Audio models (TTS, transcription, realtime, speech-to-text)
-    if (id.contains('tts') ||
-        id.contains('audio') ||
-        id.contains('realtime') ||
-        id.contains('transcribe') ||
-        id.contains('whisper')) {
+    if (id.contains('audio') || id.contains('realtime')) {
       return 'audio';
+    }
+
+    if (id.contains('tts')) {
+      return 'tts';
+    }
+
+    if (id.contains('transcribe') || id.contains('whisper')) {
+      return 'stt';
     }
 
     // Legacy completion models (not chat)
@@ -221,7 +270,15 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Get appropriate ModelInfo for a given model ID
   ModelInfo _getModelInfo(String modelId) {
     final id = modelId.toLowerCase();
+    final modelType = getModelType(modelId);
 
+    if (modelType == 'audio') {
+      return audioModelInfo(modelId);
+    }
+
+    if (modelType == 'tts') {
+      return ttsModelInfo(modelId);
+    }
     // O-series reasoning models (o1, o2, o3, o4, etc.) have different capabilities
     // Matches: o1, o1-preview, o2, o3-mini, o4-mini-2025-01-01, etc.
     final oSeriesPattern = RegExp(r'^o\d+(-|$)');
@@ -243,6 +300,8 @@ class OpenAIPlugin extends GenkitPlugin {
           .where(
             (modelId) =>
                 getModelType(modelId) == 'chat' ||
+                getModelType(modelId) == 'audio' ||
+                getModelType(modelId) == 'tts' ||
                 getModelType(modelId) == 'unknown',
           )
           .map((modelId) {
@@ -282,8 +341,9 @@ class OpenAIPlugin extends GenkitPlugin {
       customOptions: OpenAIOptions.$schema,
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
-        final options = req!.config != null
-            ? OpenAIOptions.$schema.parse(req.config!)
+        final requestInput = req!;
+        final options = requestInput.config != null
+            ? OpenAIOptions.$schema.parse(requestInput.config!)
             : OpenAIOptions();
 
         if (apiKey == null) {
@@ -301,22 +361,53 @@ class OpenAIPlugin extends GenkitPlugin {
         try {
           final supports = modelInfo.supports;
           final supportsTools = supports?['tools'] == true;
+          final resolvedModelId = options.version ?? modelName;
+          if (getModelType(resolvedModelId) == 'tts') {
+            return await _handleSpeechSynthesis(
+              client,
+              requestInput,
+              modelId: resolvedModelId,
+              options: options,
+            );
+          }
+
+          final modelType = getModelType(resolvedModelId);
+          final modalities = resolveOpenAIModalities(
+            modelType: modelType,
+            configured: options.responseModalities,
+          );
+
+          final audioOptions =
+              modalities != null &&
+                  modalities.contains(ChatCompletionModality.audio)
+              ? ChatCompletionAudioOptions(
+                  voice: ChatCompletionAudioVoice.values.byName(
+                    options.audioVoice ?? 'alloy',
+                  ),
+                  format: ChatCompletionAudioFormat.values.byName(
+                    options.audioFormat ?? 'mp3',
+                  ),
+                )
+              : null;
 
           final isJsonMode = isJsonStructuredOutput(
-            req.output?.format,
-            req.output?.contentType,
+            requestInput.output?.format,
+            requestInput.output?.contentType,
           );
-          final responseFormat =
-              buildOpenAIResponseFormat(req.output?.schema);
+          final responseFormat = buildOpenAIResponseFormat(
+            requestInput.output?.schema,
+          );
           final request = CreateChatCompletionRequest(
-            model: ChatCompletionModel.modelId(options.version ?? modelName),
+            model: ChatCompletionModel.modelId(resolvedModelId),
             messages: GenkitConverter.toOpenAIMessages(
-              req.messages,
+              requestInput.messages,
               options.visualDetailLevel,
             ),
             tools: supportsTools
-                ? req.tools?.map(GenkitConverter.toOpenAITool).toList()
+                ? requestInput.tools?.map(GenkitConverter.toOpenAITool).toList()
                 : null,
+            modalities: modalities,
+            audio: audioOptions,
             temperature: options.temperature,
             topP: options.topP,
             maxTokens: options.maxTokens,
@@ -330,9 +421,18 @@ class OpenAIPlugin extends GenkitPlugin {
             responseFormat: isJsonMode ? responseFormat : null,
           );
           if (ctx.streamingRequested) {
-            return await _handleStreaming(client, request, ctx);
+            return await _handleStreaming(
+              client,
+              request,
+              request.audio?.format,
+              ctx,
+            );
           } else {
-            return await _handleNonStreaming(client, request);
+            return await _handleNonStreaming(
+              client,
+              request,
+              request.audio?.format,
+            );
           }
         } catch (e, stackTrace) {
           if (e is GenkitException) {
@@ -363,10 +463,72 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 
+  Future<ModelResponse> _handleSpeechSynthesis(
+    OpenAIClient client,
+    ModelRequest requestInput, {
+    required String modelId,
+    required OpenAIOptions options,
+  }) async {
+    final textInput = _extractSpeechInputText(requestInput.messages);
+    final voice = options.audioVoice ?? 'alloy';
+    final format = (options.audioFormat ?? 'mp3').toLowerCase();
+    final responseFormat = _speechFormatToApiValue(format);
+    final requestedMimeType = _speechFormatToMimeType(format);
+
+    // ignore: invalid_use_of_protected_member
+    final response = await client.makeRequest(
+      baseUrl: 'https://api.openai.com/v1',
+      path: '/audio/speech',
+      method: openai_generated.HttpMethod.post,
+      requestType: 'application/json',
+      responseType: requestedMimeType,
+      body: {
+        'model': modelId,
+        'input': textInput,
+        'voice': voice,
+        'response_format': responseFormat,
+      },
+    );
+
+    final mimeType = _resolveSpeechContentType(
+      response.headers['content-type'],
+      fallbackFormat: format,
+    );
+    final audioData = base64Encode(response.bodyBytes);
+
+    return ModelResponse(
+      finishReason: FinishReason.stop,
+      message: Message(
+        role: Role.model,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:$mimeType;base64,$audioData',
+              contentType: mimeType,
+            ),
+            metadata: {
+              'audio': {
+                'model': modelId,
+                'voice': voice,
+                'format': responseFormat,
+              },
+            },
+          ),
+        ],
+      ),
+      raw: {
+        'endpoint': '/audio/speech',
+        'model': modelId,
+        'contentType': mimeType,
+      },
+    );
+  }
+
   /// Handle streaming response
   Future<ModelResponse> _handleStreaming(
     OpenAIClient client,
     CreateChatCompletionRequest request,
+    ChatCompletionAudioFormat? audioFormat,
     ({
       bool streamingRequested,
       void Function(ModelResponseChunk) sendChunk,
@@ -397,6 +559,16 @@ class OpenAIPlugin extends GenkitPlugin {
             ),
           );
         }
+
+        if (delta.audio?.transcript != null &&
+            delta.audio!.transcript!.isNotEmpty) {
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: 0,
+              content: [TextPart(text: delta.audio!.transcript!)],
+            ),
+          );
+        }
       }
     } catch (e) {
       if (e is GenkitException) rethrow;
@@ -405,7 +577,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
     final response = aggregateStreamResponses(chunks);
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
+    final message = GenkitConverter.fromOpenAIAssistantMessage(
+      choice.message,
+      audioFormat: audioFormat,
+    );
 
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
@@ -418,6 +593,7 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<ModelResponse> _handleNonStreaming(
     OpenAIClient client,
     CreateChatCompletionRequest request,
+    ChatCompletionAudioFormat? audioFormat,
   ) async {
     final response = await client.createChatCompletion(request: request);
 
@@ -426,12 +602,86 @@ class OpenAIPlugin extends GenkitPlugin {
     }
 
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
+    final message = GenkitConverter.fromOpenAIAssistantMessage(
+      choice.message,
+      audioFormat: audioFormat,
+    );
 
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
       message: message,
       raw: response.toJson(),
     );
+  }
+
+  String _extractSpeechInputText(List<Message> messages) {
+    for (final message in messages.reversed) {
+      if (message.role == Role.user) {
+        final text = message.text.trim();
+        if (text.isNotEmpty) {
+          return text;
+        }
+      }
+    }
+
+    for (final message in messages.reversed) {
+      final text = message.text.trim();
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+
+    throw GenkitException(
+      'Speech synthesis models require non-empty text input.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
+  String _speechFormatToApiValue(String format) {
+    return switch (format) {
+      'wav' || 'mp3' || 'flac' || 'opus' => format,
+      'pcm16' || 'pcm' => 'pcm',
+      _ => throw GenkitException(
+        'Unsupported audio format "$format".',
+        status: StatusCodes.INVALID_ARGUMENT,
+      ),
+    };
+  }
+
+  String _speechFormatToMimeType(String format) {
+    return switch (format) {
+      'wav' => 'audio/wav',
+      'mp3' || 'mpeg' => 'audio/mpeg',
+      'flac' => 'audio/flac',
+      'opus' => 'audio/opus',
+      'pcm16' || 'pcm' => 'audio/pcm',
+      _ => throw GenkitException(
+        'Unsupported audio format "$format".',
+        status: StatusCodes.INVALID_ARGUMENT,
+      ),
+    };
+  }
+
+  String _resolveSpeechContentType(
+    String? headerValue, {
+    required String fallbackFormat,
+  }) {
+    if (headerValue == null || headerValue.trim().isEmpty) {
+      return _speechFormatToMimeType(fallbackFormat);
+    }
+
+    final normalized = headerValue.split(';').first.trim().toLowerCase();
+    if (normalized.startsWith('audio/')) {
+      return normalized;
+    }
+    if (normalized.contains('/')) {
+      return _speechFormatToMimeType(fallbackFormat);
+    }
+
+    try {
+      return _speechFormatToMimeType(normalized);
+    } on GenkitException {
+      return _speechFormatToMimeType(fallbackFormat);
+    }
   }
 }

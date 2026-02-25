@@ -66,6 +66,37 @@ await for (final chunk in ai.generateStream(
 }
 ```
 
+### Text-to-Speech (TTS)
+
+```dart
+final response = await ai.generate(
+  model: openAI.model('gpt-4o-mini-tts'),
+  prompt: 'Say hello from Genkit Dart.',
+  config: OpenAIOptions(
+    audioVoice: 'alloy',
+    audioFormat: 'mp3',
+  ),
+);
+
+final media = response.media;
+if (media != null) {
+  print(media.contentType); // audio/mpeg
+  print(media.url); // data:audio/mpeg;base64,...
+}
+```
+
+### Chat Audio Models
+
+```dart
+final response = await ai.generate(
+  model: openAI.model('gpt-4o-audio-preview'),
+  prompt: 'Say hello from Genkit Dart.',
+  config: OpenAIOptions(
+    responseModalities: ['text', 'audio'],
+  ),
+);
+```
+
 ### Tool Calling
 
 ```dart
@@ -195,6 +226,9 @@ The `OpenAIOptions` class supports the following options:
 - `user` (String?) - User identifier for abuse detection
 - `jsonMode` (bool?) - Enable JSON mode
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
+- `responseModalities` (List<String>?) - Output modalities ('text', 'audio')
+- `audioVoice` (String?) - Voice for audio output ('alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse')
+- `audioFormat` (String?) - Audio output format ('wav', 'mp3', 'flac', 'opus', 'pcm16')
 - `version` (String?) - Model version override
 
 ## Custom Headers

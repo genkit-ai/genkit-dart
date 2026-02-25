@@ -41,6 +41,31 @@ ModelInfo oSeriesModelInfo(String model) {
   );
 }
 
+/// Model info for audio generation models.
+ModelInfo audioModelInfo(String model) {
+  return ModelInfo(
+    label: model,
+    supports: {
+      'multiturn': true,
+      'tools': true,
+      'systemRole': true,
+      'media': true,
+    },
+  );
+}
+
+ModelInfo ttsModelInfo(String model) {
+  return ModelInfo(
+    label: model,
+    supports: {
+      'multiturn': false,
+      'tools': false,
+      'systemRole': false,
+      'media': true,
+    },
+  );
+}
+
 /// Check if a model supports tools/function calling
 bool supportsTools(String model) {
   final id = model.toLowerCase();

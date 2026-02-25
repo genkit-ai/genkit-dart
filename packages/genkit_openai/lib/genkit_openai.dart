@@ -19,7 +19,13 @@ import 'src/openai_plugin.dart';
 
 export 'src/converters.dart' show GenkitConverter;
 export 'src/models.dart'
-    show defaultModelInfo, oSeriesModelInfo, supportsTools, supportsVision;
+    show
+        audioModelInfo,
+        ttsModelInfo,
+        defaultModelInfo,
+        oSeriesModelInfo,
+        supportsTools,
+        supportsVision;
 
 part 'genkit_openai.g.dart';
 
@@ -62,6 +68,28 @@ abstract class $OpenAIOptions {
   /// Visual detail level for images ('auto', 'low', 'high')
   @StringField(enumValues: ['auto', 'low', 'high'])
   String? get visualDetailLevel;
+
+  /// Optional response modalities ('text', 'audio')
+  List<String>? get responseModalities;
+
+  /// Voice to use when generating audio ('alloy', 'ash', 'ballad', etc.)
+  @StringField(
+    enumValues: [
+      'alloy',
+      'ash',
+      'ballad',
+      'coral',
+      'echo',
+      'sage',
+      'shimmer',
+      'verse',
+    ],
+  )
+  String? get audioVoice;
+
+  /// Audio output format ('wav', 'mp3', 'flac', 'opus', 'pcm16')
+  @StringField(enumValues: ['wav', 'mp3', 'flac', 'opus', 'pcm16'])
+  String? get audioFormat;
 }
 
 /// Custom model definition for registering models from compatible providers

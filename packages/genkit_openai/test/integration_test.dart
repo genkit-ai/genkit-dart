@@ -101,6 +101,29 @@ void main() {
     );
 
     test(
+      'text-to-speech generation',
+      () async {
+        if (apiKey == null || apiKey.isEmpty) {
+          fail(
+            'OPENAI_API_KEY environment variable must be set to run integration tests',
+          );
+        }
+
+        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+        final response = await ai.generate(
+          model: openAI.model('gpt-4o-mini-tts'),
+          prompt: 'Say hello from Genkit.',
+          config: OpenAIOptions(audioVoice: 'alloy', audioFormat: 'mp3'),
+        );
+
+        expect(response.media, isNotNull);
+        expect(response.media!.url, startsWith('data:audio/'));
+      },
+      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
+    );
+
+    test(
       'tool calling',
       () async {
         if (apiKey == null || apiKey.isEmpty) {
@@ -165,7 +188,9 @@ void main() {
           expect(response.output!.name, 'John Doe');
           expect(response.output!.age, 30);
         },
-        skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
       );
 
       test(
@@ -191,7 +216,9 @@ void main() {
           expect(finalResponse.output!.name, 'Jane Doe');
           expect(finalResponse.output!.age, 25);
         },
-        skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
       );
     });
 

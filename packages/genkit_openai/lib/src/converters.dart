@@ -180,13 +180,34 @@ class GenkitConverter {
   /// For responses, we always get a ChatCompletionAssistantMessage with
   /// optional text content and/or tool calls.
   static Message fromOpenAIAssistantMessage(
-    ChatCompletionAssistantMessage msg,
-  ) {
+    ChatCompletionAssistantMessage msg, {
+    ChatCompletionAudioFormat? audioFormat,
+  }) {
     final parts = <Part>[];
 
     // Handle text content (always a String? for assistant messages)
     if (msg.content != null && msg.content!.isNotEmpty) {
       parts.add(TextPart(text: msg.content!));
+    }
+
+    // Handle generated audio
+    if (msg.audio != null && msg.audio!.data.isNotEmpty) {
+      final mimeType = _audioMimeType(audioFormat);
+      parts.add(
+        MediaPart(
+          media: Media(
+            url: 'data:$mimeType;base64,${msg.audio!.data}',
+            contentType: mimeType,
+          ),
+          metadata: {
+            'audio': {
+              'id': msg.audio!.id,
+              'expiresAt': msg.audio!.expiresAt,
+              'transcript': msg.audio!.transcript,
+            },
+          },
+        ),
+      );
     }
 
     // Handle tool calls
@@ -218,6 +239,17 @@ class GenkitConverter {
       'content_filter' => FinishReason.blocked,
       'tool_calls' => FinishReason.stop,
       _ => FinishReason.unknown,
+    };
+  }
+
+  static String _audioMimeType(ChatCompletionAudioFormat? format) {
+    return switch (format) {
+      ChatCompletionAudioFormat.wav => 'audio/wav',
+      ChatCompletionAudioFormat.flac => 'audio/flac',
+      ChatCompletionAudioFormat.opus => 'audio/opus',
+      ChatCompletionAudioFormat.pcm16 => 'audio/pcm',
+      ChatCompletionAudioFormat.mp3 => 'audio/mpeg',
+      null => 'audio/mpeg',
     };
   }
 }

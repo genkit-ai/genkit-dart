@@ -14,9 +14,15 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/openai_plugin.dart'
+    show isSpeechSynthesisModel, resolveOpenAIModalities;
 import 'package:openai_dart/openai_dart.dart'
     show
         ChatCompletionAssistantMessage,
+        ChatCompletionAssistantMessageAudio,
+        ChatCompletionAudioFormat,
+        ChatCompletionModality,
+        ChatCompletionMessage,
         ChatCompletionMessageContentPart,
         ChatCompletionSystemMessage,
         ChatCompletionToolMessage,
@@ -51,6 +57,59 @@ void main() {
       final options = OpenAIOptions();
       expect(options.temperature, isNull);
       expect(options.maxTokens, isNull);
+    });
+
+    test('parses text-to-speech options', () {
+      final options = OpenAIOptions.$schema.parse({
+        'responseModalities': ['audio'],
+        'audioVoice': 'alloy',
+        'audioFormat': 'mp3',
+      });
+
+      expect(options.responseModalities, ['audio']);
+      expect(options.audioVoice, 'alloy');
+      expect(options.audioFormat, 'mp3');
+    });
+  });
+
+  group('resolveOpenAIModalities', () {
+    test('defaults audio model to text+audio', () {
+      expect(resolveOpenAIModalities(modelType: 'audio', configured: null), [
+        ChatCompletionModality.text,
+        ChatCompletionModality.audio,
+      ]);
+    });
+
+    test('normalizes configured audio-only to text+audio', () {
+      expect(
+        resolveOpenAIModalities(modelType: 'chat', configured: ['audio']),
+        [ChatCompletionModality.text, ChatCompletionModality.audio],
+      );
+    });
+
+    test('keeps text-only when configured', () {
+      expect(resolveOpenAIModalities(modelType: 'chat', configured: ['text']), [
+        ChatCompletionModality.text,
+      ]);
+    });
+
+    test('throws for unsupported modality values', () {
+      expect(
+        () => resolveOpenAIModalities(modelType: 'chat', configured: ['video']),
+        throwsA(isA<GenkitException>()),
+      );
+    });
+  });
+
+  group('isSpeechSynthesisModel', () {
+    test('returns true for non-chat TTS models', () {
+      expect(isSpeechSynthesisModel('gpt-4o-mini-tts'), true);
+      expect(isSpeechSynthesisModel('tts-1'), true);
+    });
+
+    test('returns false for chat and chat-audio models', () {
+      expect(isSpeechSynthesisModel('gpt-4o'), false);
+      expect(isSpeechSynthesisModel('gpt-4o-audio-preview'), false);
     });
   });
 
@@ -212,6 +271,33 @@ void main() {
     });
   });
 
+  group('GenkitConverter.fromOpenAIAssistantMessage', () {
+    test('converts audio payload to media part', () {
+      final msg =
+          ChatCompletionMessage.assistant(
+                audio: ChatCompletionAssistantMessageAudio(
+                  id: 'audio_123',
+                  expiresAt: 1730000000,
+                  data: 'QUJD',
+                  transcript: 'hello',
+                ),
+              )
+              as ChatCompletionAssistantMessage;
+
+      final result = GenkitConverter.fromOpenAIAssistantMessage(
+        msg,
+        audioFormat: ChatCompletionAudioFormat.mp3,
+      );
+
+      expect(result.content.length, 1);
+      expect(result.content.first, isA<MediaPart>());
+      final media = (result.content.first as MediaPart).media;
+      expect(media.contentType, 'audio/mpeg');
+      expect(media.url, 'data:audio/mpeg;base64,QUJD');
+      expect(result.content.first.metadata?['audio']?['transcript'], 'hello');
+    });
+  });
+
   group('Model Info Helpers', () {
     test('defaultModelInfo sets correct supports', () {
       final info = defaultModelInfo('gpt-4o');
@@ -227,6 +313,22 @@ void main() {
       expect(info.supports?['tools'], false);
       expect(info.supports?['systemRole'], false);
       expect(info.supports?['media'], true); // O-series models support vision
+    });
+
+    test('audioModelInfo sets correct supports', () {
+      final info = audioModelInfo('gpt-4o-audio-preview');
+      expect(info.supports?['multiturn'], true);
+      expect(info.supports?['tools'], true);
+      expect(info.supports?['systemRole'], true);
+      expect(info.supports?['media'], true);
+    });
+
+    test('ttsModelInfo sets correct supports', () {
+      final info = ttsModelInfo('gpt-4o-mini-tts');
+      expect(info.supports?['multiturn'], true);
+      expect(info.supports?['tools'], false);
+      expect(info.supports?['systemRole'], false);
+      expect(info.supports?['media'], false);
     });
 
     test('supportsVision identifies vision models', () {

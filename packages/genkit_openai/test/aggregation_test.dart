@@ -70,13 +70,35 @@ CreateChatCompletionStreamResponse _toolCallChunk({
   );
 }
 
+CreateChatCompletionStreamResponse _audioChunk({
+  String? id,
+  int? expiresAt,
+  String? data,
+  String? transcript,
+  ChatCompletionFinishReason? finishReason,
+}) {
+  return CreateChatCompletionStreamResponse(
+    choices: [
+      ChatCompletionStreamResponseChoice(
+        index: 0,
+        finishReason: finishReason,
+        delta: ChatCompletionStreamResponseDelta(
+          audio: ChatCompletionStreamResponseDeltaAudio(
+            id: id,
+            expiresAt: expiresAt,
+            data: data,
+            transcript: transcript,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
 void main() {
   group('aggregateStreamResponses', () {
     test('aggregates split text chunks', () {
-      final chunks = [
-        _textChunk('Hello'),
-        _textChunk(' World'),
-      ];
+      final chunks = [_textChunk('Hello'), _textChunk(' World')];
 
       final response = aggregateStreamResponses(chunks);
       expect(response.choices.length, 1);
@@ -126,10 +148,7 @@ void main() {
           name: 'getWeather',
           arguments: '{"loc',
         ),
-        _toolCallChunk(
-          index: 0,
-          arguments: 'ation":',
-        ),
+        _toolCallChunk(index: 0, arguments: 'ation":'),
         _toolCallChunk(
           index: 0,
           arguments: '"Boston"}',
@@ -199,10 +218,29 @@ void main() {
       expect(message.toolCalls!.length, 1);
     });
 
-    test('skips tool calls with incomplete id or name', () {
+    test('aggregates streamed audio fragments', () {
       final chunks = [
-        _toolCallChunk(index: 0, arguments: '{"partial": true}'),
+        _audioChunk(
+          id: 'audio_1',
+          expiresAt: 1730000000,
+          data: 'QU',
+          transcript: 'He',
+        ),
+        _audioChunk(data: 'JD', transcript: 'llo'),
+        _audioChunk(finishReason: ChatCompletionFinishReason.stop),
       ];
+
+      final response = aggregateStreamResponses(chunks);
+      final audio = response.choices.first.message.audio;
+      expect(audio, isNotNull);
+      expect(audio!.id, 'audio_1');
+      expect(audio.expiresAt, 1730000000);
+      expect(audio.data, 'QUJD');
+      expect(audio.transcript, 'Hello');
+    });
+
+    test('skips tool calls with incomplete id or name', () {
+      final chunks = [_toolCallChunk(index: 0, arguments: '{"partial": true}')];
 
       final response = aggregateStreamResponses(chunks);
       final message = response.choices.first.message;

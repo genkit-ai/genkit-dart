@@ -25,6 +25,7 @@ CreateChatCompletionResponse aggregateStreamResponses(
 ) {
   final contentBuffer = StringBuffer();
   final toolCalls = <int, _ToolCallAccumulator>{};
+  final audio = _AudioAccumulator();
   ChatCompletionFinishReason? finishReason;
   CompletionUsage? usage;
   String? id;
@@ -57,12 +58,13 @@ CreateChatCompletionResponse aggregateStreamResponses(
       if (delta.toolCalls != null) {
         for (final tc in delta.toolCalls!) {
           final index = tc.index ?? 0;
-          final acc = toolCalls.putIfAbsent(
-            index,
-            _ToolCallAccumulator.new,
-          );
+          final acc = toolCalls.putIfAbsent(index, _ToolCallAccumulator.new);
           acc.merge(tc);
         }
+      }
+
+      if (delta.audio != null) {
+        audio.merge(delta.audio!);
       }
     }
 
@@ -76,10 +78,15 @@ CreateChatCompletionResponse aggregateStreamResponses(
       .whereType<ChatCompletionMessageToolCall>()
       .toList();
 
-  final message = ChatCompletionMessage.assistant(
-    content: contentBuffer.isNotEmpty ? contentBuffer.toString() : null,
-    toolCalls: aggregatedToolCalls.isNotEmpty ? aggregatedToolCalls : null,
-  ) as ChatCompletionAssistantMessage;
+  final message =
+      ChatCompletionMessage.assistant(
+            content: contentBuffer.isNotEmpty ? contentBuffer.toString() : null,
+            toolCalls: aggregatedToolCalls.isNotEmpty
+                ? aggregatedToolCalls
+                : null,
+            audio: audio.toAudio(),
+          )
+          as ChatCompletionAssistantMessage;
 
   return CreateChatCompletionResponse(
     id: id,
@@ -127,6 +134,41 @@ class _ToolCallAccumulator {
         name: _name,
         arguments: _arguments.toString(),
       ),
+    );
+  }
+}
+
+class _AudioAccumulator {
+  String? _id;
+  int? _expiresAt;
+  final StringBuffer _data = StringBuffer();
+  final StringBuffer _transcript = StringBuffer();
+
+  void merge(ChatCompletionStreamResponseDeltaAudio chunk) {
+    if (chunk.id != null && chunk.id!.isNotEmpty) {
+      _id = chunk.id;
+    }
+    if (chunk.expiresAt != null) {
+      _expiresAt = chunk.expiresAt;
+    }
+    if (chunk.data != null && chunk.data!.isNotEmpty) {
+      _data.write(chunk.data);
+    }
+    if (chunk.transcript != null && chunk.transcript!.isNotEmpty) {
+      _transcript.write(chunk.transcript);
+    }
+  }
+
+  ChatCompletionAssistantMessageAudio? toAudio() {
+    if (_id == null || _expiresAt == null || _data.isEmpty) {
+      return null;
+    }
+
+    return ChatCompletionAssistantMessageAudio(
+      id: _id!,
+      expiresAt: _expiresAt!,
+      data: _data.toString(),
+      transcript: _transcript.toString(),
     );
   }
 }

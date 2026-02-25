@@ -39,6 +39,9 @@ class OpenAIOptions {
     String? user,
     bool? jsonMode,
     String? visualDetailLevel,
+    List<String>? responseModalities,
+    String? audioVoice,
+    String? audioFormat,
   }) {
     _json = {
       'version': ?version,
@@ -52,6 +55,9 @@ class OpenAIOptions {
       'user': ?user,
       'jsonMode': ?jsonMode,
       'visualDetailLevel': ?visualDetailLevel,
+      'responseModalities': ?responseModalities,
+      'audioVoice': ?audioVoice,
+      'audioFormat': ?audioFormat,
     };
   }
 
@@ -192,6 +198,42 @@ class OpenAIOptions {
     }
   }
 
+  List<String>? get responseModalities {
+    return (_json['responseModalities'] as List?)?.cast<String>();
+  }
+
+  set responseModalities(List<String>? value) {
+    if (value == null) {
+      _json.remove('responseModalities');
+    } else {
+      _json['responseModalities'] = value;
+    }
+  }
+
+  String? get audioVoice {
+    return _json['audioVoice'] as String?;
+  }
+
+  set audioVoice(String? value) {
+    if (value == null) {
+      _json.remove('audioVoice');
+    } else {
+      _json['audioVoice'] = value;
+    }
+  }
+
+  String? get audioFormat {
+    return _json['audioFormat'] as String?;
+  }
+
+  set audioFormat(String? value) {
+    if (value == null) {
+      _json.remove('audioFormat');
+    } else {
+      _json['audioFormat'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -226,6 +268,22 @@ class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
         'user': Schema.string(),
         'jsonMode': Schema.boolean(),
         'visualDetailLevel': Schema.string(enumValues: ['auto', 'low', 'high']),
+        'responseModalities': Schema.list(items: Schema.string()),
+        'audioVoice': Schema.string(
+          enumValues: [
+            'alloy',
+            'ash',
+            'ballad',
+            'coral',
+            'echo',
+            'sage',
+            'shimmer',
+            'verse',
+          ],
+        ),
+        'audioFormat': Schema.string(
+          enumValues: ['wav', 'mp3', 'flac', 'opus', 'pcm16'],
+        ),
       },
       required: [],
     ),
