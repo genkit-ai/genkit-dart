@@ -88,7 +88,7 @@ String _resolvePackageConfig() {
 void main() {
   test('HTTP/SSE end-to-end server and client', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'testTool',
       description: 'test tool',
       inputSchema: .map(.string(), .dynamicSchema()),

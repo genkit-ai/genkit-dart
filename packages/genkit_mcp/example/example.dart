@@ -36,7 +36,7 @@ Future<void> main() async {
   // ----------------------------
   final serverAi = Genkit();
 
-  serverAi.defineTool<Map<String, dynamic>, String, void>(
+  serverAi.defineTool<Map<String, dynamic>, String>(
     name: 'greet',
     description: 'Greets a user by name.',
     inputSchema: .map(.string(), .dynamicSchema()),
@@ -84,7 +84,7 @@ Future<void> main() async {
     },
   );
 
-  serverAi.defineTool<Map<String, dynamic>, String, void>(
+  serverAi.defineTool<Map<String, dynamic>, String>(
     name: 'slowEcho',
     description: 'A slow tool to demonstrate tasks.',
     inputSchema: .map(.string(), .dynamicSchema()),

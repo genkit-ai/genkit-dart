@@ -43,11 +43,11 @@ class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
 
 Future<void> main() async {
   final ai = Genkit();
-  ai.defineTool<Map<String, dynamic>, String, void>(
+  ai.defineTool<Map<String, dynamic>, String>(
     name: 'testTool',
     description: 'test tool',
     inputSchema: .map(.string(), .dynamicSchema()),
-    fn: (input, _) async => 'yep ${input['foo']}',
+    fn: (input, _) async => 'yep ${input['foo'] as Object?}',
   );
   ai.definePrompt<Map<String, dynamic>>(
     name: 'testPrompt',

@@ -606,7 +606,7 @@ gcl.Part toGeminiPart(Part p) {
         return gcl.Part(
           thoughtSignature: thoughtSignature,
           inlineData: gcl.Blob(
-            mimeType: media.contentType ?? 'application/octet-stream',
+            mimeType: media.contentType ?? uri.data!.mimeType,
             data: uri.data!.contentAsBytes(),
           ),
         );
@@ -616,7 +616,7 @@ gcl.Part toGeminiPart(Part p) {
     return gcl.Part(
       thoughtSignature: thoughtSignature,
       fileData: gcl.FileData(
-        mimeType: media.contentType ?? 'application/octet-stream',
+        mimeType: media.contentType ?? '',
         fileUri: media.url,
       ),
     );
