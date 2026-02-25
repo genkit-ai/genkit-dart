@@ -41,11 +41,11 @@ void main() async {
 
   ai.defineFlow(
     name: 'agenticFlow',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue:
           'Create a new file "hello.dart" in the filesystem with a simple main function printing hello world. Use skills as needed.',
     ),
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, context) async {
       // Resolve paths relative to the script execution (assumed run from package root)
       final currentDir = Directory.current.path;

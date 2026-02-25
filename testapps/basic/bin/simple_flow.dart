@@ -48,9 +48,9 @@ void main() async {
 
   ai.defineFlow(
     name: 'outer',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (String name, context) async {
       if (context.streamingRequested) {
         for (var i = 0; i < 5; i++) {

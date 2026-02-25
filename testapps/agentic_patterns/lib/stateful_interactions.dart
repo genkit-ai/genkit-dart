@@ -42,7 +42,7 @@ Flow<StatefulChatInput, String, void, void> defineStatefulChatFlow(
   return ai.defineFlow(
     name: 'statefulChatFlow',
     inputSchema: StatefulChatInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       // 1. Load history
       final history = await _loadHistory(input.sessionId);

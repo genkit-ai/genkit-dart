@@ -650,7 +650,7 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
 
     _flow = _ai.defineFlow(
       name: 'structuredStreaming',
-      inputSchema: stringSchema(defaultValue: 'Gorble'),
+      inputSchema: .string(defaultValue: 'Gorble'),
       streamSchema: RpgCharacter.$schema,
       outputSchema: RpgCharacter.$schema,
       fn: (name, ctx) async {

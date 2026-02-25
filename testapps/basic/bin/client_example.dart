@@ -15,7 +15,6 @@
 import 'package:basic_sample/types.dart';
 import 'package:genkit/client.dart';
 import 'package:http/http.dart' as http;
-import 'package:schemantic/schemantic.dart';
 
 const baseUrl = 'http://localhost:8080';
 
@@ -37,7 +36,7 @@ Future<void> _runStringFlow() async {
   print('--- String to String flow ---');
   final echoStringFlow = defineRemoteAction(
     url: '$baseUrl/echoString',
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
   );
   final response = await echoStringFlow(input: 'Hello Genkit client for Dart!');
   print('Response: $response');
@@ -48,7 +47,7 @@ Future<void> _runThrowingFlow() async {
   print('\n--- Flow error handling ---');
   final throwy = defineRemoteAction(
     url: '$baseUrl/throwy',
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
   );
   try {
     await throwy(input: 'Hello Genkit client for Dart!');
@@ -67,7 +66,7 @@ Future<void> _runThrowingStreamingFlow() async {
   print('\n--- Streaming Flow error handling ---');
   final streamyThrowy = defineRemoteAction(
     url: '$baseUrl/streamyThrowy',
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     streamSchema: StreamyThrowyChunk.$schema,
   );
   try {
@@ -166,7 +165,7 @@ Future<void> _runPerformanceExample() async {
     final echoAction = defineRemoteAction(
       url: '$baseUrl/echoString',
       httpClient: client,
-      outputSchema: stringSchema(),
+      outputSchema: .string(),
     );
 
     final r1 = await echoAction(input: 'First call');

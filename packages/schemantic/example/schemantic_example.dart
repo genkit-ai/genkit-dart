@@ -148,7 +148,7 @@ void main() async {
   print('List Schema: ${stringList.jsonSchema().toJson()}');
 
   // Map of String -> User
-  final scores = SchemanticType.map(SchemanticType.string(), User.$schema);
+  final scores = SchemanticType.map(.string(), User.$schema);
   final parsedScores = scores.parse({
     'Alice': {'name': 'Alice', 'isAdmin': true},
     'Bob': {'name': 'Bob', 'isAdmin': false},
