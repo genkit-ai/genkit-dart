@@ -1,7 +1,7 @@
 ## 0.0.1-dev.17
 
-- **REFACTOR**: Replace `*Schema` top-level methods with static methods on the
-  `SchemanticType` class to allow invoking with dot shorthands.
+- **BREAKING** **REFACTOR**: Replace `*Schema` top-level methods with static
+  methods on the `SchemanticType` class to allow invoking with dot shorthands.
 
 ## 0.0.1-dev.16
 
