@@ -21,7 +21,6 @@ import 'src/basic_types.dart' as bt;
 export 'package:json_schema_builder/json_schema_builder.dart'
     show Schema, SchemaValidation;
 
-export 'package:schemantic/src/basic_types.dart';
 export 'package:schemantic/src/flatten.dart' show SchemaFlatten;
 
 /// Annotation to mark a class as a schema definition.
