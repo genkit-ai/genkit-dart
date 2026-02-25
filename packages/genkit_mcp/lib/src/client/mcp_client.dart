@@ -900,7 +900,7 @@ class GenkitMcpClient {
   }
 
   void _handleCancelled(Map<String, dynamic> params) {
-    final requestId = params['requestId'];
+    final requestId = params['requestId'] as Object?;
     if (requestId != null) {
       _cancelledRequests.add(requestId);
     }

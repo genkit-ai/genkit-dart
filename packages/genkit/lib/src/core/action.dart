@@ -146,11 +146,11 @@ class Action<Input, Output, Chunk, Init>
     TraceStartCallback? onTraceStart,
   }) async {
     return await run(
-      inputSchema != null ? inputSchema!.parse(input) : input,
+      inputSchema != null ? inputSchema!.parse(input) : input as Input?,
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
-      init: initSchema != null ? initSchema!.parse(init) : init,
+      init: initSchema != null ? initSchema!.parse(init) : init as Init?,
       onTraceStart: onTraceStart,
     );
   }
@@ -235,7 +235,7 @@ class Action<Input, Output, Chunk, Init>
             streamController.close();
           }
         })
-        .catchError((e, s) {
+        .catchError((Object e, StackTrace s) {
           actionStream.setError(e, s);
           if (!streamController.isClosed) {
             streamController.addError(e, s);
@@ -284,7 +284,7 @@ class Action<Input, Output, Chunk, Init>
             streamController.close();
           }
         })
-        .catchError((e, s) {
+        .catchError((Object e, StackTrace s) {
           bidiStream.setError(e, s);
           if (!streamController.isClosed) {
             streamController.addError(e, s);

@@ -607,7 +607,7 @@ final class Genkit {
             streamController.close();
           }
         })
-        .catchError((e, s) {
+        .catchError((Object e, StackTrace s) {
           actionStream.setError(e, s);
           if (!streamController.isClosed) {
             streamController.addError(e, s);
