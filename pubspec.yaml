@@ -22,6 +22,7 @@ workspace:
   - testapps/chrome_example
   - testapps/openai_sample
   - testapps/mcp_server
+  - testapps/middleware
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
