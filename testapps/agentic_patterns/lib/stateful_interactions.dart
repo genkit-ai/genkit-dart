@@ -49,13 +49,14 @@ Flow<StatefulChatInput, String, void, void> defineStatefulChatFlow(
 
       // 2. Append new message
       history.add(
-          Message(role: Role.user, content: [TextPart(text: input.message)]));
+        Message(
+          role: Role.user,
+          content: [TextPart(text: input.message)],
+        ),
+      );
 
       // 3. Generate response with history
-      final response = await ai.generate(
-        model: geminiFlash,
-        messages: history,
-      );
+      final response = await ai.generate(model: geminiFlash, messages: history);
 
       // 4. Save updated history
       // Note: response.messages includes the history + new response
