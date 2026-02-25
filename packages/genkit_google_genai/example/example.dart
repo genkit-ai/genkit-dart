@@ -55,9 +55,7 @@ void main(List<String> args) async {
             role: Role.user,
             content: [
               MediaPart(
-                media: Media(
-                  url: 'data:image/jpeg;base64,$photoBase64',
-                ),
+                media: Media(url: 'data:image/jpeg;base64,$photoBase64'),
               ),
             ],
           ),

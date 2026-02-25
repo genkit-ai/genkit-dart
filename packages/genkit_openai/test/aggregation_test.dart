@@ -73,10 +73,7 @@ CreateChatCompletionStreamResponse _toolCallChunk({
 void main() {
   group('aggregateStreamResponses', () {
     test('aggregates split text chunks', () {
-      final chunks = [
-        _textChunk('Hello'),
-        _textChunk(' World'),
-      ];
+      final chunks = [_textChunk('Hello'), _textChunk(' World')];
 
       final response = aggregateStreamResponses(chunks);
       expect(response.choices.length, 1);
@@ -126,10 +123,7 @@ void main() {
           name: 'getWeather',
           arguments: '{"loc',
         ),
-        _toolCallChunk(
-          index: 0,
-          arguments: 'ation":',
-        ),
+        _toolCallChunk(index: 0, arguments: 'ation":'),
         _toolCallChunk(
           index: 0,
           arguments: '"Boston"}',
@@ -200,9 +194,7 @@ void main() {
     });
 
     test('skips tool calls with incomplete id or name', () {
-      final chunks = [
-        _toolCallChunk(index: 0, arguments: '{"partial": true}'),
-      ];
+      final chunks = [_toolCallChunk(index: 0, arguments: '{"partial": true}')];
 
       final response = aggregateStreamResponses(chunks);
       final message = response.choices.first.message;
