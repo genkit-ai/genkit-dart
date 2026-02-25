@@ -135,10 +135,8 @@ class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
   }
 
   @override
-  JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap(_jsonSchema),
-    dependencies: const [],
-  );
+  JsonSchemaMetadata? get schemaMetadata =>
+      JsonSchemaMetadata(definition: _jsonSchema, dependencies: const []);
 }
 
 /// A [SchemanticType] backed by a dynamic set of string properties.
@@ -161,11 +159,11 @@ class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': properties,
       if (required.isNotEmpty) 'required': required,
-    }),
+    },
     dependencies: const [],
   );
 }

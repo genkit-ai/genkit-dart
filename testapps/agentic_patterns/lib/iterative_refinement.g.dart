@@ -66,10 +66,9 @@ class _IterativeRefinementInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'IterativeRefinementInput',
-    definition: Schema.object(
-      properties: {'topic': Schema.string()},
-      required: ['topic'],
-    ),
+    definition: $Schema
+        .object(properties: {'topic': $Schema.string()}, required: ['topic'])
+        .value,
     dependencies: [],
   );
 }
@@ -124,10 +123,15 @@ class _EvaluationTypeFactory extends SchemanticType<Evaluation> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Evaluation',
-    definition: Schema.object(
-      properties: {'critique': Schema.string(), 'satisfied': Schema.boolean()},
-      required: ['critique', 'satisfied'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'critique': $Schema.string(),
+            'satisfied': $Schema.boolean(),
+          },
+          required: ['critique', 'satisfied'],
+        )
+        .value,
     dependencies: [],
   );
 }

@@ -66,10 +66,12 @@ class _WeatherInputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherInputSchema',
-    definition: Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'location': $Schema.string()},
+          required: ['location'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -126,10 +128,12 @@ class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PersonSchema',
-    definition: Schema.object(
-      properties: {'name': Schema.string(), 'age': Schema.integer()},
-      required: ['name', 'age'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
+          required: ['name', 'age'],
+        )
+        .value,
     dependencies: [],
   );
 }

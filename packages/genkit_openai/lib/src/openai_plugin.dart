@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:json_schema_builder/json_schema_builder.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 import 'package:schemantic/schemantic.dart';
 

@@ -42,13 +42,13 @@ class _NullableSchemaFactory<T> extends SchemanticType<T?> {
   }
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
-    return jsb.Schema.fromMap({
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
+    return {
       'oneOf': [
         {'type': 'null'},
         _type.jsonSchema(useRefs: useRefs),
       ],
-    });
+    };
   }
 }
 
@@ -101,18 +101,16 @@ class _StringSchemaFactory extends SchemanticType<String> {
   String parse(Object? json) => json as String;
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
-    return jsb.Schema.fromMap({
-      'type': 'string',
-      if (description != null) 'description': description,
-      if (minLength != null) 'minLength': minLength,
-      if (maxLength != null) 'maxLength': maxLength,
-      if (pattern != null) 'pattern': pattern,
-      if (format != null) 'format': format,
-      if (enumValues != null) 'enum': enumValues,
-      if (defaultValue != null) 'default': defaultValue,
-    });
-  }
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
+    'type': 'string',
+    if (description != null) 'description': description,
+    if (minLength != null) 'minLength': minLength,
+    if (maxLength != null) 'maxLength': maxLength,
+    if (pattern != null) 'pattern': pattern,
+    if (format != null) 'format': format,
+    if (enumValues != null) 'enum': enumValues,
+    if (defaultValue != null) 'default': defaultValue,
+  };
 }
 
 /// An integer schema.
@@ -164,18 +162,16 @@ class _IntSchemaFactory extends SchemanticType<int> {
   int parse(Object? json) => json as int;
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
-    return jsb.Schema.fromMap({
-      'type': 'integer',
-      if (description != null) 'description': description,
-      if (minimum != null) 'minimum': minimum,
-      if (maximum != null) 'maximum': maximum,
-      if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
-      if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
-      if (multipleOf != null) 'multipleOf': multipleOf,
-      if (defaultValue != null) 'default': defaultValue,
-    });
-  }
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
+    'type': 'integer',
+    if (description != null) 'description': description,
+    if (minimum != null) 'minimum': minimum,
+    if (maximum != null) 'maximum': maximum,
+    if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
+    if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
+    if (multipleOf != null) 'multipleOf': multipleOf,
+    if (defaultValue != null) 'default': defaultValue,
+  };
 }
 
 /// A double schema.
@@ -230,18 +226,16 @@ class _DoubleSchemaFactory extends SchemanticType<double> {
   }
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
-    return jsb.Schema.fromMap({
-      'type': 'number',
-      if (description != null) 'description': description,
-      if (minimum != null) 'minimum': minimum,
-      if (maximum != null) 'maximum': maximum,
-      if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
-      if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
-      if (multipleOf != null) 'multipleOf': multipleOf,
-      if (defaultValue != null) 'default': defaultValue,
-    });
-  }
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
+    'type': 'number',
+    if (description != null) 'description': description,
+    if (minimum != null) 'minimum': minimum,
+    if (maximum != null) 'maximum': maximum,
+    if (exclusiveMinimum != null) 'exclusiveMinimum': exclusiveMinimum,
+    if (exclusiveMaximum != null) 'exclusiveMaximum': exclusiveMaximum,
+    if (multipleOf != null) 'multipleOf': multipleOf,
+    if (defaultValue != null) 'default': defaultValue,
+  };
 }
 
 /// A boolean schema.
@@ -267,13 +261,11 @@ class _BoolSchemaFactory extends SchemanticType<bool> {
   bool parse(Object? json) => json as bool;
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
-    return jsb.Schema.fromMap({
-      'type': 'boolean',
-      if (description != null) 'description': description,
-      if (defaultValue != null) 'default': defaultValue,
-    });
-  }
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
+    'type': 'boolean',
+    if (description != null) 'description': description,
+    if (defaultValue != null) 'default': defaultValue,
+  };
 }
 
 /// A void schema.
@@ -293,12 +285,10 @@ class _VoidSchemaFactory extends SchemanticType<void> {
   void parse(Object? json) {}
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
-    return jsb.Schema.fromMap({
-      'type': 'null',
-      if (description != null) 'description': description,
-    });
-  }
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
+    'type': 'null',
+    if (description != null) 'description': description,
+  };
 }
 
 /// A dynamic schema.
@@ -318,12 +308,10 @@ class _DynamicSchemaFactory extends SchemanticType<dynamic> {
   dynamic parse(Object? json) => json;
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
     // Empty schema allows anything
-    return jsb.Schema.fromMap({
-      if (description != null) 'description': description,
-    });
-  }
+    if (description != null) 'description': description,
+  };
 }
 
 /// Creates a strongly typed List schema.
@@ -368,25 +356,23 @@ class _ListSchemaFactory<T> extends SchemanticType<List<T>> {
   List<T> parse(Object? json) => (json as List).map(itemType.parse).toList();
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
     final itemSchema = itemType.jsonSchema(useRefs: useRefs);
     var schema = jsb.Schema.list(
-      items: itemSchema,
+      items: jsb.Schema.fromMap(itemSchema),
       description: description,
       minItems: minItems,
       maxItems: maxItems,
       uniqueItems: uniqueItems,
     );
     if (!useRefs) {
-      return schema;
+      return schema.value;
     }
 
     // Check if item schema has $defs or ref that implies definitions
-    final itemJson = jsonDecode(itemSchema.toJson());
-    if (itemJson is Map<String, dynamic> && itemJson.containsKey(r'$defs')) {
-      final defs = itemJson.remove(r'$defs') as Map<String, dynamic>;
-
-      return jsb.Schema.fromMap({
+    final itemJson = jsb.Schema.fromMap(itemSchema).value;
+    if (itemJson.remove(r'$defs') case final defs?) {
+      return {
         'type': 'array',
         'items': itemJson,
         r'$defs': defs,
@@ -394,10 +380,10 @@ class _ListSchemaFactory<T> extends SchemanticType<List<T>> {
         if (minItems != null) 'minItems': minItems,
         if (maxItems != null) 'maxItems': maxItems,
         if (uniqueItems != null) 'uniqueItems': uniqueItems,
-      });
+      };
     }
 
-    return schema;
+    return schema.value;
   }
 }
 
@@ -447,7 +433,7 @@ class _MapSchemaFactory<K, V> extends SchemanticType<Map<K, V>> {
   }
 
   @override
-  jsb.Schema jsonSchema({bool useRefs = false}) {
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
     final valueSchema = valueType.jsonSchema(useRefs: useRefs);
     var schema = jsb.Schema.object(
       additionalProperties: valueSchema,
@@ -456,24 +442,22 @@ class _MapSchemaFactory<K, V> extends SchemanticType<Map<K, V>> {
       maxProperties: maxProperties,
     );
     if (!useRefs) {
-      return schema;
+      return schema.value;
     }
 
     // Check if value schema has $defs or ref that implies definitions
-    final valueJson = jsonDecode(valueSchema.toJson());
-    if (valueJson is Map<String, dynamic> && valueJson.containsKey(r'$defs')) {
-      final defs = valueJson.remove(r'$defs') as Map<String, dynamic>;
-
-      return jsb.Schema.fromMap({
+    final valueJson = jsb.Schema.fromMap(valueSchema).value;
+    if (valueJson.remove(r'$defs') case final defs?) {
+      return {
         'type': 'object',
         'additionalProperties': valueJson,
         r'$defs': defs,
         if (description != null) 'description': description,
         if (minProperties != null) 'minProperties': minProperties,
         if (maxProperties != null) 'maxProperties': maxProperties,
-      });
+      };
     }
 
-    return schema;
+    return schema.value;
   }
 }

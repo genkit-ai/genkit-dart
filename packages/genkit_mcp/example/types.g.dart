@@ -63,10 +63,9 @@ class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PromptInput',
-    definition: Schema.object(
-      properties: {'input': Schema.string()},
-      required: ['input'],
-    ),
+    definition: $Schema
+        .object(properties: {'input': $Schema.string()}, required: ['input'])
+        .value,
     dependencies: [],
   );
 }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:json_schema_builder/json_schema_builder.dart';
 import 'package:schemantic/schemantic.dart';
 
 Map<String, dynamic> toJsonSchema({
@@ -25,7 +26,7 @@ Map<String, dynamic> toJsonSchema({
   }
 
   if (type != null) {
-    result = type.jsonSchema(useRefs: useRefs).value;
+    result = type.jsonSchema(useRefs: useRefs);
   }
 
   result['\$schema'] = 'http://json-schema.org/draft-07/schema#';

@@ -78,13 +78,15 @@ class _WeatherInputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherInputSchema',
-    definition: Schema.object(
-      properties: {
-        'location': Schema.string(),
-        'unit': Schema.string(enumValues: ['celsius', 'fahrenheit']),
-      },
-      required: ['location'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'location': $Schema.string(),
+            'unit': $Schema.string(enumValues: ['celsius', 'fahrenheit']),
+          },
+          required: ['location'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -172,15 +174,17 @@ class _WeatherOutputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherOutputSchema',
-    definition: Schema.object(
-      properties: {
-        'temperature': Schema.number(),
-        'condition': Schema.string(),
-        'unit': Schema.string(),
-        'humidity': Schema.integer(),
-      },
-      required: ['temperature', 'condition', 'unit'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'temperature': $Schema.number(),
+            'condition': $Schema.string(),
+            'unit': $Schema.string(),
+            'humidity': $Schema.integer(),
+          },
+          required: ['temperature', 'condition', 'unit'],
+        )
+        .value,
     dependencies: [],
   );
 }

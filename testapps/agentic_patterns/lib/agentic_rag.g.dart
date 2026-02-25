@@ -65,10 +65,12 @@ class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgenticRagInput',
-    definition: Schema.object(
-      properties: {'question': Schema.string()},
-      required: ['question'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'question': $Schema.string()},
+          required: ['question'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -117,15 +119,17 @@ class _MenuRagToolInputTypeFactory extends SchemanticType<MenuRagToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MenuRagToolInput',
-    definition: Schema.object(
-      properties: {
-        'query': Schema.string(
-          description:
-              'A short, single-word query (important -- only use one word) to search the menu (e.g. "burger" if looking for burgers).',
-        ),
-      },
-      required: ['query'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'query': $Schema.string(
+              description:
+                  'A short, single-word query (important -- only use one word) to search the menu (e.g. "burger" if looking for burgers).',
+            ),
+          },
+          required: ['query'],
+        )
+        .value,
     dependencies: [],
   );
 }

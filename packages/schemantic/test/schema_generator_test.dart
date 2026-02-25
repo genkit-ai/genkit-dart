@@ -166,7 +166,7 @@ abstract class $Product {
             allOf(
               contains("return _json['product_id'] as String;"),
               contains(
-                "'product_id': Schema.string(description: 'The unique identifier')",
+                "'product_id': \$Schema.string(description: 'The unique identifier')",
               ),
             ),
           ),

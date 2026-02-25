@@ -20,7 +20,7 @@ import 'convert_messages.dart';
 
 List<Map<String, dynamic>>? toMcpPromptArguments(SchemanticType? schema) {
   if (schema == null) return null;
-  final jsonSchema = schema.jsonSchema(useRefs: false).value;
+  final jsonSchema = schema.jsonSchema(useRefs: false);
   final schemaObject = extractObjectSchema(jsonSchema);
   if (schemaObject == null) {
     throw GenkitException(

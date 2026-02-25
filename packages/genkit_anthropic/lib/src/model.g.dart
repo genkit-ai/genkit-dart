@@ -158,36 +158,38 @@ class _AnthropicOptionsTypeFactory extends SchemanticType<AnthropicOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AnthropicOptions',
-    definition: Schema.object(
-      properties: {
-        'apiKey': Schema.string(),
-        'maxTokens': Schema.integer(
-          description:
-              'The maximum number of tokens to generate before stopping.',
-          minimum: 1,
-        ),
-        'temperature': Schema.number(
-          description:
-              'Amount of randomness injected into the response. Ranges from 0.0 to 1.0. Use temperature closer to 0.0 for analytical / multiple choice, and closer to 1.0 for creative and generative tasks.',
-          minimum: 0.0,
-          maximum: 1.0,
-        ),
-        'topP': Schema.number(
-          description:
-              'Use nucleus sampling. In nucleus sampling, we compute the cumulative distribution over all the options for each subsequent token in decreasing probability order and cut it off once it reaches a particular probability specified by top_p.',
-          minimum: 0.0,
-          maximum: 1.0,
-        ),
-        'topK': Schema.integer(
-          description:
-              'Only sample from the top K options for each subsequent token.',
-          minimum: 0,
-        ),
-        'stopSequences': Schema.list(items: Schema.string()),
-        'thinking': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'apiKey': $Schema.string(),
+            'maxTokens': $Schema.integer(
+              description:
+                  'The maximum number of tokens to generate before stopping.',
+              minimum: 1,
+            ),
+            'temperature': $Schema.number(
+              description:
+                  'Amount of randomness injected into the response. Ranges from 0.0 to 1.0. Use temperature closer to 0.0 for analytical / multiple choice, and closer to 1.0 for creative and generative tasks.',
+              minimum: 0.0,
+              maximum: 1.0,
+            ),
+            'topP': $Schema.number(
+              description:
+                  'Use nucleus sampling. In nucleus sampling, we compute the cumulative distribution over all the options for each subsequent token in decreasing probability order and cut it off once it reaches a particular probability specified by top_p.',
+              minimum: 0.0,
+              maximum: 1.0,
+            ),
+            'topK': $Schema.integer(
+              description:
+                  'Only sample from the top K options for each subsequent token.',
+              minimum: 0,
+            ),
+            'stopSequences': $Schema.list(items: $Schema.string()),
+            'thinking': $Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [ThinkingConfig.$schema],
   );
 }
@@ -236,16 +238,18 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ThinkingConfig',
-    definition: Schema.object(
-      properties: {
-        'budgetTokens': Schema.integer(
-          description:
-              'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
-          minimum: 1024,
-        ),
-      },
-      required: ['budgetTokens'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'budgetTokens': $Schema.integer(
+              description:
+                  'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
+              minimum: 1024,
+            ),
+          },
+          required: ['budgetTokens'],
+        )
+        .value,
     dependencies: [],
   );
 }

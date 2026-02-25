@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -26,8 +25,7 @@ void main() {
         maxItems: 5,
         uniqueItems: true,
       );
-      final schema = t.jsonSchema();
-      final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
+      final json = t.jsonSchema();
       expect(json['type'], 'array');
       expect(json['description'], 'My List');
       expect(json['minItems'], 1);
@@ -43,8 +41,7 @@ void main() {
         minProperties: 2,
         maxProperties: 10,
       );
-      final schema = t.jsonSchema();
-      final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
+      final json = t.jsonSchema();
       expect(json['type'], 'object');
       expect(json['description'], 'My Map');
       expect(json['minProperties'], 2);
@@ -58,8 +55,7 @@ void main() {
         _MockTypeWithDefs(),
         description: 'Recursive List',
       );
-      final schema = t.jsonSchema(useRefs: true);
-      final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
+      final json = t.jsonSchema(useRefs: true);
 
       expect(json['type'], 'array');
       expect(json['description'], 'Recursive List');
@@ -75,12 +71,10 @@ class _MockTypeWithDefs extends SchemanticType<int> {
   int parse(Object? json) => json as int;
 
   @override
-  Schema jsonSchema({bool useRefs = false}) {
-    return Schema.fromMap({
-      r'$ref': '#/\$defs/Mock',
-      r'$defs': {
-        'Mock': {'type': 'integer'},
-      },
-    });
-  }
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
+    r'$ref': '#/\$defs/Mock',
+    r'$defs': {
+      'Mock': {'type': 'integer'},
+    },
+  };
 }

@@ -14,8 +14,6 @@
 
 // ignore_for_file: avoid_dynamic_calls
 
-import 'dart:convert';
-
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -31,7 +29,7 @@ void main() {
         enumValues: ['a', 'b'],
       );
 
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
 
       expect(json['type'], 'string');
       expect(json['description'], 'A test string');
@@ -52,7 +50,7 @@ void main() {
         multipleOf: 5,
       );
 
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
 
       expect(json['type'], 'integer');
       expect(json['description'], 'A test int');
@@ -73,7 +71,7 @@ void main() {
         multipleOf: 0.5,
       );
 
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
 
       expect(json['type'], 'number');
       expect(json['description'], 'A test double');
@@ -86,21 +84,21 @@ void main() {
 
     test('boolSchema() metadata', () {
       final t = SchemanticType.boolean(description: 'A test bool');
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
       expect(json['type'], 'boolean');
       expect(json['description'], 'A test bool');
     });
 
     test('voidSchema() metadata', () {
       final t = SchemanticType.voidSchema(description: 'A test void');
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
       expect(json['type'], 'null');
       expect(json['description'], 'A test void');
     });
 
     test('dynamicSchema() metadata', () {
       final t = SchemanticType.dynamicSchema(description: 'A test dynamic');
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
       // For dynamic allow anything, so usually empty or just description
       expect(json['description'], 'A test dynamic');
     });
@@ -114,7 +112,7 @@ void main() {
         uniqueItems: true,
       );
 
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
 
       expect(json['type'], 'array');
       expect(json['description'], 'A test list');
@@ -132,7 +130,7 @@ void main() {
         maxProperties: 10,
       );
 
-      final json = jsonDecode(t.jsonSchema().toJson());
+      final json = t.jsonSchema();
 
       expect(json['type'], 'object');
       expect(json['description'], 'A test map');
