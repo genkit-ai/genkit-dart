@@ -46,7 +46,7 @@ Future<Output?> streamFlow<Output, Chunk>({
     ..headers.addAll({
       'Accept': 'text/event-stream',
       'Content-Type': 'application/json',
-      if (headers != null) ...headers,
+      ...?headers,
     })
     ..body = jsonEncode({'data': input});
 
@@ -348,10 +348,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
       url: _url,
       fromResponse: _fromResponse,
       fromStreamChunk: _fromStreamChunk,
-      headers: {
-        if (_defaultHeaders != null) ..._defaultHeaders,
-        if (headers != null) ...headers,
-      },
+      headers: {...?_defaultHeaders, ...?headers},
       onChunk: (chunk) {
         if (streamController.isClosed) return;
         streamController.add(chunk);
