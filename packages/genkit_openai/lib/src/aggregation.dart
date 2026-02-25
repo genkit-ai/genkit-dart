@@ -57,10 +57,7 @@ CreateChatCompletionResponse aggregateStreamResponses(
       if (delta.toolCalls != null) {
         for (final tc in delta.toolCalls!) {
           final index = tc.index ?? 0;
-          final acc = toolCalls.putIfAbsent(
-            index,
-            _ToolCallAccumulator.new,
-          );
+          final acc = toolCalls.putIfAbsent(index, _ToolCallAccumulator.new);
           acc.merge(tc);
         }
       }
@@ -76,10 +73,14 @@ CreateChatCompletionResponse aggregateStreamResponses(
       .whereType<ChatCompletionMessageToolCall>()
       .toList();
 
-  final message = ChatCompletionMessage.assistant(
-    content: contentBuffer.isNotEmpty ? contentBuffer.toString() : null,
-    toolCalls: aggregatedToolCalls.isNotEmpty ? aggregatedToolCalls : null,
-  ) as ChatCompletionAssistantMessage;
+  final message =
+      ChatCompletionMessage.assistant(
+            content: contentBuffer.isNotEmpty ? contentBuffer.toString() : null,
+            toolCalls: aggregatedToolCalls.isNotEmpty
+                ? aggregatedToolCalls
+                : null,
+          )
+          as ChatCompletionAssistantMessage;
 
   return CreateChatCompletionResponse(
     id: id,

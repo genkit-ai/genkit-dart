@@ -158,36 +158,46 @@ void main() {
       final response = aggregateStreamResponses(chunks);
       expect(response.choices.first.message.content, '{"name": "Test"');
       expect(response.choices.first.message.toolCalls!.length, 1);
-      expect(response.choices.first.message.toolCalls!.first.function.name, 'getWeather');
+      expect(
+        response.choices.first.message.toolCalls!.first.function.name,
+        'getWeather',
+      );
     });
   });
 
   group('GenkitConverter', () {
     test('fromOpenAIAssistantMessage converts JSON content', () {
-      final message = ChatCompletionMessage.assistant(content: '{"name": "Test", "age": 25}')
-          as ChatCompletionAssistantMessage;
+      final message =
+          ChatCompletionMessage.assistant(
+                content: '{"name": "Test", "age": 25}',
+              )
+              as ChatCompletionAssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.role, Role.model);
       expect(genkitMessage.text, '{"name": "Test", "age": 25}');
     });
 
     test('fromOpenAIAssistantMessage converts message with tool calls', () {
-      final message = ChatCompletionMessage.assistant(
-        content: '{"result": "ok"}',
-        toolCalls: [
-          ChatCompletionMessageToolCall(
-            id: 'call_123',
-            type: ChatCompletionMessageToolCallType.function,
-            function: ChatCompletionMessageFunctionCall(
-              name: 'getWeather',
-              arguments: '{"location": "NYC"}',
-            ),
-          ),
-        ],
-      ) as ChatCompletionAssistantMessage;
+      final message =
+          ChatCompletionMessage.assistant(
+                content: '{"result": "ok"}',
+                toolCalls: [
+                  ChatCompletionMessageToolCall(
+                    id: 'call_123',
+                    type: ChatCompletionMessageToolCallType.function,
+                    function: ChatCompletionMessageFunctionCall(
+                      name: 'getWeather',
+                      arguments: '{"location": "NYC"}',
+                    ),
+                  ),
+                ],
+              )
+              as ChatCompletionAssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.text, '{"result": "ok"}');
-      final toolParts = genkitMessage.content.where((p) => p.isToolRequest).toList();
+      final toolParts = genkitMessage.content
+          .where((p) => p.isToolRequest)
+          .toList();
       expect(toolParts.length, 1);
       expect(toolParts.first.toolRequest!.name, 'getWeather');
     });

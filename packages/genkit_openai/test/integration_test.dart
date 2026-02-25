@@ -165,7 +165,9 @@ void main() {
           expect(response.output!.name, 'John Doe');
           expect(response.output!.age, 30);
         },
-        skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
       );
 
       test(
@@ -191,7 +193,9 @@ void main() {
           expect(finalResponse.output!.name, 'Jane Doe');
           expect(finalResponse.output!.age, 25);
         },
-        skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
       );
     });
 

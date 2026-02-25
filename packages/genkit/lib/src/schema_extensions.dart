@@ -122,7 +122,6 @@ extension PartExtension on Part {
       isResource ? ResourcePart.fromJson(toJson()) : null;
   Map<String, dynamic>? get resource => resourcePart?.resource;
 
-  bool get isMetadata => toJson().containsKey('metadata');
   Map<String, dynamic>? get metadata =>
-      isMetadata ? toJson()['metadata'] as Map<String, dynamic> : null;
+      toJson()['metadata'] as Map<String, dynamic>?;
 }
