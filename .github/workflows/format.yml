@@ -10,19 +10,23 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-cache-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-cache-
+
+      # Using Flutter here because we need to run `flutter pub upgrade` in some packages.
+      # This is a bit annoying, but it's the easiest way to handle the mixed nature of the workspace.
+      - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
-      - name: Install Melos
-        run: dart pub global activate melos
-
-      - name: Bootstrap Workspace
-        run: melos bootstrap
+      - run: dart pub upgrade
 
       - name: Pub upgrade in the non-workspace packages
         run: |
