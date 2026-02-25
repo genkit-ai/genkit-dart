@@ -50,19 +50,22 @@ class _ToolCallAccumulator {
 /// Core plugin implementation
 class OpenAIPlugin extends GenkitPlugin {
   @override
-  String get name => 'openai';
+  final String name;
 
   final String? apiKey;
   final String? baseUrl;
   final List<CustomModelDefinition> customModels;
   final Map<String, String>? headers;
+  final ModelInfo Function(String)? modelInfoResolver;
 
   OpenAIPlugin({
+    String pluginName = 'openai',
     this.apiKey,
     this.baseUrl,
     this.customModels = const [],
     this.headers,
-  });
+    this.modelInfoResolver,
+  }) : name = pluginName;
 
   @override
   Future<List<Action>> init() async {
@@ -224,6 +227,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Get appropriate ModelInfo for a given model ID
   ModelInfo _getModelInfo(String modelId) {
+    if (modelInfoResolver != null) {
+      return modelInfoResolver!(modelId);
+    }
+
     final id = modelId.toLowerCase();
 
     // O-series reasoning models (o1, o2, o3, o4, etc.) have different capabilities
@@ -253,7 +260,7 @@ class OpenAIPlugin extends GenkitPlugin {
             final modelInfo = _getModelInfo(modelId);
 
             return modelMetadata(
-              'openai/$modelId',
+              '$name/$modelId',
               modelInfo: modelInfo,
               customOptions: OpenAIOptions.$schema,
             );
@@ -282,7 +289,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final modelInfo = info ?? _getModelInfo(modelName);
 
     return Model(
-      name: 'openai/$modelName',
+      name: '$name/$modelName',
       customOptions: OpenAIOptions.$schema,
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
