@@ -1,0 +1,28 @@
+name: Format
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap Workspace
+        run: melos bootstrap
+
+      - name: Check Formatting
+        run: dart format --output=none --set-exit-if-changed .
