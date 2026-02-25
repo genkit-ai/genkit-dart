@@ -19,8 +19,8 @@ import 'package:test/test.dart';
 void main() {
   group('Enhanced Basic Types', () {
     test('listSchema with options', () {
-      final t = listSchema(
-        stringSchema(),
+      final t = SchemanticType.list(
+        .string(),
         description: 'My List',
         minItems: 1,
         maxItems: 5,
@@ -36,9 +36,9 @@ void main() {
     });
 
     test('mapType with options', () {
-      final t = mapSchema(
-        stringSchema(),
-        intSchema(),
+      final t = SchemanticType.map(
+        .string(),
+        .integer(),
         description: 'My Map',
         minProperties: 2,
         maxProperties: 10,
@@ -54,7 +54,10 @@ void main() {
 
     test('listSchema with refs and options', () {
       // Create a recursive/ref type simulation (though stringSchema() is simple)
-      final t = listSchema(_MockTypeWithDefs(), description: 'Recursive List');
+      final t = SchemanticType.list(
+        _MockTypeWithDefs(),
+        description: 'Recursive List',
+      );
       final schema = t.jsonSchema(useRefs: true);
       final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
 
