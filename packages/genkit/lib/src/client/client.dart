@@ -38,8 +38,8 @@ Future<Output?> streamFlow<Output, Chunk>({
   final responseCompleter = Completer<Output?>();
 
   httpClient ??= http.Client();
-  fromResponse ??= (json) => json;
-  fromStreamChunk ??= (json) => json;
+  fromResponse ??= (json) => json as Output;
+  fromStreamChunk ??= (json) => json as Chunk;
 
   final uri = Uri.parse(url);
   final request = http.Request('POST', uri)
@@ -100,7 +100,8 @@ Future<Output?> streamFlow<Output, Chunk>({
                   errorData.containsKey('error')) {
                 final errorContent = errorData['error'] as Map<String, dynamic>;
                 final message =
-                    errorContent['message'] ?? 'Unknown streaming error';
+                    (errorContent['message'] as String?) ??
+                    'Unknown streaming error';
                 return handleError(
                   GenkitException(message, details: jsonEncode(errorContent)),
                 );
@@ -372,7 +373,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
           streamController.close();
         }
       },
-      onError: (error, st) {
+      onError: (Object error, StackTrace st) {
         actionStream.setError(error, st);
         if (!streamController.isClosed) {
           streamController.addError(error, st);

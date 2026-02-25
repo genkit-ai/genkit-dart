@@ -88,46 +88,41 @@ extension ModelResponseChunkExtension on ModelResponseChunk {
 extension PartExtension on Part {
   bool get isText => toJson().containsKey('text');
   TextPart? get textPart => isText ? TextPart.fromJson(toJson()) : null;
-  String? get text => isText ? TextPart.fromJson(toJson()).text : null;
+  String? get text => textPart?.text;
 
   bool get isMedia => toJson().containsKey('media');
   MediaPart? get mediaPart => isMedia ? MediaPart.fromJson(toJson()) : null;
-  Media? get media => isMedia ? MediaPart.fromJson(toJson()).media : null;
+  Media? get media => mediaPart?.media;
 
   bool get isToolRequest => toJson().containsKey('toolRequest');
   ToolRequestPart? get toolRequestPart =>
       isToolRequest ? ToolRequestPart.fromJson(toJson()) : null;
-  ToolRequest? get toolRequest =>
-      isToolRequest ? ToolRequestPart.fromJson(toJson()).toolRequest : null;
+  ToolRequest? get toolRequest => toolRequestPart?.toolRequest;
 
   bool get isToolResponse => toJson().containsKey('toolResponse');
   ToolResponsePart? get toolResponsePart =>
       isToolResponse ? ToolResponsePart.fromJson(toJson()) : null;
-  ToolResponse? get toolResponse =>
-      isToolResponse ? ToolResponsePart.fromJson(toJson()).toolResponse : null;
+  ToolResponse? get toolResponse => toolResponsePart?.toolResponse;
 
   bool get isData => toJson().containsKey('data');
   DataPart? get dataPart => isData ? DataPart.fromJson(toJson()) : null;
-  Map<String, dynamic>? get data =>
-      isData ? DataPart.fromJson(toJson()).data : null;
+  Map<String, dynamic>? get data => dataPart?.data;
 
   bool get isCustom => toJson().containsKey('custom');
   CustomPart? get customPart => isCustom ? CustomPart.fromJson(toJson()) : null;
-  Map<String, dynamic>? get custom =>
-      isCustom ? CustomPart.fromJson(toJson()).custom : null;
+  Map<String, dynamic>? get custom => customPart?.custom;
 
   bool get isReasoning => toJson().containsKey('reasoning');
   ReasoningPart? get reasoningPart =>
       isReasoning ? ReasoningPart.fromJson(toJson()) : null;
-  String? get reasoning =>
-      isReasoning ? ReasoningPart.fromJson(toJson()).reasoning : null;
+  String? get reasoning => reasoningPart?.reasoning;
 
   bool get isResource => toJson().containsKey('resource');
   ResourcePart? get resourcePart =>
       isResource ? ResourcePart.fromJson(toJson()) : null;
-  Map<String, dynamic>? get resource =>
-      isResource ? ResourcePart.fromJson(toJson()).resource : null;
+  Map<String, dynamic>? get resource => resourcePart?.resource;
 
+  bool get isMetadata => toJson().containsKey('metadata');
   Map<String, dynamic>? get metadata =>
-      toJson().containsKey('metadata') ? toJson()['metadata'] : null;
+      isMetadata ? toJson()['metadata'] as Map<String, dynamic> : null;
 }

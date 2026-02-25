@@ -263,7 +263,7 @@ class GenkitMcpHost {
             _readyListeners.removeLast().complete();
           }
         })
-        .catchError((error) {
+        .catchError((Object error) {
           while (_readyListeners.isNotEmpty) {
             _readyListeners.removeLast().completeError(error);
           }
