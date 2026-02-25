@@ -13,16 +13,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Dart SDK
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          channel: 'stable'
 
       - name: Install Melos
         run: dart pub global activate melos
 
       - name: Bootstrap Workspace
         run: melos bootstrap
+
+      - name: Pub upgrade in the non-workspace packages
+        run: |
+          for dir in $(dart run tools/list_non_workspace_packages.dart); do
+            echo "Upgrading dependencies in $dir..."
+            (cd $dir && flutter pub upgrade)
+          done
 
       - name: Check Formatting
         run: dart format --output=none --set-exit-if-changed .
