@@ -121,7 +121,6 @@ class _StringSchemaFactory extends SchemanticType<String> {
 /// ```dart
 /// intSchema().parse(123);
 /// ```
-
 SchemanticType<int> intSchema({
   String? description,
   int? minimum,
@@ -185,7 +184,6 @@ class _IntSchemaFactory extends SchemanticType<int> {
 /// ```dart
 /// doubleSchema().parse(12.34);
 /// ```
-
 SchemanticType<double> doubleSchema({
   String? description,
   double? minimum,

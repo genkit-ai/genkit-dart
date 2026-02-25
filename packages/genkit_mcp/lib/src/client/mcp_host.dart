@@ -16,7 +16,6 @@ import 'dart:async';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/plugin.dart';
-import 'package:schemantic/schemantic.dart';
 
 import '../util/common.dart';
 import '../util/convert_messages.dart';
@@ -489,7 +488,7 @@ class McpHostPlugin extends GenkitPlugin {
             actionType: 'tool',
             description: tool['description']?.toString(),
             inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-            outputSchema: dynamicSchema(),
+            outputSchema: .dynamicSchema(),
             metadata: metadata,
           ),
         );
@@ -671,7 +670,7 @@ Tool<Map<String, dynamic>, dynamic> _createToolAction(
     name: fullName,
     description: description,
     inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-    outputSchema: dynamicSchema(),
+    outputSchema: .dynamicSchema(),
     metadata: {
       if (meta != null) 'mcp': {'_meta': meta},
     },

@@ -41,7 +41,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     name: 'searchWeb',
     description: 'Search the web for information on a given topic.',
     inputSchema: AgentSearchInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       // In a real app, you would implement a web search API call here.
       return 'You found search results for: ${input.query}';
@@ -53,7 +53,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     name: 'askUser',
     description: 'Ask the user a clarifying question.',
     inputSchema: AgentAskUserInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, context) async {
       // Interrupt execution to get user input
       context.interrupt(input.question);
@@ -63,7 +63,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
   return ai.defineFlow(
     name: 'researchAgent',
     inputSchema: ResearchAgentInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       var response = await ai.generate(
         model: geminiFlash,
@@ -110,10 +110,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
             print('[User answered]: $simulatedAnswer\n');
 
             interruptResponses.add(
-              InterruptResponse(
-                interrupt,
-                simulatedAnswer,
-              ),
+              InterruptResponse(interrupt, simulatedAnswer),
             );
           }
         }

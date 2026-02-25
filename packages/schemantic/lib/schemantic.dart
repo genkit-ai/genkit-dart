@@ -16,10 +16,11 @@ import 'dart:convert';
 
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
+import 'src/basic_types.dart' as bt;
+
 export 'package:json_schema_builder/json_schema_builder.dart'
     show Schema, SchemaValidation;
 
-export 'package:schemantic/src/basic_types.dart';
 export 'package:schemantic/src/flatten.dart' show SchemaFlatten;
 
 /// Annotation to mark a class as a schema definition.
@@ -174,6 +175,165 @@ abstract class SchemanticType<T> {
 
   /// Metadata for this type, if available.
   JsonSchemaMetadata? get schemaMetadata => null;
+
+  /// Creates a string schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.string();
+  /// schema.parse('hello');
+  /// ```
+  static SchemanticType<String> string({
+    String? description,
+    int? minLength,
+    int? maxLength,
+    String? pattern,
+    String? format,
+    List<String>? enumValues,
+    String? defaultValue,
+  }) => bt.stringSchema(
+    description: description,
+    minLength: minLength,
+    maxLength: maxLength,
+    pattern: pattern,
+    format: format,
+    enumValues: enumValues,
+    defaultValue: defaultValue,
+  );
+
+  /// Creates an integer schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.integer();
+  /// schema.parse(123);
+  /// ```
+  static SchemanticType<int> integer({
+    String? description,
+    int? minimum,
+    int? maximum,
+    int? exclusiveMinimum,
+    int? exclusiveMaximum,
+    int? multipleOf,
+    int? defaultValue,
+  }) => bt.intSchema(
+    description: description,
+    minimum: minimum,
+    maximum: maximum,
+    exclusiveMinimum: exclusiveMinimum,
+    exclusiveMaximum: exclusiveMaximum,
+    multipleOf: multipleOf,
+    defaultValue: defaultValue,
+  );
+
+  /// Creates a double schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.doubleSchema();
+  /// schema.parse(12.34);
+  /// ```
+  static SchemanticType<double> doubleSchema({
+    String? description,
+    double? minimum,
+    double? maximum,
+    double? exclusiveMinimum,
+    double? exclusiveMaximum,
+    double? multipleOf,
+    double? defaultValue,
+  }) => bt.doubleSchema(
+    description: description,
+    minimum: minimum,
+    maximum: maximum,
+    exclusiveMinimum: exclusiveMinimum,
+    exclusiveMaximum: exclusiveMaximum,
+    multipleOf: multipleOf,
+    defaultValue: defaultValue,
+  );
+
+  /// A boolean schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.boolean();
+  /// schema.parse(true);
+  /// ```
+  static SchemanticType<bool> boolean({
+    String? description,
+    bool? defaultValue,
+  }) => bt.boolSchema(description: description, defaultValue: defaultValue);
+
+  /// Creates a void schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.voidSchema();
+  /// schema.parse(null);
+  /// ```
+  static SchemanticType<void> voidSchema({String? description}) =>
+      bt.voidSchema(description: description);
+
+  /// Creates a dynamic schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.dynamicSchema();
+  /// schema.parse('anything');
+  /// ```
+  static SchemanticType<dynamic> dynamicSchema({String? description}) =>
+      bt.dynamicSchema(description: description);
+
+  /// Creates a strongly typed List schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.list(.string());
+  /// schema.parse(['a', 'b']);
+  /// ```
+  static SchemanticType<List<T>> list<T>(
+    SchemanticType<T> itemType, {
+    String? description,
+    int? minItems,
+    int? maxItems,
+    bool? uniqueItems,
+  }) => bt.listSchema(
+    itemType,
+    description: description,
+    minItems: minItems,
+    maxItems: maxItems,
+    uniqueItems: uniqueItems,
+  );
+
+  /// Creates a strongly typed Map schema.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.map(.string(), .integer());
+  /// schema.parse({'a': 1});
+  /// ```
+  static SchemanticType<Map<K, V>> map<K, V>(
+    SchemanticType<K> keyType,
+    SchemanticType<V> valueType, {
+    String? description,
+    int? minProperties,
+    int? maxProperties,
+  }) => bt.mapSchema(
+    keyType,
+    valueType,
+    description: description,
+    minProperties: minProperties,
+    maxProperties: maxProperties,
+  );
+
+  /// Makes a schema nullable.
+  ///
+  /// Example:
+  /// ```dart
+  /// final schema = SchemanticType.nullable(.string());
+  /// schema.parse(null);
+  /// ```
+  static SchemanticType<T?> nullable<T>(SchemanticType<T> type) =>
+      bt.nullable(type);
 }
 
 /// Internal utilities for building JSON Schemas.

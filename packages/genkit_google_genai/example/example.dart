@@ -17,7 +17,6 @@ import 'dart:io';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/lite.dart' as lite;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:schemantic/schemantic.dart';
 
 import 'src/model.dart';
 
@@ -27,8 +26,8 @@ void main(List<String> args) async {
   // --- Basic Generate Flow ---
   ai.defineFlow(
     name: 'basicGenerate',
-    inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Hello Genkit for Dart!'),
+    outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -41,7 +40,7 @@ void main(List<String> args) async {
   // --- Image Generator Flow using Nano Banana ---
   ai.defineFlow(
     name: 'imageGenerator',
-    inputSchema: stringSchema(defaultValue: 'Colorize this photo'),
+    inputSchema: .string(defaultValue: 'Colorize this photo'),
     outputSchema: Media.$schema,
     fn: (input, context) async {
       final photoUri = Platform.script.resolve('photo.jpg');
@@ -74,8 +73,8 @@ void main(List<String> args) async {
   // --- Lite Generate Flow (Wrapped) ---
   ai.defineFlow(
     name: 'liteGenerate',
-    inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Hello Genkit for Dart!'),
+    outputSchema: .string(),
     fn: (input, context) async {
       final gemini = googleAI();
       final response = await lite.generate(
@@ -101,10 +100,8 @@ void main(List<String> args) async {
 
   ai.defineFlow(
     name: 'weatherFlow',
-    inputSchema: stringSchema(
-      defaultValue: 'What is the weather like in Boston?',
-    ),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'What is the weather like in Boston?'),
+    outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-3-flash-preview'),
@@ -118,7 +115,7 @@ void main(List<String> args) async {
   // --- Structured Streaming Flow ---
   ai.defineFlow(
     name: 'structuredStreaming',
-    inputSchema: stringSchema(defaultValue: 'Gorble'),
+    inputSchema: .string(defaultValue: 'Gorble'),
     streamSchema: RpgCharacter.$schema,
     outputSchema: RpgCharacter.$schema,
     fn: (name, ctx) async {
@@ -143,7 +140,7 @@ void main(List<String> args) async {
   // --- Character Profile Flow ---
   ai.defineFlow(
     name: 'characterProfile',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Generate a profile for a fictional character',
     ),
     outputSchema: CharacterProfile.$schema,
@@ -164,8 +161,8 @@ void main(List<String> args) async {
   // --- Multimodal Video Flow ---
   ai.defineFlow(
     name: 'multimodalVideo',
-    inputSchema: stringSchema(defaultValue: 'What happens in this video?'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'What happens in this video?'),
+    outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -191,8 +188,8 @@ void main(List<String> args) async {
   // --- Multimodal Audio Flow ---
   ai.defineFlow(
     name: 'multimodalAudio',
-    inputSchema: stringSchema(defaultValue: 'Transcribe this audio'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Transcribe this audio'),
+    outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -219,7 +216,7 @@ void main(List<String> args) async {
   // --- Thinking Flow ---
   ai.defineFlow(
     name: 'thinking',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue:
           'what is heavier, one kilo of steel or one kilo of feathers',
     ),
@@ -247,8 +244,8 @@ void main(List<String> args) async {
     name: 'safetySettings',
     // Example of configuring safety settings.
     // Note: The model might not block the default content if it's not harmful enough.
-    inputSchema: stringSchema(defaultValue: 'Some potentially harmful content'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Some potentially harmful content'),
+    outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -269,10 +266,10 @@ void main(List<String> args) async {
   // --- Grounding Flow ---
   ai.defineFlow(
     name: 'grounding',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'What are the top tech news stories this week?',
     ),
-    outputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    outputSchema: .map(.string(), .dynamicSchema()),
     fn: (prompt, _) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
@@ -286,10 +283,8 @@ void main(List<String> args) async {
   // --- Code Execution Flow ---
   ai.defineFlow(
     name: 'codeExecution',
-    inputSchema: stringSchema(
-      defaultValue: 'Calculate the 20th Fibonacci number',
-    ),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Calculate the 20th Fibonacci number'),
+    outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-pro'),
@@ -303,7 +298,7 @@ void main(List<String> args) async {
   // --- TTS Flow ---
   ai.defineFlow(
     name: 'textToSpeech',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Say that Genkit is an amazing AI framework',
     ),
     outputSchema: Media.$schema,
@@ -330,7 +325,7 @@ void main(List<String> args) async {
   // --- Multi Speaker TTS Flow ---
   ai.defineFlow(
     name: 'multiSpeaker',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: '''
     Speaker A: Hello, how are you today?
     Speaker B: I am doing great, thanks for asking!
@@ -372,8 +367,8 @@ void main(List<String> args) async {
 
   ai.defineFlow(
     name: 'embedding',
-    inputSchema: stringSchema(defaultValue: 'Hello Genkit'),
-    outputSchema: listSchema(doubleSchema()),
+    inputSchema: .string(defaultValue: 'Hello Genkit'),
+    outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
       final embeddings = await ai.embedMany(
         embedder: googleAI.textEmbedding('text-embedding-004'),

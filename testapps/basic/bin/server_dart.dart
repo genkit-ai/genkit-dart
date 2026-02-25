@@ -17,7 +17,6 @@ import 'dart:io';
 import 'package:basic_sample/types.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
@@ -52,8 +51,8 @@ void main() async {
 
   final echoString = ai.defineFlow(
     name: 'echoString',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
     fn: (input, _) async => input,
   );
 
@@ -113,8 +112,8 @@ void main() async {
 
   final streamyThrowy = ai.defineFlow(
     name: 'streamyThrowy',
-    inputSchema: intSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .integer(),
+    outputSchema: .string(),
     streamSchema: StreamyThrowyChunk.$schema,
     fn: (count, context) async {
       var i = 0;
@@ -131,8 +130,8 @@ void main() async {
 
   final throwy = ai.defineFlow(
     name: 'throwy',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
     fn: (subject, _) async {
       // Mocking 'call-llm' calls as simple runs or strings since we don't have that model.
       final foo = await ai.run('call-llm', () async {

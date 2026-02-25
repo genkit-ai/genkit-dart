@@ -14,7 +14,6 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/generate.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -56,7 +55,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'Interrupts execution',
-        inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+        inputSchema: .map(.string(), .dynamicSchema()),
         fn: (input, context) async {
           context.interrupt('CONFIRM_ME');
         },
@@ -125,7 +124,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'Interrupts execution',
-        inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+        inputSchema: .map(.string(), .dynamicSchema()),
         fn: (input, context) async {
           context.interrupt('CONFIRM_ME');
         },
@@ -214,13 +213,13 @@ void main() {
       genkit.defineTool(
         name: toolSafe,
         description: 'Safe',
-        inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+        inputSchema: .map(.string(), .dynamicSchema()),
         fn: (_, _) async => 'SafeOutput',
       );
       genkit.defineTool(
         name: toolInterrupt,
         description: 'Interrupted',
-        inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+        inputSchema: .map(.string(), .dynamicSchema()),
         fn: (_, c) async => c.interrupt('STOP'),
       );
 
@@ -286,7 +285,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'Interrupts execution',
-        inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+        inputSchema: .map(.string(), .dynamicSchema()),
         fn: (input, context) async {
           context.interrupt('CONFIRM_ME');
         },
@@ -396,7 +395,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'Interrupts and restarts execution',
-        inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+        inputSchema: .map(.string(), .dynamicSchema()),
         fn: (input, context) async {
           if (toolCallCount == 0) {
             toolCallCount++;

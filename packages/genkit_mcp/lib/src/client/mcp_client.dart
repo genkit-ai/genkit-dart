@@ -16,7 +16,6 @@ import 'dart:async';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/plugin.dart';
-import 'package:schemantic/schemantic.dart';
 
 import '../util/common.dart';
 import '../util/convert_messages.dart';
@@ -553,7 +552,7 @@ class GenkitMcpClient {
       name: '$serverName/$name',
       description: description,
       inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      outputSchema: dynamicSchema(),
+      outputSchema: .dynamicSchema(),
       metadata: {
         if (meta != null) 'mcp': {'_meta': meta},
       },
@@ -1128,7 +1127,7 @@ class McpClientPlugin extends GenkitPlugin {
           actionType: 'tool',
           description: tool['description']?.toString(),
           inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-          outputSchema: dynamicSchema(),
+          outputSchema: .dynamicSchema(),
           metadata: meta == null
               ? null
               : {
@@ -1252,7 +1251,7 @@ class McpClientPlugin extends GenkitPlugin {
       name: fullName,
       description: description,
       inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      outputSchema: dynamicSchema(),
+      outputSchema: .dynamicSchema(),
       metadata: {
         if (meta != null) 'mcp': {'_meta': meta},
       },

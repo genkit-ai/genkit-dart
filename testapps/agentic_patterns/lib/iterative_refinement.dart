@@ -29,14 +29,11 @@ abstract class $Evaluation {
 }
 
 Flow<IterativeRefinementInput, String, void, void>
-    defineIterativeRefinementFlow(
-  Genkit ai,
-  ModelRef geminiFlash,
-) {
+defineIterativeRefinementFlow(Genkit ai, ModelRef geminiFlash) {
   return ai.defineFlow(
     name: 'iterativeRefinementFlow',
     inputSchema: IterativeRefinementInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       var content = '';
       var feedback = '';

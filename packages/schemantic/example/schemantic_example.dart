@@ -135,7 +135,7 @@ void main() async {
   print('\n--- Dynamic Types ---');
 
   // List of Strings
-  final stringList = listSchema(
+  final stringList = SchemanticType.list(
     User.$schema,
   ); // UserType is generated so it's fine
   final parsedList = stringList.parse([
@@ -148,7 +148,7 @@ void main() async {
   print('List Schema: ${stringList.jsonSchema().toJson()}');
 
   // Map of String -> User
-  final scores = mapSchema(stringSchema(), User.$schema);
+  final scores = SchemanticType.map(.string(), User.$schema);
   final parsedScores = scores.parse({
     'Alice': {'name': 'Alice', 'isAdmin': true},
     'Bob': {'name': 'Bob', 'isAdmin': false},
