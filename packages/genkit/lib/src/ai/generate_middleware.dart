@@ -74,20 +74,21 @@ abstract class GenerateMiddleware {
   }
 }
 
-abstract interface class GenerateMiddlewareDef<C> {
+abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;
-  SchemanticType<C>? get configSchema;
+  SchemanticType<CustomOptions>? get configSchema;
   Schema? get configJsonSchema;
 
-  GenerateMiddleware create([C? config]);
+  GenerateMiddleware create([CustomOptions? config]);
 }
 
-class _GenerateMiddlewareDef<C> implements GenerateMiddlewareDef<C> {
+class _GenerateMiddlewareDef<CustomOptions>
+    implements GenerateMiddlewareDef<CustomOptions> {
   @override
   final String name;
   @override
-  final SchemanticType<C>? configSchema;
-  final GenerateMiddleware Function([C? config]) _create;
+  final SchemanticType<CustomOptions>? configSchema;
+  final GenerateMiddleware Function([CustomOptions? config]) _create;
 
   _GenerateMiddlewareDef(this.name, this._create, this.configSchema);
 
@@ -95,31 +96,35 @@ class _GenerateMiddlewareDef<C> implements GenerateMiddlewareDef<C> {
   Schema? get configJsonSchema => configSchema?.jsonSchema();
 
   @override
-  GenerateMiddleware create([C? config]) => _create(config);
+  GenerateMiddleware create([CustomOptions? config]) => _create(config);
 }
 
-GenerateMiddlewareDef<C> defineMiddleware<C>({
+GenerateMiddlewareDef<CustomOptions> defineMiddleware<CustomOptions>({
   required String name,
-  required GenerateMiddleware Function([C? config]) create,
-  SchemanticType<C>? configSchema,
+  required GenerateMiddleware Function([CustomOptions? config]) create,
+  SchemanticType<CustomOptions>? configSchema,
 }) {
-  return _GenerateMiddlewareDef<C>(name, create, configSchema);
+  return _GenerateMiddlewareDef<CustomOptions>(name, create, configSchema);
 }
 
-abstract interface class GenerateMiddlewareRef<C> {
+abstract interface class GenerateMiddlewareRef<CustomOptions> {
   String get name;
-  C? get config;
+  CustomOptions? get config;
 }
 
-class _GenerateMiddlewareRef<C> implements GenerateMiddlewareRef<C> {
+class _GenerateMiddlewareRef<CustomOptions>
+    implements GenerateMiddlewareRef<CustomOptions> {
   @override
   final String name;
   @override
-  final C? config;
+  final CustomOptions? config;
 
   _GenerateMiddlewareRef(this.name, this.config);
 }
 
-GenerateMiddlewareRef<C> middlewareRef<C>({required String name, C? config}) {
-  return _GenerateMiddlewareRef<C>(name, config);
+GenerateMiddlewareRef<CustomOptions> middlewareRef<CustomOptions>({
+  required String name,
+  CustomOptions? config,
+}) {
+  return _GenerateMiddlewareRef<CustomOptions>(name, config);
 }

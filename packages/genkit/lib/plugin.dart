@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Core APIs and types for authoring Genkit plugins.
+///
+/// This library exports the primitives necessary for creating custom models,
+/// embedders, tools, middleware, and other Genkit integrations. It is intended
+/// for package authors extending Genkit functions. End-users building Genkit
+/// applications should import `package:genkit/genkit.dart` instead.
+library;
+
 export 'package:genkit/src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 export 'package:genkit/src/ai/generate_middleware.dart'

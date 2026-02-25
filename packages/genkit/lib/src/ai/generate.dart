@@ -433,12 +433,12 @@ typedef GenerateMiddlewareOneof = ({
   GenerateMiddlewareRef? middlewareRef,
 });
 
-Future<GenerateResponseHelper> generateHelper<C>(
+Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
-  required ModelRef<C> model,
-  C? config,
+  required ModelRef<CustomOptions> model,
+  CustomOptions? config,
   List<String>? tools,
   String? toolChoice,
   bool? returnToolRequests,
@@ -531,20 +531,20 @@ Future<GenerateResponseHelper> generateHelper<C>(
   );
 }
 
-dynamic _parseOutput<O>(Message? message, MessageParser? parser) {
+dynamic _parseOutput(Message? message, MessageParser? parser) {
   if (parser != null && message != null) {
     return parser(message);
   }
   return null;
 }
 
-O? parseChunkOutput<O>(
+Output? parseChunkOutput<Output>(
   ModelResponseChunk chunk,
   List<ModelResponseChunk> previousChunks,
-  ChunkParser<O>? parser,
+  ChunkParser<Output>? parser,
 ) {
   if (parser != null) {
-    final temp = GenerateResponseChunk<O>(
+    final temp = GenerateResponseChunk<Output>(
       chunk,
       previousChunks: previousChunks,
       output: null,
@@ -553,7 +553,7 @@ O? parseChunkOutput<O>(
   }
   final dataPart = chunk.content.where((p) => p.isData).firstOrNull?.dataPart;
   if (dataPart != null && dataPart.data != null) {
-    return dataPart.data as O?;
+    return dataPart.data as Output?;
   }
   return null;
 }

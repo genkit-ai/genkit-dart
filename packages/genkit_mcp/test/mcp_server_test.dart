@@ -124,7 +124,7 @@ class _FakeServerTransport implements McpServerTransport {
 void main() {
   test('MCP server lists and executes actions', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'testTool',
       description: 'test tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -245,7 +245,7 @@ void main() {
 
   test('MCP server supports completion, tasks, and ping', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'taskTool',
       description: 'task tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -398,7 +398,7 @@ void main() {
 
   test('MCP server supports tasks list/get/cancel', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'slowTool',
       description: 'slow tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -462,7 +462,7 @@ void main() {
 
   test('MCP server reports task errors as completed with isError', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'failTool',
       description: 'fail tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -516,7 +516,7 @@ void main() {
 
   test('MCP server returns 409 when task is not completed', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'delayTool',
       description: 'delay tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -553,7 +553,7 @@ void main() {
 
   test('MCP server sends progress notifications', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'progressTool',
       description: 'progress tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -593,7 +593,7 @@ void main() {
 
   test('MCP server purges tasks after TTL', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'fastTool',
       description: 'fast tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -632,7 +632,7 @@ void main() {
 
   test('MCP server drops responses for cancelled requests', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'echoTool',
       description: 'echo tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -753,7 +753,7 @@ void main() {
 
   test('MCP server maps Genkit errors to HTTP status codes', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'boomTool',
       description: 'boom tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -834,7 +834,7 @@ void main() {
 
   test('MCP server returns isError for non-Genkit tool exceptions', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, String, void>(
+    ai.defineTool<Map<String, dynamic>, String>(
       name: 'throwTool',
       description: 'throw tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -864,7 +864,7 @@ void main() {
 
   test('MCP server JSON-encodes non-string tool outputs', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, Map<String, dynamic>, void>(
+    ai.defineTool<Map<String, dynamic>, Map<String, dynamic>>(
       name: 'mapTool',
       description: 'map tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),
@@ -896,7 +896,7 @@ void main() {
 
   test('MCP server falls back to toString for unencodable outputs', () async {
     final ai = Genkit();
-    ai.defineTool<Map<String, dynamic>, Object, void>(
+    ai.defineTool<Map<String, dynamic>, Object>(
       name: 'weirdTool',
       description: 'weird tool',
       inputSchema: mapSchema(stringSchema(), dynamicSchema()),

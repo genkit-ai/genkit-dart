@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/lite.dart' as lite;
@@ -39,12 +41,28 @@ void main(List<String> args) async {
   // --- Image Generator Flow using Nano Banana ---
   ai.defineFlow(
     name: 'imageGenerator',
-    inputSchema: stringSchema(defaultValue: 'A banana riding a bike'),
+    inputSchema: stringSchema(defaultValue: 'Colorize this photo'),
     outputSchema: Media.$schema,
     fn: (input, context) async {
+      final photoUri = Platform.script.resolve('photo.jpg');
+      final photoBytes = await File(photoUri.toFilePath()).readAsBytes();
+      final photoBase64 = base64Encode(photoBytes);
+
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash-image'),
         prompt: input,
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              MediaPart(
+                media: Media(
+                  url: 'data:image/jpeg;base64,$photoBase64',
+                ),
+              ),
+            ],
+          ),
+        ],
       );
       if (response.media == null) {
         throw Exception('No media generated');

@@ -97,8 +97,7 @@ Future<GenerateResponseHelper> generate<C>({
       outputContentType != null) {
     outputConfig = GenerateActionOutputConfig.fromJson({
       'format': ?outputFormat,
-      if (outputSchema != null)
-        'jsonSchema': outputSchema.jsonSchema as Map<String, dynamic>,
+      if (outputSchema != null) 'jsonSchema': outputSchema.jsonSchema(),
       'constrained': ?outputConstrained,
       'instructions': ?outputInstructions,
       'contentType': ?outputContentType,

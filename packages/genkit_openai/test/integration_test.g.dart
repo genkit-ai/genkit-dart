@@ -73,3 +73,63 @@ class _WeatherInputSchemaTypeFactory
     dependencies: [],
   );
 }
+
+class PersonSchema {
+  factory PersonSchema.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  PersonSchema._(this._json);
+
+  PersonSchema({required String name, required int age}) {
+    _json = {'name': name, 'age': age};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<PersonSchema> $schema =
+      _PersonSchemaTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  int get age {
+    return _json['age'] as int;
+  }
+
+  set age(int value) {
+    _json['age'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
+  const _PersonSchemaTypeFactory();
+
+  @override
+  PersonSchema parse(Object? json) {
+    return PersonSchema._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'PersonSchema',
+    definition: Schema.object(
+      properties: {'name': Schema.string(), 'age': Schema.integer()},
+      required: ['name', 'age'],
+    ),
+    dependencies: [],
+  );
+}
