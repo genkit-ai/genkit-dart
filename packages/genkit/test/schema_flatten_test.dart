@@ -50,21 +50,21 @@ void main() {
 
     test('dereferences root ref', () {
       final schema = {
-        r"$ref": r"#/$defs/WeatherToolInput",
-        r"$defs": {
-          "WeatherToolInput": {
-            "type": "object",
-            "properties": {
-              "location": {
-                "type": "string",
-                "description":
-                    "The location (ex. city, state, country) to get the weather for",
+        r'$ref': r'#/$defs/WeatherToolInput',
+        r'$defs': {
+          'WeatherToolInput': {
+            'type': 'object',
+            'properties': {
+              'location': {
+                'type': 'string',
+                'description':
+                    'The location (ex. city, state, country) to get the weather for',
               },
             },
-            "required": ["location"],
+            'required': ['location'],
           },
         },
-        r"$schema": "http://json-schema.org/draft-07/schema#",
+        r'$schema': 'http://json-schema.org/draft-07/schema#',
       };
 
       final expected = {

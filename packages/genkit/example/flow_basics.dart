@@ -38,8 +38,8 @@ void main() async {
   // genkit flow:run basic "\"hello\""
   final basic = ai.defineFlow(
     name: 'basic',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
     fn: (String subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
@@ -53,7 +53,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'parent',
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (_, _) async {
       // Dart flow objects are callable, but we need to handle the input.
       // basic expects a string.
@@ -65,7 +65,7 @@ void main() async {
   ai.defineFlow(
     name: 'withInputSchema',
     inputSchema: Subject.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: ${input.subject}';
@@ -79,8 +79,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'withListInputSchema',
-    inputSchema: listSchema(Subject.$schema),
-    outputSchema: stringSchema(),
+    inputSchema: .list(Subject.$schema),
+    outputSchema: .string(),
     fn: (input, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subjects: ${input.map((e) => e.subject).join(', ')}';
@@ -95,7 +95,7 @@ void main() async {
   ai.defineFlow(
     name: 'withContext',
     inputSchema: Subject.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, context) async {
       return 'subject: ${input.subject}, context: ${jsonEncode(context.context)}';
     },
@@ -104,8 +104,8 @@ void main() async {
   // genkit flow:run streamy 5 -s
   ai.defineFlow(
     name: 'streamy',
-    inputSchema: intSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .integer(),
+    outputSchema: .string(),
     streamSchema: Count.$schema,
     fn: (count, context) async {
       var i = 0;
@@ -120,8 +120,8 @@ void main() async {
   // genkit flow:run streamyThrowy 5 -s
   ai.defineFlow(
     name: 'streamyThrowy',
-    inputSchema: intSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .integer(),
+    outputSchema: .string(),
     streamSchema: Count.$schema,
     fn: (count, context) async {
       var i = 0;
@@ -140,8 +140,8 @@ void main() async {
   // genkit flow:run throwy "\"hello\""
   ai.defineFlow(
     name: 'throwy',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
     fn: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         return 'subject: $subject';
@@ -159,8 +159,8 @@ void main() async {
   // genkit flow:run throwy2 "\"hello\""
   ai.defineFlow(
     name: 'throwy2',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
     fn: (subject, _) async {
       final foo = await ai.run('call-llm', () async {
         if (subject.isNotEmpty) {
@@ -176,8 +176,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'flowMultiStepCaughtError',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
     fn: (input, _) async {
       var i = 1;
 
@@ -205,8 +205,8 @@ void main() async {
 
   ai.defineFlow(
     name: 'multiSteps',
-    inputSchema: stringSchema(),
-    outputSchema: intSchema(),
+    inputSchema: .string(),
+    outputSchema: .integer(),
     fn: (input, _) async {
       final out1 = await ai.run('step1', () async {
         return 'Hello, $input! step 1';
@@ -229,7 +229,7 @@ void main() async {
 
   ai.defineFlow(
     name: 'largeSteps',
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (_, _) async {
       await ai.run('large-step1', () async {
         return generateString(100000);

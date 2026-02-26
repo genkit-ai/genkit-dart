@@ -46,7 +46,7 @@ Future<void> main() async {
   ai.defineTool<Map<String, dynamic>, String>(
     name: 'testTool',
     description: 'test tool',
-    inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async => 'yep ${input['foo'] as Object?}',
   );
   ai.definePrompt<Map<String, dynamic>>(

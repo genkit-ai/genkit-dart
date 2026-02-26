@@ -28,16 +28,14 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 void main(List<String> arguments) async {
   // Initialize Genkit and Model
-  final ai = Genkit(
-    plugins: [
-      googleAI(),
-    ],
-  );
+  final ai = Genkit(plugins: [googleAI()]);
   final geminiFlash = googleAI.gemini('gemini-2.5-flash');
 
   // Initialize Flows
-  final iterativeRefinementFlow =
-      defineIterativeRefinementFlow(ai, geminiFlash);
+  final iterativeRefinementFlow = defineIterativeRefinementFlow(
+    ai,
+    geminiFlash,
+  );
   final storyWriterFlow = defineStoryWriterFlow(ai, geminiFlash);
   final marketingCopyFlow = defineMarketingCopyFlow(ai, geminiFlash);
   final routerFlow = defineRouterFlow(ai, geminiFlash);
@@ -73,8 +71,9 @@ void main(List<String> arguments) async {
       }
       final topic = args[0];
       print('Running Iterative Refinement for topic: "$topic"...\n');
-      final result =
-          await iterativeRefinementFlow(IterativeRefinementInput(topic: topic));
+      final result = await iterativeRefinementFlow(
+        IterativeRefinementInput(topic: topic),
+      );
       print('\nFinal Result:\n$result');
       break;
     case 'sequentialProcessing':
@@ -96,7 +95,8 @@ void main(List<String> arguments) async {
       print('Running Parallel Execution for product: "$product"...\n');
       final result = await marketingCopyFlow(ProductInput(product: product));
       print(
-          '\nFinal Result:\nName: ${result.name}\nTagline: ${result.tagline}');
+        '\nFinal Result:\nName: ${result.name}\nTagline: ${result.tagline}',
+      );
       break;
     case 'conditionalRouting':
       if (args.isEmpty) {
@@ -158,8 +158,9 @@ void main(List<String> arguments) async {
       }
       final concept = args[0];
       print('Running Image Generator for concept: "$concept"...\n');
-      final result =
-          await imageGeneratorFlow(ImageGeneratorInput(concept: concept));
+      final result = await imageGeneratorFlow(
+        ImageGeneratorInput(concept: concept),
+      );
 
       if (result.startsWith('data:')) {
         try {
@@ -167,8 +168,10 @@ void main(List<String> arguments) async {
           if (base64idx != -1) {
             final base64Str = result.substring(base64idx + 7);
             final bytes = base64Decode(base64Str);
-            final sanitizedConcept =
-                concept.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+            final sanitizedConcept = concept.replaceAll(
+              RegExp(r'[^a-zA-Z0-9]'),
+              '_',
+            );
             final fileName = 'generated_image_$sanitizedConcept.png';
             final file = File(fileName);
             await file.writeAsBytes(bytes);

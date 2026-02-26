@@ -86,7 +86,7 @@ Flow<MovieReviewInput, MovieReview, String, void> defineStreamedStructuredOutput
     name: 'streamedStructuredOutput',
     inputSchema: MovieReviewInput.$schema,
     outputSchema: MovieReview.$schema,
-    streamSchema: stringSchema(),
+    streamSchema: .string(),
     fn: (input, ctx) async {
       final yearClause = input.year != null ? ' (${input.year})' : '';
       final stream = ai.generateStream(

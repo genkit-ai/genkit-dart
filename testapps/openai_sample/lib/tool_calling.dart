@@ -54,7 +54,7 @@ Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(Genkit ai, Tool
   return ai.defineFlow(
     name: 'toolCalling',
     inputSchema: WeatherFlowInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -73,8 +73,8 @@ Flow<WeatherFlowInput, String, String, void> defineStreamedToolCallingFlow(Genki
   return ai.defineFlow(
     name: 'streamedToolCalling',
     inputSchema: WeatherFlowInput.$schema,
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
         model: openAI.model('gpt-4o-mini'),

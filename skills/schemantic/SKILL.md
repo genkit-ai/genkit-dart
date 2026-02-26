@@ -69,13 +69,13 @@ final validationErrors = await schema.validate({'invalid': 'data'});
 When a full data class is not required, Schemantic provides functions to create schemas dynamically.
 
 ```dart
-final ageSchema = intSchema(description: 'Age in years', minimum: 0);
-final nameSchema = stringSchema(minLength: 2);
-final nothingSchema = voidSchema();
-final anySchema = dynamicSchema();
+final ageSchema = SchemanticType.integer(description: 'Age in years', minimum: 0);
+final nameSchema = SchemanticType.string(minLength: 2);
+final nothingSchema = SchemanticType.voidSchema();
+final anySchema = SchemanticType.dynamicSchema();
 
-final userSchema = mapSchema(stringSchema(), intSchema()); // Map<String, int>
-final tagsSchema = listSchema(stringSchema()); // List<String>
+final userSchema = SchemanticType.map(.string(), .integer()); // Map<String, int>
+final tagsSchema = SchemanticType.list(.string()); // List<String>
 ```
 
 ## Union Types (AnyOf)

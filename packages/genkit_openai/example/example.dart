@@ -79,10 +79,10 @@ abstract class $MovieReview {
 Flow<String, String, void, void> defineSimpleGenerationFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'simpleGeneration',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Tell me a joke about Dart programming.',
     ),
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -99,11 +99,11 @@ Flow<String, String, String, void> defineStreamedSimpleGenerationFlow(
 ) {
   return ai.defineFlow(
     name: 'streamedSimpleGeneration',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Tell me a joke about Dart programming.',
     ),
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (prompt, ctx) async {
       final stream = ai.generateStream(
         model: openAI.model('gpt-4o-mini'),
@@ -125,8 +125,8 @@ Flow<String, String, String, void> defineStreamedSimpleGenerationFlow(
 Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'modelResolution',
-    inputSchema: stringSchema(defaultValue: 'gpt-4o-mini'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'gpt-4o-mini'),
+    outputSchema: .string(),
     fn: (modelName, _) async {
       final action = await ai.registry.lookupAction(
         'model',
@@ -150,8 +150,8 @@ Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
 Flow<String, String, void, void> defineModelListFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'modelList',
-    inputSchema: stringSchema(defaultValue: ''),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: ''),
+    outputSchema: .string(),
     fn: (_, _) async {
       final actions = await ai.registry.listActions();
       final models = actions
@@ -172,7 +172,7 @@ Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(
   return ai.defineFlow(
     name: 'toolCalling',
     inputSchema: WeatherFlowInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -192,8 +192,8 @@ Flow<WeatherFlowInput, String, String, void> defineStreamedToolCallingFlow(
   return ai.defineFlow(
     name: 'streamedToolCalling',
     inputSchema: WeatherFlowInput.$schema,
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
         model: openAI.model('gpt-4o-mini'),
@@ -247,7 +247,7 @@ defineStreamedStructuredOutputFlow(Genkit ai) {
     name: 'streamedStructuredOutput',
     inputSchema: MovieReviewInput.$schema,
     outputSchema: MovieReview.$schema,
-    streamSchema: stringSchema(),
+    streamSchema: .string(),
     fn: (input, ctx) async {
       final yearClause = input.year != null ? ' (${input.year})' : '';
       final stream = ai.generateStream(

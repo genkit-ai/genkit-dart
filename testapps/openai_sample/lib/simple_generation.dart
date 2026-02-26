@@ -16,7 +16,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:schemantic/schemantic.dart';
 
 /// Defines a flow that demonstrates basic text generation with an OpenAI model.
 ///
@@ -25,10 +24,10 @@ import 'package:schemantic/schemantic.dart';
 Flow<String, String, void, void> defineSimpleGenerationFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'simpleGeneration',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Tell me a joke about Dart programming.',
     ),
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -47,11 +46,11 @@ Flow<String, String, void, void> defineSimpleGenerationFlow(Genkit ai) {
 Flow<String, String, String, void> defineStreamedSimpleGenerationFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'streamedSimpleGeneration',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Tell me a joke about Dart programming.',
     ),
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (prompt, ctx) async {
       final stream = ai.generateStream(
         model: openAI.model('gpt-4o-mini'),

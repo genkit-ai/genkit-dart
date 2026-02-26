@@ -127,7 +127,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'testTool',
       description: 'test tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async => 'yep ${jsonEncode(input)}',
     );
     ai.definePrompt<Map<String, dynamic>>(
@@ -248,7 +248,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'taskTool',
       description: 'task tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async => 'done',
     );
     ai.definePrompt<Map<String, dynamic>>(
@@ -401,7 +401,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'slowTool',
       description: 'slow tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return 'done';
@@ -465,7 +465,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'failTool',
       description: 'fail tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         throw GenkitException(
           'bad input',
@@ -519,7 +519,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'delayTool',
       description: 'delay tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return 'done';
@@ -556,7 +556,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'progressTool',
       description: 'progress tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 20));
         return 'done';
@@ -596,7 +596,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'fastTool',
       description: 'fast tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async => 'done',
     );
 
@@ -635,7 +635,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'echoTool',
       description: 'echo tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async => 'ok',
     );
     final server = _createServer(ai);
@@ -756,7 +756,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'boomTool',
       description: 'boom tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         throw GenkitException(
           'bad input',
@@ -837,7 +837,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'throwTool',
       description: 'throw tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         throw StateError('boom');
       },
@@ -867,7 +867,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, Map<String, dynamic>>(
       name: 'mapTool',
       description: 'map tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async {
         return {'ok': true, 'input': input};
       },
@@ -899,7 +899,7 @@ void main() {
     ai.defineTool<Map<String, dynamic>, Object>(
       name: 'weirdTool',
       description: 'weird tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async => _Unencodable(),
     );
     final server = _createServer(ai);

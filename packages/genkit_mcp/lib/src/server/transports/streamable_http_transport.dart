@@ -99,7 +99,7 @@ class StreamableHttpServerTransport implements McpServerTransport {
   @override
   Future<void> send(Map<String, dynamic> message) async {
     if (_closed) return;
-    final id = message['id'];
+    final id = message['id'] as Object?;
     final stream = id == null ? null : _requestStreams[id];
     if (stream == null) {
       final standalone = _standaloneStream;

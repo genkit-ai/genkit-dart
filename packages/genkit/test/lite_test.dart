@@ -14,7 +14,6 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/lite.dart' as lite;
-import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -38,7 +37,7 @@ void main() {
     final response = await lite.generate(
       model: model,
       prompt: 'Hello',
-      outputSchema: stringSchema(),
+      outputSchema: .string(),
     );
 
     expect(response.text, '{"result": "success"}');
@@ -49,10 +48,7 @@ void main() {
       name: 'testModelStream',
       fn: (request, context) async {
         context.sendChunk(
-          ModelResponseChunk(
-            index: 0,
-            content: [TextPart(text: '{"res')],
-          ),
+          ModelResponseChunk(index: 0, content: [TextPart(text: '{"res')]),
         );
         context.sendChunk(
           ModelResponseChunk(
@@ -73,7 +69,7 @@ void main() {
     final stream = lite.generateStream(
       model: model,
       prompt: 'Hello',
-      outputSchema: stringSchema(),
+      outputSchema: .string(),
     );
 
     final chunks = await stream.toList();

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -92,7 +91,7 @@ void main() {
       genkit.defineTool(
         name: toolName,
         description: 'A test tool',
-        inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+        inputSchema: .map(.string(), .dynamicSchema()),
         fn: (input, context) async {
           return 'tool output';
         },

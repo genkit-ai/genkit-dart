@@ -15,7 +15,6 @@
 import 'package:basic_sample/simple_flow_types.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:schemantic/schemantic.dart';
 
 void main() async {
   final ai = Genkit(plugins: [googleAI()]);
@@ -48,9 +47,9 @@ void main() async {
 
   ai.defineFlow(
     name: 'outer',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (String name, context) async {
       if (context.streamingRequested) {
         for (var i = 0; i < 5; i++) {

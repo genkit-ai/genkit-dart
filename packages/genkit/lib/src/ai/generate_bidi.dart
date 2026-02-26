@@ -103,7 +103,7 @@ Future<GenerateBidiSession> runGenerateBidi(
     ],
     config: config is Map
         ? config as Map<String, dynamic>
-        : (config as dynamic)?.toJson(),
+        : (config as dynamic)?.toJson() as Map<String, dynamic>?,
     tools: toolDefs,
   );
 

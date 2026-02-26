@@ -17,7 +17,6 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_middleware/filesystem.dart';
 import 'package:genkit_middleware/skills.dart';
-import 'package:schemantic/schemantic.dart';
 
 void main() async {
   final apiKey = Platform.environment['GEMINI_API_KEY'];
@@ -41,11 +40,11 @@ void main() async {
 
   ai.defineFlow(
     name: 'agenticFlow',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue:
           'Create a new file "hello.dart" in the filesystem with a simple main function printing hello world. Use skills as needed.',
     ),
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, context) async {
       // Resolve paths relative to the script execution (assumed run from package root)
       final currentDir = Directory.current.path;

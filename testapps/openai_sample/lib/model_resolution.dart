@@ -16,7 +16,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:schemantic/schemantic.dart';
 
 /// Defines a flow that resolves a named OpenAI model from the Genkit registry.
 ///
@@ -26,8 +25,8 @@ import 'package:schemantic/schemantic.dart';
 Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'modelResolution',
-    inputSchema: stringSchema(defaultValue: 'gpt-4o-mini'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'gpt-4o-mini'),
+    outputSchema: .string(),
     fn: (modelName, _) async {
       final action =
           await ai.registry.lookupAction('model', 'openai/$modelName');
@@ -53,8 +52,8 @@ Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
 Flow<String, String, void, void> defineModelListFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'modelList',
-    inputSchema: stringSchema(defaultValue: ''),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: ''),
+    outputSchema: .string(),
     fn: (_, _) async {
       final actions = await ai.registry.listActions();
       final models = actions
