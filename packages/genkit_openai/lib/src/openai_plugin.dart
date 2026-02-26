@@ -18,6 +18,8 @@ import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
 import 'aggregation.dart';
+import 'converters.dart';
+import 'models.dart';
 
 /// Returns true when the output config indicates JSON-structured output
 /// (format is 'json' or contentType is 'application/json').

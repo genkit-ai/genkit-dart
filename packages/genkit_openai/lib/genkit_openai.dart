@@ -18,15 +18,6 @@ import 'package:schemantic/schemantic.dart';
 import 'src/models.dart';
 import 'src/openai_plugin.dart';
 
-export 'src/converters.dart' show GenkitConverter;
-export 'src/models.dart'
-    show
-        deepSeekModelInfo,
-        defaultModelInfo,
-        oSeriesModelInfo,
-        supportsTools,
-        supportsVision;
-
 part 'genkit_openai.g.dart';
 
 @Schematic()

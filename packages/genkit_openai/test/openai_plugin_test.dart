@@ -14,6 +14,8 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/converters.dart';
+import 'package:genkit_openai/src/models.dart';
 import 'package:openai_dart/openai_dart.dart'
     show
         ChatCompletionAssistantMessage,
