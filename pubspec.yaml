@@ -6,6 +6,8 @@ environment:
   sdk: ^3.10.0
 
 workspace:
+  # NOTE: This list is intentionally incomplete.
+  # Packages that depend on flutter are excluded! 
   - packages/_schema_generator
   - packages/genkit
   - packages/genkit_mcp
@@ -22,11 +24,13 @@ workspace:
   - testapps/chrome_example
   - testapps/openai_sample
   - testapps/mcp_server
+  - testapps/middleware
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
   melos: ^7.0.0
   path: ^1.9.1
+  yaml: ^3.1.2
   
 melos:
   name: genkit_workspace
