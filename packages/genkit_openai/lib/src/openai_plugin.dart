@@ -30,7 +30,7 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 /// Returns null if [schema] is null.
 ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   if (schema == null) return null;
-  final flattened = Schema.fromMap(schema).flatten().value;
+  final flattened = schema.flatten();
   return ResponseFormat.jsonSchema(
     jsonSchema: JsonSchemaObject(
       name: 'output',

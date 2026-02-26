@@ -63,10 +63,9 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestInput',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(properties: {'name': $Schema.string()}, required: ['name'])
+        .value,
     dependencies: [],
   );
 }
@@ -113,10 +112,12 @@ class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestOutput',
-    definition: Schema.object(
-      properties: {'greeting': Schema.string()},
-      required: ['greeting'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'greeting': $Schema.string()},
+          required: ['greeting'],
+        )
+        .value,
     dependencies: [],
   );
 }

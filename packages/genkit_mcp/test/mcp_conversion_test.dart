@@ -27,12 +27,12 @@ class _BadPromptSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'count': {'type': 'integer'},
       },
-    }),
+    },
     dependencies: const [],
   );
 }
@@ -45,7 +45,7 @@ class _NullableStringPromptSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'title': {
@@ -54,7 +54,7 @@ class _NullableStringPromptSchema extends SchemanticType<Map<String, dynamic>> {
         },
       },
       'required': const <String>[],
-    }),
+    },
     dependencies: const [],
   );
 }

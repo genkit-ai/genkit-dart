@@ -63,10 +63,9 @@ class _StoryInputTypeFactory extends SchemanticType<StoryInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StoryInput',
-    definition: Schema.object(
-      properties: {'topic': Schema.string()},
-      required: ['topic'],
-    ),
+    definition: $Schema
+        .object(properties: {'topic': $Schema.string()}, required: ['topic'])
+        .value,
     dependencies: [],
   );
 }
@@ -113,10 +112,9 @@ class _StoryIdeaTypeFactory extends SchemanticType<StoryIdea> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StoryIdea',
-    definition: Schema.object(
-      properties: {'idea': Schema.string()},
-      required: ['idea'],
-    ),
+    definition: $Schema
+        .object(properties: {'idea': $Schema.string()}, required: ['idea'])
+        .value,
     dependencies: [],
   );
 }
@@ -166,10 +164,12 @@ class _ImageGeneratorInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ImageGeneratorInput',
-    definition: Schema.object(
-      properties: {'concept': Schema.string()},
-      required: ['concept'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'concept': $Schema.string()},
+          required: ['concept'],
+        )
+        .value,
     dependencies: [],
   );
 }

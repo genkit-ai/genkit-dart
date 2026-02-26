@@ -423,7 +423,7 @@ class GenkitMcpServer {
           status: StatusCodes.NOT_FOUND,
         ),
       );
-      final schema = prompt.inputSchema?.jsonSchema(useRefs: false).value;
+      final schema = prompt.inputSchema?.jsonSchema(useRefs: false);
       final objectSchema = extractObjectSchema(schema);
       final properties = objectSchema?['properties'];
       if (properties is Map && properties[argumentName] is Map) {

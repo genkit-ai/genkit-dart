@@ -42,7 +42,7 @@ Map<String, dynamic> toMcpTool(Tool tool) {
 
 Map<String, dynamic>? _toJsonSchema(SchemanticType? type) {
   if (type == null) return null;
-  final schema = type.jsonSchema(useRefs: true).value;
+  final schema = type.jsonSchema(useRefs: true);
   schema[r'$schema'] = 'http://json-schema.org/draft-07/schema#';
   return schema;
 }

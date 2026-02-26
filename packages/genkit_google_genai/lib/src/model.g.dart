@@ -353,35 +353,39 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GeminiOptions',
-    definition: Schema.object(
-      properties: {
-        'apiKey': Schema.string(),
-        'safetySettings': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/SafetySettings'}),
-        ),
-        'codeExecution': Schema.boolean(),
-        'functionCallingConfig': Schema.fromMap({
-          '\$ref': r'#/$defs/FunctionCallingConfig',
-        }),
-        'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
-        'responseModalities': Schema.list(items: Schema.string()),
-        'googleSearch': Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
-        'fileSearch': Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
-        'temperature': Schema.number(minimum: 0.0, maximum: 2.0),
-        'topP': Schema.number(minimum: 0.0, maximum: 1.0),
-        'topK': Schema.integer(),
-        'candidateCount': Schema.integer(),
-        'stopSequences': Schema.list(items: Schema.string()),
-        'maxOutputTokens': Schema.integer(),
-        'responseMimeType': Schema.string(),
-        'responseLogprobs': Schema.boolean(),
-        'logprobs': Schema.integer(),
-        'presencePenalty': Schema.number(),
-        'frequencyPenalty': Schema.number(),
-        'seed': Schema.integer(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'apiKey': $Schema.string(),
+            'safetySettings': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/SafetySettings'}),
+            ),
+            'codeExecution': $Schema.boolean(),
+            'functionCallingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/FunctionCallingConfig',
+            }),
+            'thinkingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/ThinkingConfig',
+            }),
+            'responseModalities': $Schema.list(items: $Schema.string()),
+            'googleSearch': $Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
+            'fileSearch': $Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
+            'temperature': $Schema.number(minimum: 0.0, maximum: 2.0),
+            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
+            'topK': $Schema.integer(),
+            'candidateCount': $Schema.integer(),
+            'stopSequences': $Schema.list(items: $Schema.string()),
+            'maxOutputTokens': $Schema.integer(),
+            'responseMimeType': $Schema.string(),
+            'responseLogprobs': $Schema.boolean(),
+            'logprobs': $Schema.integer(),
+            'presencePenalty': $Schema.number(),
+            'frequencyPenalty': $Schema.number(),
+            'seed': $Schema.integer(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [
       SafetySettings.$schema,
       FunctionCallingConfig.$schema,
@@ -452,29 +456,31 @@ class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SafetySettings',
-    definition: Schema.object(
-      properties: {
-        'category': Schema.string(
-          enumValues: [
-            'HARM_CATEGORY_UNSPECIFIED',
-            'HARM_CATEGORY_HATE_SPEECH',
-            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            'HARM_CATEGORY_HARASSMENT',
-            'HARM_CATEGORY_DANGEROUS_CONTENT',
-            'HARM_CATEGORY_CIVIC_INTEGRITY',
-          ],
-        ),
-        'threshold': Schema.string(
-          enumValues: [
-            'BLOCK_LOW_AND_ABOVE',
-            'BLOCK_MEDIUM_AND_ABOVE',
-            'BLOCK_ONLY_HIGH',
-            'BLOCK_NONE',
-          ],
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'category': $Schema.string(
+              enumValues: [
+                'HARM_CATEGORY_UNSPECIFIED',
+                'HARM_CATEGORY_HATE_SPEECH',
+                'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                'HARM_CATEGORY_HARASSMENT',
+                'HARM_CATEGORY_DANGEROUS_CONTENT',
+                'HARM_CATEGORY_CIVIC_INTEGRITY',
+              ],
+            ),
+            'threshold': $Schema.string(
+              enumValues: [
+                'BLOCK_LOW_AND_ABOVE',
+                'BLOCK_MEDIUM_AND_ABOVE',
+                'BLOCK_ONLY_HIGH',
+                'BLOCK_NONE',
+              ],
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -542,21 +548,23 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ThinkingConfig',
-    definition: Schema.object(
-      properties: {
-        'includeThoughts': Schema.boolean(
-          description:
-              'Indicates whether to include thoughts in the response.If true, thoughts are returned only when available.',
-        ),
-        'thinkingBudget': Schema.integer(
-          description:
-              'The thinking budget parameter gives the model guidance on the number of thinking tokens it can use when generating a response. A greater number of tokens is typically associated with more detailed thinking, which is needed for solving more complex tasks. Setting the thinking budget to 0 disables thinking.',
-          minimum: 0,
-          maximum: 24576,
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'includeThoughts': $Schema.boolean(
+              description:
+                  'Indicates whether to include thoughts in the response.If true, thoughts are returned only when available.',
+            ),
+            'thinkingBudget': $Schema.integer(
+              description:
+                  'The thinking budget parameter gives the model guidance on the number of thinking tokens it can use when generating a response. A greater number of tokens is typically associated with more detailed thinking, which is needed for solving more complex tasks. Setting the thinking budget to 0 disables thinking.',
+              minimum: 0,
+              maximum: 24576,
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -622,15 +630,17 @@ class _FunctionCallingConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FunctionCallingConfig',
-    definition: Schema.object(
-      properties: {
-        'mode': Schema.string(
-          enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
-        ),
-        'allowedFunctionNames': Schema.list(items: Schema.string()),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'mode': $Schema.string(
+              enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
+            ),
+            'allowedFunctionNames': $Schema.list(items: $Schema.string()),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -681,10 +691,14 @@ class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FileSearch',
-    definition: Schema.object(
-      properties: {'fileSearchStoreNames': Schema.list(items: Schema.string())},
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'fileSearchStoreNames': $Schema.list(items: $Schema.string()),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1037,36 +1051,40 @@ class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GeminiTtsOptions',
-    definition: Schema.object(
-      properties: {
-        'apiKey': Schema.string(),
-        'safetySettings': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/SafetySettings'}),
-        ),
-        'codeExecution': Schema.boolean(),
-        'functionCallingConfig': Schema.fromMap({
-          '\$ref': r'#/$defs/FunctionCallingConfig',
-        }),
-        'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
-        'responseModalities': Schema.list(items: Schema.string()),
-        'googleSearch': Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
-        'fileSearch': Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
-        'temperature': Schema.number(minimum: 0.0, maximum: 2.0),
-        'topP': Schema.number(minimum: 0.0, maximum: 1.0),
-        'topK': Schema.integer(),
-        'candidateCount': Schema.integer(),
-        'stopSequences': Schema.list(items: Schema.string()),
-        'maxOutputTokens': Schema.integer(),
-        'responseMimeType': Schema.string(),
-        'responseLogprobs': Schema.boolean(),
-        'logprobs': Schema.integer(),
-        'presencePenalty': Schema.number(),
-        'frequencyPenalty': Schema.number(),
-        'seed': Schema.integer(),
-        'speechConfig': Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'apiKey': $Schema.string(),
+            'safetySettings': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/SafetySettings'}),
+            ),
+            'codeExecution': $Schema.boolean(),
+            'functionCallingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/FunctionCallingConfig',
+            }),
+            'thinkingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/ThinkingConfig',
+            }),
+            'responseModalities': $Schema.list(items: $Schema.string()),
+            'googleSearch': $Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
+            'fileSearch': $Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
+            'temperature': $Schema.number(minimum: 0.0, maximum: 2.0),
+            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
+            'topK': $Schema.integer(),
+            'candidateCount': $Schema.integer(),
+            'stopSequences': $Schema.list(items: $Schema.string()),
+            'maxOutputTokens': $Schema.integer(),
+            'responseMimeType': $Schema.string(),
+            'responseLogprobs': $Schema.boolean(),
+            'logprobs': $Schema.integer(),
+            'presencePenalty': $Schema.number(),
+            'frequencyPenalty': $Schema.number(),
+            'seed': $Schema.integer(),
+            'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [
       SafetySettings.$schema,
       FunctionCallingConfig.$schema,
@@ -1150,16 +1168,18 @@ class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SpeechConfig',
-    definition: Schema.object(
-      properties: {
-        'voiceConfig': Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
-        'multiSpeakerVoiceConfig': Schema.fromMap({
-          '\$ref': r'#/$defs/MultiSpeakerVoiceConfig',
-        }),
-      },
-      required: [],
-      description: 'Speech generation config',
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'voiceConfig': $Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
+            'multiSpeakerVoiceConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/MultiSpeakerVoiceConfig',
+            }),
+          },
+          required: [],
+          description: 'Speech generation config',
+        )
+        .value,
     dependencies: [VoiceConfig.$schema, MultiSpeakerVoiceConfig.$schema],
   );
 }
@@ -1217,16 +1237,18 @@ class _MultiSpeakerVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MultiSpeakerVoiceConfig',
-    definition: Schema.object(
-      properties: {
-        'speakerVoiceConfigs': Schema.list(
-          description: 'Configuration for all the enabled speaker voices',
-          items: Schema.fromMap({'\$ref': r'#/$defs/SpeakerVoiceConfig'}),
-        ),
-      },
-      required: ['speakerVoiceConfigs'],
-      description: 'Configuration for multi-speaker setup',
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'speakerVoiceConfigs': $Schema.list(
+              description: 'Configuration for all the enabled speaker voices',
+              items: $Schema.fromMap({'\$ref': r'#/$defs/SpeakerVoiceConfig'}),
+            ),
+          },
+          required: ['speakerVoiceConfigs'],
+          description: 'Configuration for multi-speaker setup',
+        )
+        .value,
     dependencies: [SpeakerVoiceConfig.$schema],
   );
 }
@@ -1287,15 +1309,19 @@ class _SpeakerVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SpeakerVoiceConfig',
-    definition: Schema.object(
-      properties: {
-        'speaker': Schema.string(description: 'Name of the speaker to use'),
-        'voiceConfig': Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
-      },
-      required: ['speaker', 'voiceConfig'],
-      description:
-          'Configuration for a single speaker in a multi speaker setup',
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'speaker': $Schema.string(
+              description: 'Name of the speaker to use',
+            ),
+            'voiceConfig': $Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
+          },
+          required: ['speaker', 'voiceConfig'],
+          description:
+              'Configuration for a single speaker in a multi speaker setup',
+        )
+        .value,
     dependencies: [VoiceConfig.$schema],
   );
 }
@@ -1351,15 +1377,17 @@ class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'VoiceConfig',
-    definition: Schema.object(
-      properties: {
-        'prebuiltVoiceConfig': Schema.fromMap({
-          '\$ref': r'#/$defs/PrebuiltVoiceConfig',
-        }),
-      },
-      required: [],
-      description: 'Configuration for the voice to use',
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'prebuiltVoiceConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/PrebuiltVoiceConfig',
+            }),
+          },
+          required: [],
+          description: 'Configuration for the voice to use',
+        )
+        .value,
     dependencies: [PrebuiltVoiceConfig.$schema],
   );
 }
@@ -1413,16 +1441,18 @@ class _PrebuiltVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PrebuiltVoiceConfig',
-    definition: Schema.object(
-      properties: {
-        'voiceName': Schema.string(
-          description:
-              'Name of the preset voice to use. Known values: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat',
-        ),
-      },
-      required: [],
-      description: 'Configuration for the prebuilt speaker to use',
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'voiceName': $Schema.string(
+              description:
+                  'Name of the preset voice to use. Known values: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat',
+            ),
+          },
+          required: [],
+          description: 'Configuration for the prebuilt speaker to use',
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1463,7 +1493,7 @@ class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GoogleSearch',
-    definition: Schema.object(properties: {}, required: []),
+    definition: $Schema.object(properties: {}, required: []).value,
     dependencies: [],
   );
 }
@@ -1549,31 +1579,33 @@ class _TextEmbedderOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextEmbedderOptions',
-    definition: Schema.object(
-      properties: {
-        'outputDimensionality': Schema.integer(
-          description:
-              'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',
-        ),
-        'taskType': Schema.string(
-          description:
-              'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
-          enumValues: [
-            'TASK_TYPE_UNSPECIFIED',
-            'RETRIEVAL_QUERY',
-            'RETRIEVAL_DOCUMENT',
-            'SEMANTIC_SIMILARITY',
-            'CLASSIFICATION',
-            'CLUSTERING',
-            'QUESTION_ANSWERING',
-            'FACT_VERIFICATION',
-            'CODE_RETRIEVAL_QUERY',
-          ],
-        ),
-        'title': Schema.string(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'outputDimensionality': $Schema.integer(
+              description:
+                  'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',
+            ),
+            'taskType': $Schema.string(
+              description:
+                  'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
+              enumValues: [
+                'TASK_TYPE_UNSPECIFIED',
+                'RETRIEVAL_QUERY',
+                'RETRIEVAL_DOCUMENT',
+                'SEMANTIC_SIMILARITY',
+                'CLASSIFICATION',
+                'CLUSTERING',
+                'QUESTION_ANSWERING',
+                'FACT_VERIFICATION',
+                'CODE_RETRIEVAL_QUERY',
+              ],
+            ),
+            'title': $Schema.string(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }

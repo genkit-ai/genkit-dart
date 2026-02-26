@@ -853,7 +853,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             if (interfaceName.isSchema) {
               addDependency(interfaceName);
               final nestedBaseName = _resolveBaseName(interfaceName);
-              return refer('Schema.fromMap').call([
+              return refer('\$Schema.fromMap').call([
                 literalMap({
                   literalString(r'\$ref'): CodeExpression(
                     Code("r'#/\$defs/$nestedBaseName'"),
@@ -874,7 +874,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (descriptionExpr != null) {
         // Schema that is both anyOf and has description.
         // In JSON Schema: { "description": "...", "anyOf": [...] }
-        definitionExpression = refer('Schema.fromMap').call([
+        definitionExpression = refer('\$Schema.fromMap').call([
           literalMap({
             literalString('description'): descriptionExpr,
             literalString('anyOf'): literalList(
@@ -884,7 +884,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         ]);
       } else {
         definitionExpression = refer(
-          'Schema.anyOf',
+          '\$Schema.anyOf',
         ).call([literalList(subtypes)]);
       }
     } else {
@@ -895,7 +895,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (descriptionExpr != null) {
         namedArgs['description'] = descriptionExpr;
       }
-      definitionExpression = refer('Schema.object').call([], namedArgs);
+      definitionExpression = refer('\$Schema.object').call([], namedArgs);
     }
 
     return Method(
@@ -906,7 +906,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         ..returns = refer('JsonSchemaMetadata')
         ..body = refer('JsonSchemaMetadata').call([], {
           'name': literalString(baseName),
-          'definition': definitionExpression,
+          'definition': definitionExpression.property('value'),
           'dependencies': literalList(dependencies.toList()),
         }).code,
     );
@@ -951,7 +951,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
         namedArgs['defaultValue'] = properties['default']!;
       }
 
-      return refer('Schema.combined').call([], namedArgs);
+      return refer('\$Schema.combined').call([], namedArgs);
     }
 
     final hasDefault = properties.containsKey('default');
@@ -967,10 +967,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (hasDefault) {
         properties['type'] = literalString('string');
         schemaExpression = refer(
-          'Schema.fromMap',
+          '\$Schema.fromMap',
         ).call([literalMap(properties)]);
       } else {
-        schemaExpression = refer('Schema.string').call([], properties);
+        schemaExpression = refer('\$Schema.string').call([], properties);
       }
     } else if (type.isDartCoreString) {
       if (hasDefault) {
@@ -979,37 +979,37 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           properties['enum'] = properties.remove('enumValues')!;
         }
         schemaExpression = refer(
-          'Schema.fromMap',
+          '\$Schema.fromMap',
         ).call([literalMap(properties)]);
       } else {
-        schemaExpression = refer('Schema.string').call([], properties);
+        schemaExpression = refer('\$Schema.string').call([], properties);
       }
     } else if (type.isDartCoreInt) {
       if (hasDefault) {
         properties['type'] = literalString('integer');
         schemaExpression = refer(
-          'Schema.fromMap',
+          '\$Schema.fromMap',
         ).call([literalMap(properties)]);
       } else {
-        schemaExpression = refer('Schema.integer').call([], properties);
+        schemaExpression = refer('\$Schema.integer').call([], properties);
       }
     } else if (type.isDartCoreBool) {
       if (hasDefault) {
         properties['type'] = literalString('boolean');
         schemaExpression = refer(
-          'Schema.fromMap',
+          '\$Schema.fromMap',
         ).call([literalMap(properties)]);
       } else {
-        schemaExpression = refer('Schema.boolean').call([], properties);
+        schemaExpression = refer('\$Schema.boolean').call([], properties);
       }
     } else if (type.isDartCoreDouble || type.isDartCoreNum) {
       if (hasDefault) {
         properties['type'] = literalString('number');
         schemaExpression = refer(
-          'Schema.fromMap',
+          '\$Schema.fromMap',
         ).call([literalMap(properties)]);
       } else {
-        schemaExpression = refer('Schema.number').call([], properties);
+        schemaExpression = refer('\$Schema.number').call([], properties);
       }
     } else if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
@@ -1021,10 +1021,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (hasDefault) {
         properties['type'] = literalString('array');
         schemaExpression = refer(
-          'Schema.fromMap',
+          '\$Schema.fromMap',
         ).call([literalMap(properties)]);
       } else {
-        schemaExpression = refer('Schema.list').call([], properties);
+        schemaExpression = refer('\$Schema.list').call([], properties);
       }
     } else if (type.isDartCoreMap) {
       final valueType = (type as InterfaceType).typeArguments[1];
@@ -1036,10 +1036,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       if (hasDefault) {
         properties['type'] = literalString('object');
         schemaExpression = refer(
-          'Schema.fromMap',
+          '\$Schema.fromMap',
         ).call([literalMap(properties)]);
       } else {
-        schemaExpression = refer('Schema.object').call([], properties);
+        schemaExpression = refer('\$Schema.object').call([], properties);
       }
     } else {
       final typeName = type.getDisplayString().replaceAll('?', '');
@@ -1048,11 +1048,11 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           properties['type'] = literalString('string');
           properties['format'] = literalString('date-time');
           schemaExpression = refer(
-            'Schema.fromMap',
+            '\$Schema.fromMap',
           ).call([literalMap(properties)]);
         } else {
           properties['format'] = literalString('date-time');
-          schemaExpression = refer('Schema.string').call([], properties);
+          schemaExpression = refer('\$Schema.string').call([], properties);
         }
       } else if (type.isSchema) {
         final nestedBaseName = _resolveBaseName(type.element!.name!);
@@ -1066,7 +1066,9 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           };
           // default is not allowed as sibling of $ref, so we don't add it here.
           // It will be added in the allOf wrapper below.
-          schemaExpression = refer('Schema.fromMap').call([literalMap(refMap)]);
+          schemaExpression = refer(
+            '\$Schema.fromMap',
+          ).call([literalMap(refMap)]);
         } else {
           // For metadata generation, we can emit a direct call to the nested
           // type's jsonSchema.
@@ -1084,7 +1086,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             // Always wrap if we have properties (because we can't put them on
             // the ref)
             final allOfList = [
-              refer('Schema.fromMap').call([
+              refer('\$Schema.fromMap').call([
                 literalMap({
                   r'$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
                 }),
@@ -1101,7 +1103,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
               combinedMap['default'] = properties['default']!;
             }
 
-            return refer('Schema.fromMap').call([literalMap(combinedMap)]);
+            return refer('\$Schema.fromMap').call([literalMap(combinedMap)]);
           } else {
             // Not using refs (inline).
             // SchemaExpression is types.jsonSchema().
@@ -1115,16 +1117,16 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
             if (properties.containsKey('default')) {
               combinedMap['default'] = properties['default']!;
             }
-            return refer('Schema.fromMap').call([literalMap(combinedMap)]);
+            return refer('\$Schema.fromMap').call([literalMap(combinedMap)]);
           }
         }
       } else {
         if (hasDefault) {
           schemaExpression = refer(
-            'Schema.fromMap',
+            '\$Schema.fromMap',
           ).call([literalMap(properties)]);
         } else {
-          schemaExpression = refer('Schema.any').call([], properties);
+          schemaExpression = refer('\$Schema.any').call([], properties);
         }
       }
     }

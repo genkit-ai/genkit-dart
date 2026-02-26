@@ -65,10 +65,9 @@ class _ToolCallingInputTypeFactory extends SchemanticType<ToolCallingInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolCallingInput',
-    definition: Schema.object(
-      properties: {'prompt': Schema.string()},
-      required: ['prompt'],
-    ),
+    definition: $Schema
+        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
+        .value,
     dependencies: [],
   );
 }
@@ -118,10 +117,12 @@ class _ToolCallingWeatherInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolCallingWeatherInput',
-    definition: Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'location': $Schema.string()},
+          required: ['location'],
+        )
+        .value,
     dependencies: [],
   );
 }
