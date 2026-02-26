@@ -21,11 +21,11 @@ export 'src/converters.dart' show GenkitConverter;
 export 'src/models.dart'
     show
         audioModelInfo,
-        ttsModelInfo,
         defaultModelInfo,
         oSeriesModelInfo,
         supportsTools,
-        supportsVision;
+        supportsVision,
+        ttsModelInfo;
 
 part 'genkit_openai.g.dart';
 

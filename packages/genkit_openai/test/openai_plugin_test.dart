@@ -21,9 +21,9 @@ import 'package:openai_dart/openai_dart.dart'
         ChatCompletionAssistantMessage,
         ChatCompletionAssistantMessageAudio,
         ChatCompletionAudioFormat,
-        ChatCompletionModality,
         ChatCompletionMessage,
         ChatCompletionMessageContentPart,
+        ChatCompletionModality,
         ChatCompletionSystemMessage,
         ChatCompletionToolMessage,
         ChatCompletionUserMessage;
@@ -290,11 +290,14 @@ void main() {
       );
 
       expect(result.content.length, 1);
-      expect(result.content.first, isA<MediaPart>());
-      final media = (result.content.first as MediaPart).media;
+      final firstPart = result.content.first;
+      expect(firstPart.isMedia, true);
+      final media = firstPart.media!;
+      final audioMetadata =
+          firstPart.metadata?['audio'] as Map<String, dynamic>?;
       expect(media.contentType, 'audio/mpeg');
       expect(media.url, 'data:audio/mpeg;base64,QUJD');
-      expect(result.content.first.metadata?['audio']?['transcript'], 'hello');
+      expect(audioMetadata?['transcript'], 'hello');
     });
   });
 

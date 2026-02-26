@@ -72,6 +72,14 @@ List<ChatCompletionModality>? resolveOpenAIModalities({
   return [ChatCompletionModality.text];
 }
 
+/// Returns true if [modelId] refers to a dedicated speech synthesis model.
+bool isSpeechSynthesisModel(String modelId) {
+  final id = modelId.toLowerCase();
+  return id.contains('tts') &&
+      !id.contains('audio') &&
+      !id.contains('realtime');
+}
+
 ChatCompletionModality _parseOpenAIModality(String modality) {
   return switch (modality.toLowerCase()) {
     'text' => ChatCompletionModality.text,
