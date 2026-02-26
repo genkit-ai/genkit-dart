@@ -109,7 +109,6 @@ Future<GenerateBidiSession> runGenerateBidi(
 
   final session = model.streamBidi(init: initRequest);
 
-  // ignore: close_sinks
   final outputController = StreamController<GenerateResponseChunk>();
   final previousChunks = <ModelResponseChunk>[];
 

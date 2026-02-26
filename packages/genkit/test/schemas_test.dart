@@ -23,7 +23,6 @@ void main() {
         content: [
           TextPart(text: 'Hello, '),
           TextPart(text: 'world!'),
-          // ignore: unnecessary_type_check
           MediaPart(media: Media(url: 'http://example.com/image.png')),
         ],
       );
@@ -34,7 +33,6 @@ void main() {
       final message = Message(
         role: Role.user,
         content: [
-          // ignore: unnecessary_type_check
           MediaPart(media: Media(url: 'http://example.com/image.png')),
         ],
       );
@@ -76,7 +74,6 @@ void main() {
         role: Role.user,
         content: [
           TextPart(text: 'Hello, '),
-          // ignore: unnecessary_type_check
           MediaPart(media: media),
         ],
       );
@@ -103,7 +100,6 @@ void main() {
         message: Message(
           role: Role.model,
           content: [
-            // ignore: unnecessary_type_check
             MediaPart(media: media),
           ],
         ),
@@ -123,7 +119,6 @@ void main() {
       final media = Media(url: 'http://example.com/image.png');
       final chunk = ModelResponseChunk(
         content: [
-          // ignore: unnecessary_type_check
           MediaPart(media: media),
         ],
       );

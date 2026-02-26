@@ -17,3 +17,8 @@ analyzer:
     prefer_const_constructors: ignore
     unawaited_futures: ignore
     unreachable_from_main: ignore
+
+linter:
+  rules:
+    - unnecessary_breaks
+    - unnecessary_ignore

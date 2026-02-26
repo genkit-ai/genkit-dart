@@ -75,7 +75,6 @@ void main(List<String> arguments) async {
         IterativeRefinementInput(topic: topic),
       );
       print('\nFinal Result:\n$result');
-      break;
     case 'sequentialProcessing':
       if (args.isEmpty) {
         print('Usage: sequentialProcessing "<topic>"');
@@ -85,7 +84,6 @@ void main(List<String> arguments) async {
       print('Running Sequential Processing for topic: "$topic"...\n');
       final result = await storyWriterFlow(StoryInput(topic: topic));
       print('\nFinal Result:\n$result');
-      break;
     case 'parallelExecution':
       if (args.isEmpty) {
         print('Usage: parallelExecution "<product>"');
@@ -97,7 +95,6 @@ void main(List<String> arguments) async {
       print(
         '\nFinal Result:\nName: ${result.name}\nTagline: ${result.tagline}',
       );
-      break;
     case 'conditionalRouting':
       if (args.isEmpty) {
         print('Usage: conditionalRouting "<query>"');
@@ -107,7 +104,6 @@ void main(List<String> arguments) async {
       print('Running Conditional Routing for query: "$query"...\n');
       final result = await routerFlow(RouterInput(query: query));
       print('\nFinal Result:\n$result');
-      break;
     case 'toolCalling':
       if (args.isEmpty) {
         print('Usage: toolCalling "<prompt>"');
@@ -117,7 +113,6 @@ void main(List<String> arguments) async {
       print('Running Tool Calling for prompt: "$prompt"...\n');
       final result = await toolCallingFlow(ToolCallingInput(prompt: prompt));
       print('\nFinal Result:\n$result');
-      break;
     case 'autonomousOperation':
       if (args.isEmpty) {
         print('Usage: autonomousOperation "<task>"');
@@ -127,7 +122,6 @@ void main(List<String> arguments) async {
       print('Running Autonomous Operation for task: "$task"...\n');
       final result = await researchAgent(ResearchAgentInput(task: task));
       print('\nFinal Result:\n$result');
-      break;
     case 'agenticRag':
       if (args.isEmpty) {
         print('Usage: agenticRag "<question>"');
@@ -137,7 +131,6 @@ void main(List<String> arguments) async {
       print('Running Agentic RAG for question: "$question"...\n');
       final result = await agenticRagFlow(AgenticRagInput(question: question));
       print('\nFinal Result:\n$result');
-      break;
     case 'statefulInteractions':
       if (args.length < 2) {
         print('Usage: statefulInteractions "<sessionId>" "<message>"');
@@ -150,7 +143,6 @@ void main(List<String> arguments) async {
         StatefulChatInput(sessionId: sessionId, message: message),
       );
       print('\nFinal Result:\n$result');
-      break;
     case 'imageGenerator':
       if (args.isEmpty) {
         print('Usage: imageGenerator "<concept>"');
@@ -186,7 +178,6 @@ void main(List<String> arguments) async {
       } else {
         print('\nFinal Result (Image URL):\n$result');
       }
-      break;
     default:
       print('Unknown command: $command');
   }

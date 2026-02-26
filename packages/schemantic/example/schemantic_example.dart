@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: strict_top_level_inference, always_declare_return_types, type_annotate_public_apis, unused_element
+// ignore_for_file: strict_top_level_inference, always_declare_return_types, type_annotate_public_apis
 
 import 'dart:convert';
 

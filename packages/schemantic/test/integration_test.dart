@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: avoid_dynamic_calls, unused_element
+// ignore_for_file: avoid_dynamic_calls
 
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';

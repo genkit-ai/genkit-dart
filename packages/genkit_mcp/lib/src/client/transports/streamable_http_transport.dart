@@ -232,13 +232,10 @@ class StreamableHttpClientTransport implements McpClientTransport {
       switch (field) {
         case 'event':
           eventName = value;
-          break;
         case 'data':
           dataLines.add(value);
-          break;
         case 'id':
           eventId = value;
-          break;
         default:
           break;
       }
