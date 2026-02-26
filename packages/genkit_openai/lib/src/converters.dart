@@ -102,7 +102,22 @@ class GenkitConverter {
       return ChatCompletionMessageContentPart.text(text: part.text!);
     }
     if (part.isMedia) {
-      final media = (part as MediaPart).media;
+      final media = part.media;
+      if (media == null) {
+        throw ArgumentError('Media part is missing media payload.');
+      }
+
+      if (_isAudioMedia(media)) {
+        final encodedAudio = _extractBase64AudioData(media.url);
+        final format = _mapAudioFormat(media.contentType, media.url);
+        return ChatCompletionMessageContentPart.audio(
+          inputAudio: ChatCompletionMessageInputAudio(
+            data: encodedAudio,
+            format: format,
+          ),
+        );
+      }
+
       return ChatCompletionMessageContentPart.image(
         imageUrl: ChatCompletionMessageImageUrl(
           url: media.url,
@@ -120,6 +135,71 @@ class GenkitConverter {
       'high' => ChatCompletionMessageImageDetail.high,
       _ => ChatCompletionMessageImageDetail.auto,
     };
+  }
+
+  /// Returns true when media is audio input.
+  static bool _isAudioMedia(Media media) {
+    final contentType = media.contentType?.toLowerCase();
+    if (contentType != null && contentType.startsWith('audio/')) {
+      return true;
+    }
+
+    return media.url.toLowerCase().startsWith('data:audio/');
+  }
+
+  /// Extracts base64 audio bytes from data URL.
+  static String _extractBase64AudioData(String url) {
+    final prefixPattern = RegExp(
+      r'^data:audio\/[^;]+;base64,',
+      caseSensitive: false,
+    );
+    final match = prefixPattern.firstMatch(url);
+    if (match == null) {
+      throw ArgumentError(
+        'Audio media must be a base64 data URL (data:audio/...;base64,...).',
+      );
+    }
+
+    return url.substring(match.end);
+  }
+
+  /// Maps audio mime type to OpenAI input audio format.
+  static ChatCompletionMessageInputAudioFormat _mapAudioFormat(
+    String? contentType,
+    String url,
+  ) {
+    final normalized = (contentType ?? _extractAudioMimeTypeFromDataUrl(url))
+        ?.toLowerCase();
+
+    if (normalized == null) {
+      throw ArgumentError(
+        'Audio media is missing contentType and data URL mime type.',
+      );
+    }
+
+    if (normalized == 'audio/wav' ||
+        normalized == 'audio/x-wav' ||
+        normalized == 'audio/wave') {
+      return ChatCompletionMessageInputAudioFormat.wav;
+    }
+
+    if (normalized == 'audio/mp3' ||
+        normalized == 'audio/mpeg' ||
+        normalized == 'audio/x-mp3') {
+      return ChatCompletionMessageInputAudioFormat.mp3;
+    }
+
+    throw ArgumentError(
+      'Unsupported audio contentType "$normalized". Expected WAV or MP3.',
+    );
+  }
+
+  static String? _extractAudioMimeTypeFromDataUrl(String url) {
+    final mimePattern = RegExp(
+      r'^data:(audio\/[^;]+);base64,',
+      caseSensitive: false,
+    );
+    return mimePattern.firstMatch(url)?.group(1);
   }
 
   /// Extract tool calls from message content

@@ -27,6 +27,25 @@ ModelInfo defaultModelInfo(String model) {
   );
 }
 
+/// Model info for transcription models (Whisper and GPT transcribe models).
+ModelInfo transcriptionModelInfo(String model) {
+  return ModelInfo(
+    label: model,
+    supports: {
+      'multiturn': false,
+      'tools': false,
+      'systemRole': false,
+      'media': true,
+    },
+  );
+}
+
+/// Check if a model is a transcription model (Whisper/GPT transcribe).
+bool isTranscriptionModel(String model) {
+  final id = model.toLowerCase();
+  return id.contains('whisper') || id.contains('transcribe');
+}
+
 /// Model info for O-series reasoning models (o1, o2, o3, o4, etc.)
 /// These models have different capabilities compared to standard GPT models.
 ModelInfo oSeriesModelInfo(String model) {

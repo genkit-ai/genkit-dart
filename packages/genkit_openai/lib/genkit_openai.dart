@@ -19,7 +19,13 @@ import 'src/openai_plugin.dart';
 
 export 'src/converters.dart' show GenkitConverter;
 export 'src/models.dart'
-    show defaultModelInfo, oSeriesModelInfo, supportsTools, supportsVision;
+    show
+        defaultModelInfo,
+        isTranscriptionModel,
+        oSeriesModelInfo,
+        supportsTools,
+        supportsVision,
+        transcriptionModelInfo;
 
 part 'genkit_openai.g.dart';
 

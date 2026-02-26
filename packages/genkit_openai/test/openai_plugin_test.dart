@@ -166,6 +166,53 @@ void main() {
       final result = GenkitConverter.toOpenAIContentPart(part, 'high');
       expect(result, isA<ChatCompletionMessageContentPart>());
     });
+
+    test('converts audio media part', () {
+      final part = MediaPart(
+        media: Media(
+          url: 'data:audio/wav;base64,UklGRg==',
+          contentType: 'audio/wav',
+        ),
+      );
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+      final json = result.toJson();
+      final inputAudio = json['input_audio'] as Map<String, dynamic>;
+
+      expect(json['type'], 'input_audio');
+      expect(inputAudio['format'], 'wav');
+      expect(inputAudio['data'], 'UklGRg==');
+    });
+
+    test('converts audio from generic Part payload', () {
+      final part = Part.fromJson({
+        'media': {
+          'url': 'data:audio/wav;base64,UklGRg==',
+          'contentType': 'audio/wav',
+        },
+      });
+
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+      final json = result.toJson();
+      final inputAudio = json['input_audio'] as Map<String, dynamic>;
+
+      expect(json['type'], 'input_audio');
+      expect(inputAudio['format'], 'wav');
+      expect(inputAudio['data'], 'UklGRg==');
+    });
+
+    test('throws on non-data-url audio input', () {
+      final part = MediaPart(
+        media: Media(
+          url: 'https://example.com/audio.wav',
+          contentType: 'audio/wav',
+        ),
+      );
+
+      expect(
+        () => GenkitConverter.toOpenAIContentPart(part, null),
+        throwsArgumentError,
+      );
+    });
   });
 
   group('GenkitConverter.toOpenAITool', () {
@@ -227,6 +274,23 @@ void main() {
       expect(info.supports?['tools'], false);
       expect(info.supports?['systemRole'], false);
       expect(info.supports?['media'], true); // O-series models support vision
+    });
+
+    test('transcriptionModelInfo sets correct supports', () {
+      final info = transcriptionModelInfo('whisper-1');
+      expect(info.supports?['multiturn'], false);
+      expect(info.supports?['tools'], false);
+      expect(info.supports?['systemRole'], false);
+      expect(info.supports?['media'], true);
+    });
+
+    test('isTranscriptionModel identifies whisper/transcribe models', () {
+      expect(isTranscriptionModel('whisper-1'), true);
+      expect(isTranscriptionModel('gpt-4o-transcribe'), true);
+      expect(isTranscriptionModel('gpt-4o-mini-transcribe'), true);
+
+      expect(isTranscriptionModel('tts-1'), false);
+      expect(isTranscriptionModel('gpt-4o'), false);
     });
 
     test('supportsVision identifies vision models', () {
