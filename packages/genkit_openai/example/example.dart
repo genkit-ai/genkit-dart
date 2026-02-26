@@ -150,7 +150,7 @@ Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
 Flow<String, String, void, void> defineModelListFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'modelList',
-    inputSchema: .string(defaultValue: ''),
+    inputSchema: .string(),
     outputSchema: .string(),
     fn: (_, _) async {
       final actions = await ai.registry.listActions();
