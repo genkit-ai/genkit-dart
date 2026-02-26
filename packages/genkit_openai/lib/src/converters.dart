@@ -18,7 +18,7 @@ import 'package:genkit/genkit.dart';
 import 'package:openai_dart/openai_dart.dart';
 
 /// Converter class for transforming between Genkit and OpenAI formats
-class GenkitConverter {
+abstract final class GenkitConverter {
   /// Convert Genkit messages to OpenAI format
   static List<ChatCompletionMessage> toOpenAIMessages(
     List<Message> messages,
