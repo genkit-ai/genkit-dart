@@ -28,8 +28,10 @@ Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
     inputSchema: .string(defaultValue: 'gpt-4o-mini'),
     outputSchema: .string(),
     fn: (modelName, _) async {
-      final action =
-          await ai.registry.lookupAction('model', 'openai/$modelName');
+      final action = await ai.registry.lookupAction(
+        'model',
+        'openai/$modelName',
+      );
 
       if (action == null) {
         return 'Model not found: openai/$modelName';

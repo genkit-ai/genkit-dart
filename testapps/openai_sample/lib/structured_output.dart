@@ -55,7 +55,9 @@ abstract class $MovieReview {
 /// Passes a MovieReview schema to Genkit.generate using outputSchema,
 /// which instructs the model to respond with valid JSON matching that shape.
 /// The typed result is accessed via output rather than text.
-Flow<MovieReviewInput, MovieReview, void, void> defineStructuredOutputFlow(Genkit ai) {
+Flow<MovieReviewInput, MovieReview, void, void> defineStructuredOutputFlow(
+  Genkit ai,
+) {
   return ai.defineFlow(
     name: 'structuredOutput',
     inputSchema: MovieReviewInput.$schema,
@@ -65,13 +67,15 @@ Flow<MovieReviewInput, MovieReview, void, void> defineStructuredOutputFlow(Genki
 
       final response = await ai.generate(
         model: openAI.model('gpt-4o'),
-        prompt: 'Write a detailed review  of the movie "${input.title}$yearClause".',
+        prompt:
+            'Write a detailed review  of the movie "${input.title}$yearClause".',
         outputFormat: 'json',
         outputSchema: MovieReview.$schema,
       );
 
       final output = response.output;
-      if (output == null) throw StateError('Model returned no structured output.');
+      if (output == null)
+        throw StateError('Model returned no structured output.');
       return output;
     },
   );
@@ -81,7 +85,8 @@ Flow<MovieReviewInput, MovieReview, void, void> defineStructuredOutputFlow(Genki
 ///
 /// Emits summary paragraphs as streaming chunks, then returns structured [MovieReview]
 /// in the final output.
-Flow<MovieReviewInput, MovieReview, String, void> defineStreamedStructuredOutputFlow(Genkit ai) {
+Flow<MovieReviewInput, MovieReview, String, void>
+defineStreamedStructuredOutputFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'streamedStructuredOutput',
     inputSchema: MovieReviewInput.$schema,
@@ -91,7 +96,8 @@ Flow<MovieReviewInput, MovieReview, String, void> defineStreamedStructuredOutput
       final yearClause = input.year != null ? ' (${input.year})' : '';
       final stream = ai.generateStream(
         model: openAI.model('gpt-4o'),
-        prompt: 'Write a detailed review of the movie "${input.title}$yearClause".',
+        prompt:
+            'Write a detailed review of the movie "${input.title}$yearClause".',
         outputFormat: 'json',
         outputSchema: MovieReview.$schema,
       );
@@ -106,7 +112,8 @@ Flow<MovieReviewInput, MovieReview, String, void> defineStreamedStructuredOutput
 
       final response = await stream.onResult;
       final output = response.output;
-      if (output == null) throw StateError('Model returned no structured output.');
+      if (output == null)
+        throw StateError('Model returned no structured output.');
       return output;
     },
   );

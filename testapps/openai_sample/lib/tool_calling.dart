@@ -49,8 +49,10 @@ abstract class $WeatherToolOutput {
 ///
 /// Registers a mock weather tool and lets the model decide when and how to
 /// invoke it. The model receives the tool's result and composes a final answer.
-Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(Genkit ai, Tool getWeather) {
-
+Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(
+  Genkit ai,
+  Tool getWeather,
+) {
   return ai.defineFlow(
     name: 'toolCalling',
     inputSchema: WeatherFlowInput.$schema,
@@ -69,7 +71,10 @@ Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(Genkit ai, Tool
 /// Defines a flow that demonstrates streaming tool/function calling.
 ///
 /// This flow works just like [defineToolCallingFlow], but emits text as it streams from the model.
-Flow<WeatherFlowInput, String, String, void> defineStreamedToolCallingFlow(Genkit ai, Tool getWeather) {
+Flow<WeatherFlowInput, String, String, void> defineStreamedToolCallingFlow(
+  Genkit ai,
+  Tool getWeather,
+) {
   return ai.defineFlow(
     name: 'streamedToolCalling',
     inputSchema: WeatherFlowInput.$schema,
@@ -108,8 +113,9 @@ void main() {
       final unit = input.unit ?? 'celsius';
       final random = Random();
       final tempCelsius = 15 + random.nextInt(20);
-      final temperature =
-          unit == 'fahrenheit' ? (tempCelsius * 9 / 5) + 32 : tempCelsius.toDouble();
+      final temperature = unit == 'fahrenheit'
+          ? (tempCelsius * 9 / 5) + 32
+          : tempCelsius.toDouble();
       final conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'];
 
       return WeatherToolOutput(
