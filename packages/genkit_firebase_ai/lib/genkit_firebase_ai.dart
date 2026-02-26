@@ -21,7 +21,6 @@ import 'package:firebase_app_check/firebase_app_check.dart' as fac;
 import 'package:firebase_auth/firebase_auth.dart' as fauth;
 import 'package:firebase_core/firebase_core.dart' as fcore;
 import 'package:genkit/plugin.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
@@ -585,10 +584,7 @@ List<fai.Tool>? toGeminiTools(
 fai.Tool _toGeminiTool(ToolDefinition tool) {
   final rawSchema = tool.inputSchema;
 
-  var flattened = <String, dynamic>{};
-  if (rawSchema != null) {
-    flattened = Schema.fromMap(rawSchema).flatten().value;
-  }
+  final flattened = rawSchema?.flatten() ?? <String, dynamic>{};
 
   final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
   final requiredList =
@@ -613,10 +609,8 @@ fai.Tool _toGeminiTool(ToolDefinition tool) {
 }
 
 @visibleForTesting
-fai.Schema toGeminiSchema(Map<String, dynamic> json) {
-  final flattened = Schema.fromMap(json).flatten().value;
-  return _toGeminiSchemaInternal(flattened);
-}
+fai.Schema toGeminiSchema(Map<String, dynamic> json) =>
+    _toGeminiSchemaInternal(json.flatten());
 
 fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
   final type = json['type']; // dynamic

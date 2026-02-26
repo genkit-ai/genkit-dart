@@ -33,10 +33,3 @@ Map<String, dynamic> toJsonSchema({
 
   return result;
 }
-
-/// Flattens a JSON schema by dereferencing all `$ref`s and removing `$defs`.
-///
-/// Throws [FormatException] if recursive references are detected.
-Map<String, dynamic> flattenSchema(Map<String, dynamic> schema) {
-  return Schema.fromMap(schema).flatten().value;
-}

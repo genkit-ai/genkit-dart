@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 import 'package:schemantic/schemantic.dart';
 
@@ -31,7 +30,7 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 /// Returns null if [schema] is null.
 ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   if (schema == null) return null;
-  final flattened = Schema.fromMap(schema).flatten().value;
+  final flattened = schema.flatten();
   return ResponseFormat.jsonSchema(
     jsonSchema: JsonSchemaObject(
       name: 'output',
