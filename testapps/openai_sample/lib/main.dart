@@ -17,7 +17,6 @@ import 'dart:math';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:schemantic/schemantic.dart';
 
 import 'openai_flows.dart';
 
@@ -80,8 +79,8 @@ Future<void> main(List<String> args) async {
   // Flow 1: Simple text generation
   ai.defineFlow(
     name: 'simpleGenerate',
-    inputSchema: stringSchema(defaultValue: 'Explain how LLMs work'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Explain how LLMs work'),
+    outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -94,8 +93,8 @@ Future<void> main(List<String> args) async {
   // Flow 2: Creative generation with higher temperature
   ai.defineFlow(
     name: 'creativeGenerate',
-    inputSchema: stringSchema(defaultValue: 'Explain how LLMs work'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Explain how LLMs work'),
+    outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -109,9 +108,9 @@ Future<void> main(List<String> args) async {
   // Flow 3: Streaming generation
   ai.defineFlow(
     name: 'streamGenerate',
-    inputSchema: stringSchema(defaultValue: 'Explain how LLMs work'),
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Explain how LLMs work'),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (prompt, context) async {
       final buffer = StringBuffer();
 
@@ -141,8 +140,8 @@ Future<void> main(List<String> args) async {
   // Flow 4: Weather query
   ai.defineFlow(
     name: 'weatherQuery',
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
     fn: (query, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -157,10 +156,10 @@ Future<void> main(List<String> args) async {
   // Flow 5: Multi-tool assistant
   ai.defineFlow(
     name: 'assistant',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'What is the weather like in San Francisco?',
     ),
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (query, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o-mini'),
@@ -174,8 +173,8 @@ Future<void> main(List<String> args) async {
   // Flow 6: Chat with system prompt
   ai.defineFlow(
     name: 'dartExpert',
-    inputSchema: stringSchema(defaultValue: 'Explain flutter'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Explain flutter'),
+    outputSchema: .string(),
     fn: (userMessage, context) async {
       final messages = <Message>[
         Message(

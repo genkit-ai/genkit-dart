@@ -77,25 +77,25 @@ void main() {
   group('Extension Type Generation', () {
     test('Parses and accesses data correctly', () {
       final recipeJson = {
-        "title": "Pancakes",
-        "ingredients": [
-          {"name": "Flour", "quantity": "1 cup"},
-          {"name": "Milk", "quantity": "1 cup"},
+        'title': 'Pancakes',
+        'ingredients': [
+          {'name': 'Flour', 'quantity': '1 cup'},
+          {'name': 'Milk', 'quantity': '1 cup'},
         ],
-        "servings": 4,
+        'servings': 4,
       };
 
       final recipe = Recipe.$schema.parse(recipeJson);
 
-      expect(recipe.title, "Pancakes");
+      expect(recipe.title, 'Pancakes');
       expect(recipe.servings, 4);
       expect(recipe.ingredients.length, 2);
-      expect(recipe.ingredients[0].name, "Flour");
-      expect(recipe.ingredients[0].quantity, "1 cup");
+      expect(recipe.ingredients[0].name, 'Flour');
+      expect(recipe.ingredients[0].quantity, '1 cup');
 
       // Modify and verify
-      recipe.title = "Fluffy Pancakes";
-      expect(recipe.title, "Fluffy Pancakes");
+      recipe.title = 'Fluffy Pancakes';
+      expect(recipe.title, 'Fluffy Pancakes');
     });
 
     test('Generates correct JSON schema', () {
@@ -327,24 +327,24 @@ void main() {
       final menuJson = {
         'recipes': [
           {
-            "title": "Pancakes",
-            "ingredients": [
-              {"name": "Flour", "quantity": "1 cup"},
+            'title': 'Pancakes',
+            'ingredients': [
+              {'name': 'Flour', 'quantity': '1 cup'},
             ],
-            "servings": 4,
+            'servings': 4,
           },
         ],
         'optionalIngredients': [
-          {"name": "Syrup", "quantity": "2 tbsp"},
+          {'name': 'Syrup', 'quantity': '2 tbsp'},
         ],
       };
 
       final menu = Menu.$schema.parse(menuJson);
 
       expect(menu.recipes.length, 1);
-      expect(menu.recipes[0].title, "Pancakes");
+      expect(menu.recipes[0].title, 'Pancakes');
       expect(menu.optionalIngredients?.length, 1);
-      expect(menu.optionalIngredients?[0].name, "Syrup");
+      expect(menu.optionalIngredients?[0].name, 'Syrup');
     });
   });
 }

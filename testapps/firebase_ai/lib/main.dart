@@ -15,16 +15,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:audioplayers/audioplayers.dart';
-import 'package:firebase_ai_testapp/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Flow;
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:logging/logging.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
-import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
+
+import 'firebase_options.dart';
 
 part 'main.g.dart';
 
@@ -621,7 +623,7 @@ class AudioPlayerQueue {
   }
 
   void _writeString(ByteData view, int offset, String s) {
-    for (int i = 0; i < s.length; i++) {
+    for (var i = 0; i < s.length; i++) {
       view.setUint8(offset + i, s.codeUnitAt(i));
     }
   }
@@ -638,7 +640,7 @@ class StructuredStreamingScreen extends StatefulWidget {
 class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
   final _controller = TextEditingController();
   late final Genkit _ai;
-  late final dynamic _flow;
+  late final Flow _flow;
   String _streamedText = '';
   RpgCharacter? _finalCharacter;
   bool _isLoading = false;
@@ -650,7 +652,7 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
 
     _flow = _ai.defineFlow(
       name: 'structuredStreaming',
-      inputSchema: stringSchema(defaultValue: 'Gorble'),
+      inputSchema: .string(defaultValue: 'Gorble'),
       streamSchema: RpgCharacter.$schema,
       outputSchema: RpgCharacter.$schema,
       fn: (name, ctx) async {

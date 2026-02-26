@@ -23,19 +23,19 @@ import 'package:test/test.dart';
 void main() {
   group('Basic Types', () {
     test('stringSchema()', () {
-      expect(stringSchema().parse('hello'), 'hello');
-      final json = jsonDecode(stringSchema().jsonSchema().toJson());
+      expect(SchemanticType.string().parse('hello'), 'hello');
+      final json = jsonDecode(SchemanticType.string().jsonSchema().toJson());
       expect(json['type'], 'string');
     });
 
     test('intSchema()', () {
-      expect(intSchema().parse(123), 123);
-      final json = jsonDecode(intSchema().jsonSchema().toJson());
+      expect(SchemanticType.integer().parse(123), 123);
+      final json = jsonDecode(SchemanticType.integer().jsonSchema().toJson());
       expect(json['type'], 'integer');
     });
 
     test('listSchema with stringSchema()', () {
-      final stringListParams = listSchema(stringSchema());
+      final stringListParams = SchemanticType.list(.string());
       final json = ['a', 'b', 'c'];
       final parsed = stringListParams.parse(json);
 
@@ -52,7 +52,7 @@ void main() {
     });
 
     test('listSchema with complex objects', () {
-      final nestedList = listSchema(listSchema(intSchema()));
+      final nestedList = SchemanticType.list(.list(.integer()));
       final json = [
         [1, 2],
         [3, 4],
@@ -74,58 +74,70 @@ void main() {
     });
 
     test('doubleSchema()', () {
-      expect(doubleSchema().parse(12.34), 12.34);
-      expect(doubleSchema().parse(10), 10.0); // Test int to double conversion
-      final json = jsonDecode(doubleSchema().jsonSchema().toJson());
+      expect(SchemanticType.doubleSchema().parse(12.34), 12.34);
+      expect(
+        SchemanticType.doubleSchema().parse(10),
+        10.0,
+      ); // Test int to double conversion
+      final json = jsonDecode(
+        SchemanticType.doubleSchema().jsonSchema().toJson(),
+      );
       expect(json['type'], 'number');
     });
 
     test('boolSchema()', () {
-      expect(boolSchema().parse(true), true);
-      expect(boolSchema().parse(false), false);
-      final json = jsonDecode(boolSchema().jsonSchema().toJson());
+      expect(SchemanticType.boolean().parse(true), true);
+      expect(SchemanticType.boolean().parse(false), false);
+      final json = jsonDecode(SchemanticType.boolean().jsonSchema().toJson());
       expect(json['type'], 'boolean');
     });
 
     test('voidSchema()', () {
-      expect(() => voidSchema().parse(null), returnsNormally);
-      expect(() => voidSchema().parse('anything'), returnsNormally);
-      final json = jsonDecode(voidSchema().jsonSchema().toJson());
+      expect(() => SchemanticType.voidSchema().parse(null), returnsNormally);
+      expect(
+        () => SchemanticType.voidSchema().parse('anything'),
+        returnsNormally,
+      );
+      final json = jsonDecode(
+        SchemanticType.voidSchema().jsonSchema().toJson(),
+      );
       expect(json['type'], 'null');
     });
 
     test('dynamicSchema()', () {
-      expect(dynamicSchema().parse(123), 123);
-      expect(dynamicSchema().parse('hello'), 'hello');
-      expect(dynamicSchema().parse(true), true);
-      expect(dynamicSchema().parse(null), null);
+      expect(SchemanticType.dynamicSchema().parse(123), 123);
+      expect(SchemanticType.dynamicSchema().parse('hello'), 'hello');
+      expect(SchemanticType.dynamicSchema().parse(true), true);
+      expect(SchemanticType.dynamicSchema().parse(null), null);
       final list = [1, 2];
-      expect(dynamicSchema().parse(list), list);
+      expect(SchemanticType.dynamicSchema().parse(list), list);
       final map = {'a': 1};
-      expect(dynamicSchema().parse(map), map);
+      expect(SchemanticType.dynamicSchema().parse(map), map);
 
-      final json = jsonDecode(dynamicSchema().jsonSchema().toJson());
+      final json = jsonDecode(
+        SchemanticType.dynamicSchema().jsonSchema().toJson(),
+      );
       // schema.any() typically returns an empty schema {} which allows everything
       // In new impl we might return empty map or with description
       expect(json, isEmpty);
     });
 
     test('defaultValue in helpers', () {
-      final s = stringSchema(defaultValue: 'default');
+      final s = SchemanticType.string(defaultValue: 'default');
       expect(jsonDecode(s.jsonSchema().toJson())['default'], 'default');
 
-      final i = intSchema(defaultValue: 42);
+      final i = SchemanticType.integer(defaultValue: 42);
       expect(jsonDecode(i.jsonSchema().toJson())['default'], 42);
 
-      final d = doubleSchema(defaultValue: 3.14);
+      final d = SchemanticType.doubleSchema(defaultValue: 3.14);
       expect(jsonDecode(d.jsonSchema().toJson())['default'], 3.14);
 
-      final b = boolSchema(defaultValue: true);
+      final b = SchemanticType.boolean(defaultValue: true);
       expect(jsonDecode(b.jsonSchema().toJson())['default'], true);
     });
 
     test('MapType replacement', () {
-      final mapT = mapSchema(stringSchema(), dynamicSchema());
+      final mapT = SchemanticType.map(.string(), .dynamicSchema());
       final json = {'key': 'value', 'a': 1};
       expect(mapT.parse(json), json);
       final schemaJson = jsonDecode(mapT.jsonSchema().toJson());
@@ -133,15 +145,18 @@ void main() {
     });
 
     test('Parsing errors', () {
-      expect(() => intSchema().parse('not an int'), throwsA(isA<TypeError>()));
       expect(
-        () => listSchema(intSchema()).parse(['a']),
+        () => SchemanticType.integer().parse('not an int'),
+        throwsA(isA<TypeError>()),
+      );
+      expect(
+        () => SchemanticType.list(.integer()).parse(['a']),
         throwsA(isA<TypeError>()),
       );
     });
 
     test('mapType with Strings and Ints', () {
-      final mapT = mapSchema(stringSchema(), intSchema());
+      final mapT = SchemanticType.map(.string(), .integer());
       final json = {'a': 1, 'b': 2};
       final parsed = mapT.parse(json);
       expect(parsed, {'a': 1, 'b': 2});
@@ -155,7 +170,7 @@ void main() {
     group('Reference Handling', () {
       test('listSchema with useRefs=true handles nested defs', () {
         final type = _MockType();
-        final list = listSchema(type);
+        final list = SchemanticType.list(type);
         final schema = list.jsonSchema(useRefs: true);
         final json = jsonDecode(schema.toJson());
 
@@ -176,7 +191,7 @@ void main() {
 
       test('mapSchema with useRefs=true handles nested defs', () {
         final type = _MockType();
-        final mapT = mapSchema(stringSchema(), type);
+        final mapT = SchemanticType.map(.string(), type);
         final schema = mapT.jsonSchema(useRefs: true);
         final json = jsonDecode(schema.toJson());
 
@@ -196,7 +211,7 @@ void main() {
     });
 
     test('nullable()', () {
-      final nullableString = nullable(stringSchema());
+      final nullableString = SchemanticType.nullable(.string());
       expect(nullableString.parse('hello'), 'hello');
       expect(nullableString.parse(null), null);
 
@@ -207,13 +222,13 @@ void main() {
     });
 
     test('nullable() round trip', () {
-      final s = nullable(intSchema());
+      final s = SchemanticType.nullable(.integer());
       expect(s.parse(123), 123);
       expect(s.parse(null), null);
     });
 
     test('nullable() with mapSchema (object)', () {
-      final nullableMap = nullable(mapSchema(stringSchema(), intSchema()));
+      final nullableMap = SchemanticType.nullable(.map(.string(), .integer()));
 
       // Test parsing map
       final mapValue = {'a': 1, 'b': 2};
@@ -240,9 +255,9 @@ void main() {
     });
 
     test('nullable() idempotency', () {
-      final s = stringSchema();
-      final n1 = nullable(s);
-      final n2 = nullable(n1);
+      final s = SchemanticType.string();
+      final n1 = SchemanticType.nullable(s);
+      final n2 = SchemanticType.nullable(n1);
 
       expect(n2, same(n1));
 

@@ -72,14 +72,11 @@ class _StatefulChatInputTypeFactory extends SchemanticType<StatefulChatInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'StatefulChatInput',
-        definition: Schema.object(
-          properties: {
-            'sessionId': Schema.string(),
-            'message': Schema.string()
-          },
-          required: ['sessionId', 'message'],
-        ),
-        dependencies: [],
-      );
+    name: 'StatefulChatInput',
+    definition: Schema.object(
+      properties: {'sessionId': Schema.string(), 'message': Schema.string()},
+      required: ['sessionId', 'message'],
+    ),
+    dependencies: [],
+  );
 }

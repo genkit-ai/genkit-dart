@@ -127,8 +127,8 @@ Wrap your AI logic in flows for better observability, testing, and deployment:
 ```dart
 final jokeFlow = ai.defineFlow(
   name: 'tellJoke',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
   fn: (topic, _) async {
     final response = await ai.generate(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -149,9 +149,9 @@ Stream data from your flows using `context.sendChunk`:
 ```dart
 final streamStory = ai.defineFlow(
   name: 'streamStory',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
-  streamSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
+  streamSchema: .string(),
   fn: (topic, context) async {
     final stream = ai.generateStream(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -237,8 +237,8 @@ Remote actions represent a remote Genkit action (like flows, models and prompts)
 #### Creating a remote action
 final stringAction = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
 );
 
 // Create a remote action for custom objects
@@ -258,8 +258,8 @@ The code assumes that you have `my-flow` and `custom-flow` deployed at those URL
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/echo-string',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
 );
 
 try {
@@ -318,9 +318,9 @@ Use the `stream` method for flows that stream multiple chunks of data and then r
 ```dart
 final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-story',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
-  streamSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
+  streamSchema: .string(),
 );
 
 try {
@@ -397,8 +397,8 @@ You can also set default headers when creating the remote action:
 ```dart
 final action = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
   defaultHeaders: {'Authorization': 'Bearer your-token'},
 );
 ```

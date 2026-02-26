@@ -27,17 +27,17 @@ dart pub add dev:build_runner
 Schemantic provides a set of basic types and helpers for creating dynamic schemas without generating code.
 
 #### Primitives
-- `stringSchema({String? description, int? minLength, ...})`
-- `intSchema({String? description, int? minimum, ...})`
-- `doubleSchema({String? description, double? minimum, ...})`
-- `boolSchema({String? description})`
-- `voidSchema({String? description})`
-- `dynamicSchema({String? description})`
+- `SchemanticType.string({String? description, int? minLength, ...})`
+- `SchemanticType.integer({String? description, int? minimum, ...})`
+- `SchemanticType.doubleSchema({String? description, double? minimum, ...})`
+- `SchemanticType.boolean({String? description})`
+- `SchemanticType.voidSchema({String? description})`
+- `SchemanticType.dynamicSchema({String? description})`
 
 Example:
 
 ```dart
-final age = intSchema(
+final age = SchemanticType.integer(
   description: 'Age in years',
   minimum: 0,
   defaultValue: 18,
@@ -51,15 +51,15 @@ You can create strongly typed Lists and Maps dynamically:
 ```dart
 void main() {
   // Define a List of Strings
-  final stringList = listSchema(stringSchema());
+  final stringList = SchemanticType.list(.string());
   print(stringList.parse(['a', 'b'])); // ['a', 'b']
 
   // Define a Map with String keys and Integer values
-  final scores = mapSchema(stringSchema(), intSchema());
+  final scores = SchemanticType.map(.string(), .integer());
   print(scores.parse({'Alice': 100, 'Bob': 80})); // {'Alice': 100, 'Bob': 80}
 
   // Nesting types
-  final matrix = listSchema(listSchema(intSchema()));
+  final matrix = SchemanticType.list(.list(.integer()));
   print(matrix.parse([[1, 2], [3, 4]])); // [[1, 2], [3, 4]]
   
   // JSON Schema generation works as expected
@@ -220,8 +220,8 @@ You can use `listSchema` and `mapSchema` to create collections with metadata and
 
 ```dart
 // A list of strings with description and size constraints.
-final tags = listSchema(
-  stringSchema(),
+final tags = SchemanticType.list(
+  .string(),
   description: 'A list of tags',
   minItems: 1,
   maxItems: 10,
@@ -229,9 +229,9 @@ final tags = listSchema(
 );
 
 // A map with integer values.
-final scores = mapSchema(
-  stringSchema(),
-  intSchema(),
+final scores = SchemanticType.map(
+  .string(),
+  .int(),
   description: 'Player scores',
   minProperties: 1,
 );

@@ -526,7 +526,7 @@ Part fromGeminiPart(fai.Part p) {
 
   final metadata = <String, dynamic>{
     if (p.isThought == true) 'isThought': true,
-    if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
+    'thoughtSignature': ?thoughtSignature,
   };
 
   if (p is fai.TextPart) {

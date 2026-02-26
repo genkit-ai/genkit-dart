@@ -204,7 +204,8 @@ Future<HttpServer> startFlowServer({
               return Response.ok(
                 '',
                 headers: {
-                  'Access-Control-Allow-Origin': cors['origin'] ?? '*',
+                  'Access-Control-Allow-Origin':
+                      (cors['origin'] as String?) ?? '*',
                   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
                   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                 },
@@ -213,7 +214,8 @@ Future<HttpServer> startFlowServer({
             final response = await innerHandler(request);
             return response.change(
               headers: {
-                'Access-Control-Allow-Origin': cors['origin'] ?? '*',
+                'Access-Control-Allow-Origin':
+                    (cors['origin'] as String?) ?? '*',
                 ...response.headers,
               },
             );

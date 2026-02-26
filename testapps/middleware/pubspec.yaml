@@ -8,7 +8,7 @@ environment:
 dependencies:
   genkit: ^0.10.0-dev.11
   genkit_google_genai: ^0.0.1-dev.11
-  genkit_middleware: ^0.0.1
+  genkit_middleware: ^0.0.1-0
   schemantic: ^0.0.1-dev.13
 
 dev_dependencies:

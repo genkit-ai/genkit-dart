@@ -137,16 +137,20 @@ class ReflectionServerV2 {
           await _handleListActions(id);
           break;
         case 'runAction':
-          await _handleRunAction(id, request['params']);
+          await _handleRunAction(id, request['params'] as Map<String, dynamic>);
           break;
         case 'configure':
           // Not implemented yet
           break;
         case 'streamInputChunk':
-          await _handleStreamInputChunk(request['params']);
+          await _handleStreamInputChunk(
+            request['params'] as Map<String, dynamic>,
+          );
           break;
         case 'endStreamInput':
-          await _handleEndStreamInput(request['params']);
+          await _handleEndStreamInput(
+            request['params'] as Map<String, dynamic>,
+          );
           break;
         default:
           if (id != null) {

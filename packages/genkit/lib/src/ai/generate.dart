@@ -502,7 +502,9 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
     GenerateActionOptions(
       model: modelName,
       messages: resolvedMessages,
-      config: config is Map ? config : (config as dynamic)?.toJson(),
+      config: config is Map
+          ? config as Map<String, dynamic>
+          : (config as dynamic)?.toJson() as Map<String, dynamic>?,
       tools: tools,
       toolChoice: toolChoice,
       returnToolRequests: returnToolRequests,

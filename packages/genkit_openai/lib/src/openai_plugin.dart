@@ -34,10 +34,7 @@ ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   return ResponseFormat.jsonSchema(
     jsonSchema: JsonSchemaObject(
       name: 'output',
-      schema: {
-        ...flattened,
-        'additionalProperties': false,
-      },
+      schema: {...flattened, 'additionalProperties': false},
       strict: true,
     ),
   );
@@ -72,7 +69,7 @@ class OpenAIPlugin extends GenkitPlugin {
         for (final modelId in availableModelIds) {
           final modelType = getModelType(modelId);
 
-          if (modelType != 'chat' && modelType != "unknown") {
+          if (modelType != 'chat' && modelType != 'unknown') {
             continue;
           }
 
@@ -306,8 +303,7 @@ class OpenAIPlugin extends GenkitPlugin {
             req.output?.format,
             req.output?.contentType,
           );
-          final responseFormat =
-              buildOpenAIResponseFormat(req.output?.schema);
+          final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
           final request = CreateChatCompletionRequest(
             model: ChatCompletionModel.modelId(options.version ?? modelName),
             messages: GenkitConverter.toOpenAIMessages(
