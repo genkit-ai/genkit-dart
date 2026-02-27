@@ -1,3 +1,21 @@
+## 0.10.0-dev.17
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: do not default instructions for json format (should use native constrained generation) (#176).
+ - **FIX**: enable and fix a couple of lints (#174).
+ - **FIX**: enforce formatting check in CI (#166).
+ - **FIX**: be consistent with String quotes (#164).
+ - **FIX**: fix strict casts (#165).
+ - **FIX**: don't import dart:io in registry (#159).
+ - **FIX**: lite.dart needs to call the function (#160).
+ - **FIX**: better generics (#153).
+ - **FIX**: move Genkit class to a library and export (#152).
+ - **FIX**: fix a couple of dartdoc issues (#151).
+ - **FIX**: extractJson return null for partial mode when no JSON started (#141).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
 ## 0.10.0-dev.16
 
  - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).

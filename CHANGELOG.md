@@ -3,6 +3,106 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-02-27
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit` - `v0.10.0-dev.17`](#genkit---v0100-dev17)
+ - [`genkit_anthropic` - `v0.0.1-dev.8`](#genkit_anthropic---v001-dev8)
+ - [`genkit_google_genai` - `v0.0.1-dev.17`](#genkit_google_genai---v001-dev17)
+ - [`genkit_mcp` - `v0.0.1-dev.6`](#genkit_mcp---v001-dev6)
+ - [`genkit_middleware` - `v0.0.1-dev.6`](#genkit_middleware---v001-dev6)
+ - [`genkit_openai` - `v0.0.1-dev.6`](#genkit_openai---v001-dev6)
+ - [`genkit_shelf` - `v0.0.1-dev.17`](#genkit_shelf---v001-dev17)
+ - [`schemantic` - `v0.0.1-dev.18`](#schemantic---v001-dev18)
+
+Packages with other changes:
+
+ - [`genkit_chrome` - `v0.0.1-dev.8`](#genkit_chrome---v001-dev8)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_chrome` - `v0.0.1-dev.8`
+
+---
+
+#### `genkit` - `v0.10.0-dev.17`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: do not default instructions for json format (should use native constrained generation) (#176).
+ - **FIX**: enable and fix a couple of lints (#174).
+ - **FIX**: enforce formatting check in CI (#166).
+ - **FIX**: be consistent with String quotes (#164).
+ - **FIX**: fix strict casts (#165).
+ - **FIX**: don't import dart:io in registry (#159).
+ - **FIX**: lite.dart needs to call the function (#160).
+ - **FIX**: better generics (#153).
+ - **FIX**: move Genkit class to a library and export (#152).
+ - **FIX**: fix a couple of dartdoc issues (#151).
+ - **FIX**: extractJson return null for partial mode when no JSON started (#141).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+#### `genkit_anthropic` - `v0.0.1-dev.8`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: do not default instructions for json format (should use native constrained generation) (#176).
+ - **FIX**: fix strict casts (#165).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+#### `genkit_google_genai` - `v0.0.1-dev.17`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: fix strict casts (#165).
+ - **FEAT**: Allow implicit media content types for data URIs (#162).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+#### `genkit_mcp` - `v0.0.1-dev.6`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: enable and fix a couple of lints (#174).
+ - **FIX**: fix strict casts (#165).
+ - **FIX**: better generics (#153).
+ - **FIX**: fix a couple of dartdoc issues (#151).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+#### `genkit_middleware` - `v0.0.1-dev.6`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: enforce formatting check in CI (#166).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+#### `genkit_openai` - `v0.0.1-dev.6`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: do not default instructions for json format (should use native constrained generation) (#176).
+ - **FIX**: make static helper classes abstract final (#173).
+ - **FIX**: be consistent with String quotes (#164).
+ - **FIX**: fix strict casts (#165).
+ - **FEAT**(openai): add structured outputs (#157).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+#### `genkit_shelf` - `v0.0.1-dev.17`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: fix strict casts (#165).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+#### `schemantic` - `v0.0.1-dev.18`
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **REFACTOR**: Internal Dart style tweaks (#156).
+ - **FIX**: make static helper classes abstract final (#173).
+ - **FIX**: enable and fix a couple of lints (#174).
+ - **FIX**: be consistent with String quotes (#164).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
+
 ## 2026-02-19
 
 ### Changes

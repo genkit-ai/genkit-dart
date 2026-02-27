@@ -1,3 +1,12 @@
+## 0.0.1-dev.17
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: fix strict casts (#165).
+ - **FEAT**: Allow implicit media content types for data URIs (#162).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
 ## 0.0.1-dev.16
 
  - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).

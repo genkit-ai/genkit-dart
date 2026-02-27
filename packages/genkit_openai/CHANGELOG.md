@@ -1,3 +1,15 @@
+## 0.0.1-dev.6
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: do not default instructions for json format (should use native constrained generation) (#176).
+ - **FIX**: make static helper classes abstract final (#173).
+ - **FIX**: be consistent with String quotes (#164).
+ - **FIX**: fix strict casts (#165).
+ - **FEAT**(openai): add structured outputs (#157).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
 ## 0.0.1-dev.5
 
  - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).
