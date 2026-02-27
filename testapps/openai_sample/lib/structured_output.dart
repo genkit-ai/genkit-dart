@@ -74,8 +74,9 @@ Flow<MovieReviewInput, MovieReview, void, void> defineStructuredOutputFlow(
       );
 
       final output = response.output;
-      if (output == null)
+      if (output == null) {
         throw StateError('Model returned no structured output.');
+      }
       return output;
     },
   );
@@ -112,8 +113,9 @@ defineStreamedStructuredOutputFlow(Genkit ai) {
 
       final response = await stream.onResult;
       final output = response.output;
-      if (output == null)
+      if (output == null) {
         throw StateError('Model returned no structured output.');
+      }
       return output;
     },
   );

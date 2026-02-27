@@ -65,10 +65,10 @@ class _WeatherFlowInputTypeFactory extends SchemanticType<WeatherFlowInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherFlowInput',
-    definition: Schema.object(
-      properties: {'prompt': Schema.string()},
+    definition: $Schema.object(
+      properties: {'prompt': $Schema.string()},
       required: ['prompt'],
-    ),
+    ).value,
     dependencies: [],
   );
 }
@@ -129,13 +129,13 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: Schema.object(
+    definition: $Schema.object(
       properties: {
-        'location': Schema.string(),
-        'unit': Schema.string(enumValues: ['celsius', 'fahrenheit']),
+        'location': $Schema.string(),
+        'unit': $Schema.string(enumValues: ['celsius', 'fahrenheit']),
       },
       required: ['location'],
-    ),
+    ).value,
     dependencies: [],
   );
 }
@@ -222,15 +222,15 @@ class _WeatherToolOutputTypeFactory extends SchemanticType<WeatherToolOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolOutput',
-    definition: Schema.object(
+    definition: $Schema.object(
       properties: {
-        'temperature': Schema.number(),
-        'condition': Schema.string(),
-        'unit': Schema.string(),
-        'humidity': Schema.integer(),
+        'temperature': $Schema.number(),
+        'condition': $Schema.string(),
+        'unit': $Schema.string(),
+        'humidity': $Schema.integer(),
       },
       required: ['temperature', 'condition', 'unit'],
-    ),
+    ).value,
     dependencies: [],
   );
 }
