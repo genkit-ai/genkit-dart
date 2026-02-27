@@ -37,7 +37,8 @@ final class _BadPromptSchema extends SchemanticType<Map<String, dynamic>> {
   );
 }
 
-final class _NullableStringPromptSchema extends SchemanticType<Map<String, dynamic>> {
+final class _NullableStringPromptSchema
+    extends SchemanticType<Map<String, dynamic>> {
   @override
   Map<String, dynamic> parse(dynamic input) {
     return input as Map<String, dynamic>;
