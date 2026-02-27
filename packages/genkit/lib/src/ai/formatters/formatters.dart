@@ -145,11 +145,8 @@ bool shouldInjectFormatInstructions(
   // If instructions is explicitly 'false' (boolean) at the request level, or defaultInstructions is false in formatConfig
   // Follow JS implementation logic: formatConfig?.defaultInstructions !== false || rawRequestConfig?.instructions
 
-  var requestInstructionsTruthful = false;
   final reqInst = _extractInstructions(requestConfig?.instructions);
-  if (reqInst != null) {
-    requestInstructionsTruthful = reqInst == true || reqInst is String;
-  }
+  final requestInstructionsTruthful = reqInst == true || reqInst is String;
 
   return formatConfig.defaultInstructions != false ||
       requestInstructionsTruthful;
