@@ -116,5 +116,5 @@ RegExp _buildSimpleTemplateRegex(String template) {
   return RegExp(buffer.toString());
 }
 
-// /Matches `{...}`, and captures `...` if it's not a valid template var name.
+/// Matches `{...}`, and captures `...` if it's not a valid template var name.
 final _templateVariablePattern = RegExp(r'\{(?:[A-Za-z0-9_]+|([^}]+))\}');
