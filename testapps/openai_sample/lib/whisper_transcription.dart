@@ -93,7 +93,9 @@ Flow<String, String, void, void> defineWhisperFileTranscriptionFlow(
               TextPart(
                 text: 'Transcribe this audio. Return only the transcript text.',
               ),
-              MediaPart(media: Media(url: dataUrl, contentType: mimeType)),
+              MediaPart(
+                media: Media(url: dataUrl, contentType: mimeType),
+              ),
             ],
           ),
         ],
