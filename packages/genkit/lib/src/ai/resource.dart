@@ -78,31 +78,31 @@ bool Function(ResourceInput input) createResourceMatcher({
   required String? uri,
   required String? template,
 }) {
-  if ((uri == null && template == null) || (uri != null && template != null)) {
-    throw GenkitException(
-      'Resource must specify exactly one of uri or template.',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-
   if (uri != null) {
-    return (input) => input.uri == uri;
+    if (template == null) {
+      return (input) => input.uri == uri;
+    }
+  } else if (template != null) {
+    final regex = _buildSimpleTemplateRegex(template!);
+    return (input) => regex.hasMatch(input.uri);
   }
-
-  final regex = _buildSimpleTemplateRegex(template!);
-  return (input) => regex.hasMatch(input.uri);
+  throw GenkitException(
+    'Resource must specify exactly one of uri or template.',
+    status: StatusCodes.INVALID_ARGUMENT,
+  );
 }
 
 RegExp _buildSimpleTemplateRegex(String template) {
-  final matches = RegExp(r'\{([^}]+)\}').allMatches(template);
   final buffer = StringBuffer('^');
   var lastIndex = 0;
 
+  final matches = _templateVariablePattern.allMatches(template);
   for (final match in matches) {
-    final varName = match.group(1) ?? '';
-    if (!_isSimpleTemplateVar(varName)) {
+    final invalidVarName = match[1];
+    if (invalidVarName != null) {
+      // Not a simple template var name.
       throw GenkitException(
-        'Resource template contains unsupported operator: {$varName}',
+        'Resource template contains unsupported operator: {$invalidVarName}',
         status: StatusCodes.UNIMPLEMENTED,
       );
     }
@@ -116,6 +116,5 @@ RegExp _buildSimpleTemplateRegex(String template) {
   return RegExp(buffer.toString());
 }
 
-bool _isSimpleTemplateVar(String value) {
-  return RegExp(r'^[A-Za-z0-9_]+$').hasMatch(value);
-}
+// /Matches `{...}`, and captures `...` if it's not a valid template var name.
+final _templateVariablePattern = RegExp(r'\{(?:[A-Za-z0-9_]+|([^}]+))\}');

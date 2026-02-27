@@ -68,7 +68,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     ).format('${library.accept(emitter)}');
   }
 
-  RegExp alphaNumeric = RegExp(r'[^a-zA-Z0-9]');
+  static RegExp _nonAlphaNumeric = RegExp(r'[^a-zA-Z0-9]+');
 
   List<Class> _generateHelperClasses(String baseName, ClassElement element) {
     final classes = <Class>[];
@@ -430,16 +430,16 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     );
   }
 
-  String _typeToDartName(String typeName) =>
+  static String _typeToDartName(String typeName) =>
       (typeName.endsWith('?') ? '${typeName}OrNull' : typeName).replaceAll(
-        alphaNumeric,
+        _nonAlphaNumeric,
         '',
       );
 
-  String _capitalize(String s) =>
+  static String _capitalize(String s) =>
       s.isEmpty ? s : s.substring(0, 1).toUpperCase() + s.substring(1);
 
-  String _decapitalize(String s) =>
+  static String _decapitalize(String s) =>
       s.isEmpty ? s : s.substring(0, 1).toLowerCase() + s.substring(1);
 
   String _convertSchemaType(DartType type) {
