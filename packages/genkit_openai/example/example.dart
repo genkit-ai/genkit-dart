@@ -109,7 +109,9 @@ void main(List<String> args) {
         prompt: prompt,
         outputSchema: Person.$schema,
         onChunk: (chunk) {
-          ctx.sendChunk(chunk.output!);
+          if (chunk.output != null) {
+            ctx.sendChunk(chunk.output!);
+          }
         },
       );
       return response.output!;
