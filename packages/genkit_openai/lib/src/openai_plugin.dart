@@ -394,9 +394,13 @@ class OpenAIPlugin extends GenkitPlugin {
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is GenkitException) rethrow;
-      throw GenkitException('Error in streaming: $e', underlyingException: e);
+      throw GenkitException(
+        'Error in streaming: $e',
+        underlyingException: e,
+        stackTrace: stackTrace,
+      );
     }
 
     final response = aggregateStreamResponses(chunks);

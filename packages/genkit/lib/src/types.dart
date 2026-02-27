@@ -282,6 +282,7 @@ abstract class $GenerateActionOutputConfig {
   String? get contentType;
   @AnyOf([bool, String])
   Object? get instructions;
+  bool? get defaultInstructions;
   Map<String, dynamic>? get jsonSchema;
   bool? get constrained;
 }

@@ -25,8 +25,12 @@ class Person {
 
   Person._(this._json);
 
-  Person({required String name, required int age}) {
-    _json = {'name': name, 'age': age};
+  Person({
+    required String name,
+    required int age,
+    required List<String> hobbies,
+  }) {
+    _json = {'name': name, 'age': age, 'hobbies': hobbies};
   }
 
   late final Map<String, dynamic> _json;
@@ -47,6 +51,14 @@ class Person {
 
   set age(int value) {
     _json['age'] = value;
+  }
+
+  List<String> get hobbies {
+    return (_json['hobbies'] as List).cast<String>();
+  }
+
+  set hobbies(List<String> value) {
+    _json['hobbies'] = value;
   }
 
   @override
@@ -72,8 +84,12 @@ class _PersonTypeFactory extends SchemanticType<Person> {
     name: 'Person',
     definition: $Schema
         .object(
-          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
-          required: ['name', 'age'],
+          properties: {
+            'name': $Schema.string(),
+            'age': $Schema.integer(),
+            'hobbies': $Schema.list(items: $Schema.string()),
+          },
+          required: ['name', 'age', 'hobbies'],
         )
         .value,
     dependencies: [],

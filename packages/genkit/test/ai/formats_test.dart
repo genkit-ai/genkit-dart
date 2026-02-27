@@ -35,10 +35,7 @@ void main() {
         genkit.registry,
         Formatter(
           name: 'banana',
-          config: GenerateActionOutputConfig.fromJson({
-            'format': null,
-            'constrained': false,
-          }),
+          config: GenerateActionOutputConfig(format: null, constrained: false),
           handler: (schema) {
             String? instructions = 'Output should be in banana format';
             return FormatterHandlerResult(
@@ -90,37 +87,99 @@ void main() {
       expect(response.output, equals({'foo': 'baz', 'bar': 123}));
     });
 
-    test('injects instructions for schema', () async {
-      String? receivedInstructions;
-      genkit.defineModel(
-        name: 'instructionModel',
-        fn: (req, ctx) async {
-          for (final m in req.messages) {
-            for (final p in m.content) {
-              if (p.isText && p.metadata?['purpose'] == 'output') {
-                receivedInstructions = p.text;
+    test(
+      'does not inject instructions for schema by default for json',
+      () async {
+        String? receivedInstructions;
+        genkit.defineModel(
+          name: 'instructionModel',
+          fn: (req, ctx) async {
+            for (final m in req.messages) {
+              for (final p in m.content) {
+                if (p.isText && p.metadata?['purpose'] == 'output') {
+                  receivedInstructions = p.text;
+                }
               }
             }
-          }
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: '{}')],
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: '{}')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef('instructionModel'),
+          prompt: 'hi',
+          outputSchema: TestObject.$schema,
+        );
+
+        expect(receivedInstructions, isNull);
+      },
+    );
+
+    test(
+      'injects instructions when manually instructed via GenerateActionOptions',
+      () async {
+        String? receivedInstructions;
+        genkit.defineModel(
+          name: 'instructionModel2',
+          fn: (req, ctx) async {
+            for (final m in req.messages) {
+              for (final p in m.content) {
+                if (p.isText && p.metadata?['purpose'] == 'output') {
+                  receivedInstructions = p.text;
+                }
+              }
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: '{}')],
+              ),
+            );
+          },
+        );
+
+        final generateAction = await genkit.registry.lookupAction(
+          'util',
+          'generate',
+        );
+
+        await generateAction!(
+          GenerateActionOptions(
+            model: 'instructionModel2',
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hi')],
+              ),
+            ],
+            output: GenerateActionOutputConfig(
+              format: 'json',
+              jsonSchema: {
+                'type': 'object',
+                'properties': {
+                  'foo': {'type': 'string'},
+                  'bar': {'type': 'integer'},
+                },
+              },
+              instructions: GenerateActionOutputConfigInstructions.bool(true),
             ),
-          );
-        },
-      );
+          ),
+        );
 
-      await genkit.generate(
-        model: modelRef('instructionModel'),
-        prompt: 'hi',
-        outputSchema: TestObject.$schema,
-      );
-
-      expect(receivedInstructions, contains('Output should be in JSON format'));
-      expect(receivedInstructions, contains('"foo"'));
-    });
+        expect(
+          receivedInstructions,
+          contains('Output should be in JSON format'),
+        );
+        expect(receivedInstructions, contains('"foo"'));
+      },
+    );
 
     test('defaults to json format when schema is present', () async {
       genkit.defineModel(
