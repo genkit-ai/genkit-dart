@@ -43,6 +43,13 @@ Formatter? resolveFormat(
   return null;
 }
 
+Object? _extractInstructions(Object? inst) {
+  if (inst is GenerateActionOutputConfigInstructions) {
+    return inst.value;
+  }
+  return inst;
+}
+
 GenerateActionOptions applyFormat(
   GenerateActionOptions request,
   Formatter? formatter,
@@ -53,8 +60,8 @@ GenerateActionOptions applyFormat(
       'format': 'json',
       if (outputConfig?.contentType != null)
         'contentType': outputConfig?.contentType,
-      if (outputConfig?.toJson()['instructions'] != null)
-        'instructions': outputConfig?.toJson()['instructions'],
+      if (outputConfig?.instructions != null)
+        'instructions': _extractInstructions(outputConfig!.instructions),
       if (outputConfig?.defaultInstructions != null)
         'defaultInstructions': outputConfig?.defaultInstructions,
       if (outputConfig?.jsonSchema != null)
@@ -67,7 +74,7 @@ GenerateActionOptions applyFormat(
   final instructions = resolveInstructions(
     formatter,
     outputConfig?.jsonSchema,
-    outputConfig?.toJson()['instructions'],
+    _extractInstructions(outputConfig?.instructions),
   );
 
   var messages = request.messages;
@@ -77,6 +84,9 @@ GenerateActionOptions applyFormat(
       messages = injectInstructions(messages, instructions);
     }
 
+    final outInst = _extractInstructions(outputConfig?.instructions);
+    final fmtInst = _extractInstructions(formatter.config.instructions);
+
     // Merge config
     outputConfig = GenerateActionOutputConfig.fromJson({
       if (outputConfig?.format != null || formatter.config.format != null)
@@ -85,11 +95,8 @@ GenerateActionOptions applyFormat(
           formatter.config.contentType != null)
         'contentType':
             outputConfig?.contentType ?? formatter.config.contentType,
-      if (outputConfig?.toJson()['instructions'] != null ||
-          formatter.config.toJson()['instructions'] != null)
-        'instructions':
-            outputConfig?.toJson()['instructions'] ??
-            formatter.config.toJson()['instructions'],
+      if (outInst != null || fmtInst != null)
+        'instructions': outInst ?? fmtInst,
       if (outputConfig?.defaultInstructions != null ||
           formatter.config.defaultInstructions != null)
         'defaultInstructions':
@@ -137,14 +144,15 @@ bool shouldInjectFormatInstructions(
 ) {
   // If instructions is explicitly 'false' (boolean) at the request level, or defaultInstructions is false in formatConfig
   // Follow JS implementation logic: formatConfig?.defaultInstructions !== false || rawRequestConfig?.instructions
-  
+
   var requestInstructionsTruthful = false;
-  final reqInst = requestConfig?.toJson()['instructions'];
+  final reqInst = _extractInstructions(requestConfig?.instructions);
   if (reqInst != null) {
-      requestInstructionsTruthful = reqInst == true || reqInst is String;
+    requestInstructionsTruthful = reqInst == true || reqInst is String;
   }
-  
-  return formatConfig.defaultInstructions != false || requestInstructionsTruthful;
+
+  return formatConfig.defaultInstructions != false ||
+      requestInstructionsTruthful;
 }
 
 List<Message> injectInstructions(List<Message> messages, String? instructions) {
