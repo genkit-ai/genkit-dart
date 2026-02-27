@@ -55,6 +55,8 @@ GenerateActionOptions applyFormat(
         'contentType': outputConfig?.contentType,
       if (outputConfig?.toJson()['instructions'] != null)
         'instructions': outputConfig?.toJson()['instructions'],
+      if (outputConfig?.defaultInstructions != null)
+        'defaultInstructions': outputConfig?.defaultInstructions,
       if (outputConfig?.jsonSchema != null)
         'jsonSchema': outputConfig?.jsonSchema,
       if (outputConfig?.constrained != null)
@@ -88,6 +90,11 @@ GenerateActionOptions applyFormat(
         'instructions':
             outputConfig?.toJson()['instructions'] ??
             formatter.config.toJson()['instructions'],
+      if (outputConfig?.defaultInstructions != null ||
+          formatter.config.defaultInstructions != null)
+        'defaultInstructions':
+            outputConfig?.defaultInstructions ??
+            formatter.config.defaultInstructions,
       if (outputConfig?.jsonSchema != null ||
           formatter.config.jsonSchema != null)
         'jsonSchema': outputConfig?.jsonSchema ?? formatter.config.jsonSchema,
@@ -128,8 +135,16 @@ bool shouldInjectFormatInstructions(
   GenerateActionOutputConfig formatConfig,
   GenerateActionOutputConfig? requestConfig,
 ) {
-  return formatConfig.toJson()['instructions'] != false ||
-      requestConfig?.toJson()['instructions'] == true;
+  // If instructions is explicitly 'false' (boolean) at the request level, or defaultInstructions is false in formatConfig
+  // Follow JS implementation logic: formatConfig?.defaultInstructions !== false || rawRequestConfig?.instructions
+  
+  var requestInstructionsTruthful = false;
+  final reqInst = requestConfig?.toJson()['instructions'];
+  if (reqInst != null) {
+      requestInstructionsTruthful = reqInst == true || reqInst is String;
+  }
+  
+  return formatConfig.defaultInstructions != false || requestInstructionsTruthful;
 }
 
 List<Message> injectInstructions(List<Message> messages, String? instructions) {

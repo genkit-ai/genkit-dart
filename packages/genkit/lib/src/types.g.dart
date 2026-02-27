@@ -3373,6 +3373,7 @@ class GenerateActionOutputConfig {
     String? format,
     String? contentType,
     GenerateActionOutputConfigInstructions? instructions,
+    bool? defaultInstructions,
     Map<String, dynamic>? jsonSchema,
     bool? constrained,
   }) {
@@ -3380,6 +3381,7 @@ class GenerateActionOutputConfig {
       'format': ?format,
       'contentType': ?contentType,
       if (instructions != null) 'instructions': instructions.value,
+      'defaultInstructions': ?defaultInstructions,
       'jsonSchema': ?jsonSchema,
       'constrained': ?constrained,
     };
@@ -3421,6 +3423,18 @@ class GenerateActionOutputConfig {
   // Possible return values are `bool`, `String`
   Object? get instructions {
     return _json['instructions'] as Object?;
+  }
+
+  bool? get defaultInstructions {
+    return _json['defaultInstructions'] as bool?;
+  }
+
+  set defaultInstructions(bool? value) {
+    if (value == null) {
+      _json.remove('defaultInstructions');
+    } else {
+      _json['defaultInstructions'] = value;
+    }
   }
 
   Map<String, dynamic>? get jsonSchema {
@@ -3485,6 +3499,7 @@ class _GenerateActionOutputConfigTypeFactory
             'instructions': $Schema.combined(
               anyOf: [$Schema.boolean(), $Schema.string()],
             ),
+            'defaultInstructions': $Schema.boolean(),
             'jsonSchema': $Schema.object(additionalProperties: $Schema.any()),
             'constrained': $Schema.boolean(),
           },

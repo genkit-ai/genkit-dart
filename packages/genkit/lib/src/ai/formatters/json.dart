@@ -24,6 +24,8 @@ final jsonFormatter = Formatter(
   config: GenerateActionOutputConfig(
     format: 'json',
     contentType: 'application/json',
+    constrained: true,
+    defaultInstructions: false,
   ),
   handler: (schema) {
     String? instructions;

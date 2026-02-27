@@ -90,7 +90,7 @@ void main() {
       expect(response.output, equals({'foo': 'baz', 'bar': 123}));
     });
 
-    test('injects instructions for schema', () async {
+    test('does not inject instructions for schema by default for json', () async {
       String? receivedInstructions;
       genkit.defineModel(
         name: 'instructionModel',
@@ -116,6 +116,45 @@ void main() {
         model: modelRef('instructionModel'),
         prompt: 'hi',
         outputSchema: TestObject.$schema,
+      );
+
+      expect(receivedInstructions, isNull);
+    });
+
+    test('injects instructions when manually instructed via GenerateActionOptions', () async {
+      String? receivedInstructions;
+      genkit.defineModel(
+        name: 'instructionModel2',
+        fn: (req, ctx) async {
+          for (final m in req.messages) {
+            for (final p in m.content) {
+              if (p.isText && p.metadata?['purpose'] == 'output') {
+                receivedInstructions = p.text;
+              }
+            }
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: '{}')],
+            ),
+          );
+        },
+      );
+
+      final generateAction = await genkit.registry.lookupAction('util', 'generate');
+      
+      await generateAction!(
+        GenerateActionOptions(
+          model: 'instructionModel2',
+          messages: [Message(role: Role.user, content: [TextPart(text: 'hi')])],
+          output: GenerateActionOutputConfig.fromJson({
+            'format': 'json',
+            'jsonSchema': {'type': 'object', 'properties': {'foo': {'type': 'string'}, 'bar': {'type': 'integer'}}},
+            'instructions': true,
+          }),
+        ),
       );
 
       expect(receivedInstructions, contains('Output should be in JSON format'));
