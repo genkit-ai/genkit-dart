@@ -21,7 +21,7 @@ part of 'shelf_handler_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class HandlerInput {
+base class HandlerInput {
   factory HandlerInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -75,7 +75,7 @@ base class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
   );
 }
 
-final class HandlerOutput {
+base class HandlerOutput {
   factory HandlerOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

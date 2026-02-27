@@ -20,7 +20,7 @@ part of 'tool_approval_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class ToolApprovalOptions {
+base class ToolApprovalOptions {
   factory ToolApprovalOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

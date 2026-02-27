@@ -20,7 +20,7 @@ part of 'filesystem_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class FilesystemOptions {
+base class FilesystemOptions {
   factory FilesystemOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -80,7 +80,7 @@ base class _FilesystemOptionsTypeFactory
   );
 }
 
-final class ListFilesInput {
+base class ListFilesInput {
   factory ListFilesInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -161,7 +161,7 @@ base class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
   );
 }
 
-final class ReadFileInput {
+base class ReadFileInput {
   factory ReadFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -219,7 +219,7 @@ base class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
   );
 }
 
-final class WriteFileInput {
+base class WriteFileInput {
   factory WriteFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -288,7 +288,7 @@ base class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
   );
 }
 
-final class SearchAndReplaceInput {
+base class SearchAndReplaceInput {
   factory SearchAndReplaceInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -363,7 +363,7 @@ base class _SearchAndReplaceInputTypeFactory
   );
 }
 
-final class ListFileOutputItem {
+base class ListFileOutputItem {
   factory ListFileOutputItem.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

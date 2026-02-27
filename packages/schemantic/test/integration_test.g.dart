@@ -21,7 +21,7 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class User {
+base class User {
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   User._(this._json);
@@ -97,7 +97,7 @@ base class _UserTypeFactory extends SchemanticType<User> {
   );
 }
 
-final class Group {
+base class Group {
   factory Group.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Group._(this._json);
@@ -187,7 +187,7 @@ base class _GroupTypeFactory extends SchemanticType<Group> {
   );
 }
 
-final class Node {
+base class Node {
   factory Node.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Node._(this._json);
@@ -258,7 +258,7 @@ base class _NodeTypeFactory extends SchemanticType<Node> {
   );
 }
 
-final class Keyed {
+base class Keyed {
   factory Keyed.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Keyed._(this._json);
@@ -341,7 +341,7 @@ base class _KeyedTypeFactory extends SchemanticType<Keyed> {
   );
 }
 
-final class Comprehensive {
+base class Comprehensive {
   factory Comprehensive.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -444,7 +444,7 @@ base class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   );
 }
 
-final class Description {
+base class Description {
   factory Description.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -498,7 +498,7 @@ base class _DescriptionTypeFactory extends SchemanticType<Description> {
   );
 }
 
-final class CrossFileParent {
+base class CrossFileParent {
   factory CrossFileParent.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -554,7 +554,7 @@ base class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
   );
 }
 
-final class Defaults {
+base class Defaults {
   factory Defaults.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Defaults._(this._json);
@@ -640,7 +640,7 @@ base class _DefaultsTypeFactory extends SchemanticType<Defaults> {
   );
 }
 
-final class Poly {
+base class Poly {
   factory Poly.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Poly._(this._json);
@@ -711,7 +711,7 @@ base class _PolyTypeFactory extends SchemanticType<Poly> {
   );
 }
 
-final class MapSchema {
+base class MapSchema {
   factory MapSchema.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MapSchema._(this._json);

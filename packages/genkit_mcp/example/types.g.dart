@@ -20,7 +20,7 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class PromptInput {
+base class PromptInput {
   factory PromptInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

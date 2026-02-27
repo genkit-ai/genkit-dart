@@ -21,7 +21,7 @@ part of 'genkit_firebase_ai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class GeminiOptions {
+base class GeminiOptions {
   factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -341,7 +341,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   );
 }
 
-final class FunctionCallingConfig {
+base class FunctionCallingConfig {
   factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -417,7 +417,7 @@ base class _FunctionCallingConfigTypeFactory
   );
 }
 
-final class ThinkingConfig {
+base class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -493,7 +493,7 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   );
 }
 
-final class PrebuiltVoiceConfig {
+base class PrebuiltVoiceConfig {
   factory PrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -549,7 +549,7 @@ base class _PrebuiltVoiceConfigTypeFactory
   );
 }
 
-final class VoiceConfig {
+base class VoiceConfig {
   factory VoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -614,7 +614,7 @@ base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   );
 }
 
-final class SpeechConfig {
+base class SpeechConfig {
   factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -676,7 +676,7 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   );
 }
 
-final class LiveGenerationConfig {
+base class LiveGenerationConfig {
   factory LiveGenerationConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

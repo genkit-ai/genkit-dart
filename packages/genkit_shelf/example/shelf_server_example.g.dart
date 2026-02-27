@@ -21,7 +21,7 @@ part of 'shelf_server_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class HelloInput {
+base class HelloInput {
   factory HelloInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   HelloInput._(this._json);
@@ -70,7 +70,7 @@ base class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   );
 }
 
-final class HelloOutput {
+base class HelloOutput {
   factory HelloOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -123,7 +123,7 @@ base class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   );
 }
 
-final class CountChunk {
+base class CountChunk {
   factory CountChunk.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   CountChunk._(this._json);

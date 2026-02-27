@@ -21,7 +21,7 @@ part of 'shelf_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class ShelfTestOutput {
+base class ShelfTestOutput {
   factory ShelfTestOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -75,7 +75,7 @@ base class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
   );
 }
 
-final class ShelfTestStream {
+base class ShelfTestStream {
   factory ShelfTestStream.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

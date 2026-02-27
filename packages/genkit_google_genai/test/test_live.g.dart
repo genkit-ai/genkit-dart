@@ -21,7 +21,7 @@ part of 'test_live.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class Person {
+base class Person {
   factory Person.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Person._(this._json);
@@ -81,7 +81,7 @@ base class _PersonTypeFactory extends SchemanticType<Person> {
   );
 }
 
-final class CalculatorInput {
+base class CalculatorInput {
   factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

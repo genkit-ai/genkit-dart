@@ -20,7 +20,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class AnthropicOptions {
+base class AnthropicOptions {
   factory AnthropicOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -195,7 +195,7 @@ base class _AnthropicOptionsTypeFactory
   );
 }
 
-final class ThinkingConfig {
+base class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 

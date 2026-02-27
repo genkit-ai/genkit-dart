@@ -21,7 +21,7 @@ part of 'shared_test_schema.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class SharedChild {
+base class SharedChild {
   factory SharedChild.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -74,7 +74,7 @@ base class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
   );
 }
 
-final class Part {
+base class Part {
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Part._(this._json);
@@ -113,7 +113,7 @@ base class _PartTypeFactory extends SchemanticType<Part> {
   );
 }
 
-final class TextPart implements Part {
+base class TextPart implements Part {
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TextPart._(this._json);

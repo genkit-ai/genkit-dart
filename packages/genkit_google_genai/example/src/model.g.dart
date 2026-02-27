@@ -21,7 +21,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-final class WeatherToolInput {
+base class WeatherToolInput {
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -81,7 +81,7 @@ base class _WeatherToolInputTypeFactory
   );
 }
 
-final class Category {
+base class Category {
   factory Category.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Category._(this._json);
@@ -155,7 +155,7 @@ base class _CategoryTypeFactory extends SchemanticType<Category> {
   );
 }
 
-final class Weapon {
+base class Weapon {
   factory Weapon.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Weapon._(this._json);
@@ -231,7 +231,7 @@ base class _WeaponTypeFactory extends SchemanticType<Weapon> {
   );
 }
 
-final class RpgCharacter {
+base class RpgCharacter {
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -345,7 +345,7 @@ base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   );
 }
 
-final class CharacterProfile {
+base class CharacterProfile {
   factory CharacterProfile.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
