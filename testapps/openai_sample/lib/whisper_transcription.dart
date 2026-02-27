@@ -17,7 +17,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:schemantic/schemantic.dart';
 
 /// Defines a flow that transcribes base64 data URL audio using Whisper.
 Flow<String, String, void, void> defineWhisperTranscriptionFlow(
@@ -26,10 +25,10 @@ Flow<String, String, void, void> defineWhisperTranscriptionFlow(
 }) {
   return ai.defineFlow(
     name: 'whisperTranscribeDataUrl',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'data:audio/wav;base64,<base64-audio-bytes>',
     ),
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (audioDataUrl, _) async {
       final contentType = _extractAudioMimeTypeFromDataUrl(audioDataUrl);
 
@@ -72,8 +71,8 @@ Flow<String, String, void, void> defineWhisperFileTranscriptionFlow(
 }) {
   return ai.defineFlow(
     name: 'whisperTranscribeFile',
-    inputSchema: stringSchema(defaultValue: './sample.wav'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: './sample.wav'),
+    outputSchema: .string(),
     fn: (audioPath, _) async {
       final file = File(audioPath);
       if (!await file.exists()) {
