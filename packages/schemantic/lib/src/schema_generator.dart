@@ -68,7 +68,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     ).format('${library.accept(emitter)}');
   }
 
-  static RegExp _nonAlphaNumeric = RegExp(r'[^a-zA-Z0-9]+');
+  static final RegExp _nonAlphaNumeric = RegExp(r'[^a-zA-Z0-9]+');
 
   List<Class> _generateHelperClasses(String baseName, ClassElement element) {
     final classes = <Class>[];
