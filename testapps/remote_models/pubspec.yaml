@@ -1,0 +1,20 @@
+name: remote_models_sample
+publish_to: none
+description: Genkit Dart remote models testapp
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  genkit: ^0.10.0-dev.17
+  genkit_google_genai: ^0.0.1-dev.17
+  genkit_openai: ^0.0.1-dev.6
+  genkit_shelf: ^0.0.1-dev.17
+  http: ^1.6.0
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+
+dev_dependencies:
+  build_runner: ^2.10.5
+  test: ^1.29.0
