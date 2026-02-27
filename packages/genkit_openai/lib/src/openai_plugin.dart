@@ -72,13 +72,9 @@ class OpenAIPlugin extends GenkitPlugin {
         for (final modelId in availableModelIds) {
           final modelType = getModelType(modelId);
 
-<<<<<<< openai-add-whisper
           if (modelType != 'chat' &&
               modelType != 'unknown' &&
               !isTranscriptionModel(modelId)) {
-=======
-          if (modelType != 'chat' && modelType != 'unknown') {
->>>>>>> main
             continue;
           }
 
@@ -324,15 +320,11 @@ class OpenAIPlugin extends GenkitPlugin {
             request.output?.format,
             request.output?.contentType,
           );
-<<<<<<< openai-add-whisper
-          final responseFormat = buildOpenAIResponseFormat(request.output?.schema);
+          final responseFormat = buildOpenAIResponseFormat(
+            request.output?.schema,
+          );
           final chatRequest = CreateChatCompletionRequest(
             model: ChatCompletionModel.modelId(resolvedModel),
-=======
-          final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
-          final request = CreateChatCompletionRequest(
-            model: ChatCompletionModel.modelId(options.version ?? modelName),
->>>>>>> main
             messages: GenkitConverter.toOpenAIMessages(
               request.messages,
               options.visualDetailLevel,
@@ -525,7 +517,9 @@ class OpenAIPlugin extends GenkitPlugin {
         if (media == null) continue;
 
         final contentType = media.contentType?.toLowerCase();
-        final isAudioDataUrl = media.url.toLowerCase().startsWith('data:audio/');
+        final isAudioDataUrl = media.url.toLowerCase().startsWith(
+          'data:audio/',
+        );
         if (isAudioDataUrl ||
             (contentType != null && contentType.startsWith('audio/'))) {
           return media;
@@ -535,12 +529,9 @@ class OpenAIPlugin extends GenkitPlugin {
     return null;
   }
 
-  ({
-    List<int> bytes,
-    String contentType,
-    String filename,
-  })
-  _decodeAudioDataUrl(Media media) {
+  ({List<int> bytes, String contentType, String filename}) _decodeAudioDataUrl(
+    Media media,
+  ) {
     final url = media.url.trim();
     final match = RegExp(
       r'^data:(audio\/[^;]+);base64,',
