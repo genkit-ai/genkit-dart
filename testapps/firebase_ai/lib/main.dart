@@ -50,7 +50,6 @@ void main() async {
   // Keep logging minimal
   Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen((record) {
-    // ignore: avoid_print
     print('${record.level.name}: ${record.time}: ${record.message}');
   });
 
@@ -169,9 +168,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add('AI: ${response.text}');
       });
     } catch (e, st) {
-      // ignore: avoid_print
       print(e);
-      // ignore: avoid_print
       print(st);
       setState(() {
         _messages.add('Error: $e');
@@ -574,7 +571,6 @@ class AudioPlayerQueue {
       await completer.future.timeout(timeout, onTimeout: () {});
       await sub.cancel();
     } catch (e) {
-      // ignore: avoid_print
       print('AudioQueue Error: $e');
     } finally {
       _isPlaying = false;
@@ -700,9 +696,7 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
         _finalCharacter = result as RpgCharacter;
       });
     } catch (e, st) {
-      // ignore: avoid_print
       print(e);
-      // ignore: avoid_print
       print(st);
       setState(() {
         _isLoading = false;

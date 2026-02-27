@@ -704,26 +704,13 @@ fai.ToolConfig? toGeminiToolConfig(
   FunctionCallingConfig? functionCallingConfig,
 ) {
   if (functionCallingConfig == null) return null;
-  final modeStr = functionCallingConfig.mode;
-  final fai.FunctionCallingConfig mConfig;
-  if (modeStr == null) {
-    mConfig = fai.FunctionCallingConfig.auto();
-  } else {
-    switch (modeStr.toUpperCase()) {
-      case 'ANY':
-        mConfig = fai.FunctionCallingConfig.any(
-          functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
-        );
-        break;
-      case 'NONE':
-        mConfig = fai.FunctionCallingConfig.none();
-        break;
-      case 'AUTO':
-      default:
-        mConfig = fai.FunctionCallingConfig.auto();
-        break;
-    }
-  }
+  final mConfig = switch (functionCallingConfig.mode?.toUpperCase()) {
+    'ANY' => fai.FunctionCallingConfig.any(
+      functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
+    ),
+    'NONE' => fai.FunctionCallingConfig.none(),
+    _ => fai.FunctionCallingConfig.auto(),
+  };
   return fai.ToolConfig(functionCallingConfig: mConfig);
 }
 

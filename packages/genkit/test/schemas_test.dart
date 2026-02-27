@@ -23,7 +23,6 @@ void main() {
         content: [
           TextPart(text: 'Hello, '),
           TextPart(text: 'world!'),
-          // ignore: unnecessary_type_check
           MediaPart(media: Media(url: 'http://example.com/image.png')),
         ],
       );
@@ -33,10 +32,7 @@ void main() {
     test('Message text getter with no text parts', () {
       final message = Message(
         role: Role.user,
-        content: [
-          // ignore: unnecessary_type_check
-          MediaPart(media: Media(url: 'http://example.com/image.png')),
-        ],
+        content: [MediaPart(media: Media(url: 'http://example.com/image.png'))],
       );
       expect(message.text, '');
     });
@@ -76,7 +72,6 @@ void main() {
         role: Role.user,
         content: [
           TextPart(text: 'Hello, '),
-          // ignore: unnecessary_type_check
           MediaPart(media: media),
         ],
       );
@@ -102,10 +97,7 @@ void main() {
         finishReason: FinishReason.stop,
         message: Message(
           role: Role.model,
-          content: [
-            // ignore: unnecessary_type_check
-            MediaPart(media: media),
-          ],
+          content: [MediaPart(media: media)],
         ),
       );
       expect(response.media!.toJson(), same(media.toJson()));
@@ -121,12 +113,7 @@ void main() {
 
     test('GenerateResponseChunk media getter', () {
       final media = Media(url: 'http://example.com/image.png');
-      final chunk = ModelResponseChunk(
-        content: [
-          // ignore: unnecessary_type_check
-          MediaPart(media: media),
-        ],
-      );
+      final chunk = ModelResponseChunk(content: [MediaPart(media: media)]);
       expect(chunk.media!.toJson(), media.toJson());
     });
   });
