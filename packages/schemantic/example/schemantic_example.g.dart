@@ -21,7 +21,7 @@ part of 'schemantic_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Address {
+final class Address {
   factory Address.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Address._(this._json);
@@ -73,7 +73,7 @@ class Address {
   }
 }
 
-class AddressZipCode {
+final class AddressZipCode {
   AddressZipCode.int(int this.value);
 
   AddressZipCode.string(String this.value);
@@ -81,7 +81,7 @@ class AddressZipCode {
   final Object? value;
 }
 
-class _AddressTypeFactory extends SchemanticType<Address> {
+base class _AddressTypeFactory extends SchemanticType<Address> {
   const _AddressTypeFactory();
 
   @override
@@ -108,7 +108,7 @@ class _AddressTypeFactory extends SchemanticType<Address> {
   );
 }
 
-class User {
+final class User {
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   User._(this._json);
@@ -183,7 +183,7 @@ class User {
   }
 }
 
-class _UserTypeFactory extends SchemanticType<User> {
+base class _UserTypeFactory extends SchemanticType<User> {
   const _UserTypeFactory();
 
   @override
@@ -217,7 +217,7 @@ class _UserTypeFactory extends SchemanticType<User> {
   );
 }
 
-class Product {
+final class Product {
   factory Product.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Product._(this._json);
@@ -281,7 +281,7 @@ class Product {
   }
 }
 
-class _ProductTypeFactory extends SchemanticType<Product> {
+base class _ProductTypeFactory extends SchemanticType<Product> {
   const _ProductTypeFactory();
 
   @override

@@ -21,7 +21,7 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherInputSchema {
+final class WeatherInputSchema {
   factory WeatherInputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class WeatherInputSchema {
   }
 }
 
-class _WeatherInputSchemaTypeFactory
+base class _WeatherInputSchemaTypeFactory
     extends SchemanticType<WeatherInputSchema> {
   const _WeatherInputSchemaTypeFactory();
 
@@ -76,7 +76,7 @@ class _WeatherInputSchemaTypeFactory
   );
 }
 
-class PersonSchema {
+final class PersonSchema {
   factory PersonSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -117,7 +117,7 @@ class PersonSchema {
   }
 }
 
-class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
+base class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
   const _PersonSchemaTypeFactory();
 
   @override

@@ -27,14 +27,14 @@ typedef $Schema = jsb.Schema;
 ///
 /// This annotation triggers the generation of a counterpart `Schema.g.dart`
 /// file with a concrete implementation of the schema class and a type utility.
-class Schematic {
+final class Schematic {
   /// A description of the schema, to be included in the generated JSON Schema.
   final String? description;
 
   const Schematic({this.description});
 }
 
-class AnyOf {
+final class AnyOf {
   final List<Type> anyOf;
 
   const AnyOf(this.anyOf);
@@ -46,7 +46,7 @@ class AnyOf {
 /// getter
 /// to specify a custom JSON key name, description, and other schema
 /// constraints.
-class Field {
+final class Field {
   /// The key name to use in the JSON map.
   final String? name;
 
@@ -61,7 +61,7 @@ class Field {
 }
 
 /// Annotation for String fields with specific schema constraints.
-class StringField extends Field {
+final class StringField extends Field {
   final int? minLength;
   final int? maxLength;
   final String? pattern;
@@ -81,7 +81,7 @@ class StringField extends Field {
 }
 
 /// Annotation for Integer fields with specific schema constraints.
-class IntegerField extends Field {
+final class IntegerField extends Field {
   final int? minimum;
   final int? maximum;
   final int? exclusiveMinimum;
@@ -101,7 +101,7 @@ class IntegerField extends Field {
 }
 
 /// Annotation for Number (double) fields with specific schema constraints.
-class DoubleField extends Field {
+final class DoubleField extends Field {
   final num? minimum;
   final num? maximum;
   final num? exclusiveMinimum;
@@ -122,7 +122,7 @@ class DoubleField extends Field {
 
 /// Metadata associated with a [SchemanticType], primarily used for schema
 /// generation.
-class JsonSchemaMetadata {
+final class JsonSchemaMetadata {
   /// The name of the type in the schema (e.g. for $defs).
   final String? name;
 
@@ -142,7 +142,7 @@ class JsonSchemaMetadata {
 /// Base class for all runtime type utilities.
 ///
 /// Provides methods to parse JSON and retrieve the JSON Schema.
-abstract class SchemanticType<T> {
+abstract base class SchemanticType<T> {
   const SchemanticType();
 
   /// Parses the given [json] object into type [T].

@@ -20,7 +20,7 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class PromptInput {
+final class PromptInput {
   factory PromptInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -52,7 +52,7 @@ class PromptInput {
   }
 }
 
-class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
+base class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
   const _PromptInputTypeFactory();
 
   @override

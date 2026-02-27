@@ -20,7 +20,7 @@ part of 'skills_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class UseSkillInput {
+final class UseSkillInput {
   factory UseSkillInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,7 @@ class UseSkillInput {
   }
 }
 
-class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
+base class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
   const _UseSkillInputTypeFactory();
 
   @override
@@ -78,7 +78,7 @@ class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
   );
 }
 
-class SkillsPluginOptions {
+final class SkillsPluginOptions {
   factory SkillsPluginOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -115,7 +115,7 @@ class SkillsPluginOptions {
   }
 }
 
-class _SkillsPluginOptionsTypeFactory
+base class _SkillsPluginOptionsTypeFactory
     extends SchemanticType<SkillsPluginOptions> {
   const _SkillsPluginOptionsTypeFactory();
 

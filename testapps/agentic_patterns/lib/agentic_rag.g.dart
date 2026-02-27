@@ -21,7 +21,7 @@ part of 'agentic_rag.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class AgenticRagInput {
+base class AgenticRagInput {
   factory AgenticRagInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class AgenticRagInput {
   }
 }
 
-class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
+base class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
   const _AgenticRagInputTypeFactory();
 
   @override
@@ -75,7 +75,7 @@ class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
   );
 }
 
-class MenuRagToolInput {
+base class MenuRagToolInput {
   factory MenuRagToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -108,7 +108,8 @@ class MenuRagToolInput {
   }
 }
 
-class _MenuRagToolInputTypeFactory extends SchemanticType<MenuRagToolInput> {
+base class _MenuRagToolInputTypeFactory
+    extends SchemanticType<MenuRagToolInput> {
   const _MenuRagToolInputTypeFactory();
 
   @override

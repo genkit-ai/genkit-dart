@@ -21,7 +21,7 @@ part of 'formats_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestObject {
+base class TestObject {
   factory TestObject.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TestObject._(this._json);
@@ -60,7 +60,7 @@ class TestObject {
   }
 }
 
-class _TestObjectTypeFactory extends SchemanticType<TestObject> {
+base class _TestObjectTypeFactory extends SchemanticType<TestObject> {
   const _TestObjectTypeFactory();
 
   @override

@@ -20,7 +20,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Person {
+final class Person {
   factory Person.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Person._(this._json);
@@ -59,7 +59,7 @@ class Person {
   }
 }
 
-class _PersonTypeFactory extends SchemanticType<Person> {
+base class _PersonTypeFactory extends SchemanticType<Person> {
   const _PersonTypeFactory();
 
   @override
@@ -80,7 +80,7 @@ class _PersonTypeFactory extends SchemanticType<Person> {
   );
 }
 
-class CalculatorInput {
+final class CalculatorInput {
   factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -121,7 +121,7 @@ class CalculatorInput {
   }
 }
 
-class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
+base class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
   const _CalculatorInputTypeFactory();
 
   @override

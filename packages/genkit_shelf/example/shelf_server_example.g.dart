@@ -21,7 +21,7 @@ part of 'shelf_server_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class HelloInput {
+final class HelloInput {
   factory HelloInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   HelloInput._(this._json);
@@ -52,7 +52,7 @@ class HelloInput {
   }
 }
 
-class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
+base class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   const _HelloInputTypeFactory();
 
   @override
@@ -70,7 +70,7 @@ class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   );
 }
 
-class HelloOutput {
+final class HelloOutput {
   factory HelloOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -102,7 +102,7 @@ class HelloOutput {
   }
 }
 
-class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
+base class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   const _HelloOutputTypeFactory();
 
   @override
@@ -123,7 +123,7 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   );
 }
 
-class CountChunk {
+final class CountChunk {
   factory CountChunk.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   CountChunk._(this._json);
@@ -154,7 +154,7 @@ class CountChunk {
   }
 }
 
-class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
+base class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
   const _CountChunkTypeFactory();
 
   @override

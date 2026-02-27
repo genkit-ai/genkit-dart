@@ -21,7 +21,7 @@ part of 'resource.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ResourceInput {
+base class ResourceInput {
   factory ResourceInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class ResourceInput {
   }
 }
 
-class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
+base class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
   const _ResourceInputTypeFactory();
 
   @override
@@ -72,7 +72,7 @@ class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
   );
 }
 
-class ResourceOutput {
+base class ResourceOutput {
   factory ResourceOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -107,7 +107,7 @@ class ResourceOutput {
   }
 }
 
-class _ResourceOutputTypeFactory extends SchemanticType<ResourceOutput> {
+base class _ResourceOutputTypeFactory extends SchemanticType<ResourceOutput> {
   const _ResourceOutputTypeFactory();
 
   @override

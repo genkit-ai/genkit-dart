@@ -21,7 +21,7 @@ part of 'iterative_refinement.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class IterativeRefinementInput {
+base class IterativeRefinementInput {
   factory IterativeRefinementInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class IterativeRefinementInput {
   }
 }
 
-class _IterativeRefinementInputTypeFactory
+base class _IterativeRefinementInputTypeFactory
     extends SchemanticType<IterativeRefinementInput> {
   const _IterativeRefinementInputTypeFactory();
 
@@ -73,7 +73,7 @@ class _IterativeRefinementInputTypeFactory
   );
 }
 
-class Evaluation {
+base class Evaluation {
   factory Evaluation.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Evaluation._(this._json);
@@ -112,7 +112,7 @@ class Evaluation {
   }
 }
 
-class _EvaluationTypeFactory extends SchemanticType<Evaluation> {
+base class _EvaluationTypeFactory extends SchemanticType<Evaluation> {
   const _EvaluationTypeFactory();
 
   @override

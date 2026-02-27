@@ -65,7 +65,7 @@ void main() {
   });
 }
 
-class _MockTypeWithDefs extends SchemanticType<int> {
+final class _MockTypeWithDefs extends SchemanticType<int> {
   const _MockTypeWithDefs();
   @override
   int parse(Object? json) => json as int;

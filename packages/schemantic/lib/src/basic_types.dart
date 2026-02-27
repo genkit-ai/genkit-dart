@@ -28,7 +28,7 @@ SchemanticType<T?> nullable<T>(SchemanticType<T> type) {
   return _NullableSchemaFactory(type);
 }
 
-class _NullableSchemaFactory<T> extends SchemanticType<T?> {
+final class _NullableSchemaFactory<T> extends SchemanticType<T?> {
   final SchemanticType<T> _type;
 
   const _NullableSchemaFactory(this._type);
@@ -76,7 +76,7 @@ SchemanticType<String> stringSchema({
   );
 }
 
-class _StringSchemaFactory extends SchemanticType<String> {
+final class _StringSchemaFactory extends SchemanticType<String> {
   final String? description;
   final int? minLength;
   final int? maxLength;
@@ -137,7 +137,7 @@ SchemanticType<int> intSchema({
   );
 }
 
-class _IntSchemaFactory extends SchemanticType<int> {
+final class _IntSchemaFactory extends SchemanticType<int> {
   final String? description;
   final int? minimum;
   final int? maximum;
@@ -198,7 +198,7 @@ SchemanticType<double> doubleSchema({
   );
 }
 
-class _DoubleSchemaFactory extends SchemanticType<double> {
+final class _DoubleSchemaFactory extends SchemanticType<double> {
   final String? description;
   final double? minimum;
   final double? maximum;
@@ -249,7 +249,7 @@ SchemanticType<bool> boolSchema({String? description, bool? defaultValue}) {
   );
 }
 
-class _BoolSchemaFactory extends SchemanticType<bool> {
+final class _BoolSchemaFactory extends SchemanticType<bool> {
   final String? description;
   final bool? defaultValue;
 
@@ -276,7 +276,7 @@ SchemanticType<void> voidSchema({String? description}) {
   return _VoidSchemaFactory(description: description);
 }
 
-class _VoidSchemaFactory extends SchemanticType<void> {
+final class _VoidSchemaFactory extends SchemanticType<void> {
   final String? description;
   const _VoidSchemaFactory({this.description});
   @override
@@ -299,7 +299,7 @@ SchemanticType<dynamic> dynamicSchema({String? description}) {
   return _DynamicSchemaFactory(description: description);
 }
 
-class _DynamicSchemaFactory extends SchemanticType<dynamic> {
+final class _DynamicSchemaFactory extends SchemanticType<dynamic> {
   final String? description;
   const _DynamicSchemaFactory({this.description});
   @override
@@ -335,7 +335,7 @@ SchemanticType<List<T>> listSchema<T>(
   );
 }
 
-class _ListSchemaFactory<T> extends SchemanticType<List<T>> {
+final class _ListSchemaFactory<T> extends SchemanticType<List<T>> {
   final SchemanticType<T> itemType;
   final String? description;
   final int? minItems;
@@ -408,7 +408,7 @@ SchemanticType<Map<K, V>> mapSchema<K, V>(
   );
 }
 
-class _MapSchemaFactory<K, V> extends SchemanticType<Map<K, V>> {
+final class _MapSchemaFactory<K, V> extends SchemanticType<Map<K, V>> {
   final SchemanticType<K> keyType;
   final SchemanticType<V> valueType;
   final String? description;

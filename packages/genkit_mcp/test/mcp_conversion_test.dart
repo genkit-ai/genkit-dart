@@ -19,7 +19,7 @@ import 'package:genkit_mcp/src/util/convert_tools.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
-class _BadPromptSchema extends SchemanticType<Map<String, dynamic>> {
+final class _BadPromptSchema extends SchemanticType<Map<String, dynamic>> {
   @override
   Map<String, dynamic> parse(dynamic input) {
     return input as Map<String, dynamic>;
@@ -37,7 +37,7 @@ class _BadPromptSchema extends SchemanticType<Map<String, dynamic>> {
   );
 }
 
-class _NullableStringPromptSchema extends SchemanticType<Map<String, dynamic>> {
+final class _NullableStringPromptSchema extends SchemanticType<Map<String, dynamic>> {
   @override
   Map<String, dynamic> parse(dynamic input) {
     return input as Map<String, dynamic>;

@@ -21,7 +21,7 @@ part of 'openai_flows.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherInputSchema {
+base class WeatherInputSchema {
   factory WeatherInputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -66,7 +66,7 @@ class WeatherInputSchema {
   }
 }
 
-class _WeatherInputSchemaTypeFactory
+base class _WeatherInputSchemaTypeFactory
     extends SchemanticType<WeatherInputSchema> {
   const _WeatherInputSchemaTypeFactory();
 
@@ -91,7 +91,7 @@ class _WeatherInputSchemaTypeFactory
   );
 }
 
-class WeatherOutputSchema {
+base class WeatherOutputSchema {
   factory WeatherOutputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -162,7 +162,7 @@ class WeatherOutputSchema {
   }
 }
 
-class _WeatherOutputSchemaTypeFactory
+base class _WeatherOutputSchemaTypeFactory
     extends SchemanticType<WeatherOutputSchema> {
   const _WeatherOutputSchemaTypeFactory();
 

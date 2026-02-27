@@ -122,7 +122,7 @@ SchemanticType<Map<String, dynamic>> mcpToolInputSchemaFromJson(
 ///
 /// This allows Genkit's registry to reflect the actual input schema that
 /// the remote tool advertises, rather than an opaque `Map<String, dynamic>`.
-class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
+final class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
   final Map<String, dynamic> _jsonSchema;
 
   const McpToolInputSchema(this._jsonSchema);
@@ -143,7 +143,7 @@ class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
 ///
 /// Used to represent the input schema for MCP prompts whose arguments
 /// are only known at runtime.
-class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
+final class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
   final Map<String, dynamic> properties;
   final List<String> required;
 
