@@ -423,16 +423,16 @@ class OpenAIPlugin extends GenkitPlugin {
         'multipart/form-data; boundary=$boundary',
       );
 
-      final bodyBuilder = BytesBuilder();
-      _appendMultipartField(bodyBuilder, boundary, 'model', modelName);
+      final bodyBytes = <int>[];
+      _appendMultipartField(bodyBytes, boundary, 'model', modelName);
 
       final prompt = _extractTranscriptionPrompt(req.messages);
       if (prompt != null && prompt.isNotEmpty) {
-        _appendMultipartField(bodyBuilder, boundary, 'prompt', prompt);
+        _appendMultipartField(bodyBytes, boundary, 'prompt', prompt);
       }
 
       _appendMultipartFile(
-        bodyBuilder,
+        bodyBytes,
         boundary,
         fieldName: 'file',
         filename: audioPayload.filename,
@@ -440,8 +440,8 @@ class OpenAIPlugin extends GenkitPlugin {
         bytes: audioPayload.bytes,
       );
 
-      bodyBuilder.add(utf8.encode('--$boundary--\r\n'));
-      request.add(bodyBuilder.takeBytes());
+      bodyBytes.addAll(utf8.encode('--$boundary--\r\n'));
+      request.add(bodyBytes);
 
       final response = await request.close();
       final responseBody = await utf8.decoder.bind(response).join();
@@ -581,36 +581,36 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   void _appendMultipartField(
-    BytesBuilder builder,
+    List<int> bodyBytes,
     String boundary,
     String name,
     String value,
   ) {
-    builder.add(utf8.encode('--$boundary\r\n'));
-    builder.add(
+    bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
+    bodyBytes.addAll(
       utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'),
     );
-    builder.add(utf8.encode(value));
-    builder.add(utf8.encode('\r\n'));
+    bodyBytes.addAll(utf8.encode(value));
+    bodyBytes.addAll(utf8.encode('\r\n'));
   }
 
   void _appendMultipartFile(
-    BytesBuilder builder,
+    List<int> bodyBytes,
     String boundary, {
     required String fieldName,
     required String filename,
     required String contentType,
     required List<int> bytes,
   }) {
-    builder.add(utf8.encode('--$boundary\r\n'));
-    builder.add(
+    bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
+    bodyBytes.addAll(
       utf8.encode(
         'Content-Disposition: form-data; name="$fieldName"; filename="$filename"\r\n',
       ),
     );
-    builder.add(utf8.encode('Content-Type: $contentType\r\n\r\n'));
-    builder.add(bytes);
-    builder.add(utf8.encode('\r\n'));
+    bodyBytes.addAll(utf8.encode('Content-Type: $contentType\r\n\r\n'));
+    bodyBytes.addAll(bytes);
+    bodyBytes.addAll(utf8.encode('\r\n'));
   }
 
   /// Handle streaming response
