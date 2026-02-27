@@ -77,10 +77,12 @@ class _MovieReviewInputTypeFactory extends SchemanticType<MovieReviewInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MovieReviewInput',
-    definition: $Schema.object(
-      properties: {'title': $Schema.string(), 'year': $Schema.integer()},
-      required: ['title'],
-    ).value,
+    definition: $Schema
+        .object(
+          properties: {'title': $Schema.string(), 'year': $Schema.integer()},
+          required: ['title'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -182,24 +184,26 @@ class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MovieReview',
-    definition: $Schema.object(
-      properties: {
-        'title': $Schema.string(),
-        'rating': $Schema.number(),
-        'summary': $Schema.string(),
-        'pros': $Schema.list(items: $Schema.string()),
-        'cons': $Schema.list(items: $Schema.string()),
-        'recommendedFor': $Schema.string(),
-      },
-      required: [
-        'title',
-        'rating',
-        'summary',
-        'pros',
-        'cons',
-        'recommendedFor',
-      ],
-    ).value,
+    definition: $Schema
+        .object(
+          properties: {
+            'title': $Schema.string(),
+            'rating': $Schema.number(),
+            'summary': $Schema.string(),
+            'pros': $Schema.list(items: $Schema.string()),
+            'cons': $Schema.list(items: $Schema.string()),
+            'recommendedFor': $Schema.string(),
+          },
+          required: [
+            'title',
+            'rating',
+            'summary',
+            'pros',
+            'cons',
+            'recommendedFor',
+          ],
+        )
+        .value,
     dependencies: [],
   );
 }
