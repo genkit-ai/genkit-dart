@@ -54,10 +54,7 @@ Flow<ProductInput, MarketingCopy, void, void> defineMarketingCopyFlow(
 
       final results = await Future.wait([nameFuture, taglineFuture]);
 
-      return MarketingCopy(
-        name: results[0].text,
-        tagline: results[1].text,
-      );
+      return MarketingCopy(name: results[0].text, tagline: results[1].text);
     },
   );
 }

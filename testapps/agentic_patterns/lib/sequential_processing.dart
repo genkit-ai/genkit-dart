@@ -40,7 +40,7 @@ Flow<StoryInput, String, void, void> defineStoryWriterFlow(
   return ai.defineFlow(
     name: 'storyWriterFlow',
     inputSchema: StoryInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       // Step 1: Generate a creative story idea
       final ideaResponse = await ai.generate(
@@ -75,7 +75,7 @@ Flow<ImageGeneratorInput, String, void, void> defineImageGeneratorFlow(
   return ai.defineFlow(
     name: 'imageGeneratorFlow',
     inputSchema: ImageGeneratorInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       // Step 1: Use a text model to generate a rich image prompt
       final promptResponse = await ai.generate(
@@ -91,7 +91,7 @@ Flow<ImageGeneratorInput, String, void, void> defineImageGeneratorFlow(
         model: geminiImage,
         prompt: imagePrompt,
         config: {
-          'responseModalities': ['image']
+          'responseModalities': ['image'],
         },
       );
 

@@ -27,12 +27,12 @@ class _BadPromptSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'count': {'type': 'integer'},
       },
-    }),
+    },
     dependencies: const [],
   );
 }
@@ -45,7 +45,7 @@ class _NullableStringPromptSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'title': {
@@ -54,7 +54,7 @@ class _NullableStringPromptSchema extends SchemanticType<Map<String, dynamic>> {
         },
       },
       'required': const <String>[],
-    }),
+    },
     dependencies: const [],
   );
 }
@@ -100,7 +100,7 @@ void main() {
     final tool = ai.defineTool<Map<String, dynamic>, String>(
       name: 'defaultTaskTool',
       description: 'default task tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async => 'ok',
     );
 
@@ -114,7 +114,7 @@ void main() {
     final forbiddenTool = Tool<Map<String, dynamic>, String>(
       name: 'forbiddenTaskTool',
       description: 'forbidden task tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       metadata: {
         'mcp': {
           'execution': {'taskSupport': 'forbidden'},
@@ -130,7 +130,7 @@ void main() {
     final requiredTool = Tool<Map<String, dynamic>, String>(
       name: 'requiredTaskTool',
       description: 'required task tool',
-      inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+      inputSchema: .map(.string(), .dynamicSchema()),
       metadata: {
         'mcp': {
           'execution': {'taskSupport': 'required'},

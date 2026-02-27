@@ -275,11 +275,11 @@ void main() {
     // Tool with explicit inputSchema should reflect it.
     final typedTool = tools.firstWhere((t) => t.name.endsWith('/typedTool'));
     final typedJsonSchema = typedTool.inputSchema!.jsonSchema(useRefs: false);
-    final typedProps = typedJsonSchema.value['properties'] as Map?;
+    final typedProps = typedJsonSchema['properties'] as Map?;
     expect(typedProps, isNotNull);
     expect(typedProps!.containsKey('city'), isTrue);
     expect(typedProps.containsKey('count'), isTrue);
-    final requiredFields = typedJsonSchema.value['required'] as List?;
+    final requiredFields = typedJsonSchema['required'] as List?;
     expect(requiredFields, contains('city'));
 
     // Tool without inputSchema should fall back to Map<String, dynamic>.

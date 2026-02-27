@@ -74,8 +74,8 @@ void main() async {
       );
       return result.processedMessage;
     },
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
   );
 
   // Create a Shelf Router

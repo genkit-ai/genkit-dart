@@ -28,16 +28,14 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 void main(List<String> arguments) async {
   // Initialize Genkit and Model
-  final ai = Genkit(
-    plugins: [
-      googleAI(),
-    ],
-  );
+  final ai = Genkit(plugins: [googleAI()]);
   final geminiFlash = googleAI.gemini('gemini-2.5-flash');
 
   // Initialize Flows
-  final iterativeRefinementFlow =
-      defineIterativeRefinementFlow(ai, geminiFlash);
+  final iterativeRefinementFlow = defineIterativeRefinementFlow(
+    ai,
+    geminiFlash,
+  );
   final storyWriterFlow = defineStoryWriterFlow(ai, geminiFlash);
   final marketingCopyFlow = defineMarketingCopyFlow(ai, geminiFlash);
   final routerFlow = defineRouterFlow(ai, geminiFlash);
@@ -73,10 +71,10 @@ void main(List<String> arguments) async {
       }
       final topic = args[0];
       print('Running Iterative Refinement for topic: "$topic"...\n');
-      final result =
-          await iterativeRefinementFlow(IterativeRefinementInput(topic: topic));
+      final result = await iterativeRefinementFlow(
+        IterativeRefinementInput(topic: topic),
+      );
       print('\nFinal Result:\n$result');
-      break;
     case 'sequentialProcessing':
       if (args.isEmpty) {
         print('Usage: sequentialProcessing "<topic>"');
@@ -86,7 +84,6 @@ void main(List<String> arguments) async {
       print('Running Sequential Processing for topic: "$topic"...\n');
       final result = await storyWriterFlow(StoryInput(topic: topic));
       print('\nFinal Result:\n$result');
-      break;
     case 'parallelExecution':
       if (args.isEmpty) {
         print('Usage: parallelExecution "<product>"');
@@ -96,8 +93,8 @@ void main(List<String> arguments) async {
       print('Running Parallel Execution for product: "$product"...\n');
       final result = await marketingCopyFlow(ProductInput(product: product));
       print(
-          '\nFinal Result:\nName: ${result.name}\nTagline: ${result.tagline}');
-      break;
+        '\nFinal Result:\nName: ${result.name}\nTagline: ${result.tagline}',
+      );
     case 'conditionalRouting':
       if (args.isEmpty) {
         print('Usage: conditionalRouting "<query>"');
@@ -107,7 +104,6 @@ void main(List<String> arguments) async {
       print('Running Conditional Routing for query: "$query"...\n');
       final result = await routerFlow(RouterInput(query: query));
       print('\nFinal Result:\n$result');
-      break;
     case 'toolCalling':
       if (args.isEmpty) {
         print('Usage: toolCalling "<prompt>"');
@@ -117,7 +113,6 @@ void main(List<String> arguments) async {
       print('Running Tool Calling for prompt: "$prompt"...\n');
       final result = await toolCallingFlow(ToolCallingInput(prompt: prompt));
       print('\nFinal Result:\n$result');
-      break;
     case 'autonomousOperation':
       if (args.isEmpty) {
         print('Usage: autonomousOperation "<task>"');
@@ -127,7 +122,6 @@ void main(List<String> arguments) async {
       print('Running Autonomous Operation for task: "$task"...\n');
       final result = await researchAgent(ResearchAgentInput(task: task));
       print('\nFinal Result:\n$result');
-      break;
     case 'agenticRag':
       if (args.isEmpty) {
         print('Usage: agenticRag "<question>"');
@@ -137,7 +131,6 @@ void main(List<String> arguments) async {
       print('Running Agentic RAG for question: "$question"...\n');
       final result = await agenticRagFlow(AgenticRagInput(question: question));
       print('\nFinal Result:\n$result');
-      break;
     case 'statefulInteractions':
       if (args.length < 2) {
         print('Usage: statefulInteractions "<sessionId>" "<message>"');
@@ -150,7 +143,6 @@ void main(List<String> arguments) async {
         StatefulChatInput(sessionId: sessionId, message: message),
       );
       print('\nFinal Result:\n$result');
-      break;
     case 'imageGenerator':
       if (args.isEmpty) {
         print('Usage: imageGenerator "<concept>"');
@@ -158,8 +150,9 @@ void main(List<String> arguments) async {
       }
       final concept = args[0];
       print('Running Image Generator for concept: "$concept"...\n');
-      final result =
-          await imageGeneratorFlow(ImageGeneratorInput(concept: concept));
+      final result = await imageGeneratorFlow(
+        ImageGeneratorInput(concept: concept),
+      );
 
       if (result.startsWith('data:')) {
         try {
@@ -167,8 +160,10 @@ void main(List<String> arguments) async {
           if (base64idx != -1) {
             final base64Str = result.substring(base64idx + 7);
             final bytes = base64Decode(base64Str);
-            final sanitizedConcept =
-                concept.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+            final sanitizedConcept = concept.replaceAll(
+              RegExp(r'[^a-zA-Z0-9]'),
+              '_',
+            );
             final fileName = 'generated_image_$sanitizedConcept.png';
             final file = File(fileName);
             await file.writeAsBytes(bytes);
@@ -183,7 +178,6 @@ void main(List<String> arguments) async {
       } else {
         print('\nFinal Result (Image URL):\n$result');
       }
-      break;
     default:
       print('Unknown command: $command');
   }

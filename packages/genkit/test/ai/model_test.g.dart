@@ -65,10 +65,12 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestCustomOptions',
-    definition: Schema.object(
-      properties: {'customField': Schema.string()},
-      required: ['customField'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'customField': $Schema.string()},
+          required: ['customField'],
+        )
+        .value,
     dependencies: [],
   );
 }

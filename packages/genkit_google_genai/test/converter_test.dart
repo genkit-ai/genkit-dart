@@ -45,11 +45,7 @@ void main() {
 
     test('converts media part with data URI and no explicit contentType', () {
       final data = 'SGVsbG8=';
-      final part = MediaPart(
-        media: Media(
-          url: 'data:text/plain;base64,$data',
-        ),
-      );
+      final part = MediaPart(media: Media(url: 'data:text/plain;base64,$data'));
       final geminiPart = toGeminiPart(part);
       expect(geminiPart.inlineData, isNotNull);
       expect(geminiPart.inlineData!.mimeType, 'text/plain');
@@ -68,17 +64,17 @@ void main() {
       expect(geminiPart.fileData!.fileUri, 'https://example.com/image.png');
     });
 
-    test('converts http/s media URL to FileData with no explicit contentType',
-        () {
-      final part = MediaPart(
-        media: Media(
-          url: 'https://example.com/image.png',
-        ),
-      );
-      final geminiPart = toGeminiPart(part);
-      expect(geminiPart.fileData, isNotNull);
-      expect(geminiPart.fileData!.mimeType, '');
-    });
+    test(
+      'converts http/s media URL to FileData with no explicit contentType',
+      () {
+        final part = MediaPart(
+          media: Media(url: 'https://example.com/image.png'),
+        );
+        final geminiPart = toGeminiPart(part);
+        expect(geminiPart.fileData, isNotNull);
+        expect(geminiPart.fileData!.mimeType, '');
+      },
+    );
   });
 
   group('fromGeminiPart', () {

@@ -51,8 +51,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echo',
       fn: (input, _) async => 'Echo: $input',
-      inputSchema: stringSchema(),
-      outputSchema: stringSchema(),
+      inputSchema: .string(),
+      outputSchema: .string(),
     );
 
     server = await startFlowServer(flows: [echoFlow], port: 0);
@@ -76,9 +76,9 @@ void main() {
         ctx.sendChunk('Chunk 2');
         return 'Done';
       },
-      inputSchema: stringSchema(),
-      outputSchema: stringSchema(),
-      streamSchema: stringSchema(),
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
     );
 
     server = await startFlowServer(flows: [streamFlow], port: 0);
@@ -108,8 +108,8 @@ void main() {
         if (user == null) throw Exception('Unauthorized');
         return 'Hello $user';
       },
-      inputSchema: stringSchema(),
-      outputSchema: stringSchema(),
+      inputSchema: .string(),
+      outputSchema: .string(),
     );
 
     final flowWithContext = FlowWithContextProvider(
@@ -154,8 +154,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echo',
       fn: (input, _) async => 'Echo: $input',
-      inputSchema: stringSchema(),
-      outputSchema: stringSchema(),
+      inputSchema: .string(),
+      outputSchema: .string(),
     );
 
     final handler = shelfHandler(echoFlow);
@@ -178,8 +178,8 @@ void main() {
     final echoFlow = ai.defineFlow(
       name: 'echoType',
       fn: (input, _) async => 'Echo: $input',
-      inputSchema: stringSchema(),
-      outputSchema: stringSchema(),
+      inputSchema: .string(),
+      outputSchema: .string(),
     );
 
     server = await startFlowServer(flows: [echoFlow], port: 0);
@@ -187,7 +187,7 @@ void main() {
 
     final action = defineRemoteAction(
       url: 'http://localhost:$port/echoType',
-      outputSchema: stringSchema(),
+      outputSchema: .string(),
     );
 
     final result = await action(input: 'typed');
@@ -203,7 +203,7 @@ void main() {
         ctx.sendChunk(ShelfTestStream(chunk: 'chunk2'));
         return ShelfTestOutput(greeting: 'done');
       },
-      inputSchema: stringSchema(),
+      inputSchema: .string(),
       outputSchema: ShelfTestOutput.$schema,
       streamSchema: ShelfTestStream.$schema,
     );
@@ -241,9 +241,9 @@ void main() {
         ctx.sendChunk('Chunk 2');
         return 'Done';
       },
-      inputSchema: stringSchema(),
-      outputSchema: stringSchema(),
-      streamSchema: stringSchema(),
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
     );
 
     server = await startFlowServer(flows: [streamFlow], port: 0);

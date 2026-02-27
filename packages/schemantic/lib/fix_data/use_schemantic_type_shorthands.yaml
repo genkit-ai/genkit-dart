@@ -1,0 +1,101 @@
+version: 1
+transforms:
+  - title: 'Replace stringSchema'
+    date: 2026-01-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'stringSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.string'
+  - title: 'Replace intSchema'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'intSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.integer'
+  - title: 'Replace doubleSchema'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'doubleSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.doubleSchema'
+  - title: 'Replace boolSchema'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'boolSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.boolean'
+  - title: 'Replace voidSchema'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'voidSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.voidSchema'
+  - title: 'Replace dynamicSchema'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'dynamicSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.dynamicSchema'
+  - title: 'Replace listSchema'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'listSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.list'
+  - title: 'Replace mapSchema'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'mapSchema'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.map'
+  - title: 'Replace nullable'
+    date: 2026-02-23
+    bulkApply: true
+    element:
+      uris: ['package:schemantic/schemantic.dart']
+      class: 'nullable'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:schemantic/schemantic.dart']
+          class: 'SchemanticType.nullable'

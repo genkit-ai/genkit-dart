@@ -64,15 +64,17 @@ class _FilesystemOptionsTypeFactory extends SchemanticType<FilesystemOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FilesystemOptions',
-    definition: Schema.object(
-      properties: {
-        'rootDirectory': Schema.string(
-          description:
-              'The root directory to which all filesystem operations are restricted.',
-        ),
-      },
-      required: ['rootDirectory'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'rootDirectory': $Schema.string(
+              description:
+                  'The root directory to which all filesystem operations are restricted.',
+            ),
+          },
+          required: ['rootDirectory'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -137,21 +139,23 @@ class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ListFilesInput',
-    definition: Schema.object(
-      properties: {
-        'dirPath': Schema.fromMap({
-          'description': 'Directory path relative to root.',
-          'default': '',
-          'type': 'string',
-        }),
-        'recursive': Schema.fromMap({
-          'description': 'Whether to list files recursively.',
-          'default': false,
-          'type': 'boolean',
-        }),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'dirPath': $Schema.fromMap({
+              'description': 'Directory path relative to root.',
+              'default': '',
+              'type': 'string',
+            }),
+            'recursive': $Schema.fromMap({
+              'description': 'Whether to list files recursively.',
+              'default': false,
+              'type': 'boolean',
+            }),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -200,12 +204,16 @@ class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReadFileInput',
-    definition: Schema.object(
-      properties: {
-        'filePath': Schema.string(description: 'File path relative to root.'),
-      },
-      required: ['filePath'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'filePath': $Schema.string(
+              description: 'File path relative to root.',
+            ),
+          },
+          required: ['filePath'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -262,13 +270,19 @@ class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WriteFileInput',
-    definition: Schema.object(
-      properties: {
-        'filePath': Schema.string(description: 'File path relative to root.'),
-        'content': Schema.string(description: 'Content to write to the file.'),
-      },
-      required: ['filePath', 'content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'filePath': $Schema.string(
+              description: 'File path relative to root.',
+            ),
+            'content': $Schema.string(
+              description: 'Content to write to the file.',
+            ),
+          },
+          required: ['filePath', 'content'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -329,17 +343,21 @@ class _SearchAndReplaceInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SearchAndReplaceInput',
-    definition: Schema.object(
-      properties: {
-        'filePath': Schema.string(description: 'File path relative to root.'),
-        'edits': Schema.list(
-          description:
-              'A search and replace block string in the format:\n<<<<<<< SEARCH\n[search content]\n=======\n[replace content]\n>>>>>>> REPLACE',
-          items: Schema.string(),
-        ),
-      },
-      required: ['filePath', 'edits'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'filePath': $Schema.string(
+              description: 'File path relative to root.',
+            ),
+            'edits': $Schema.list(
+              description:
+                  'A search and replace block string in the format:\n<<<<<<< SEARCH\n[search content]\n=======\n[replace content]\n>>>>>>> REPLACE',
+              items: $Schema.string(),
+            ),
+          },
+          required: ['filePath', 'edits'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -397,10 +415,15 @@ class _ListFileOutputItemTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ListFileOutputItem',
-    definition: Schema.object(
-      properties: {'path': Schema.string(), 'isDirectory': Schema.boolean()},
-      required: ['path', 'isDirectory'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'path': $Schema.string(),
+            'isDirectory': $Schema.boolean(),
+          },
+          required: ['path', 'isDirectory'],
+        )
+        .value,
     dependencies: [],
   );
 }

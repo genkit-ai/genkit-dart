@@ -103,13 +103,12 @@ Future<GenerateBidiSession> runGenerateBidi(
     ],
     config: config is Map
         ? config as Map<String, dynamic>
-        : (config as dynamic)?.toJson(),
+        : (config as dynamic)?.toJson() as Map<String, dynamic>?,
     tools: toolDefs,
   );
 
   final session = model.streamBidi(init: initRequest);
 
-  // ignore: close_sinks
   final outputController = StreamController<GenerateResponseChunk>();
   final previousChunks = <ModelResponseChunk>[];
 

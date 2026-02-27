@@ -261,9 +261,9 @@ sdk.Message toAnthropicMessage(Message m) {
         final req = map['toolRequest'] as Map<String, dynamic>;
         return [
           sdk.Block.toolUse(
-            id: req['ref'],
-            name: req['name'],
-            input: req['input'],
+            id: req['ref'] as String,
+            name: req['name'] as String,
+            input: req['input'] as Map<String, dynamic>,
             type: 'tool_use',
           ),
         ];
@@ -271,7 +271,7 @@ sdk.Message toAnthropicMessage(Message m) {
         final res = map['toolResponse'] as Map<String, dynamic>;
         return [
           sdk.Block.toolResult(
-            toolUseId: res['ref'],
+            toolUseId: res['ref'] as String,
             content: sdk.ToolResultBlockContent.text(jsonEncode(res['output'])),
           ),
         ];

@@ -17,7 +17,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
-import 'package:schemantic/schemantic.dart';
 
 import 'types.dart';
 
@@ -39,7 +38,7 @@ Future<void> main() async {
   serverAi.defineTool<Map<String, dynamic>, String>(
     name: 'greet',
     description: 'Greets a user by name.',
-    inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       final name = input['name']?.toString();
       return 'Hello, ${name ?? 'world'}!';
@@ -87,7 +86,7 @@ Future<void> main() async {
   serverAi.defineTool<Map<String, dynamic>, String>(
     name: 'slowEcho',
     description: 'A slow tool to demonstrate tasks.',
-    inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       await Future<void>.delayed(const Duration(milliseconds: 120));
       return 'slow: ${input['value'] ?? ''}';

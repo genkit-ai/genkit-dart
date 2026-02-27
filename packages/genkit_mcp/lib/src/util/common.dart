@@ -89,7 +89,7 @@ SchemanticType<Map<String, dynamic>> promptSchemaFromArgs(
   List<Map<String, dynamic>> args,
 ) {
   if (args.isEmpty) {
-    return mapSchema(stringSchema(), dynamicSchema());
+    return .map(.string(), .dynamicSchema());
   }
   final properties = <String, dynamic>{};
   final required = <String>[];
@@ -114,7 +114,7 @@ SchemanticType<Map<String, dynamic>> mcpToolInputSchemaFromJson(
   if (inputSchema is Map) {
     return McpToolInputSchema(inputSchema.cast<String, dynamic>());
   }
-  return mapSchema(stringSchema(), dynamicSchema());
+  return .map(.string(), .dynamicSchema());
 }
 
 /// A [SchemanticType] that wraps a raw JSON schema received from a remote
@@ -135,10 +135,8 @@ class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
   }
 
   @override
-  JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap(_jsonSchema),
-    dependencies: const [],
-  );
+  JsonSchemaMetadata? get schemaMetadata =>
+      JsonSchemaMetadata(definition: _jsonSchema, dependencies: const []);
 }
 
 /// A [SchemanticType] backed by a dynamic set of string properties.
@@ -161,11 +159,11 @@ class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': properties,
       if (required.isNotEmpty) 'required': required,
-    }),
+    },
     dependencies: const [],
   );
 }

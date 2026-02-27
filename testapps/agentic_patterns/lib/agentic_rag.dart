@@ -40,7 +40,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
     name: 'menuRagTool',
     description: 'Use to retrieve information from the Genkit Grub Pub menu.',
     inputSchema: MenuRagToolInput.$schema,
-    outputSchema: listSchema(stringSchema()),
+    outputSchema: .list(.string()),
     fn: (input, _) async {
       const menuItems = [
         'Classic Burger: A juicy beef patty with lettuce, tomato, and our special sauce.',
@@ -69,7 +69,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
   return ai.defineFlow(
     name: 'agenticRagFlow',
     inputSchema: AgenticRagInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       final llmResponse = await ai.generate(
         model: geminiFlash,

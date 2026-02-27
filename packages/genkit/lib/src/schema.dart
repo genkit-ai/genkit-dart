@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:json_schema_builder/json_schema_builder.dart';
 import 'package:schemantic/schemantic.dart';
 
 Map<String, dynamic> toJsonSchema({
@@ -25,17 +26,10 @@ Map<String, dynamic> toJsonSchema({
   }
 
   if (type != null) {
-    result = type.jsonSchema(useRefs: useRefs).value;
+    result = type.jsonSchema(useRefs: useRefs);
   }
 
   result['\$schema'] = 'http://json-schema.org/draft-07/schema#';
 
   return result;
-}
-
-/// Flattens a JSON schema by dereferencing all `$ref`s and removing `$defs`.
-///
-/// Throws [FormatException] if recursive references are detected.
-Map<String, dynamic> flattenSchema(Map<String, dynamic> schema) {
-  return Schema.fromMap(schema).flatten().value;
 }

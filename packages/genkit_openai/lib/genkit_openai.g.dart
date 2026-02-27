@@ -213,22 +213,26 @@ class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OpenAIOptions',
-    definition: Schema.object(
-      properties: {
-        'version': Schema.string(),
-        'temperature': Schema.number(minimum: 0.0, maximum: 2.0),
-        'topP': Schema.number(minimum: 0.0, maximum: 1.0),
-        'maxTokens': Schema.integer(),
-        'stop': Schema.list(items: Schema.string()),
-        'presencePenalty': Schema.number(minimum: -2.0, maximum: 2.0),
-        'frequencyPenalty': Schema.number(minimum: -2.0, maximum: 2.0),
-        'seed': Schema.integer(),
-        'user': Schema.string(),
-        'jsonMode': Schema.boolean(),
-        'visualDetailLevel': Schema.string(enumValues: ['auto', 'low', 'high']),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'version': $Schema.string(),
+            'temperature': $Schema.number(minimum: 0.0, maximum: 2.0),
+            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
+            'maxTokens': $Schema.integer(),
+            'stop': $Schema.list(items: $Schema.string()),
+            'presencePenalty': $Schema.number(minimum: -2.0, maximum: 2.0),
+            'frequencyPenalty': $Schema.number(minimum: -2.0, maximum: 2.0),
+            'seed': $Schema.integer(),
+            'user': $Schema.string(),
+            'jsonMode': $Schema.boolean(),
+            'visualDetailLevel': $Schema.string(
+              enumValues: ['auto', 'low', 'high'],
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }

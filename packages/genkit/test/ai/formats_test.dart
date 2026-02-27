@@ -315,7 +315,7 @@ void main() {
           .toList();
 
       expect(instructionParts?.length, 1);
-      expect(instructionParts!.first.text!, 'Manual instructions');
+      expect(instructionParts!.first.text, 'Manual instructions');
     });
 
     test('parses partial json chunks', () async {

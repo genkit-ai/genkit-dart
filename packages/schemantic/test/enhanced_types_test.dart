@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('Enhanced Basic Types', () {
     test('listSchema with options', () {
-      final t = listSchema(
-        stringSchema(),
+      final t = SchemanticType.list(
+        .string(),
         description: 'My List',
         minItems: 1,
         maxItems: 5,
         uniqueItems: true,
       );
-      final schema = t.jsonSchema();
-      final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
+      final json = t.jsonSchema();
       expect(json['type'], 'array');
       expect(json['description'], 'My List');
       expect(json['minItems'], 1);
@@ -36,15 +34,14 @@ void main() {
     });
 
     test('mapType with options', () {
-      final t = mapSchema(
-        stringSchema(),
-        intSchema(),
+      final t = SchemanticType.map(
+        .string(),
+        .integer(),
         description: 'My Map',
         minProperties: 2,
         maxProperties: 10,
       );
-      final schema = t.jsonSchema();
-      final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
+      final json = t.jsonSchema();
       expect(json['type'], 'object');
       expect(json['description'], 'My Map');
       expect(json['minProperties'], 2);
@@ -54,9 +51,11 @@ void main() {
 
     test('listSchema with refs and options', () {
       // Create a recursive/ref type simulation (though stringSchema() is simple)
-      final t = listSchema(_MockTypeWithDefs(), description: 'Recursive List');
-      final schema = t.jsonSchema(useRefs: true);
-      final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
+      final t = SchemanticType.list(
+        _MockTypeWithDefs(),
+        description: 'Recursive List',
+      );
+      final json = t.jsonSchema(useRefs: true);
 
       expect(json['type'], 'array');
       expect(json['description'], 'Recursive List');
@@ -72,12 +71,10 @@ class _MockTypeWithDefs extends SchemanticType<int> {
   int parse(Object? json) => json as int;
 
   @override
-  Schema jsonSchema({bool useRefs = false}) {
-    return Schema.fromMap({
-      r'$ref': '#/\$defs/Mock',
-      r'$defs': {
-        'Mock': {'type': 'integer'},
-      },
-    });
-  }
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => {
+    r'$ref': '#/\$defs/Mock',
+    r'$defs': {
+      'Mock': {'type': 'integer'},
+    },
+  };
 }

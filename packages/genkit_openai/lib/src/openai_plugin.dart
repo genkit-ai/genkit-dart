@@ -33,14 +33,11 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 /// Returns null if [schema] is null.
 ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   if (schema == null) return null;
-  final flattened = Schema.fromMap(schema).flatten().value;
+  final flattened = schema.flatten();
   return ResponseFormat.jsonSchema(
     jsonSchema: JsonSchemaObject(
       name: 'output',
-      schema: {
-        ...flattened,
-        'additionalProperties': false,
-      },
+      schema: {...flattened, 'additionalProperties': false},
       strict: true,
     ),
   );
@@ -75,9 +72,13 @@ class OpenAIPlugin extends GenkitPlugin {
         for (final modelId in availableModelIds) {
           final modelType = getModelType(modelId);
 
+<<<<<<< openai-add-whisper
           if (modelType != 'chat' &&
               modelType != 'unknown' &&
               !isTranscriptionModel(modelId)) {
+=======
+          if (modelType != 'chat' && modelType != 'unknown') {
+>>>>>>> main
             continue;
           }
 
@@ -323,9 +324,15 @@ class OpenAIPlugin extends GenkitPlugin {
             request.output?.format,
             request.output?.contentType,
           );
+<<<<<<< openai-add-whisper
           final responseFormat = buildOpenAIResponseFormat(request.output?.schema);
           final chatRequest = CreateChatCompletionRequest(
             model: ChatCompletionModel.modelId(resolvedModel),
+=======
+          final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
+          final request = CreateChatCompletionRequest(
+            model: ChatCompletionModel.modelId(options.version ?? modelName),
+>>>>>>> main
             messages: GenkitConverter.toOpenAIMessages(
               request.messages,
               options.visualDetailLevel,

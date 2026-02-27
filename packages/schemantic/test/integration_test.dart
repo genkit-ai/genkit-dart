@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: avoid_dynamic_calls, unused_element
-
-import 'dart:convert';
+// ignore_for_file: avoid_dynamic_calls
 
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -190,7 +188,7 @@ void main() {
       expect(parsed.leader?.isAdmin, isTrue);
 
       final schema = Group.$schema.jsonSchema(useRefs: false);
-      expect(jsonDecode(jsonEncode(schema)), {
+      expect(schema, {
         'type': 'object',
         'properties': {
           'groupName': {'type': 'string'},
@@ -224,19 +222,19 @@ void main() {
       // 1. Verify refs generation
       // 1. Verify refs generation
       final nodeSchema = Node.$schema.jsonSchema(useRefs: true);
-      final json = jsonDecode(jsonEncode(nodeSchema)) as Map<String, dynamic>;
+      final json = nodeSchema;
 
       // Should have a root ref or be a combinator dependent on implementation
       expect(json[r'$ref'], '#/\$defs/Node');
 
-      final defs = json[r'$defs'] ?? json['definitions'];
+      final defs = (json[r'$defs'] ?? json['definitions']) as Map;
       expect(defs, isNotNull);
       expect(defs, contains('Node'));
 
-      final nodeDef = defs['Node'];
+      final nodeDef = defs['Node'] as Map;
       // Check children item ref
       expect(
-        nodeDef['properties']['children']['items'][r'$ref'],
+        ((nodeDef['properties'] as Map)['children'] as Map)['items'][r'$ref'],
         '#/\$defs/Node',
       );
 
@@ -245,7 +243,7 @@ void main() {
     });
 
     test('Schema Validation', () async {
-      final schema = User.$schema.jsonSchema();
+      final schema = User.$schema;
       // Valid data
       expect(
         await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
@@ -269,19 +267,29 @@ void main() {
     });
 
     test('Schema Validation with useRefs: true', () async {
-      final schema = User.$schema.jsonSchema(useRefs: true);
+      final schema = User.$schema;
       // Valid data
       expect(
-        await schema.validate({'name': 'Alice', 'age': 30, 'isAdmin': true}),
+        await schema.validate({
+          'name': 'Alice',
+          'age': 30,
+          'isAdmin': true,
+        }, useRefs: true),
         isEmpty,
       );
       // Invalid data
-      expect(await schema.validate({'name': 'Charlie'}), isNotEmpty);
+      expect(
+        await schema.validate({'name': 'Charlie'}, useRefs: true),
+        isNotEmpty,
+      );
 
       // Recursive schema valid data
-      final nodeSchema = Node.$schema.jsonSchema(useRefs: true);
+      final nodeSchema = Node.$schema;
       expect(
-        await nodeSchema.validate({'id': 'root', 'children': []}),
+        await nodeSchema.validate({
+          'id': 'root',
+          'children': [],
+        }, useRefs: true),
         isEmpty,
       );
       expect(
@@ -290,7 +298,7 @@ void main() {
           'children': [
             {'id': 'child1', 'children': []},
           ],
-        }),
+        }, useRefs: true),
         isEmpty,
       );
 
@@ -301,7 +309,7 @@ void main() {
           'children': [
             {'id': 123, 'children': []},
           ],
-        }),
+        }, useRefs: true),
         isNotEmpty,
       );
     });
@@ -314,20 +322,21 @@ void main() {
       expect(parsed.originalName, 'parsed');
 
       final schema = Keyed.$schema.jsonSchema();
-      final schemaJson = jsonDecode(schema.toJson());
+      final schemaJson = schema;
       expect(
-        schemaJson['properties']['custom_name']['description'],
+        ((schemaJson['properties'] as Map)['custom_name']
+            as Map)['description'],
         'A custom named field',
       );
     });
 
     test('ComprehensiveSchema validation', () {
       final schema = Comprehensive.$schema.jsonSchema();
-      final schemaJson = jsonDecode(schema.toJson());
-      final props = schemaJson['properties'] as Map<String, dynamic>;
+      final schemaJson = schema;
+      final props = schemaJson['properties'] as Map;
 
       // StringField validation
-      final s = props['s_field'];
+      final s = props['s_field'] as Map;
       expect(s['type'], 'string');
       expect(s['description'], 'A string field');
       expect(s['minLength'], 1);
@@ -337,7 +346,7 @@ void main() {
       expect(s['enum'], ['a', 'b']);
 
       // IntegerField validation
-      final i = props['i_field'];
+      final i = props['i_field'] as Map;
       expect(i['type'], 'integer');
       expect(i['description'], 'An integer field');
       expect(i['minimum'], 0);
@@ -347,7 +356,7 @@ void main() {
       expect(i['multipleOf'], 5);
 
       // DoubleField validation
-      final n = props['n_field'];
+      final n = props['n_field'] as Map;
       expect(n['type'], 'number');
       expect(n['description'], 'A number field');
       expect(n['minimum'], 0.0);
@@ -359,7 +368,7 @@ void main() {
 
     test('DescriptionSchema has description', () {
       final schemaMetadata = Description.$schema.schemaMetadata;
-      final definition = schemaMetadata!.definition as Map<String, dynamic>;
+      final definition = schemaMetadata!.definition;
 
       // We expect the definition to have the description directly (if it's an object)
       // The implementation uses Schema.object(description: ...) which produces
@@ -383,13 +392,13 @@ void main() {
 
     test('DefaultsSchema has default values', () {
       final schema = Defaults.$schema.jsonSchema();
-      final schemaJson = jsonDecode(schema.toJson());
-      final props = schemaJson['properties'] as Map<String, dynamic>;
+      final schemaJson = schema;
+      final props = schemaJson['properties'] as Map;
 
-      expect(props['env']['default'], 'prod');
-      expect(props['port']['default'], 8080);
-      expect(props['ratio']['default'], 1.5);
-      expect(props['flag']['default'], true);
+      expect((props['env'] as Map)['default'], 'prod');
+      expect((props['port'] as Map)['default'], 8080);
+      expect((props['ratio'] as Map)['default'], 1.5);
+      expect((props['flag'] as Map)['default'], true);
     });
   });
 
@@ -432,11 +441,11 @@ void main() {
 
     test('Poly JSON Schema', () {
       final schema = Poly.$schema.jsonSchema(useRefs: true);
-      final json = jsonDecode(schema.toJson());
-      final defs = json[r'$defs'] ?? json['definitions'];
-      final polyDef = defs['Poly'];
-      final props = polyDef['properties'];
-      expect(props['id']['anyOf'], [
+      final json = schema;
+      final defs = (json[r'$defs'] ?? json['definitions']) as Map;
+      final polyDef = defs['Poly'] as Map;
+      final props = polyDef['properties'] as Map;
+      expect((props['id'] as Map)['anyOf'], [
         {'type': 'integer'},
         {'type': 'string'},
         {r'$ref': r'#/$defs/User'},

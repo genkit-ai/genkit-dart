@@ -38,7 +38,7 @@ Future<void> main(List<String> args) async {
   // Define the tool
   ai.defineTool(
     name: 'transfer_funds',
-    description: "transfer funds, requires user approval",
+    description: 'transfer funds, requires user approval',
     inputSchema: ApprovalRequest.$schema,
     fn: (input, ctx) async {
       // Check if context has approval flag to simulate state or auth passing

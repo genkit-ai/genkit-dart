@@ -43,7 +43,7 @@ The plugin also supports image generation models such as `gemini-2.5-flash-image
 // Define an image generation flow
 ai.defineFlow(
   name: 'imageGenerator',
-  inputSchema: stringSchema(defaultValue: 'A banana riding a bike'),
+  inputSchema: .string(defaultValue: 'A banana riding a bike'),
   outputSchema: Media.$schema,
   fn: (input, context) async {
     final response = await ai.generate(
@@ -66,7 +66,7 @@ You can use text-to-speech models to generate audio from text. The generated `Me
 // Define a TTS flow
 ai.defineFlow(
   name: 'textToSpeech',
-  inputSchema: stringSchema(defaultValue: 'Genkit is an amazing AI framework!'),
+  inputSchema: .string(defaultValue: 'Genkit is an amazing AI framework!'),
   outputSchema: Media.$schema,
   fn: (prompt, _) async {
     final response = await ai.generate(

@@ -131,17 +131,19 @@ class _CandidateTypeFactory extends SchemanticType<Candidate> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Candidate',
-    definition: Schema.object(
-      properties: {
-        'index': Schema.number(),
-        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-        'finishReason': Schema.any(),
-        'finishMessage': Schema.string(),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['index', 'message', 'finishReason'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'index': $Schema.number(),
+            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
+            'finishReason': $Schema.any(),
+            'finishMessage': $Schema.string(),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['index', 'message', 'finishReason'],
+        )
+        .value,
     dependencies: [Message.$schema, GenerationUsage.$schema],
   );
 }
@@ -218,16 +220,18 @@ class _MessageTypeFactory extends SchemanticType<Message> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Message',
-    definition: Schema.object(
-      properties: {
-        'role': Schema.any(),
-        'content': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-        ),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['role', 'content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'role': $Schema.any(),
+            'content': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+            ),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['role', 'content'],
+        )
+        .value,
     dependencies: [Part.$schema],
   );
 }
@@ -332,16 +336,18 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolDefinition',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'description': Schema.string(),
-        'inputSchema': Schema.object(additionalProperties: Schema.any()),
-        'outputSchema': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['name', 'description'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'description': $Schema.string(),
+            'inputSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'outputSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['name', 'description'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -380,7 +386,7 @@ class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: Schema.object(properties: {}, required: []),
+    definition: $Schema.object(properties: {}, required: []).value,
     dependencies: [],
   );
 }
@@ -475,15 +481,17 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextPart',
-    definition: Schema.object(
-      properties: {
-        'text': Schema.string(),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['text'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'text': $Schema.string(),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['text'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -578,15 +586,17 @@ class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MediaPart',
-    definition: Schema.object(
-      properties: {
-        'media': Schema.fromMap({'\$ref': r'#/$defs/Media'}),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['media'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'media': $Schema.fromMap({'\$ref': r'#/$defs/Media'}),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['media'],
+        )
+        .value,
     dependencies: [Media.$schema],
   );
 }
@@ -683,15 +693,17 @@ class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolRequestPart',
-    definition: Schema.object(
-      properties: {
-        'toolRequest': Schema.fromMap({'\$ref': r'#/$defs/ToolRequest'}),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['toolRequest'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'toolRequest': $Schema.fromMap({'\$ref': r'#/$defs/ToolRequest'}),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['toolRequest'],
+        )
+        .value,
     dependencies: [ToolRequest.$schema],
   );
 }
@@ -788,15 +800,17 @@ class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolResponsePart',
-    definition: Schema.object(
-      properties: {
-        'toolResponse': Schema.fromMap({'\$ref': r'#/$defs/ToolResponse'}),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['toolResponse'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'toolResponse': $Schema.fromMap({'\$ref': r'#/$defs/ToolResponse'}),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['toolResponse'],
+        )
+        .value,
     dependencies: [ToolResponse.$schema],
   );
 }
@@ -877,14 +891,16 @@ class _DataPartTypeFactory extends SchemanticType<DataPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DataPart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -961,14 +977,16 @@ class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CustomPart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['custom'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['custom'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1065,15 +1083,17 @@ class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReasoningPart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'reasoning': Schema.string(),
-      },
-      required: ['reasoning'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'reasoning': $Schema.string(),
+          },
+          required: ['reasoning'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1170,15 +1190,17 @@ class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResourcePart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'resource': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['resource'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'resource': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['resource'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1237,10 +1259,15 @@ class _MediaTypeFactory extends SchemanticType<Media> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Media',
-    definition: Schema.object(
-      properties: {'contentType': Schema.string(), 'url': Schema.string()},
-      required: ['url'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'contentType': $Schema.string(),
+            'url': $Schema.string(),
+          },
+          required: ['url'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1329,15 +1356,17 @@ class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolRequest',
-    definition: Schema.object(
-      properties: {
-        'ref': Schema.string(),
-        'name': Schema.string(),
-        'input': Schema.object(additionalProperties: Schema.any()),
-        'partial': Schema.boolean(),
-      },
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'ref': $Schema.string(),
+            'name': $Schema.string(),
+            'input': $Schema.object(additionalProperties: $Schema.any()),
+            'partial': $Schema.boolean(),
+          },
+          required: ['name'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1423,15 +1452,17 @@ class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolResponse',
-    definition: Schema.object(
-      properties: {
-        'ref': Schema.string(),
-        'name': Schema.string(),
-        'output': Schema.any(),
-        'content': Schema.list(items: Schema.any()),
-      },
-      required: ['name', 'output'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'ref': $Schema.string(),
+            'name': $Schema.string(),
+            'output': $Schema.any(),
+            'content': $Schema.list(items: $Schema.any()),
+          },
+          required: ['name', 'output'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1542,16 +1573,18 @@ class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelInfo',
-    definition: Schema.object(
-      properties: {
-        'versions': Schema.list(items: Schema.string()),
-        'label': Schema.string(),
-        'configSchema': Schema.object(additionalProperties: Schema.any()),
-        'supports': Schema.object(additionalProperties: Schema.any()),
-        'stage': Schema.string(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'versions': $Schema.list(items: $Schema.string()),
+            'label': $Schema.string(),
+            'configSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'supports': $Schema.object(additionalProperties: $Schema.any()),
+            'stage': $Schema.string(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -1682,23 +1715,25 @@ class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelRequest',
-    definition: Schema.object(
-      properties: {
-        'messages': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        ),
-        'config': Schema.object(additionalProperties: Schema.any()),
-        'tools': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
-        ),
-        'toolChoice': Schema.string(),
-        'output': Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
-        'docs': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-      },
-      required: ['messages'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'messages': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            ),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+            'tools': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
+            ),
+            'toolChoice': $Schema.string(),
+            'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
+            'docs': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+          },
+          required: ['messages'],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       ToolDefinition.$schema,
@@ -1876,20 +1911,22 @@ class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelResponse',
-    definition: Schema.object(
-      properties: {
-        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        'finishReason': Schema.any(),
-        'finishMessage': Schema.string(),
-        'latencyMs': Schema.number(),
-        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'raw': Schema.object(additionalProperties: Schema.any()),
-        'request': Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
-        'operation': Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
-      },
-      required: ['finishReason'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            'finishReason': $Schema.any(),
+            'finishMessage': $Schema.string(),
+            'latencyMs': $Schema.number(),
+            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'raw': $Schema.object(additionalProperties: $Schema.any()),
+            'request': $Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
+            'operation': $Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
+          },
+          required: ['finishReason'],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       GenerationUsage.$schema,
@@ -2006,18 +2043,20 @@ class _ModelResponseChunkTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelResponseChunk',
-    definition: Schema.object(
-      properties: {
-        'role': Schema.any(),
-        'index': Schema.integer(),
-        'content': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-        ),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'aggregated': Schema.boolean(),
-      },
-      required: ['content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'role': $Schema.any(),
+            'index': $Schema.integer(),
+            'content': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+            ),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'aggregated': $Schema.boolean(),
+          },
+          required: ['content'],
+        )
+        .value,
     dependencies: [Part.$schema],
   );
 }
@@ -2210,23 +2249,25 @@ class _GenerateResponseTypeFactory extends SchemanticType<GenerateResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateResponse',
-    definition: Schema.object(
-      properties: {
-        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        'finishReason': Schema.any(),
-        'finishMessage': Schema.string(),
-        'latencyMs': Schema.number(),
-        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'raw': Schema.object(additionalProperties: Schema.any()),
-        'request': Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
-        'operation': Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
-        'candidates': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Candidate'}),
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            'finishReason': $Schema.any(),
+            'finishMessage': $Schema.string(),
+            'latencyMs': $Schema.number(),
+            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'raw': $Schema.object(additionalProperties: $Schema.any()),
+            'request': $Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
+            'operation': $Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
+            'candidates': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Candidate'}),
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       GenerationUsage.$schema,
@@ -2377,24 +2418,26 @@ class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateRequest',
-    definition: Schema.object(
-      properties: {
-        'messages': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        ),
-        'config': Schema.object(additionalProperties: Schema.any()),
-        'tools': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
-        ),
-        'toolChoice': Schema.string(),
-        'output': Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
-        'docs': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-        'candidates': Schema.number(),
-      },
-      required: ['messages'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'messages': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            ),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+            'tools': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
+            ),
+            'toolChoice': $Schema.string(),
+            'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
+            'docs': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+            'candidates': $Schema.number(),
+          },
+          required: ['messages'],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       ToolDefinition.$schema,
@@ -2638,25 +2681,27 @@ class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerationUsage',
-    definition: Schema.object(
-      properties: {
-        'inputTokens': Schema.number(),
-        'outputTokens': Schema.number(),
-        'totalTokens': Schema.number(),
-        'inputCharacters': Schema.number(),
-        'outputCharacters': Schema.number(),
-        'inputImages': Schema.number(),
-        'outputImages': Schema.number(),
-        'inputVideos': Schema.number(),
-        'outputVideos': Schema.number(),
-        'inputAudioFiles': Schema.number(),
-        'outputAudioFiles': Schema.number(),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'thoughtsTokens': Schema.number(),
-        'cachedContentTokens': Schema.number(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'inputTokens': $Schema.number(),
+            'outputTokens': $Schema.number(),
+            'totalTokens': $Schema.number(),
+            'inputCharacters': $Schema.number(),
+            'outputCharacters': $Schema.number(),
+            'inputImages': $Schema.number(),
+            'outputImages': $Schema.number(),
+            'inputVideos': $Schema.number(),
+            'outputVideos': $Schema.number(),
+            'inputAudioFiles': $Schema.number(),
+            'outputAudioFiles': $Schema.number(),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'thoughtsTokens': $Schema.number(),
+            'cachedContentTokens': $Schema.number(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -2777,17 +2822,19 @@ class _OperationTypeFactory extends SchemanticType<Operation> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Operation',
-    definition: Schema.object(
-      properties: {
-        'action': Schema.string(),
-        'id': Schema.string(),
-        'done': Schema.boolean(),
-        'output': Schema.object(additionalProperties: Schema.any()),
-        'error': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['id'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'action': $Schema.string(),
+            'id': $Schema.string(),
+            'done': $Schema.boolean(),
+            'output': $Schema.object(additionalProperties: $Schema.any()),
+            'error': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['id'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -2886,15 +2933,17 @@ class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OutputConfig',
-    definition: Schema.object(
-      properties: {
-        'format': Schema.string(),
-        'schema': Schema.object(additionalProperties: Schema.any()),
-        'constrained': Schema.boolean(),
-        'contentType': Schema.string(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'format': $Schema.string(),
+            'schema': $Schema.object(additionalProperties: $Schema.any()),
+            'constrained': $Schema.boolean(),
+            'contentType': $Schema.string(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -2960,15 +3009,17 @@ class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DocumentData',
-    definition: Schema.object(
-      properties: {
-        'content': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-        ),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'content': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+            ),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['content'],
+        )
+        .value,
     dependencies: [Part.$schema],
   );
 }
@@ -3174,28 +3225,32 @@ class _GenerateActionOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateActionOptions',
-    definition: Schema.object(
-      properties: {
-        'model': Schema.string(),
-        'docs': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-        'messages': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        ),
-        'tools': Schema.list(items: Schema.string()),
-        'toolChoice': Schema.string(),
-        'config': Schema.object(additionalProperties: Schema.any()),
-        'output': Schema.fromMap({
-          '\$ref': r'#/$defs/GenerateActionOutputConfig',
-        }),
-        'resume': Schema.fromMap({'\$ref': r'#/$defs/GenerateResumeOptions'}),
-        'returnToolRequests': Schema.boolean(),
-        'maxTurns': Schema.integer(),
-        'stepName': Schema.string(),
-      },
-      required: ['messages'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'model': $Schema.string(),
+            'docs': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+            'messages': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            ),
+            'tools': $Schema.list(items: $Schema.string()),
+            'toolChoice': $Schema.string(),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+            'output': $Schema.fromMap({
+              '\$ref': r'#/$defs/GenerateActionOutputConfig',
+            }),
+            'resume': $Schema.fromMap({
+              '\$ref': r'#/$defs/GenerateResumeOptions',
+            }),
+            'returnToolRequests': $Schema.boolean(),
+            'maxTurns': $Schema.integer(),
+            'stepName': $Schema.string(),
+          },
+          required: ['messages'],
+        )
+        .value,
     dependencies: [
       DocumentData.$schema,
       Message.$schema,
@@ -3290,18 +3345,20 @@ class _GenerateResumeOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateResumeOptions',
-    definition: Schema.object(
-      properties: {
-        'respond': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
-        ),
-        'restart': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
-        ),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'respond': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
+            ),
+            'restart': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
+            ),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [ToolResponsePart.$schema, ToolRequestPart.$schema],
   );
 }
@@ -3420,18 +3477,20 @@ class _GenerateActionOutputConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateActionOutputConfig',
-    definition: Schema.object(
-      properties: {
-        'format': Schema.string(),
-        'contentType': Schema.string(),
-        'instructions': Schema.combined(
-          anyOf: [Schema.boolean(), Schema.string()],
-        ),
-        'jsonSchema': Schema.object(additionalProperties: Schema.any()),
-        'constrained': Schema.boolean(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'format': $Schema.string(),
+            'contentType': $Schema.string(),
+            'instructions': $Schema.combined(
+              anyOf: [$Schema.boolean(), $Schema.string()],
+            ),
+            'jsonSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'constrained': $Schema.boolean(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -3500,15 +3559,17 @@ class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EmbedRequest',
-    definition: Schema.object(
-      properties: {
-        'input': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-        'options': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['input'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'input': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+            'options': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['input'],
+        )
+        .value,
     dependencies: [DocumentData.$schema],
   );
 }
@@ -3559,14 +3620,16 @@ class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EmbedResponse',
-    definition: Schema.object(
-      properties: {
-        'embeddings': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Embedding'}),
-        ),
-      },
-      required: ['embeddings'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'embeddings': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Embedding'}),
+            ),
+          },
+          required: ['embeddings'],
+        )
+        .value,
     dependencies: [Embedding.$schema],
   );
 }
@@ -3625,13 +3688,15 @@ class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Embedding',
-    definition: Schema.object(
-      properties: {
-        'embedding': Schema.list(items: Schema.number()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['embedding'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'embedding': $Schema.list(items: $Schema.number()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['embedding'],
+        )
+        .value,
     dependencies: [],
   );
 }

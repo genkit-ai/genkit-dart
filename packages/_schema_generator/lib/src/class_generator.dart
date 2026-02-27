@@ -38,7 +38,11 @@ class ClassGenerator {
       ]);
       for (final className in allowlist) {
         if (definitions.containsKey(className)) {
-          _generateClass(b, className, definitions[className]);
+          _generateClass(
+            b,
+            className,
+            definitions[className] as Map<String, dynamic>,
+          );
         }
       }
     });
@@ -61,7 +65,7 @@ class ClassGenerator {
     _generatedClasses.add(className);
 
     if (schema.containsKey('enum')) {
-      _generateEnumExtensionType(b, className, schema['enum']);
+      _generateEnumExtensionType(b, className, schema['enum'] as List<dynamic>);
     } else if (schema.containsKey('anyOf')) {
       _generateUnionClass(
         b,
@@ -122,7 +126,7 @@ class ClassGenerator {
                     m.returns = _mapType(
                       className,
                       e.key,
-                      e.value,
+                      e.value as Map<String, dynamic>,
                       isRequired: isRequired,
                     );
                   }
@@ -284,7 +288,7 @@ class ClassGenerator {
     if (typeValue is String) {
       type = typeValue;
     } else if (typeValue is List) {
-      type = typeValue.firstWhere((e) => e != 'null', orElse: () => null);
+      type = typeValue.where((e) => e != 'null').firstOrNull as String?;
     }
     return switch (type) {
       'string' => refer('String'),

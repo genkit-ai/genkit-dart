@@ -64,10 +64,12 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SharedChild',
-    definition: Schema.object(
-      properties: {'childId': Schema.string()},
-      required: ['childId'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'childId': $Schema.string()},
+          required: ['childId'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -106,7 +108,7 @@ class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: Schema.object(properties: {}, required: []),
+    definition: $Schema.object(properties: {}, required: []).value,
     dependencies: [],
   );
 }
@@ -201,15 +203,17 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextPart',
-    definition: Schema.object(
-      properties: {
-        'text': Schema.string(),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['text'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'text': $Schema.string(),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['text'],
+        )
+        .value,
     dependencies: [],
   );
 }

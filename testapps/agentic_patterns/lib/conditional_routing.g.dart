@@ -63,13 +63,12 @@ class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'RouterInput',
-        definition: Schema.object(
-          properties: {'query': Schema.string()},
-          required: ['query'],
-        ),
-        dependencies: [],
-      );
+    name: 'RouterInput',
+    definition: $Schema
+        .object(properties: {'query': $Schema.string()}, required: ['query'])
+        .value,
+    dependencies: [],
+  );
 }
 
 class IntentClassification {
@@ -116,11 +115,10 @@ class _IntentClassificationTypeFactory
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'IntentClassification',
-        definition: Schema.object(
-          properties: {'intent': Schema.string()},
-          required: ['intent'],
-        ),
-        dependencies: [],
-      );
+    name: 'IntentClassification',
+    definition: $Schema
+        .object(properties: {'intent': $Schema.string()}, required: ['intent'])
+        .value,
+    dependencies: [],
+  );
 }

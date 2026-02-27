@@ -40,8 +40,8 @@ void main(List<String> args) {
   // --- Basic Generate Flow ---
   ai.defineFlow(
     name: 'basicGenerate',
-    inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Hello Genkit for Dart!'),
+    outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o'),
@@ -54,9 +54,9 @@ void main(List<String> args) {
   // --- Streaming Flow ---
   ai.defineFlow(
     name: 'streaming',
-    inputSchema: stringSchema(defaultValue: 'Count to 5'),
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Count to 5'),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
         model: openAI.model('gpt-4o'),
@@ -77,14 +77,14 @@ void main(List<String> args) {
     name: 'calculator',
     description: 'Multiplies two numbers',
     inputSchema: CalculatorInput.$schema,
-    outputSchema: intSchema(),
+    outputSchema: .integer(),
     fn: (input, _) async => input.a * input.b,
   );
 
   ai.defineFlow(
     name: 'toolCalling',
-    inputSchema: stringSchema(defaultValue: 'What is 123 * 456?'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'What is 123 * 456?'),
+    outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o'),
@@ -98,7 +98,7 @@ void main(List<String> args) {
   // --- Structured Output Flow ---
   ai.defineFlow(
     name: 'structuredOutput',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Generate a person named John Doe, age 30',
     ),
     outputSchema: Person.$schema,

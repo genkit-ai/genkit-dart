@@ -65,15 +65,17 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: Schema.object(
-      properties: {
-        'location': Schema.string(
-          description:
-              'The location (ex. city, state, country) to get the weather for',
-        ),
-      },
-      required: ['location'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'location': $Schema.string(
+              description:
+                  'The location (ex. city, state, country) to get the weather for',
+            ),
+          },
+          required: ['location'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -137,15 +139,17 @@ class _CategoryTypeFactory extends SchemanticType<Category> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Category',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'subcategories': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-        ),
-      },
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'subcategories': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
+            ),
+          },
+          required: ['name'],
+        )
+        .value,
     dependencies: [Category.$schema],
   );
 }
@@ -212,14 +216,16 @@ class _WeaponTypeFactory extends SchemanticType<Weapon> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Weapon',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'damage': Schema.number(),
-        'category': Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-      },
-      required: ['name', 'damage', 'category'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'damage': $Schema.number(),
+            'category': $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
+          },
+          required: ['name', 'damage', 'category'],
+        )
+        .value,
     dependencies: [Category.$schema],
   );
 }
@@ -318,20 +324,22 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RpgCharacter',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'backstory': Schema.string(),
-        'weapons': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Weapon'}),
-        ),
-        'classType': Schema.string(
-          enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
-        ),
-        'affiliation': Schema.string(),
-      },
-      required: ['name', 'backstory', 'weapons', 'classType'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'backstory': $Schema.string(),
+            'weapons': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Weapon'}),
+            ),
+            'classType': $Schema.string(
+              enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
+            ),
+            'affiliation': $Schema.string(),
+          },
+          required: ['name', 'backstory', 'weapons', 'classType'],
+        )
+        .value,
     dependencies: [Weapon.$schema],
   );
 }
@@ -400,14 +408,16 @@ class _CharacterProfileTypeFactory extends SchemanticType<CharacterProfile> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CharacterProfile',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'bio': Schema.string(),
-        'age': Schema.integer(),
-      },
-      required: ['name', 'bio', 'age'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'bio': $Schema.string(),
+            'age': $Schema.integer(),
+          },
+          required: ['name', 'bio', 'age'],
+        )
+        .value,
     dependencies: [],
   );
 }

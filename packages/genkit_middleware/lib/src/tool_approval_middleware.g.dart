@@ -65,10 +65,12 @@ class _ToolApprovalOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolApprovalOptions',
-    definition: Schema.object(
-      properties: {'approved': Schema.list(items: Schema.string())},
-      required: ['approved'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'approved': $Schema.list(items: $Schema.string())},
+          required: ['approved'],
+        )
+        .value,
     dependencies: [],
   );
 }
