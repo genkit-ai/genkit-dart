@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: strict_top_level_inference, always_declare_return_types, type_annotate_public_apis, unused_element
+import 'dart:convert';
 
 import 'package:schemantic/schemantic.dart';
+
 part 'schemantic_example.g.dart';
 
 @Schematic()
@@ -23,7 +24,7 @@ abstract class $Address {
   String get city;
 
   @AnyOf([int, String])
-  get zipCode;
+  Object get zipCode;
 }
 
 /// Define a schema using the @Schematic annotation.
@@ -92,9 +93,9 @@ void main() async {
   print('Parsed City: ${parsed.address?.city}'); // Shelbyville
 
   // 4. Access JSON Schema at runtime
-  final schema = User.$schema.jsonSchema();
+  final schema = User.$schema;
   print('\n--- JSON Schema ---');
-  print(schema.toJson());
+  print(schema.jsonSchema());
 
   // 5. Validation
   print('\n--- Validation ---');
@@ -145,7 +146,7 @@ void main() async {
   print(
     'Parsed List: $parsedList',
   ); // [{name: Alice, isAdmin: true}, {name: Bob, isAdmin: false}]
-  print('List Schema: ${stringList.jsonSchema().toJson()}');
+  print('List Schema: ${jsonEncode(stringList.jsonSchema())}');
 
   // Map of String -> User
   final scores = SchemanticType.map(.string(), User.$schema);
@@ -156,7 +157,7 @@ void main() async {
   print(
     'Parsed Map: $parsedScores',
   ); // {Alice: {name: Alice, isAdmin: true}, Bob: {name: Bob, isAdmin: false}}
-  print('Map Schema: ${scores.jsonSchema().toJson()}');
+  print('Map Schema: ${jsonEncode(scores.jsonSchema())}');
 
   // 7. Another Schema Example (ProductSchema)
   print('\n--- ProductSchema Example ---');
@@ -171,7 +172,7 @@ void main() async {
   print('Tags: ${product.tags}');
 
   // Validation check
-  final productValidation = await Product.$schema.jsonSchema().validate({
+  final productValidation = await Product.$schema.validate({
     'id': 'p124',
     // Missing name and price
   });

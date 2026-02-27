@@ -77,7 +77,7 @@ abstract class GenerateMiddleware {
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get configSchema;
-  Schema? get configJsonSchema;
+  Map<String, Object?>? get configJsonSchema;
 
   GenerateMiddleware create([CustomOptions? config]);
 }
@@ -93,7 +93,7 @@ class _GenerateMiddlewareDef<CustomOptions>
   _GenerateMiddlewareDef(this.name, this._create, this.configSchema);
 
   @override
-  Schema? get configJsonSchema => configSchema?.jsonSchema();
+  Map<String, Object?>? get configJsonSchema => configSchema?.jsonSchema();
 
   @override
   GenerateMiddleware create([CustomOptions? config]) => _create(config);

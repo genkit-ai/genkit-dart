@@ -66,10 +66,9 @@ class _ResearchAgentInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResearchAgentInput',
-    definition: Schema.object(
-      properties: {'task': Schema.string()},
-      required: ['task'],
-    ),
+    definition: $Schema
+        .object(properties: {'task': $Schema.string()}, required: ['task'])
+        .value,
     dependencies: [],
   );
 }
@@ -118,10 +117,9 @@ class _AgentSearchInputTypeFactory extends SchemanticType<AgentSearchInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentSearchInput',
-    definition: Schema.object(
-      properties: {'query': Schema.string()},
-      required: ['query'],
-    ),
+    definition: $Schema
+        .object(properties: {'query': $Schema.string()}, required: ['query'])
+        .value,
     dependencies: [],
   );
 }
@@ -170,10 +168,12 @@ class _AgentAskUserInputTypeFactory extends SchemanticType<AgentAskUserInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentAskUserInput',
-    definition: Schema.object(
-      properties: {'question': Schema.string()},
-      required: ['question'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'question': $Schema.string()},
+          required: ['question'],
+        )
+        .value,
     dependencies: [],
   );
 }

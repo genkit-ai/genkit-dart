@@ -14,8 +14,6 @@
 
 // ignore_for_file: avoid_dynamic_calls
 
-import 'dart:convert';
-
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -24,13 +22,13 @@ void main() {
   group('Basic Types', () {
     test('stringSchema()', () {
       expect(SchemanticType.string().parse('hello'), 'hello');
-      final json = jsonDecode(SchemanticType.string().jsonSchema().toJson());
+      final json = SchemanticType.string().jsonSchema();
       expect(json['type'], 'string');
     });
 
     test('intSchema()', () {
       expect(SchemanticType.integer().parse(123), 123);
-      final json = jsonDecode(SchemanticType.integer().jsonSchema().toJson());
+      final json = SchemanticType.integer().jsonSchema();
       expect(json['type'], 'integer');
     });
 
@@ -43,12 +41,12 @@ void main() {
       expect(parsed, ['a', 'b', 'c']);
 
       final schema = stringListParams.jsonSchema();
-      final schemaJson = jsonDecode(schema.toJson());
+      final schemaJson = schema;
 
       // We expect this to be 'array'
       expect(schemaJson['type'], 'array');
       expect(schemaJson['items'], isNotNull);
-      expect(schemaJson['items']['type'], 'string');
+      expect((schemaJson['items'] as Map)['type'], 'string');
     });
 
     test('listSchema with complex objects', () {
@@ -66,11 +64,11 @@ void main() {
       ]);
 
       final schema = nestedList.jsonSchema();
-      final schemaJson = jsonDecode(schema.toJson());
+      final schemaJson = schema;
 
       expect(schemaJson['type'], 'array');
-      expect(schemaJson['items']['type'], 'array');
-      expect(schemaJson['items']['items']['type'], 'integer');
+      expect((schemaJson['items'] as Map)['type'], 'array');
+      expect((schemaJson['items'] as Map)['items']['type'], 'integer');
     });
 
     test('doubleSchema()', () {
@@ -79,16 +77,14 @@ void main() {
         SchemanticType.doubleSchema().parse(10),
         10.0,
       ); // Test int to double conversion
-      final json = jsonDecode(
-        SchemanticType.doubleSchema().jsonSchema().toJson(),
-      );
+      final json = SchemanticType.doubleSchema().jsonSchema();
       expect(json['type'], 'number');
     });
 
     test('boolSchema()', () {
       expect(SchemanticType.boolean().parse(true), true);
       expect(SchemanticType.boolean().parse(false), false);
-      final json = jsonDecode(SchemanticType.boolean().jsonSchema().toJson());
+      final json = SchemanticType.boolean().jsonSchema();
       expect(json['type'], 'boolean');
     });
 
@@ -98,9 +94,7 @@ void main() {
         () => SchemanticType.voidSchema().parse('anything'),
         returnsNormally,
       );
-      final json = jsonDecode(
-        SchemanticType.voidSchema().jsonSchema().toJson(),
-      );
+      final json = SchemanticType.voidSchema().jsonSchema();
       expect(json['type'], 'null');
     });
 
@@ -114,9 +108,7 @@ void main() {
       final map = {'a': 1};
       expect(SchemanticType.dynamicSchema().parse(map), map);
 
-      final json = jsonDecode(
-        SchemanticType.dynamicSchema().jsonSchema().toJson(),
-      );
+      final json = SchemanticType.dynamicSchema().jsonSchema();
       // schema.any() typically returns an empty schema {} which allows everything
       // In new impl we might return empty map or with description
       expect(json, isEmpty);
@@ -124,23 +116,23 @@ void main() {
 
     test('defaultValue in helpers', () {
       final s = SchemanticType.string(defaultValue: 'default');
-      expect(jsonDecode(s.jsonSchema().toJson())['default'], 'default');
+      expect(s.jsonSchema()['default'], 'default');
 
       final i = SchemanticType.integer(defaultValue: 42);
-      expect(jsonDecode(i.jsonSchema().toJson())['default'], 42);
+      expect(i.jsonSchema()['default'], 42);
 
       final d = SchemanticType.doubleSchema(defaultValue: 3.14);
-      expect(jsonDecode(d.jsonSchema().toJson())['default'], 3.14);
+      expect(d.jsonSchema()['default'], 3.14);
 
       final b = SchemanticType.boolean(defaultValue: true);
-      expect(jsonDecode(b.jsonSchema().toJson())['default'], true);
+      expect(b.jsonSchema()['default'], true);
     });
 
     test('MapType replacement', () {
       final mapT = SchemanticType.map(.string(), .dynamicSchema());
       final json = {'key': 'value', 'a': 1};
       expect(mapT.parse(json), json);
-      final schemaJson = jsonDecode(mapT.jsonSchema().toJson());
+      final schemaJson = mapT.jsonSchema();
       expect(schemaJson['type'], 'object');
     });
 
@@ -162,9 +154,9 @@ void main() {
       expect(parsed, {'a': 1, 'b': 2});
       expect(parsed, isA<Map<String, int>>());
 
-      final schemaJson = jsonDecode(mapT.jsonSchema().toJson());
+      final schemaJson = mapT.jsonSchema();
       expect(schemaJson['type'], 'object');
-      expect(schemaJson['additionalProperties']['type'], 'integer');
+      expect((schemaJson['additionalProperties'] as Map)['type'], 'integer');
     });
 
     group('Reference Handling', () {
@@ -172,18 +164,18 @@ void main() {
         final type = _MockType();
         final list = SchemanticType.list(type);
         final schema = list.jsonSchema(useRefs: true);
-        final json = jsonDecode(schema.toJson());
+        final json = schema;
 
         // We expect $defs to be at the root, not inside items
         expect(json['type'], 'array');
         expect(json[r'$defs'], isNotNull, reason: 'Root should have defs');
         expect(
-          json['items'][r'$ref'],
+          (json['items'] as Map)[r'$ref'],
           isNotNull,
           reason: 'Items should refer to def',
         );
         expect(
-          json['items'][r'$defs'],
+          (json['items'] as Map)[r'$defs'],
           isNull,
           reason: 'Items should NOT have nested defs',
         );
@@ -193,17 +185,17 @@ void main() {
         final type = _MockType();
         final mapT = SchemanticType.map(.string(), type);
         final schema = mapT.jsonSchema(useRefs: true);
-        final json = jsonDecode(schema.toJson());
+        final json = schema;
 
         expect(json['type'], 'object');
         expect(json[r'$defs'], isNotNull, reason: 'Root should have defs');
         expect(
-          json['additionalProperties'][r'$ref'],
+          (json['additionalProperties'] as Map)[r'$ref'],
           isNotNull,
           reason: 'additionalProperties should refer to def',
         );
         expect(
-          json['additionalProperties'][r'$defs'],
+          (json['additionalProperties'] as Map)[r'$defs'],
           isNull,
           reason: 'additionalProperties should NOT have nested defs',
         );
@@ -215,10 +207,10 @@ void main() {
       expect(nullableString.parse('hello'), 'hello');
       expect(nullableString.parse(null), null);
 
-      final json = jsonDecode(nullableString.jsonSchema().toJson());
+      final json = nullableString.jsonSchema();
       expect(json['oneOf'], isNotNull);
-      expect(json['oneOf'][0]['type'], 'null');
-      expect(json['oneOf'][1]['type'], 'string');
+      expect((json['oneOf'] as List)[0]['type'], 'null');
+      expect((json['oneOf'] as List)[1]['type'], 'string');
     });
 
     test('nullable() round trip', () {
@@ -238,20 +230,24 @@ void main() {
       expect(nullableMap.parse(null), null);
 
       // Test JSON schema
-      final json = jsonDecode(nullableMap.jsonSchema().toJson());
+      final json = nullableMap.jsonSchema();
       expect(json['oneOf'], isNotNull);
-      final nullTypeSource = json['oneOf'].firstWhere(
-        (s) => s['type'] == 'null',
+      final oneOf = (json['oneOf'] as List).cast<Object?>();
+      final nullTypeSource = oneOf.firstWhere(
+        (s) => (s as Map)['type'] == 'null',
         orElse: () => null,
       );
-      final objectTypeSource = json['oneOf'].firstWhere(
-        (s) => s['type'] == 'object',
+      final objectTypeSource = oneOf.firstWhere(
+        (s) => (s as Map)['type'] == 'object',
         orElse: () => null,
       );
 
       expect(nullTypeSource, isNotNull);
       expect(objectTypeSource, isNotNull);
-      expect(objectTypeSource['additionalProperties']['type'], 'integer');
+      expect(
+        (objectTypeSource as Map)['additionalProperties']['type'],
+        'integer',
+      );
     });
 
     test('nullable() idempotency', () {
@@ -261,12 +257,12 @@ void main() {
 
       expect(n2, same(n1));
 
-      final json = jsonDecode(n2.jsonSchema().toJson());
+      final json = n2.jsonSchema();
       // Should still be just one level of oneOf
       expect(json['oneOf'], isNotNull);
-      expect(json['oneOf'].length, 2);
-      expect(json['oneOf'][0]['type'], 'null');
-      expect(json['oneOf'][1]['type'], 'string');
+      expect((json['oneOf'] as List).length, 2);
+      expect((json['oneOf'] as List)[0]['type'], 'null');
+      expect((json['oneOf'] as List)[1]['type'], 'string');
     });
   });
 }
@@ -276,6 +272,8 @@ class _MockType extends SchemanticType<String> {
   String parse(Object? json) => json as String;
 
   @override
-  JsonSchemaMetadata? get schemaMetadata =>
-      JsonSchemaMetadata(name: 'MockType', definition: jsb.Schema.string());
+  JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
+    name: 'MockType',
+    definition: jsb.Schema.string().value,
+  );
 }

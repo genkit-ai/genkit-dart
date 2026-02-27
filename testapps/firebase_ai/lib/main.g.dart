@@ -65,12 +65,16 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: Schema.object(
-      properties: {
-        'city': Schema.string(description: 'The city to get the weather for'),
-      },
-      required: ['city'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'city': $Schema.string(
+              description: 'The city to get the weather for',
+            ),
+          },
+          required: ['city'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -163,16 +167,24 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RpgCharacter',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'description': Schema.string(),
-        'background': Schema.string(),
-        'skills': Schema.list(items: Schema.string()),
-        'inventory': Schema.list(items: Schema.string()),
-      },
-      required: ['name', 'description', 'background', 'skills', 'inventory'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'description': $Schema.string(),
+            'background': $Schema.string(),
+            'skills': $Schema.list(items: $Schema.string()),
+            'inventory': $Schema.list(items: $Schema.string()),
+          },
+          required: [
+            'name',
+            'description',
+            'background',
+            'skills',
+            'inventory',
+          ],
+        )
+        .value,
     dependencies: [],
   );
 }

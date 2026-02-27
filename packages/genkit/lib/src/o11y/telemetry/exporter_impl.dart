@@ -185,18 +185,11 @@ class CollectorHttpExporter implements sdk.SpanExporter {
   }
 
   Map<String, dynamic> _translateStatus(api.SpanStatus status) {
-    int code;
-    switch (status.code) {
-      case api.StatusCode.ok:
-        code = 1;
-        break;
-      case api.StatusCode.error:
-        code = 2;
-        break;
-      case api.StatusCode.unset:
-        code = 0;
-        break;
-    }
+    final code = switch (status.code) {
+      api.StatusCode.ok => 1,
+      api.StatusCode.error => 2,
+      api.StatusCode.unset => 0,
+    };
     return {'code': code, 'message': status.description};
   }
 }

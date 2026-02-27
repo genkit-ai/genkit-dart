@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:json_schema_builder/json_schema_builder.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -116,7 +117,7 @@ void main() {
         required: ['title', 'ingredients', 'servings'],
       );
 
-      expect(Recipe.$schema.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(Recipe.$schema.jsonSchema(), expectedSchema.value);
     });
 
     test('Generates correct JSON schema for annotated fields', () {
@@ -139,15 +140,12 @@ void main() {
         required: ['title_key_in_json', 'ingredients', 'servings'],
       );
 
-      expect(
-        AnnotatedRecipe.$schema.jsonSchema().toJson(),
-        expectedSchema.toJson(),
-      );
+      expect(AnnotatedRecipe.$schema.jsonSchema(), expectedSchema.value);
     });
 
     test('Validates annotated schema correctly', () async {
       expect(
-        (await AnnotatedRecipe.$schema.jsonSchema().validate({
+        (await AnnotatedRecipe.$schema.validate({
           'title_key_in_json': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -158,7 +156,7 @@ void main() {
       );
 
       expect(
-        (await AnnotatedRecipe.$schema.jsonSchema().validate({
+        (await AnnotatedRecipe.$schema.validate({
           'title_key_in_json': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -168,7 +166,7 @@ void main() {
       );
 
       expect(
-        (await AnnotatedRecipe.$schema.jsonSchema().validate({
+        (await AnnotatedRecipe.$schema.validate({
           'title': 'Pancakes',
           'ingredients': [
             {'name': 'Flour', 'quantity': '1 cup'},
@@ -190,7 +188,7 @@ void main() {
         required: ['day', 'mealType'],
       );
 
-      expect(MealPlan.$schema.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(MealPlan.$schema.jsonSchema(), expectedSchema.value);
     });
 
     test('Generates correct JSON schema for nullable fields', () {
@@ -199,15 +197,12 @@ void main() {
           'optionalString': Schema.string(),
           'optionalInt': Schema.integer(),
           'optionalList': Schema.list(items: Schema.string()),
-          'optionalIngredient': Ingredient.$schema.jsonSchema(),
+          'optionalIngredient': Schema.fromMap(Ingredient.$schema.jsonSchema()),
         },
         required: [],
       );
 
-      expect(
-        NullableFields.$schema.jsonSchema().toJson(),
-        expectedSchema.toJson(),
-      );
+      expect(NullableFields.$schema.jsonSchema(), expectedSchema.value);
     });
 
     test('Parses and accesses nullable data correctly', () {
@@ -256,15 +251,12 @@ void main() {
           'price': Schema.number(),
           'metadata': Schema.object(additionalProperties: Schema.string()),
           'ratings': Schema.list(items: Schema.integer()),
-          'nestedNullable': NullableFields.$schema.jsonSchema(),
+          'nestedNullable': Schema.fromMap(NullableFields.$schema.jsonSchema()),
         },
         required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
       );
 
-      expect(
-        ComplexObject.$schema.jsonSchema().toJson(),
-        expectedSchema.toJson(),
-      );
+      expect(ComplexObject.$schema.jsonSchema(), expectedSchema.value);
     });
 
     test('Parses and accesses complex object data correctly', () {
@@ -306,7 +298,9 @@ void main() {
     test('Generates correct JSON schema for lists of complex objects', () {
       final expectedSchema = Schema.object(
         properties: {
-          'recipes': Schema.list(items: Recipe.$schema.jsonSchema()),
+          'recipes': Schema.list(
+            items: Schema.fromMap(Recipe.$schema.jsonSchema()),
+          ),
           'optionalIngredients': Schema.list(
             items: Schema.object(
               properties: {
@@ -320,7 +314,7 @@ void main() {
         required: ['recipes'],
       );
 
-      expect(Menu.$schema.jsonSchema().toJson(), expectedSchema.toJson());
+      expect(Menu.$schema.jsonSchema(), expectedSchema.value);
     });
 
     test('Parses and accesses lists of complex objects correctly', () {

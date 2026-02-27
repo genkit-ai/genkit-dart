@@ -63,10 +63,12 @@ class _SubjectTypeFactory extends SchemanticType<Subject> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Subject',
-    definition: Schema.object(
-      properties: {'subject': Schema.string()},
-      required: ['subject'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'subject': $Schema.string()},
+          required: ['subject'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -113,10 +115,9 @@ class _CountTypeFactory extends SchemanticType<Count> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Count',
-    definition: Schema.object(
-      properties: {'count': Schema.integer()},
-      required: ['count'],
-    ),
+    definition: $Schema
+        .object(properties: {'count': $Schema.integer()}, required: ['count'])
+        .value,
     dependencies: [],
   );
 }

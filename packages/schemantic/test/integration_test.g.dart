@@ -83,14 +83,16 @@ class _UserTypeFactory extends SchemanticType<User> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'User',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'age': Schema.integer(),
-        'isAdmin': Schema.boolean(),
-      },
-      required: ['name', 'isAdmin'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'age': $Schema.integer(),
+            'isAdmin': $Schema.boolean(),
+          },
+          required: ['name', 'isAdmin'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -169,16 +171,18 @@ class _GroupTypeFactory extends SchemanticType<Group> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Group',
-    definition: Schema.object(
-      properties: {
-        'groupName': Schema.string(),
-        'members': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/User'}),
-        ),
-        'leader': Schema.fromMap({'\$ref': r'#/$defs/User'}),
-      },
-      required: ['groupName', 'members'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'groupName': $Schema.string(),
+            'members': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+            ),
+            'leader': $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+          },
+          required: ['groupName', 'members'],
+        )
+        .value,
     dependencies: [User.$schema],
   );
 }
@@ -239,15 +243,17 @@ class _NodeTypeFactory extends SchemanticType<Node> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Node',
-    definition: Schema.object(
-      properties: {
-        'id': Schema.string(),
-        'children': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Node'}),
-        ),
-      },
-      required: ['id'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.string(),
+            'children': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Node'}),
+            ),
+          },
+          required: ['id'],
+        )
+        .value,
     dependencies: [Node.$schema],
   );
 }
@@ -318,17 +324,19 @@ class _KeyedTypeFactory extends SchemanticType<Keyed> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Keyed',
-    definition: Schema.object(
-      properties: {
-        'custom_name': Schema.string(
-          description: 'A custom named field',
-          minLength: 3,
-        ),
-        'score': Schema.integer(minimum: 10, maximum: 100),
-        'rating': Schema.number(minimum: 0.5, maximum: 5.5),
-      },
-      required: ['custom_name'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'custom_name': $Schema.string(
+              description: 'A custom named field',
+              minLength: 3,
+            ),
+            'score': $Schema.integer(minimum: 10, maximum: 100),
+            'rating': $Schema.number(minimum: 0.5, maximum: 5.5),
+          },
+          required: ['custom_name'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -401,35 +409,37 @@ class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Comprehensive',
-    definition: Schema.object(
-      properties: {
-        's_field': Schema.string(
-          description: 'A string field',
-          minLength: 1,
-          maxLength: 10,
-          pattern: r'^[a-z]+$',
-          format: 'email',
-          enumValues: ['a', 'b'],
-        ),
-        'i_field': Schema.integer(
-          description: 'An integer field',
-          minimum: 0,
-          maximum: 100,
-          exclusiveMinimum: 0,
-          exclusiveMaximum: 100,
-          multipleOf: 5,
-        ),
-        'n_field': Schema.number(
-          description: 'A number field',
-          minimum: 0.0,
-          maximum: 100.0,
-          exclusiveMinimum: 0.0,
-          exclusiveMaximum: 100.0,
-          multipleOf: 0.5,
-        ),
-      },
-      required: ['s_field', 'i_field', 'n_field'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            's_field': $Schema.string(
+              description: 'A string field',
+              minLength: 1,
+              maxLength: 10,
+              pattern: r'^[a-z]+$',
+              format: 'email',
+              enumValues: ['a', 'b'],
+            ),
+            'i_field': $Schema.integer(
+              description: 'An integer field',
+              minimum: 0,
+              maximum: 100,
+              exclusiveMinimum: 0,
+              exclusiveMaximum: 100,
+              multipleOf: 5,
+            ),
+            'n_field': $Schema.number(
+              description: 'A number field',
+              minimum: 0.0,
+              maximum: 100.0,
+              exclusiveMinimum: 0.0,
+              exclusiveMaximum: 100.0,
+              multipleOf: 0.5,
+            ),
+          },
+          required: ['s_field', 'i_field', 'n_field'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -477,11 +487,13 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Description',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-      description: 'A schema with description',
-    ),
+    definition: $Schema
+        .object(
+          properties: {'name': $Schema.string()},
+          required: ['name'],
+          description: 'A schema with description',
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -530,12 +542,14 @@ class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CrossFileParent',
-    definition: Schema.object(
-      properties: {
-        'child': Schema.fromMap({'\$ref': r'#/$defs/SharedChild'}),
-      },
-      required: ['child'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'child': $Schema.fromMap({'\$ref': r'#/$defs/SharedChild'}),
+          },
+          required: ['child'],
+        )
+        .value,
     dependencies: [SharedChild.$schema],
   );
 }
@@ -611,15 +625,17 @@ class _DefaultsTypeFactory extends SchemanticType<Defaults> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Defaults',
-    definition: Schema.object(
-      properties: {
-        'env': Schema.fromMap({'default': 'prod', 'type': 'string'}),
-        'port': Schema.fromMap({'default': 8080, 'type': 'integer'}),
-        'ratio': Schema.fromMap({'default': 1.5, 'type': 'number'}),
-        'flag': Schema.fromMap({'default': true, 'type': 'boolean'}),
-      },
-      required: ['env', 'port', 'ratio', 'flag'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'env': $Schema.fromMap({'default': 'prod', 'type': 'string'}),
+            'port': $Schema.fromMap({'default': 8080, 'type': 'integer'}),
+            'ratio': $Schema.fromMap({'default': 1.5, 'type': 'number'}),
+            'flag': $Schema.fromMap({'default': true, 'type': 'boolean'}),
+          },
+          required: ['env', 'port', 'ratio', 'flag'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -677,18 +693,20 @@ class _PolyTypeFactory extends SchemanticType<Poly> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Poly',
-    definition: Schema.object(
-      properties: {
-        'id': Schema.combined(
-          anyOf: [
-            Schema.integer(),
-            Schema.string(),
-            Schema.fromMap({'\$ref': r'#/$defs/User'}),
-          ],
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.combined(
+              anyOf: [
+                $Schema.integer(),
+                $Schema.string(),
+                $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+              ],
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [User.$schema],
   );
 }
@@ -755,15 +773,19 @@ class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MapSchema',
-    definition: Schema.object(
-      properties: {
-        'stringToInt': Schema.object(additionalProperties: Schema.integer()),
-        'stringToUser': Schema.object(
-          additionalProperties: Schema.fromMap({'\$ref': r'#/$defs/User'}),
-        ),
-      },
-      required: ['stringToInt'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'stringToInt': $Schema.object(
+              additionalProperties: $Schema.integer(),
+            ),
+            'stringToUser': $Schema.object(
+              additionalProperties: $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+            ),
+          },
+          required: ['stringToInt'],
+        )
+        .value,
     dependencies: [User.$schema],
   );
 }

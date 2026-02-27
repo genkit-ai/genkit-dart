@@ -65,10 +65,12 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestCustomOptions',
-    definition: Schema.object(
-      properties: {'customField': Schema.string()},
-      required: ['customField'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'customField': $Schema.string()},
+          required: ['customField'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -117,10 +119,9 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestToolInput',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(properties: {'name': $Schema.string()}, required: ['name'])
+        .value,
     dependencies: [],
   );
 }
@@ -177,10 +178,12 @@ class _TestOutputSchemaTypeFactory extends SchemanticType<TestOutputSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestOutputSchema',
-    definition: Schema.object(
-      properties: {'title': Schema.string(), 'rating': Schema.integer()},
-      required: ['title', 'rating'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'title': $Schema.string(), 'rating': $Schema.integer()},
+          required: ['title', 'rating'],
+        )
+        .value,
     dependencies: [],
   );
 }

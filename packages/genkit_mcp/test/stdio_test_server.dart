@@ -30,13 +30,13 @@ class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'input': {'type': 'string'},
       },
       'required': ['input'],
-    }),
+    },
     dependencies: const [],
   );
 }

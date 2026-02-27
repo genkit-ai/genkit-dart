@@ -584,10 +584,7 @@ List<fai.Tool>? toGeminiTools(
 fai.Tool _toGeminiTool(ToolDefinition tool) {
   final rawSchema = tool.inputSchema;
 
-  var flattened = <String, dynamic>{};
-  if (rawSchema != null) {
-    flattened = Schema.fromMap(rawSchema).flatten().value;
-  }
+  final flattened = rawSchema?.flatten() ?? <String, dynamic>{};
 
   final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
   final requiredList =
@@ -612,10 +609,8 @@ fai.Tool _toGeminiTool(ToolDefinition tool) {
 }
 
 @visibleForTesting
-fai.Schema toGeminiSchema(Map<String, dynamic> json) {
-  final flattened = Schema.fromMap(json).flatten().value;
-  return _toGeminiSchemaInternal(flattened);
-}
+fai.Schema toGeminiSchema(Map<String, dynamic> json) =>
+    _toGeminiSchemaInternal(json.flatten());
 
 fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
   final type = json['type']; // dynamic
@@ -709,26 +704,13 @@ fai.ToolConfig? toGeminiToolConfig(
   FunctionCallingConfig? functionCallingConfig,
 ) {
   if (functionCallingConfig == null) return null;
-  final modeStr = functionCallingConfig.mode;
-  final fai.FunctionCallingConfig mConfig;
-  if (modeStr == null) {
-    mConfig = fai.FunctionCallingConfig.auto();
-  } else {
-    switch (modeStr.toUpperCase()) {
-      case 'ANY':
-        mConfig = fai.FunctionCallingConfig.any(
-          functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
-        );
-        break;
-      case 'NONE':
-        mConfig = fai.FunctionCallingConfig.none();
-        break;
-      case 'AUTO':
-      default:
-        mConfig = fai.FunctionCallingConfig.auto();
-        break;
-    }
-  }
+  final mConfig = switch (functionCallingConfig.mode?.toUpperCase()) {
+    'ANY' => fai.FunctionCallingConfig.any(
+      functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
+    ),
+    'NONE' => fai.FunctionCallingConfig.none(),
+    _ => fai.FunctionCallingConfig.auto(),
+  };
   return fai.ToolConfig(functionCallingConfig: mConfig);
 }
 

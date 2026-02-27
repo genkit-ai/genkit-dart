@@ -64,14 +64,16 @@ class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'UseSkillInput',
-    definition: Schema.object(
-      properties: {
-        'skillName': Schema.string(
-          description: 'The name of the skill to use.',
-        ),
-      },
-      required: ['skillName'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'skillName': $Schema.string(
+              description: 'The name of the skill to use.',
+            ),
+          },
+          required: ['skillName'],
+        )
+        .value,
     dependencies: [],
   );
 }
@@ -125,16 +127,18 @@ class _SkillsPluginOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SkillsPluginOptions',
-    definition: Schema.object(
-      properties: {
-        'skillPaths': Schema.list(
-          description:
-              'The directories containing skill files. Defaults to ["skills"].',
-          items: Schema.string(),
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'skillPaths': $Schema.list(
+              description:
+                  'The directories containing skill files. Defaults to ["skills"].',
+              items: $Schema.string(),
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
