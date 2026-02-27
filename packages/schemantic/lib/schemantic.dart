@@ -348,7 +348,7 @@ abstract class SchemanticType<T> {
 }
 
 /// Internal utilities for building JSON Schemas.
-class SchemaHelpers {
+abstract final class SchemaHelpers {
   /// Builds a complete schema for the [root] type, including all `$defs`.
   static Map<String, Object?> buildSchema(SchemanticType root) {
     if (root.schemaMetadata == null) {
