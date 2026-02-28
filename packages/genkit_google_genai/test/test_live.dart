@@ -16,7 +16,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_google_genai/src/plugin_impl.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -35,152 +34,160 @@ abstract class $CalculatorInput {
 }
 
 void main() {
-  // Check if API key is available
+  // Check if API key or Vertex Config is available
   final apiKey =
       Platform.environment['GOOGLE_GENAI_API_KEY'] ??
       Platform.environment['GEMINI_API_KEY'];
+  final projectId = Platform.environment['GCLOUD_PROJECT'];
+  final location = Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1';
 
-  group('Google AI Integration (Live)', () {
-    late Genkit ai;
-    GoogleGenAiPluginImpl? plugin;
+  final configs = [
+    if (apiKey != null)
+      (
+        name: 'Google AI',
+        plugin: googleAI(apiKey: apiKey),
+        gemini: googleAI.gemini,
+        textEmbedding: googleAI.textEmbedding,
+        modelName: 'gemini-2.5-flash',
+        embedderName: 'gemini-embedding-001',
+      ),
+    if (projectId != null)
+      (
+        name: 'Vertex AI',
+        plugin: vertexAI(projectId: projectId, location: location),
+        gemini: vertexAI.gemini,
+        textEmbedding: vertexAI.textEmbedding,
+        modelName: 'gemini-2.5-flash',
+        embedderName: 'gemini-embedding-001',
+      ),
+  ];
 
-    setUp(() {
-      if (apiKey == null) {
-        return;
-      }
-      plugin = GoogleGenAiPluginImpl(apiKey: apiKey);
-      ai = Genkit(plugins: [plugin!]);
+  if (configs.isEmpty) {
+    print('Skipping live tests: No API key or Vertex config found');
+    return;
+  }
+
+  for (final config in configs) {
+    group('${config.name} Integration (Live)', () {
+      late Genkit ai;
+
+      setUp(() {
+        ai = Genkit(plugins: [config.plugin]);
+      });
+
+      test('should generate simple text', () async {
+        final response = await ai.generate(
+          model: config.gemini(config.modelName),
+          prompt: 'Say hello to World',
+          config: GeminiOptions(temperature: 0),
+        );
+        expect(response.text, contains('Hello'));
+      });
+
+      test('should stream text', () async {
+        final response = ai.generateStream(
+          model: config.gemini(config.modelName),
+          prompt: 'Count to 15',
+        );
+
+        final chunks = await response.toList();
+        expect(chunks.length, greaterThan(1));
+        final fullText = chunks.map((c) => c.text).join();
+        expect(fullText, contains('5'));
+
+        final finalResponse = await response.onResult;
+        expect(finalResponse.text, contains('5'));
+      });
+
+      test('should generate structured output', () async {
+        final response = await ai.generate(
+          model: config.gemini(config.modelName),
+          prompt: 'Generate a person named John Doe, age 30',
+          outputSchema: Person.$schema,
+        );
+
+        expect(response.output, isNotNull);
+        expect(response.output!.name, 'John Doe');
+        expect(response.output!.age, 30);
+      });
+
+      test('should stream structured output', () async {
+        final response = ai.generateStream(
+          model: config.gemini(config.modelName),
+          prompt: 'Generate a person named Jane Doe, age 25',
+          outputSchema: Person.$schema,
+        );
+
+        final finalResponse = await response.onResult;
+        expect(finalResponse.output, isNotNull);
+        expect(finalResponse.output!.name, 'Jane Doe');
+        expect(finalResponse.output!.age, 25);
+      });
+
+      test('should use tools', () async {
+        final tool = ai.defineTool(
+          name: 'calculator',
+          description: 'Multiplies two numbers',
+          inputSchema: CalculatorInput.$schema,
+          outputSchema: .integer(),
+          fn: (CalculatorInput input, _) async => input.a * input.b,
+        );
+
+        final response = await ai.generate(
+          model: config.gemini(config.modelName),
+          prompt: 'What is 123 * 456?',
+          tools: [tool],
+        );
+
+        expect(response.text, contains('56088')); // 123*456 = 56088
+      });
+
+      test('should embed text', () async {
+        final embeddings = await ai.embedMany(
+          embedder: config.textEmbedding(config.embedderName),
+          documents: [
+            DocumentData(content: [TextPart(text: 'Hello world')]),
+          ],
+        );
+
+        expect(embeddings, isNotNull);
+        expect(embeddings.length, 1);
+        expect(embeddings.first.embedding, isNotEmpty);
+        expect(
+          embeddings.first.embedding.length,
+          config.name == 'Vertex AI' ? 768 : 3072,
+        ); // gemini-embedding-001 (GoogleAI) is 3072, gemini-embedding-001 (VertexAI) is 768
+      });
+
+      test('should embed multiple texts', () async {
+        final embeddings = await ai.embedMany(
+          embedder: config.textEmbedding(config.embedderName),
+          documents: [
+            DocumentData(content: [TextPart(text: 'Hello')]),
+            DocumentData(content: [TextPart(text: 'World')]),
+          ],
+        );
+
+        expect(embeddings.length, 2);
+        expect(embeddings[0].embedding, isNotEmpty);
+        expect(embeddings[1].embedding, isNotEmpty);
+      });
+
+      test('should embed with options', () async {
+        final embeddings = await ai.embedMany(
+          embedder: config.textEmbedding(config.embedderName),
+          documents: [
+            DocumentData(content: [TextPart(text: 'Hello')]),
+          ],
+          options: TextEmbedderOptions(
+            outputDimensionality: 256,
+            taskType: 'RETRIEVAL_DOCUMENT',
+          ),
+        );
+
+        expect(embeddings.length, 1);
+        expect(embeddings.first.embedding.length, 256);
+      });
     });
-
-    tearDown(() {
-      // plugin?.close(); // GoogleGenAiPluginImpl doesn't need explicit close usually, but good practice if it did
-    });
-
-    test('should generate simple text', () async {
-      if (apiKey == null) {
-        print('Skipping live test: No API key');
-        return;
-      }
-      final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
-        prompt: 'Say hello to World',
-        config: GeminiOptions(temperature: 0),
-      );
-      expect(response.text, contains('Hello'));
-    });
-
-    test('should stream text', () async {
-      if (apiKey == null) return;
-      final response = ai.generateStream(
-        model: googleAI.gemini('gemini-3-flash-preview'),
-        prompt: 'Count to 5',
-      );
-
-      final chunks = await response.toList();
-      expect(chunks.length, greaterThan(1));
-      final fullText = chunks.map((c) => c.text).join();
-      expect(fullText, contains('5'));
-
-      final finalResponse = await response.onResult;
-      expect(finalResponse.text, contains('5'));
-    });
-
-    test('should generate structured output', () async {
-      if (apiKey == null) return;
-      final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
-        prompt: 'Generate a person named John Doe, age 30',
-        outputSchema: Person.$schema,
-      );
-
-      expect(response.output, isNotNull);
-      expect(response.output!.name, 'John Doe');
-      expect(response.output!.age, 30);
-    });
-
-    test('should stream structured output', () async {
-      if (apiKey == null) return;
-      final response = ai.generateStream(
-        model: googleAI.gemini('gemini-3-flash-preview'),
-        prompt: 'Generate a person named Jane Doe, age 25',
-        outputSchema: Person.$schema,
-      );
-
-      final finalResponse = await response.onResult;
-      expect(finalResponse.output, isNotNull);
-      expect(finalResponse.output!.name, 'Jane Doe');
-      expect(finalResponse.output!.age, 25);
-    });
-
-    test('should use tools', () async {
-      if (apiKey == null) return;
-      final tool = ai.defineTool(
-        name: 'calculator',
-        description: 'Multiplies two numbers',
-        inputSchema: CalculatorInput.$schema,
-        outputSchema: .integer(),
-        fn: (CalculatorInput input, _) async => input.a * input.b,
-      );
-
-      // Note: Gemini 1.5 Flash is good at tool calls
-      final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
-        prompt: 'What is 123 * 456?',
-        tools: [tool],
-      );
-
-      expect(response.text, contains('56,088')); // 123*456 = 56088
-    });
-
-    test('should embed text', () async {
-      if (apiKey == null) return;
-      final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('gemini-embedding-001'),
-        documents: [
-          DocumentData(content: [TextPart(text: 'Hello world')]),
-        ],
-      );
-
-      expect(embeddings, isNotNull);
-      expect(embeddings.length, 1);
-      expect(embeddings.first.embedding, isNotEmpty);
-      print('Embedding length: ${embeddings.first.embedding.length}');
-      expect(
-        embeddings.first.embedding.length,
-        3072,
-      ); // gemini-embedding-001 dimension
-    });
-
-    test('should embed multiple texts', () async {
-      if (apiKey == null) return;
-      final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('gemini-embedding-001'),
-        documents: [
-          DocumentData(content: [TextPart(text: 'Hello')]),
-          DocumentData(content: [TextPart(text: 'World')]),
-        ],
-      );
-
-      expect(embeddings.length, 2);
-      expect(embeddings[0].embedding, isNotEmpty);
-      expect(embeddings[1].embedding, isNotEmpty);
-    });
-
-    test('should embed with options', () async {
-      if (apiKey == null) return;
-      final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('gemini-embedding-001'),
-        documents: [
-          DocumentData(content: [TextPart(text: 'Hello')]),
-        ],
-        options: TextEmbedderOptions(
-          outputDimensionality: 256,
-          taskType: 'RETRIEVAL_DOCUMENT',
-        ),
-      );
-
-      expect(embeddings.length, 1);
-      expect(embeddings.first.embedding.length, 256);
-    });
-  });
+  }
 }

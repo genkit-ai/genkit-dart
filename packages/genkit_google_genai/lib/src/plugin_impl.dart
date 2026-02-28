@@ -22,6 +22,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
 import 'api_client.dart';
+import 'auth.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
 
@@ -41,19 +42,60 @@ final commonModelInfo = ModelInfo(
 @visibleForTesting
 class GoogleGenAiPluginImpl extends GenkitPlugin {
   String? apiKey;
+  String? projectId;
+  String? location;
+  http.Client? authClient;
 
-  GoogleGenAiPluginImpl({this.apiKey});
+  GoogleGenAiPluginImpl({
+    this.apiKey,
+    this.projectId,
+    this.location,
+    this.authClient,
+  });
+
+  bool get isVertex => projectId != null && location != null;
+
+  Future<GenerativeLanguageBaseClient> _getApiClient([
+    String? requestApiKey,
+  ]) async {
+    if (isVertex) {
+      final client = await getVertexAuthClient(authClient);
+      final baseUrl = location == 'global'
+          ? 'https://aiplatform.googleapis.com/'
+          : 'https://$location-aiplatform.googleapis.com/';
+      final apiUrlPrefix =
+          'v1beta1/projects/$projectId/locations/$location/publishers/google/';
+
+      final headers = {
+        'x-goog-api-client':
+            'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
+      };
+
+      return GenerativeLanguageBaseClient(
+        baseUrl: baseUrl,
+        client: CustomClient(defaultHeaders: headers, inner: client),
+        apiUrlPrefix: apiUrlPrefix,
+      );
+    } else {
+      return GenerativeLanguageBaseClient(
+        baseUrl: 'https://generativelanguage.googleapis.com/',
+        client: httpClientFromApiKey(requestApiKey ?? apiKey),
+      );
+    }
+  }
 
   @override
-  String get name => 'googleai';
+  String get name => isVertex ? 'vertexai' : 'googleai';
 
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    final service = GenerativeLanguageBaseClient(
-      baseUrl: 'https://generativelanguage.googleapis.com/',
-      client: httpClientFromApiKey(apiKey),
-    );
+    if (isVertex) {
+      // Vertex AI model enumeration is not supported via this exact endpoint yet.
+      return [];
+    }
+
+    final service = await _getApiClient();
     try {
       final gcl.ListModelsResponse modelsResponse;
       try {
@@ -70,7 +112,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           .map((model) {
             final isTts = model.name!.contains('-tts');
             return modelMetadata(
-              'googleai/${model.name!.split('/').last}',
+              '$name/${model.name!.split('/').last}',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
@@ -86,7 +128,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                     model.name!.startsWith('models/embedding-')),
           )
           .map((model) {
-            return embedderMetadata('googleai/${model.name!.split('/').last}');
+            return embedderMetadata('$name/${model.name!.split('/').last}');
           })
           .toList();
       return [...models, ...embedders];
@@ -111,7 +153,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
 
   Model _createModel(String modelName, SchemanticType customOptions) {
     return Model(
-      name: 'googleai/$modelName',
+      name: '$name/$modelName',
       customOptions: customOptions,
       metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
@@ -161,10 +203,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
 
-        final service = GenerativeLanguageBaseClient(
-          baseUrl: 'https://generativelanguage.googleapis.com/',
-          client: httpClientFromApiKey(apiKey ?? this.apiKey),
-        );
+        final service = await _getApiClient(apiKey);
 
         try {
           final systemMessage = req.messages
@@ -253,14 +292,11 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     );
   }
 
-  Embedder _createEmbedder(String name) {
+  Embedder _createEmbedder(String embedderName) {
     return Embedder(
-      name: 'googleai/$name',
+      name: '$name/$embedderName',
       fn: (req, ctx) async {
-        final service = GenerativeLanguageBaseClient(
-          baseUrl: 'https://generativelanguage.googleapis.com/',
-          client: httpClientFromApiKey(apiKey),
-        );
+        final service = await _getApiClient();
         try {
           final options = req?.options != null
               ? TextEmbedderOptions.fromJson(req!.options!)
@@ -280,7 +316,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                 taskType: options?.taskType,
                 title: options?.title,
               ),
-              model: 'models/$name',
+              model: 'models/$embedderName',
             );
             return EmbedResponse(
               embeddings: [Embedding(embedding: res.embedding?.values ?? [])],
@@ -299,7 +335,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                   taskType: options?.taskType,
                   title: options?.title,
                 ),
-                model: 'models/$name',
+                model: 'models/$embedderName',
               );
               return Embedding(embedding: res.embedding?.values ?? []);
             });
@@ -728,10 +764,11 @@ http.Client httpClientFromApiKey(String? apiKey) {
 }
 
 class CustomClient extends http.BaseClient {
-  final http.Client _inner = http.Client();
+  final http.Client _inner;
   final Map<String, String> defaultHeaders;
 
-  CustomClient({required this.defaultHeaders});
+  CustomClient({required this.defaultHeaders, http.Client? inner})
+    : _inner = inner ?? http.Client();
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {

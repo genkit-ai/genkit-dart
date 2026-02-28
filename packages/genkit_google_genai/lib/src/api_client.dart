@@ -8,14 +8,20 @@ import 'generated/generativelanguage.dart';
 
 class GenerativeLanguageBaseClient {
   final String baseUrl;
+  final String apiUrlPrefix;
   final http.Client client;
-  GenerativeLanguageBaseClient({required this.baseUrl, required this.client});
+
+  GenerativeLanguageBaseClient({
+    required this.baseUrl,
+    required this.client,
+    this.apiUrlPrefix = 'v1beta/',
+  });
 
   Future<EmbedContentResponse> embedContent(
     EmbedContentRequest request, {
     required String model,
   }) async {
-    final url = 'v1beta/$model:embedContent';
+    final url = '$apiUrlPrefix$model:embedContent';
     final res = await _call('POST', url, request.toJson());
     return EmbedContentResponse.fromJson(res);
   }
@@ -24,7 +30,7 @@ class GenerativeLanguageBaseClient {
     GenerateContentRequest request, {
     required String model,
   }) async {
-    final url = 'v1beta/$model:generateContent';
+    final url = '$apiUrlPrefix$model:generateContent';
     final res = await _call('POST', url, request.toJson());
     return GenerateContentResponse.fromJson(res);
   }
@@ -33,7 +39,7 @@ class GenerativeLanguageBaseClient {
     int? pageSize,
     String? pageToken,
   }) async {
-    var url = 'v1beta/models?';
+    var url = '${apiUrlPrefix}models?';
     if (pageSize != null) url += 'pageSize=$pageSize&';
     if (pageToken != null) url += 'pageToken=$pageToken&';
     final res = await _call('GET', url);
@@ -44,7 +50,7 @@ class GenerativeLanguageBaseClient {
     GenerateContentRequest request, {
     required String model,
   }) async* {
-    final url = 'v1beta/$model:streamGenerateContent?alt=sse';
+    final url = '$apiUrlPrefix$model:streamGenerateContent?alt=sse';
     yield* _callStream(
       'POST',
       url,
