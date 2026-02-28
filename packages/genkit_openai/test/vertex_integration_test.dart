@@ -61,4 +61,37 @@ void main() {
         ? 'Set RUN_VERTEX_OPENAI_INTEGRATION=true to run Vertex integration tests.'
         : null,
   );
+
+  test(
+    'vertex openai-compatible lists models with ADC',
+    () async {
+      if (projectId == null || projectId.isEmpty) {
+        fail(
+          'Set VERTEX_PROJECT_ID or GOOGLE_CLOUD_PROJECT when running Vertex integration tests.',
+        );
+      }
+
+      final ai = Genkit(
+        plugins: [
+          openAI(
+            vertex: OpenAIVertexConfig.adc(
+              projectId: projectId,
+              location: location,
+            ),
+          ),
+        ],
+        isDevEnv: false,
+      );
+
+      final actions = await ai.registry.listActions();
+      final modelActions = actions
+          .where((a) => a.actionType == 'model' && a.name.startsWith('openai/'))
+          .toList();
+
+      expect(modelActions, isNotEmpty);
+    },
+    skip: !runVertexIntegration
+        ? 'Set RUN_VERTEX_OPENAI_INTEGRATION=true to run Vertex integration tests.'
+        : null,
+  );
 }

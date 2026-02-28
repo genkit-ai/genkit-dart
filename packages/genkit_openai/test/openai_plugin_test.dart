@@ -525,46 +525,6 @@ void main() {
       final ref = openAI.model('gpt-4o');
       expect(ref.name, 'openai/gpt-4o');
     });
-
-    test('vertex mode list does not resolve token', () async {
-      var tokenProviderCalled = false;
-      final plugin = openAI(
-        vertex: OpenAIVertexConfig(
-          projectId: 'my-project',
-          accessTokenProvider: () async {
-            tokenProviderCalled = true;
-            return 'ya29.token';
-          },
-        ),
-        models: [const CustomModelDefinition(name: 'google/gemini-2.5-flash')],
-      );
-
-      final models = await plugin.list();
-
-      expect(tokenProviderCalled, isFalse);
-      expect(
-        models.map((m) => m.name),
-        contains('openai/google/gemini-2.5-flash'),
-      );
-    });
-
-    test('vertex mode list returns empty without custom models', () async {
-      var tokenProviderCalled = false;
-      final plugin = openAI(
-        vertex: OpenAIVertexConfig(
-          projectId: 'my-project',
-          accessTokenProvider: () async {
-            tokenProviderCalled = true;
-            return 'ya29.token';
-          },
-        ),
-      );
-
-      final models = await plugin.list();
-
-      expect(tokenProviderCalled, isFalse);
-      expect(models, isEmpty);
-    });
   });
 
   group('CustomModelDefinition', () {

@@ -276,18 +276,6 @@ class OpenAIPlugin extends GenkitPlugin {
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    if (vertex != null) {
-      return customModels
-          .map(
-            (model) => modelMetadata(
-              'openai/${model.name}',
-              modelInfo: model.info,
-              customOptions: OpenAIOptions.$schema,
-            ),
-          )
-          .toList();
-    }
-
     try {
       final modelIds = await _fetchAvailableModels();
       final modelMetadataList =
