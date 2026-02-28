@@ -13,8 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit_google_genai/src/aggregation.dart';
-import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
-    as gcl;
+import 'package:genkit_google_genai/src/generated/generativelanguage.dart' as gcl;
 import 'package:test/test.dart';
 
 void main() {
@@ -46,9 +45,9 @@ void main() {
       ];
 
       final aggregated = aggregateResponses(responses);
-      expect(aggregated.candidates.length, 1);
-      expect(aggregated.candidates[0].content!.parts.length, 1);
-      expect(aggregated.candidates[0].content!.parts[0].text, 'Hello World');
+      expect(aggregated.candidates!.length, 1);
+      expect(aggregated.candidates![0].content!.parts!.length, 1);
+      expect(aggregated.candidates![0].content!.parts![0].text, 'Hello World');
     });
 
     test('preserves finish reason from last chunk', () {
@@ -68,7 +67,7 @@ void main() {
           candidates: [
             gcl.Candidate(
               index: 0,
-              finishReason: gcl.Candidate_FinishReason.stop,
+              finishReason: 'STOP',
               content: gcl.Content(role: 'model', parts: []),
             ),
           ],
@@ -77,10 +76,10 @@ void main() {
 
       final aggregated = aggregateResponses(responses);
       expect(
-        aggregated.candidates[0].finishReason,
-        gcl.Candidate_FinishReason.stop,
+        aggregated.candidates![0].finishReason,
+        'STOP',
       );
-      expect(aggregated.candidates[0].content!.parts[0].text, 'A');
+      expect(aggregated.candidates![0].content!.parts![0].text, 'A');
     });
 
     test('handles multiple parts', () {
@@ -111,8 +110,8 @@ void main() {
       ];
 
       final aggregated = aggregateResponses(responses);
-      expect(aggregated.candidates[0].content!.parts.length, 1);
-      expect(aggregated.candidates[0].content!.parts[0].text, 'Image: [REF]');
+      expect(aggregated.candidates![0].content!.parts!.length, 1);
+      expect(aggregated.candidates![0].content!.parts![0].text, 'Image: [REF]');
     });
 
     test('aggregates usage and grounding metadata', () {
@@ -138,17 +137,17 @@ void main() {
               ),
             ),
           ],
-          usageMetadata: gcl.GenerateContentResponse_UsageMetadata(
+          usageMetadata: gcl.UsageMetadata(
             totalTokenCount: 10,
           ),
         ),
       ];
 
       final aggregated = aggregateResponses(responses);
-      expect(aggregated.candidates[0].content!.parts[0].text, 'AB');
-      expect(aggregated.candidates[0].groundingMetadata, isNotNull);
+      expect(aggregated.candidates![0].content!.parts![0].text, 'AB');
+      expect(aggregated.candidates![0].groundingMetadata, isNotNull);
       expect(
-        aggregated.candidates[0].groundingMetadata!.webSearchQueries,
+        aggregated.candidates![0].groundingMetadata!.webSearchQueries,
         contains('query2'),
       );
       expect(aggregated.usageMetadata, isNotNull);

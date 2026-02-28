@@ -21,7 +21,9 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'src/model.dart';
 
 void main(List<String> args) async {
-  final ai = Genkit(plugins: [googleAI()]);
+  final ai = Genkit(
+    plugins: [googleAI(apiKey: Platform.environment['GEMINI_API_KEY'])],
+  );
 
   // --- Basic Generate Flow ---
   ai.defineFlow(
@@ -148,9 +150,11 @@ void main(List<String> args) async {
         model: googleAI.gemini('gemini-2.5-flash'),
         outputSchema: CharacterProfile.$schema,
         prompt: prompt,
-        onChunk: (chunk) {
-          ctx.sendChunk(chunk.output!);
-        },
+        onChunk: ctx.streamingRequested
+            ? (GenerateResponseChunk<CharacterProfile?> chunk) {
+                ctx.sendChunk(chunk.output!);
+              }
+            : null,
       );
       return response.output!;
     },
@@ -222,7 +226,7 @@ void main(List<String> args) async {
     streamSchema: ModelResponseChunk.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-pro'),
+        model: googleAI.gemini('gemini-3.1-pro-preview'),
         prompt: prompt,
         config: GeminiOptions(
           // Configured to return thoughts as ReasoningParts.
@@ -369,7 +373,7 @@ void main(List<String> args) async {
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],

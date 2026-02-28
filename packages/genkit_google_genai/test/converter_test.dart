@@ -14,10 +14,8 @@
 
 import 'dart:convert';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/src/generated/generativelanguage.dart' as gcl;
 import 'package:genkit_google_genai/src/plugin_impl.dart';
-import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
-    as gcl;
-import 'package:google_cloud_protobuf/protobuf.dart' as pb;
 import 'package:test/test.dart';
 
 void main() {
@@ -40,7 +38,7 @@ void main() {
       expect(geminiPart.inlineData, isNotNull);
       expect(geminiPart.inlineData!.mimeType, 'text/plain');
       // Verify data is bytes
-      expect(utf8.decode(geminiPart.inlineData!.data), 'Hello');
+      expect(utf8.decode(base64Decode(geminiPart.inlineData!.data!)), 'Hello');
     });
 
     test('converts media part with data URI and no explicit contentType', () {
@@ -82,7 +80,7 @@ void main() {
       final part = gcl.Part(
         inlineData: gcl.Blob(
           mimeType: 'audio/mp3',
-          data: base64Decode('SGVsbG8='),
+          data: 'SGVsbG8=',
         ),
       );
       final geminiPart = fromGeminiPart(part);
@@ -105,7 +103,7 @@ void main() {
       final geminiPart = toGeminiPart(part);
       expect(geminiPart.text, 'I am thinking');
       expect(geminiPart.thought, isTrue);
-      expect(geminiPart.thoughtSignature, signatureBytes);
+      expect(geminiPart.thoughtSignature, signatureBase64);
     });
 
     test('toGeminiPart preserves thoughtSignature for TextPart', () {
@@ -122,8 +120,8 @@ void main() {
       // if (p.isText) ... thought: thought (which comes from metadata['thought'] == true)
       // Wait, let's double check logic in plugin_impl based on user edits.
       // User removed `thought` from `isText` branch in step 325!
-      expect(geminiPart.thought, isFalse);
-      expect(geminiPart.thoughtSignature, signatureBytes);
+      expect(geminiPart.thought, isNull);
+      expect(geminiPart.thoughtSignature, signatureBase64);
     });
 
     test('toGeminiPart preserves thoughtSignature for ToolRequest', () {
@@ -133,15 +131,15 @@ void main() {
       );
       final geminiPart = toGeminiPart(part);
       expect(geminiPart.functionCall, isNotNull);
-      expect(geminiPart.thought, isFalse);
-      expect(geminiPart.thoughtSignature, signatureBytes);
+      expect(geminiPart.thought, isNull);
+      expect(geminiPart.thoughtSignature, signatureBase64);
     });
 
     test('fromGeminiPart converts thought=true to ReasoningPart', () {
       final part = gcl.Part(
         text: 'thinking...',
         thought: true,
-        thoughtSignature: signatureBytes,
+        thoughtSignature: signatureBase64,
       );
       final genkitPart = fromGeminiPart(part);
       expect(genkitPart, isA<ReasoningPart>());
@@ -153,7 +151,7 @@ void main() {
       final part = gcl.Part(
         text: 'hello',
         thought: false,
-        thoughtSignature: signatureBytes,
+        thoughtSignature: signatureBase64,
       );
       final genkitPart = fromGeminiPart(part);
       expect(genkitPart, isA<TextPart>());
@@ -163,8 +161,8 @@ void main() {
 
     test('fromGeminiPart extracts thoughtSignature from ToolRequest', () {
       final part = gcl.Part(
-        functionCall: gcl.FunctionCall(name: 'foo', args: pb.Struct()),
-        thoughtSignature: signatureBytes,
+        functionCall: gcl.FunctionCall(name: 'foo', args: {}),
+        thoughtSignature: signatureBase64,
       );
       final genkitPart = fromGeminiPart(part);
       expect(genkitPart, isA<ToolRequestPart>());
@@ -174,7 +172,7 @@ void main() {
 
   group('extractUsage', () {
     test('extracts standard usage', () {
-      final usage = gcl.GenerateContentResponse_UsageMetadata(
+      final usage = gcl.UsageMetadata(
         promptTokenCount: 10,
         candidatesTokenCount: 20,
         totalTokenCount: 30,
@@ -186,14 +184,11 @@ void main() {
     });
 
     test('extracts custom tool usage but ignores details arrays', () {
-      final usage = gcl.GenerateContentResponse_UsageMetadata(
+      final usage = gcl.UsageMetadata(
         promptTokenCount: 10,
         candidatesTokenCount: 20,
         totalTokenCount: 30,
         toolUsePromptTokenCount: 5,
-        promptTokensDetails: [
-          gcl.ModalityTokenCount(modality: gcl.Modality.text, tokenCount: 10),
-        ],
       );
       final derived = extractUsage(usage);
       expect(derived!.custom!['toolUsePromptTokenCount'], 5);

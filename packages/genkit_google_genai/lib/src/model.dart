@@ -52,6 +52,8 @@ abstract class $GeminiOptions {
   double? get presencePenalty;
   double? get frequencyPenalty;
   int? get seed;
+
+  $SpeechConfig? get speechConfig;
 }
 
 @Schematic()
@@ -99,6 +101,15 @@ abstract class $ThinkingConfig {
         'Setting the thinking budget to 0 disables thinking.',
   )
   int? get thinkingBudget;
+
+  @StringField(
+    enumValues: ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
+    description:
+        'For Gemini 3.0 - Indicates the thinking level. A higher level '
+        'is associated with more detailed thinking, which is needed for solving '
+        'more complex tasks.',
+  )
+  String? get thinkingLevel;
 }
 
 @Schematic()

@@ -1,0 +1,262 @@
+import 'dart:convert';
+import 'dart:io';
+
+const discoveryDocPath = 'generativelanguage-discovery.json';
+const outputPath = 'lib/src/generated/generativelanguage.dart';
+
+// 1. Overrides Mechanism
+// e.g. "GenerationConfig": {"banana": {"type": "number", "format": "float"}}
+final Map<String, Map<String, dynamic>> schemaOverrides = {
+  'GenerationConfig': {
+    'responseMimeType': {'type': 'string'},
+    'responseModalities': {'type': 'array', 'items': {'type': 'string'}},
+    'speechConfig': {'\$ref': 'SpeechConfig'},
+    'thinkingConfig': {'\$ref': 'ThinkingConfig'},
+  },
+  'SpeechConfig': {
+    'voiceConfig': {'\$ref': 'VoiceConfig'},
+    'multiSpeakerVoiceConfig': {'\$ref': 'MultiSpeakerVoiceConfig'},
+  },
+  'VoiceConfig': {
+    'prebuiltVoiceConfig': {'\$ref': 'PrebuiltVoiceConfig'},
+  },
+  'PrebuiltVoiceConfig': {
+    'voiceName': {'type': 'string'},
+  },
+  'MultiSpeakerVoiceConfig': {
+    'speakerVoiceConfigs': {
+      'type': 'array',
+      'items': {'\$ref': 'SpeakerVoiceConfig'}
+    }
+  },
+  'SpeakerVoiceConfig': {
+    'speaker': {'type': 'string'},
+    'voiceConfig': {'\$ref': 'VoiceConfig'},
+  },
+  'ThinkingConfig': {
+    'includeThoughts': {'type': 'boolean'},
+    'thinkingBudget': {'type': 'integer'},
+    'thinkingLevel': {'type': 'string'},
+  },
+  'GenerateContentRequest': {
+    'tools': {'type': 'array', 'items': {'\$ref': 'Tool'}},
+    'toolConfig': {'\$ref': 'ToolConfig'},
+    'systemInstruction': {'\$ref': 'Content'},
+  },
+  'Part': {
+    'functionCall': {'\$ref': 'FunctionCall'},
+    'functionResponse': {'\$ref': 'FunctionResponse'},
+    'executableCode': {'\$ref': 'ExecutableCode'},
+    'codeExecutionResult': {'\$ref': 'CodeExecutionResult'},
+    'inlineData': {'\$ref': 'Blob'},
+    'fileData': {'\$ref': 'FileData'},
+    'thoughtSignature': {'type': 'string'},
+    'thought': {'type': 'boolean'},
+  },
+  'Blob': {
+    'mimeType': {'type': 'string'},
+    'data': {'type': 'string'},
+  },
+  'FileData': {
+    'mimeType': {'type': 'string'},
+    'fileUri': {'type': 'string'},
+  },
+  'UsageMetadata': {
+    'cachedContentTokenCount': {'type': 'integer'},
+    'thoughtsTokenCount': {'type': 'integer'},
+    'toolUsePromptTokenCount': {'type': 'integer'},
+  },
+  'Tool': {
+    'functionDeclarations': {'type': 'array', 'items': {'\$ref': 'FunctionDeclaration'}},
+    'googleSearch': {'\$ref': 'GoogleSearch'},
+    'codeExecution': {'\$ref': 'CodeExecution'},
+  },
+  'ToolConfig': {
+    'functionCallingConfig': {'\$ref': 'FunctionCallingConfig'},
+  },
+  'FunctionCallingConfig': {
+    'mode': {'type': 'string'},
+    'allowedFunctionNames': {'type': 'array', 'items': {'type': 'string'}},
+  },
+  'FunctionDeclaration': {
+    'name': {'type': 'string'},
+    'description': {'type': 'string'},
+    'parametersJsonSchema': {'type': 'object'},
+  },
+  'FunctionCall': {
+    'id': {'type': 'string'},
+    'name': {'type': 'string'},
+    'args': {'type': 'object'},
+  },
+  'FunctionResponse': {
+    'id': {'type': 'string'},
+    'name': {'type': 'string'},
+    'response': {'type': 'object'},
+  },
+  'ExecutableCode': {
+    'language': {'type': 'string'},
+    'code': {'type': 'string'},
+  },
+  'CodeExecutionResult': {
+    'outcome': {'type': 'string'},
+    'output': {'type': 'string'},
+  },
+  'GoogleSearch': {},
+  'CodeExecution': {},
+};
+
+void main() async {
+  final file = File(discoveryDocPath);
+  if (!file.existsSync()) {
+    print('Discovery doc not found at \$discoveryDocPath');
+    return;
+  }
+
+  final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+  final schemas = json['schemas'] as Map<String, dynamic>;
+
+  // Apply overrides
+  for (final entry in schemaOverrides.entries) {
+    final schemaName = entry.key;
+    final overrides = entry.value;
+    if (schemas.containsKey(schemaName)) {
+      final properties = (schemas[schemaName] as Map<String, dynamic>)['properties'] as Map<String, dynamic>? ?? {};
+      properties.addAll(overrides);
+      (schemas[schemaName] as Map<String, dynamic>)['properties'] = properties;
+    } else {
+      schemas[schemaName] = {
+        'id': schemaName,
+        'type': 'object',
+        'properties': overrides,
+      };
+    }
+  }
+
+  final buffer = StringBuffer();
+  buffer.writeln('// ignore_for_file: unnecessary_cast, unused_import');
+  buffer.writeln();
+  buffer.writeln('import \'dart:convert\';');
+  buffer.writeln('import \'package:http/http.dart\' as http;');
+  buffer.writeln();
+
+  // 2. Generate Extension Types for Schemas
+  for (final entry in schemas.entries) {
+    _generateSchema(buffer, entry.key, entry.value as Map<String, dynamic>);
+  }
+
+  final outputFile = File(outputPath);
+  await outputFile.parent.create(recursive: true);
+  await outputFile.writeAsString(buffer.toString());
+  
+  print('Generated client at $outputPath');
+}
+
+void _generateSchema(StringBuffer buffer, String name, Map<String, dynamic> schema) {
+  final description = schema['description'] as String? ?? '';
+  if (description.isNotEmpty) {
+    buffer.writeln('/// $description');
+  }
+
+  buffer.writeln('extension type $name._(Map<String, Object?> _data) {');
+  
+  // Add a nice constructor
+  final properties = schema['properties'] as Map<String, dynamic>? ?? {};
+  
+  if (properties.isEmpty) {
+    buffer.writeln('  $name() : this._({});');
+    buffer.writeln();
+  } else {
+    buffer.writeln('  $name({');
+    for (final propEntry in properties.entries) {
+      final propName = propEntry.key;
+      final propSchema = propEntry.value as Map<String, dynamic>;
+      final dartType = _getDartType(propSchema);
+      buffer.writeln('    $dartType? $propName,');
+    }
+    buffer.writeln('  }) : this._({');
+    for (final propEntry in properties.entries) {
+      final propName = propEntry.key;
+      buffer.writeln('    if ($propName != null) \'$propName\': $propName,');
+    }
+    buffer.writeln('  });');
+    
+    buffer.writeln();
+    buffer.writeln('  $name.fromJson(Map<String, dynamic> json) : this._(json);');
+    buffer.writeln('  Map<String, dynamic> toJson() => _data as Map<String, dynamic>;');
+    buffer.writeln();
+  }
+
+  for (final propEntry in properties.entries) {
+    final propName = propEntry.key;
+    final propSchema = propEntry.value as Map<String, dynamic>;
+    final dartType = _getDartType(propSchema);
+    final propDesc = propSchema['description'] as String? ?? '';
+    
+    if (propDesc.isNotEmpty) {
+      buffer.writeln('  /// $propDesc');
+    }
+
+    // getter
+    buffer.write('  $dartType? get $propName { ');
+    buffer.writeln('final v = _data[\'$propName\']; if (v == null) return null; return ${_castValue('v', dartType)}; }');
+
+    // setter
+    buffer.writeln('  set $propName($dartType? value) => _data[\'$propName\'] = value;');
+  }
+
+  buffer.writeln('}');
+  buffer.writeln();
+}
+
+bool _isPrimitiveOrMap(String type) => 
+    type == 'String' || type == 'int' || type == 'double' || 
+    type == 'bool' || type == 'dynamic' || type == 'Object' || 
+    type.startsWith('Map<');
+
+String _castValue(String v, String dartType) {
+  if (dartType.startsWith('List<')) {
+    final inner = dartType.substring(5, dartType.length - 1);
+    if (_isPrimitiveOrMap(inner)) {
+      return '(v as List).cast<$inner>()';
+    } else {
+      return '(v as List).map((e) => $inner._(e as Map<String, Object?>)).toList()';
+    }
+  }
+  if (_isPrimitiveOrMap(dartType)) {
+    if (dartType == 'double') {
+      return '(v as num).toDouble()'; // handle int/double flexibility
+    }
+    return 'v as $dartType';
+  }
+  // It's an extension type
+  return '$dartType._(v as Map<String, Object?>)';
+}
+
+String _getDartType(Map<String, dynamic> schema) {
+  final ref = schema['\$ref'] as String?;
+  if (ref != null) return ref;
+
+  final type = schema['type'] as String?;
+  if (type == 'string') return 'String';
+  if (type == 'integer') return 'int';
+  if (type == 'number') return 'double';
+  if (type == 'boolean') return 'bool';
+  if (type == 'array') {
+    final items = schema['items'] as Map<String, dynamic>?;
+    if (items != null) {
+      final itemType = _getDartType(items);
+      return 'List<$itemType>';
+    }
+    return 'List<dynamic>';
+  }
+  if (type == 'object') {
+    // Check if additionalProperties is defined (Map)
+    if (schema.containsKey('additionalProperties')) {
+      final addPropType = _getDartType(schema['additionalProperties'] as Map<String, dynamic>);
+      return 'Map<String, $addPropType>';
+    }
+    return 'Map<String, Object?>';
+  }
+  if (type == 'any') return 'Object';
+  return 'dynamic';
+}
