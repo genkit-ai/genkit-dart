@@ -1,0 +1,17 @@
+name: anthropic_vertex_sample
+publish_to: none
+description: Genkit Dart Anthropic Vertex AI test application
+resolution: workspace
+
+executables:
+  anthropic_vertex_sample: anthropic_vertex_sample
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  genkit: ^0.10.0-dev.17
+  genkit_anthropic: ^0.0.1-dev.8
+
+dev_dependencies:
+  test: ^1.29.0

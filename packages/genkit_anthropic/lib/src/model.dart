@@ -20,6 +20,9 @@ part 'model.g.dart';
 @Schematic()
 abstract class $AnthropicOptions {
   /// Custom API key to use for this specific request. Overrides plugin config.
+  ///
+  /// This field is only valid for direct Anthropic API usage and is rejected
+  /// when the plugin is configured for Vertex AI.
   String? get apiKey;
 
   @IntegerField(

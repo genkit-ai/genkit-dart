@@ -20,6 +20,7 @@ workspace:
   - packages/genkit_middleware
   - testapps/agentic_patterns
   - testapps/ai_features
+  - testapps/anthropic_vertex
   - testapps/basic
   - testapps/chrome_example
   - testapps/openai_sample
