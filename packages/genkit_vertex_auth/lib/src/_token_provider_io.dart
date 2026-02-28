@@ -15,7 +15,7 @@
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
 
-Future<String> Function() createAdcTokenProvider({
+Future<String> Function() createAdcAccessTokenProvider({
   required List<String> scopes,
   http.Client? baseClient,
 }) {
@@ -32,7 +32,7 @@ Future<String> Function() createAdcTokenProvider({
   });
 }
 
-Future<String> Function() createServiceAccountTokenProvider({
+Future<String> Function() createServiceAccountAccessTokenProvider({
   required Object credentialsJson,
   required List<String> scopes,
   String? impersonatedUser,

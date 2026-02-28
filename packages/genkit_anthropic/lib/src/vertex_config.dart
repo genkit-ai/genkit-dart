@@ -12,25 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:genkit/plugin.dart';
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart' as vertex_auth;
 import 'package:http/http.dart' as http;
-
-import 'project_id_resolver_stub.dart'
-    if (dart.library.io) 'project_id_resolver_io.dart'
-    as project_id;
-import 'vertex_token_provider_stub.dart'
-    if (dart.library.io) 'vertex_token_provider_io.dart'
-    as vertex_auth;
 
 /// Signature used to provide an OAuth2 access token for Vertex AI requests.
 ///
 /// Return the raw bearer token value without the `Bearer ` prefix.
-typedef AccessTokenProvider = FutureOr<String> Function();
-
-const _cloudPlatformScope = 'https://www.googleapis.com/auth/cloud-platform';
+typedef AccessTokenProvider = vertex_auth.AccessTokenProvider;
 
 /// Configuration for using Anthropic Claude models on Vertex AI.
 class AnthropicVertexConfig {
@@ -89,14 +78,14 @@ class AnthropicVertexConfig {
   factory AnthropicVertexConfig.adc({
     String? projectId,
     String location = 'global',
-    List<String> scopes = const [_cloudPlatformScope],
+    List<String> scopes = const [vertex_auth.cloudPlatformScope],
     http.Client? baseClient,
   }) {
     return AnthropicVertexConfig._(
       projectId: projectId,
       projectIdFromCredentials: null,
       location: location,
-      accessTokenProvider: vertex_auth.createAdcTokenProvider(
+      accessTokenProvider: vertex_auth.createAdcAccessTokenProvider(
         scopes: scopes,
         baseClient: baseClient,
       ),
@@ -115,15 +104,16 @@ class AnthropicVertexConfig {
     String? projectId,
     required Object credentialsJson,
     String location = 'global',
-    List<String> scopes = const [_cloudPlatformScope],
+    List<String> scopes = const [vertex_auth.cloudPlatformScope],
     String? impersonatedUser,
     http.Client? baseClient,
   }) {
     return AnthropicVertexConfig._(
       projectId: projectId,
-      projectIdFromCredentials: _extractProjectId(credentialsJson),
+      projectIdFromCredentials: vertex_auth
+          .extractProjectIdFromServiceAccountJson(credentialsJson),
       location: location,
-      accessTokenProvider: vertex_auth.createServiceAccountTokenProvider(
+      accessTokenProvider: vertex_auth.createServiceAccountAccessTokenProvider(
         credentialsJson: credentialsJson,
         scopes: scopes,
         impersonatedUser: impersonatedUser,
@@ -183,7 +173,7 @@ class AnthropicVertexConfig {
       return fromCredentials;
     }
 
-    final fromEnvironment = project_id.resolveEnvironmentProjectId();
+    final fromEnvironment = vertex_auth.resolveEnvironmentProjectId();
     if (fromEnvironment != null && fromEnvironment.trim().isNotEmpty) {
       return fromEnvironment.trim();
     }
@@ -214,26 +204,4 @@ class AnthropicVertexConfig {
     }
     return token;
   }
-}
-
-String? _extractProjectId(Object credentialsJson) {
-  Map<String, dynamic>? json;
-  if (credentialsJson is Map) {
-    json = Map<String, dynamic>.from(credentialsJson);
-  } else if (credentialsJson is String) {
-    try {
-      final decoded = jsonDecode(credentialsJson);
-      if (decoded is Map) {
-        json = Map<String, dynamic>.from(decoded);
-      }
-    } catch (_) {
-      return null;
-    }
-  }
-
-  final projectId = json?['project_id'];
-  if (projectId is String && projectId.trim().isNotEmpty) {
-    return projectId.trim();
-  }
-  return null;
 }

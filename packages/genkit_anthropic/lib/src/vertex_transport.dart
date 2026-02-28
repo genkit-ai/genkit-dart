@@ -16,6 +16,7 @@ import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:http/http.dart' as http;
 
 import 'vertex_config.dart';
@@ -63,8 +64,7 @@ class AnthropicVertexTransport {
     request.headers['Accept'] = stream
         ? 'text/event-stream'
         : 'application/json';
-    request.headers['x-goog-api-client'] =
-        'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}';
+    request.headers['x-goog-api-client'] = googleApiClientHeaderValue();
     request.body = jsonEncode(body);
 
     final response = await httpClient.send(request);
