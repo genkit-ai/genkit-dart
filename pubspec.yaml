@@ -25,6 +25,7 @@ workspace:
   - testapps/openai_sample
   - testapps/mcp_server
   - testapps/middleware
+  - testapps/remote_models
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
