@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/client.dart';
@@ -105,7 +106,12 @@ void main() {
       name: 'auth',
       fn: (input, ctx) async {
         final user = ctx.context?['user'];
-        if (user == null) throw Exception('Unauthorized');
+        if (user == null) {
+          throw GenkitException(
+            'Unauthorized',
+            status: StatusCodes.PERMISSION_DENIED,
+          );
+        }
         return 'Hello $user';
       },
       inputSchema: .string(),
@@ -148,6 +154,156 @@ void main() {
       // Expected
       expect(e.toString(), contains('Unauthorized'));
     }
+  });
+
+  test('Unary flow maps GenkitException status', () async {
+    final deniedFlow = ai.defineFlow(
+      name: 'denied',
+      fn: (input, _) async {
+        throw GenkitException(
+          'You shall not pass',
+          status: StatusCodes.PERMISSION_DENIED,
+        );
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+    );
+
+    server = await startFlowServer(flows: [deniedFlow], port: 0);
+    port = server!.port;
+
+    final response = await http.post(
+      Uri.parse('http://localhost:$port/denied'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'data': 'hello'}),
+    );
+
+    expect(response.statusCode, 403);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    expect(body['code'], 403);
+    expect(body['status'], 'PERMISSION_DENIED');
+    expect(body['message'], 'You shall not pass');
+  });
+
+  test('Streaming flow sends mapped SSE error payload', () async {
+    final streamErrorFlow = ai.defineFlow(
+      name: 'streamError',
+      fn: (input, _) async {
+        throw GenkitException(
+          'Bad stream input',
+          status: StatusCodes.INVALID_ARGUMENT,
+        );
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
+    );
+
+    server = await startFlowServer(flows: [streamErrorFlow], port: 0);
+    port = server!.port;
+
+    final client = http.Client();
+    addTearDown(client.close);
+
+    final request = http.Request(
+      'POST',
+      Uri.parse('http://localhost:$port/streamError?stream=true'),
+    );
+    request.headers['Content-Type'] = 'application/json';
+    request.headers['Accept'] = 'text/event-stream';
+    request.body = jsonEncode({'data': 'hello'});
+
+    final response = await client.send(request);
+    expect(response.statusCode, 200);
+
+    final streamBody = await response.stream.bytesToString();
+    final errorChunk = streamBody
+        .split('\n\n')
+        .map((chunk) => chunk.trim())
+        .firstWhere((chunk) => chunk.startsWith('error: '), orElse: () => '');
+
+    expect(errorChunk, isNotEmpty);
+
+    final eventJson = errorChunk.substring('error: '.length);
+    final event = jsonDecode(eventJson) as Map<String, dynamic>;
+    final error = event['error'] as Map<String, dynamic>;
+
+    expect(error['code'], 400);
+    expect(error['status'], 'INVALID_ARGUMENT');
+    expect(error['message'], 'Bad stream input');
+  });
+
+  test('Unary flow hides non-Genkit exception details', () async {
+    final hiddenErrorFlow = ai.defineFlow(
+      name: 'hiddenUnaryError',
+      fn: (input, _) async {
+        throw Exception('sensitive: db-password');
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+    );
+
+    server = await startFlowServer(flows: [hiddenErrorFlow], port: 0);
+    port = server!.port;
+
+    final response = await http.post(
+      Uri.parse('http://localhost:$port/hiddenUnaryError'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'data': 'hello'}),
+    );
+
+    expect(response.statusCode, 500);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    expect(body['code'], 500);
+    expect(body['status'], 'INTERNAL');
+    expect(body['message'], 'Internal server error');
+    expect(body['message'], isNot(contains('db-password')));
+  });
+
+  test('Streaming flow hides non-Genkit exception details', () async {
+    final hiddenStreamErrorFlow = ai.defineFlow(
+      name: 'hiddenStreamError',
+      fn: (input, _) async {
+        throw Exception('sensitive: service-account-key');
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
+    );
+
+    server = await startFlowServer(flows: [hiddenStreamErrorFlow], port: 0);
+    port = server!.port;
+
+    final client = http.Client();
+    addTearDown(client.close);
+
+    final request = http.Request(
+      'POST',
+      Uri.parse('http://localhost:$port/hiddenStreamError?stream=true'),
+    );
+    request.headers['Content-Type'] = 'application/json';
+    request.headers['Accept'] = 'text/event-stream';
+    request.body = jsonEncode({'data': 'hello'});
+
+    final response = await client.send(request);
+    expect(response.statusCode, 200);
+
+    final streamBody = await response.stream.bytesToString();
+    final errorChunk = streamBody
+        .split('\n\n')
+        .map((chunk) => chunk.trim())
+        .firstWhere((chunk) => chunk.startsWith('error: '), orElse: () => '');
+
+    expect(errorChunk, isNotEmpty);
+
+    final eventJson = errorChunk.substring('error: '.length);
+    final event = jsonDecode(eventJson) as Map<String, dynamic>;
+    final error = event['error'] as Map<String, dynamic>;
+
+    expect(error['code'], 500);
+    expect(error['status'], 'INTERNAL');
+    expect(error['message'], 'Internal server error');
+    expect(error['message'], isNot(contains('service-account-key')));
   });
 
   test('Direct shelfHandler', () async {
