@@ -20,7 +20,7 @@ part of 'filesystem_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class FilesystemOptions {
+base class FilesystemOptions {
   factory FilesystemOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,8 @@ class FilesystemOptions {
   }
 }
 
-class _FilesystemOptionsTypeFactory extends SchemanticType<FilesystemOptions> {
+base class _FilesystemOptionsTypeFactory
+    extends SchemanticType<FilesystemOptions> {
   const _FilesystemOptionsTypeFactory();
 
   @override
@@ -79,7 +80,7 @@ class _FilesystemOptionsTypeFactory extends SchemanticType<FilesystemOptions> {
   );
 }
 
-class ListFilesInput {
+base class ListFilesInput {
   factory ListFilesInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -128,7 +129,7 @@ class ListFilesInput {
   }
 }
 
-class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
+base class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
   const _ListFilesInputTypeFactory();
 
   @override
@@ -160,7 +161,7 @@ class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
   );
 }
 
-class ReadFileInput {
+base class ReadFileInput {
   factory ReadFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -193,7 +194,7 @@ class ReadFileInput {
   }
 }
 
-class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
+base class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
   const _ReadFileInputTypeFactory();
 
   @override
@@ -218,7 +219,7 @@ class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
   );
 }
 
-class WriteFileInput {
+base class WriteFileInput {
   factory WriteFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -259,7 +260,7 @@ class WriteFileInput {
   }
 }
 
-class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
+base class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
   const _WriteFileInputTypeFactory();
 
   @override
@@ -287,7 +288,7 @@ class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
   );
 }
 
-class SearchAndReplaceInput {
+base class SearchAndReplaceInput {
   factory SearchAndReplaceInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -331,7 +332,7 @@ class SearchAndReplaceInput {
   }
 }
 
-class _SearchAndReplaceInputTypeFactory
+base class _SearchAndReplaceInputTypeFactory
     extends SchemanticType<SearchAndReplaceInput> {
   const _SearchAndReplaceInputTypeFactory();
 
@@ -362,7 +363,7 @@ class _SearchAndReplaceInputTypeFactory
   );
 }
 
-class ListFileOutputItem {
+base class ListFileOutputItem {
   factory ListFileOutputItem.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -403,7 +404,7 @@ class ListFileOutputItem {
   }
 }
 
-class _ListFileOutputItemTypeFactory
+base class _ListFileOutputItemTypeFactory
     extends SchemanticType<ListFileOutputItem> {
   const _ListFileOutputItemTypeFactory();
 

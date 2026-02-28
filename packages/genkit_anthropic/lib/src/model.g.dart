@@ -20,7 +20,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class AnthropicOptions {
+base class AnthropicOptions {
   factory AnthropicOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -147,7 +147,8 @@ class AnthropicOptions {
   }
 }
 
-class _AnthropicOptionsTypeFactory extends SchemanticType<AnthropicOptions> {
+base class _AnthropicOptionsTypeFactory
+    extends SchemanticType<AnthropicOptions> {
   const _AnthropicOptionsTypeFactory();
 
   @override
@@ -194,7 +195,7 @@ class _AnthropicOptionsTypeFactory extends SchemanticType<AnthropicOptions> {
   );
 }
 
-class ThinkingConfig {
+base class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -227,7 +228,7 @@ class ThinkingConfig {
   }
 }
 
-class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
+base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   const _ThinkingConfigTypeFactory();
 
   @override

@@ -21,7 +21,7 @@ part of 'tool_calling.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ToolCallingInput {
+base class ToolCallingInput {
   factory ToolCallingInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class ToolCallingInput {
   }
 }
 
-class _ToolCallingInputTypeFactory extends SchemanticType<ToolCallingInput> {
+base class _ToolCallingInputTypeFactory
+    extends SchemanticType<ToolCallingInput> {
   const _ToolCallingInputTypeFactory();
 
   @override
@@ -72,7 +73,7 @@ class _ToolCallingInputTypeFactory extends SchemanticType<ToolCallingInput> {
   );
 }
 
-class ToolCallingWeatherInput {
+base class ToolCallingWeatherInput {
   factory ToolCallingWeatherInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -105,7 +106,7 @@ class ToolCallingWeatherInput {
   }
 }
 
-class _ToolCallingWeatherInputTypeFactory
+base class _ToolCallingWeatherInputTypeFactory
     extends SchemanticType<ToolCallingWeatherInput> {
   const _ToolCallingWeatherInputTypeFactory();
 

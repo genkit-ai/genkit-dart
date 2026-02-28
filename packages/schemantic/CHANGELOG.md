@@ -15,6 +15,8 @@
   methods on the `SchemanticType` class to allow invoking with dot shorthands.
 - **BREAKING** **REFACTOR**: Remove the direct export of `Schema`, replaced with
   `$Schema` for use only in generated part files.
+- **REFACTOR**: Make all generated and fixed classes `final` other than
+  `SchemanticType` which is `base`.
 
 ## 0.0.1-dev.16
 

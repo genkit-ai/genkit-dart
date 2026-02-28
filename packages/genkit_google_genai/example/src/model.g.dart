@@ -21,7 +21,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherToolInput {
+base class WeatherToolInput {
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class WeatherToolInput {
   }
 }
 
-class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
+base class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
@@ -80,7 +81,7 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   );
 }
 
-class Category {
+base class Category {
   factory Category.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Category._(this._json);
@@ -128,7 +129,7 @@ class Category {
   }
 }
 
-class _CategoryTypeFactory extends SchemanticType<Category> {
+base class _CategoryTypeFactory extends SchemanticType<Category> {
   const _CategoryTypeFactory();
 
   @override
@@ -154,7 +155,7 @@ class _CategoryTypeFactory extends SchemanticType<Category> {
   );
 }
 
-class Weapon {
+base class Weapon {
   factory Weapon.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Weapon._(this._json);
@@ -205,7 +206,7 @@ class Weapon {
   }
 }
 
-class _WeaponTypeFactory extends SchemanticType<Weapon> {
+base class _WeaponTypeFactory extends SchemanticType<Weapon> {
   const _WeaponTypeFactory();
 
   @override
@@ -230,7 +231,7 @@ class _WeaponTypeFactory extends SchemanticType<Weapon> {
   );
 }
 
-class RpgCharacter {
+base class RpgCharacter {
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -313,7 +314,7 @@ class RpgCharacter {
   }
 }
 
-class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
+base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   const _RpgCharacterTypeFactory();
 
   @override
@@ -344,7 +345,7 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   );
 }
 
-class CharacterProfile {
+base class CharacterProfile {
   factory CharacterProfile.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -397,7 +398,8 @@ class CharacterProfile {
   }
 }
 
-class _CharacterProfileTypeFactory extends SchemanticType<CharacterProfile> {
+base class _CharacterProfileTypeFactory
+    extends SchemanticType<CharacterProfile> {
   const _CharacterProfileTypeFactory();
 
   @override

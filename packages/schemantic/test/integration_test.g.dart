@@ -21,7 +21,7 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class User {
+base class User {
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   User._(this._json);
@@ -72,7 +72,7 @@ class User {
   }
 }
 
-class _UserTypeFactory extends SchemanticType<User> {
+base class _UserTypeFactory extends SchemanticType<User> {
   const _UserTypeFactory();
 
   @override
@@ -97,7 +97,7 @@ class _UserTypeFactory extends SchemanticType<User> {
   );
 }
 
-class Group {
+base class Group {
   factory Group.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Group._(this._json);
@@ -160,7 +160,7 @@ class Group {
   }
 }
 
-class _GroupTypeFactory extends SchemanticType<Group> {
+base class _GroupTypeFactory extends SchemanticType<Group> {
   const _GroupTypeFactory();
 
   @override
@@ -187,7 +187,7 @@ class _GroupTypeFactory extends SchemanticType<Group> {
   );
 }
 
-class Node {
+base class Node {
   factory Node.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Node._(this._json);
@@ -232,7 +232,7 @@ class Node {
   }
 }
 
-class _NodeTypeFactory extends SchemanticType<Node> {
+base class _NodeTypeFactory extends SchemanticType<Node> {
   const _NodeTypeFactory();
 
   @override
@@ -258,7 +258,7 @@ class _NodeTypeFactory extends SchemanticType<Node> {
   );
 }
 
-class Keyed {
+base class Keyed {
   factory Keyed.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Keyed._(this._json);
@@ -313,7 +313,7 @@ class Keyed {
   }
 }
 
-class _KeyedTypeFactory extends SchemanticType<Keyed> {
+base class _KeyedTypeFactory extends SchemanticType<Keyed> {
   const _KeyedTypeFactory();
 
   @override
@@ -341,7 +341,7 @@ class _KeyedTypeFactory extends SchemanticType<Keyed> {
   );
 }
 
-class Comprehensive {
+base class Comprehensive {
   factory Comprehensive.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -398,7 +398,7 @@ class Comprehensive {
   }
 }
 
-class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
+base class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   const _ComprehensiveTypeFactory();
 
   @override
@@ -444,7 +444,7 @@ class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   );
 }
 
-class Description {
+base class Description {
   factory Description.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -476,7 +476,7 @@ class Description {
   }
 }
 
-class _DescriptionTypeFactory extends SchemanticType<Description> {
+base class _DescriptionTypeFactory extends SchemanticType<Description> {
   const _DescriptionTypeFactory();
 
   @override
@@ -498,7 +498,7 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
   );
 }
 
-class CrossFileParent {
+base class CrossFileParent {
   factory CrossFileParent.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -531,7 +531,7 @@ class CrossFileParent {
   }
 }
 
-class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
+base class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
   const _CrossFileParentTypeFactory();
 
   @override
@@ -554,7 +554,7 @@ class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
   );
 }
 
-class Defaults {
+base class Defaults {
   factory Defaults.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Defaults._(this._json);
@@ -614,7 +614,7 @@ class Defaults {
   }
 }
 
-class _DefaultsTypeFactory extends SchemanticType<Defaults> {
+base class _DefaultsTypeFactory extends SchemanticType<Defaults> {
   const _DefaultsTypeFactory();
 
   @override
@@ -640,7 +640,7 @@ class _DefaultsTypeFactory extends SchemanticType<Defaults> {
   );
 }
 
-class Poly {
+base class Poly {
   factory Poly.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Poly._(this._json);
@@ -672,7 +672,7 @@ class Poly {
   }
 }
 
-class PolyId {
+final class PolyId {
   PolyId.int(int this.value);
 
   PolyId.string(String this.value);
@@ -682,7 +682,7 @@ class PolyId {
   final Object? value;
 }
 
-class _PolyTypeFactory extends SchemanticType<Poly> {
+base class _PolyTypeFactory extends SchemanticType<Poly> {
   const _PolyTypeFactory();
 
   @override
@@ -711,7 +711,7 @@ class _PolyTypeFactory extends SchemanticType<Poly> {
   );
 }
 
-class MapSchema {
+base class MapSchema {
   factory MapSchema.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MapSchema._(this._json);
@@ -762,7 +762,7 @@ class MapSchema {
   }
 }
 
-class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
+base class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
   const _MapSchemaTypeFactory();
 
   @override

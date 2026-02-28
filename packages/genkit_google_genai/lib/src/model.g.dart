@@ -21,7 +21,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class GeminiOptions {
+base class GeminiOptions {
   factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -342,7 +342,7 @@ class GeminiOptions {
   }
 }
 
-class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
+base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   const _GeminiOptionsTypeFactory();
 
   @override
@@ -396,7 +396,7 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   );
 }
 
-class SafetySettings {
+base class SafetySettings {
   factory SafetySettings.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -445,7 +445,7 @@ class SafetySettings {
   }
 }
 
-class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
+base class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   const _SafetySettingsTypeFactory();
 
   @override
@@ -485,7 +485,7 @@ class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   );
 }
 
-class ThinkingConfig {
+base class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -537,7 +537,7 @@ class ThinkingConfig {
   }
 }
 
-class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
+base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   const _ThinkingConfigTypeFactory();
 
   @override
@@ -569,7 +569,7 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   );
 }
 
-class FunctionCallingConfig {
+base class FunctionCallingConfig {
   factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -618,7 +618,7 @@ class FunctionCallingConfig {
   }
 }
 
-class _FunctionCallingConfigTypeFactory
+base class _FunctionCallingConfigTypeFactory
     extends SchemanticType<FunctionCallingConfig> {
   const _FunctionCallingConfigTypeFactory();
 
@@ -645,7 +645,7 @@ class _FunctionCallingConfigTypeFactory
   );
 }
 
-class FileSearch {
+base class FileSearch {
   factory FileSearch.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   FileSearch._(this._json);
@@ -680,7 +680,7 @@ class FileSearch {
   }
 }
 
-class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
+base class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
   const _FileSearchTypeFactory();
 
   @override
@@ -703,7 +703,7 @@ class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
   );
 }
 
-class GeminiTtsOptions {
+base class GeminiTtsOptions {
   factory GeminiTtsOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1040,7 +1040,8 @@ class GeminiTtsOptions {
   }
 }
 
-class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
+base class _GeminiTtsOptionsTypeFactory
+    extends SchemanticType<GeminiTtsOptions> {
   const _GeminiTtsOptionsTypeFactory();
 
   @override
@@ -1096,7 +1097,7 @@ class _GeminiTtsOptionsTypeFactory extends SchemanticType<GeminiTtsOptions> {
   );
 }
 
-class SpeechConfig {
+base class SpeechConfig {
   factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1157,7 +1158,7 @@ class SpeechConfig {
   }
 }
 
-class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
+base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   const _SpeechConfigTypeFactory();
 
   @override
@@ -1184,7 +1185,7 @@ class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   );
 }
 
-class MultiSpeakerVoiceConfig {
+base class MultiSpeakerVoiceConfig {
   factory MultiSpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1225,7 +1226,7 @@ class MultiSpeakerVoiceConfig {
   }
 }
 
-class _MultiSpeakerVoiceConfigTypeFactory
+base class _MultiSpeakerVoiceConfigTypeFactory
     extends SchemanticType<MultiSpeakerVoiceConfig> {
   const _MultiSpeakerVoiceConfigTypeFactory();
 
@@ -1253,7 +1254,7 @@ class _MultiSpeakerVoiceConfigTypeFactory
   );
 }
 
-class SpeakerVoiceConfig {
+base class SpeakerVoiceConfig {
   factory SpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1297,7 +1298,7 @@ class SpeakerVoiceConfig {
   }
 }
 
-class _SpeakerVoiceConfigTypeFactory
+base class _SpeakerVoiceConfigTypeFactory
     extends SchemanticType<SpeakerVoiceConfig> {
   const _SpeakerVoiceConfigTypeFactory();
 
@@ -1326,7 +1327,7 @@ class _SpeakerVoiceConfigTypeFactory
   );
 }
 
-class VoiceConfig {
+base class VoiceConfig {
   factory VoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1366,7 +1367,7 @@ class VoiceConfig {
   }
 }
 
-class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
+base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   const _VoiceConfigTypeFactory();
 
   @override
@@ -1392,7 +1393,7 @@ class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   );
 }
 
-class PrebuiltVoiceConfig {
+base class PrebuiltVoiceConfig {
   factory PrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1429,7 +1430,7 @@ class PrebuiltVoiceConfig {
   }
 }
 
-class _PrebuiltVoiceConfigTypeFactory
+base class _PrebuiltVoiceConfigTypeFactory
     extends SchemanticType<PrebuiltVoiceConfig> {
   const _PrebuiltVoiceConfigTypeFactory();
 
@@ -1457,7 +1458,7 @@ class _PrebuiltVoiceConfigTypeFactory
   );
 }
 
-class GoogleSearch {
+base class GoogleSearch {
   factory GoogleSearch.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1482,7 +1483,7 @@ class GoogleSearch {
   }
 }
 
-class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
+base class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
   const _GoogleSearchTypeFactory();
 
   @override
@@ -1498,7 +1499,7 @@ class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
   );
 }
 
-class TextEmbedderOptions {
+base class TextEmbedderOptions {
   factory TextEmbedderOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1567,7 +1568,7 @@ class TextEmbedderOptions {
   }
 }
 
-class _TextEmbedderOptionsTypeFactory
+base class _TextEmbedderOptionsTypeFactory
     extends SchemanticType<TextEmbedderOptions> {
   const _TextEmbedderOptionsTypeFactory();
 

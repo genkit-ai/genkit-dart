@@ -21,7 +21,7 @@ part of 'flow_basics.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Subject {
+base class Subject {
   factory Subject.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Subject._(this._json);
@@ -52,7 +52,7 @@ class Subject {
   }
 }
 
-class _SubjectTypeFactory extends SchemanticType<Subject> {
+base class _SubjectTypeFactory extends SchemanticType<Subject> {
   const _SubjectTypeFactory();
 
   @override
@@ -73,7 +73,7 @@ class _SubjectTypeFactory extends SchemanticType<Subject> {
   );
 }
 
-class Count {
+base class Count {
   factory Count.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Count._(this._json);
@@ -104,7 +104,7 @@ class Count {
   }
 }
 
-class _CountTypeFactory extends SchemanticType<Count> {
+base class _CountTypeFactory extends SchemanticType<Count> {
   const _CountTypeFactory();
 
   @override

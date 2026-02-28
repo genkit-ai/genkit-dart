@@ -21,7 +21,7 @@ part of 'middleware_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestToolInput {
+base class TestToolInput {
   factory TestToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class TestToolInput {
   }
 }
 
-class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
+base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   const _TestToolInputTypeFactory();
 
   @override

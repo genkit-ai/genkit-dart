@@ -21,7 +21,7 @@ part of 'tool_interrupt_sample.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TriviaQuestions {
+base class TriviaQuestions {
   factory TriviaQuestions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -62,7 +62,7 @@ class TriviaQuestions {
   }
 }
 
-class _TriviaQuestionsTypeFactory extends SchemanticType<TriviaQuestions> {
+base class _TriviaQuestionsTypeFactory extends SchemanticType<TriviaQuestions> {
   const _TriviaQuestionsTypeFactory();
 
   @override

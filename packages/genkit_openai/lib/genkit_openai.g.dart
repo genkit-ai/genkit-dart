@@ -21,7 +21,7 @@ part of 'genkit_openai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class OpenAIOptions {
+base class OpenAIOptions {
   factory OpenAIOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -202,7 +202,7 @@ class OpenAIOptions {
   }
 }
 
-class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
+base class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
   const _OpenAIOptionsTypeFactory();
 
   @override

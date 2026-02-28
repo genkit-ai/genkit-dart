@@ -22,7 +22,7 @@ import 'package:source_gen/source_gen.dart';
 
 import '../schemantic.dart' hide Field;
 
-class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
+final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   @override
   Future<String> generateForAnnotatedElement(
     Element element,
@@ -88,6 +88,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       classes.add(
         Class((c) {
           c.name = baseName + _capitalize(fieldName);
+          c.modifier = .final$;
           c.fields.add(
             Field(
               (f) => f
@@ -145,7 +146,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     final isSubclass = _implementsAnnotatedType(element);
     return Class((b) {
       b.name = baseName;
-
+      b.modifier = .base;
       b.fields.add(
         Field((f) {
           f
@@ -694,6 +695,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     return Class((b) {
       b
         ..name = '_${baseName}TypeFactory'
+        ..modifier = .base
         ..extend = refer('SchemanticType<$baseName>')
         ..constructors.add(Constructor((c) => c..constant = true));
 

@@ -21,7 +21,7 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Candidate {
+base class Candidate {
   factory Candidate.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Candidate._(this._json);
@@ -120,7 +120,7 @@ class Candidate {
   }
 }
 
-class _CandidateTypeFactory extends SchemanticType<Candidate> {
+base class _CandidateTypeFactory extends SchemanticType<Candidate> {
   const _CandidateTypeFactory();
 
   @override
@@ -148,7 +148,7 @@ class _CandidateTypeFactory extends SchemanticType<Candidate> {
   );
 }
 
-class Message {
+base class Message {
   factory Message.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Message._(this._json);
@@ -209,7 +209,7 @@ class Message {
   }
 }
 
-class _MessageTypeFactory extends SchemanticType<Message> {
+base class _MessageTypeFactory extends SchemanticType<Message> {
   const _MessageTypeFactory();
 
   @override
@@ -236,7 +236,7 @@ class _MessageTypeFactory extends SchemanticType<Message> {
   );
 }
 
-class ToolDefinition {
+base class ToolDefinition {
   factory ToolDefinition.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -325,7 +325,7 @@ class ToolDefinition {
   }
 }
 
-class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
+base class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   const _ToolDefinitionTypeFactory();
 
   @override
@@ -352,7 +352,7 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   );
 }
 
-class Part {
+base class Part {
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Part._(this._json);
@@ -375,7 +375,7 @@ class Part {
   }
 }
 
-class _PartTypeFactory extends SchemanticType<Part> {
+base class _PartTypeFactory extends SchemanticType<Part> {
   const _PartTypeFactory();
 
   @override
@@ -391,7 +391,7 @@ class _PartTypeFactory extends SchemanticType<Part> {
   );
 }
 
-class TextPart implements Part {
+base class TextPart implements Part {
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TextPart._(this._json);
@@ -470,7 +470,7 @@ class TextPart implements Part {
   }
 }
 
-class _TextPartTypeFactory extends SchemanticType<TextPart> {
+base class _TextPartTypeFactory extends SchemanticType<TextPart> {
   const _TextPartTypeFactory();
 
   @override
@@ -496,7 +496,7 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
   );
 }
 
-class MediaPart implements Part {
+base class MediaPart implements Part {
   factory MediaPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MediaPart._(this._json);
@@ -575,7 +575,7 @@ class MediaPart implements Part {
   }
 }
 
-class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
+base class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
   const _MediaPartTypeFactory();
 
   @override
@@ -601,7 +601,7 @@ class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
   );
 }
 
-class ToolRequestPart implements Part {
+base class ToolRequestPart implements Part {
   factory ToolRequestPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -682,7 +682,7 @@ class ToolRequestPart implements Part {
   }
 }
 
-class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
+base class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
   const _ToolRequestPartTypeFactory();
 
   @override
@@ -708,7 +708,7 @@ class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
   );
 }
 
-class ToolResponsePart implements Part {
+base class ToolResponsePart implements Part {
   factory ToolResponsePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -789,7 +789,8 @@ class ToolResponsePart implements Part {
   }
 }
 
-class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
+base class _ToolResponsePartTypeFactory
+    extends SchemanticType<ToolResponsePart> {
   const _ToolResponsePartTypeFactory();
 
   @override
@@ -815,7 +816,7 @@ class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
   );
 }
 
-class DataPart implements Part {
+base class DataPart implements Part {
   factory DataPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   DataPart._(this._json);
@@ -880,7 +881,7 @@ class DataPart implements Part {
   }
 }
 
-class _DataPartTypeFactory extends SchemanticType<DataPart> {
+base class _DataPartTypeFactory extends SchemanticType<DataPart> {
   const _DataPartTypeFactory();
 
   @override
@@ -905,7 +906,7 @@ class _DataPartTypeFactory extends SchemanticType<DataPart> {
   );
 }
 
-class CustomPart implements Part {
+base class CustomPart implements Part {
   factory CustomPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   CustomPart._(this._json);
@@ -966,7 +967,7 @@ class CustomPart implements Part {
   }
 }
 
-class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
+base class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   const _CustomPartTypeFactory();
 
   @override
@@ -991,7 +992,7 @@ class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   );
 }
 
-class ReasoningPart implements Part {
+base class ReasoningPart implements Part {
   factory ReasoningPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1072,7 +1073,7 @@ class ReasoningPart implements Part {
   }
 }
 
-class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
+base class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   const _ReasoningPartTypeFactory();
 
   @override
@@ -1098,7 +1099,7 @@ class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   );
 }
 
-class ResourcePart implements Part {
+base class ResourcePart implements Part {
   factory ResourcePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1179,7 +1180,7 @@ class ResourcePart implements Part {
   }
 }
 
-class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
+base class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   const _ResourcePartTypeFactory();
 
   @override
@@ -1205,7 +1206,7 @@ class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   );
 }
 
-class Media {
+base class Media {
   factory Media.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Media._(this._json);
@@ -1248,7 +1249,7 @@ class Media {
   }
 }
 
-class _MediaTypeFactory extends SchemanticType<Media> {
+base class _MediaTypeFactory extends SchemanticType<Media> {
   const _MediaTypeFactory();
 
   @override
@@ -1272,7 +1273,7 @@ class _MediaTypeFactory extends SchemanticType<Media> {
   );
 }
 
-class ToolRequest {
+base class ToolRequest {
   factory ToolRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1345,7 +1346,7 @@ class ToolRequest {
   }
 }
 
-class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
+base class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   const _ToolRequestTypeFactory();
 
   @override
@@ -1371,7 +1372,7 @@ class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   );
 }
 
-class ToolResponse {
+base class ToolResponse {
   factory ToolResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1441,7 +1442,7 @@ class ToolResponse {
   }
 }
 
-class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
+base class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   const _ToolResponseTypeFactory();
 
   @override
@@ -1467,7 +1468,7 @@ class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   );
 }
 
-class ModelInfo {
+base class ModelInfo {
   factory ModelInfo.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   ModelInfo._(this._json);
@@ -1562,7 +1563,7 @@ class ModelInfo {
   }
 }
 
-class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
+base class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   const _ModelInfoTypeFactory();
 
   @override
@@ -1589,7 +1590,7 @@ class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   );
 }
 
-class ModelRequest {
+base class ModelRequest {
   factory ModelRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1704,7 +1705,7 @@ class ModelRequest {
   }
 }
 
-class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
+base class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   const _ModelRequestTypeFactory();
 
   @override
@@ -1743,7 +1744,7 @@ class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   );
 }
 
-class ModelResponse {
+base class ModelResponse {
   factory ModelResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1900,7 +1901,7 @@ class ModelResponse {
   }
 }
 
-class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
+base class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   const _ModelResponseTypeFactory();
 
   @override
@@ -1936,7 +1937,7 @@ class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   );
 }
 
-class ModelResponseChunk {
+base class ModelResponseChunk {
   factory ModelResponseChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2031,7 +2032,7 @@ class ModelResponseChunk {
   }
 }
 
-class _ModelResponseChunkTypeFactory
+base class _ModelResponseChunkTypeFactory
     extends SchemanticType<ModelResponseChunk> {
   const _ModelResponseChunkTypeFactory();
 
@@ -2061,7 +2062,7 @@ class _ModelResponseChunkTypeFactory
   );
 }
 
-class GenerateResponse {
+base class GenerateResponse {
   factory GenerateResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2238,7 +2239,8 @@ class GenerateResponse {
   }
 }
 
-class _GenerateResponseTypeFactory extends SchemanticType<GenerateResponse> {
+base class _GenerateResponseTypeFactory
+    extends SchemanticType<GenerateResponse> {
   const _GenerateResponseTypeFactory();
 
   @override
@@ -2278,7 +2280,7 @@ class _GenerateResponseTypeFactory extends SchemanticType<GenerateResponse> {
   );
 }
 
-class GenerateRequest {
+base class GenerateRequest {
   factory GenerateRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2407,7 +2409,7 @@ class GenerateRequest {
   }
 }
 
-class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
+base class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   const _GenerateRequestTypeFactory();
 
   @override
@@ -2447,7 +2449,7 @@ class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   );
 }
 
-class GenerationUsage {
+base class GenerationUsage {
   factory GenerationUsage.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2670,7 +2672,7 @@ class GenerationUsage {
   }
 }
 
-class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
+base class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   const _GenerationUsageTypeFactory();
 
   @override
@@ -2706,7 +2708,7 @@ class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   );
 }
 
-class Operation {
+base class Operation {
   factory Operation.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Operation._(this._json);
@@ -2811,7 +2813,7 @@ class Operation {
   }
 }
 
-class _OperationTypeFactory extends SchemanticType<Operation> {
+base class _OperationTypeFactory extends SchemanticType<Operation> {
   const _OperationTypeFactory();
 
   @override
@@ -2839,7 +2841,7 @@ class _OperationTypeFactory extends SchemanticType<Operation> {
   );
 }
 
-class OutputConfig {
+base class OutputConfig {
   factory OutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2922,7 +2924,7 @@ class OutputConfig {
   }
 }
 
-class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
+base class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   const _OutputConfigTypeFactory();
 
   @override
@@ -2948,7 +2950,7 @@ class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   );
 }
 
-class DocumentData {
+base class DocumentData {
   factory DocumentData.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2998,7 +3000,7 @@ class DocumentData {
   }
 }
 
-class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
+base class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
   const _DocumentDataTypeFactory();
 
   @override
@@ -3024,7 +3026,7 @@ class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
   );
 }
 
-class GenerateActionOptions {
+base class GenerateActionOptions {
   factory GenerateActionOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3213,7 +3215,7 @@ class GenerateActionOptions {
   }
 }
 
-class _GenerateActionOptionsTypeFactory
+base class _GenerateActionOptionsTypeFactory
     extends SchemanticType<GenerateActionOptions> {
   const _GenerateActionOptionsTypeFactory();
 
@@ -3260,7 +3262,7 @@ class _GenerateActionOptionsTypeFactory
   );
 }
 
-class GenerateResumeOptions {
+base class GenerateResumeOptions {
   factory GenerateResumeOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3333,7 +3335,7 @@ class GenerateResumeOptions {
   }
 }
 
-class _GenerateResumeOptionsTypeFactory
+base class _GenerateResumeOptionsTypeFactory
     extends SchemanticType<GenerateResumeOptions> {
   const _GenerateResumeOptionsTypeFactory();
 
@@ -3363,7 +3365,7 @@ class _GenerateResumeOptionsTypeFactory
   );
 }
 
-class GenerateActionOutputConfig {
+base class GenerateActionOutputConfig {
   factory GenerateActionOutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3471,7 +3473,7 @@ class GenerateActionOutputConfig {
   }
 }
 
-class GenerateActionOutputConfigInstructions {
+final class GenerateActionOutputConfigInstructions {
   GenerateActionOutputConfigInstructions.bool(bool this.value);
 
   GenerateActionOutputConfigInstructions.string(String this.value);
@@ -3479,7 +3481,7 @@ class GenerateActionOutputConfigInstructions {
   final Object? value;
 }
 
-class _GenerateActionOutputConfigTypeFactory
+base class _GenerateActionOutputConfigTypeFactory
     extends SchemanticType<GenerateActionOutputConfig> {
   const _GenerateActionOutputConfigTypeFactory();
 
@@ -3510,7 +3512,7 @@ class _GenerateActionOutputConfigTypeFactory
   );
 }
 
-class EmbedRequest {
+base class EmbedRequest {
   factory EmbedRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3563,7 +3565,7 @@ class EmbedRequest {
   }
 }
 
-class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
+base class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
   const _EmbedRequestTypeFactory();
 
   @override
@@ -3589,7 +3591,7 @@ class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
   );
 }
 
-class EmbedResponse {
+base class EmbedResponse {
   factory EmbedResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3624,7 +3626,7 @@ class EmbedResponse {
   }
 }
 
-class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
+base class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
   const _EmbedResponseTypeFactory();
 
   @override
@@ -3649,7 +3651,7 @@ class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
   );
 }
 
-class Embedding {
+base class Embedding {
   factory Embedding.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Embedding._(this._json);
@@ -3692,7 +3694,7 @@ class Embedding {
   }
 }
 
-class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
+base class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
   const _EmbeddingTypeFactory();
 
   @override
