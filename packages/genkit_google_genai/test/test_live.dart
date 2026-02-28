@@ -153,10 +153,7 @@ void main() {
         expect(embeddings, isNotNull);
         expect(embeddings.length, 1);
         expect(embeddings.first.embedding, isNotEmpty);
-        expect(
-          embeddings.first.embedding.length,
-          config.name == 'Vertex AI' ? 768 : 3072,
-        ); // gemini-embedding-001 (GoogleAI) is 3072, gemini-embedding-001 (VertexAI) is 768
+        expect(embeddings.first.embedding.length, 3072);
       });
 
       test('should embed multiple texts', () async {
