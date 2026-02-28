@@ -24,6 +24,7 @@ workspace:
   - testapps/anthropic_vertex
   - testapps/basic
   - testapps/chrome_example
+  - testapps/openai_vertex
   - testapps/openai_sample
   - testapps/mcp_server
   - testapps/middleware
