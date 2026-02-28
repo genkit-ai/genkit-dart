@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
@@ -19,9 +33,9 @@ void main() {
 
     test('builds service account helper config', () {
       final config = AnthropicVertexConfig.serviceAccount(
-        projectId: 'my-project',
         credentialsJson: {
           'type': 'service_account',
+          'project_id': 'my-project',
           'client_email': 'svc@project.iam.gserviceaccount.com',
           'client_id': '1234567890',
           'private_key':
@@ -29,10 +43,28 @@ void main() {
         },
       );
 
-      expect(config.projectId, 'my-project');
+      expect(config.projectId, isNull);
+      expect(config.resolveProjectId(), 'my-project');
       expect(config.location, 'global');
       expect(config.accessToken, isNull);
       expect(config.accessTokenProvider, isNotNull);
+    });
+
+    test('prefers explicit projectId over service account project_id', () {
+      final config = AnthropicVertexConfig.serviceAccount(
+        projectId: 'my-explicit-project',
+        credentialsJson: {
+          'type': 'service_account',
+          'project_id': 'my-inferred-project',
+          'client_email': 'svc@project.iam.gserviceaccount.com',
+          'client_id': '1234567890',
+          'private_key':
+              '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n',
+        },
+      );
+
+      expect(config.projectId, 'my-explicit-project');
+      expect(config.resolveProjectId(), 'my-explicit-project');
     });
 
     test('rejects conflicting plugin configuration', () {
@@ -103,6 +135,30 @@ void main() {
       );
     });
 
+    test('rejects invalid vertex config with unsafe location', () {
+      expect(
+        () => AnthropicPluginImpl(
+          vertex: AnthropicVertexConfig(
+            projectId: 'my-project',
+            location: 'evil.com/path?',
+            accessToken: 'ya29.token',
+          ),
+          vertexHttpClient: _RecordingHttpClient((request) async {
+            throw StateError('Should not send request for invalid config.');
+          }),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex Anthropic location may only contain letters, numbers, and hyphens.',
+              ),
+        ),
+      );
+    });
+
     test('sends Vertex unary request and parses response', () async {
       final client = _RecordingHttpClient((request) async {
         return _jsonStreamedResponse(200, {
@@ -153,6 +209,9 @@ void main() {
       expect(request.headers['authorization'], 'Bearer ya29.test-token');
       expect(request.headers['content-type'], 'application/json');
       expect(request.headers['accept'], 'application/json');
+      expect(request.headers['x-goog-api-client'], isNotNull);
+      expect(request.headers['x-goog-api-client'], startsWith('genkit-dart/'));
+      expect(request.headers['x-goog-api-client'], contains(' gl-dart/'));
 
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       expect(body['anthropic_version'], 'vertex-2023-10-16');
@@ -284,6 +343,78 @@ void main() {
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       expect(body['anthropic_version'], 'vertex-2023-10-16');
       expect(body.containsKey('model'), isFalse);
+    });
+
+    test('skips malformed Vertex streaming events', () async {
+      final events = [
+        {
+          'type': 'message_start',
+          'message': {
+            'id': 'msg_3',
+            'type': 'message',
+            'role': 'assistant',
+            'model': 'claude-sonnet-4-5',
+            'content': <Map<String, dynamic>>[],
+            'usage': {'input_tokens': 3, 'output_tokens': 0},
+          },
+        },
+        {
+          'type': 'content_block_start',
+          'index': 0,
+          'content_block': {'type': 'text', 'text': ''},
+        },
+        {
+          'type': 'content_block_delta',
+          'index': 0,
+          'delta': {'type': 'text_delta', 'text': 'Hello'},
+        },
+        {
+          'type': 'message_delta',
+          'delta': {'stop_reason': 'end_turn'},
+          'usage': {'output_tokens': 1},
+        },
+        {'type': 'message_stop'},
+      ];
+
+      const malformedSse = 'data: {"type": "content_block_delta"';
+      final sseEvents = [
+        'data: ${jsonEncode(events.first)}',
+        malformedSse,
+        ...events.skip(1).map((event) => 'data: ${jsonEncode(event)}'),
+      ];
+      final sse = '${sseEvents.join('\n\n')}\n\n';
+
+      final client = _RecordingHttpClient((request) async {
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(sse)),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      });
+
+      final ai = Genkit(
+        plugins: [
+          AnthropicPluginImpl(
+            vertex: AnthropicVertexConfig(
+              projectId: 'my-project',
+              accessToken: 'ya29.stream-token',
+            ),
+            vertexHttpClient: client,
+          ),
+        ],
+        isDevEnv: false,
+      );
+
+      final stream = ai.generateStream(
+        model: anthropic.model('claude-sonnet-4-5'),
+        prompt: 'Say hello in stream',
+      );
+
+      final chunks = await stream.toList();
+      final result = await stream.onResult;
+
+      expect(chunks.map((c) => c.text).toList(), ['Hello']);
+      expect(result.text, 'Hello');
     });
 
     test('maps Vertex HTTP errors to GenkitException', () async {

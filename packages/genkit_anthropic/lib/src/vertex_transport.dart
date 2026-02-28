@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
@@ -49,6 +63,8 @@ class AnthropicVertexTransport {
     request.headers['Accept'] = stream
         ? 'text/event-stream'
         : 'application/json';
+    request.headers['x-goog-api-client'] =
+        'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}';
     request.body = jsonEncode(body);
 
     final response = await httpClient.send(request);
@@ -76,7 +92,7 @@ class AnthropicVertexTransport {
         ? 'aiplatform.googleapis.com'
         : '$normalizedLocation-aiplatform.googleapis.com';
     final method = stream ? 'streamRawPredict' : 'rawPredict';
-    final project = Uri.encodeComponent(config.projectId);
+    final project = Uri.encodeComponent(config.resolveProjectId());
     final location = Uri.encodeComponent(normalizedLocation);
     final model = Uri.encodeComponent(modelName);
     return 'https://$apiHost/v1/projects/$project/locations/$location/publishers/anthropic/models/$model:$method';

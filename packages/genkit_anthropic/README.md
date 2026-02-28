@@ -55,8 +55,9 @@ Notes:
 - ADC supports `GOOGLE_APPLICATION_CREDENTIALS`, local `gcloud` ADC login, and metadata server credentials (for Workload Identity / attached service accounts).
 - For explicit service account keys, use `AnthropicVertexConfig.serviceAccount(...)`.
 - ADC and service-account helper constructors are available on Dart IO runtimes.
+- `projectId` is optional. If omitted, the plugin tries service-account `project_id` (when available) and then `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT`.
 - For fully custom auth, use `accessToken` or `accessTokenProvider` directly.
-- Vertex model names are usually unversioned (for example `claude-sonnet-4-5`).
+- Vertex model names are typically stable IDs without a date suffix (for example `claude-sonnet-4-5`).
 - Do not pass both `apiKey` and `vertex` at the same time.
 
 Service account example:
@@ -77,7 +78,6 @@ void main() async {
     plugins: [
       anthropic(
         vertex: AnthropicVertexConfig.serviceAccount(
-          projectId: 'my-gcp-project',
           location: 'global',
           credentialsJson: keyJson,
         ),

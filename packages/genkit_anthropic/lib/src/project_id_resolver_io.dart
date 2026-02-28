@@ -12,6 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:anthropic_vertex_sample/anthropic_vertex_sample.dart' as sample;
+import 'dart:io';
 
-Future<void> main(List<String> args) => sample.run(args);
+String? resolveEnvironmentProjectId() {
+  const keys = ['GOOGLE_CLOUD_PROJECT', 'GCLOUD_PROJECT'];
+  for (final key in keys) {
+    final value = Platform.environment[key];
+    if (value != null && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+  }
+  return null;
+}

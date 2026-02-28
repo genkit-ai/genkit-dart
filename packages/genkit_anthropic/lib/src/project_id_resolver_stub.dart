@@ -12,6 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:anthropic_vertex_sample/anthropic_vertex_sample.dart' as sample;
-
-Future<void> main(List<String> args) => sample.run(args);
+String? resolveEnvironmentProjectId() => null;

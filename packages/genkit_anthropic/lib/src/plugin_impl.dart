@@ -66,6 +66,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
   @override
   Future<List<ActionMetadata>> list() async {
     if (vertex != null) {
+      // Listing Anthropic models on Vertex is not currently supported here.
       return [];
     }
     // Attempt to list models from the API if available, otherwise return manual list.
@@ -145,15 +146,20 @@ class AnthropicPluginImpl extends GenkitPlugin {
             if (data == '[DONE]') {
               continue;
             }
-            final decoded = jsonDecode(data);
-            if (decoded is! Map) {
+            try {
+              final decoded = jsonDecode(data);
+              if (decoded is! Map) {
+                continue;
+              }
+              final event = sdk.MessageStreamEvent.fromJson(
+                Map<String, dynamic>.from(decoded),
+              );
+              events.add(event);
+              _emitStreamingChunks(event, ctx.sendChunk);
+            } catch (_) {
+              // Ignore malformed stream events and continue processing.
               continue;
             }
-            final event = sdk.MessageStreamEvent.fromJson(
-              Map<String, dynamic>.from(decoded),
-            );
-            events.add(event);
-            _emitStreamingChunks(event, ctx.sendChunk);
           }
 
           final message = await _aggregateStream(events);
