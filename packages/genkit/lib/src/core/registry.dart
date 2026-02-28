@@ -89,10 +89,10 @@ class Registry {
     if (_actions.containsKey(key)) {
       return _actions[key];
     }
-    final parts = name.split('/');
-    if (parts.length == 2) {
-      final pluginName = parts[0];
-      final resolvedActionName = parts[1];
+    final separatorIndex = name.indexOf('/');
+    if (separatorIndex > 0 && separatorIndex < name.length - 1) {
+      final pluginName = name.substring(0, separatorIndex);
+      final resolvedActionName = name.substring(separatorIndex + 1);
       for (final plugin in _plugins) {
         if (plugin.name == pluginName) {
           await _ensurePluginInitialized(plugin);
