@@ -22,6 +22,7 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
 const _streamDelimiter = '\n\n';
+const _internalErrorMessage = 'Internal server error';
 
 final class _ShelfError {
   final int code;
@@ -47,7 +48,7 @@ _ShelfError _toShelfError(Object error) {
   return _ShelfError(
     code: HttpStatus.internalServerError,
     status: StatusCodes.INTERNAL.name,
-    message: error.toString(),
+    message: _internalErrorMessage,
   );
 }
 
