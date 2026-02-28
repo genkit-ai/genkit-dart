@@ -99,11 +99,11 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
         final models = publisherModels
             .where(
               (m) =>
-                  m['name'] != null &&
+                  (m as Map)['name'] != null &&
                   (m['name'] as String).contains('gemini-'),
             )
             .map((m) {
-              final modelName = (m['name'] as String).split('/').last;
+              final modelName = ((m as Map)['name'] as String).split('/').last;
               final isTts = modelName.contains('-tts');
               return modelMetadata(
                 '$name/$modelName',
@@ -118,12 +118,12 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
         final embedders = publisherModels
             .where(
               (m) =>
-                  m['name'] != null &&
+                  (m as Map)['name'] != null &&
                   ((m['name'] as String).contains('text-embedding-') ||
                       (m['name'] as String).contains('embedding-')),
             )
             .map((m) {
-              final modelName = (m['name'] as String).split('/').last;
+              final modelName = ((m as Map)['name'] as String).split('/').last;
               return embedderMetadata('$name/$modelName');
             })
             .toList();
