@@ -46,6 +46,17 @@ class GenerativeLanguageBaseClient {
     return ListModelsResponse.fromJson(res);
   }
 
+  Future<Map<String, dynamic>> listPublisherModels({
+    required String projectId,
+  }) async {
+    // Vertex AI endpoint for publisher models uses v1beta1 and does not have the 'projects/...' in the path
+    // when using this specific endpoint, but it requires the google user project header (or just works with ADC).
+    // The base URL for this is https://{location}-aiplatform.googleapis.com
+    // And path is /v1beta1/publishers/google/models
+    final url = 'v1beta1/publishers/google/models';
+    return await _call('GET', url, null, {'x-goog-user-project': projectId});
+  }
+
   Future<Map<String, dynamic>> predict(
     Map<String, dynamic> request, {
     required String model,
@@ -70,16 +81,28 @@ class GenerativeLanguageBaseClient {
     String method,
     String url, [
     Map<String, dynamic>? body,
+    Map<String, String>? extraHeaders,
   ]) async {
     final uri = Uri.parse('$baseUrl$url');
     http.Response response;
+    final headers = <String, String>{};
+    if (method == 'POST') {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (extraHeaders != null) {
+      headers.addAll(extraHeaders);
+    }
+
     if (method == 'GET') {
-      response = await client.get(uri);
+      response = await client.get(
+        uri,
+        headers: headers.isEmpty ? null : headers,
+      );
     } else if (method == 'POST') {
       response = await client.post(
         uri,
         body: jsonEncode(body),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
       );
     } else {
       throw Exception('Unsupported method $method');

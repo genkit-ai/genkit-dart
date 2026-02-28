@@ -75,6 +75,12 @@ void main() {
         ai = Genkit(plugins: [config.plugin]);
       });
 
+      test('should list models', () async {
+        final actions = await ai.registry.listActions();
+        final modelsAndEmbedders = actions.where((a) => a.actionType == 'model' || a.actionType == 'embedder');
+        expect(modelsAndEmbedders.isNotEmpty, isTrue);
+      });
+
       test('should generate simple text', () async {
         final response = await ai.generate(
           model: config.gemini(config.modelName),

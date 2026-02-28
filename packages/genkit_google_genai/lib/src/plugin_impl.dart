@@ -67,7 +67,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           'v1beta1/projects/$projectId/locations/$location/publishers/google/';
 
       final headers = {
-        'x-goog-api-client':
+        'X-Goog-Api-Client':
             'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
       };
 
@@ -90,13 +90,47 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    if (isVertex) {
-      // Vertex AI model enumeration is not supported via this exact endpoint yet.
-      return [];
-    }
-
     final service = await _getApiClient();
     try {
+      if (isVertex) {
+        final res = await service.listPublisherModels(projectId: projectId!);
+        final publisherModels = (res['publisherModels'] as List?) ?? [];
+
+        final models = publisherModels
+            .where(
+              (m) =>
+                  m['name'] != null &&
+                  (m['name'] as String).contains('gemini-'),
+            )
+            .map((m) {
+              final modelName = (m['name'] as String).split('/').last;
+              final isTts = modelName.contains('-tts');
+              return modelMetadata(
+                '$name/$modelName',
+                customOptions: isTts
+                    ? GeminiTtsOptions.$schema
+                    : GeminiOptions.$schema,
+                modelInfo: commonModelInfo,
+              );
+            })
+            .toList();
+
+        final embedders = publisherModels
+            .where(
+              (m) =>
+                  m['name'] != null &&
+                  ((m['name'] as String).contains('text-embedding-') ||
+                      (m['name'] as String).contains('embedding-')),
+            )
+            .map((m) {
+              final modelName = (m['name'] as String).split('/').last;
+              return embedderMetadata('$name/$modelName');
+            })
+            .toList();
+
+        return [...models, ...embedders];
+      }
+
       final gcl.ListModelsResponse modelsResponse;
       try {
         modelsResponse = await service.listModels(pageSize: 1000);
@@ -132,6 +166,10 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           })
           .toList();
       return [...models, ...embedders];
+    } catch (e, stack) {
+      if (e is GenkitException) rethrow;
+      _logger.warning('Failed to list models: $e', e, stack);
+      throw _handleException(e, stack);
     } finally {
       service.client.close();
     }
@@ -783,7 +821,7 @@ const _apiKeyEnvVars = ['GOOGLE_API_KEY', 'GEMINI_API_KEY'];
 http.Client httpClientFromApiKey(String? apiKey) {
   apiKey ??= _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
   var headers = {
-    'x-goog-api-client':
+    'X-Goog-Api-Client':
         'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
     if (apiKey != null) 'x-goog-api-key': apiKey,
   };
