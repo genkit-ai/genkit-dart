@@ -23,6 +23,34 @@ import 'package:shelf_router/shelf_router.dart';
 
 const _streamDelimiter = '\n\n';
 
+final class _ShelfError {
+  final int code;
+  final String status;
+  final String message;
+
+  const _ShelfError({
+    required this.code,
+    required this.status,
+    required this.message,
+  });
+}
+
+_ShelfError _toShelfError(Object error) {
+  if (error is GenkitException) {
+    return _ShelfError(
+      code: error.status.httpStatus,
+      status: error.status.name,
+      message: error.message,
+    );
+  }
+
+  return _ShelfError(
+    code: HttpStatus.internalServerError,
+    status: StatusCodes.INTERNAL.name,
+    message: error.toString(),
+  );
+}
+
 /// Context provider function.
 typedef ContextProvider =
     FutureOr<Map<String, dynamic>> Function(Request request);
@@ -134,10 +162,14 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
             sendChunk('data:', {'result': result.result});
             controller.close();
           })
-          .catchError((e) {
-            // TODO: Map GenkitException to status/message properly
+          .catchError((Object e) {
+            final mapped = _toShelfError(e);
             sendChunk('error:', {
-              'error': {'message': e.toString(), 'status': 'INTERNAL'},
+              'error': {
+                'code': mapped.code,
+                'status': mapped.status,
+                'message': mapped.message,
+              },
             });
             controller.close();
           });
@@ -159,13 +191,13 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
           },
         );
       } catch (e) {
-        // TODO: Map error codes
+        final mapped = _toShelfError(e);
         return Response(
-          500,
+          mapped.code,
           body: jsonEncode({
-            'code': 500,
-            'status': 'INTERNAL',
-            'message': e.toString(),
+            'code': mapped.code,
+            'status': mapped.status,
+            'message': mapped.message,
           }),
           headers: {'Content-Type': 'application/json'},
         );

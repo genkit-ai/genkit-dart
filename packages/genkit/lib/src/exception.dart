@@ -80,6 +80,52 @@ enum StatusCodes {
   final int value;
   const StatusCodes(this.value);
 
+  int get httpStatus {
+    switch (this) {
+      case StatusCodes.OK:
+        return 200;
+      case StatusCodes.CANCELLED:
+        return 499;
+      case StatusCodes.UNKNOWN:
+        return 500;
+      case StatusCodes.INVALID_ARGUMENT:
+        return 400;
+      case StatusCodes.DEADLINE_EXCEEDED:
+        return 504;
+      case StatusCodes.NOT_FOUND:
+        return 404;
+      case StatusCodes.ALREADY_EXISTS:
+        return 409;
+      case StatusCodes.PERMISSION_DENIED:
+        return 403;
+      case StatusCodes.UNAUTHENTICATED:
+        return 401;
+      case StatusCodes.RESOURCE_EXHAUSTED:
+        return 429;
+      case StatusCodes.FAILED_PRECONDITION:
+        return 400;
+      case StatusCodes.ABORTED:
+        return 409;
+      case StatusCodes.OUT_OF_RANGE:
+        return 400;
+      case StatusCodes.UNIMPLEMENTED:
+        return 501;
+      case StatusCodes.INTERNAL:
+        return 500;
+      case StatusCodes.UNAVAILABLE:
+        return 503;
+      case StatusCodes.DATA_LOSS:
+        return 500;
+    }
+  }
+
+  /// Maps an HTTP status code to the closest [StatusCodes] value.
+  ///
+  /// This mapping is intentionally canonical and not fully reversible:
+  /// multiple [StatusCodes] values can share one HTTP status.
+  /// For example, `400` maps to [StatusCodes.INVALID_ARGUMENT],
+  /// `409` maps to [StatusCodes.ABORTED], and `500` maps to
+  /// [StatusCodes.INTERNAL].
   static StatusCodes fromHttpStatus(int code) {
     switch (code) {
       case 200:

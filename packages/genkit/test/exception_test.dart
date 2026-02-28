@@ -16,6 +16,34 @@ import 'package:genkit/client.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('StatusCodes', () {
+    test('should map to expected HTTP status codes', () {
+      final expected = <StatusCodes, int>{
+        StatusCodes.OK: 200,
+        StatusCodes.CANCELLED: 499,
+        StatusCodes.UNKNOWN: 500,
+        StatusCodes.INVALID_ARGUMENT: 400,
+        StatusCodes.DEADLINE_EXCEEDED: 504,
+        StatusCodes.NOT_FOUND: 404,
+        StatusCodes.ALREADY_EXISTS: 409,
+        StatusCodes.PERMISSION_DENIED: 403,
+        StatusCodes.UNAUTHENTICATED: 401,
+        StatusCodes.RESOURCE_EXHAUSTED: 429,
+        StatusCodes.FAILED_PRECONDITION: 400,
+        StatusCodes.ABORTED: 409,
+        StatusCodes.OUT_OF_RANGE: 400,
+        StatusCodes.UNIMPLEMENTED: 501,
+        StatusCodes.INTERNAL: 500,
+        StatusCodes.UNAVAILABLE: 503,
+        StatusCodes.DATA_LOSS: 500,
+      };
+
+      for (final entry in expected.entries) {
+        expect(entry.key.httpStatus, entry.value);
+      }
+    });
+  });
+
   group('GenkitException', () {
     test('should set basic exception information correctly', () {
       final exception = GenkitException('Test error message');
