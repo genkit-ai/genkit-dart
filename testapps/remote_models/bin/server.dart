@@ -22,9 +22,11 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
+import 'secret.dart';
+
 FutureOr<Map<String, dynamic>> authContextProvider(Request request) {
   final authHeader = request.headers['authorization'];
-  if (authHeader != 'Bearer super-secret') {
+  if (authHeader != 'Bearer $secret') {
     throw Exception('Unauthorized');
   }
   return {'auth': true};

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'secret.dart';
 
 void main() async {
   final ai = Genkit();
@@ -20,13 +21,13 @@ void main() async {
   final gemini = ai.defineRemoteModel(
     name: 'remote-gemini',
     url: 'http://localhost:8080/gemini-3.1',
-    headers: (context) => {'Authorization': 'Bearer super-secret'},
+    headers: (context) => {'Authorization': 'Bearer $secret'},
   );
 
   final gpt = ai.defineRemoteModel(
     name: 'remote-gpt',
     url: 'http://localhost:8080/gpt-4o',
-    headers: (context) => {'Authorization': 'Bearer super-secret'},
+    headers: (context) => {'Authorization': 'Bearer $secret'},
   );
 
   final myFlow = ai.defineFlow(
