@@ -122,15 +122,28 @@ class GenerativeLanguageBaseClient {
         final statusStr = err['status'] as String?;
         // Map HTTP / Google statuses to Genkit status
         var status = StatusCodes.INTERNAL;
-        if (statusCode == 400 || statusStr == 'INVALID_ARGUMENT') status = StatusCodes.INVALID_ARGUMENT;
-        if (statusCode == 401 || statusStr == 'UNAUTHENTICATED') status = StatusCodes.UNAUTHENTICATED;
-        if (statusCode == 403 || statusStr == 'PERMISSION_DENIED') status = StatusCodes.PERMISSION_DENIED;
-        if (statusCode == 404 || statusStr == 'NOT_FOUND') status = StatusCodes.NOT_FOUND;
-        if (statusCode == 429 || statusStr == 'RESOURCE_EXHAUSTED') status = StatusCodes.RESOURCE_EXHAUSTED;
-        
+        if (statusCode == 400 || statusStr == 'INVALID_ARGUMENT') {
+          status = StatusCodes.INVALID_ARGUMENT;
+        }
+        if (statusCode == 401 || statusStr == 'UNAUTHENTICATED') {
+          status = StatusCodes.UNAUTHENTICATED;
+        }
+        if (statusCode == 403 || statusStr == 'PERMISSION_DENIED') {
+          status = StatusCodes.PERMISSION_DENIED;
+        }
+        if (statusCode == 404 || statusStr == 'NOT_FOUND') {
+          status = StatusCodes.NOT_FOUND;
+        }
+        if (statusCode == 429 || statusStr == 'RESOURCE_EXHAUSTED') {
+          status = StatusCodes.RESOURCE_EXHAUSTED;
+        }
+
         return GenkitException('Google AI Error: $message', status: status);
       }
     } catch (_) {}
-    return GenkitException('API Error $statusCode: $body', status: StatusCodes.INTERNAL);
+    return GenkitException(
+      'API Error $statusCode: $body',
+      status: StatusCodes.INTERNAL,
+    );
   }
 }

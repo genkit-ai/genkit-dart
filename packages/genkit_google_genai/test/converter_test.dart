@@ -14,7 +14,8 @@
 
 import 'dart:convert';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/src/generated/generativelanguage.dart' as gcl;
+import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
+    as gcl;
 import 'package:genkit_google_genai/src/plugin_impl.dart';
 import 'package:test/test.dart';
 
@@ -78,10 +79,7 @@ void main() {
   group('fromGeminiPart', () {
     test('converts inline data to MediaPart', () {
       final part = gcl.Part(
-        inlineData: gcl.Blob(
-          mimeType: 'audio/mp3',
-          data: 'SGVsbG8=',
-        ),
+        inlineData: gcl.Blob(mimeType: 'audio/mp3', data: 'SGVsbG8='),
       );
       final geminiPart = fromGeminiPart(part);
       expect(geminiPart, isA<MediaPart>());

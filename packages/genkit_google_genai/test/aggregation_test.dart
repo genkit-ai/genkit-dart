@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import 'package:genkit_google_genai/src/aggregation.dart';
-import 'package:genkit_google_genai/src/generated/generativelanguage.dart' as gcl;
+import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
+    as gcl;
 import 'package:test/test.dart';
 
 void main() {
@@ -75,10 +76,7 @@ void main() {
       ];
 
       final aggregated = aggregateResponses(responses);
-      expect(
-        aggregated.candidates![0].finishReason,
-        'STOP',
-      );
+      expect(aggregated.candidates![0].finishReason, 'STOP');
       expect(aggregated.candidates![0].content!.parts![0].text, 'A');
     });
 
@@ -137,9 +135,7 @@ void main() {
               ),
             ),
           ],
-          usageMetadata: gcl.UsageMetadata(
-            totalTokenCount: 10,
-          ),
+          usageMetadata: gcl.UsageMetadata(totalTokenCount: 10),
         ),
       ];
 

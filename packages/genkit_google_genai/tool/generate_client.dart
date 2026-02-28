@@ -9,7 +9,10 @@ const outputPath = 'lib/src/generated/generativelanguage.dart';
 final Map<String, Map<String, dynamic>> schemaOverrides = {
   'GenerationConfig': {
     'responseMimeType': {'type': 'string'},
-    'responseModalities': {'type': 'array', 'items': {'type': 'string'}},
+    'responseModalities': {
+      'type': 'array',
+      'items': {'type': 'string'},
+    },
     'speechConfig': {'\$ref': 'SpeechConfig'},
     'thinkingConfig': {'\$ref': 'ThinkingConfig'},
   },
@@ -26,8 +29,8 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
   'MultiSpeakerVoiceConfig': {
     'speakerVoiceConfigs': {
       'type': 'array',
-      'items': {'\$ref': 'SpeakerVoiceConfig'}
-    }
+      'items': {'\$ref': 'SpeakerVoiceConfig'},
+    },
   },
   'SpeakerVoiceConfig': {
     'speaker': {'type': 'string'},
@@ -39,7 +42,10 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
     'thinkingLevel': {'type': 'string'},
   },
   'GenerateContentRequest': {
-    'tools': {'type': 'array', 'items': {'\$ref': 'Tool'}},
+    'tools': {
+      'type': 'array',
+      'items': {'\$ref': 'Tool'},
+    },
     'toolConfig': {'\$ref': 'ToolConfig'},
     'systemInstruction': {'\$ref': 'Content'},
   },
@@ -67,7 +73,10 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
     'toolUsePromptTokenCount': {'type': 'integer'},
   },
   'Tool': {
-    'functionDeclarations': {'type': 'array', 'items': {'\$ref': 'FunctionDeclaration'}},
+    'functionDeclarations': {
+      'type': 'array',
+      'items': {'\$ref': 'FunctionDeclaration'},
+    },
     'googleSearch': {'\$ref': 'GoogleSearch'},
     'codeExecution': {'\$ref': 'CodeExecution'},
   },
@@ -76,7 +85,10 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
   },
   'FunctionCallingConfig': {
     'mode': {'type': 'string'},
-    'allowedFunctionNames': {'type': 'array', 'items': {'type': 'string'}},
+    'allowedFunctionNames': {
+      'type': 'array',
+      'items': {'type': 'string'},
+    },
   },
   'FunctionDeclaration': {
     'name': {'type': 'string'},
@@ -120,7 +132,10 @@ void main() async {
     final schemaName = entry.key;
     final overrides = entry.value;
     if (schemas.containsKey(schemaName)) {
-      final properties = (schemas[schemaName] as Map<String, dynamic>)['properties'] as Map<String, dynamic>? ?? {};
+      final properties =
+          (schemas[schemaName] as Map<String, dynamic>)['properties']
+              as Map<String, dynamic>? ??
+          {};
       properties.addAll(overrides);
       (schemas[schemaName] as Map<String, dynamic>)['properties'] = properties;
     } else {
@@ -147,21 +162,25 @@ void main() async {
   final outputFile = File(outputPath);
   await outputFile.parent.create(recursive: true);
   await outputFile.writeAsString(buffer.toString());
-  
+
   print('Generated client at $outputPath');
 }
 
-void _generateSchema(StringBuffer buffer, String name, Map<String, dynamic> schema) {
+void _generateSchema(
+  StringBuffer buffer,
+  String name,
+  Map<String, dynamic> schema,
+) {
   final description = schema['description'] as String? ?? '';
   if (description.isNotEmpty) {
     buffer.writeln('/// $description');
   }
 
   buffer.writeln('extension type $name._(Map<String, Object?> _data) {');
-  
+
   // Add a nice constructor
   final properties = schema['properties'] as Map<String, dynamic>? ?? {};
-  
+
   if (properties.isEmpty) {
     buffer.writeln('  $name() : this._({});');
     buffer.writeln();
@@ -179,10 +198,14 @@ void _generateSchema(StringBuffer buffer, String name, Map<String, dynamic> sche
       buffer.writeln('    if ($propName != null) \'$propName\': $propName,');
     }
     buffer.writeln('  });');
-    
+
     buffer.writeln();
-    buffer.writeln('  $name.fromJson(Map<String, dynamic> json) : this._(json);');
-    buffer.writeln('  Map<String, dynamic> toJson() => _data as Map<String, dynamic>;');
+    buffer.writeln(
+      '  $name.fromJson(Map<String, dynamic> json) : this._(json);',
+    );
+    buffer.writeln(
+      '  Map<String, dynamic> toJson() => _data as Map<String, dynamic>;',
+    );
     buffer.writeln();
   }
 
@@ -191,26 +214,34 @@ void _generateSchema(StringBuffer buffer, String name, Map<String, dynamic> sche
     final propSchema = propEntry.value as Map<String, dynamic>;
     final dartType = _getDartType(propSchema);
     final propDesc = propSchema['description'] as String? ?? '';
-    
+
     if (propDesc.isNotEmpty) {
       buffer.writeln('  /// $propDesc');
     }
 
     // getter
     buffer.write('  $dartType? get $propName { ');
-    buffer.writeln('final v = _data[\'$propName\']; if (v == null) return null; return ${_castValue('v', dartType)}; }');
+    buffer.writeln(
+      'final v = _data[\'$propName\']; if (v == null) return null; return ${_castValue('v', dartType)}; }',
+    );
 
     // setter
-    buffer.writeln('  set $propName($dartType? value) => _data[\'$propName\'] = value;');
+    buffer.writeln(
+      '  set $propName($dartType? value) => _data[\'$propName\'] = value;',
+    );
   }
 
   buffer.writeln('}');
   buffer.writeln();
 }
 
-bool _isPrimitiveOrMap(String type) => 
-    type == 'String' || type == 'int' || type == 'double' || 
-    type == 'bool' || type == 'dynamic' || type == 'Object' || 
+bool _isPrimitiveOrMap(String type) =>
+    type == 'String' ||
+    type == 'int' ||
+    type == 'double' ||
+    type == 'bool' ||
+    type == 'dynamic' ||
+    type == 'Object' ||
     type.startsWith('Map<');
 
 String _castValue(String v, String dartType) {
@@ -252,7 +283,9 @@ String _getDartType(Map<String, dynamic> schema) {
   if (type == 'object') {
     // Check if additionalProperties is defined (Map)
     if (schema.containsKey('additionalProperties')) {
-      final addPropType = _getDartType(schema['additionalProperties'] as Map<String, dynamic>);
+      final addPropType = _getDartType(
+        schema['additionalProperties'] as Map<String, dynamic>,
+      );
       return 'Map<String, $addPropType>';
     }
     return 'Map<String, Object?>';
