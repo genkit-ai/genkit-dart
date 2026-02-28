@@ -38,6 +38,12 @@ void main() {
         StatusCodes.DATA_LOSS: 500,
       };
 
+      expect(
+        expected.length,
+        StatusCodes.values.length,
+        reason: 'Ensure all StatusCodes are tested.',
+      );
+
       for (final entry in expected.entries) {
         expect(entry.key.httpStatus, entry.value);
       }
