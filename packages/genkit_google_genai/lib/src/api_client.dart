@@ -46,6 +46,14 @@ class GenerativeLanguageBaseClient {
     return ListModelsResponse.fromJson(res);
   }
 
+  Future<Map<String, dynamic>> predict(
+    Map<String, dynamic> request, {
+    required String model,
+  }) async {
+    final url = '$apiUrlPrefix$model:predict';
+    return await _call('POST', url, request);
+  }
+
   Stream<GenerateContentResponse> streamGenerateContent(
     GenerateContentRequest request, {
     required String model,

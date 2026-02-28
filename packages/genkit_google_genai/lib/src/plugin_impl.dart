@@ -302,6 +302,40 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
               ? TextEmbedderOptions.fromJson(req!.options!)
               : null;
 
+          if (isVertex) {
+            final instances = req!.input.map((doc) {
+              final text = doc.content
+                  .where((p) => p.isText)
+                  .map((p) => p.text)
+                  .join('\n');
+              return {'content': text};
+            }).toList();
+
+            final parameters = <String, dynamic>{};
+            if (options?.outputDimensionality != null) {
+              parameters['outputDimensionality'] =
+                  options!.outputDimensionality;
+            }
+            if (options?.taskType != null) {
+              parameters['taskType'] = options!.taskType;
+            }
+
+            final res = await service.predict({
+              'instances': instances,
+              if (parameters.isNotEmpty) 'parameters': parameters,
+            }, model: 'models/$embedderName');
+
+            final predictions = res['predictions'] as List;
+            final embeddings = predictions.map((p) {
+              final emb = (p as Map)['embeddings'] as Map;
+              final vals = emb['values'] as List;
+              return Embedding(
+                embedding: vals.map((e) => (e as num).toDouble()).toList(),
+              );
+            }).toList();
+            return EmbedResponse(embeddings: embeddings);
+          }
+
           if (req!.input.length == 1) {
             final doc = req.input.first;
             final text = doc.content
