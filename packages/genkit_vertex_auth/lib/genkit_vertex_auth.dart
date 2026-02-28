@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export 'src/config_helpers.dart'
+    show
+        normalizeVertexLocation,
+        resolveVertexAccessToken,
+        resolveVertexProjectId,
+        validateVertexConfigBasics,
+        validateVertexEndpointId,
+        vertexApiHostForLocation;
 export 'src/google_api_client_header.dart' show googleApiClientHeaderValue;
 export 'src/project_id_resolver.dart'
     show extractProjectIdFromServiceAccountJson, resolveEnvironmentProjectId;

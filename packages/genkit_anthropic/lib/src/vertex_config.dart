@@ -125,31 +125,13 @@ class AnthropicVertexConfig {
 
   /// Validates required Vertex configuration fields.
   void validate() {
-    if (projectId != null && projectId!.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex Anthropic requires a non-empty projectId.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    if (location.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex Anthropic requires a non-empty location.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    final locationPattern = RegExp(r'^[A-Za-z0-9-]+$');
-    if (!locationPattern.hasMatch(location.trim())) {
-      throw GenkitException(
-        'Vertex Anthropic location may only contain letters, numbers, and hyphens.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    if (accessToken != null && accessTokenProvider != null) {
-      throw GenkitException(
-        'Provide either accessToken or accessTokenProvider, not both.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
+    vertex_auth.validateVertexConfigBasics(
+      providerName: 'Anthropic',
+      projectId: projectId,
+      location: location,
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
   }
 
   /// Resolves and returns a usable Google Cloud project ID.
@@ -162,27 +144,11 @@ class AnthropicVertexConfig {
   /// Throws [GenkitException] if no project ID can be resolved.
   String resolveProjectId() {
     validate();
-
-    final explicit = projectId?.trim();
-    if (explicit != null && explicit.isNotEmpty) {
-      return explicit;
-    }
-
-    final fromCredentials = _projectIdFromCredentials?.trim();
-    if (fromCredentials != null && fromCredentials.isNotEmpty) {
-      return fromCredentials;
-    }
-
-    final fromEnvironment = vertex_auth.resolveEnvironmentProjectId();
-    if (fromEnvironment != null && fromEnvironment.trim().isNotEmpty) {
-      return fromEnvironment.trim();
-    }
-
-    throw GenkitException(
-      'Vertex Anthropic requires a GCP project ID. '
-      'Set projectId in AnthropicVertexConfig or set '
-      'GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT.',
-      status: StatusCodes.INVALID_ARGUMENT,
+    return vertex_auth.resolveVertexProjectId(
+      providerName: 'Anthropic',
+      configTypeName: 'AnthropicVertexConfig',
+      projectId: projectId,
+      projectIdFromCredentials: _projectIdFromCredentials,
     );
   }
 
@@ -192,16 +158,10 @@ class AnthropicVertexConfig {
   /// configured token resolves to an empty string.
   Future<String> resolveAccessToken() async {
     validate();
-    final token = accessTokenProvider != null
-        ? await accessTokenProvider!()
-        : accessToken;
-    if (token == null || token.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex Anthropic requires an OAuth access token. '
-        'Set accessToken or accessTokenProvider.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    return token;
+    return vertex_auth.resolveVertexAccessToken(
+      providerName: 'Anthropic',
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
   }
 }

@@ -176,74 +176,27 @@ final class OpenAIVertexConfig {
 
   /// Validates required Vertex configuration fields.
   void validate() {
-    if (projectId != null && projectId!.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex OpenAI requires a non-empty projectId.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    if (location.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex OpenAI requires a non-empty location.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-
-    final locationPattern = RegExp(r'^[A-Za-z0-9-]+$');
-    if (!locationPattern.hasMatch(location.trim())) {
-      throw GenkitException(
-        'Vertex OpenAI location may only contain letters, numbers, and hyphens.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-
-    if (endpointId.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex OpenAI requires a non-empty endpointId.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-
-    final endpointPattern = RegExp(r'^[A-Za-z0-9_-]+$');
-    if (!endpointPattern.hasMatch(endpointId.trim())) {
-      throw GenkitException(
-        'Vertex OpenAI endpointId may only contain letters, numbers, underscores, and hyphens.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-
-    if (accessToken != null && accessTokenProvider != null) {
-      throw GenkitException(
-        'Provide either accessToken or accessTokenProvider, not both.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
+    vertex_auth.validateVertexConfigBasics(
+      providerName: 'OpenAI',
+      projectId: projectId,
+      location: location,
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
+    vertex_auth.validateVertexEndpointId(
+      providerName: 'OpenAI',
+      endpointId: endpointId,
+    );
   }
 
   /// Resolves and returns a usable Google Cloud project ID.
   String resolveProjectId() {
     validate();
-
-    final explicit = projectId?.trim();
-    if (explicit != null && explicit.isNotEmpty) {
-      return explicit;
-    }
-
-    final fromCredentials = _projectIdFromCredentials?.trim();
-    if (fromCredentials != null && fromCredentials.isNotEmpty) {
-      return fromCredentials;
-    }
-
-    final fromEnvironment = vertex_auth.resolveEnvironmentProjectId();
-    if (fromEnvironment != null && fromEnvironment.trim().isNotEmpty) {
-      return fromEnvironment.trim();
-    }
-
-    throw GenkitException(
-      'Vertex OpenAI requires a GCP project ID. '
-      'Set projectId in OpenAIVertexConfig or set '
-      'GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT.',
-      status: StatusCodes.INVALID_ARGUMENT,
+    return vertex_auth.resolveVertexProjectId(
+      providerName: 'OpenAI',
+      configTypeName: 'OpenAIVertexConfig',
+      projectId: projectId,
+      projectIdFromCredentials: _projectIdFromCredentials,
     );
   }
 
@@ -255,10 +208,8 @@ final class OpenAIVertexConfig {
 
   /// Resolves and returns the OpenAI-compatible Vertex base URL.
   String resolveBaseUrl() {
-    final normalizedLocation = location.trim().toLowerCase();
-    final apiHost = normalizedLocation == 'global'
-        ? 'aiplatform.googleapis.com'
-        : '$normalizedLocation-aiplatform.googleapis.com';
+    final normalizedLocation = vertex_auth.normalizeVertexLocation(location);
+    final apiHost = vertex_auth.vertexApiHostForLocation(location);
     final project = Uri.encodeComponent(resolveProjectId());
     final locationComponent = Uri.encodeComponent(normalizedLocation);
     final endpoint = Uri.encodeComponent(resolveEndpointId());
@@ -268,17 +219,11 @@ final class OpenAIVertexConfig {
   /// Resolves and returns a usable OAuth2 access token.
   Future<String> resolveAccessToken() async {
     validate();
-    final token = accessTokenProvider != null
-        ? await accessTokenProvider!()
-        : accessToken;
-    if (token == null || token.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex OpenAI requires an OAuth access token. '
-        'Set accessToken or accessTokenProvider.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    return token;
+    return vertex_auth.resolveVertexAccessToken(
+      providerName: 'OpenAI',
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
   }
 }
 

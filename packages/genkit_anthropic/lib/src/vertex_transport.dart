@@ -87,10 +87,8 @@ class AnthropicVertexTransport {
   }
 
   String _endpoint({required String modelName, required bool stream}) {
-    final normalizedLocation = config.location.trim().toLowerCase();
-    final apiHost = normalizedLocation == 'global'
-        ? 'aiplatform.googleapis.com'
-        : '$normalizedLocation-aiplatform.googleapis.com';
+    final normalizedLocation = normalizeVertexLocation(config.location);
+    final apiHost = vertexApiHostForLocation(config.location);
     final method = stream ? 'streamRawPredict' : 'rawPredict';
     final project = Uri.encodeComponent(config.resolveProjectId());
     final location = Uri.encodeComponent(normalizedLocation);

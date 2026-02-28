@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:genkit/plugin.dart';
 import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:test/test.dart';
 
@@ -58,5 +59,85 @@ void main() {
 
     expect(adcProvider, isA<Function>());
     expect(serviceAccountProvider, isA<Function>());
+  });
+
+  group('config helpers', () {
+    test('validates basic config shape', () {
+      expect(
+        () => validateVertexConfigBasics(
+          providerName: 'OpenAI',
+          projectId: 'my-project',
+          location: 'us-central1',
+          accessToken: 'ya29.token',
+          accessTokenProvider: null,
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects conflicting token sources', () {
+      expect(
+        () => validateVertexConfigBasics(
+          providerName: 'OpenAI',
+          projectId: 'my-project',
+          location: 'us-central1',
+          accessToken: 'ya29.token',
+          accessTokenProvider: () async => 'ya29.provider',
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either accessToken or accessTokenProvider, not both.',
+              ),
+        ),
+      );
+    });
+
+    test('resolves projectId with explicit precedence', () {
+      final projectId = resolveVertexProjectId(
+        providerName: 'OpenAI',
+        configTypeName: 'OpenAIVertexConfig',
+        projectId: 'explicit-project',
+        projectIdFromCredentials: 'credentials-project',
+      );
+
+      expect(projectId, 'explicit-project');
+    });
+
+    test('resolves access token from provider', () async {
+      final token = await resolveVertexAccessToken(
+        providerName: 'OpenAI',
+        accessToken: null,
+        accessTokenProvider: () async => ' ya29.provider ',
+      );
+
+      expect(token, 'ya29.provider');
+    });
+
+    test('validates endpoint IDs', () {
+      expect(
+        () => validateVertexEndpointId(
+          providerName: 'OpenAI',
+          endpointId: 'openapi_endpoint-1',
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('maps global location to default host', () {
+      expect(vertexApiHostForLocation('global'), 'aiplatform.googleapis.com');
+      expect(vertexApiHostForLocation(' GLOBAL '), 'aiplatform.googleapis.com');
+    });
+
+    test('maps regional location to regional host', () {
+      expect(
+        vertexApiHostForLocation('us-east5'),
+        'us-east5-aiplatform.googleapis.com',
+      );
+      expect(normalizeVertexLocation(' US-EAST5 '), 'us-east5');
+    });
   });
 }
