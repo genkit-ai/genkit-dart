@@ -25,6 +25,39 @@ import 'src/client/mcp_client.dart';
 import 'src/client/mcp_host.dart';
 import 'src/server/mcp_server.dart';
 
+export 'src/client/auth/oauth.dart'
+    show
+        AuthorizationStartResult,
+        auth,
+        checkResourceAllowed,
+        discoverAuthorizationServerMetadata,
+        discoverProtectedResourceMetadata,
+        exchangeAuthorization,
+        extractWwwAuthenticateParams,
+        fetchToken,
+        refreshAuthorization,
+        registerClient,
+        resourceUrlFromServerUrl,
+        selectClientAuthMethod,
+        startAuthorization;
+export 'src/client/auth/oauth_provider.dart'
+    show
+        OAuthClientAuthenticator,
+        OAuthClientProvider,
+        OAuthResourceURLValidator;
+export 'src/client/auth/oauth_types.dart'
+    show
+        AuthResult,
+        OAuthClientInformation,
+        OAuthClientMetadata,
+        OAuthErrorResponse,
+        OAuthException,
+        OAuthInvalidationScope,
+        OAuthProtectedResourceMetadata,
+        OAuthServerMetadata,
+        OAuthTokens,
+        UnauthorizedError,
+        WwwAuthenticateParams;
 export 'src/client/mcp_client.dart'
     show
         GenkitMcpClient,
