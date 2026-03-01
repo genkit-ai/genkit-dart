@@ -240,7 +240,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             return ModelResponse(
               finishReason: finishReason,
               message: message,
-              raw: response as Map<String, dynamic>?,
+              raw: response?.toJson(),
               usage: extractUsage(response.usageMetadata),
             );
           }
