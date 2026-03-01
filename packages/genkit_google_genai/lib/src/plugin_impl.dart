@@ -297,7 +297,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             return ModelResponse(
               finishReason: finishReason,
               message: message,
-              raw: aggregated as Map<String, dynamic>,
+              raw: aggregated.toJson(),
               usage: extractUsage(aggregated.usageMetadata),
             );
           } else {
@@ -317,7 +317,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             return ModelResponse(
               finishReason: finishReason,
               message: message,
-              raw: response as Map<String, dynamic>?,
+              raw: response?.toJson(),
               usage: extractUsage(response.usageMetadata),
             );
           }
@@ -695,13 +695,13 @@ gcl.Part toGeminiPart(Part p) {
             'mimeType': media.contentType ?? uri.data!.mimeType,
             'data': base64Encode(uri.data!.contentAsBytes()),
           },
-          if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
+          'thoughtSignature': ?thoughtSignature,
         });
       }
     }
     return gcl.Part.fromJson({
       'fileData': {'mimeType': media.contentType ?? '', 'fileUri': media.url},
-      if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
+      'thoughtSignature': ?thoughtSignature,
     });
   }
   if (p.isCustom && p.custom!['codeExecutionResult'] != null) {
@@ -769,26 +769,27 @@ Part fromGeminiPart(gcl.Part p) {
       metadata: metadata,
     );
   }
-  // inlineData check
-  final rawMap = p.toJson();
-  if (rawMap['inlineData'] != null) {
-    final mimeType = (rawMap['inlineData'] as Map)['mimeType'] as String?;
-    final data = (rawMap['inlineData'] as Map)['data'] as String;
-    return MediaPart(
-      media: Media(url: 'data:$mimeType;base64,$data', contentType: mimeType),
-      metadata: metadata,
-    );
+  if (p.inlineData != null) {
+    final mimeType = p.inlineData!.mimeType;
+    final data = p.inlineData!.data;
+    if (data != null) {
+      return MediaPart(
+        media: Media(url: 'data:$mimeType;base64,$data', contentType: mimeType),
+        metadata: metadata,
+      );
+    }
   }
-  // fileData check
-  if (rawMap['fileData'] != null) {
-    final mimeType = (rawMap['fileData'] as Map)['mimeType'] as String?;
-    final fileUri = (rawMap['fileData'] as Map)['fileUri'] as String;
-    return MediaPart(
-      media: Media(url: fileUri, contentType: mimeType),
-      metadata: metadata,
-    );
+  if (p.fileData != null) {
+    final mimeType = p.fileData!.mimeType;
+    final fileUri = p.fileData!.fileUri;
+    if (fileUri != null) {
+      return MediaPart(
+        media: Media(url: fileUri, contentType: mimeType),
+        metadata: metadata,
+      );
+    }
   }
-  throw UnimplementedError('Unsupported part type: $p');
+  throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
 
 gcl.Tool _toGeminiTool(ToolDefinition tool) {
@@ -823,7 +824,7 @@ http.Client httpClientFromApiKey(String? apiKey) {
   var headers = {
     'X-Goog-Api-Client':
         'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
-    if (apiKey != null) 'x-goog-api-key': apiKey,
+    'x-goog-api-key': ?apiKey,
   };
   if (apiKey == null) {
     throw GenkitException(
