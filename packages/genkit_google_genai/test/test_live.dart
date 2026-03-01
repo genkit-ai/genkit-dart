@@ -77,7 +77,9 @@ void main() {
 
       test('should list models', () async {
         final actions = await ai.registry.listActions();
-        final modelsAndEmbedders = actions.where((a) => a.actionType == 'model' || a.actionType == 'embedder');
+        final modelsAndEmbedders = actions.where(
+          (a) => a.actionType == 'model' || a.actionType == 'embedder',
+        );
         expect(modelsAndEmbedders.isNotEmpty, isTrue);
       });
 

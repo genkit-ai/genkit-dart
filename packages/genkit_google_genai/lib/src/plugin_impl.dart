@@ -59,12 +59,20 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     String? requestApiKey,
   ]) async {
     if (isVertex) {
+      final validFormat = RegExp(r'^[a-z0-9-]+$');
+      if (!validFormat.hasMatch(location!) ||
+          !validFormat.hasMatch(projectId!)) {
+        throw ArgumentError('Invalid projectId or location format.');
+      }
+      final safeLocation = Uri.encodeComponent(location!);
+      final safeProjectId = Uri.encodeComponent(projectId!);
+
       final client = await getVertexAuthClient(authClient);
-      final baseUrl = location == 'global'
+      final baseUrl = safeLocation == 'global'
           ? 'https://aiplatform.googleapis.com/'
-          : 'https://$location-aiplatform.googleapis.com/';
+          : 'https://$safeLocation-aiplatform.googleapis.com/';
       final apiUrlPrefix =
-          'v1beta1/projects/$projectId/locations/$location/publishers/google/';
+          'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
       final headers = {
         'X-Goog-Api-Client':
