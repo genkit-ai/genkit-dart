@@ -21,9 +21,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'src/model.dart';
 
 void main(List<String> args) async {
-  final ai = Genkit(
-    plugins: [googleAI()],
-  );
+  final ai = Genkit(plugins: [googleAI()]);
 
   // --- Basic Generate Flow ---
   ai.defineFlow(
