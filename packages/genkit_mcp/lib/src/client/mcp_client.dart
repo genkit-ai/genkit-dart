@@ -21,6 +21,7 @@ import '../util/common.dart';
 import '../util/convert_messages.dart';
 import '../util/errors.dart';
 import '../util/logging.dart';
+import 'auth/oauth_provider.dart';
 import 'transports/client_transport.dart';
 import 'transports/stdio_transport.dart';
 import 'transports/streamable_http_transport.dart';
@@ -64,6 +65,13 @@ class McpServerConfig {
   final bool disabled;
   final List<McpRoot>? roots;
 
+  /// OAuth client provider for Streamable HTTP connections.
+  ///
+  /// When set, the transport will automatically handle OAuth 2.1
+  /// authorization flows, including token injection, 401/403 retry,
+  /// and token refresh.  Only applicable when [url] is used.
+  final OAuthClientProvider? authProvider;
+
   const McpServerConfig({
     this.transport,
     this.command,
@@ -74,6 +82,7 @@ class McpServerConfig {
     this.timeout,
     this.disabled = false,
     this.roots,
+    this.authProvider,
   });
 }
 
@@ -452,6 +461,7 @@ class GenkitMcpClient {
       url: url,
       headers: config.headers,
       timeout: config.timeout,
+      authProvider: config.authProvider,
     );
   }
 
