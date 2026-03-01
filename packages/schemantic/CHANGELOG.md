@@ -8,6 +8,7 @@
  - **FIX**: enable and fix a couple of lints (#174).
  - **FIX**: be consistent with String quotes (#164).
  - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+- **BREAKING** **REFACTOR**: Remove `SchemaHelpers` utility class.
 
 ## 0.0.1-dev.17
 
