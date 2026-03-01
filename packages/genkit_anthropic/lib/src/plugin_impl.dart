@@ -16,8 +16,11 @@ import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 
 import 'model.dart';
+import 'vertex_config.dart';
+import 'vertex_transport.dart';
 
 final commonModelInfo = ModelInfo(
   supports: {
@@ -33,9 +36,22 @@ final commonModelInfo = ModelInfo(
 
 class AnthropicPluginImpl extends GenkitPlugin {
   final String? apiKey;
+  final AnthropicVertexConfig? vertex;
+  final http.Client _vertexHttpClient;
+  final bool _ownsVertexHttpClient;
   sdk.AnthropicClient? _client;
 
-  AnthropicPluginImpl({this.apiKey});
+  AnthropicPluginImpl({this.apiKey, this.vertex, http.Client? vertexHttpClient})
+    : _vertexHttpClient = vertexHttpClient ?? http.Client(),
+      _ownsVertexHttpClient = vertexHttpClient == null {
+    if (apiKey != null && vertex != null) {
+      throw GenkitException(
+        'Provide either apiKey or vertex configuration, not both.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    vertex?.validate();
+  }
 
   @override
   String get name => 'anthropic';
@@ -49,6 +65,10 @@ class AnthropicPluginImpl extends GenkitPlugin {
 
   @override
   Future<List<ActionMetadata>> list() async {
+    if (vertex != null) {
+      // Listing Anthropic models on Vertex is not currently supported here.
+      return [];
+    }
     // Attempt to list models from the API if available, otherwise return manual list.
     // The SDK currently supports listing models via `client.listModels()`.
     try {
@@ -75,7 +95,105 @@ class AnthropicPluginImpl extends GenkitPlugin {
   }
 
   Model _createModel(String modelName) {
+    if (vertex != null) {
+      return _createVertexModel(modelName);
+    }
     return _createModelWithClient(modelName, client);
+  }
+
+  AnthropicVertexTransport get _vertexTransport {
+    final vertexConfig = vertex;
+    if (vertexConfig == null) {
+      throw GenkitException(
+        'Vertex configuration is required.',
+        status: StatusCodes.INTERNAL,
+      );
+    }
+    return AnthropicVertexTransport(
+      config: vertexConfig,
+      httpClient: _vertexHttpClient,
+    );
+  }
+
+  Model _createVertexModel(String modelName) {
+    return Model(
+      name: 'anthropic/$modelName',
+      customOptions: AnthropicOptions.$schema,
+      metadata: {'model': commonModelInfo.toJson()},
+      fn: (req, ctx) async {
+        final transport = _vertexTransport;
+        final options = req!.config == null
+            ? AnthropicOptions()
+            : AnthropicOptions.$schema.parse(req.config!);
+        if (options.apiKey != null) {
+          throw GenkitException(
+            'AnthropicOptions.apiKey is not supported when using Vertex configuration.',
+            status: StatusCodes.INVALID_ARGUMENT,
+          );
+        }
+        final createRequest = _buildCreateRequest(req, modelName, options);
+        final requestBody = transport.toRequestBody(createRequest);
+
+        if (ctx.streamingRequested) {
+          final response = await transport.sendRequest(
+            modelName: modelName,
+            body: requestBody,
+            stream: true,
+          );
+          final events = <sdk.MessageStreamEvent>[];
+
+          await for (final data in transport.sseDataLines(response.stream)) {
+            if (data == '[DONE]') {
+              continue;
+            }
+            try {
+              final decoded = jsonDecode(data);
+              if (decoded is! Map) {
+                continue;
+              }
+              final event = sdk.MessageStreamEvent.fromJson(
+                Map<String, dynamic>.from(decoded),
+              );
+              events.add(event);
+              _emitStreamingChunks(event, ctx.sendChunk);
+            } catch (_) {
+              // Ignore malformed stream events and continue processing.
+              continue;
+            }
+          }
+
+          final message = await _aggregateStream(events);
+          return ModelResponse(
+            finishReason: _mapFinishReason(message.stopReason),
+            message: fromAnthropicMessage(message),
+            usage: _mapUsage(message.usage),
+          );
+        }
+
+        final response = await transport.sendRequest(
+          modelName: modelName,
+          body: requestBody,
+          stream: false,
+        );
+        final body = await response.stream.bytesToString();
+        final decoded = jsonDecode(body);
+        if (decoded is! Map) {
+          throw GenkitException(
+            'Invalid Vertex Anthropic response payload.',
+            status: StatusCodes.INTERNAL,
+            details: body,
+          );
+        }
+        final payload = Map<String, dynamic>.from(decoded);
+        final message = sdk.Message.fromJson(payload);
+        return ModelResponse(
+          finishReason: _mapFinishReason(message.stopReason),
+          message: fromAnthropicMessage(message),
+          usage: _mapUsage(message.usage),
+          raw: payload,
+        );
+      },
+    );
   }
 
   Model _createModelWithClient(String modelName, sdk.AnthropicClient client) {
@@ -93,79 +211,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
             : client;
 
         try {
-          final systemMessage = req.messages
-              .where((m) => m.role == Role.system)
-              .firstOrNull;
-
-          // Anthropic system prompt
-          final system = systemMessage != null
-              ? convertSystemMessage(systemMessage)
-              : null;
-
-          final messages = req.messages
-              .where((m) => m.role != Role.system)
-              .map(toAnthropicMessage)
-              .toList();
-
-          final tools =
-              req.tools?.map(toAnthropicTool).toList() ?? <sdk.Tool>[];
-
-          // Determine tool choice
-          sdk.ToolChoice? toolChoice;
-
-          // Handle Structured Output via Tool
-          if (req.output?.schema != null) {
-            final schema = Map<String, dynamic>.from(req.output!.schema!);
-            if (!schema.containsKey('type')) {
-              schema['type'] = 'object';
-            }
-            const toolName = 'return_output';
-            tools.add(
-              sdk.Tool.custom(
-                name: toolName,
-                description: 'Return the structured output.',
-                inputSchema: schema,
-              ),
-            );
-            toolChoice = sdk.ToolChoice(
-              type: sdk.ToolChoiceType.tool,
-              name: toolName,
-            );
-          }
-
-          if (req.toolChoice != null) {
-            if (req.toolChoice == 'auto') {
-              toolChoice = const sdk.ToolChoice(type: sdk.ToolChoiceType.auto);
-            } else if (req.toolChoice == 'any') {
-              toolChoice = const sdk.ToolChoice(type: sdk.ToolChoiceType.any);
-            } else if (req.toolChoice != 'none') {
-              // specific tool
-              toolChoice = sdk.ToolChoice(
-                type: sdk.ToolChoiceType.tool,
-                name: req.toolChoice!,
-              );
-            }
-          }
-
-          // Model ID handling
-          final createRequest = sdk.CreateMessageRequest(
-            model: sdk.Model.modelId(modelName),
-            messages: messages,
-            system: system,
-            maxTokens: options.maxTokens ?? 4096,
-            temperature: options.temperature,
-            topP: options.topP,
-            topK: options.topK,
-            stopSequences: options.stopSequences,
-            tools: tools,
-            toolChoice: toolChoice,
-            thinking: options.thinking != null
-                ? sdk.ThinkingConfig.enabled(
-                    type: sdk.ThinkingConfigEnabledType.enabled,
-                    budgetTokens: options.thinking!.budgetTokens,
-                  )
-                : null,
-          );
+          final createRequest = _buildCreateRequest(req, modelName, options);
 
           if (ctx.streamingRequested) {
             final stream = requestClient.createMessageStream(
@@ -174,41 +220,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
             final chunks = <sdk.MessageStreamEvent>[];
             await for (final event in stream) {
               chunks.add(event);
-              event.map(
-                messageStart: (_) {},
-                messageDelta: (_) {},
-                messageStop: (_) {},
-                contentBlockStart: (_) {},
-                contentBlockDelta: (e) {
-                  final index = e.index;
-                  e.delta.map(
-                    textDelta: (d) {
-                      ctx.sendChunk(
-                        ModelResponseChunk(
-                          index: index,
-                          content: [TextPart(text: d.text)],
-                        ),
-                      );
-                    },
-                    thinking: (d) {
-                      ctx.sendChunk(
-                        ModelResponseChunk(
-                          index: index,
-                          content: [ReasoningPart(reasoning: d.thinking)],
-                        ),
-                      );
-                    },
-                    inputJsonDelta: (_) {},
-                    signature: (_) {},
-                    citations: (_) {},
-                  );
-                },
-                contentBlockStop: (_) {},
-                ping: (_) {},
-                error: (e) {
-                  throw Exception(e.error.message);
-                },
-              );
+              _emitStreamingChunks(event, ctx.sendChunk);
             }
             final message = await _aggregateStream(chunks);
             return ModelResponse(
@@ -236,9 +248,126 @@ class AnthropicPluginImpl extends GenkitPlugin {
     );
   }
 
+  sdk.CreateMessageRequest _buildCreateRequest(
+    ModelRequest req,
+    String modelName,
+    AnthropicOptions options,
+  ) {
+    final systemMessage = req.messages
+        .where((m) => m.role == Role.system)
+        .firstOrNull;
+
+    final system = systemMessage != null
+        ? convertSystemMessage(systemMessage)
+        : null;
+
+    final messages = req.messages
+        .where((m) => m.role != Role.system)
+        .map(toAnthropicMessage)
+        .toList();
+
+    final tools = req.tools?.map(toAnthropicTool).toList() ?? <sdk.Tool>[];
+    sdk.ToolChoice? toolChoice;
+
+    if (req.output?.schema != null) {
+      final schema = Map<String, dynamic>.from(req.output!.schema!);
+      if (!schema.containsKey('type')) {
+        schema['type'] = 'object';
+      }
+      const toolName = 'return_output';
+      tools.add(
+        sdk.Tool.custom(
+          name: toolName,
+          description: 'Return the structured output.',
+          inputSchema: schema,
+        ),
+      );
+      toolChoice = sdk.ToolChoice(
+        type: sdk.ToolChoiceType.tool,
+        name: toolName,
+      );
+    }
+
+    if (req.toolChoice != null) {
+      if (req.toolChoice == 'auto') {
+        toolChoice = const sdk.ToolChoice(type: sdk.ToolChoiceType.auto);
+      } else if (req.toolChoice == 'any') {
+        toolChoice = const sdk.ToolChoice(type: sdk.ToolChoiceType.any);
+      } else if (req.toolChoice != 'none') {
+        toolChoice = sdk.ToolChoice(
+          type: sdk.ToolChoiceType.tool,
+          name: req.toolChoice!,
+        );
+      }
+    }
+
+    return sdk.CreateMessageRequest(
+      model: sdk.Model.modelId(modelName),
+      messages: messages,
+      system: system,
+      maxTokens: options.maxTokens ?? 4096,
+      temperature: options.temperature,
+      topP: options.topP,
+      topK: options.topK,
+      stopSequences: options.stopSequences,
+      tools: tools,
+      toolChoice: toolChoice,
+      thinking: options.thinking != null
+          ? sdk.ThinkingConfig.enabled(
+              type: sdk.ThinkingConfigEnabledType.enabled,
+              budgetTokens: options.thinking!.budgetTokens,
+            )
+          : null,
+    );
+  }
+
   void close() {
     _client?.endSession();
+    if (_ownsVertexHttpClient) {
+      _vertexHttpClient.close();
+    }
   }
+}
+
+void _emitStreamingChunks(
+  sdk.MessageStreamEvent event,
+  void Function(ModelResponseChunk chunk) sendChunk,
+) {
+  event.map(
+    messageStart: (_) {},
+    messageDelta: (_) {},
+    messageStop: (_) {},
+    contentBlockStart: (_) {},
+    contentBlockDelta: (e) {
+      final index = e.index;
+      e.delta.map(
+        textDelta: (d) {
+          sendChunk(
+            ModelResponseChunk(
+              index: index,
+              content: [TextPart(text: d.text)],
+            ),
+          );
+        },
+        thinking: (d) {
+          sendChunk(
+            ModelResponseChunk(
+              index: index,
+              content: [ReasoningPart(reasoning: d.thinking)],
+            ),
+          );
+        },
+        inputJsonDelta: (_) {},
+        signature: (_) {},
+        citations: (_) {},
+      );
+    },
+    contentBlockStop: (_) {},
+    ping: (_) {},
+    error: (e) {
+      throw Exception(e.error.message);
+    },
+  );
 }
 
 sdk.CreateMessageRequestSystem? convertSystemMessage(Message m) {

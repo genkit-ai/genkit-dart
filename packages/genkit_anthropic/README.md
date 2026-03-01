@@ -20,6 +20,80 @@ void main() async {
 }
 ```
 
+### Claude on Vertex AI
+
+You can route Anthropic Claude requests through Vertex AI by providing a
+`vertex` config instead of an Anthropic API key.
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_anthropic/genkit_anthropic.dart';
+
+void main() async {
+  final ai = Genkit(
+    plugins: [
+      anthropic(
+        vertex: AnthropicVertexConfig.adc(
+          projectId: 'my-gcp-project',
+          location: 'global',
+        ),
+      ),
+    ],
+  );
+
+  final response = await ai.generate(
+    model: anthropic.model('claude-sonnet-4-5'),
+    prompt: 'Say hello from Vertex AI',
+  );
+
+  print(response.text);
+}
+```
+
+Notes:
+- `AnthropicVertexConfig.adc(...)` uses Google Application Default Credentials.
+- ADC supports `GOOGLE_APPLICATION_CREDENTIALS`, local `gcloud` ADC login, and metadata server credentials (for Workload Identity / attached service accounts).
+- For explicit service account keys, use `AnthropicVertexConfig.serviceAccount(...)`.
+- ADC and service-account helper constructors are available on Dart IO runtimes.
+- `projectId` is optional. If omitted, the plugin tries service-account `project_id` (when available) and then `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT`.
+- For fully custom auth, use `accessToken` or `accessTokenProvider` directly.
+- Vertex model names are typically stable IDs without a date suffix (for example `claude-sonnet-4-5`).
+- Do not pass both `apiKey` and `vertex` at the same time.
+
+Service account example:
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:genkit/genkit.dart';
+import 'package:genkit_anthropic/genkit_anthropic.dart';
+
+void main() async {
+  final keyJson = jsonDecode(
+    File('service-account.json').readAsStringSync(),
+  );
+
+  final ai = Genkit(
+    plugins: [
+      anthropic(
+        vertex: AnthropicVertexConfig.serviceAccount(
+          location: 'global',
+          credentialsJson: keyJson,
+        ),
+      ),
+    ],
+  );
+
+  final response = await ai.generate(
+    model: anthropic.model('claude-sonnet-4-5'),
+    prompt: 'Say hello from Vertex AI',
+  );
+
+  print(response.text);
+}
+```
+
 ### Basic Generation
 
 ```dart
