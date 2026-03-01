@@ -135,7 +135,7 @@ void main() {
     test('should embed text', () async {
       if (apiKey == null) return;
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello world')]),
         ],
@@ -147,14 +147,14 @@ void main() {
       print('Embedding length: ${embeddings.first.embedding.length}');
       expect(
         embeddings.first.embedding.length,
-        768,
-      ); // text-embedding-004 dimension
+        3072,
+      ); // gemini-embedding-001 dimension
     });
 
     test('should embed multiple texts', () async {
       if (apiKey == null) return;
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
           DocumentData(content: [TextPart(text: 'World')]),
@@ -169,7 +169,7 @@ void main() {
     test('should embed with options', () async {
       if (apiKey == null) return;
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
         ],

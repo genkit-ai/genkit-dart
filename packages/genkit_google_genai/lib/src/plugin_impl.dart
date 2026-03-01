@@ -15,16 +15,14 @@
 import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
-import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
-    as gcl;
-import 'package:google_cloud_protobuf/protobuf.dart' as pb;
-import 'package:googleapis_auth/googleapis_auth.dart' as auth;
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
+import 'api_client.dart';
+import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
 
 final _logger = Logger('genkit_google_genai');
@@ -52,25 +50,27 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    final service = gcl.ModelService.fromApiKey(apiKey);
+    final service = GenerativeLanguageBaseClient(
+      baseUrl: 'https://generativelanguage.googleapis.com/',
+      client: httpClientFromApiKey(apiKey),
+    );
     try {
       final gcl.ListModelsResponse modelsResponse;
       try {
-        modelsResponse = await service.listModels(
-          gcl.ListModelsRequest(pageSize: 1000),
-        );
+        modelsResponse = await service.listModels(pageSize: 1000);
       } catch (e, stack) {
         _logger.warning('Failed to list models: $e', e, stack);
         throw _handleException(e, stack);
       }
-      final models = modelsResponse.models
+      final models = (modelsResponse.models ?? [])
           .where((model) {
-            return model.name.startsWith('models/gemini-');
+            return model.name != null &&
+                model.name!.startsWith('models/gemini-');
           })
           .map((model) {
-            final isTts = model.name.contains('-tts');
+            final isTts = model.name!.contains('-tts');
             return modelMetadata(
-              'googleai/${model.name.split('/').last}',
+              'googleai/${model.name!.split('/').last}',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
@@ -78,19 +78,20 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             );
           })
           .toList();
-      final embedders = modelsResponse.models
+      final embedders = (modelsResponse.models ?? [])
           .where(
             (model) =>
-                model.name.startsWith('models/text-embedding-') ||
-                model.name.startsWith('models/embedding-'),
+                model.name != null &&
+                (model.name!.startsWith('models/text-embedding-') ||
+                    model.name!.startsWith('models/embedding-')),
           )
           .map((model) {
-            return embedderMetadata('googleai/${model.name.split('/').last}');
+            return embedderMetadata('googleai/${model.name!.split('/').last}');
           })
           .toList();
       return [...models, ...embedders];
     } finally {
-      service.close();
+      service.client.close();
     }
   }
 
@@ -114,7 +115,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
       customOptions: customOptions,
       metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
-        final gcl.GenerationConfig generationConfig;
+        gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
         List<gcl.Tool>? tools;
         gcl.ToolConfig? toolConfig;
@@ -128,7 +129,6 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           final options = req.config == null
               ? GeminiTtsOptions()
               : GeminiTtsOptions.$schema.parse(req.config!);
-
           apiKey = options.apiKey;
           generationConfig = toGeminiTtsSettings(
             options,
@@ -161,10 +161,9 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
 
-        final service = gcl.GenerativeService.fromApiKey(
-          apiKey ?? this.apiKey,
-          // TODO: baseUrl is not supported in the current version of the library
-          // baseUrl: options.baseUrl,
+        final service = GenerativeLanguageBaseClient(
+          baseUrl: 'https://generativelanguage.googleapis.com/',
+          client: httpClientFromApiKey(apiKey ?? this.apiKey),
         );
 
         try {
@@ -176,27 +175,32 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
               .toList();
 
           final generateRequest = gcl.GenerateContentRequest(
-            model: 'models/$modelName',
             contents: toGeminiContent(messages),
-            tools: tools,
+            tools: tools.isEmpty ? null : tools,
             toolConfig: toolConfig,
             generationConfig: generationConfig,
-            safetySettings: safetySettings ?? [],
+            safetySettings: safetySettings?.isEmpty ?? true
+                ? null
+                : safetySettings,
             systemInstruction: systemMessage == null
                 ? null
                 : gcl.Content(
                     parts: systemMessage.content.map(toGeminiPart).toList(),
+                    role: 'system',
                   ),
           );
 
           if (ctx.streamingRequested) {
-            final stream = service.streamGenerateContent(generateRequest);
+            final stream = service.streamGenerateContent(
+              generateRequest,
+              model: 'models/$modelName',
+            );
             final chunks = <gcl.GenerateContentResponse>[];
             await for (final chunk in stream) {
               chunks.add(chunk);
-              if (chunk.candidates.isNotEmpty) {
+              if (chunk.candidates?.isNotEmpty == true) {
                 final (message, finishReason) = _fromGeminiCandidate(
-                  chunk.candidates.first,
+                  chunk.candidates!.first,
                 );
                 ctx.sendChunk(
                   ModelResponseChunk(index: 0, content: message.content),
@@ -204,31 +208,46 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
               }
             }
             final aggregated = aggregateResponses(chunks);
+            if (aggregated.candidates?.isEmpty ?? true) {
+              final blockReason = aggregated.promptFeedback?.blockReason;
+              throw Exception(
+                'No candidates returned from generative stream. Block reason: $blockReason',
+              );
+            }
             final (message, finishReason) = _fromGeminiCandidate(
-              aggregated.candidates.first,
+              aggregated.candidates!.first,
             );
             return ModelResponse(
               finishReason: finishReason,
               message: message,
-              raw: aggregated.toJson() as Map<String, dynamic>,
+              raw: aggregated.toJson(),
               usage: extractUsage(aggregated.usageMetadata),
             );
           } else {
-            final response = await service.generateContent(generateRequest);
+            final response = await service.generateContent(
+              generateRequest,
+              model: 'models/$modelName',
+            );
+            if (response.candidates?.isEmpty ?? true) {
+              final blockReason = response.promptFeedback?.blockReason;
+              throw Exception(
+                'No candidates returned from generateContent. Block reason: $blockReason',
+              );
+            }
             final (message, finishReason) = _fromGeminiCandidate(
-              response.candidates.first,
+              response.candidates!.first,
             );
             return ModelResponse(
               finishReason: finishReason,
               message: message,
-              raw: jsonDecode(jsonEncode(response)) as Map<String, dynamic>?,
+              raw: response?.toJson(),
               usage: extractUsage(response.usageMetadata),
             );
           }
         } catch (e, stack) {
           throw _handleException(e, stack);
         } finally {
-          service.close();
+          service.client.close();
         }
       },
     );
@@ -238,16 +257,11 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     return Embedder(
       name: 'googleai/$name',
       fn: (req, ctx) async {
-        final service = gcl.GenerativeService(
+        final service = GenerativeLanguageBaseClient(
+          baseUrl: 'https://generativelanguage.googleapis.com/',
           client: httpClientFromApiKey(apiKey),
         );
         try {
-          // Batch embedding not yet supported in this veneer, iterating.
-          // TODO: Use batchEmbedContents when available/exposed if needed for performance.
-          // Note: The veneer (EmbedRequest) takes a list of documents.
-          // gcl.EmbedContentRequest takes one content.
-          // gcl.BatchEmbedContentsRequest takes a list of requests.
-
           final options = req?.options != null
               ? TextEmbedderOptions.fromJson(req!.options!)
               : null;
@@ -255,49 +269,39 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           if (req!.input.length == 1) {
             final doc = req.input.first;
             final text = doc.content
-                .whereType<TextPart>()
+                .where((p) => p.isText)
                 .map((p) => p.text)
                 .join('\n');
             final content = gcl.Content(parts: [gcl.Part(text: text)]);
             final res = await service.embedContent(
               gcl.EmbedContentRequest(
-                model: 'models/$name',
                 content: content,
                 outputDimensionality: options?.outputDimensionality,
-                taskType: options?.taskType != null
-                    ? gcl.TaskType(options!.taskType!)
-                    : null,
+                taskType: options?.taskType,
                 title: options?.title,
               ),
+              model: 'models/$name',
             );
             return EmbedResponse(
-              embeddings: [
-                Embedding(
-                  embedding: res.embedding!.values,
-                  // TODO: Metadata?
-                ),
-              ],
+              embeddings: [Embedding(embedding: res.embedding?.values ?? [])],
             );
           } else {
-            // Use batch embed logic (iteratively for now)
             final futures = req.input.map((doc) async {
               final text = doc.content
-                  .whereType<TextPart>()
-                  .map((p) => p.text)
+                  .map((p) => p.toJson()['text'] as String?)
+                  .nonNulls
                   .join('\n');
               final content = gcl.Content(parts: [gcl.Part(text: text)]);
               final res = await service.embedContent(
                 gcl.EmbedContentRequest(
-                  model: 'models/$name',
                   content: content,
                   outputDimensionality: options?.outputDimensionality,
-                  taskType: options?.taskType != null
-                      ? gcl.TaskType(options!.taskType!)
-                      : null,
+                  taskType: options?.taskType,
                   title: options?.title,
                 ),
+                model: 'models/$name',
               );
-              return Embedding(embedding: res.embedding!.values);
+              return Embedding(embedding: res.embedding?.values ?? []);
             });
             final embeddings = await Future.wait(futures);
             return EmbedResponse(embeddings: embeddings);
@@ -305,7 +309,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
         } catch (e, stack) {
           throw _handleException(e, stack);
         } finally {
-          service.close();
+          service.client.close();
         }
       },
     );
@@ -314,26 +318,19 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
   GenkitException _handleException(Object e, StackTrace stack) {
     if (e is GenkitException) return e;
 
-    // Check for common HTTP status codes if the exception has them
-    // googleapis definitions often have 'status' or 'code'
     int? httpStatus;
     String? message;
 
-    // Dynamic access to avoid hard dependency on specific exception types
-    // if they are not exported or vary.
     try {
       if ((e as dynamic).status != null) {
         httpStatus = (e as dynamic).status as int?;
       } else if ((e as dynamic).code != null) {
-        httpStatus =
-            (e as dynamic).code as int?; // Sometimes 'code' is the status
+        httpStatus = (e as dynamic).code as int?;
       }
       if ((e as dynamic).message != null) {
         message = (e as dynamic).message as String?;
       }
-    } catch (_) {
-      // Ignore reflection errors
-    }
+    } catch (_) {}
 
     if (httpStatus != null) {
       return GenkitException(
@@ -361,7 +358,9 @@ gcl.GenerationConfig toGeminiSettings(
 ) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
-    stopSequences: options.stopSequences ?? [],
+    stopSequences: options.stopSequences?.isEmpty ?? true
+        ? null
+        : options.stopSequences,
     maxOutputTokens: options.maxOutputTokens,
     temperature: options.temperature,
     topP: options.topP,
@@ -369,34 +368,22 @@ gcl.GenerationConfig toGeminiSettings(
     responseMimeType: isJsonMode
         ? 'application/json'
         : (options.responseMimeType ?? ''),
-    responseJsonSchema: switch (outputSchema) {
-      null => null,
-      Map<String, Object?> $1 => pb.Value.fromJson($1),
-    },
+    responseJsonSchema: outputSchema,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
     logprobs: options.logprobs,
-    enableEnhancedCivicAnswers: null, // Not yet available in options
-    responseModalities:
-        options.responseModalities
-            ?.map(
-              (m) => switch (m.toUpperCase()) {
-                'TEXT' => gcl.GenerationConfig_Modality.text,
-                'IMAGE' => gcl.GenerationConfig_Modality.image,
-                'AUDIO' => gcl.GenerationConfig_Modality.audio,
-                _ => gcl.GenerationConfig_Modality.modalityUnspecified,
-              },
-            )
-            .toList() ??
-        [],
-    speechConfig: null, // Not yet available in options
-    thinkingConfig: options.thinkingConfig == null
+    responseModalities: options.responseModalities?.isEmpty ?? true
         ? null
-        : gcl.ThinkingConfig(
-            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
-            thinkingBudget: options.thinkingConfig!.thinkingBudget,
-          ),
+        : options.responseModalities!.map((m) => m.toUpperCase()).toList(),
+    speechConfig: options.speechConfig != null
+        ? gcl.SpeechConfig.fromJson(_toSpeechConfig(options.speechConfig)!)
+        : null,
+    thinkingConfig: options.thinkingConfig != null
+        ? gcl.ThinkingConfig.fromJson(
+            _toThinkingConfig(options.thinkingConfig)!,
+          )
+        : null,
   );
 }
 
@@ -408,83 +395,87 @@ gcl.GenerationConfig toGeminiTtsSettings(
 ) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
-    stopSequences: options.stopSequences ?? [],
+    stopSequences: options.stopSequences?.isEmpty ?? true
+        ? null
+        : options.stopSequences,
     maxOutputTokens: options.maxOutputTokens,
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
     responseMimeType: isJsonMode
         ? 'application/json'
-        : (options.responseMimeType ?? ''),
-    responseJsonSchema: switch (outputSchema) {
-      null => null,
-      Map<String, Object?> $1 => pb.Value.fromJson($1),
-    },
+        : (options.responseMimeType?.isEmpty ?? true
+              ? null
+              : options.responseMimeType),
+    responseJsonSchema: outputSchema,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
     logprobs: options.logprobs,
-    enableEnhancedCivicAnswers: null,
-    responseModalities:
-        options.responseModalities
-            ?.map(
-              (m) => switch (m.toUpperCase()) {
-                'TEXT' => gcl.GenerationConfig_Modality.text,
-                'IMAGE' => gcl.GenerationConfig_Modality.image,
-                'AUDIO' => gcl.GenerationConfig_Modality.audio,
-                _ => gcl.GenerationConfig_Modality.modalityUnspecified,
-              },
-            )
-            .toList() ??
-        [],
-    speechConfig: _toSpeechConfig(options.speechConfig),
-    thinkingConfig: options.thinkingConfig == null
+    responseModalities: options.responseModalities?.isEmpty ?? true
         ? null
-        : gcl.ThinkingConfig(
-            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
-            thinkingBudget: options.thinkingConfig!.thinkingBudget,
-          ),
+        : options.responseModalities!.map((m) => m.toUpperCase()).toList(),
+    speechConfig: options.speechConfig != null
+        ? gcl.SpeechConfig.fromJson(_toSpeechConfig(options.speechConfig)!)
+        : null,
+    thinkingConfig: options.thinkingConfig != null
+        ? gcl.ThinkingConfig.fromJson(
+            _toThinkingConfig(options.thinkingConfig)!,
+          )
+        : null,
   );
 }
 
-gcl.SpeechConfig? _toSpeechConfig(SpeechConfig? config) {
+Map<String, dynamic>? _toSpeechConfig(SpeechConfig? config) {
   if (config == null) return null;
-  return gcl.SpeechConfig(
-    voiceConfig: _toVoiceConfig(config.voiceConfig),
-    multiSpeakerVoiceConfig: _toMultiSpeakerVoiceConfig(
-      config.multiSpeakerVoiceConfig,
-    ),
-  );
+  return {
+    if (config.voiceConfig != null)
+      'voiceConfig': _toVoiceConfig(config.voiceConfig),
+    if (config.multiSpeakerVoiceConfig != null)
+      'multiSpeakerVoiceConfig': _toMultiSpeakerVoiceConfig(
+        config.multiSpeakerVoiceConfig,
+      ),
+  };
 }
 
-gcl.MultiSpeakerVoiceConfig? _toMultiSpeakerVoiceConfig(
+Map<String, dynamic>? _toThinkingConfig(ThinkingConfig? config) {
+  if (config == null) return null;
+  return {
+    if (config.includeThoughts != null)
+      'includeThoughts': config.includeThoughts,
+    if (config.thinkingBudget != null) 'thinkingBudget': config.thinkingBudget,
+    if (config.thinkingLevel != null) 'thinkingLevel': config.thinkingLevel,
+  };
+}
+
+Map<String, dynamic>? _toMultiSpeakerVoiceConfig(
   MultiSpeakerVoiceConfig? config,
 ) {
   if (config == null) return null;
-  return gcl.MultiSpeakerVoiceConfig(
-    speakerVoiceConfigs: config.speakerVoiceConfigs
+  return {
+    'speakerVoiceConfigs': config.speakerVoiceConfigs
         .map(_toSpeakerVoiceConfig)
         .toList(),
-  );
+  };
 }
 
-gcl.SpeakerVoiceConfig _toSpeakerVoiceConfig(SpeakerVoiceConfig config) {
-  return gcl.SpeakerVoiceConfig(
-    speaker: config.speaker,
-    voiceConfig: _toVoiceConfig(config.voiceConfig),
-  );
+Map<String, Object?> _toSpeakerVoiceConfig(SpeakerVoiceConfig config) {
+  return {
+    'speaker': config.speaker,
+    'voiceConfig': _toVoiceConfig(config.voiceConfig),
+  };
 }
 
-gcl.VoiceConfig? _toVoiceConfig(VoiceConfig? config) {
+Map<String, Object?>? _toVoiceConfig(VoiceConfig? config) {
   if (config == null) return null;
-  return gcl.VoiceConfig(
-    prebuiltVoiceConfig: _toPrebuiltVoiceConfig(config.prebuiltVoiceConfig),
-  );
+  return {
+    'prebuiltVoiceConfig': _toPrebuiltVoiceConfig(config.prebuiltVoiceConfig),
+  };
 }
 
-gcl.PrebuiltVoiceConfig? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
+Map<String, Object?>? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
   if (config == null) return null;
-  return gcl.PrebuiltVoiceConfig(voiceName: config.voiceName);
+  return {'voiceName': config.voiceName};
 }
 
 @visibleForTesting
@@ -494,17 +485,8 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
   return safetySettings
       ?.map(
         (s) => gcl.SafetySetting(
-          category: switch (s.category) {
-            null => gcl.HarmCategory.harmCategoryUnspecified,
-            String c => gcl.HarmCategory.fromJson(c),
-          },
-          threshold: switch (s.threshold) {
-            null =>
-              gcl
-                  .SafetySetting_HarmBlockThreshold
-                  .harmBlockThresholdUnspecified,
-            String t => gcl.SafetySetting_HarmBlockThreshold.fromJson(t),
-          },
+          category: s.category ?? 'HARM_CATEGORY_UNSPECIFIED',
+          threshold: s.threshold ?? 'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
         ),
       )
       .toList();
@@ -519,7 +501,7 @@ List<gcl.Tool> toGeminiTools(
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
-    if (googleSearch != null) gcl.Tool(googleSearch: gcl.Tool_GoogleSearch()),
+    if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
   ];
 }
 
@@ -530,10 +512,7 @@ gcl.ToolConfig? toGeminiToolConfig(
   if (functionCallingConfig == null) return null;
   return gcl.ToolConfig(
     functionCallingConfig: gcl.FunctionCallingConfig(
-      mode: switch (functionCallingConfig.mode) {
-        null => gcl.FunctionCallingConfig_Mode.modeUnspecified,
-        String m => gcl.FunctionCallingConfig_Mode.fromJson(m),
-      },
+      mode: functionCallingConfig.mode ?? 'MODE_UNSPECIFIED',
       allowedFunctionNames: functionCallingConfig.allowedFunctionNames ?? [],
     ),
   );
@@ -552,10 +531,12 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
 }
 
 (Message, FinishReason) _fromGeminiCandidate(gcl.Candidate candidate) {
-  final finishReason = FinishReason(candidate.finishReason.value.toLowerCase());
+  final finishReason = FinishReason(
+    candidate.finishReason?.toLowerCase() ?? 'unspecified',
+  );
   final message = Message(
-    role: Role(candidate.content!.role),
-    content: candidate.content?.parts.map(fromGeminiPart).toList() ?? [],
+    role: Role(candidate.content!.role!),
+    content: candidate.content?.parts?.map(fromGeminiPart).toList() ?? [],
   );
   return (message, finishReason);
 }
@@ -563,7 +544,7 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
 @visibleForTesting
 gcl.Part toGeminiPart(Part p) {
   final thoughtSignature = p.metadata?['thoughtSignature'] != null
-      ? base64Decode(p.metadata!['thoughtSignature'] as String)
+      ? p.metadata!['thoughtSignature'] as String
       : null;
 
   if (p.isReasoning) {
@@ -578,24 +559,22 @@ gcl.Part toGeminiPart(Part p) {
   }
   if (p.isToolRequest) {
     return gcl.Part(
-      thoughtSignature: thoughtSignature,
       functionCall: gcl.FunctionCall(
         id: p.toolRequest!.ref ?? '',
         name: p.toolRequest!.name,
-        args: p.toolRequest!.input == null
-            ? null
-            : pb.Struct.fromJson(p.toolRequest!.input!),
+        args: p.toolRequest!.input, // already a map
       ),
+      thoughtSignature: thoughtSignature,
     );
   }
   if (p.isToolResponse) {
     return gcl.Part(
-      thoughtSignature: thoughtSignature,
       functionResponse: gcl.FunctionResponse(
         id: p.toolResponse!.ref ?? '',
         name: p.toolResponse!.name,
-        response: pb.Struct.fromJson({'output': p.toolResponse!.output}),
+        response: {'output': p.toolResponse!.output},
       ),
+      thoughtSignature: thoughtSignature,
     );
   }
   if (p.isMedia) {
@@ -603,38 +582,46 @@ gcl.Part toGeminiPart(Part p) {
     if (media!.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
-        return gcl.Part(
-          thoughtSignature: thoughtSignature,
-          inlineData: gcl.Blob(
-            mimeType: media.contentType ?? uri.data!.mimeType,
-            data: uri.data!.contentAsBytes(),
-          ),
-        );
+        return gcl.Part.fromJson({
+          'inlineData': {
+            'mimeType': media.contentType ?? uri.data!.mimeType,
+            'data': base64Encode(uri.data!.contentAsBytes()),
+          },
+          'thoughtSignature': ?thoughtSignature,
+        });
       }
     }
-    // Assume HTTP/S or other URLs are File URIs
-    return gcl.Part(
-      thoughtSignature: thoughtSignature,
-      fileData: gcl.FileData(
-        mimeType: media.contentType ?? '',
-        fileUri: media.url,
-      ),
-    );
+    return gcl.Part.fromJson({
+      'fileData': {'mimeType': media.contentType ?? '', 'fileUri': media.url},
+      'thoughtSignature': ?thoughtSignature,
+    });
   }
   if (p.isCustom && p.custom!['codeExecutionResult'] != null) {
     p as CustomPart;
     return gcl.Part(
-      thoughtSignature: thoughtSignature,
-      codeExecutionResult: gcl.CodeExecutionResult.fromJson(
-        p.custom['codeExecutionResult'],
+      codeExecutionResult: gcl.CodeExecutionResult(
+        outcome:
+            (p.custom['codeExecutionResult'] as Map<String, dynamic>)['outcome']
+                as String?,
+        output:
+            (p.custom['codeExecutionResult'] as Map<String, dynamic>)['output']
+                as String?,
       ),
+      thoughtSignature: thoughtSignature,
     );
   }
   if (p.isCustom && p.custom!['executableCode'] != null) {
     p as CustomPart;
     return gcl.Part(
+      executableCode: gcl.ExecutableCode(
+        language:
+            (p.custom['executableCode'] as Map<String, dynamic>)['language']
+                as String?,
+        code:
+            (p.custom['executableCode'] as Map<String, dynamic>)['code']
+                as String?,
+      ),
       thoughtSignature: thoughtSignature,
-      executableCode: gcl.ExecutableCode.fromJson(p.custom['executableCode']),
     );
   }
   throw UnimplementedError('Unsupported part type: $p');
@@ -643,8 +630,7 @@ gcl.Part toGeminiPart(Part p) {
 @visibleForTesting
 Part fromGeminiPart(gcl.Part p) {
   final metadata = <String, dynamic>{
-    if (p.thoughtSignature.isNotEmpty)
-      'thoughtSignature': base64Encode(p.thoughtSignature),
+    if (p.thoughtSignature != null) 'thoughtSignature': p.thoughtSignature,
   };
 
   if (p.text != null) {
@@ -657,38 +643,43 @@ Part fromGeminiPart(gcl.Part p) {
     return ToolRequestPart(
       toolRequest: ToolRequest(
         ref: p.functionCall!.id == '' ? null : p.functionCall!.id,
-        name: p.functionCall!.name,
-        input: p.functionCall!.args?.toJson() as Map<String, dynamic>?,
+        name: p.functionCall!.name ?? '',
+        input: p.functionCall!.args,
       ),
       metadata: metadata,
     );
   }
   if (p.codeExecutionResult != null) {
     return CustomPart(
-      custom: {
-        'codeExecutionResult':
-            p.codeExecutionResult!.toJson() as Map<String, dynamic>,
-      },
+      custom: {'codeExecutionResult': p.codeExecutionResult!.toJson()},
       metadata: metadata,
     );
   }
   if (p.executableCode != null) {
     return CustomPart(
-      custom: {
-        'executableCode': p.executableCode!.toJson() as Map<String, dynamic>,
-      },
+      custom: {'executableCode': p.executableCode!.toJson()},
       metadata: metadata,
     );
   }
   if (p.inlineData != null) {
-    return MediaPart(
-      media: Media(
-        url:
-            'data:${p.inlineData!.mimeType};base64,${base64Encode(p.inlineData!.data)}',
-        contentType: p.inlineData!.mimeType,
-      ),
-      metadata: metadata,
-    );
+    final mimeType = p.inlineData!.mimeType;
+    final data = p.inlineData!.data;
+    if (data != null) {
+      return MediaPart(
+        media: Media(url: 'data:$mimeType;base64,$data', contentType: mimeType),
+        metadata: metadata,
+      );
+    }
+  }
+  if (p.fileData != null) {
+    final mimeType = p.fileData!.mimeType;
+    final fileUri = p.fileData!.fileUri;
+    if (fileUri != null) {
+      return MediaPart(
+        media: Media(url: fileUri, contentType: mimeType),
+        metadata: metadata,
+      );
+    }
   }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
@@ -699,25 +690,21 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
       gcl.FunctionDeclaration(
         name: tool.name,
         description: tool.description,
-        parametersJsonSchema: tool.inputSchema == null
-            ? null
-            : pb.Value.fromJson(tool.inputSchema),
+        parametersJsonSchema: tool.inputSchema,
       ),
     ],
   );
 }
 
 @visibleForTesting
-GenerationUsage? extractUsage(
-  gcl.GenerateContentResponse_UsageMetadata? metadata,
-) {
+GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount.toDouble(),
-    outputTokens: metadata.candidatesTokenCount.toDouble(),
-    totalTokens: metadata.totalTokenCount.toDouble(),
-    thoughtsTokens: metadata.thoughtsTokenCount.toDouble(),
-    cachedContentTokens: metadata.cachedContentTokenCount.toDouble(),
+    inputTokens: metadata.promptTokenCount?.toDouble(),
+    outputTokens: metadata.candidatesTokenCount?.toDouble(),
+    totalTokens: metadata.totalTokenCount?.toDouble(),
+    thoughtsTokens: metadata.thoughtsTokenCount?.toDouble(),
+    cachedContentTokens: metadata.cachedContentTokenCount?.toDouble(),
     custom: {'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount},
   );
 }
@@ -729,8 +716,8 @@ http.Client httpClientFromApiKey(String? apiKey) {
   var headers = {
     'x-goog-api-client':
         'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
+    'x-goog-api-key': ?apiKey,
   };
-  print('headers: $headers');
   if (apiKey == null) {
     throw GenkitException(
       'apiKey must be set to an API key',
@@ -738,7 +725,7 @@ http.Client httpClientFromApiKey(String? apiKey) {
     );
   }
   final baseClient = CustomClient(defaultHeaders: headers);
-  return auth.clientViaApiKey(apiKey, baseClient: baseClient);
+  return baseClient;
 }
 
 class CustomClient extends http.BaseClient {

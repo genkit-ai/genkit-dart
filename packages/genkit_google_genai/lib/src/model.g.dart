@@ -48,6 +48,7 @@ base class GeminiOptions {
     double? presencePenalty,
     double? frequencyPenalty,
     int? seed,
+    SpeechConfig? speechConfig,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -70,6 +71,7 @@ base class GeminiOptions {
       'presencePenalty': ?presencePenalty,
       'frequencyPenalty': ?frequencyPenalty,
       'seed': ?seed,
+      'speechConfig': ?speechConfig?.toJson(),
     };
   }
 
@@ -332,6 +334,20 @@ base class GeminiOptions {
     }
   }
 
+  SpeechConfig? get speechConfig {
+    return _json['speechConfig'] == null
+        ? null
+        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
+  }
+
+  set speechConfig(SpeechConfig? value) {
+    if (value == null) {
+      _json.remove('speechConfig');
+    } else {
+      _json['speechConfig'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -382,6 +398,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
             'presencePenalty': $Schema.number(),
             'frequencyPenalty': $Schema.number(),
             'seed': $Schema.integer(),
+            'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
           },
           required: [],
         )
@@ -392,6 +409,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       ThinkingConfig.$schema,
       GoogleSearch.$schema,
       FileSearch.$schema,
+      SpeechConfig.$schema,
     ],
   );
 }
@@ -491,10 +509,15 @@ base class ThinkingConfig {
 
   ThinkingConfig._(this._json);
 
-  ThinkingConfig({bool? includeThoughts, int? thinkingBudget}) {
+  ThinkingConfig({
+    bool? includeThoughts,
+    int? thinkingBudget,
+    String? thinkingLevel,
+  }) {
     _json = {
       'includeThoughts': ?includeThoughts,
       'thinkingBudget': ?thinkingBudget,
+      'thinkingLevel': ?thinkingLevel,
     };
   }
 
@@ -524,6 +547,18 @@ base class ThinkingConfig {
       _json.remove('thinkingBudget');
     } else {
       _json['thinkingBudget'] = value;
+    }
+  }
+
+  String? get thinkingLevel {
+    return _json['thinkingLevel'] as String?;
+  }
+
+  set thinkingLevel(String? value) {
+    if (value == null) {
+      _json.remove('thinkingLevel');
+    } else {
+      _json['thinkingLevel'] = value;
     }
   }
 
@@ -560,6 +595,11 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
                   'The thinking budget parameter gives the model guidance on the number of thinking tokens it can use when generating a response. A greater number of tokens is typically associated with more detailed thinking, which is needed for solving more complex tasks. Setting the thinking budget to 0 disables thinking.',
               minimum: 0,
               maximum: 24576,
+            ),
+            'thinkingLevel': $Schema.string(
+              description:
+                  'For Gemini 3.0 - Indicates the thinking level. A higher level is associated with more detailed thinking, which is needed for solving more complex tasks.',
+              enumValues: ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
             ),
           },
           required: [],
