@@ -22,34 +22,7 @@ dart pub add genkit_mcp
 - **MCP Client** — Connect to a remote MCP server and use its tools, prompts, and resources.
 - **MCP Host** — Manage multiple MCP server connections and aggregate their capabilities.
 
-```mermaid
-flowchart LR
-  subgraph YourApp["Your Dart App"]
-    Genkit["Genkit"]
-  end
-
-  subgraph genkit_mcp
-    direction TB
-    Server["GenkitMcpServer"]
-    Client["GenkitMcpClient"]
-    Host["GenkitMcpHost"]
-    Host --- Client
-  end
-
-  subgraph External
-    ExtClient["Claude, Cursor, etc."]
-    ExtServerA["MCP Server A"]
-    ExtServerB["MCP Server B"]
-  end
-
-  Genkit -- expose --> Server
-  Server -- stdio / HTTP --> ExtClient
-
-  ExtServerA -- stdio / HTTP --> Client
-  ExtServerB -- stdio / HTTP --> Host
-  Client -- use --> Genkit
-  Host -- use --> Genkit
-```
+![genkit_mcp Architecture](https://mermaid.ink/img/Zmxvd2NoYXJ0IExSCiAgc3ViZ3JhcGggWW91ckFwcFsiWW91ciBEYXJ0IEFwcCJdCiAgICBHZW5raXRbIkdlbmtpdCJdCiAgZW5kCgogIHN1YmdyYXBoIGdlbmtpdF9tY3AKICAgIGRpcmVjdGlvbiBUQgogICAgU2VydmVyWyJHZW5raXRNY3BTZXJ2ZXIiXQogICAgQ2xpZW50WyJHZW5raXRNY3BDbGllbnQiXQogICAgSG9zdFsiR2Vua2l0TWNwSG9zdCJdCiAgICBIb3N0IC0tLSBDbGllbnQKICBlbmQKCiAgc3ViZ3JhcGggRXh0ZXJuYWwKICAgIEV4dENsaWVudFsiQ2xhdWRlLCBDdXJzb3IsIGV0Yy4iXQogICAgRXh0U2VydmVyQVsiTUNQIFNlcnZlciBBIl0KICAgIEV4dFNlcnZlckJbIk1DUCBTZXJ2ZXIgQiJdCiAgZW5kCgogIEdlbmtpdCAtLSBleHBvc2UgLS0+IFNlcnZlcgogIFNlcnZlciAtLSBzdGRpbyAvIEhUVFAgLS0+IEV4dENsaWVudAoKICBFeHRTZXJ2ZXJBIC0tIHN0ZGlvIC8gSFRUUCAtLT4gQ2xpZW50CiAgRXh0U2VydmVyQiAtLSBzdGRpbyAvIEhUVFAgLS0+IEhvc3QKICBDbGllbnQgLS0gdXNlIC0tPiBHZW5raXQKICBIb3N0IC0tIHVzZSAtLT4gR2Vua2l0)
 
 ### Supported MCP Features (High-level)
 
@@ -190,30 +163,7 @@ When connecting to a protected MCP server over Streamable HTTP, the client can p
 
 ### How it works
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant M as MCP Server
-    participant A as Auth Server
-
-    C->>M: POST /mcp (initialize)
-    M-->>C: 401 Unauthorized + WWW-Authenticate
-
-    C->>M: GET /.well-known/oauth-protected-resource
-    M-->>C: Resource Metadata (authorization_servers)
-
-    C->>A: GET /.well-known/oauth-authorization-server
-    A-->>C: AS Metadata (endpoints)
-
-    C->>A: POST /register
-    A-->>C: Client credentials
-
-    C->>A: POST /token
-    A-->>C: Access token
-
-    C->>M: POST /mcp (Bearer token)
-    M-->>C: 200 OK (tools/list)
-```
+![OAuth 2.1 Authorization Flow](https://mermaid.ink/img/c2VxdWVuY2VEaWFncmFtCiAgICBwYXJ0aWNpcGFudCBDIGFzIENsaWVudAogICAgcGFydGljaXBhbnQgTSBhcyBNQ1AgU2VydmVyCiAgICBwYXJ0aWNpcGFudCBBIGFzIEF1dGggU2VydmVyCgogICAgQy0+Pk06IFBPU1QgL21jcCAoaW5pdGlhbGl6ZSkKICAgIE0tLT4+QzogNDAxIFVuYXV0aG9yaXplZCArIFdXVy1BdXRoZW50aWNhdGUKCiAgICBDLT4+TTogR0VUIC8ud2VsbC1rbm93bi9vYXV0aC1wcm90ZWN0ZWQtcmVzb3VyY2UKICAgIE0tLT4+QzogUmVzb3VyY2UgTWV0YWRhdGEgKGF1dGhvcml6YXRpb25fc2VydmVycykKCiAgICBDLT4+QTogR0VUIC8ud2VsbC1rbm93bi9vYXV0aC1hdXRob3JpemF0aW9uLXNlcnZlcgogICAgQS0tPj5DOiBBUyBNZXRhZGF0YSAoZW5kcG9pbnRzKQoKICAgIEMtPj5BOiBQT1NUIC9yZWdpc3RlcgogICAgQS0tPj5DOiBDbGllbnQgY3JlZGVudGlhbHMKCiAgICBDLT4+QTogUE9TVCAvdG9rZW4KICAgIEEtLT4+QzogQWNjZXNzIHRva2VuCgogICAgQy0+Pk06IFBPU1QgL21jcCAoQmVhcmVyIHRva2VuKQogICAgTS0tPj5DOiAyMDAgT0sgKHRvb2xzL2xpc3Qp)
 
 1. The client sends a request to the MCP server.
 2. The server responds with **401 Unauthorized** and a `WWW-Authenticate: Bearer` header.
