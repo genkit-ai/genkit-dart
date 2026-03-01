@@ -15,11 +15,8 @@
 import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 
+import 'src/models.dart';
 import 'src/openai_plugin.dart';
-
-export 'src/converters.dart' show GenkitConverter;
-export 'src/models.dart'
-    show defaultModelInfo, oSeriesModelInfo, supportsTools, supportsVision;
 
 part 'genkit_openai.g.dart';
 
@@ -75,6 +72,9 @@ class CustomModelDefinition {
 /// Public constant handle for OpenAI-compatible plugin
 const OpenAICompatPluginHandle openAI = OpenAICompatPluginHandle();
 
+/// Public constant handle for DeepSeek plugin
+const DeepSeekPluginHandle deepSeek = DeepSeekPluginHandle();
+
 /// Handle class for OpenAI-compatible plugin
 class OpenAICompatPluginHandle {
   const OpenAICompatPluginHandle();
@@ -97,5 +97,41 @@ class OpenAICompatPluginHandle {
   /// Reference to a model
   ModelRef<OpenAIOptions> model(String name) {
     return modelRef('openai/$name', customOptions: OpenAIOptions.$schema);
+  }
+}
+
+/// Handle class for DeepSeek plugin
+class DeepSeekPluginHandle {
+  const DeepSeekPluginHandle();
+
+  /// Create the plugin instance
+  GenkitPlugin call({
+    String? apiKey,
+    List<CustomModelDefinition>? models,
+    Map<String, String>? headers,
+  }) {
+    return OpenAIPlugin(
+      pluginName: 'deepseek',
+      apiKey: apiKey,
+      baseUrl: 'https://api.deepseek.com',
+      modelInfoResolver: deepSeekModelInfo,
+      customModels: [
+        CustomModelDefinition(
+          name: 'deepseek-chat',
+          info: deepSeekModelInfo('deepseek-chat'),
+        ),
+        CustomModelDefinition(
+          name: 'deepseek-reasoner',
+          info: deepSeekModelInfo('deepseek-reasoner'),
+        ),
+        ...?models,
+      ],
+      headers: headers,
+    );
+  }
+
+  /// Reference to a model
+  ModelRef<OpenAIOptions> model(String name) {
+    return modelRef('deepseek/$name', customOptions: OpenAIOptions.$schema);
   }
 }

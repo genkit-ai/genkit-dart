@@ -14,6 +14,8 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/converters.dart';
+import 'package:genkit_openai/src/models.dart';
 import 'package:openai_dart/openai_dart.dart'
     show
         ChatCompletionAssistantMessage,
@@ -316,6 +318,58 @@ void main() {
       );
       expect(def.name, 'custom-model');
       expect(def.info?.label, 'Custom Model');
+    });
+  });
+
+  group('DeepSeek Model Info', () {
+    test('deepSeekModelInfo sets correct supports for chat models', () {
+      final info = deepSeekModelInfo('deepseek-chat');
+      expect(info.label, 'deepseek-chat');
+      expect(info.supports?['multiturn'], true);
+      expect(info.supports?['tools'], true);
+      expect(info.supports?['systemRole'], true);
+      expect(info.supports?['media'], false);
+      expect(info.supports?['output'], ['text', 'json']);
+    });
+
+    test('deepSeekModelInfo disables tools and systemRole for reasoner', () {
+      final info = deepSeekModelInfo('deepseek-reasoner');
+      expect(info.label, 'deepseek-reasoner');
+      expect(info.supports?['tools'], false);
+      expect(info.supports?['systemRole'], false);
+    });
+
+    test('deepSeekModelInfo handles future reasoner variants', () {
+      final info = deepSeekModelInfo('deepseek-reasoner-v2');
+      expect(info.supports?['tools'], false);
+      expect(info.supports?['systemRole'], false);
+    });
+  });
+
+  group('DeepSeek Plugin Handle', () {
+    test('creates plugin instance', () {
+      final plugin = deepSeek(apiKey: 'test-key');
+      expect(plugin, isNotNull);
+    });
+
+    test('creates model reference with deepseek prefix', () {
+      final ref = deepSeek.model('deepseek-chat');
+      expect(ref.name, 'deepseek/deepseek-chat');
+    });
+
+    test('creates model reference for deepseek-reasoner', () {
+      final ref = deepSeek.model('deepseek-reasoner');
+      expect(ref.name, 'deepseek/deepseek-reasoner');
+    });
+
+    test('creates model reference for arbitrary model names', () {
+      final ref = deepSeek.model('deepseek-v3');
+      expect(ref.name, 'deepseek/deepseek-v3');
+    });
+
+    test('plugin has correct name and uses modelInfoResolver', () {
+      final plugin = deepSeek(apiKey: 'test-key');
+      expect(plugin.name, 'deepseek');
     });
   });
 }
