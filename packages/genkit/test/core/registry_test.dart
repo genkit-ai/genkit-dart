@@ -113,6 +113,26 @@ void main() {
       expect(cachedAction, same(retrievedAction));
     });
 
+    test('get action from plugin with slash in action name', () async {
+      final registry = Registry();
+      final action = Action(
+        actionType: 'model',
+        name: 'zai-org/glm-5-maas',
+        fn: (input, context) async => 'output',
+      );
+      final plugin = TestPlugin('openai', resolvedAction: action);
+      registry.registerPlugin(plugin);
+
+      expect(plugin.initCount, 0);
+      final retrievedAction = await registry.lookupAction(
+        'model',
+        'openai/zai-org/glm-5-maas',
+      );
+      expect(plugin.initCount, 1);
+      expect(retrievedAction, isNotNull);
+      expect(retrievedAction!.name, 'zai-org/glm-5-maas');
+    });
+
     test('list actions with plugins', () async {
       final registry = Registry();
       final directAction = Action(
