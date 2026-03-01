@@ -22,14 +22,20 @@ import 'generated/generativelanguage.dart';
 
 class GenerativeLanguageBaseClient {
   final String baseUrl;
+  final String apiUrlPrefix;
   final http.Client client;
-  GenerativeLanguageBaseClient({required this.baseUrl, required this.client});
+
+  GenerativeLanguageBaseClient({
+    required this.baseUrl,
+    required this.client,
+    this.apiUrlPrefix = 'v1beta/',
+  });
 
   Future<EmbedContentResponse> embedContent(
     EmbedContentRequest request, {
     required String model,
   }) async {
-    final url = 'v1beta/$model:embedContent';
+    final url = '$apiUrlPrefix$model:embedContent';
     final res = await _call('POST', url, request.toJson());
     return EmbedContentResponse.fromJson(res);
   }
@@ -38,7 +44,7 @@ class GenerativeLanguageBaseClient {
     GenerateContentRequest request, {
     required String model,
   }) async {
-    final url = 'v1beta/$model:generateContent';
+    final url = '$apiUrlPrefix$model:generateContent';
     final res = await _call('POST', url, request.toJson());
     return GenerateContentResponse.fromJson(res);
   }
@@ -47,18 +53,37 @@ class GenerativeLanguageBaseClient {
     int? pageSize,
     String? pageToken,
   }) async {
-    var url = 'v1beta/models?';
+    var url = '${apiUrlPrefix}models?';
     if (pageSize != null) url += 'pageSize=$pageSize&';
     if (pageToken != null) url += 'pageToken=$pageToken&';
     final res = await _call('GET', url);
     return ListModelsResponse.fromJson(res);
   }
 
+  Future<Map<String, dynamic>> listPublisherModels({
+    required String projectId,
+  }) async {
+    // Vertex AI endpoint for publisher models uses v1beta1 and does not have the 'projects/...' in the path
+    // when using this specific endpoint, but it requires the google user project header (or just works with ADC).
+    // The base URL for this is https://{location}-aiplatform.googleapis.com
+    // And path is /v1beta1/publishers/google/models
+    final url = 'v1beta1/publishers/google/models';
+    return await _call('GET', url, null, {'x-goog-user-project': projectId});
+  }
+
+  Future<Map<String, dynamic>> predict(
+    Map<String, dynamic> request, {
+    required String model,
+  }) async {
+    final url = '$apiUrlPrefix$model:predict';
+    return await _call('POST', url, request);
+  }
+
   Stream<GenerateContentResponse> streamGenerateContent(
     GenerateContentRequest request, {
     required String model,
   }) async* {
-    final url = 'v1beta/$model:streamGenerateContent?alt=sse';
+    final url = '$apiUrlPrefix$model:streamGenerateContent?alt=sse';
     yield* _callStream(
       'POST',
       url,
@@ -70,16 +95,28 @@ class GenerativeLanguageBaseClient {
     String method,
     String url, [
     Map<String, dynamic>? body,
+    Map<String, String>? extraHeaders,
   ]) async {
     final uri = Uri.parse('$baseUrl$url');
     http.Response response;
+    final headers = <String, String>{};
+    if (method == 'POST') {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (extraHeaders != null) {
+      headers.addAll(extraHeaders);
+    }
+
     if (method == 'GET') {
-      response = await client.get(uri);
+      response = await client.get(
+        uri,
+        headers: headers.isEmpty ? null : headers,
+      );
     } else if (method == 'POST') {
       response = await client.post(
         uri,
         body: jsonEncode(body),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
       );
     } else {
       throw Exception('Unsupported method $method');
