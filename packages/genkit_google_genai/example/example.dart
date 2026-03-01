@@ -22,7 +22,7 @@ import 'src/model.dart';
 
 void main(List<String> args) async {
   final ai = Genkit(
-    plugins: [googleAI(apiKey: Platform.environment['GEMINI_API_KEY'])],
+    plugins: [googleAI()],
   );
 
   // --- Basic Generate Flow ---
