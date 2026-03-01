@@ -661,26 +661,27 @@ Part fromGeminiPart(gcl.Part p) {
       metadata: metadata,
     );
   }
-  // inlineData check
-  final rawMap = p.toJson();
-  if (rawMap['inlineData'] != null) {
-    final mimeType = (rawMap['inlineData'] as Map)['mimeType'] as String?;
-    final data = (rawMap['inlineData'] as Map)['data'] as String;
-    return MediaPart(
-      media: Media(url: 'data:$mimeType;base64,$data', contentType: mimeType),
-      metadata: metadata,
-    );
+  if (p.inlineData != null) {
+    final mimeType = p.inlineData!.mimeType;
+    final data = p.inlineData!.data;
+    if (data != null) {
+      return MediaPart(
+        media: Media(url: 'data:$mimeType;base64,$data', contentType: mimeType),
+        metadata: metadata,
+      );
+    }
   }
-  // fileData check
-  if (rawMap['fileData'] != null) {
-    final mimeType = (rawMap['fileData'] as Map)['mimeType'] as String?;
-    final fileUri = (rawMap['fileData'] as Map)['fileUri'] as String;
-    return MediaPart(
-      media: Media(url: fileUri, contentType: mimeType),
-      metadata: metadata,
-    );
+  if (p.fileData != null) {
+    final mimeType = p.fileData!.mimeType;
+    final fileUri = p.fileData!.fileUri;
+    if (fileUri != null) {
+      return MediaPart(
+        media: Media(url: fileUri, contentType: mimeType),
+        metadata: metadata,
+      );
+    }
   }
-  throw UnimplementedError('Unsupported part type: $p');
+  throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
 
 gcl.Tool _toGeminiTool(ToolDefinition tool) {
