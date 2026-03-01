@@ -105,13 +105,14 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
         final publisherModels = (res['publisherModels'] as List?) ?? [];
 
         final models = publisherModels
-            .where(
-              (m) =>
-                  (m as Map)['name'] != null &&
-                  (m['name'] as String).contains('gemini-'),
-            )
+            .where((m) {
+              final modelMap = m as Map<String, dynamic>;
+              final name = modelMap['name'] as String?;
+              return name != null && name.contains('gemini-');
+            })
             .map((m) {
-              final modelName = ((m as Map)['name'] as String).split('/').last;
+              final modelMap = m as Map<String, dynamic>;
+              final modelName = (modelMap['name'] as String).split('/').last;
               final isTts = modelName.contains('-tts');
               return modelMetadata(
                 '$name/$modelName',
@@ -124,14 +125,16 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             .toList();
 
         final embedders = publisherModels
-            .where(
-              (m) =>
-                  (m as Map)['name'] != null &&
-                  ((m['name'] as String).contains('text-embedding-') ||
-                      (m['name'] as String).contains('embedding-')),
-            )
+            .where((m) {
+              final modelMap = m as Map<String, dynamic>;
+              final name = modelMap['name'] as String?;
+              return name != null &&
+                  (name.contains('text-embedding-') ||
+                      name.contains('embedding-'));
+            })
             .map((m) {
-              final modelName = ((m as Map)['name'] as String).split('/').last;
+              final modelMap = m as Map<String, dynamic>;
+              final modelName = (modelMap['name'] as String).split('/').last;
               return embedderMetadata('$name/$modelName');
             })
             .toList();
@@ -342,14 +345,17 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     return Embedder(
       name: '$name/$embedderName',
       fn: (req, ctx) async {
+        if (req == null || req.input.isEmpty) {
+          return EmbedResponse(embeddings: []);
+        }
         final service = await _getApiClient();
         try {
-          final options = req?.options != null
-              ? TextEmbedderOptions.fromJson(req!.options!)
+          final options = req.options != null
+              ? TextEmbedderOptions.fromJson(req.options!)
               : null;
 
           if (isVertex) {
-            final instances = req!.input.map((doc) {
+            final instances = req.input.map((doc) {
               final text = doc.content
                   .where((p) => p.isText)
                   .map((p) => p.text)
@@ -373,7 +379,9 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
 
             final predictions = res['predictions'] as List;
             final embeddings = predictions.map((p) {
-              final emb = (p as Map)['embeddings'] as Map;
+              final emb =
+                  (p as Map<String, dynamic>)['embeddings']
+                      as Map<String, dynamic>;
               final vals = emb['values'] as List;
               return Embedding(
                 embedding: vals.map((e) => (e as num).toDouble()).toList(),
@@ -382,7 +390,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             return EmbedResponse(embeddings: embeddings);
           }
 
-          if (req!.input.length == 1) {
+          if (req.input.length == 1) {
             final doc = req.input.first;
             final text = doc.content
                 .where((p) => p.isText)
