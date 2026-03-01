@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: unnecessary_cast, unused_import
+// ignore_for_file: unnecessary_cast, unused_import, use_null_aware_elements, unnecessary_ignore
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;

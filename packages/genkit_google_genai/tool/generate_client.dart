@@ -162,7 +162,9 @@ void main() async {
   }
 
   final buffer = StringBuffer();
-  buffer.writeln('// ignore_for_file: unnecessary_cast, unused_import');
+  buffer.writeln(
+    '// ignore_for_file: unnecessary_cast, unused_import, use_null_aware_elements, unnecessary_ignore',
+  );
   buffer.writeln();
   buffer.writeln('import \'dart:convert\';');
   buffer.writeln('import \'package:http/http.dart\' as http;');
