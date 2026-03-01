@@ -259,6 +259,6 @@ final class WwwAuthenticateParams {
 }
 
 List<String>? _stringList(Object? value) {
-  if (value is List) return value.cast<String>();
+  if (value is List) return List<String>.from(value);
   return null;
 }

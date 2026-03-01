@@ -23,6 +23,12 @@ import 'pkce.dart';
 const _challengeMethod = 'S256';
 const _responseType = 'code';
 
+/// Maximum size of an OAuth HTTP response body (1 MB).
+const _maxResponseBodySize = 1024 * 1024;
+
+/// Timeout for individual OAuth HTTP requests.
+const _requestTimeout = Duration(seconds: 30);
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
@@ -32,13 +38,18 @@ const _responseType = 'code';
 /// Handles resource / authorization server discovery, client registration,
 /// token exchange, and refresh — with automatic retry on recoverable errors
 /// (`invalid_client`, `unauthorized_client`, `invalid_grant`).
+///
+/// Pass [httpClient] to reuse an existing client and share its lifecycle;
+/// when omitted a temporary client is created and closed after the call.
 Future<AuthResult> auth(
   OAuthClientProvider provider, {
   required Uri serverUrl,
   String? authorizationCode,
   String? scope,
   Uri? resourceMetadataUrl,
+  HttpClient? httpClient,
 }) async {
+  final client = httpClient ?? HttpClient();
   try {
     return await _authInternal(
       provider,
@@ -46,6 +57,7 @@ Future<AuthResult> auth(
       authorizationCode: authorizationCode,
       scope: scope,
       resourceMetadataUrl: resourceMetadataUrl,
+      httpClient: client,
     );
   } on OAuthException catch (e) {
     if (e.isInvalidClient) {
@@ -56,6 +68,7 @@ Future<AuthResult> auth(
         authorizationCode: authorizationCode,
         scope: scope,
         resourceMetadataUrl: resourceMetadataUrl,
+        httpClient: client,
       );
     }
     if (e.isInvalidGrant) {
@@ -66,20 +79,29 @@ Future<AuthResult> auth(
         authorizationCode: authorizationCode,
         scope: scope,
         resourceMetadataUrl: resourceMetadataUrl,
+        httpClient: client,
       );
     }
     rethrow;
+  } finally {
+    if (httpClient == null) client.close();
   }
 }
 
 Future<AuthResult> _authInternal(
   OAuthClientProvider provider, {
   required Uri serverUrl,
+  required HttpClient httpClient,
   String? authorizationCode,
   String? scope,
   Uri? resourceMetadataUrl,
 }) async {
-  // 1. Discover protected resource metadata (RFC 9728).
+  // 1. Validate resource_metadata URL origin (SSRF defence).
+  if (resourceMetadataUrl != null) {
+    _validateUrlOrigin(resourceMetadataUrl, serverUrl, 'resource_metadata URL');
+  }
+
+  // 2. Discover protected resource metadata (RFC 9728).
   OAuthProtectedResourceMetadata? resourceMetadata;
   Uri? authorizationServerUrl;
 
@@ -87,6 +109,7 @@ Future<AuthResult> _authInternal(
     resourceMetadata = await discoverProtectedResourceMetadata(
       serverUrl,
       resourceMetadataUrl: resourceMetadataUrl,
+      httpClient: httpClient,
     );
     final servers = resourceMetadata.authorizationServers;
     if (servers != null && servers.isNotEmpty) {
@@ -98,19 +121,39 @@ Future<AuthResult> _authInternal(
 
   authorizationServerUrl ??= serverUrl.replace(path: '/');
 
-  // 2. Select the RFC 8707 resource indicator.
+  // 3. Validate the authorization server URL via the provider.
+  final isAllowed = await provider.isAuthorizationServerUrlAllowed(
+    serverUrl,
+    authorizationServerUrl,
+  );
+  if (!isAllowed) {
+    throw StateError(
+      'Authorization server $authorizationServerUrl is not allowed for '
+      'MCP server $serverUrl. Override '
+      'OAuthClientProvider.isAuthorizationServerUrlAllowed to permit '
+      'cross-origin authorization servers.',
+    );
+  }
+
+  // 4. Select the RFC 8707 resource indicator.
   final resource = await _selectResourceURL(
     serverUrl,
     provider,
     resourceMetadata,
   );
 
-  // 3. Discover authorization server metadata.
+  // 5. Discover authorization server metadata.
   final metadata = await discoverAuthorizationServerMetadata(
     authorizationServerUrl,
+    httpClient: httpClient,
   );
 
-  // 4. Register client if needed.
+  // 5a. Validate that metadata endpoints share the AS origin.
+  if (metadata != null) {
+    _validateMetadataEndpoints(metadata, authorizationServerUrl);
+  }
+
+  // 6. Register client if needed.
   var clientInfo = await provider.clientInformation();
   if (clientInfo == null) {
     if (authorizationCode != null) {
@@ -136,13 +179,14 @@ Future<AuthResult> _authInternal(
         authorizationServerUrl,
         metadata: metadata,
         clientMetadata: provider.clientMetadata,
+        httpClient: httpClient,
       );
       await provider.saveClientInformation(fullInfo);
       clientInfo = fullInfo;
     }
   }
 
-  // 5. Non-interactive flow or authorization code exchange.
+  // 7. Non-interactive flow or authorization code exchange.
   final nonInteractive = provider.redirectUrl == null;
   if (authorizationCode != null || nonInteractive) {
     final tokens = await fetchToken(
@@ -151,12 +195,13 @@ Future<AuthResult> _authInternal(
       metadata: metadata,
       resource: resource,
       authorizationCode: authorizationCode,
+      httpClient: httpClient,
     );
     await provider.saveTokens(tokens);
     return AuthResult.authorized;
   }
 
-  // 6. Attempt token refresh.
+  // 8. Attempt token refresh.
   final existing = await provider.tokens();
   if (existing?.refreshToken != null) {
     try {
@@ -167,18 +212,18 @@ Future<AuthResult> _authInternal(
         refreshToken: existing!.refreshToken!,
         resource: resource,
         customAuth: provider.customClientAuthentication,
+        httpClient: httpClient,
       );
       await provider.saveTokens(refreshed);
       return AuthResult.authorized;
     } on OAuthException catch (e) {
       if (!e.isServerError) rethrow;
-      // Server error during refresh — fall through to new authorization.
     } catch (_) {
       // Unknown error during refresh — fall through to new authorization.
     }
   }
 
-  // 7. Start a new authorization flow (PKCE).
+  // 9. Start a new authorization flow (PKCE).
   final state = await provider.state();
   final challenge = await startAuthorization(
     authorizationServerUrl,
@@ -194,6 +239,9 @@ Future<AuthResult> _authInternal(
   );
 
   await provider.saveCodeVerifier(challenge.codeVerifier);
+  if (state != null) {
+    await provider.saveState(state);
+  }
   await provider.redirectToAuthorization(challenge.authorizationUrl);
   return AuthResult.redirect;
 }
@@ -203,65 +251,83 @@ Future<AuthResult> _authInternal(
 // ---------------------------------------------------------------------------
 
 /// Discovers RFC 9728 OAuth 2.0 Protected Resource Metadata.
+///
+/// Pass [httpClient] to reuse an existing client; when omitted a temporary
+/// client is created and closed after the call.
 Future<OAuthProtectedResourceMetadata> discoverProtectedResourceMetadata(
   Uri serverUrl, {
   Uri? resourceMetadataUrl,
+  HttpClient? httpClient,
 }) async {
-  final url =
-      resourceMetadataUrl ??
-      serverUrl.replace(
-        path: '/.well-known/oauth-protected-resource${serverUrl.path}',
-      );
+  final client = httpClient ?? HttpClient();
+  try {
+    final url =
+        resourceMetadataUrl ??
+        serverUrl.replace(
+          path: '/.well-known/oauth-protected-resource${serverUrl.path}',
+        );
 
-  final response = await _httpGet(url);
-  if (response.statusCode == HttpStatus.notFound) {
-    throw StateError(
-      'Resource server does not implement OAuth 2.0 Protected Resource '
-      'Metadata.',
+    final response = await _httpGet(client, url);
+    if (response.statusCode == HttpStatus.notFound) {
+      throw StateError(
+        'Resource server does not implement OAuth 2.0 Protected Resource '
+        'Metadata.',
+      );
+    }
+    if (response.statusCode != HttpStatus.ok) {
+      throw StateError(
+        'HTTP ${response.statusCode} loading protected resource metadata.',
+      );
+    }
+    final body = await _readResponseBody(response);
+    return OAuthProtectedResourceMetadata.fromJson(
+      jsonDecode(body) as Map<String, dynamic>,
     );
+  } finally {
+    if (httpClient == null) client.close();
   }
-  if (response.statusCode != HttpStatus.ok) {
-    throw StateError(
-      'HTTP ${response.statusCode} loading protected resource metadata.',
-    );
-  }
-  final body = await _readResponseBody(response);
-  return OAuthProtectedResourceMetadata.fromJson(
-    jsonDecode(body) as Map<String, dynamic>,
-  );
 }
 
 /// Discovers OAuth 2.0 / OpenID Connect authorization server metadata.
 ///
 /// Tries RFC 8414 (`oauth-authorization-server`) first, then falls back to
 /// OpenID Connect Discovery (`openid-configuration`).
+///
+/// Pass [httpClient] to reuse an existing client; when omitted a temporary
+/// client is created and closed after the call.
 Future<OAuthServerMetadata?> discoverAuthorizationServerMetadata(
-  Uri authorizationServerUrl,
-) async {
-  for (final endpoint in _buildDiscoveryUrls(authorizationServerUrl)) {
-    try {
-      final response = await _httpGet(endpoint);
-      if (!_isSuccess(response.statusCode)) {
-        await _drain(response);
-        if (response.statusCode >= 400 && response.statusCode < 500) {
-          continue;
+  Uri authorizationServerUrl, {
+  HttpClient? httpClient,
+}) async {
+  final client = httpClient ?? HttpClient();
+  try {
+    for (final endpoint in _buildDiscoveryUrls(authorizationServerUrl)) {
+      try {
+        final response = await _httpGet(client, endpoint);
+        if (!_isSuccess(response.statusCode)) {
+          await _drain(response);
+          if (response.statusCode >= 400 && response.statusCode < 500) {
+            continue;
+          }
+          throw StateError(
+            'HTTP ${response.statusCode} loading authorization server '
+            'metadata from $endpoint',
+          );
         }
-        throw StateError(
-          'HTTP ${response.statusCode} loading authorization server metadata '
-          'from $endpoint',
+        final body = await _readResponseBody(response);
+        return OAuthServerMetadata.fromJson(
+          jsonDecode(body) as Map<String, dynamic>,
         );
+      } catch (e) {
+        if (e is StateError) rethrow;
+        mcpLogger.fine('[OAuth] Discovery failed for $endpoint: $e');
+        continue;
       }
-      final body = await _readResponseBody(response);
-      return OAuthServerMetadata.fromJson(
-        jsonDecode(body) as Map<String, dynamic>,
-      );
-    } catch (e) {
-      if (e is StateError) rethrow;
-      mcpLogger.fine('[OAuth] Discovery failed for $endpoint: $e');
-      continue;
     }
+    return null;
+  } finally {
+    if (httpClient == null) client.close();
   }
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -337,6 +403,9 @@ Future<AuthorizationStartResult> startAuthorization(
 // ---------------------------------------------------------------------------
 
 /// Exchanges an authorization code for tokens.
+///
+/// Pass [httpClient] to reuse an existing client; when omitted a temporary
+/// client is created and closed after the call.
 Future<OAuthTokens> exchangeAuthorization(
   Uri authorizationServerUrl, {
   OAuthServerMetadata? metadata,
@@ -346,24 +415,34 @@ Future<OAuthTokens> exchangeAuthorization(
   required Uri redirectUri,
   Uri? resource,
   OAuthClientAuthenticator? customAuth,
-}) {
-  final params = {
-    'grant_type': 'authorization_code',
-    'code': authorizationCode,
-    'code_verifier': codeVerifier,
-    'redirect_uri': redirectUri.toString(),
-  };
-  return _executeTokenRequest(
-    authorizationServerUrl,
-    metadata: metadata,
-    params: params,
-    clientInformation: clientInformation,
-    customAuth: customAuth,
-    resource: resource,
-  );
+  HttpClient? httpClient,
+}) async {
+  final client = httpClient ?? HttpClient();
+  try {
+    final params = {
+      'grant_type': 'authorization_code',
+      'code': authorizationCode,
+      'code_verifier': codeVerifier,
+      'redirect_uri': redirectUri.toString(),
+    };
+    return _executeTokenRequest(
+      authorizationServerUrl,
+      httpClient: client,
+      metadata: metadata,
+      params: params,
+      clientInformation: clientInformation,
+      customAuth: customAuth,
+      resource: resource,
+    );
+  } finally {
+    if (httpClient == null) client.close();
+  }
 }
 
 /// Refreshes tokens using a refresh token.
+///
+/// Pass [httpClient] to reuse an existing client; when omitted a temporary
+/// client is created and closed after the call.
 Future<OAuthTokens> refreshAuthorization(
   Uri authorizationServerUrl, {
   OAuthServerMetadata? metadata,
@@ -371,61 +450,81 @@ Future<OAuthTokens> refreshAuthorization(
   required String refreshToken,
   Uri? resource,
   OAuthClientAuthenticator? customAuth,
+  HttpClient? httpClient,
 }) async {
-  final params = {'grant_type': 'refresh_token', 'refresh_token': refreshToken};
-  final tokens = await _executeTokenRequest(
-    authorizationServerUrl,
-    metadata: metadata,
-    params: params,
-    clientInformation: clientInformation,
-    customAuth: customAuth,
-    resource: resource,
-  );
-  return tokens.refreshToken != null
-      ? tokens
-      : tokens.copyWith(refreshToken: refreshToken);
+  final client = httpClient ?? HttpClient();
+  try {
+    final params = {
+      'grant_type': 'refresh_token',
+      'refresh_token': refreshToken,
+    };
+    final tokens = await _executeTokenRequest(
+      authorizationServerUrl,
+      httpClient: client,
+      metadata: metadata,
+      params: params,
+      clientInformation: clientInformation,
+      customAuth: customAuth,
+      resource: resource,
+    );
+    return tokens.refreshToken != null
+        ? tokens
+        : tokens.copyWith(refreshToken: refreshToken);
+  } finally {
+    if (httpClient == null) client.close();
+  }
 }
 
 /// Unified token fetching that works with any grant type via the provider's
 /// [OAuthClientProvider.prepareTokenRequest].
+///
+/// Pass [httpClient] to reuse an existing client; when omitted a temporary
+/// client is created and closed after the call.
 Future<OAuthTokens> fetchToken(
   OAuthClientProvider provider,
   Uri authorizationServerUrl, {
   OAuthServerMetadata? metadata,
   Uri? resource,
   String? authorizationCode,
+  HttpClient? httpClient,
 }) async {
-  final scope = provider.clientMetadata.scope;
-  var params = await provider.prepareTokenRequest(scope);
+  final client = httpClient ?? HttpClient();
+  try {
+    final scope = provider.clientMetadata.scope;
+    var params = await provider.prepareTokenRequest(scope);
 
-  if (params == null) {
-    if (authorizationCode == null) {
-      throw StateError(
-        'Either provider.prepareTokenRequest() or authorizationCode is '
-        'required',
-      );
+    if (params == null) {
+      if (authorizationCode == null) {
+        throw StateError(
+          'Either provider.prepareTokenRequest() or authorizationCode is '
+          'required',
+        );
+      }
+      if (provider.redirectUrl == null) {
+        throw StateError('redirectUrl is required for authorization_code flow');
+      }
+      final verifier = await provider.codeVerifier();
+      params = {
+        'grant_type': 'authorization_code',
+        'code': authorizationCode,
+        'code_verifier': verifier,
+        'redirect_uri': provider.redirectUrl.toString(),
+      };
     }
-    if (provider.redirectUrl == null) {
-      throw StateError('redirectUrl is required for authorization_code flow');
-    }
-    final verifier = await provider.codeVerifier();
-    params = {
-      'grant_type': 'authorization_code',
-      'code': authorizationCode,
-      'code_verifier': verifier,
-      'redirect_uri': provider.redirectUrl.toString(),
-    };
+
+    final clientInfo = await provider.clientInformation();
+    return _executeTokenRequest(
+      authorizationServerUrl,
+      httpClient: client,
+      metadata: metadata,
+      params: params,
+      clientInformation: clientInfo,
+      customAuth: provider.customClientAuthentication,
+      resource: resource,
+    );
+  } finally {
+    if (httpClient == null) client.close();
   }
-
-  final clientInfo = await provider.clientInformation();
-  return _executeTokenRequest(
-    authorizationServerUrl,
-    metadata: metadata,
-    params: params,
-    clientInformation: clientInfo,
-    customAuth: provider.customClientAuthentication,
-    resource: resource,
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -433,30 +532,40 @@ Future<OAuthTokens> fetchToken(
 // ---------------------------------------------------------------------------
 
 /// Performs RFC 7591 Dynamic Client Registration.
+///
+/// Pass [httpClient] to reuse an existing client; when omitted a temporary
+/// client is created and closed after the call.
 Future<OAuthClientInformation> registerClient(
   Uri authorizationServerUrl, {
   OAuthServerMetadata? metadata,
   required OAuthClientMetadata clientMetadata,
+  HttpClient? httpClient,
 }) async {
-  Uri registrationUrl;
-  if (metadata?.registrationEndpoint != null) {
-    registrationUrl = Uri.parse(metadata!.registrationEndpoint!);
-  } else {
-    registrationUrl = authorizationServerUrl.replace(path: '/register');
-  }
+  final client = httpClient ?? HttpClient();
+  try {
+    Uri registrationUrl;
+    if (metadata?.registrationEndpoint != null) {
+      registrationUrl = Uri.parse(metadata!.registrationEndpoint!);
+    } else {
+      registrationUrl = authorizationServerUrl.replace(path: '/register');
+    }
 
-  final response = await _httpPost(
-    registrationUrl,
-    contentType: ContentType.json,
-    body: jsonEncode(clientMetadata.toJson()),
-  );
-  if (!_isSuccess(response.statusCode)) {
-    throw await _parseErrorResponse(response);
+    final response = await _httpPost(
+      client,
+      registrationUrl,
+      contentType: ContentType.json,
+      body: jsonEncode(clientMetadata.toJson()),
+    );
+    if (!_isSuccess(response.statusCode)) {
+      throw await _parseErrorResponse(response);
+    }
+    final body = await _readResponseBody(response);
+    return OAuthClientInformation.fromJson(
+      jsonDecode(body) as Map<String, dynamic>,
+    );
+  } finally {
+    if (httpClient == null) client.close();
   }
-  final body = await _readResponseBody(response);
-  return OAuthClientInformation.fromJson(
-    jsonDecode(body) as Map<String, dynamic>,
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -577,6 +686,56 @@ Future<Uri?> _selectResourceURL(
   return configuredResource;
 }
 
+/// Validates that [url] shares the same origin as [expectedOrigin].
+void _validateUrlOrigin(Uri url, Uri expectedOrigin, String label) {
+  if (url.origin != expectedOrigin.origin) {
+    throw StateError(
+      '$label origin ${url.origin} does not match expected '
+      '${expectedOrigin.origin}',
+    );
+  }
+}
+
+/// Validates that metadata endpoint URLs share the authorization server's
+/// origin, preventing SSRF via malicious metadata responses.
+void _validateMetadataEndpoints(
+  OAuthServerMetadata metadata,
+  Uri authorizationServerUrl,
+) {
+  _validateEndpointUrl(
+    metadata.authorizationEndpoint,
+    authorizationServerUrl,
+    'authorization_endpoint',
+  );
+  _validateEndpointUrl(
+    metadata.tokenEndpoint,
+    authorizationServerUrl,
+    'token_endpoint',
+  );
+  if (metadata.registrationEndpoint != null) {
+    _validateEndpointUrl(
+      metadata.registrationEndpoint!,
+      authorizationServerUrl,
+      'registration_endpoint',
+    );
+  }
+}
+
+void _validateEndpointUrl(
+  String endpoint,
+  Uri authorizationServerUrl,
+  String label,
+) {
+  final endpointUri = Uri.parse(endpoint);
+  if (endpointUri.origin != authorizationServerUrl.origin) {
+    throw StateError(
+      'Authorization server metadata $label origin '
+      '${endpointUri.origin} does not match authorization server '
+      '${authorizationServerUrl.origin}',
+    );
+  }
+}
+
 List<Uri> _buildDiscoveryUrls(Uri authServerUrl) {
   final hasPath = authServerUrl.path != '/';
   final origin = authServerUrl.origin;
@@ -599,6 +758,7 @@ List<Uri> _buildDiscoveryUrls(Uri authServerUrl) {
 
 Future<OAuthTokens> _executeTokenRequest(
   Uri authorizationServerUrl, {
+  required HttpClient httpClient,
   OAuthServerMetadata? metadata,
   required Map<String, String> params,
   OAuthClientInformation? clientInformation,
@@ -628,6 +788,7 @@ Future<OAuthTokens> _executeTokenRequest(
   }
 
   final response = await _httpPost(
+    httpClient,
     tokenUrl,
     headers: headers,
     body: _encodeFormParams(body),
@@ -697,24 +858,23 @@ Future<OAuthException> _parseErrorResponse(HttpClientResponse response) async {
 }
 
 // ---------------------------------------------------------------------------
-// HTTP helpers — thin wrappers around dart:io HttpClient
+// HTTP helpers
 // ---------------------------------------------------------------------------
 
-final _httpClient = HttpClient();
-
-Future<HttpClientResponse> _httpGet(Uri url) async {
-  final request = await _httpClient.getUrl(url);
+Future<HttpClientResponse> _httpGet(HttpClient client, Uri url) async {
+  final request = await client.getUrl(url);
   request.headers.set('accept', 'application/json');
-  return request.close();
+  return request.close().timeout(_requestTimeout);
 }
 
 Future<HttpClientResponse> _httpPost(
+  HttpClient client,
   Uri url, {
   ContentType? contentType,
   Map<String, String>? headers,
   String? body,
 }) async {
-  final request = await _httpClient.postUrl(url);
+  final request = await client.postUrl(url);
   if (contentType != null) {
     request.headers.contentType = contentType;
   }
@@ -724,11 +884,23 @@ Future<HttpClientResponse> _httpPost(
     }
   }
   if (body != null) request.write(body);
-  return request.close();
+  return request.close().timeout(_requestTimeout);
 }
 
-Future<String> _readResponseBody(HttpClientResponse response) {
-  return response.transform(utf8.decoder).join();
+Future<String> _readResponseBody(HttpClientResponse response) async {
+  var totalSize = 0;
+  final chunks = <String>[];
+  await for (final chunk in response.transform(utf8.decoder)) {
+    totalSize += chunk.length;
+    if (totalSize > _maxResponseBodySize) {
+      throw StateError(
+        'OAuth response body exceeds '
+        '${_maxResponseBodySize ~/ 1024} KB limit',
+      );
+    }
+    chunks.add(chunk);
+  }
+  return chunks.join();
 }
 
 Future<void> _drain(HttpClientResponse response) {

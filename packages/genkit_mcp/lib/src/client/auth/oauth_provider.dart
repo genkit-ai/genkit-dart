@@ -102,4 +102,29 @@ abstract class OAuthClientProvider {
   /// When non-null, overrides the default RFC 8707 resource indicator
   /// selection and validation.
   OAuthResourceURLValidator? get resourceURLValidator => null;
+
+  /// Validates whether a discovered authorization server URL is trusted.
+  ///
+  /// Called before the client connects to [authorizationServerUrl] for
+  /// metadata discovery, registration, or token requests.  The default
+  /// implementation only allows same-origin servers.  Override to permit
+  /// cross-origin authorization servers or implement an allow-list.
+  Future<bool> isAuthorizationServerUrlAllowed(
+    Uri mcpServerUrl,
+    Uri authorizationServerUrl,
+  ) async {
+    return mcpServerUrl.origin == authorizationServerUrl.origin;
+  }
+
+  /// Saves the OAuth `state` parameter for CSRF verification.
+  ///
+  /// Called before redirecting the user to the authorization server.
+  /// Override to persist the state so [savedState] can return it later.
+  Future<void> saveState(String state) async {}
+
+  /// Loads the previously saved OAuth `state` parameter.
+  ///
+  /// Used by the transport to verify the `state` returned by the
+  /// authorization server callback, preventing CSRF attacks.
+  Future<String?> savedState() async => null;
 }

@@ -73,17 +73,28 @@ class StreamableHttpClientTransport implements McpClientTransport {
   /// Completes an OAuth authorization code exchange.
   ///
   /// Call this after the user has been redirected back from the authorization
-  /// server with an authorization code.
-  Future<void> finishAuth(String authorizationCode) async {
+  /// server with an authorization code.  Pass [state] to verify the CSRF
+  /// `state` parameter returned by the authorization server callback.
+  Future<void> finishAuth(String authorizationCode, {String? state}) async {
     if (authProvider == null) {
       throw const UnauthorizedError('No auth provider configured');
     }
+
+    // Verify CSRF state parameter.
+    final expectedState = await authProvider!.savedState();
+    if (expectedState != null && state != expectedState) {
+      throw const UnauthorizedError(
+        'OAuth state parameter mismatch (possible CSRF attack)',
+      );
+    }
+
     final result = await auth(
       authProvider!,
       serverUrl: url,
       authorizationCode: authorizationCode,
       resourceMetadataUrl: _resourceMetadataUrl,
       scope: _scope,
+      httpClient: _client,
     );
     if (result != AuthResult.authorized) {
       throw const UnauthorizedError('Failed to authorize');
@@ -117,6 +128,7 @@ class StreamableHttpClientTransport implements McpClientTransport {
         serverUrl: url,
         resourceMetadataUrl: _resourceMetadataUrl,
         scope: _scope,
+        httpClient: _client,
       );
       if (result != AuthResult.authorized) {
         throw const UnauthorizedError();
@@ -142,6 +154,7 @@ class StreamableHttpClientTransport implements McpClientTransport {
           serverUrl: url,
           resourceMetadataUrl: _resourceMetadataUrl,
           scope: _scope,
+          httpClient: _client,
         );
         if (result != AuthResult.authorized) {
           throw const UnauthorizedError();
@@ -220,7 +233,12 @@ class StreamableHttpClientTransport implements McpClientTransport {
     if (response.statusCode == HttpStatus.unauthorized &&
         authProvider != null) {
       await _drain(response);
-      final result = await auth(authProvider!, serverUrl: url, scope: _scope);
+      final result = await auth(
+        authProvider!,
+        serverUrl: url,
+        scope: _scope,
+        httpClient: _client,
+      );
       if (result != AuthResult.authorized) {
         throw const UnauthorizedError();
       }

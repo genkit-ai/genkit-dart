@@ -60,6 +60,7 @@ flowchart LR
   - Tasks (`tasks/*`) and progress notifications
 - **As an MCP client** (`GenkitMcpClient` / `GenkitMcpHost`)
   - Connect over stdio or Streamable HTTP
+  - OAuth 2.1 authorization for protected Streamable HTTP servers
   - Discover and call tools, prompts, and resources from remote servers
   - Handle server-initiated requests for roots (`roots/list`)
   - Optional handlers for sampling (`sampling/createMessage`) and elicitation (`elicitation/create`)
@@ -175,10 +176,197 @@ final tools = await client.getActiveTools(ai);
   - **`command`** + **`args`**: Launch a local server process via stdio transport.
   - **`url`**: Connect to a remote server via Streamable HTTP transport.
   - **`transport`**: Provide a custom `McpClientTransport` instance.
+  - **`authProvider`**: (optional) An `OAuthClientProvider` for OAuth 2.1 authorization (Streamable HTTP only). See [Authentication](#authentication-oauth-21).
 - **`samplingHandler`**: (optional) Handler for server-initiated sampling requests.
 - **`elicitationHandler`**: (optional) Handler for server-initiated elicitation requests.
 - **`notificationHandler`**: (optional) Handler for server notifications.
 - **`cacheTtlMillis`**: (optional, `McpClientOptionsWithCache` only) Cache TTL in milliseconds for the registry plugin.
+
+---
+
+## Authentication (OAuth 2.1)
+
+When connecting to a protected MCP server over Streamable HTTP, the client can perform OAuth 2.1 authorization automatically. The transport handles the entire flow — token injection, 401/403 retry, token refresh, and scope upgrades — so your application only needs to implement the `OAuthClientProvider` interface.
+
+### How it works
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as MCP Server
+    participant A as Auth Server
+
+    C->>M: POST /mcp (initialize)
+    M-->>C: 401 Unauthorized + WWW-Authenticate
+
+    C->>M: GET /.well-known/oauth-protected-resource
+    M-->>C: Resource Metadata (authorization_servers)
+
+    C->>A: GET /.well-known/oauth-authorization-server
+    A-->>C: AS Metadata (endpoints)
+
+    C->>A: POST /register
+    A-->>C: Client credentials
+
+    C->>A: POST /token
+    A-->>C: Access token
+
+    C->>M: POST /mcp (Bearer token)
+    M-->>C: 200 OK (tools/list)
+```
+
+1. The client sends a request to the MCP server.
+2. The server responds with **401 Unauthorized** and a `WWW-Authenticate: Bearer` header.
+3. The client discovers the authorization server (RFC 9728 / RFC 8414).
+4. If needed, the client dynamically registers itself (RFC 7591).
+5. The client obtains tokens (via `client_credentials`, `authorization_code` with PKCE, etc.).
+6. The client retries the original request with the Bearer token.
+
+### Implementing `OAuthClientProvider`
+
+You provide an `OAuthClientProvider` that manages credentials, tokens, and (for interactive flows) user redirection.
+
+#### Non-interactive flow (e.g. `client_credentials`)
+
+For server-to-server communication where no user interaction is needed:
+
+```dart
+import 'package:genkit_mcp/genkit_mcp.dart';
+
+class MyServiceAccountProvider extends OAuthClientProvider {
+  OAuthClientInformation? _clientInfo;
+  OAuthTokens? _tokens;
+
+  @override
+  Uri? get redirectUrl => null; // No redirect — non-interactive.
+
+  @override
+  OAuthClientMetadata get clientMetadata => const OAuthClientMetadata(
+    redirectUris: [],
+    grantTypes: ['client_credentials'],
+    clientName: 'my-backend-service',
+  );
+
+  @override
+  Future<Map<String, String>?> prepareTokenRequest(String? scope) async {
+    final params = {'grant_type': 'client_credentials'};
+    if (scope != null) params['scope'] = scope;
+    return params;
+  }
+
+  @override
+  Future<OAuthClientInformation?> clientInformation() async => _clientInfo;
+
+  @override
+  Future<void> saveClientInformation(OAuthClientInformation info) async {
+    _clientInfo = info;
+  }
+
+  @override
+  Future<OAuthTokens?> tokens() async => _tokens;
+
+  @override
+  Future<void> saveTokens(OAuthTokens tokens) async {
+    _tokens = tokens;
+  }
+
+  @override
+  Future<void> redirectToAuthorization(Uri url) async {
+    throw UnsupportedError('Non-interactive flow');
+  }
+
+  @override
+  Future<void> saveCodeVerifier(String v) async {}
+
+  @override
+  Future<String> codeVerifier() async => '';
+}
+```
+
+Usage:
+
+```dart
+final client = createMcpClient(McpClientOptions(
+  name: 'my-service',
+  mcpServer: McpServerConfig(
+    url: Uri.parse('https://mcp.example.com/mcp'),
+    authProvider: MyServiceAccountProvider(),
+  ),
+));
+await client.ready(); // Handles 401 → discovery → registration → token → retry
+```
+
+#### Interactive flow (e.g. `authorization_code` + PKCE)
+
+For applications where a user must authorize via a browser:
+
+```dart
+class MyBrowserAuthProvider extends OAuthClientProvider {
+  OAuthClientInformation? _clientInfo;
+  OAuthTokens? _tokens;
+  String? _codeVerifier;
+  String? _state;
+
+  @override
+  Uri? get redirectUrl => Uri.parse('http://localhost:8080/callback');
+
+  @override
+  OAuthClientMetadata get clientMetadata => const OAuthClientMetadata(
+    redirectUris: ['http://localhost:8080/callback'],
+    grantTypes: ['authorization_code'],
+    responseTypes: ['code'],
+    clientName: 'my-app',
+  );
+
+  @override
+  Future<String?> state() async {
+    // Generate a random state for CSRF protection.
+    return DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+  }
+
+  @override
+  Future<void> saveState(String state) async { _state = state; }
+
+  @override
+  Future<String?> savedState() async => _state;
+
+  @override
+  Future<void> redirectToAuthorization(Uri url) async {
+    // Open the URL in the user's browser.
+    print('Open this URL to authorize: $url');
+  }
+
+  @override
+  Future<void> saveCodeVerifier(String v) async { _codeVerifier = v; }
+
+  @override
+  Future<String> codeVerifier() async => _codeVerifier!;
+
+  // ... clientInformation, tokens, saveTokens, saveClientInformation ...
+}
+```
+
+After the user completes authorization and is redirected back, call `finishAuth` on the transport:
+
+```dart
+final transport = await StreamableHttpClientTransport.connect(
+  url: Uri.parse('https://mcp.example.com/mcp'),
+  authProvider: MyBrowserAuthProvider(),
+);
+
+// ... user completes auth in browser, callback receives code and state ...
+
+await transport.finishAuth(authorizationCode, state: returnedState);
+```
+
+### Security
+
+The OAuth implementation includes the following protections:
+
+- **SSRF defence**: Discovered URLs (resource metadata, token endpoint, registration endpoint) are validated to share the same origin as the MCP server. Override `isAuthorizationServerUrlAllowed()` on your provider to allow cross-origin authorization servers if needed.
+- **CSRF protection**: The `state` parameter is saved before authorization and verified on callback via `finishAuth(code, state: ...)`. Implement `state()`, `saveState()`, and `savedState()` on your provider to enable this.
+- **PKCE**: All authorization code flows use Proof Key for Code Exchange (S256) to prevent authorization code interception.
+- **DoS protection**: OAuth HTTP requests enforce a 30-second timeout and a 1 MB response body size limit.
 
 ---
 

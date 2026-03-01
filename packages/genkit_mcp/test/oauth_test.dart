@@ -16,6 +16,33 @@ import 'package:genkit_mcp/genkit_mcp.dart';
 import 'package:genkit_mcp/src/client/auth/pkce.dart';
 import 'package:test/test.dart';
 
+class _MinimalProvider extends OAuthClientProvider {
+  @override
+  Uri? get redirectUrl => null;
+
+  @override
+  OAuthClientMetadata get clientMetadata =>
+      const OAuthClientMetadata(redirectUris: []);
+
+  @override
+  Future<OAuthClientInformation?> clientInformation() async => null;
+
+  @override
+  Future<OAuthTokens?> tokens() async => null;
+
+  @override
+  Future<void> saveTokens(OAuthTokens tokens) async {}
+
+  @override
+  Future<void> redirectToAuthorization(Uri url) async {}
+
+  @override
+  Future<void> saveCodeVerifier(String v) async {}
+
+  @override
+  Future<String> codeVerifier() async => '';
+}
+
 void main() {
   group('PkceChallenge', () {
     test('generates verifier and challenge with correct length', () {
@@ -351,6 +378,54 @@ void main() {
       expect(json['client_name'], 'My App');
       expect(json['scope'], 'read write');
       expect(json.containsKey('software_id'), isFalse);
+    });
+  });
+
+  group('isAuthorizationServerUrlAllowed (default)', () {
+    late _MinimalProvider provider;
+
+    setUp(() {
+      provider = _MinimalProvider();
+    });
+
+    test('allows same origin', () async {
+      expect(
+        await provider.isAuthorizationServerUrlAllowed(
+          Uri.parse('https://api.example.com/mcp'),
+          Uri.parse('https://api.example.com/oauth'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects cross-origin host', () async {
+      expect(
+        await provider.isAuthorizationServerUrlAllowed(
+          Uri.parse('https://api.example.com/mcp'),
+          Uri.parse('https://evil.example.com/oauth'),
+        ),
+        isFalse,
+      );
+    });
+
+    test('rejects different port', () async {
+      expect(
+        await provider.isAuthorizationServerUrlAllowed(
+          Uri.parse('https://api.example.com/mcp'),
+          Uri.parse('https://api.example.com:8443/oauth'),
+        ),
+        isFalse,
+      );
+    });
+
+    test('rejects different scheme', () async {
+      expect(
+        await provider.isAuthorizationServerUrlAllowed(
+          Uri.parse('https://api.example.com/mcp'),
+          Uri.parse('http://api.example.com/oauth'),
+        ),
+        isFalse,
+      );
     });
   });
 }

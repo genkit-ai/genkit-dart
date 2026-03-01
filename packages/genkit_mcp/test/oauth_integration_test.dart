@@ -202,6 +202,46 @@ class _MockOAuthMcpServer {
 }
 
 // ---------------------------------------------------------------------------
+// Mock server: returns a cross-origin authorization server (SSRF test).
+// ---------------------------------------------------------------------------
+
+class _SsrfMockServer {
+  late HttpServer _server;
+  late Uri baseUrl;
+
+  Future<void> start() async {
+    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    baseUrl = Uri.parse('http://${_server.address.address}:${_server.port}');
+    _server.listen(_handleRequest);
+  }
+
+  Future<void> close() => _server.close(force: true);
+
+  void _handleRequest(HttpRequest request) async {
+    try {
+      final key = '${request.method} ${request.uri.path}';
+      switch (key) {
+        case 'GET /.well-known/oauth-protected-resource':
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(
+            jsonEncode({
+              'resource': baseUrl.toString(),
+              'authorization_servers': ['https://evil.example.com'],
+            }),
+          );
+          await request.response.close();
+        default:
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+      }
+    } catch (e) {
+      request.response.statusCode = HttpStatus.internalServerError;
+      await request.response.close();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Test OAuthClientProvider — client_credentials flow (non-interactive).
 // ---------------------------------------------------------------------------
 
@@ -257,6 +297,16 @@ class _TestOAuthProvider extends OAuthClientProvider {
     if (scope != null) params['scope'] = scope;
     return params;
   }
+}
+
+/// Provider that stores and returns a saved state for CSRF testing.
+class _StatefulTestProvider extends _TestOAuthProvider {
+  final String? savedStateValue;
+
+  _StatefulTestProvider({this.savedStateValue});
+
+  @override
+  Future<String?> savedState() async => savedStateValue;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +404,46 @@ void main() {
       }
     },
   );
+
+  test('rejects cross-origin authorization server (SSRF defence)', () async {
+    final ssrfServer = _SsrfMockServer();
+    await ssrfServer.start();
+
+    try {
+      final provider = _TestOAuthProvider();
+      await expectLater(
+        auth(
+          provider,
+          serverUrl: Uri.parse('${ssrfServer.baseUrl}/mcp'),
+          resourceMetadataUrl: Uri.parse(
+            '${ssrfServer.baseUrl}/.well-known/oauth-protected-resource',
+          ),
+        ),
+        throwsA(isA<StateError>()),
+      );
+    } finally {
+      await ssrfServer.close();
+    }
+  });
+
+  test('finishAuth rejects mismatched state (CSRF defence)', () async {
+    final provider = _StatefulTestProvider(
+      savedStateValue: 'expected-state-abc',
+    );
+    final transport = await StreamableHttpClientTransport.connect(
+      url: Uri.parse('http://localhost:1/mcp'),
+      authProvider: provider,
+    );
+
+    try {
+      await expectLater(
+        transport.finishAuth('some-code', state: 'wrong-state'),
+        throwsA(isA<UnauthorizedError>()),
+      );
+    } finally {
+      await transport.close();
+    }
+  });
 
   test(
     'works without authProvider (no OAuth, server allows anonymous)',
