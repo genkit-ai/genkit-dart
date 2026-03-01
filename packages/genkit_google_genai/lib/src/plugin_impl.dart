@@ -587,13 +587,13 @@ gcl.Part toGeminiPart(Part p) {
             'mimeType': media.contentType ?? uri.data!.mimeType,
             'data': base64Encode(uri.data!.contentAsBytes()),
           },
-          if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
+          'thoughtSignature': ?thoughtSignature,
         });
       }
     }
     return gcl.Part.fromJson({
       'fileData': {'mimeType': media.contentType ?? '', 'fileUri': media.url},
-      if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
+      'thoughtSignature': ?thoughtSignature,
     });
   }
   if (p.isCustom && p.custom!['codeExecutionResult'] != null) {
@@ -715,7 +715,7 @@ http.Client httpClientFromApiKey(String? apiKey) {
   var headers = {
     'x-goog-api-client':
         'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
-    if (apiKey != null) 'x-goog-api-key': apiKey,
+    'x-goog-api-key': ?apiKey,
   };
   if (apiKey == null) {
     throw GenkitException(
