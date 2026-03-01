@@ -162,14 +162,14 @@ class OpenAIPlugin extends GenkitPlugin {
 
     // GPT-N pattern: matches gpt-3, gpt-4, gpt-5, gpt-6, etc.
     // Also matches variants like gpt-4o, gpt-4-turbo, gpt-3.5-turbo
-    final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?(o)?(-|$)');
+    final gptPattern = RegExp(r'^gpt-\d+(?:\.\d+)?o?(?:-|$)');
     if (gptPattern.hasMatch(id)) {
       return 'chat';
     }
 
     // O-series reasoning models: o1, o2, o3, o4, o5, etc.
     // Matches: o1, o1-preview, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(-|$)');
+    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
     if (oSeriesPattern.hasMatch(id)) {
       return 'chat';
     }
@@ -221,7 +221,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
     // O-series reasoning models (o1, o2, o3, o4, etc.) have different capabilities
     // Matches: o1, o1-preview, o2, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(-|$)');
+    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
     if (oSeriesPattern.hasMatch(id)) {
       return oSeriesModelInfo(modelId);
     }

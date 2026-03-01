@@ -77,7 +77,7 @@ bool supportsTools(String model) {
   }
 
   // Standard GPT models support tools
-  final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?(o)?(-|$)');
+  final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
   if (gptPattern.hasMatch(id)) {
     return true;
   }
@@ -109,13 +109,13 @@ bool supportsVision(String model) {
 
   // Future GPT models with "o" suffix: gpt-5o, gpt-6o, gpt-10o, etc.
   // Pattern matches: gpt-5o, gpt-5.1o, gpt-10o, etc.
-  final gptOPattern = RegExp(r'gpt-\d+(\.\d+)?o');
+  final gptOPattern = RegExp(r'gpt-\d+(?:\.\d+)?o');
   if (gptOPattern.hasMatch(id)) {
     return true;
   }
 
   // O-series reasoning models (o1, o2, o3, etc.) support vision
-  final oSeriesPattern = RegExp(r'^o\d+(-|$)');
+  final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
   if (oSeriesPattern.hasMatch(id)) {
     return true;
   }
