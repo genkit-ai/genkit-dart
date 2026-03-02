@@ -74,20 +74,17 @@ class SkillsMiddleware extends GenerateMiddleware {
 
   Map<String, String>? _parseFrontmatter(String content) {
     // Matches YAML frontmatter between --- lines at the start of the file
-    final match = RegExp(
-      r'^---\n([\s\S]*?)\n---',
-      multiLine: true,
-    ).firstMatch(content);
+    final match = RegExp(r'^---\n([^]*?)\n---').firstMatch(content);
     if (match == null) return null;
 
-    final yaml = match.group(1)!;
+    final yaml = match[1]!;
     final nameMatch = RegExp(r'name:\s*(.+)').firstMatch(yaml);
     final descriptionMatch = RegExp(r'description:\s*(.+)').firstMatch(yaml);
 
     return {
-      if (nameMatch != null) 'name': nameMatch.group(1)!.trim(),
+      if (nameMatch != null) 'name': nameMatch[1]!.trimRight(),
       if (descriptionMatch != null)
-        'description': descriptionMatch.group(1)!.trim(),
+        'description': descriptionMatch[1]!.trimRight(),
     };
   }
 

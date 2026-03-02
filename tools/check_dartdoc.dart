@@ -166,9 +166,9 @@ Future<bool> _checkPackage(String name, String location) async {
     } else if (inWarningBlock && trimmed.startsWith('from ')) {
       final match = locationRegex.firstMatch(trimmed);
       if (match != null) {
-        final filePath = p.relative(match.group(1)!);
-        final lineNum = int.tryParse(match.group(2) ?? '');
-        final colNum = int.tryParse(match.group(3) ?? '');
+        final filePath = p.relative(match[1]!);
+        final lineNum = int.tryParse(match[2] ?? '');
+        final colNum = int.tryParse(match[3] ?? '');
 
         _print(
           '[$name] ${currentWarningMessage ?? 'warning'}',
@@ -197,10 +197,9 @@ Future<bool> _checkPackage(String name, String location) async {
         currentWarningMessage = null;
       }
 
-      final match = summaryRegex.firstMatch(line);
-      if (match != null) {
-        final warnings = int.parse(match.group(1)!);
-        final errors = int.parse(match.group(2)!);
+      if (summaryRegex.firstMatch(line) case final match?) {
+        final warnings = int.parse(match[1]!);
+        final errors = int.parse(match[2]!);
         if (warnings > 0 || errors > 0) {
           hasWarning = true;
           packageHadIssues = true;
