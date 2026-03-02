@@ -637,7 +637,11 @@ gcl.ToolConfig? toGeminiToolConfig(
   return gcl.ToolConfig(
     functionCallingConfig: gcl.FunctionCallingConfig(
       mode: functionCallingConfig.mode ?? 'MODE_UNSPECIFIED',
-      allowedFunctionNames: functionCallingConfig.allowedFunctionNames ?? [],
+      allowedFunctionNames:
+          functionCallingConfig.allowedFunctionNames
+              ?.map(_toGeminiToolName)
+              .toList() ??
+          [],
     ),
   );
 }
@@ -685,7 +689,7 @@ gcl.Part toGeminiPart(Part p) {
     return gcl.Part(
       functionCall: gcl.FunctionCall(
         id: p.toolRequest!.ref ?? '',
-        name: p.toolRequest!.name,
+        name: _toGeminiToolName(p.toolRequest!.name),
         args: p.toolRequest!.input, // already a map
       ),
       thoughtSignature: thoughtSignature,
@@ -695,7 +699,7 @@ gcl.Part toGeminiPart(Part p) {
     return gcl.Part(
       functionResponse: gcl.FunctionResponse(
         id: p.toolResponse!.ref ?? '',
-        name: p.toolResponse!.name,
+        name: _toGeminiToolName(p.toolResponse!.name),
         response: {'output': p.toolResponse!.output},
       ),
       thoughtSignature: thoughtSignature,
@@ -767,7 +771,7 @@ Part fromGeminiPart(gcl.Part p) {
     return ToolRequestPart(
       toolRequest: ToolRequest(
         ref: p.functionCall!.id == '' ? null : p.functionCall!.id,
-        name: p.functionCall!.name ?? '',
+        name: _fromGeminiToolName(p.functionCall!.name ?? ''),
         input: p.functionCall!.args,
       ),
       metadata: metadata,
@@ -808,11 +812,15 @@ Part fromGeminiPart(gcl.Part p) {
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
 
+String _toGeminiToolName(String name) => name.replaceAll('/', '__');
+
+String _fromGeminiToolName(String name) => name.replaceAll('__', '/');
+
 gcl.Tool _toGeminiTool(ToolDefinition tool) {
   return gcl.Tool(
     functionDeclarations: [
       gcl.FunctionDeclaration(
-        name: tool.name,
+        name: _toGeminiToolName(tool.name),
         description: tool.description,
         parametersJsonSchema: tool.inputSchema,
       ),

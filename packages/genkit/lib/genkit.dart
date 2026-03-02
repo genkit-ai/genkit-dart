@@ -50,6 +50,7 @@ export 'src/ai/resource.dart'
         createResourceMatcher;
 export 'src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
 export 'src/core/action.dart' show Action, ActionFnArg, ActionMetadata;
+export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
 export 'src/exception.dart' show GenkitException, StatusCodes;
 export 'src/genkit_class.dart';

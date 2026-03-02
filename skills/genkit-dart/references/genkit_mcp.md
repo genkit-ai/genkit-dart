@@ -2,8 +2,8 @@
 
 MCP (Model Context Protocol) integration for Genkit Dart.
 
-## MCP Client (Single Server)
-Connect to an MCP server and register its tools, prompts, and resources.
+## MCP Host (Recommended)
+Connect to one or more MCP servers and aggregate their capabilities into the Genkit registry automatically.
 
 ```dart
 import 'package:genkit/genkit.dart';
@@ -12,9 +12,47 @@ import 'package:genkit_mcp/genkit_mcp.dart';
 void main() async {
   final ai = Genkit();
 
-  final client = defineMcpClient(
+  final host = defineMcpHost(
     ai,
-    McpClientOptionsWithCache(
+    McpHostOptionsWithCache(
+      name: 'my-host',
+      mcpServers: {
+        'fs': McpServerConfig(
+          command: 'npx',
+          args: ['-y', '@modelcontextprotocol/server-filesystem', '.'],
+        ),
+      },
+    ),
+  );
+
+  // Tools can be discovered and executed dynamically using a wildcard...
+  final response = await ai.generate(
+    model: 'gemini-2.5-flash',
+    prompt: 'Summarize the contents of README.md',
+    toolNames: ['my-host:tool/fs/*'],
+  );
+  
+  // ...or by specifying the exact tool name
+  final exactResponse = await ai.generate(
+    model: 'gemini-2.5-flash',
+    prompt: 'Read README.md',
+    toolNames: ['my-host:tool/fs/read_file'],
+  );
+}
+```
+
+## MCP Client (Advanced / Single Server)
+Connecting to a single MCP server with a client object is an advanced usecase for when you need manual control over the client lifecycle. Standalone clients do not automatically register tools into the registry, so they must be passed into `generate` or `defineDynamicActionProvider` manually.
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_mcp/genkit_mcp.dart';
+
+void main() async {
+  final ai = Genkit();
+
+  final client = createMcpClient(
+    McpClientOptions(
       name: 'my-client',
       mcpServer: McpServerConfig(
         command: 'npx',
@@ -22,33 +60,18 @@ void main() async {
       ),
     ),
   );
+  
   await client.ready();
 
-  // Tools are automatically available through the registry.
+  // Retrieve the tools from the connected client
   final tools = await client.getActiveTools(ai);
+  
+  final response = await ai.generate(
+    model: 'gemini-2.5-flash',
+    prompt: 'Read the contents of README.md',
+    tools: tools,
+  );
 }
-```
-
-## MCP Host (Multiple Servers)
-Connect to multiple MCP servers and aggregate their capabilities.
-
-```dart
-final host = defineMcpHost(
-  ai,
-  McpHostOptionsWithCache(
-    name: 'my-host',
-    mcpServers: {
-      'fs': McpServerConfig(
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-filesystem', '.'],
-      ),
-      'memory': McpServerConfig(
-        command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-memory'],
-      ),
-    },
-  ),
-);
 ```
 
 ## MCP Server
