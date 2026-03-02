@@ -395,7 +395,7 @@ final class Genkit {
     List<String>? toolNames,
     String? system,
   }) async {
-    final resolved = await _resolveTools(
+    final resolved = _resolveTools(
       registry,
       tools: tools,
       toolNames: toolNames,
@@ -412,43 +412,29 @@ final class Genkit {
   /// The tool resolution logic.
   ///
   /// Returns a new registry with embedded tools if necessary.
-  Future<({Registry registry, List<String>? toolNames})> _resolveTools(
+  ({Registry registry, List<String>? toolNames}) _resolveTools(
     Registry registry, {
     List<Tool>? tools,
     List<String>? toolNames,
-  }) async {
+  }) {
     if ((tools == null || tools.isEmpty) &&
         (toolNames == null || toolNames.isEmpty)) {
       return (registry: registry, toolNames: null);
     }
 
-    final resolvedToolNames = <String>[];
-    var childRegistry = registry;
+    final resolvedToolNames = <String>[...?toolNames];
 
-    void registerAction(Action action) {
-      if (childRegistry == registry) {
-        childRegistry = Registry.childOf(registry);
-      }
-      childRegistry.register(action);
-      if (!resolvedToolNames.contains(action.name)) {
-        resolvedToolNames.add(action.name);
-      }
+    if (tools == null || tools.isEmpty) {
+      return (registry: registry, toolNames: resolvedToolNames);
     }
 
-    if (tools != null && tools.isNotEmpty) {
-      for (final tool in tools) {
-        registerAction(tool);
+    final childRegistry = Registry.childOf(registry);
+    for (final tool in tools) {
+      childRegistry.register(tool);
+      if (!resolvedToolNames.contains(tool.name)) {
+        resolvedToolNames.add(tool.name);
       }
     }
-
-    if (toolNames != null) {
-      for (final name in toolNames) {
-        if (!resolvedToolNames.contains(name)) {
-          resolvedToolNames.add(name);
-        }
-      }
-    }
-
     return (registry: childRegistry, toolNames: resolvedToolNames);
   }
 
@@ -517,7 +503,7 @@ final class Genkit {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = await _resolveTools(
+    final resolved = _resolveTools(
       registry,
       tools: tools,
       toolNames: toolNames,
