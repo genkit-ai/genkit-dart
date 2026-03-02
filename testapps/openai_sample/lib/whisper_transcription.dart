@@ -135,7 +135,8 @@ Flow<String, String, void, void> defineWhisperVideoTranscriptionFlow(
             role: Role.user,
             content: [
               TextPart(
-                text: 'Transcribe the audio in this MP4 file. Return only the transcript text.',
+                text:
+                    'Transcribe the audio in this MP4 file. Return only the transcript text.',
               ),
               MediaPart(
                 media: Media(url: dataUrl, contentType: mimeType),
