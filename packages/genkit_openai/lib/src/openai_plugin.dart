@@ -517,11 +517,18 @@ class OpenAIPlugin extends GenkitPlugin {
         if (media == null) continue;
 
         final contentType = media.contentType?.toLowerCase();
-        final isAudioDataUrl = media.url.toLowerCase().startsWith(
-          'data:audio/',
-        );
-        if (isAudioDataUrl ||
-            (contentType != null && contentType.startsWith('audio/'))) {
+        final normalizedUrl = media.url.toLowerCase();
+        final isTranscriptionDataUrl =
+            normalizedUrl.startsWith('data:audio/') ||
+            normalizedUrl.startsWith('data:video/') ||
+            normalizedUrl.startsWith('data:application/ogg;');
+        final isTranscriptionContentType =
+            contentType != null &&
+            (contentType.startsWith('audio/') ||
+                contentType == 'video/mp4' ||
+                contentType == 'video/webm' ||
+                contentType == 'application/ogg');
+        if (isTranscriptionDataUrl || isTranscriptionContentType) {
           return media;
         }
       }
@@ -534,7 +541,7 @@ class OpenAIPlugin extends GenkitPlugin {
   ) {
     final url = media.url.trim();
     final match = RegExp(
-      r'^data:(audio\/[^;]+);base64,',
+      r'^data:((?:audio|video)\/[^;]+|application\/ogg);base64,',
       caseSensitive: false,
     ).firstMatch(url);
 
@@ -548,8 +555,15 @@ class OpenAIPlugin extends GenkitPlugin {
     final encodedAudio = url.substring(match.end);
     final bytes = base64Decode(encodedAudio);
     final filename = switch (contentType) {
+      'audio/flac' || 'audio/x-flac' => 'audio.flac',
+      'audio/mp4' || 'video/mp4' => 'audio.mp4',
+      'audio/mpeg' => 'audio.mpeg',
+      'audio/mpga' || 'audio/x-mpga' => 'audio.mpga',
+      'audio/m4a' || 'audio/x-m4a' => 'audio.m4a',
+      'audio/ogg' || 'application/ogg' => 'audio.ogg',
       'audio/wav' || 'audio/x-wav' || 'audio/wave' => 'audio.wav',
-      'audio/mp3' || 'audio/mpeg' || 'audio/x-mp3' => 'audio.mp3',
+      'audio/mp3' || 'audio/x-mp3' => 'audio.mp3',
+      'audio/webm' || 'video/webm' => 'audio.webm',
       _ => 'audio.bin',
     };
 
