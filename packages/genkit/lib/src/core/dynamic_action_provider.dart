@@ -16,7 +16,7 @@ import 'dart:async';
 
 import 'action.dart';
 
-class DynamicActionProvider<Input, Output, Chunk, Init>
+class DynamicActionProvider
     extends Action<void, Map<String, Object?>, void, void> {
   final FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn;
   final FutureOr<Action?> Function(String)? getActionFn;
@@ -43,11 +43,6 @@ class DynamicActionProvider<Input, Output, Chunk, Init>
   Future<Action?> getAction(String name) async {
     if (getActionFn != null) {
       return await getActionFn!(name);
-    }
-    if (listActionsFn != null) {
-      final actions = await listActionsFn!();
-      return actions.where((action) => action.name == name).firstOrNull
-          as Action?;
     }
     return null;
   }
