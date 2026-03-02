@@ -321,10 +321,9 @@ void main() {
     await client.ready();
 
     // Plugin should expose actions through the registry.
-    final dap = await ai.registry.lookupAction(
-      'dynamic-action-provider',
-      'my-server',
-    ) as DynamicActionProvider;
+    final dap =
+        await ai.registry.lookupAction('dynamic-action-provider', 'my-server')
+            as DynamicActionProvider;
     expect(dap, isNotNull);
 
     final actions = await dap.listActions();
@@ -436,6 +435,4 @@ void main() {
     );
     expect(elicitationResponse['result'], isA<Map>());
   });
-
-
 }

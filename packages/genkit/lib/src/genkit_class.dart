@@ -441,20 +441,24 @@ final class Genkit {
         if (colonIdx != -1) {
           final dapName = name.substring(0, colonIdx);
           final actionMatcher = name.substring(colonIdx + 1);
-          final dap = await registry.lookupAction(
-            'dynamic-action-provider',
-            dapName,
-          ) as DynamicActionProvider?;
-          
+          final dap =
+              await registry.lookupAction('dynamic-action-provider', dapName)
+                  as DynamicActionProvider?;
+
           if (dap != null) {
             if (actionMatcher.endsWith('/*')) {
-              final prefix = actionMatcher.substring(0, actionMatcher.length - 2);
+              final prefix = actionMatcher.substring(
+                0,
+                actionMatcher.length - 2,
+              );
               final actions = await dap.listActions();
               for (final action in actions) {
-                if (action.actionType == 'tool' && (prefix.isEmpty || action.name.startsWith(prefix))) {
+                if (action.actionType == 'tool' &&
+                    (prefix.isEmpty || action.name.startsWith(prefix))) {
                   final fullAction = await dap.getAction(action.name);
                   if (fullAction != null) {
-                    if (childRegistry == registry) childRegistry = Registry.childOf(registry);
+                    if (childRegistry == registry)
+                      childRegistry = Registry.childOf(registry);
                     childRegistry.register(fullAction);
                     if (!resolvedToolNames.contains(fullAction.name)) {
                       resolvedToolNames.add(fullAction.name);
@@ -465,7 +469,8 @@ final class Genkit {
             } else {
               final fullAction = await dap.getAction(actionMatcher);
               if (fullAction != null && fullAction.actionType == 'tool') {
-                if (childRegistry == registry) childRegistry = Registry.childOf(registry);
+                if (childRegistry == registry)
+                  childRegistry = Registry.childOf(registry);
                 childRegistry.register(fullAction);
                 if (!resolvedToolNames.contains(fullAction.name)) {
                   resolvedToolNames.add(fullAction.name);

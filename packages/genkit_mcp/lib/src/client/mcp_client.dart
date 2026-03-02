@@ -91,6 +91,7 @@ class McpClientOptions {
   final McpSamplingHandler? samplingHandler;
   final McpElicitationHandler? elicitationHandler;
   final McpNotificationHandler? notificationHandler;
+
   /// Cache TTL for the registry plugin/DAP.
   final int? cacheTtlMillis;
 
@@ -106,8 +107,6 @@ class McpClientOptions {
     this.cacheTtlMillis,
   });
 }
-
-
 
 /// A client connection to a single MCP server.
 ///
@@ -1172,7 +1171,8 @@ class GenkitMcpClient {
     _McpClientActionDescriptor descriptor,
   ) {
     final srvName = serverName;
-    final fullName = '${srvName}_tool_${descriptor.actionName}'; // Only for registry uniqueness if needed, but we output DAP specific names
+    final fullName =
+        '${srvName}_tool_${descriptor.actionName}'; // Only for registry uniqueness if needed, but we output DAP specific names
     final tool = descriptor.payload;
     final description = tool['description']?.toString() ?? '';
     final meta = extractMcpMeta(tool);

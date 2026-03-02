@@ -281,10 +281,9 @@ void main() {
     expect(names, ['serverA/tool1', 'serverB/tool2']);
 
     // Also verify registry integration.
-    final dap = await ai.registry.lookupAction(
-      'dynamic-action-provider',
-      'multi-host',
-    ) as DynamicActionProvider;
+    final dap =
+        await ai.registry.lookupAction('dynamic-action-provider', 'multi-host')
+            as DynamicActionProvider;
     final dapActions = await dap.listActions();
     final mcpNames =
         dapActions
@@ -311,10 +310,9 @@ void main() {
     );
     await host.getClient('server1')?.ready();
 
-    final dap = await ai.registry.lookupAction(
-      'dynamic-action-provider',
-      'mcp-host',
-    ) as DynamicActionProvider;
+    final dap =
+        await ai.registry.lookupAction('dynamic-action-provider', 'mcp-host')
+            as DynamicActionProvider;
     final actions = await dap.listActions();
     expect(
       actions.any((action) => action.name == 'tool/server1/testTool'),

@@ -401,14 +401,14 @@ class GenkitMcpHost {
     final actionType = nameParts[0];
     final serverName = nameParts[1];
     final shortName = nameParts.sublist(2).join('/');
-    
+
     final descriptorKey = _descriptorKey(actionType, '$serverName:$shortName');
     final descriptor = _actionIndex[descriptorKey];
     if (descriptor == null) return null;
     final client = getClient(descriptor.serverName);
     if (client == null) return null;
-    
-    final fullName = actionName; 
+
+    final fullName = actionName;
     switch (actionType) {
       case 'tool':
         return _createToolAction(
@@ -601,7 +601,6 @@ class GenkitMcpHost {
     return _clientStates[serverName]?.error != null;
   }
 }
-
 
 class _ClientState {
   final _ClientError? error;
