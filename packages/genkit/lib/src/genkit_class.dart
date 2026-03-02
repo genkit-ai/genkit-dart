@@ -457,8 +457,9 @@ final class Genkit {
                     (prefix.isEmpty || action.name.startsWith(prefix))) {
                   final fullAction = await dap.getAction(action.name);
                   if (fullAction != null) {
-                    if (childRegistry == registry)
+                    if (childRegistry == registry) {
                       childRegistry = Registry.childOf(registry);
+                    }
                     childRegistry.register(fullAction);
                     if (!resolvedToolNames.contains(fullAction.name)) {
                       resolvedToolNames.add(fullAction.name);
@@ -469,8 +470,9 @@ final class Genkit {
             } else {
               final fullAction = await dap.getAction(actionMatcher);
               if (fullAction != null && fullAction.actionType == 'tool') {
-                if (childRegistry == registry)
+                if (childRegistry == registry) {
                   childRegistry = Registry.childOf(registry);
+                }
                 childRegistry.register(fullAction);
                 if (!resolvedToolNames.contains(fullAction.name)) {
                   resolvedToolNames.add(fullAction.name);
