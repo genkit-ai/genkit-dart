@@ -13,6 +13,7 @@ workspace:
   - packages/genkit_mcp
   - packages/genkit_google_genai
   - packages/genkit_openai
+  - packages/genkit_deepseek
   - packages/genkit_anthropic
   - packages/genkit_shelf
   - packages/genkit_chrome
