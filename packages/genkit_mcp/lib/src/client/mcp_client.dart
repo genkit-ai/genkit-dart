@@ -564,7 +564,7 @@ class GenkitMcpClient {
     final args = asListOfMaps(prompt['arguments']);
     final inputSchema = promptSchemaFromArgs(args);
     return PromptAction<Map<String, dynamic>>(
-      name: name,
+      name: '$serverName/$name',
       description: description,
       inputSchema: inputSchema,
       metadata: {
@@ -1042,7 +1042,7 @@ class GenkitMcpClient {
     for (final tool in tools) {
       final toolName = tool['name'];
       if (toolName is! String) continue;
-      final fullName = toolName;
+      final fullName = '$serverName/$toolName';
       final meta = extractMcpMeta(tool);
       actions.add(
         ActionMetadata(
@@ -1069,7 +1069,7 @@ class GenkitMcpClient {
     for (final prompt in prompts) {
       final promptName = prompt['name'];
       if (promptName is! String) continue;
-      final fullName = promptName;
+      final fullName = '$serverName/$promptName';
       final meta = extractMcpMeta(prompt);
       final args = asListOfMaps(prompt['arguments']);
       actions.add(
@@ -1099,7 +1099,7 @@ class GenkitMcpClient {
       if (resourceName is! String) continue;
       final uri = resource['uri'] as String?;
       if (uri == null) continue;
-      final fullName = resourceName;
+      final fullName = '$serverName/$resourceName';
       final meta = extractMcpMeta(resource);
       actions.add(
         ActionMetadata(
@@ -1127,7 +1127,7 @@ class GenkitMcpClient {
       if (templateName is! String) continue;
       final uriTemplate = template['uriTemplate'] as String?;
       if (uriTemplate == null) continue;
-      final fullName = templateName;
+      final fullName = '$serverName/$templateName';
       final meta = extractMcpMeta(template);
       actions.add(
         ActionMetadata(

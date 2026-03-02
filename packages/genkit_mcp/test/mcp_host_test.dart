@@ -278,7 +278,7 @@ void main() {
 
     final tools = await host.getActiveTools(ai);
     final names = tools.map((t) => t.name).toList()..sort();
-    expect(names, ['serverA/tool1', 'serverB/tool2']);
+    expect(names.toSet(), equals({'serverA/tool1', 'serverB/tool2'}));
 
     // Also verify registry integration.
     final dap =
@@ -314,7 +314,8 @@ void main() {
         await ai.registry.lookupAction('dynamic-action-provider', 'mcp-host')
             as DynamicActionProvider;
     final actions = await dap.listActions();
-    expect(actions.any((action) => action.name == 'server1/testTool'), isTrue);
+    final hasTool = actions.any((action) => action.name == 'server1/testTool');
+    expect(hasTool, isTrue);
 
     final resolved = await dap.getAction('server1/testTool');
     expect(resolved, isNotNull);
