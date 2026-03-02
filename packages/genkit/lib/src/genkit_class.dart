@@ -394,7 +394,7 @@ final class Genkit {
     List<Tool>? tools,
     List<String>? toolNames,
     String? system,
-  }) async {
+  }) {
     final resolved = _resolveTools(
       registry,
       tools: tools,
