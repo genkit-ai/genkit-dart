@@ -440,6 +440,71 @@ void main() {
       );
 
       expect(response.text, 'The weather is sunny');
+      expect(response.text, 'The weather is sunny');
+    });
+
+    test('generate resolves DAP tools using tool/ wildcard', () async {
+      genkit.defineDynamicActionProvider(
+        name: 'my-dap',
+        listActionsFn: () => [
+          ActionMetadata(
+            actionType: 'tool',
+            name: 'my-dap/weatherTool',
+            description: 'get weather',
+            inputSchema: TestToolInput.$schema,
+            outputSchema: .dynamicSchema(),
+          ),
+        ],
+        getActionFn: (id) async {
+          if (id == 'my-dap/weatherTool') {
+            return Tool(
+              name: 'my-dap/weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+              fn: (input, context) async => 'sunny',
+            );
+          }
+          return null;
+        },
+      );
+
+      genkit.defineModel(
+        name: 'testModel',
+        fn: (request, context) async {
+          if (request.messages.last.role == Role.tool) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'The weather is sunny')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'my-dap/weatherTool',
+                    input: {'name': 'test'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await genkit.generate(
+        model: modelRef('testModel'),
+        prompt: 'What is the weather?',
+        toolNames: ['my-dap:tool/*'],
+      );
+
+      expect(response.text, 'The weather is sunny');
     });
   });
 }

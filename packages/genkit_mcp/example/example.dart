@@ -141,7 +141,9 @@ Future<void> main() async {
 
     final prompts = await client.getActivePrompts(clientAi);
     stdout.writeln('[client] prompts: ${prompts.map((p) => p.name).toList()}');
-    final prompt = prompts.firstWhere((p) => p.name == 'example-client/echoPrompt');
+    final prompt = prompts.firstWhere(
+      (p) => p.name == 'example-client/echoPrompt',
+    );
     final request = await prompt.call({'input': 'hello'});
     stdout.writeln(
       '[client] echoPrompt => ${request.messages.first.content.first.text}',
@@ -211,7 +213,7 @@ Future<void> main() async {
       final response = await hostAi.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
         prompt: 'Say hello to Dart using the local tool.',
-        toolNames: ['example-host:local/*'],
+        toolNames: ['example-host:tool/local/*'],
       );
       stdout.writeln('[host] ai.generate output: \n${response.text}');
     } catch (e) {

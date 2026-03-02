@@ -166,7 +166,10 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       final colonIdx = toolName.indexOf(':');
       if (colonIdx != -1) {
         final dapName = toolName.substring(0, colonIdx);
-        final actionMatcher = toolName.substring(colonIdx + 1);
+        var actionMatcher = toolName.substring(colonIdx + 1);
+        if (actionMatcher.startsWith('tool/')) {
+          actionMatcher = actionMatcher.substring('tool/'.length);
+        }
         final dap =
             await registry.lookupAction('dynamic-action-provider', dapName)
                 as DynamicActionProvider?;
