@@ -37,6 +37,14 @@ void main() async {
         definitions['GenerateResumeOptions'] = props['resume'];
       }
     }
+    if (definitions.containsKey('GenerateActionOutputConfig')) {
+      final genOptions =
+          definitions['GenerateActionOutputConfig'] as Map<String, dynamic>;
+      final props = genOptions['properties'] as Map<String, dynamic>? ?? {};
+      if (!props.containsKey('defaultInstructions')) {
+        props['defaultInstructions'] = {'type': 'boolean'};
+      }
+    }
 
     final classGenerator = ClassGenerator(definitions);
     final generatedContent = classGenerator.generate(_allowlist);
@@ -83,6 +91,11 @@ const _allowlist = {
   'ToolResponsePart',
   'DataPart',
   'CustomPart',
+  'BaseDataPoint',
+  'EvalRequest',
+  'EvalFnResponse',
+  'EvalStatusEnum',
+  'Score',
   'ReasoningPart',
   'ResourcePart',
   'Media',

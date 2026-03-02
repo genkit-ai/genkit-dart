@@ -110,6 +110,49 @@ abstract class $ResourcePart implements $Part {
 }
 
 @Schematic()
+abstract class $BaseDataPoint {
+  Map<String, dynamic>? get input;
+  Map<String, dynamic>? get output;
+  List<Map<String, dynamic>>? get context;
+  Map<String, dynamic>? get reference;
+  String? get testCaseId;
+  List<String>? get traceIds;
+}
+
+@Schematic()
+abstract class $EvalRequest {
+  List<$BaseDataPoint> get dataset;
+  String get evalRunId;
+  Map<String, dynamic>? get options;
+}
+
+@Schematic()
+abstract class $EvalFnResponse {
+  double? get sampleIndex;
+  String get testCaseId;
+  String? get traceId;
+  String? get spanId;
+  @AnyOf([$Score, List<$Score>])
+  Object? get evaluation;
+}
+
+extension type EvalStatusEnum(String value) {
+  static EvalStatusEnum get UNKNOWN => EvalStatusEnum('UNKNOWN');
+  static EvalStatusEnum get PASS => EvalStatusEnum('PASS');
+  static EvalStatusEnum get FAIL => EvalStatusEnum('FAIL');
+}
+
+@Schematic()
+abstract class $Score {
+  String? get id;
+  @AnyOf([double, String, bool])
+  Object? get score;
+  EvalStatusEnum? get status;
+  String? get error;
+  Map<String, dynamic>? get details;
+}
+
+@Schematic()
 abstract class $Media {
   String? get contentType;
   String get url;
@@ -282,9 +325,9 @@ abstract class $GenerateActionOutputConfig {
   String? get contentType;
   @AnyOf([bool, String])
   Object? get instructions;
-  bool? get defaultInstructions;
   Map<String, dynamic>? get jsonSchema;
   bool? get constrained;
+  bool? get defaultInstructions;
 }
 
 @Schematic()
