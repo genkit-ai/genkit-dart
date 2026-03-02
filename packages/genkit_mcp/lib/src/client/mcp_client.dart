@@ -1172,7 +1172,7 @@ class GenkitMcpClient {
   ) {
     final srvName = serverName;
     final fullName =
-        '${srvName}_tool_${descriptor.actionName}'; // Only for registry uniqueness if needed, but we output DAP specific names
+        '$srvName/${descriptor.actionName}'; // Only for registry uniqueness if needed, but we output DAP specific names
     final tool = descriptor.payload;
     final description = tool['description']?.toString() ?? '';
     final meta = extractMcpMeta(tool);
@@ -1200,7 +1200,7 @@ class GenkitMcpClient {
     _McpClientActionDescriptor descriptor,
   ) {
     final srvName = serverName;
-    final fullName = '${srvName}_prompt_${descriptor.actionName}';
+    final fullName = '$srvName/${descriptor.actionName}';
     final prompt = descriptor.payload;
     final description = prompt['description']?.toString();
     final meta = extractMcpMeta(prompt);
@@ -1228,7 +1228,7 @@ class GenkitMcpClient {
 
   ResourceAction _resolveResourceAction(_McpClientActionDescriptor descriptor) {
     final srvName = serverName;
-    final fullName = '${srvName}_resource_${descriptor.actionName}';
+    final fullName = '$srvName/${descriptor.actionName}';
     final resource = descriptor.payload;
     final description = resource['description']?.toString();
     final meta = extractMcpMeta(resource);
