@@ -425,13 +425,19 @@ final class Genkit {
     final resolvedToolNames = <String>[];
     var childRegistry = registry;
 
-    if (tools != null && tools.isNotEmpty) {
+    void registerAction(Action action) {
       if (childRegistry == registry) {
         childRegistry = Registry.childOf(registry);
       }
+      childRegistry.register(action);
+      if (!resolvedToolNames.contains(action.name)) {
+        resolvedToolNames.add(action.name);
+      }
+    }
+
+    if (tools != null && tools.isNotEmpty) {
       for (final tool in tools) {
-        childRegistry.register(tool);
-        resolvedToolNames.add(tool.name);
+        registerAction(tool);
       }
     }
 
@@ -457,26 +463,14 @@ final class Genkit {
                     (prefix.isEmpty || action.name.startsWith(prefix))) {
                   final fullAction = await dap.getAction(action.name);
                   if (fullAction != null) {
-                    if (childRegistry == registry) {
-                      childRegistry = Registry.childOf(registry);
-                    }
-                    childRegistry.register(fullAction);
-                    if (!resolvedToolNames.contains(fullAction.name)) {
-                      resolvedToolNames.add(fullAction.name);
-                    }
+                    registerAction(fullAction);
                   }
                 }
               }
             } else {
               final fullAction = await dap.getAction(actionMatcher);
               if (fullAction != null && fullAction.actionType == 'tool') {
-                if (childRegistry == registry) {
-                  childRegistry = Registry.childOf(registry);
-                }
-                childRegistry.register(fullAction);
-                if (!resolvedToolNames.contains(fullAction.name)) {
-                  resolvedToolNames.add(fullAction.name);
-                }
+                registerAction(fullAction);
               }
             }
           } else {
