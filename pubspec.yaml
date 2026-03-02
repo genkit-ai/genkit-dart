@@ -27,6 +27,7 @@ workspace:
   - testapps/mcp_server
   - testapps/middleware
   - testapps/remote_models
+  - testapps/gemini
 
 dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
