@@ -83,7 +83,7 @@ bool Function(ResourceInput input) createResourceMatcher({
       return (input) => input.uri == uri;
     }
   } else if (template != null) {
-    final regex = _buildSimpleTemplateRegex(template!);
+    final regex = _buildSimpleTemplateRegex(template);
     return (input) => regex.hasMatch(input.uri);
   }
   throw GenkitException(
