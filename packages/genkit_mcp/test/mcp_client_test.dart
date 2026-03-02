@@ -289,7 +289,7 @@ void main() {
     expect(noSchemaTool.inputSchema, isNotNull);
   });
 
-  test('defineMcpClient registers plugin actions in registry', () async {
+  test('createMcpClient with DAP registers actions in registry', () async {
     final ai = Genkit();
     final transport = FakeClientTransport();
     transport.tools = [
