@@ -573,16 +573,18 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           "return $enumName.values.byName(_json['$jsonFieldName'] as String);";
     } else if (returnType.element is ExtensionTypeElement) {
       final extElement = returnType.element as ExtensionTypeElement;
-      final repTypeName = extElement.representation.type.getDisplayString().replaceAll('?', '');
+      final repTypeName = extElement.representation.type
+          .getDisplayString()
+          .replaceAll('?', '');
       final extTypeName = returnType.getDisplayString().replaceAll('?', '');
       if (returnType.isNullable) {
         getterBody =
             "final value = _json['$jsonFieldName'] as $repTypeName?;\n"
-            "return value == null ? null : $extTypeName(value);";
+            'return value == null ? null : $extTypeName(value);';
       } else {
         getterBody =
             "final value = _json['$jsonFieldName'] as $repTypeName;\n"
-            "return $extTypeName(value);";
+            'return $extTypeName(value);';
       }
     } else if (returnType.isDartCoreList) {
       final itemType = (returnType as InterfaceType).typeArguments.first;

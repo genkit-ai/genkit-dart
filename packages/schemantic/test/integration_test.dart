@@ -534,7 +534,7 @@ void main() {
       expect(parsed.status.value, 'active');
       expect(parsed.optionalStatus, MyStatus.inactive);
       expect(parsed.optionalStatus?.value, 'inactive');
-      
+
       expect(parsed.statusList, isNotNull);
       expect(parsed.statusList!.length, 2);
       expect(parsed.statusList![0].value, 'pending');
@@ -544,7 +544,7 @@ void main() {
     test('Deserializes null correctly for optional extension types', () {
       final json = {'status': 'active'};
       final parsed = StatusContainer.$schema.parse(json);
-      
+
       expect(parsed.status.value, 'active');
       expect(parsed.optionalStatus, isNull);
       expect(parsed.statusList, isNull);
