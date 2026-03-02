@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'ai/embedder.dart';
+import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
 import 'ai/generate_bidi.dart';
@@ -348,6 +349,22 @@ final class Genkit {
     );
     registry.register(provider);
     return provider;
+  }
+
+  Evaluator defineEvaluator({
+    required String name,
+    required String description,
+    required ActionFn<EvalRequest, List<EvalFnResponse>, void, void> fn,
+  }) {
+    final evaluator = Evaluator(
+      name: name,
+      description: description,
+      fn: (input, context) {
+        return fn(input!, context);
+      },
+    );
+    registry.register(evaluator);
+    return evaluator;
   }
 
   Future<List<Embedding>> embedMany<CustomOptions>({

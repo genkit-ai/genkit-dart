@@ -38,7 +38,7 @@ base class Candidate {
       'index': index,
       'message': message.toJson(),
       'usage': ?usage?.toJson(),
-      'finishReason': finishReason,
+      'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
       'custom': ?custom,
     };
@@ -79,11 +79,12 @@ base class Candidate {
   }
 
   FinishReason get finishReason {
-    return _json['finishReason'] as FinishReason;
+    final value = _json['finishReason'] as String;
+    return FinishReason(value);
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value;
+    _json['finishReason'] = value.value;
   }
 
   String? get finishMessage {
@@ -159,7 +160,7 @@ base class Message {
     Map<String, dynamic>? metadata,
   }) {
     _json = {
-      'role': role,
+      'role': role.value,
       'content': content.map((e) => e.toJson()).toList(),
       'metadata': ?metadata,
     };
@@ -170,11 +171,12 @@ base class Message {
   static const SchemanticType<Message> $schema = _MessageTypeFactory();
 
   Role get role {
-    return _json['role'] as Role;
+    final value = _json['role'] as String;
+    return Role(value);
   }
 
   set role(Role value) {
-    _json['role'] = value;
+    _json['role'] = value.value;
   }
 
   List<Part> get content {
@@ -1206,6 +1208,499 @@ base class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   );
 }
 
+base class BaseDataPoint {
+  factory BaseDataPoint.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  BaseDataPoint._(this._json);
+
+  BaseDataPoint({
+    Map<String, dynamic>? input,
+    Map<String, dynamic>? output,
+    List<Map<String, dynamic>>? context,
+    Map<String, dynamic>? reference,
+    String? testCaseId,
+    List<String>? traceIds,
+  }) {
+    _json = {
+      'input': ?input,
+      'output': ?output,
+      'context': ?context,
+      'reference': ?reference,
+      'testCaseId': ?testCaseId,
+      'traceIds': ?traceIds,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<BaseDataPoint> $schema =
+      _BaseDataPointTypeFactory();
+
+  Map<String, dynamic>? get input {
+    return (_json['input'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set input(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('input');
+    } else {
+      _json['input'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get output {
+    return (_json['output'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set output(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('output');
+    } else {
+      _json['output'] = value;
+    }
+  }
+
+  List<Map<String, dynamic>>? get context {
+    return (_json['context'] as List?)?.cast<Map<String, dynamic>>();
+  }
+
+  set context(List<Map<String, dynamic>>? value) {
+    if (value == null) {
+      _json.remove('context');
+    } else {
+      _json['context'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get reference {
+    return (_json['reference'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set reference(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('reference');
+    } else {
+      _json['reference'] = value;
+    }
+  }
+
+  String? get testCaseId {
+    return _json['testCaseId'] as String?;
+  }
+
+  set testCaseId(String? value) {
+    if (value == null) {
+      _json.remove('testCaseId');
+    } else {
+      _json['testCaseId'] = value;
+    }
+  }
+
+  List<String>? get traceIds {
+    return (_json['traceIds'] as List?)?.cast<String>();
+  }
+
+  set traceIds(List<String>? value) {
+    if (value == null) {
+      _json.remove('traceIds');
+    } else {
+      _json['traceIds'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _BaseDataPointTypeFactory extends SchemanticType<BaseDataPoint> {
+  const _BaseDataPointTypeFactory();
+
+  @override
+  BaseDataPoint parse(Object? json) {
+    return BaseDataPoint._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'BaseDataPoint',
+    definition: $Schema
+        .object(
+          properties: {
+            'input': $Schema.object(additionalProperties: $Schema.any()),
+            'output': $Schema.object(additionalProperties: $Schema.any()),
+            'context': $Schema.list(
+              items: $Schema.object(additionalProperties: $Schema.any()),
+            ),
+            'reference': $Schema.object(additionalProperties: $Schema.any()),
+            'testCaseId': $Schema.string(),
+            'traceIds': $Schema.list(items: $Schema.string()),
+          },
+          required: [],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class EvalRequest {
+  factory EvalRequest.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  EvalRequest._(this._json);
+
+  EvalRequest({
+    required List<BaseDataPoint> dataset,
+    required String evalRunId,
+    Map<String, dynamic>? options,
+  }) {
+    _json = {
+      'dataset': dataset.map((e) => e.toJson()).toList(),
+      'evalRunId': evalRunId,
+      'options': ?options,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<EvalRequest> $schema = _EvalRequestTypeFactory();
+
+  List<BaseDataPoint> get dataset {
+    return (_json['dataset'] as List)
+        .map((e) => BaseDataPoint.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set dataset(List<BaseDataPoint> value) {
+    _json['dataset'] = value.toList();
+  }
+
+  String get evalRunId {
+    return _json['evalRunId'] as String;
+  }
+
+  set evalRunId(String value) {
+    _json['evalRunId'] = value;
+  }
+
+  Map<String, dynamic>? get options {
+    return (_json['options'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set options(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('options');
+    } else {
+      _json['options'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _EvalRequestTypeFactory extends SchemanticType<EvalRequest> {
+  const _EvalRequestTypeFactory();
+
+  @override
+  EvalRequest parse(Object? json) {
+    return EvalRequest._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'EvalRequest',
+    definition: $Schema
+        .object(
+          properties: {
+            'dataset': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/BaseDataPoint'}),
+            ),
+            'evalRunId': $Schema.string(),
+            'options': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['dataset', 'evalRunId'],
+        )
+        .value,
+    dependencies: [BaseDataPoint.$schema],
+  );
+}
+
+base class EvalFnResponse {
+  factory EvalFnResponse.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  EvalFnResponse._(this._json);
+
+  EvalFnResponse({
+    double? sampleIndex,
+    required String testCaseId,
+    String? traceId,
+    String? spanId,
+    EvalFnResponseEvaluation? evaluation,
+  }) {
+    _json = {
+      'sampleIndex': ?sampleIndex,
+      'testCaseId': testCaseId,
+      'traceId': ?traceId,
+      'spanId': ?spanId,
+      if (evaluation != null) 'evaluation': evaluation.value,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<EvalFnResponse> $schema =
+      _EvalFnResponseTypeFactory();
+
+  double? get sampleIndex {
+    return (_json['sampleIndex'] as num?)?.toDouble();
+  }
+
+  set sampleIndex(double? value) {
+    if (value == null) {
+      _json.remove('sampleIndex');
+    } else {
+      _json['sampleIndex'] = value;
+    }
+  }
+
+  String get testCaseId {
+    return _json['testCaseId'] as String;
+  }
+
+  set testCaseId(String value) {
+    _json['testCaseId'] = value;
+  }
+
+  String? get traceId {
+    return _json['traceId'] as String?;
+  }
+
+  set traceId(String? value) {
+    if (value == null) {
+      _json.remove('traceId');
+    } else {
+      _json['traceId'] = value;
+    }
+  }
+
+  String? get spanId {
+    return _json['spanId'] as String?;
+  }
+
+  set spanId(String? value) {
+    if (value == null) {
+      _json.remove('spanId');
+    } else {
+      _json['spanId'] = value;
+    }
+  }
+
+  set evaluation(EvalFnResponseEvaluation value) {
+    _json['evaluation'] = value.value;
+  }
+
+  // Possible return values are `$Score`, `List<$Score>`
+  Object? get evaluation {
+    return _json['evaluation'] as Object?;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+final class EvalFnResponseEvaluation {
+  EvalFnResponseEvaluation.score(Score value) : value = value.toJson();
+
+  EvalFnResponseEvaluation.listScore(List<Score> this.value);
+
+  final Object? value;
+}
+
+base class _EvalFnResponseTypeFactory extends SchemanticType<EvalFnResponse> {
+  const _EvalFnResponseTypeFactory();
+
+  @override
+  EvalFnResponse parse(Object? json) {
+    return EvalFnResponse._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'EvalFnResponse',
+    definition: $Schema
+        .object(
+          properties: {
+            'sampleIndex': $Schema.number(),
+            'testCaseId': $Schema.string(),
+            'traceId': $Schema.string(),
+            'spanId': $Schema.string(),
+            'evaluation': $Schema.combined(
+              anyOf: [
+                $Schema.fromMap({'\$ref': r'#/$defs/Score'}),
+                $Schema.list(
+                  items: $Schema.fromMap({'\$ref': r'#/$defs/Score'}),
+                ),
+              ],
+            ),
+          },
+          required: ['testCaseId'],
+        )
+        .value,
+    dependencies: [Score.$schema],
+  );
+}
+
+base class Score {
+  factory Score.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Score._(this._json);
+
+  Score({
+    String? id,
+    ScoreScore? score,
+    EvalStatusEnum? status,
+    String? error,
+    Map<String, dynamic>? details,
+  }) {
+    _json = {
+      'id': ?id,
+      if (score != null) 'score': score.value,
+      'status': ?status?.value,
+      'error': ?error,
+      'details': ?details,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<Score> $schema = _ScoreTypeFactory();
+
+  String? get id {
+    return _json['id'] as String?;
+  }
+
+  set id(String? value) {
+    if (value == null) {
+      _json.remove('id');
+    } else {
+      _json['id'] = value;
+    }
+  }
+
+  set score(ScoreScore value) {
+    _json['score'] = value.value;
+  }
+
+  // Possible return values are `double`, `String`, `bool`
+  Object? get score {
+    return _json['score'] as Object?;
+  }
+
+  EvalStatusEnum? get status {
+    return _json['status'] as EvalStatusEnum?;
+  }
+
+  set status(EvalStatusEnum? value) {
+    if (value == null) {
+      _json.remove('status');
+    } else {
+      _json['status'] = value;
+    }
+  }
+
+  String? get error {
+    return _json['error'] as String?;
+  }
+
+  set error(String? value) {
+    if (value == null) {
+      _json.remove('error');
+    } else {
+      _json['error'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get details {
+    return (_json['details'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set details(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('details');
+    } else {
+      _json['details'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+final class ScoreScore {
+  ScoreScore.double(double this.value);
+
+  ScoreScore.string(String this.value);
+
+  ScoreScore.bool(bool this.value);
+
+  final Object? value;
+}
+
+base class _ScoreTypeFactory extends SchemanticType<Score> {
+  const _ScoreTypeFactory();
+
+  @override
+  Score parse(Object? json) {
+    return Score._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Score',
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.string(),
+            'score': $Schema.combined(
+              anyOf: [$Schema.number(), $Schema.string(), $Schema.boolean()],
+            ),
+            'status': $Schema.any(),
+            'error': $Schema.string(),
+            'details': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: [],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
 base class Media {
   factory Media.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
@@ -1763,7 +2258,7 @@ base class ModelResponse {
   }) {
     _json = {
       'message': ?message?.toJson(),
-      'finishReason': finishReason,
+      'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
@@ -1794,11 +2289,12 @@ base class ModelResponse {
   }
 
   FinishReason get finishReason {
-    return _json['finishReason'] as FinishReason;
+    final value = _json['finishReason'] as String;
+    return FinishReason(value);
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value;
+    _json['finishReason'] = value.value;
   }
 
   String? get finishMessage {
@@ -1951,7 +2447,7 @@ base class ModelResponseChunk {
     bool? aggregated,
   }) {
     _json = {
-      'role': ?role,
+      'role': ?role?.value,
       'index': ?index,
       'content': content.map((e) => e.toJson()).toList(),
       'custom': ?custom,
@@ -2082,7 +2578,7 @@ base class GenerateResponse {
   }) {
     _json = {
       'message': ?message?.toJson(),
-      'finishReason': ?finishReason,
+      'finishReason': ?finishReason?.value,
       'finishMessage': ?finishMessage,
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
@@ -3375,17 +3871,17 @@ base class GenerateActionOutputConfig {
     String? format,
     String? contentType,
     GenerateActionOutputConfigInstructions? instructions,
-    bool? defaultInstructions,
     Map<String, dynamic>? jsonSchema,
     bool? constrained,
+    bool? defaultInstructions,
   }) {
     _json = {
       'format': ?format,
       'contentType': ?contentType,
       if (instructions != null) 'instructions': instructions.value,
-      'defaultInstructions': ?defaultInstructions,
       'jsonSchema': ?jsonSchema,
       'constrained': ?constrained,
+      'defaultInstructions': ?defaultInstructions,
     };
   }
 
@@ -3427,18 +3923,6 @@ base class GenerateActionOutputConfig {
     return _json['instructions'] as Object?;
   }
 
-  bool? get defaultInstructions {
-    return _json['defaultInstructions'] as bool?;
-  }
-
-  set defaultInstructions(bool? value) {
-    if (value == null) {
-      _json.remove('defaultInstructions');
-    } else {
-      _json['defaultInstructions'] = value;
-    }
-  }
-
   Map<String, dynamic>? get jsonSchema {
     return (_json['jsonSchema'] as Map?)?.cast<String, dynamic>();
   }
@@ -3460,6 +3944,18 @@ base class GenerateActionOutputConfig {
       _json.remove('constrained');
     } else {
       _json['constrained'] = value;
+    }
+  }
+
+  bool? get defaultInstructions {
+    return _json['defaultInstructions'] as bool?;
+  }
+
+  set defaultInstructions(bool? value) {
+    if (value == null) {
+      _json.remove('defaultInstructions');
+    } else {
+      _json['defaultInstructions'] = value;
     }
   }
 
@@ -3501,9 +3997,9 @@ base class _GenerateActionOutputConfigTypeFactory
             'instructions': $Schema.combined(
               anyOf: [$Schema.boolean(), $Schema.string()],
             ),
-            'defaultInstructions': $Schema.boolean(),
             'jsonSchema': $Schema.object(additionalProperties: $Schema.any()),
             'constrained': $Schema.boolean(),
+            'defaultInstructions': $Schema.boolean(),
           },
           required: [],
         )

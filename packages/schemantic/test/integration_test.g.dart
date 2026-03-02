@@ -789,3 +789,94 @@ base class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
     dependencies: [User.$schema],
   );
 }
+
+base class StatusContainer {
+  factory StatusContainer.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  StatusContainer._(this._json);
+
+  StatusContainer({
+    required MyStatus status,
+    MyStatus? optionalStatus,
+    List<MyStatus>? statusList,
+  }) {
+    _json = {
+      'status': status.value,
+      'optionalStatus': ?optionalStatus?.value,
+      'statusList': ?statusList,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<StatusContainer> $schema =
+      _StatusContainerTypeFactory();
+
+  MyStatus get status {
+    final value = _json['status'] as String;
+    return MyStatus(value);
+  }
+
+  set status(MyStatus value) {
+    _json['status'] = value.value;
+  }
+
+  MyStatus? get optionalStatus {
+    return _json['optionalStatus'] as MyStatus?;
+  }
+
+  set optionalStatus(MyStatus? value) {
+    if (value == null) {
+      _json.remove('optionalStatus');
+    } else {
+      _json['optionalStatus'] = value;
+    }
+  }
+
+  List<MyStatus>? get statusList {
+    return (_json['statusList'] as List?)?.cast<MyStatus>();
+  }
+
+  set statusList(List<MyStatus>? value) {
+    if (value == null) {
+      _json.remove('statusList');
+    } else {
+      _json['statusList'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _StatusContainerTypeFactory extends SchemanticType<StatusContainer> {
+  const _StatusContainerTypeFactory();
+
+  @override
+  StatusContainer parse(Object? json) {
+    return StatusContainer._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'StatusContainer',
+    definition: $Schema
+        .object(
+          properties: {
+            'status': $Schema.any(),
+            'optionalStatus': $Schema.any(),
+            'statusList': $Schema.list(items: $Schema.any()),
+          },
+          required: ['status'],
+        )
+        .value,
+    dependencies: [],
+  );
+}

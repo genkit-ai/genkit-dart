@@ -313,6 +313,13 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                   valueExpression = refer(
                     paramName!,
                   ).maybeNullSafeProperty(isNullable, 'toJson').call([]);
+                } else if (getter.returnType.element is ExtensionTypeElement) {
+                  final extElement =
+                      getter.returnType.element as ExtensionTypeElement;
+                  final repName = extElement.representation.name;
+                  valueExpression = refer(
+                    paramName!,
+                  ).maybeNullSafeProperty(isNullable, repName!);
                 } else {
                   valueExpression = refer(paramName!);
                 }
@@ -564,6 +571,21 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final enumName = returnType.getDisplayString().replaceAll('?', '');
       getterBody =
           "return $enumName.values.byName(_json['$jsonFieldName'] as String);";
+    } else if (returnType.element is ExtensionTypeElement) {
+      final extElement = returnType.element as ExtensionTypeElement;
+      final repTypeName = extElement.representation.type
+          .getDisplayString()
+          .replaceAll('?', '');
+      final extTypeName = returnType.getDisplayString().replaceAll('?', '');
+      if (returnType.isNullable) {
+        getterBody =
+            "final value = _json['$jsonFieldName'] as $repTypeName?;\n"
+            'return value == null ? null : $extTypeName(value);';
+      } else {
+        getterBody =
+            "final value = _json['$jsonFieldName'] as $repTypeName;\n"
+            'return $extTypeName(value);';
+      }
     } else if (returnType.isDartCoreList) {
       final itemType = (returnType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
@@ -660,6 +682,10 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           "else { _json['$jsonFieldName'] = $valueExpression; }";
     } else if (paramType.element is EnumElement) {
       setterBody = "_json['$jsonFieldName'] = value.name;";
+    } else if (paramType.element is ExtensionTypeElement) {
+      final extElement = paramType.element as ExtensionTypeElement;
+      final repName = extElement.representation.name;
+      setterBody = "_json['$jsonFieldName'] = value.${repName!};";
     } else if (paramType.isDartCoreList) {
       final itemType = (paramType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');

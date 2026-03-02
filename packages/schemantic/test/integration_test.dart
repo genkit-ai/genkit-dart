@@ -129,6 +129,18 @@ abstract class $MapSchema {
   Map<String, $User>? get stringToUser;
 }
 
+extension type MyStatus(String value) {
+  static MyStatus get active => MyStatus('active');
+  static MyStatus get inactive => MyStatus('inactive');
+}
+
+@Schematic()
+abstract class $StatusContainer {
+  MyStatus get status;
+  MyStatus? get optionalStatus;
+  List<MyStatus>? get statusList;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -499,6 +511,43 @@ void main() {
       expect(parsed.stringToUser!['admin']!.isAdmin, true);
       expect(parsed.stringToUser!['guest']!.name, 'Guest');
       expect(parsed.stringToUser, isA<Map<String, User>>());
+    });
+  });
+
+  group('Extension Type Tests', () {
+    test('Serialization and deserialization of extension types', () {
+      final container = StatusContainer(
+        status: MyStatus.active,
+        optionalStatus: MyStatus.inactive,
+        statusList: [MyStatus('pending'), MyStatus.active],
+      );
+
+      final json = container.toJson();
+      expect(json, {
+        'status': 'active',
+        'optionalStatus': 'inactive',
+        'statusList': ['pending', 'active'],
+      });
+
+      final parsed = StatusContainer.$schema.parse(json);
+      expect(parsed.status, MyStatus.active);
+      expect(parsed.status.value, 'active');
+      expect(parsed.optionalStatus, MyStatus.inactive);
+      expect(parsed.optionalStatus?.value, 'inactive');
+
+      expect(parsed.statusList, isNotNull);
+      expect(parsed.statusList!.length, 2);
+      expect(parsed.statusList![0].value, 'pending');
+      expect(parsed.statusList![1].value, 'active');
+    });
+
+    test('Deserializes null correctly for optional extension types', () {
+      final json = {'status': 'active'};
+      final parsed = StatusContainer.$schema.parse(json);
+
+      expect(parsed.status.value, 'active');
+      expect(parsed.optionalStatus, isNull);
+      expect(parsed.statusList, isNull);
     });
   });
 }
