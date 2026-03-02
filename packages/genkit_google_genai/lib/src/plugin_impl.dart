@@ -22,6 +22,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
 import 'api_client.dart';
+import 'auth.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
 
@@ -41,20 +42,106 @@ final commonModelInfo = ModelInfo(
 @visibleForTesting
 class GoogleGenAiPluginImpl extends GenkitPlugin {
   String? apiKey;
+  String? projectId;
+  String? location;
+  http.Client? authClient;
 
-  GoogleGenAiPluginImpl({this.apiKey});
+  GoogleGenAiPluginImpl({
+    this.apiKey,
+    this.projectId,
+    this.location,
+    this.authClient,
+  });
+
+  bool get isVertex => projectId != null && location != null;
+
+  Future<GenerativeLanguageBaseClient> _getApiClient([
+    String? requestApiKey,
+  ]) async {
+    if (isVertex) {
+      final validFormat = RegExp(r'^[a-z0-9-]+$');
+      if (!validFormat.hasMatch(location!) ||
+          !validFormat.hasMatch(projectId!)) {
+        throw ArgumentError('Invalid projectId or location format.');
+      }
+      final safeLocation = Uri.encodeComponent(location!);
+      final safeProjectId = Uri.encodeComponent(projectId!);
+
+      final client = await getVertexAuthClient(authClient);
+      final baseUrl = safeLocation == 'global'
+          ? 'https://aiplatform.googleapis.com/'
+          : 'https://$safeLocation-aiplatform.googleapis.com/';
+      final apiUrlPrefix =
+          'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
+
+      final headers = {
+        'X-Goog-Api-Client':
+            'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
+      };
+
+      return GenerativeLanguageBaseClient(
+        baseUrl: baseUrl,
+        client: CustomClient(defaultHeaders: headers, inner: client),
+        apiUrlPrefix: apiUrlPrefix,
+      );
+    } else {
+      return GenerativeLanguageBaseClient(
+        baseUrl: 'https://generativelanguage.googleapis.com/',
+        client: httpClientFromApiKey(requestApiKey ?? apiKey),
+      );
+    }
+  }
 
   @override
-  String get name => 'googleai';
+  String get name => isVertex ? 'vertexai' : 'googleai';
 
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    final service = GenerativeLanguageBaseClient(
-      baseUrl: 'https://generativelanguage.googleapis.com/',
-      client: httpClientFromApiKey(apiKey),
-    );
+    final service = await _getApiClient();
     try {
+      if (isVertex) {
+        final res = await service.listPublisherModels(projectId: projectId!);
+        final publisherModels = (res['publisherModels'] as List?) ?? [];
+
+        final models = publisherModels
+            .where((m) {
+              final modelMap = m as Map<String, dynamic>;
+              final name = modelMap['name'] as String?;
+              return name != null && name.contains('gemini-');
+            })
+            .map((m) {
+              final modelMap = m as Map<String, dynamic>;
+              final modelName = (modelMap['name'] as String).split('/').last;
+              final isTts = modelName.contains('-tts');
+              return modelMetadata(
+                '$name/$modelName',
+                customOptions: isTts
+                    ? GeminiTtsOptions.$schema
+                    : GeminiOptions.$schema,
+                modelInfo: commonModelInfo,
+              );
+            })
+            .toList();
+
+        final embedders = publisherModels
+            .where((m) {
+              final modelMap = m as Map<String, dynamic>;
+              final name = modelMap['name'] as String?;
+              return name != null &&
+                  (name.contains('text-embedding-') ||
+                      name.contains('embedding-'));
+            })
+            .map((m) {
+              final modelMap = m as Map<String, dynamic>;
+              final modelName = (modelMap['name'] as String).split('/').last;
+              return embedderMetadata('$name/$modelName');
+            })
+            .toList();
+
+        return [...models, ...embedders];
+      }
+
       final gcl.ListModelsResponse modelsResponse;
       try {
         modelsResponse = await service.listModels(pageSize: 1000);
@@ -70,7 +157,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           .map((model) {
             final isTts = model.name!.contains('-tts');
             return modelMetadata(
-              'googleai/${model.name!.split('/').last}',
+              '$name/${model.name!.split('/').last}',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
@@ -86,10 +173,14 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                     model.name!.startsWith('models/embedding-')),
           )
           .map((model) {
-            return embedderMetadata('googleai/${model.name!.split('/').last}');
+            return embedderMetadata('$name/${model.name!.split('/').last}');
           })
           .toList();
       return [...models, ...embedders];
+    } catch (e, stack) {
+      if (e is GenkitException) rethrow;
+      _logger.warning('Failed to list models: $e', e, stack);
+      throw _handleException(e, stack);
     } finally {
       service.client.close();
     }
@@ -111,7 +202,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
 
   Model _createModel(String modelName, SchemanticType customOptions) {
     return Model(
-      name: 'googleai/$modelName',
+      name: '$name/$modelName',
       customOptions: customOptions,
       metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
@@ -161,10 +252,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
 
-        final service = GenerativeLanguageBaseClient(
-          baseUrl: 'https://generativelanguage.googleapis.com/',
-          client: httpClientFromApiKey(apiKey ?? this.apiKey),
-        );
+        final service = await _getApiClient(apiKey);
 
         try {
           final systemMessage = req.messages
@@ -253,20 +341,56 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     );
   }
 
-  Embedder _createEmbedder(String name) {
+  Embedder _createEmbedder(String embedderName) {
     return Embedder(
-      name: 'googleai/$name',
+      name: '$name/$embedderName',
       fn: (req, ctx) async {
-        final service = GenerativeLanguageBaseClient(
-          baseUrl: 'https://generativelanguage.googleapis.com/',
-          client: httpClientFromApiKey(apiKey),
-        );
+        if (req == null || req.input.isEmpty) {
+          return EmbedResponse(embeddings: []);
+        }
+        final service = await _getApiClient();
         try {
-          final options = req?.options != null
-              ? TextEmbedderOptions.fromJson(req!.options!)
+          final options = req.options != null
+              ? TextEmbedderOptions.fromJson(req.options!)
               : null;
 
-          if (req!.input.length == 1) {
+          if (isVertex) {
+            final instances = req.input.map((doc) {
+              final text = doc.content
+                  .where((p) => p.isText)
+                  .map((p) => p.text)
+                  .join('\n');
+              return {'content': text};
+            }).toList();
+
+            final parameters = <String, dynamic>{};
+            if (options?.outputDimensionality != null) {
+              parameters['outputDimensionality'] =
+                  options!.outputDimensionality;
+            }
+            if (options?.taskType != null) {
+              parameters['taskType'] = options!.taskType;
+            }
+
+            final res = await service.predict({
+              'instances': instances,
+              if (parameters.isNotEmpty) 'parameters': parameters,
+            }, model: 'models/$embedderName');
+
+            final predictions = res['predictions'] as List;
+            final embeddings = predictions.map((p) {
+              final emb =
+                  (p as Map<String, dynamic>)['embeddings']
+                      as Map<String, dynamic>;
+              final vals = emb['values'] as List;
+              return Embedding(
+                embedding: vals.map((e) => (e as num).toDouble()).toList(),
+              );
+            }).toList();
+            return EmbedResponse(embeddings: embeddings);
+          }
+
+          if (req.input.length == 1) {
             final doc = req.input.first;
             final text = doc.content
                 .where((p) => p.isText)
@@ -280,7 +404,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                 taskType: options?.taskType,
                 title: options?.title,
               ),
-              model: 'models/$name',
+              model: 'models/$embedderName',
             );
             return EmbedResponse(
               embeddings: [Embedding(embedding: res.embedding?.values ?? [])],
@@ -299,7 +423,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                   taskType: options?.taskType,
                   title: options?.title,
                 ),
-                model: 'models/$name',
+                model: 'models/$embedderName',
               );
               return Embedding(embedding: res.embedding?.values ?? []);
             });
@@ -714,7 +838,7 @@ const _apiKeyEnvVars = ['GOOGLE_API_KEY', 'GEMINI_API_KEY'];
 http.Client httpClientFromApiKey(String? apiKey) {
   apiKey ??= _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
   var headers = {
-    'x-goog-api-client':
+    'X-Goog-Api-Client':
         'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
     'x-goog-api-key': ?apiKey,
   };
@@ -729,10 +853,11 @@ http.Client httpClientFromApiKey(String? apiKey) {
 }
 
 class CustomClient extends http.BaseClient {
-  final http.Client _inner = http.Client();
+  final http.Client _inner;
   final Map<String, String> defaultHeaders;
 
-  CustomClient({required this.defaultHeaders});
+  CustomClient({required this.defaultHeaders, http.Client? inner})
+    : _inner = inner ?? http.Client();
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
