@@ -1017,14 +1017,10 @@ class GenkitMcpClient {
   }
 
   Action? resolveAction(String actionName) {
-    final nameParts = actionName.split('/');
-    if (nameParts.length < 2) return null;
-    final actionType = nameParts[0];
-    final shortName = nameParts.sublist(1).join('/');
-
-    final descriptor = _actionIndex[_descriptorKey(actionType, shortName)];
+    final descriptor = _actionIndex[actionName];
     if (descriptor == null) return null;
-    switch (actionType) {
+
+    switch (descriptor.actionType) {
       case 'tool':
         return _resolveToolAction(descriptor);
       case 'prompt':
@@ -1046,7 +1042,7 @@ class GenkitMcpClient {
     for (final tool in tools) {
       final toolName = tool['name'];
       if (toolName is! String) continue;
-      final fullName = 'tool/$toolName';
+      final fullName = toolName;
       final meta = extractMcpMeta(tool);
       actions.add(
         ActionMetadata(
@@ -1062,8 +1058,9 @@ class GenkitMcpClient {
                 },
         ),
       );
-      index[_descriptorKey('tool', toolName)] = _McpClientActionDescriptor(
+      index[fullName] = _McpClientActionDescriptor(
         actionName: toolName,
+        actionType: 'tool',
         payload: tool,
       );
     }
@@ -1072,7 +1069,7 @@ class GenkitMcpClient {
     for (final prompt in prompts) {
       final promptName = prompt['name'];
       if (promptName is! String) continue;
-      final fullName = 'prompt/$promptName';
+      final fullName = promptName;
       final meta = extractMcpMeta(prompt);
       final args = asListOfMaps(prompt['arguments']);
       actions.add(
@@ -1089,8 +1086,9 @@ class GenkitMcpClient {
                 },
         ),
       );
-      index[_descriptorKey('prompt', promptName)] = _McpClientActionDescriptor(
+      index[fullName] = _McpClientActionDescriptor(
         actionName: promptName,
+        actionType: 'prompt',
         payload: prompt,
       );
     }
@@ -1101,7 +1099,7 @@ class GenkitMcpClient {
       if (resourceName is! String) continue;
       final uri = resource['uri'] as String?;
       if (uri == null) continue;
-      final fullName = 'resource/$resourceName';
+      final fullName = resourceName;
       final meta = extractMcpMeta(resource);
       actions.add(
         ActionMetadata(
@@ -1116,11 +1114,9 @@ class GenkitMcpClient {
           },
         ),
       );
-      index[_descriptorKey(
-        'resource',
-        resourceName,
-      )] = _McpClientActionDescriptor(
+      index[fullName] = _McpClientActionDescriptor(
         actionName: resourceName,
+        actionType: 'resource',
         payload: resource,
       );
     }
@@ -1131,7 +1127,7 @@ class GenkitMcpClient {
       if (templateName is! String) continue;
       final uriTemplate = template['uriTemplate'] as String?;
       if (uriTemplate == null) continue;
-      final fullName = 'resource/$templateName';
+      final fullName = templateName;
       final meta = extractMcpMeta(template);
       actions.add(
         ActionMetadata(
@@ -1146,11 +1142,9 @@ class GenkitMcpClient {
           },
         ),
       );
-      index[_descriptorKey(
-        'resource',
-        templateName,
-      )] = _McpClientActionDescriptor(
+      index[fullName] = _McpClientActionDescriptor(
         actionName: templateName,
+        actionType: 'resource',
         payload: template,
       );
     }
@@ -1264,9 +1258,6 @@ class GenkitMcpClient {
     return cacheTtlMillis!.abs();
   }
 
-  static String _descriptorKey(String actionType, String name) =>
-      '$actionType|$name';
-
   static Future<List<Map<String, dynamic>>> _listAll(
     Future<Map<String, dynamic>> Function({String? cursor}) lister,
   ) async {
@@ -1335,7 +1326,12 @@ class _ClientTaskState {
 
 class _McpClientActionDescriptor {
   final String actionName;
+  final String actionType;
   final Map<String, dynamic> payload;
 
-  _McpClientActionDescriptor({required this.actionName, required this.payload});
+  _McpClientActionDescriptor({
+    required this.actionName,
+    required this.actionType,
+    required this.payload,
+  });
 }

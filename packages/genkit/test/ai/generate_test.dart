@@ -384,14 +384,14 @@ void main() {
         listActionsFn: () => [
           ActionMetadata(
             actionType: 'tool',
-            name: 'tool/weatherTool',
+            name: 'my-dap/weatherTool',
             description: 'get weather',
             inputSchema: TestToolInput.$schema,
             outputSchema: .dynamicSchema(),
           ),
         ],
         getActionFn: (id) async {
-          if (id == 'tool/weatherTool') {
+          if (id == 'my-dap/weatherTool') {
             return Tool(
               name: 'my-dap/weatherTool',
               description: 'get weather',
@@ -436,7 +436,7 @@ void main() {
       final response = await genkit.generate(
         model: modelRef('testModel'),
         prompt: 'What is the weather?',
-        toolNames: ['my-dap:tool/*'],
+        toolNames: ['my-dap:*'],
       );
 
       expect(response.text, 'The weather is sunny');

@@ -443,46 +443,8 @@ final class Genkit {
 
     if (toolNames != null) {
       for (final name in toolNames) {
-        final colonIdx = name.indexOf(':');
-        if (colonIdx != -1) {
-          final dapName = name.substring(0, colonIdx);
-          final actionMatcher = name.substring(colonIdx + 1);
-          final dap =
-              await registry.lookupAction('dynamic-action-provider', dapName)
-                  as DynamicActionProvider?;
-
-          if (dap != null) {
-            if (actionMatcher.endsWith('/*')) {
-              final prefix = actionMatcher.substring(
-                0,
-                actionMatcher.length - 2,
-              );
-              final actions = await dap.listActions();
-              for (final action in actions) {
-                if (action.actionType == 'tool' &&
-                    (prefix.isEmpty || action.name.startsWith(prefix))) {
-                  final fullAction = await dap.getAction(action.name);
-                  if (fullAction != null) {
-                    registerAction(fullAction);
-                  }
-                }
-              }
-            } else {
-              final fullAction = await dap.getAction(actionMatcher);
-              if (fullAction != null && fullAction.actionType == 'tool') {
-                registerAction(fullAction);
-              }
-            }
-          } else {
-            // Unmatched DAP but contains colon, just add to resolved
-            if (!resolvedToolNames.contains(name)) {
-              resolvedToolNames.add(name);
-            }
-          }
-        } else {
-          if (!resolvedToolNames.contains(name)) {
-            resolvedToolNames.add(name);
-          }
+        if (!resolvedToolNames.contains(name)) {
+          resolvedToolNames.add(name);
         }
       }
     }

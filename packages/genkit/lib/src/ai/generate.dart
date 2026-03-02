@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import '../core/action.dart';
+import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../schema.dart';
@@ -158,7 +159,45 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   var toolDefs = <ToolDefinition>[];
   final activeToolNames = <String>{};
   if (requestOptions.tools != null) {
+    if (requestOptions.tools!.any((t) => t.contains(':'))) {
+      registry = Registry.childOf(registry);
+    }
     for (var toolName in requestOptions.tools!) {
+      final colonIdx = toolName.indexOf(':');
+      if (colonIdx != -1) {
+        final dapName = toolName.substring(0, colonIdx);
+        final actionMatcher = toolName.substring(colonIdx + 1);
+        final dap =
+            await registry.lookupAction('dynamic-action-provider', dapName)
+                as DynamicActionProvider?;
+
+        if (dap != null) {
+          if (actionMatcher.endsWith('*')) {
+            final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
+            final actions = await dap.listActions();
+            for (final action in actions) {
+              if (action.actionType == 'tool' &&
+                  (prefix.isEmpty || action.name.startsWith(prefix))) {
+                final fullAction = await dap.getAction(action.name);
+                if (fullAction != null && fullAction is Tool) {
+                  registry.register(fullAction);
+                  activeToolNames.add(fullAction.name);
+                  toolDefs.add(toToolDefinition(fullAction));
+                }
+              }
+            }
+          } else {
+            final fullAction = await dap.getAction(actionMatcher);
+            if (fullAction != null && fullAction is Tool) {
+              registry.register(fullAction);
+              activeToolNames.add(fullAction.name);
+              toolDefs.add(toToolDefinition(fullAction));
+            }
+          }
+          continue;
+        }
+      }
+
       activeToolNames.add(toolName);
       final tool = await registry.lookupAction('tool', toolName) as Tool?;
       if (tool != null) {

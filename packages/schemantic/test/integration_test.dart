@@ -145,6 +145,21 @@ void main() {
       expect(parsed.name, 'Alice');
       expect(parsed.age, 30);
       expect(parsed.isAdmin, isTrue);
+
+      expect(User.$schema.jsonSchema(useRefs: true), {
+        r'$ref': r'#/$defs/User',
+        r'$defs': {
+          'User': {
+            'type': 'object',
+            'properties': {
+              'name': {'type': 'string'},
+              'age': {'type': 'integer'},
+              'isAdmin': {'type': 'boolean'},
+            },
+            'required': ['name', 'isAdmin'],
+          },
+        },
+      });
     });
 
     test('User with null optional field', () {

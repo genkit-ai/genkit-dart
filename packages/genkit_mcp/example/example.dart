@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
 
 import 'types.dart';
@@ -35,13 +36,12 @@ Future<void> main() async {
   // ----------------------------
   final serverAi = Genkit();
 
-  serverAi.defineTool<Map<String, dynamic>, String>(
+  serverAi.defineTool<GreetInput, String>(
     name: 'greet',
     description: 'Greets a user by name.',
-    inputSchema: .map(.string(), .dynamicSchema()),
+    inputSchema: GreetInput.$schema,
     fn: (input, _) async {
-      final name = input['name']?.toString();
-      return 'Hello, ${name ?? 'world'}!';
+      return 'Hello, ${input.name}!';
     },
   );
 
@@ -191,7 +191,9 @@ Future<void> main() async {
     // ----------------------------
     // 3) Connect via MCP host
     // ----------------------------
-    final hostAi = Genkit();
+    final hostAi = Genkit(plugins: [googleAI()]);
+
+    // Create the MCP host which will automatically register tools.
     host = defineMcpHost(
       hostAi,
       McpHostOptionsWithCache(
@@ -200,26 +202,20 @@ Future<void> main() async {
       ),
     );
 
-    // Ensure the host's client finished initialize before using the registry plugin.
+    // Wait until the the MCP server finishes initialization
     await host.getClient('local')?.ready();
 
-    final hostTools = await host.getActiveTools(hostAi);
-    stdout.writeln('[host] tools: ${hostTools.map((t) => t.name).toList()}');
-
-    final actions = await hostAi.registry.listActions();
-    final mcpActions = actions
-        .where((a) => a.name.startsWith('example-host/'))
-        .map((a) => a.name)
-        .toList();
-    stdout.writeln('[host] registry actions: $mcpActions');
-
-    final resolved = await hostAi.registry.lookupAction(
-      'tool',
-      'example-host/local:greet',
-    );
-    if (resolved is Tool<Map<String, dynamic>, dynamic>) {
-      final result = await resolved.call({'name': 'Registry'});
-      stdout.writeln('[host] registry greet => $result');
+    // The tools are automatically discovered via the DAP wildcard syntax
+    // and injected into generate by Genkit.
+    try {
+      final response = await hostAi.generate(
+        model: googleAI.gemini('gemini-2.5-flash'),
+        prompt: 'Say hello to Dart using the local tool.',
+        toolNames: ['example-host:tool/local/*'],
+      );
+      stdout.writeln('[host] ai.generate output: \n${response.text}');
+    } catch (e) {
+      stdout.writeln('[host] generation error: $e');
     }
   } finally {
     await host?.close();

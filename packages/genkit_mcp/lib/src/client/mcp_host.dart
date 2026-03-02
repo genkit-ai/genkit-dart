@@ -396,20 +396,13 @@ class GenkitMcpHost {
   }
 
   Action? resolveAction(String actionName) {
-    final nameParts = actionName.split('/');
-    if (nameParts.length < 3) return null;
-    final actionType = nameParts[0];
-    final serverName = nameParts[1];
-    final shortName = nameParts.sublist(2).join('/');
-
-    final descriptorKey = _descriptorKey(actionType, '$serverName:$shortName');
-    final descriptor = _actionIndex[descriptorKey];
+    final descriptor = _actionIndex[actionName];
     if (descriptor == null) return null;
     final client = getClient(descriptor.serverName);
     if (client == null) return null;
 
     final fullName = actionName;
-    switch (actionType) {
+    switch (descriptor.actionType) {
       case 'tool':
         return _createToolAction(
           client,
@@ -449,8 +442,7 @@ class GenkitMcpHost {
       for (final tool in tools) {
         final name = tool['name'];
         if (name is! String) continue;
-        final shortName = '$serverName:$name';
-        final fullName = 'tool/$serverName/$name';
+        final fullName = '$serverName/$name';
         final meta = extractMcpMeta(tool);
         final metadata = {
           if (meta != null) 'mcp': {'_meta': meta},
@@ -465,8 +457,9 @@ class GenkitMcpHost {
             metadata: metadata.isEmpty ? null : metadata,
           ),
         );
-        index[_descriptorKey('tool', shortName)] = _McpActionDescriptor(
+        index[fullName] = _McpActionDescriptor(
           serverName: serverName,
+          actionType: 'tool',
           actionName: name,
           payload: tool,
         );
@@ -476,8 +469,7 @@ class GenkitMcpHost {
       for (final prompt in prompts) {
         final name = prompt['name'];
         if (name is! String) continue;
-        final shortName = '$serverName:$name';
-        final fullName = 'prompt/$serverName/$name';
+        final fullName = '$serverName/$name';
         final meta = extractMcpMeta(prompt);
         final metadata = {
           if (meta != null) 'mcp': {'_meta': meta},
@@ -493,8 +485,9 @@ class GenkitMcpHost {
             metadata: metadata.isEmpty ? null : metadata,
           ),
         );
-        index[_descriptorKey('prompt', shortName)] = _McpActionDescriptor(
+        index[fullName] = _McpActionDescriptor(
           serverName: serverName,
+          actionType: 'prompt',
           actionName: name,
           payload: prompt,
         );
@@ -506,8 +499,7 @@ class GenkitMcpHost {
         if (name is! String) continue;
         final uri = resource['uri'] as String?;
         if (uri == null) continue;
-        final shortName = '$serverName:$name';
-        final fullName = 'resource/$serverName/$name';
+        final fullName = '$serverName/$name';
         final meta = extractMcpMeta(resource);
         final metadata = {
           'resource': {'uri': uri, 'template': null},
@@ -523,8 +515,9 @@ class GenkitMcpHost {
             metadata: metadata,
           ),
         );
-        index[_descriptorKey('resource', shortName)] = _McpActionDescriptor(
+        index[fullName] = _McpActionDescriptor(
           serverName: serverName,
+          actionType: 'resource',
           actionName: name,
           payload: resource,
         );
@@ -536,7 +529,6 @@ class GenkitMcpHost {
         if (name is! String) continue;
         final uriTemplate = template['uriTemplate'] as String?;
         if (uriTemplate == null) continue;
-        final shortName = '$serverName:$name';
         final fullName = 'resource/$serverName/$name';
         final meta = extractMcpMeta(template);
         final metadata = {
@@ -553,8 +545,9 @@ class GenkitMcpHost {
             metadata: metadata,
           ),
         );
-        index[_descriptorKey('resource', shortName)] = _McpActionDescriptor(
+        index[fullName] = _McpActionDescriptor(
           serverName: serverName,
+          actionType: 'resource',
           actionName: name,
           payload: template,
         );
@@ -617,17 +610,17 @@ class _ClientError {
 
 class _McpActionDescriptor {
   final String serverName;
+  final String actionType;
   final String actionName;
   final Map<String, dynamic> payload;
 
   _McpActionDescriptor({
     required this.serverName,
+    required this.actionType,
     required this.actionName,
     required this.payload,
   });
 }
-
-String _descriptorKey(String actionType, String name) => '$actionType|$name';
 
 Future<List<Map<String, dynamic>>> _listAll(
   Future<Map<String, dynamic>> Function({String? cursor}) lister,

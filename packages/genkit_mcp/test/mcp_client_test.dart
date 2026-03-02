@@ -329,12 +329,12 @@ void main() {
     final actions = await dap.listActions();
     final actionNames = actions.map((a) => a.name).toList();
 
-    expect(actionNames, contains('tool/regTool'));
-    expect(actionNames, contains('prompt/regPrompt'));
-    expect(actionNames, contains('resource/regResource'));
+    expect(actionNames, contains('regTool'));
+    expect(actionNames, contains('regPrompt'));
+    expect(actionNames, contains('regResource'));
 
-    // Resolve and call a tool through the registry.
-    final resolved = await dap.getAction('tool/regTool');
+    // Test getAction
+    final resolved = await dap.getAction('regTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
     expect(result, 'ok');

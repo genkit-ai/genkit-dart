@@ -291,7 +291,7 @@ void main() {
             .map((a) => a.name)
             .toList()
           ..sort();
-    expect(mcpNames, ['tool/serverA/tool1', 'tool/serverB/tool2']);
+    expect(mcpNames, ['serverA/tool1', 'serverB/tool2']);
   });
 
   test('defineMcpHost registers plugin actions', () async {
@@ -314,12 +314,9 @@ void main() {
         await ai.registry.lookupAction('dynamic-action-provider', 'mcp-host')
             as DynamicActionProvider;
     final actions = await dap.listActions();
-    expect(
-      actions.any((action) => action.name == 'tool/server1/testTool'),
-      isTrue,
-    );
+    expect(actions.any((action) => action.name == 'server1/testTool'), isTrue);
 
-    final resolved = await dap.getAction('tool/server1/testTool');
+    final resolved = await dap.getAction('server1/testTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
     expect(result, 'ok');
