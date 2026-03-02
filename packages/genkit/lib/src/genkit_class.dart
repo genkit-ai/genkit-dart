@@ -29,6 +29,7 @@ import 'ai/resource.dart';
 import 'ai/tool.dart';
 import 'client/client.dart';
 import 'core/action.dart';
+import 'core/dynamic_action_provider.dart';
 import 'core/flow.dart';
 import 'core/plugin.dart';
 import 'core/reflection.dart';
@@ -331,6 +332,20 @@ final class Genkit {
     );
     registry.register(embedder);
     return embedder;
+  }
+
+  DynamicActionProvider defineDynamicActionProvider({
+    required String name,
+    required List<Action> Function() listActionsFn,
+    Map<String, dynamic>? metadata,
+  }) {
+    final provider = DynamicActionProvider(
+      name: name,
+      listActionsFn: listActionsFn,
+      metadata: metadata,
+    );
+    registry.register(provider);
+    return provider;
   }
 
   Future<List<Embedding>> embedMany<CustomOptions>({
