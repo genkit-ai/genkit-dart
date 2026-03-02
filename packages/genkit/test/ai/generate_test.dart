@@ -384,16 +384,16 @@ void main() {
         listActionsFn: () => [
           ActionMetadata(
             actionType: 'tool',
-            name: 'my-dap/weatherTool',
+            name: 'weatherTool',
             description: 'get weather',
             inputSchema: TestToolInput.$schema,
             outputSchema: .dynamicSchema(),
           ),
         ],
         getActionFn: (id) async {
-          if (id == 'my-dap/weatherTool') {
+          if (id == 'weatherTool') {
             return Tool(
-              name: 'my-dap/weatherTool',
+              name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
               outputSchema: .dynamicSchema(),
@@ -423,7 +423,7 @@ void main() {
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
-                    name: 'my-dap/weatherTool',
+                    name: 'weatherTool',
                     input: {'name': 'test'},
                   ),
                 ),
@@ -440,7 +440,6 @@ void main() {
       );
 
       expect(response.text, 'The weather is sunny');
-      expect(response.text, 'The weather is sunny');
     });
 
     test('generate resolves DAP tools using tool/ wildcard', () async {
@@ -449,16 +448,16 @@ void main() {
         listActionsFn: () => [
           ActionMetadata(
             actionType: 'tool',
-            name: 'my-dap/weatherTool',
+            name: 'weatherTool',
             description: 'get weather',
             inputSchema: TestToolInput.$schema,
             outputSchema: .dynamicSchema(),
           ),
         ],
         getActionFn: (id) async {
-          if (id == 'my-dap/weatherTool') {
+          if (id == 'weatherTool') {
             return Tool(
-              name: 'my-dap/weatherTool',
+              name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
               outputSchema: .dynamicSchema(),
@@ -470,7 +469,7 @@ void main() {
       );
 
       genkit.defineModel(
-        name: 'testModel',
+        name: 'testModel2',
         fn: (request, context) async {
           if (request.messages.last.role == Role.tool) {
             return ModelResponse(
@@ -488,7 +487,7 @@ void main() {
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
-                    name: 'my-dap/weatherTool',
+                    name: 'weatherTool',
                     input: {'name': 'test'},
                   ),
                 ),
@@ -499,12 +498,218 @@ void main() {
       );
 
       final response = await genkit.generate(
-        model: modelRef('testModel'),
+        model: modelRef('testModel2'),
         prompt: 'What is the weather?',
         toolNames: ['my-dap:tool/*'],
       );
 
       expect(response.text, 'The weather is sunny');
+    });
+
+    test('generate resolves DAP tools using specific name', () async {
+      genkit.defineDynamicActionProvider(
+        name: 'my-dap',
+        listActionsFn: () => [
+          ActionMetadata(
+            actionType: 'tool',
+            name: 'weatherTool',
+            description: 'get weather',
+            inputSchema: TestToolInput.$schema,
+            outputSchema: .dynamicSchema(),
+          ),
+        ],
+        getActionFn: (id) async {
+          if (id == 'weatherTool') {
+            return Tool(
+              name: 'weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+              fn: (input, context) async => 'sunny explicit',
+            );
+          }
+          return null;
+        },
+      );
+
+      genkit.defineModel(
+        name: 'testModelExplicit',
+        fn: (request, context) async {
+          if (request.messages.last.role == Role.tool) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'The weather is sunny explicit')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'weatherTool',
+                    input: {'name': 'test'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await genkit.generate(
+        model: modelRef('testModelExplicit'),
+        prompt: 'What is the weather?',
+        toolNames: ['my-dap:weatherTool'],
+      );
+
+      expect(response.text, 'The weather is sunny explicit');
+    });
+
+    test(
+      'generate resolves DAP tools using specific name with tool/ prefix',
+      () async {
+        genkit.defineDynamicActionProvider(
+          name: 'my-dap',
+          listActionsFn: () => [
+            ActionMetadata(
+              actionType: 'tool',
+              name: 'weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+            ),
+          ],
+          getActionFn: (id) async {
+            if (id == 'weatherTool') {
+              return Tool(
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                outputSchema: .dynamicSchema(),
+                fn: (input, context) async => 'sunny explicit prefix',
+              );
+            }
+            return null;
+          },
+        );
+
+        genkit.defineModel(
+          name: 'testModelExplicitPrefix',
+          fn: (request, context) async {
+            if (request.messages.last.role == Role.tool) {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [
+                    TextPart(text: 'The weather is sunny explicit prefix'),
+                  ],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'weatherTool',
+                      input: {'name': 'test'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        final response = await genkit.generate(
+          model: modelRef('testModelExplicitPrefix'),
+          prompt: 'What is the weather?',
+          toolNames: ['my-dap:tool/weatherTool'],
+        );
+
+        expect(response.text, 'The weather is sunny explicit prefix');
+      },
+    );
+
+    test('generate resolves DAP tools using prefix wildcard', () async {
+      genkit.defineDynamicActionProvider(
+        name: 'my-dap',
+        listActionsFn: () => [
+          ActionMetadata(
+            actionType: 'tool',
+            name: 'wea/weatherTool',
+            description: 'get weather',
+            inputSchema: TestToolInput.$schema,
+            outputSchema: .dynamicSchema(),
+          ),
+          ActionMetadata(
+            actionType: 'tool',
+            name: 'other/timeTool',
+            description: 'get time',
+            inputSchema: TestToolInput.$schema,
+            outputSchema: .dynamicSchema(),
+          ),
+        ],
+        getActionFn: (id) async {
+          if (id == 'wea/weatherTool') {
+            return Tool(
+              name: 'wea/weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+              fn: (input, context) async => 'sunny prefix wildcard',
+            );
+          }
+          return null;
+        },
+      );
+
+      genkit.defineModel(
+        name: 'testModelPrefixWildcard',
+        fn: (request, context) async {
+          if (request.messages.last.role == Role.tool) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  TextPart(text: 'The weather is sunny prefix wildcard'),
+                ],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'wea/weatherTool',
+                    input: {'name': 'test'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await genkit.generate(
+        model: modelRef('testModelPrefixWildcard'),
+        prompt: 'What is the weather?',
+        toolNames: ['my-dap:wea*'],
+      );
+
+      expect(response.text, 'The weather is sunny prefix wildcard');
     });
   });
 }
