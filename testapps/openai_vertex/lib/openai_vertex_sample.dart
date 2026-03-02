@@ -126,7 +126,7 @@ Future<void> run(List<String> args) async {
       location: location,
       endpointId: endpointId,
     );
-    final ai = Genkit(plugins: [openAI(vertex: vertexConfig)], isDevEnv: false);
+    final ai = Genkit(plugins: [openAI(vertex: vertexConfig)]);
 
     final response = await ai.generate(
       model: openAI.model(model),
