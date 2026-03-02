@@ -17,7 +17,7 @@ import 'package:schemantic/schemantic.dart';
 part 'model.g.dart';
 
 /// Generation options specific to Anthropic models.
-@Schematic()
+@Schema()
 abstract class $AnthropicOptions {
   /// Custom API key to use for this specific request. Overrides plugin config.
   ///
@@ -67,7 +67,7 @@ abstract class $AnthropicOptions {
 }
 
 /// Configuration for Anthropic's extended thinking mode.
-@Schematic()
+@Schema()
 abstract class $ThinkingConfig {
   @IntegerField(
     minimum: 1024,

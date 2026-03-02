@@ -22,7 +22,7 @@ import 'package:source_gen/source_gen.dart';
 
 import '../schemantic.dart' hide Field;
 
-final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
+final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
   @override
   Future<String> generateForAnnotatedElement(
     Element element,
@@ -31,7 +31,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   ) async {
     if (element is! ClassElement || !element.isAbstract) {
       throw InvalidGenerationSourceError(
-        '`@Schematic` can only be used on abstract classes.',
+        '`@Schema` can only be used on abstract classes.',
         element: element,
       );
     }
@@ -141,7 +141,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   }
 
   Class _generateClass(String baseName, ClassElement element) {
-    // If `element` is a type annotated with `@Schematic`, then it should
+    // If `element` is a type annotated with `@Schema`, then it should
     // inherit the `json` field.
     final isSubclass = _implementsAnnotatedType(element);
     return Class((b) {
@@ -1314,8 +1314,8 @@ const _numberFieldChecker = TypeChecker.fromUrl(
   'package:schemantic/schemantic.dart#DoubleField',
 );
 
-const _schematicChecker = TypeChecker.fromUrl(
-  'package:schemantic/schemantic.dart#Schematic',
+const _schemaChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#Schema',
 );
 
 const _anyOfChecker = TypeChecker.fromUrl(
@@ -1337,13 +1337,13 @@ extension on DartType {
 }
 
 /// Returns `true` if the given [element] is a subclass of a type annotated with
-/// [Schematic].
+/// [Schema].
 bool _implementsAnnotatedType(ClassElement element) =>
     _annotatedInterfaces(element).isNotEmpty;
 
 Iterable<InterfaceType> _annotatedInterfaces(ClassElement element) {
   return element.interfaces.where(
-    (s) => _schematicChecker.hasAnnotationOf(s.element),
+    (s) => _schemaChecker.hasAnnotationOf(s.element),
   );
 }
 

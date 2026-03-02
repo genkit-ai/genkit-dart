@@ -18,7 +18,7 @@ import 'package:test/test.dart';
 
 part 'generate_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $TestToolInput {
   String get name;
 }

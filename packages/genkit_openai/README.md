@@ -76,12 +76,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'example.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherInputSchema {
   String get location;
 }
 
-@Schematic()
+@Schema()
 abstract class $WeatherOutputSchema {
   int get temperature;
   String get condition;

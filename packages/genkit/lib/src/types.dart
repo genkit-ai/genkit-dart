@@ -20,7 +20,7 @@
 import 'package:schemantic/schemantic.dart';
 part 'types.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Candidate {
   double get index;
   $Message get message;
@@ -30,14 +30,14 @@ abstract class $Candidate {
   Map<String, dynamic>? get custom;
 }
 
-@Schematic()
+@Schema()
 abstract class $Message {
   Role get role;
   List<$Part> get content;
   Map<String, dynamic>? get metadata;
 }
 
-@Schematic()
+@Schema()
 abstract class $ToolDefinition {
   String get name;
   String get description;
@@ -46,10 +46,10 @@ abstract class $ToolDefinition {
   Map<String, dynamic>? get metadata;
 }
 
-@Schematic()
+@Schema()
 abstract class $Part {}
 
-@Schematic()
+@Schema()
 abstract class $TextPart implements $Part {
   String get text;
   Map<String, dynamic>? get data;
@@ -57,7 +57,7 @@ abstract class $TextPart implements $Part {
   Map<String, dynamic>? get custom;
 }
 
-@Schematic()
+@Schema()
 abstract class $MediaPart implements $Part {
   $Media get media;
   Map<String, dynamic>? get data;
@@ -65,7 +65,7 @@ abstract class $MediaPart implements $Part {
   Map<String, dynamic>? get custom;
 }
 
-@Schematic()
+@Schema()
 abstract class $ToolRequestPart implements $Part {
   $ToolRequest get toolRequest;
   Map<String, dynamic>? get data;
@@ -73,7 +73,7 @@ abstract class $ToolRequestPart implements $Part {
   Map<String, dynamic>? get custom;
 }
 
-@Schematic()
+@Schema()
 abstract class $ToolResponsePart implements $Part {
   $ToolResponse get toolResponse;
   Map<String, dynamic>? get data;
@@ -81,21 +81,21 @@ abstract class $ToolResponsePart implements $Part {
   Map<String, dynamic>? get custom;
 }
 
-@Schematic()
+@Schema()
 abstract class $DataPart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic>? get custom;
 }
 
-@Schematic()
+@Schema()
 abstract class $CustomPart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
   Map<String, dynamic> get custom;
 }
 
-@Schematic()
+@Schema()
 abstract class $ReasoningPart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
@@ -103,7 +103,7 @@ abstract class $ReasoningPart implements $Part {
   String get reasoning;
 }
 
-@Schematic()
+@Schema()
 abstract class $ResourcePart implements $Part {
   Map<String, dynamic>? get data;
   Map<String, dynamic>? get metadata;
@@ -111,7 +111,7 @@ abstract class $ResourcePart implements $Part {
   Map<String, dynamic> get resource;
 }
 
-@Schematic()
+@Schema()
 abstract class $BaseDataPoint {
   Map<String, dynamic>? get input;
   Map<String, dynamic>? get output;
@@ -121,14 +121,14 @@ abstract class $BaseDataPoint {
   List<String>? get traceIds;
 }
 
-@Schematic()
+@Schema()
 abstract class $EvalRequest {
   List<$BaseDataPoint> get dataset;
   String get evalRunId;
   Map<String, dynamic>? get options;
 }
 
-@Schematic()
+@Schema()
 abstract class $EvalFnResponse {
   double? get sampleIndex;
   String get testCaseId;
@@ -144,7 +144,7 @@ extension type EvalStatusEnum(String value) {
   static EvalStatusEnum get FAIL => EvalStatusEnum('FAIL');
 }
 
-@Schematic()
+@Schema()
 abstract class $Score {
   String? get id;
   @AnyOf([double, String, bool])
@@ -154,13 +154,13 @@ abstract class $Score {
   Map<String, dynamic>? get details;
 }
 
-@Schematic()
+@Schema()
 abstract class $Media {
   String? get contentType;
   String get url;
 }
 
-@Schematic()
+@Schema()
 abstract class $ToolRequest {
   String? get ref;
   String get name;
@@ -168,7 +168,7 @@ abstract class $ToolRequest {
   bool? get partial;
 }
 
-@Schematic()
+@Schema()
 abstract class $ToolResponse {
   String? get ref;
   String get name;
@@ -176,7 +176,7 @@ abstract class $ToolResponse {
   List<dynamic>? get content;
 }
 
-@Schematic()
+@Schema()
 abstract class $ModelInfo {
   List<String>? get versions;
   String? get label;
@@ -185,7 +185,7 @@ abstract class $ModelInfo {
   String? get stage;
 }
 
-@Schematic()
+@Schema()
 abstract class $ModelRequest {
   List<$Message> get messages;
   Map<String, dynamic>? get config;
@@ -195,7 +195,7 @@ abstract class $ModelRequest {
   List<$DocumentData>? get docs;
 }
 
-@Schematic()
+@Schema()
 abstract class $ModelResponse {
   $Message? get message;
   FinishReason get finishReason;
@@ -208,7 +208,7 @@ abstract class $ModelResponse {
   $Operation? get operation;
 }
 
-@Schematic()
+@Schema()
 abstract class $ModelResponseChunk {
   Role? get role;
   int? get index;
@@ -217,7 +217,7 @@ abstract class $ModelResponseChunk {
   bool? get aggregated;
 }
 
-@Schematic()
+@Schema()
 abstract class $GenerateResponse {
   $Message? get message;
   FinishReason? get finishReason;
@@ -231,7 +231,7 @@ abstract class $GenerateResponse {
   List<$Candidate>? get candidates;
 }
 
-@Schematic()
+@Schema()
 abstract class $GenerateRequest {
   List<$Message> get messages;
   Map<String, dynamic>? get config;
@@ -242,7 +242,7 @@ abstract class $GenerateRequest {
   double? get candidates;
 }
 
-@Schematic()
+@Schema()
 abstract class $GenerationUsage {
   double? get inputTokens;
   double? get outputTokens;
@@ -260,7 +260,7 @@ abstract class $GenerationUsage {
   double? get cachedContentTokens;
 }
 
-@Schematic()
+@Schema()
 abstract class $Operation {
   String? get action;
   String get id;
@@ -270,7 +270,7 @@ abstract class $Operation {
   Map<String, dynamic>? get metadata;
 }
 
-@Schematic()
+@Schema()
 abstract class $OutputConfig {
   String? get format;
   Map<String, dynamic>? get schema;
@@ -293,13 +293,13 @@ extension type Role(String value) {
   static Role get tool => Role('tool');
 }
 
-@Schematic()
+@Schema()
 abstract class $DocumentData {
   List<$Part> get content;
   Map<String, dynamic>? get metadata;
 }
 
-@Schematic()
+@Schema()
 abstract class $GenerateActionOptions {
   String? get model;
   List<$DocumentData>? get docs;
@@ -314,14 +314,14 @@ abstract class $GenerateActionOptions {
   String? get stepName;
 }
 
-@Schematic()
+@Schema()
 abstract class $GenerateResumeOptions {
   List<$ToolResponsePart>? get respond;
   List<$ToolRequestPart>? get restart;
   Map<String, dynamic>? get metadata;
 }
 
-@Schematic()
+@Schema()
 abstract class $GenerateActionOutputConfig {
   String? get format;
   String? get contentType;
@@ -332,18 +332,18 @@ abstract class $GenerateActionOutputConfig {
   bool? get defaultInstructions;
 }
 
-@Schematic()
+@Schema()
 abstract class $EmbedRequest {
   List<$DocumentData> get input;
   Map<String, dynamic>? get options;
 }
 
-@Schematic()
+@Schema()
 abstract class $EmbedResponse {
   List<$Embedding> get embeddings;
 }
 
-@Schematic()
+@Schema()
 abstract class $Embedding {
   List<double> get embedding;
   Map<String, dynamic>? get metadata;

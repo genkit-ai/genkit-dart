@@ -25,12 +25,12 @@ import 'package:test/test.dart';
 
 part 'shelf_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ShelfTestOutput {
   String get greeting;
 }
 
-@Schematic()
+@Schema()
 abstract class $ShelfTestStream {
   String get chunk;
 }
@@ -350,7 +350,7 @@ void main() {
     expect(result, 'Echo: typed');
   });
 
-  test('Client using Schematic types and Streaming', () async {
+  test('Client using Schema types and Streaming', () async {
     final complexStreamFlow = ai.defineFlow(
       name: 'complexStream',
       fn: (input, ctx) async {

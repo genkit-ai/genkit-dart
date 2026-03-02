@@ -21,12 +21,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'flow_basics.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Subject {
   String get subject;
 }
 
-@Schematic()
+@Schema()
 abstract class $Count {
   int get count;
 }

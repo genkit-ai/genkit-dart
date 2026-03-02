@@ -21,7 +21,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'filesystem_middleware.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $FilesystemOptions {
   @Field(
     description:
@@ -30,7 +30,7 @@ abstract class $FilesystemOptions {
   String get rootDirectory;
 }
 
-@Schematic()
+@Schema()
 abstract class $ListFilesInput {
   @Field(description: 'Directory path relative to root.', defaultValue: '')
   String? get dirPath;
@@ -38,13 +38,13 @@ abstract class $ListFilesInput {
   bool? get recursive;
 }
 
-@Schematic()
+@Schema()
 abstract class $ReadFileInput {
   @Field(description: 'File path relative to root.')
   String get filePath;
 }
 
-@Schematic()
+@Schema()
 abstract class $WriteFileInput {
   @Field(description: 'File path relative to root.')
   String get filePath;
@@ -52,7 +52,7 @@ abstract class $WriteFileInput {
   String get content;
 }
 
-@Schematic()
+@Schema()
 abstract class $SearchAndReplaceInput {
   @Field(description: 'File path relative to root.')
   String get filePath;
@@ -64,7 +64,7 @@ abstract class $SearchAndReplaceInput {
   List<String> get edits;
 }
 
-@Schematic()
+@Schema()
 abstract class $ListFileOutputItem {
   String get path;
   bool get isDirectory;

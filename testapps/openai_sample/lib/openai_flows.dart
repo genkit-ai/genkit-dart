@@ -21,7 +21,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'openai_flows.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherInputSchema {
   /// The location to get weather for (city name or coordinates)
   String get location;
@@ -31,7 +31,7 @@ abstract class $WeatherInputSchema {
   String? get unit;
 }
 
-@Schematic()
+@Schema()
 abstract class $WeatherOutputSchema {
   /// Temperature value
   double get temperature;

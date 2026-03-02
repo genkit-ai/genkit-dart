@@ -21,17 +21,17 @@ import 'package:test/test.dart';
 
 part 'genkit_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $TestCustomOptions {
   String get customField;
 }
 
-@Schematic()
+@Schema()
 abstract class $TestToolInput {
   String get name;
 }
 
-@Schematic()
+@Schema()
 abstract class $TestOutputSchema {
   String get title;
   int get rating;

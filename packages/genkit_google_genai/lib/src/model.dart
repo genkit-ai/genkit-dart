@@ -16,7 +16,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'model.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $GeminiOptions {
   String? get apiKey;
   // TODO: Add apiVersion, baseUrl
@@ -56,7 +56,7 @@ abstract class $GeminiOptions {
   $SpeechConfig? get speechConfig;
 }
 
-@Schematic()
+@Schema()
 abstract class $SafetySettings {
   @StringField(
     enumValues: [
@@ -81,7 +81,7 @@ abstract class $SafetySettings {
   String? get threshold;
 }
 
-@Schematic()
+@Schema()
 abstract class $ThinkingConfig {
   @Field(
     description:
@@ -112,19 +112,19 @@ abstract class $ThinkingConfig {
   String? get thinkingLevel;
 }
 
-@Schematic()
+@Schema()
 abstract class $FunctionCallingConfig {
   @StringField(enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'])
   String? get mode;
   List<String>? get allowedFunctionNames;
 }
 
-@Schematic()
+@Schema()
 abstract class $FileSearch {
   List<String>? get fileSearchStoreNames;
 }
 
-@Schematic()
+@Schema()
 abstract class $GeminiTtsOptions {
   String? get apiKey;
   // TODO: Add apiVersion, baseUrl
@@ -164,19 +164,19 @@ abstract class $GeminiTtsOptions {
   $SpeechConfig? get speechConfig;
 }
 
-@Schematic(description: 'Speech generation config')
+@Schema(description: 'Speech generation config')
 abstract class $SpeechConfig {
   $VoiceConfig? get voiceConfig;
   $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
 }
 
-@Schematic(description: 'Configuration for multi-speaker setup')
+@Schema(description: 'Configuration for multi-speaker setup')
 abstract class $MultiSpeakerVoiceConfig {
   @Field(description: 'Configuration for all the enabled speaker voices')
   List<$SpeakerVoiceConfig> get speakerVoiceConfigs;
 }
 
-@Schematic(
+@Schema(
   description: 'Configuration for a single speaker in a multi speaker setup',
 )
 abstract class $SpeakerVoiceConfig {
@@ -186,12 +186,12 @@ abstract class $SpeakerVoiceConfig {
   $VoiceConfig get voiceConfig;
 }
 
-@Schematic(description: 'Configuration for the voice to use')
+@Schema(description: 'Configuration for the voice to use')
 abstract class $VoiceConfig {
   $PrebuiltVoiceConfig? get prebuiltVoiceConfig;
 }
 
-@Schematic(description: 'Configuration for the prebuilt speaker to use')
+@Schema(description: 'Configuration for the prebuilt speaker to use')
 abstract class $PrebuiltVoiceConfig {
   @StringField(
     description:
@@ -205,12 +205,12 @@ abstract class $PrebuiltVoiceConfig {
   String? get voiceName;
 }
 
-@Schematic()
+@Schema()
 abstract class $GoogleSearch {
   // TODO: Add timeRangeFilter or other configurations if needed
 }
 
-@Schematic()
+@Schema()
 abstract class $TextEmbedderOptions {
   @IntegerField(
     description:

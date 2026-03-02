@@ -27,11 +27,11 @@ typedef $Schema = jsb.Schema;
 ///
 /// This annotation triggers the generation of a counterpart `Schema.g.dart`
 /// file with a concrete implementation of the schema class and a type utility.
-final class Schematic {
+final class Schema {
   /// A description of the schema, to be included in the generated JSON Schema.
   final String? description;
 
-  const Schematic({this.description});
+  const Schema({this.description});
 }
 
 final class AnyOf {

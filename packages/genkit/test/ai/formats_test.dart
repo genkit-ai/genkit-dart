@@ -19,7 +19,7 @@ import 'package:test/test.dart';
 
 part 'formats_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $TestObject {
   String get foo;
   int get bar;

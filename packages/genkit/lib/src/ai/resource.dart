@@ -20,12 +20,12 @@ import '../types.dart';
 
 part 'resource.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ResourceInput {
   String get uri;
 }
 
-@Schematic()
+@Schema()
 abstract class $ResourceOutput {
   List<$Part> get content;
 }
