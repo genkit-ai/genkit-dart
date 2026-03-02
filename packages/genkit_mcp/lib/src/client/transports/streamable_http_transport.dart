@@ -17,12 +17,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../util/logging.dart';
+import '../auth/oauth.dart';
+import '../auth/oauth_provider.dart';
+import '../auth/oauth_types.dart';
 import 'client_transport.dart';
 
 class StreamableHttpClientTransport implements McpClientTransport {
   final Uri url;
   final Map<String, String> headers;
   final Duration? timeout;
+  final OAuthClientProvider? authProvider;
   final HttpClient _client;
   final StreamController<Map<String, dynamic>> _inboundController =
       StreamController.broadcast();
@@ -32,10 +36,17 @@ class StreamableHttpClientTransport implements McpClientTransport {
   String? _sessionId;
   String? _protocolVersion;
 
+  // OAuth state — prevents infinite auth / scope-upgrade loops.
+  bool _hasCompletedAuthFlow = false;
+  Uri? _resourceMetadataUrl;
+  String? _scope;
+  String? _lastUpscopingHeader;
+
   StreamableHttpClientTransport._({
     required this.url,
     required this.headers,
     required this.timeout,
+    required this.authProvider,
     required HttpClient client,
   }) : _client = client;
 
@@ -43,18 +54,51 @@ class StreamableHttpClientTransport implements McpClientTransport {
     required Uri url,
     Map<String, String>? headers,
     Duration? timeout,
+    OAuthClientProvider? authProvider,
   }) async {
     final client = HttpClient();
     return StreamableHttpClientTransport._(
       url: url,
       headers: headers ?? const {},
       timeout: timeout,
+      authProvider: authProvider,
       client: client,
     );
   }
 
   void setProtocolVersion(String version) {
     _protocolVersion = version;
+  }
+
+  /// Completes an OAuth authorization code exchange.
+  ///
+  /// Call this after the user has been redirected back from the authorization
+  /// server with an authorization code.  Pass [state] to verify the CSRF
+  /// `state` parameter returned by the authorization server callback.
+  Future<void> finishAuth(String authorizationCode, {String? state}) async {
+    if (authProvider == null) {
+      throw const UnauthorizedError('No auth provider configured');
+    }
+
+    // Verify CSRF state parameter.
+    final expectedState = await authProvider!.savedState();
+    if (expectedState != null && state != expectedState) {
+      throw const UnauthorizedError(
+        'OAuth state parameter mismatch (possible CSRF attack)',
+      );
+    }
+
+    final result = await auth(
+      authProvider!,
+      serverUrl: url,
+      authorizationCode: authorizationCode,
+      resourceMetadataUrl: _resourceMetadataUrl,
+      scope: _scope,
+      httpClient: _client,
+    );
+    if (result != AuthResult.authorized) {
+      throw const UnauthorizedError('Failed to authorize');
+    }
   }
 
   @override
@@ -66,8 +110,61 @@ class StreamableHttpClientTransport implements McpClientTransport {
     final response = await _postMessage(message);
     _captureSessionId(response);
 
+    // --- OAuth: handle 401 Unauthorized ---
+    if (response.statusCode == HttpStatus.unauthorized &&
+        authProvider != null) {
+      await _drain(response);
+      if (_hasCompletedAuthFlow) {
+        throw const UnauthorizedError(
+          'Authorization failed after completing auth flow',
+        );
+      }
+      final params = extractWwwAuthenticateParams(response);
+      _resourceMetadataUrl = params.resourceMetadataUrl;
+      _scope = params.scope;
+
+      final result = await auth(
+        authProvider!,
+        serverUrl: url,
+        resourceMetadataUrl: _resourceMetadataUrl,
+        scope: _scope,
+        httpClient: _client,
+      );
+      if (result != AuthResult.authorized) {
+        throw const UnauthorizedError();
+      }
+      _hasCompletedAuthFlow = true;
+      return send(message);
+    }
+
+    // --- OAuth: handle 403 Forbidden with insufficient_scope ---
+    if (response.statusCode == HttpStatus.forbidden && authProvider != null) {
+      final params = extractWwwAuthenticateParams(response);
+      await _drain(response);
+      if (params.error == 'insufficient_scope') {
+        final wwwAuth = response.headers.value('www-authenticate');
+        if (wwwAuth != null && _lastUpscopingHeader == wwwAuth) {
+          throw const UnauthorizedError('Scope upgrade loop detected');
+        }
+        _scope = params.scope;
+        _lastUpscopingHeader = wwwAuth;
+
+        final result = await auth(
+          authProvider!,
+          serverUrl: url,
+          resourceMetadataUrl: _resourceMetadataUrl,
+          scope: _scope,
+          httpClient: _client,
+        );
+        if (result != AuthResult.authorized) {
+          throw const UnauthorizedError();
+        }
+        return send(message);
+      }
+    }
+
     if (response.statusCode == HttpStatus.accepted) {
-      await response.drain();
+      await _drain(response);
       if (_isInitializedNotification(message)) {
         await _startStandaloneSse();
       }
@@ -92,7 +189,7 @@ class StreamableHttpClientTransport implements McpClientTransport {
       return;
     }
 
-    await response.drain();
+    await _drain(response);
     throw StateError('[MCP Client] Unexpected content-type: $contentType');
   }
 
@@ -112,7 +209,7 @@ class StreamableHttpClientTransport implements McpClientTransport {
       HttpHeaders.acceptHeader,
       'application/json, text/event-stream',
     );
-    _applyHeaders(request.headers);
+    await _applyHeaders(request.headers);
     request.write(jsonEncode(message));
     final responseFuture = request.close();
     if (timeout == null) {
@@ -126,14 +223,30 @@ class StreamableHttpClientTransport implements McpClientTransport {
     if (_standaloneSubscription != null) return;
     final request = await _client.getUrl(url);
     request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
-    _applyHeaders(request.headers);
+    await _applyHeaders(request.headers);
     final responseFuture = request.close();
     final response = timeout == null
         ? await responseFuture
         : await responseFuture.timeout(timeout!);
 
+    // Handle 401 during SSE connection.
+    if (response.statusCode == HttpStatus.unauthorized &&
+        authProvider != null) {
+      await _drain(response);
+      final result = await auth(
+        authProvider!,
+        serverUrl: url,
+        scope: _scope,
+        httpClient: _client,
+      );
+      if (result != AuthResult.authorized) {
+        throw const UnauthorizedError();
+      }
+      return _startStandaloneSse();
+    }
+
     if (response.statusCode == HttpStatus.methodNotAllowed) {
-      await response.drain();
+      await _drain(response);
       return;
     }
     if (response.statusCode != HttpStatus.ok) {
@@ -263,10 +376,19 @@ class StreamableHttpClientTransport implements McpClientTransport {
     }
   }
 
-  void _applyHeaders(HttpHeaders httpHeaders) {
+  Future<void> _applyHeaders(HttpHeaders httpHeaders) async {
     for (final entry in headers.entries) {
       httpHeaders.set(entry.key, entry.value);
     }
+
+    // Inject OAuth Bearer token when available.
+    if (authProvider != null) {
+      final tokens = await authProvider!.tokens();
+      if (tokens != null) {
+        httpHeaders.set('authorization', 'Bearer ${tokens.accessToken}');
+      }
+    }
+
     if (_sessionId != null) {
       httpHeaders.set('mcp-session-id', _sessionId!);
     }
@@ -285,6 +407,9 @@ class StreamableHttpClientTransport implements McpClientTransport {
   bool _isInitializedNotification(Map<String, dynamic> message) {
     return message['method'] == 'notifications/initialized';
   }
+
+  static Future<void> _drain(HttpClientResponse response) =>
+      response.drain<void>();
 }
 
 class _SseEvent {
