@@ -17,7 +17,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'stateful_interactions.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $StatefulChatInput {
   String get sessionId;
   String get message;

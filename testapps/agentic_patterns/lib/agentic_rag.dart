@@ -17,12 +17,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'agentic_rag.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $AgenticRagInput {
   String get question;
 }
 
-@Schematic()
+@Schema()
 abstract class $MenuRagToolInput {
   @Field(
     description:

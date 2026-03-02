@@ -19,17 +19,17 @@ import 'package:schemantic/schemantic.dart';
 
 part 'shelf_server_example.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $HelloInput {
   String get name;
 }
 
-@Schematic()
+@Schema()
 abstract class $HelloOutput {
   String get greeting;
 }
 
-@Schematic()
+@Schema()
 abstract class $CountChunk {
   int get count;
 }

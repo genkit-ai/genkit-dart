@@ -21,7 +21,7 @@ import 'package:test/test.dart';
 
 part 'model_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $TestCustomOptions {
   String get customField;
 }

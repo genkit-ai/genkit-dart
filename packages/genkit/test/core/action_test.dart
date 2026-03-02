@@ -22,12 +22,12 @@ import '../test_util.dart';
 
 part 'action_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $TestInput {
   String get name;
 }
 
-@Schematic()
+@Schema()
 abstract class $TestOutput {
   String get greeting;
 }

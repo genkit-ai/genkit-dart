@@ -72,14 +72,14 @@ void main() {
 
 #### 1. Define your specific Schema
 
-Create a Dart file (e.g., `user.dart`) and define your schema as an abstract class annotated with `@Schematic()`.
+Create a Dart file (e.g., `user.dart`) and define your schema as an abstract class annotated with `@Schema()`.
 
 ```dart
 import 'package:schemantic/schemantic.dart';
 
 part 'user.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $User {
   String get name;
   int? get age;
@@ -142,7 +142,7 @@ void main() async {
 For recursive structures like trees, use the `useRefs: true` option when generating the schema. This utilizes JSON Schema `$ref` to handle recursion.
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $Node {
   String get id;
   List<$Node>? get children;
@@ -165,7 +165,7 @@ void main() {
 Schemantic supports union types using the `@AnyOf` annotation. This allows a field to accept multiple types.
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $Poly {
   @AnyOf([int, String, $User])
   Object? get id;
@@ -205,10 +205,10 @@ print(poly.id); // 456
 
 ## Schema Metadata
 
-You can add a description to your generated schema using the `description` parameter in `@Schematic`:
+You can add a description to your generated schema using the `description` parameter in `@Schema`:
 
 ```dart
-@Schematic(description: 'Represents a user in the system')
+@Schema(description: 'Represents a user in the system')
 abstract class $User {
   // ...
 }
@@ -247,7 +247,7 @@ Schemantic provides specialized annotations for defining schema constraints:
 - `@DoubleField`: Constraints for doubles/numbers (minimum, maximum, multipleOf).
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $User {
   // Map 'age' to 'years_old' in JSON, and add validation
   @IntegerField(

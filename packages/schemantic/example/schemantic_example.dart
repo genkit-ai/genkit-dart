@@ -18,7 +18,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'schemantic_example.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Address {
   String get street;
   String get city;
@@ -27,9 +27,9 @@ abstract class $Address {
   Object get zipCode;
 }
 
-/// Define a schema using the @Schematic annotation.
+/// Define a schema using the @Schema annotation.
 /// This will generate a concrete [User] class with a static $schema field.
-@Schematic()
+@Schema()
 abstract class $User {
   @StringField(minLength: 1, maxLength: 150, pattern: r'^[a-zA-Z\s]+$')
   String get name;
@@ -48,7 +48,7 @@ abstract class $User {
 }
 
 /// Define another schema for Products.
-@Schematic()
+@Schema()
 abstract class $Product {
   String get id;
   String get name;
