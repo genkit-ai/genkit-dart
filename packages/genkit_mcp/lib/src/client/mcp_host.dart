@@ -15,7 +15,6 @@
 import 'dart:async';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 
 import '../util/common.dart';
 import '../util/convert_messages.dart';
@@ -68,14 +67,14 @@ class GenkitMcpHost {
   final String? version;
   final bool rawToolResponses;
   final List<McpRoot>? roots;
+  final McpHostOptions options;
 
   final Map<String, GenkitMcpClient> _clients = {};
   final Map<String, _ClientState> _clientStates = {};
   final List<Completer<void>> _readyListeners = [];
   bool _ready = false;
-  McpHostPlugin? _plugin;
 
-  GenkitMcpHost(McpHostOptions options)
+  GenkitMcpHost(this.options)
     : name = options.name ?? 'genkit-mcp',
       version = options.version,
       rawToolResponses = options.rawToolResponses,
@@ -85,10 +84,6 @@ class GenkitMcpHost {
     } else {
       _ready = true;
     }
-  }
-
-  set plugin(McpHostPlugin plugin) {
-    _plugin = plugin;
   }
 
   Future<void> ready() {
@@ -368,49 +363,22 @@ class GenkitMcpHost {
 
   GenkitMcpClient? getClient(String name) => _clients[name];
 
-  void _invalidateCache() {
-    _plugin?.invalidateCache();
-  }
+  int? get cacheTtlMillis => options is McpHostOptionsWithCache
+      ? (options as McpHostOptionsWithCache).cacheTtlMillis
+      : null;
 
-  void _setError(String serverName, {required String message, Object? detail}) {
-    _clientStates[serverName] = _ClientState(
-      error: _ClientError(message: message, detail: detail),
-    );
-    mcpLogger.warning(
-      'An error occurred while managing MCP client "$serverName".',
-    );
-    mcpLogger.warning(message);
-    if (detail != null) {
-      mcpLogger.warning(detail);
-    }
-  }
-
-  bool _hasError(String serverName) {
-    return _clientStates[serverName]?.error != null;
-  }
-}
-
-class McpHostPlugin extends GenkitPlugin {
-  final GenkitMcpHost host;
-  final int? cacheTtlMillis;
   final Map<String, _McpActionDescriptor> _actionIndex = {};
   List<ActionMetadata> _cachedActions = [];
   DateTime? _cacheExpiresAt;
   Future<List<ActionMetadata>>? _inflight;
 
-  McpHostPlugin({required this.host, this.cacheTtlMillis});
-
-  @override
-  String get name => host.name;
-
-  void invalidateCache() {
+  void _invalidateCache() {
     _cachedActions = [];
     _cacheExpiresAt = null;
     _actionIndex.clear();
   }
 
-  @override
-  Future<List<ActionMetadata>> list() async {
+  Future<List<ActionMetadata>> getCachedActions() async {
     final now = DateTime.now();
     if (_shouldUseCache() &&
         _cacheExpiresAt != null &&
@@ -427,13 +395,20 @@ class McpHostPlugin extends GenkitPlugin {
     }
   }
 
-  @override
-  Action? resolve(String actionType, String name) {
-    final descriptor = _actionIndex[_descriptorKey(actionType, name)];
+  Action? resolveAction(String actionName) {
+    final nameParts = actionName.split('/');
+    if (nameParts.length < 3) return null;
+    final actionType = nameParts[0];
+    final serverName = nameParts[1];
+    final shortName = nameParts.sublist(2).join('/');
+    
+    final descriptorKey = _descriptorKey(actionType, '$serverName:$shortName');
+    final descriptor = _actionIndex[descriptorKey];
     if (descriptor == null) return null;
-    final client = host.getClient(descriptor.serverName);
+    final client = getClient(descriptor.serverName);
     if (client == null) return null;
-    final fullName = '${host.name}/$name';
+    
+    final fullName = actionName; 
     switch (actionType) {
       case 'tool':
         return _createToolAction(
@@ -441,7 +416,7 @@ class McpHostPlugin extends GenkitPlugin {
           fullName,
           descriptor.actionName,
           descriptor.payload,
-          host.rawToolResponses,
+          rawToolResponses,
         );
       case 'prompt':
         return _createPromptAction(
@@ -463,25 +438,23 @@ class McpHostPlugin extends GenkitPlugin {
   }
 
   Future<List<ActionMetadata>> _buildCache() async {
-    await host.ready();
+    await ready();
     final actions = <ActionMetadata>[];
     final index = <String, _McpActionDescriptor>{};
 
-    for (final entry in host.activeClients) {
+    for (final entry in activeClients) {
       final serverName = entry.serverName;
-      if (host._hasError(serverName)) continue;
+      if (_hasError(serverName)) continue;
       final tools = await _listAll(entry.listTools);
       for (final tool in tools) {
         final name = tool['name'];
         if (name is! String) continue;
         final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
+        final fullName = 'tool/$serverName/$name';
         final meta = extractMcpMeta(tool);
-        final metadata = meta == null
-            ? null
-            : {
-                'mcp': {'_meta': meta},
-              };
+        final metadata = {
+          if (meta != null) 'mcp': {'_meta': meta},
+        };
         actions.add(
           ActionMetadata(
             name: fullName,
@@ -489,7 +462,7 @@ class McpHostPlugin extends GenkitPlugin {
             description: tool['description']?.toString(),
             inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
             outputSchema: .dynamicSchema(),
-            metadata: metadata,
+            metadata: metadata.isEmpty ? null : metadata,
           ),
         );
         index[_descriptorKey('tool', shortName)] = _McpActionDescriptor(
@@ -504,13 +477,11 @@ class McpHostPlugin extends GenkitPlugin {
         final name = prompt['name'];
         if (name is! String) continue;
         final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
+        final fullName = 'prompt/$serverName/$name';
         final meta = extractMcpMeta(prompt);
-        final metadata = meta == null
-            ? null
-            : {
-                'mcp': {'_meta': meta},
-              };
+        final metadata = {
+          if (meta != null) 'mcp': {'_meta': meta},
+        };
         final args = asListOfMaps(prompt['arguments']);
         actions.add(
           ActionMetadata(
@@ -519,7 +490,7 @@ class McpHostPlugin extends GenkitPlugin {
             description: prompt['description']?.toString(),
             inputSchema: promptSchemaFromArgs(args),
             outputSchema: GenerateActionOptions.$schema,
-            metadata: metadata,
+            metadata: metadata.isEmpty ? null : metadata,
           ),
         );
         index[_descriptorKey('prompt', shortName)] = _McpActionDescriptor(
@@ -536,7 +507,7 @@ class McpHostPlugin extends GenkitPlugin {
         final uri = resource['uri'] as String?;
         if (uri == null) continue;
         final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
+        final fullName = 'resource/$serverName/$name';
         final meta = extractMcpMeta(resource);
         final metadata = {
           'resource': {'uri': uri, 'template': null},
@@ -566,7 +537,7 @@ class McpHostPlugin extends GenkitPlugin {
         final uriTemplate = template['uriTemplate'] as String?;
         if (uriTemplate == null) continue;
         final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
+        final fullName = 'resource/$serverName/$name';
         final meta = extractMcpMeta(template);
         final metadata = {
           'resource': {'uri': null, 'template': uriTemplate},
@@ -612,7 +583,25 @@ class McpHostPlugin extends GenkitPlugin {
     }
     return cacheTtlMillis!.abs();
   }
+
+  void _setError(String serverName, {required String message, Object? detail}) {
+    _clientStates[serverName] = _ClientState(
+      error: _ClientError(message: message, detail: detail),
+    );
+    mcpLogger.warning(
+      'An error occurred while managing MCP client "$serverName".',
+    );
+    mcpLogger.warning(message);
+    if (detail != null) {
+      mcpLogger.warning(detail);
+    }
+  }
+
+  bool _hasError(String serverName) {
+    return _clientStates[serverName]?.error != null;
+  }
 }
+
 
 class _ClientState {
   final _ClientError? error;

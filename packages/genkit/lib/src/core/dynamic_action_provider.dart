@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'action.dart';
 
 class DynamicActionProvider<Input, Output, Chunk, Init>
     extends Action<void, Map<String, Object?>, void, void> {
-  final List<Action> Function() listActionsFn;
+  final FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn;
+  final FutureOr<Action?> Function(String)? getActionFn;
 
   DynamicActionProvider({
     required super.name,
-    required this.listActionsFn,
+    this.listActionsFn,
+    this.getActionFn,
     super.metadata,
   }) : super(
          actionType: 'dynamic-action-provider',
@@ -30,11 +34,21 @@ class DynamicActionProvider<Input, Output, Chunk, Init>
          },
        );
 
-  List<ActionMetadata> listActions() {
-    return listActionsFn().toList();
+  Future<List<ActionMetadata>> listActions() async {
+    if (listActionsFn == null) return [];
+    final actions = await listActionsFn!();
+    return actions.toList();
   }
 
-  Action? getAction(String name) {
-    return listActionsFn().where((action) => action.name == name).firstOrNull;
+  Future<Action?> getAction(String name) async {
+    if (getActionFn != null) {
+      return await getActionFn!(name);
+    }
+    if (listActionsFn != null) {
+      final actions = await listActionsFn!();
+      return actions.where((action) => action.name == name).firstOrNull
+          as Action?;
+    }
+    return null;
   }
 }

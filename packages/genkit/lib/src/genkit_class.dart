@@ -336,12 +336,14 @@ final class Genkit {
 
   DynamicActionProvider defineDynamicActionProvider({
     required String name,
-    required List<Action> Function() listActionsFn,
+    FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
+    FutureOr<Action?> Function(String)? getActionFn,
     Map<String, dynamic>? metadata,
   }) {
     final provider = DynamicActionProvider(
       name: name,
       listActionsFn: listActionsFn,
+      getActionFn: getActionFn,
       metadata: metadata,
     );
     registry.register(provider);
@@ -392,8 +394,8 @@ final class Genkit {
     List<Tool>? tools,
     List<String>? toolNames,
     String? system,
-  }) {
-    final resolved = _resolveTools(
+  }) async {
+    final resolved = await _resolveTools(
       registry,
       tools: tools,
       toolNames: toolNames,
@@ -410,29 +412,80 @@ final class Genkit {
   /// The tool resolution logic.
   ///
   /// Returns a new registry with embedded tools if necessary.
-  ({Registry registry, List<String>? toolNames}) _resolveTools(
+  Future<({Registry registry, List<String>? toolNames})> _resolveTools(
     Registry registry, {
     List<Tool>? tools,
     List<String>? toolNames,
-  }) {
+  }) async {
     if ((tools == null || tools.isEmpty) &&
         (toolNames == null || toolNames.isEmpty)) {
       return (registry: registry, toolNames: null);
     }
 
-    final resolvedToolNames = <String>[...?toolNames];
+    final resolvedToolNames = <String>[];
+    var childRegistry = registry;
 
-    if (tools == null || tools.isEmpty) {
-      return (registry: registry, toolNames: resolvedToolNames);
-    }
-
-    final childRegistry = Registry.childOf(registry);
-    for (final tool in tools) {
-      childRegistry.register(tool);
-      if (!resolvedToolNames.contains(tool.name)) {
+    if (tools != null && tools.isNotEmpty) {
+      if (childRegistry == registry) {
+        childRegistry = Registry.childOf(registry);
+      }
+      for (final tool in tools) {
+        childRegistry.register(tool);
         resolvedToolNames.add(tool.name);
       }
     }
+
+    if (toolNames != null) {
+      for (final name in toolNames) {
+        final colonIdx = name.indexOf(':');
+        if (colonIdx != -1) {
+          final dapName = name.substring(0, colonIdx);
+          final actionMatcher = name.substring(colonIdx + 1);
+          final dap = await registry.lookupAction(
+            'dynamic-action-provider',
+            dapName,
+          ) as DynamicActionProvider?;
+          
+          if (dap != null) {
+            if (actionMatcher.endsWith('/*')) {
+              final prefix = actionMatcher.substring(0, actionMatcher.length - 2);
+              final actions = await dap.listActions();
+              for (final action in actions) {
+                if (action.actionType == 'tool' && (prefix.isEmpty || action.name.startsWith(prefix))) {
+                  final fullAction = await dap.getAction(action.name);
+                  if (fullAction != null) {
+                    if (childRegistry == registry) childRegistry = Registry.childOf(registry);
+                    childRegistry.register(fullAction);
+                    if (!resolvedToolNames.contains(fullAction.name)) {
+                      resolvedToolNames.add(fullAction.name);
+                    }
+                  }
+                }
+              }
+            } else {
+              final fullAction = await dap.getAction(actionMatcher);
+              if (fullAction != null && fullAction.actionType == 'tool') {
+                if (childRegistry == registry) childRegistry = Registry.childOf(registry);
+                childRegistry.register(fullAction);
+                if (!resolvedToolNames.contains(fullAction.name)) {
+                  resolvedToolNames.add(fullAction.name);
+                }
+              }
+            }
+          } else {
+            // Unmatched DAP but contains colon, just add to resolved
+            if (!resolvedToolNames.contains(name)) {
+              resolvedToolNames.add(name);
+            }
+          }
+        } else {
+          if (!resolvedToolNames.contains(name)) {
+            resolvedToolNames.add(name);
+          }
+        }
+      }
+    }
+
     return (registry: childRegistry, toolNames: resolvedToolNames);
   }
 
@@ -501,7 +554,7 @@ final class Genkit {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = _resolveTools(
+    final resolved = await _resolveTools(
       registry,
       tools: tools,
       toolNames: toolNames,
