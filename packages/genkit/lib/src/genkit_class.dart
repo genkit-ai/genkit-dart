@@ -358,12 +358,7 @@ final class Genkit {
   }) {
     final evaluator = Evaluator(
       name: name,
-      metadata: {
-        'evaluator': {
-          'evaluatorDisplayName': name,
-          'evaluatorDefinition': description,
-        },
-      },
+      description: description,
       fn: (input, context) {
         return fn(input!, context);
       },

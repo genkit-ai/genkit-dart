@@ -17,12 +17,20 @@ import '../types.dart';
 
 class Evaluator<CustomOptions>
     extends Action<EvalRequest, List<EvalFnResponse>, void, void> {
-  Evaluator({required super.name, required super.fn, super.metadata})
-    : super(
-        actionType: 'evaluator',
-        inputSchema: EvalRequest.$schema,
-        outputSchema: .list(EvalFnResponse.$schema),
-      ) {
-    metadata['description'] = name;
+  Evaluator({
+    required super.name,
+    required super.fn,
+    super.metadata,
+    required String description,
+  }) : super(
+         actionType: 'evaluator',
+         inputSchema: EvalRequest.$schema,
+         description: description,
+         outputSchema: .list(EvalFnResponse.$schema),
+       ) {
+    metadata['evaluator'] = {
+      'evaluatorDisplayName': name,
+      'evaluatorDefinition': description,
+    };
   }
 }
