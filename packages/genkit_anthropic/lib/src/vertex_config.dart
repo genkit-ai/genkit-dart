@@ -12,25 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:genkit/plugin.dart';
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart' as vertex_auth;
 import 'package:http/http.dart' as http;
-
-import 'project_id_resolver_stub.dart'
-    if (dart.library.io) 'project_id_resolver_io.dart'
-    as project_id;
-import 'vertex_token_provider_stub.dart'
-    if (dart.library.io) 'vertex_token_provider_io.dart'
-    as vertex_auth;
 
 /// Signature used to provide an OAuth2 access token for Vertex AI requests.
 ///
 /// Return the raw bearer token value without the `Bearer ` prefix.
-typedef AccessTokenProvider = FutureOr<String> Function();
-
-const _cloudPlatformScope = 'https://www.googleapis.com/auth/cloud-platform';
+typedef AccessTokenProvider = vertex_auth.AccessTokenProvider;
 
 /// Configuration for using Anthropic Claude models on Vertex AI.
 class AnthropicVertexConfig {
@@ -89,14 +78,14 @@ class AnthropicVertexConfig {
   factory AnthropicVertexConfig.adc({
     String? projectId,
     String location = 'global',
-    List<String> scopes = const [_cloudPlatformScope],
+    List<String> scopes = const [vertex_auth.cloudPlatformScope],
     http.Client? baseClient,
   }) {
     return AnthropicVertexConfig._(
       projectId: projectId,
       projectIdFromCredentials: null,
       location: location,
-      accessTokenProvider: vertex_auth.createAdcTokenProvider(
+      accessTokenProvider: vertex_auth.createAdcAccessTokenProvider(
         scopes: scopes,
         baseClient: baseClient,
       ),
@@ -115,15 +104,16 @@ class AnthropicVertexConfig {
     String? projectId,
     required Object credentialsJson,
     String location = 'global',
-    List<String> scopes = const [_cloudPlatformScope],
+    List<String> scopes = const [vertex_auth.cloudPlatformScope],
     String? impersonatedUser,
     http.Client? baseClient,
   }) {
     return AnthropicVertexConfig._(
       projectId: projectId,
-      projectIdFromCredentials: _extractProjectId(credentialsJson),
+      projectIdFromCredentials: vertex_auth
+          .extractProjectIdFromServiceAccountJson(credentialsJson),
       location: location,
-      accessTokenProvider: vertex_auth.createServiceAccountTokenProvider(
+      accessTokenProvider: vertex_auth.createServiceAccountAccessTokenProvider(
         credentialsJson: credentialsJson,
         scopes: scopes,
         impersonatedUser: impersonatedUser,
@@ -135,31 +125,13 @@ class AnthropicVertexConfig {
 
   /// Validates required Vertex configuration fields.
   void validate() {
-    if (projectId != null && projectId!.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex Anthropic requires a non-empty projectId.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    if (location.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex Anthropic requires a non-empty location.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    final locationPattern = RegExp(r'^[A-Za-z0-9-]+$');
-    if (!locationPattern.hasMatch(location.trim())) {
-      throw GenkitException(
-        'Vertex Anthropic location may only contain letters, numbers, and hyphens.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    if (accessToken != null && accessTokenProvider != null) {
-      throw GenkitException(
-        'Provide either accessToken or accessTokenProvider, not both.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
+    vertex_auth.validateVertexConfigBasics(
+      providerName: 'Anthropic',
+      projectId: projectId,
+      location: location,
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
   }
 
   /// Resolves and returns a usable Google Cloud project ID.
@@ -172,27 +144,11 @@ class AnthropicVertexConfig {
   /// Throws [GenkitException] if no project ID can be resolved.
   String resolveProjectId() {
     validate();
-
-    final explicit = projectId?.trim();
-    if (explicit != null && explicit.isNotEmpty) {
-      return explicit;
-    }
-
-    final fromCredentials = _projectIdFromCredentials?.trim();
-    if (fromCredentials != null && fromCredentials.isNotEmpty) {
-      return fromCredentials;
-    }
-
-    final fromEnvironment = project_id.resolveEnvironmentProjectId();
-    if (fromEnvironment != null && fromEnvironment.trim().isNotEmpty) {
-      return fromEnvironment.trim();
-    }
-
-    throw GenkitException(
-      'Vertex Anthropic requires a GCP project ID. '
-      'Set projectId in AnthropicVertexConfig or set '
-      'GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT.',
-      status: StatusCodes.INVALID_ARGUMENT,
+    return vertex_auth.resolveVertexProjectId(
+      providerName: 'Anthropic',
+      configTypeName: 'AnthropicVertexConfig',
+      projectId: projectId,
+      projectIdFromCredentials: _projectIdFromCredentials,
     );
   }
 
@@ -202,38 +158,10 @@ class AnthropicVertexConfig {
   /// configured token resolves to an empty string.
   Future<String> resolveAccessToken() async {
     validate();
-    final token = accessTokenProvider != null
-        ? await accessTokenProvider!()
-        : accessToken;
-    if (token == null || token.trim().isEmpty) {
-      throw GenkitException(
-        'Vertex Anthropic requires an OAuth access token. '
-        'Set accessToken or accessTokenProvider.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    return token;
+    return vertex_auth.resolveVertexAccessToken(
+      providerName: 'Anthropic',
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
   }
-}
-
-String? _extractProjectId(Object credentialsJson) {
-  Map<String, dynamic>? json;
-  if (credentialsJson is Map) {
-    json = Map<String, dynamic>.from(credentialsJson);
-  } else if (credentialsJson is String) {
-    try {
-      final decoded = jsonDecode(credentialsJson);
-      if (decoded is Map) {
-        json = Map<String, dynamic>.from(decoded);
-      }
-    } catch (_) {
-      return null;
-    }
-  }
-
-  final projectId = json?['project_id'];
-  if (projectId is String && projectId.trim().isNotEmpty) {
-    return projectId.trim();
-  }
-  return null;
 }

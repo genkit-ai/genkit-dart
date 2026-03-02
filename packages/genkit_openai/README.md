@@ -141,6 +141,77 @@ final response = await ai.generate(
 
 The plugin supports any OpenAI-compatible API by specifying a custom `baseUrl`:
 
+### Vertex AI OpenAI Endpoint
+
+You can route OpenAI-compatible requests through Vertex AI by providing a
+`vertex` config instead of an OpenAI API key or custom `baseUrl`.
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_openai/genkit_openai.dart';
+
+void main() async {
+  final ai = Genkit(
+    plugins: [
+      openAI(
+        vertex: OpenAIVertexConfig.adc(
+          projectId: 'my-gcp-project',
+          location: 'global',
+        ),
+      ),
+    ],
+  );
+
+  final response = await ai.generate(
+    model: openAI.model('google/gemini-2.5-flash'),
+    prompt: 'Say hello from Vertex AI',
+  );
+
+  print(response.text);
+}
+```
+
+Notes:
+- `OpenAIVertexConfig.adc(...)` uses Google Application Default Credentials.
+- ADC supports `GOOGLE_APPLICATION_CREDENTIALS`, local `gcloud` ADC login, and metadata server credentials (for Workload Identity / attached service accounts).
+- For explicit service account keys, use `OpenAIVertexConfig.serviceAccount(...)`.
+- ADC and service-account helper constructors are available on Dart IO runtimes.
+- `projectId` is optional. If omitted, the plugin tries service-account `project_id` (when available) and then `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT`.
+- For fully custom auth, use `accessToken` or `accessTokenProvider` directly.
+- Do not pass `apiKey`, `baseUrl`, and `vertex` together.
+
+Service account example:
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:genkit/genkit.dart';
+import 'package:genkit_openai/genkit_openai.dart';
+
+void main() async {
+  final keyJson = jsonDecode(File('service-account.json').readAsStringSync());
+
+  final ai = Genkit(
+    plugins: [
+      openAI(
+        vertex: OpenAIVertexConfig.serviceAccount(
+          location: 'global',
+          credentialsJson: keyJson,
+        ),
+      ),
+    ],
+  );
+
+  final response = await ai.generate(
+    model: openAI.model('google/gemini-2.5-flash'),
+    prompt: 'Say hello from Vertex AI',
+  );
+
+  print(response.text);
+}
+```
+
 ### Groq
 
 ```dart

@@ -13,6 +13,8 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart' as vertex_auth;
+import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'src/openai_plugin.dart';
@@ -72,6 +74,159 @@ class CustomModelDefinition {
   const CustomModelDefinition({required this.name, this.info});
 }
 
+/// Signature used to provide an OAuth2 access token for Vertex AI requests.
+///
+/// Return the raw bearer token value without the `Bearer ` prefix.
+typedef AccessTokenProvider = vertex_auth.AccessTokenProvider;
+
+/// Configuration for using the Vertex AI OpenAI-compatible endpoint.
+final class OpenAIVertexConfig {
+  /// Optional Google Cloud project ID where Vertex AI is enabled.
+  ///
+  /// When omitted, resolution falls back to:
+  /// 1. `project_id` from service account credentials (if configured via
+  ///    [OpenAIVertexConfig.serviceAccount])
+  /// 2. environment variables (`GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`)
+  final String? projectId;
+
+  final String? _projectIdFromCredentials;
+
+  /// Vertex region, for example `global` or `us-central1`.
+  ///
+  /// Must contain only letters, numbers, and hyphens.
+  final String location;
+
+  /// Vertex endpoint ID for OpenAI-compatible requests.
+  ///
+  /// Defaults to `openapi` for Gemini models through the OpenAI-compatible API.
+  final String endpointId;
+
+  /// Optional static OAuth2 access token.
+  final String? accessToken;
+
+  /// Optional provider used to fetch/refresh OAuth2 access tokens.
+  final AccessTokenProvider? accessTokenProvider;
+
+  /// Creates a Vertex OpenAI configuration.
+  ///
+  /// Provide exactly one of [accessToken] or [accessTokenProvider].
+  const OpenAIVertexConfig({
+    this.projectId,
+    this.location = 'global',
+    this.endpointId = 'openapi',
+    this.accessToken,
+    this.accessTokenProvider,
+  }) : _projectIdFromCredentials = null;
+
+  const OpenAIVertexConfig._({
+    required this.projectId,
+    required String? projectIdFromCredentials,
+    required this.location,
+    required this.endpointId,
+    required this.accessToken,
+    required this.accessTokenProvider,
+  }) : _projectIdFromCredentials = projectIdFromCredentials;
+
+  /// Creates Vertex config backed by Application Default Credentials (ADC).
+  factory OpenAIVertexConfig.adc({
+    String? projectId,
+    String location = 'global',
+    String endpointId = 'openapi',
+    List<String> scopes = const [vertex_auth.cloudPlatformScope],
+    http.Client? baseClient,
+  }) {
+    return OpenAIVertexConfig._(
+      projectId: projectId,
+      projectIdFromCredentials: null,
+      location: location,
+      endpointId: endpointId,
+      accessTokenProvider: vertex_auth.createAdcAccessTokenProvider(
+        scopes: scopes,
+        baseClient: baseClient,
+      ),
+      accessToken: null,
+    );
+  }
+
+  /// Creates Vertex config backed by service account credentials.
+  factory OpenAIVertexConfig.serviceAccount({
+    String? projectId,
+    required Object credentialsJson,
+    String location = 'global',
+    String endpointId = 'openapi',
+    List<String> scopes = const [vertex_auth.cloudPlatformScope],
+    String? impersonatedUser,
+    http.Client? baseClient,
+  }) {
+    return OpenAIVertexConfig._(
+      projectId: projectId,
+      projectIdFromCredentials: vertex_auth
+          .extractProjectIdFromServiceAccountJson(credentialsJson),
+      location: location,
+      endpointId: endpointId,
+      accessTokenProvider: vertex_auth.createServiceAccountAccessTokenProvider(
+        credentialsJson: credentialsJson,
+        scopes: scopes,
+        impersonatedUser: impersonatedUser,
+        baseClient: baseClient,
+      ),
+      accessToken: null,
+    );
+  }
+
+  /// Validates required Vertex configuration fields.
+  void validate() {
+    vertex_auth.validateVertexConfigBasics(
+      providerName: 'OpenAI',
+      projectId: projectId,
+      location: location,
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
+    vertex_auth.validateVertexEndpointId(
+      providerName: 'OpenAI',
+      endpointId: endpointId,
+    );
+  }
+
+  /// Resolves and returns a usable Google Cloud project ID.
+  String resolveProjectId() {
+    validate();
+    return vertex_auth.resolveVertexProjectId(
+      providerName: 'OpenAI',
+      configTypeName: 'OpenAIVertexConfig',
+      projectId: projectId,
+      projectIdFromCredentials: _projectIdFromCredentials,
+    );
+  }
+
+  /// Resolves and returns a non-empty endpoint ID.
+  String resolveEndpointId() {
+    validate();
+    return endpointId.trim();
+  }
+
+  /// Resolves and returns the OpenAI-compatible Vertex base URL.
+  String resolveBaseUrl() {
+    final normalizedLocation = vertex_auth.normalizeVertexLocation(location);
+    final apiHost = vertex_auth.vertexApiHostForLocation(location);
+    final project = Uri.encodeComponent(resolveProjectId());
+    final locationComponent = Uri.encodeComponent(normalizedLocation);
+    final endpoint = Uri.encodeComponent(resolveEndpointId());
+    return 'https://$apiHost/v1/projects/$project/locations/$locationComponent/endpoints/$endpoint';
+  }
+
+  /// Resolves and returns a usable OAuth2 access token.
+  Future<String> resolveAccessToken() async {
+    validate();
+    return vertex_auth.resolveVertexAccessToken(
+      providerName: 'OpenAI',
+      accessToken: accessToken,
+      accessTokenProvider: accessTokenProvider,
+    );
+  }
+}
+
 /// Public constant handle for OpenAI-compatible plugin
 const OpenAICompatPluginHandle openAI = OpenAICompatPluginHandle();
 
@@ -85,10 +240,12 @@ class OpenAICompatPluginHandle {
     String? baseUrl,
     List<CustomModelDefinition>? models,
     Map<String, String>? headers,
+    OpenAIVertexConfig? vertex,
   }) {
     return OpenAIPlugin(
       apiKey: apiKey,
       baseUrl: baseUrl,
+      vertex: vertex,
       customModels: models ?? const [],
       headers: headers,
     );
