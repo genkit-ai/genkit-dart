@@ -38,7 +38,7 @@ base class Candidate {
       'index': index,
       'message': message.toJson(),
       'usage': ?usage?.toJson(),
-      'finishReason': finishReason,
+      'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
       'custom': ?custom,
     };
@@ -79,11 +79,12 @@ base class Candidate {
   }
 
   FinishReason get finishReason {
-    return _json['finishReason'] as FinishReason;
+    final value = _json['finishReason'] as String;
+    return FinishReason(value);
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value;
+    _json['finishReason'] = value.value;
   }
 
   String? get finishMessage {
@@ -159,7 +160,7 @@ base class Message {
     Map<String, dynamic>? metadata,
   }) {
     _json = {
-      'role': role,
+      'role': role.value,
       'content': content.map((e) => e.toJson()).toList(),
       'metadata': ?metadata,
     };
@@ -170,11 +171,12 @@ base class Message {
   static const SchemanticType<Message> $schema = _MessageTypeFactory();
 
   Role get role {
-    return _json['role'] as Role;
+    final value = _json['role'] as String;
+    return Role(value);
   }
 
   set role(Role value) {
-    _json['role'] = value;
+    _json['role'] = value.value;
   }
 
   List<Part> get content {
@@ -1583,7 +1585,7 @@ base class Score {
     _json = {
       'id': ?id,
       if (score != null) 'score': score.value,
-      'status': ?status,
+      'status': ?status?.value,
       'error': ?error,
       'details': ?details,
     };
@@ -2256,7 +2258,7 @@ base class ModelResponse {
   }) {
     _json = {
       'message': ?message?.toJson(),
-      'finishReason': finishReason,
+      'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
@@ -2287,11 +2289,12 @@ base class ModelResponse {
   }
 
   FinishReason get finishReason {
-    return _json['finishReason'] as FinishReason;
+    final value = _json['finishReason'] as String;
+    return FinishReason(value);
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value;
+    _json['finishReason'] = value.value;
   }
 
   String? get finishMessage {
@@ -2444,7 +2447,7 @@ base class ModelResponseChunk {
     bool? aggregated,
   }) {
     _json = {
-      'role': ?role,
+      'role': ?role?.value,
       'index': ?index,
       'content': content.map((e) => e.toJson()).toList(),
       'custom': ?custom,
@@ -2575,7 +2578,7 @@ base class GenerateResponse {
   }) {
     _json = {
       'message': ?message?.toJson(),
-      'finishReason': ?finishReason,
+      'finishReason': ?finishReason?.value,
       'finishMessage': ?finishMessage,
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
