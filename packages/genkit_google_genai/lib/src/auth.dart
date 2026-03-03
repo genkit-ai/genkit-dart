@@ -17,12 +17,14 @@ import 'package:http/http.dart' as http;
 
 class VertexAuthClient extends http.BaseClient {
   final AccessTokenProvider _tokenProvider;
-  final http.BaseClient _inner;
+  final http.Client _inner;
 
   VertexAuthClient(
     this._tokenProvider, {
-    http.BaseClient? inner,
+    http.Client? inner,
   }) : _inner = inner ?? http.Client();
+
+  @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final token = await _tokenProvider();
     request.headers['Authorization'] = 'Bearer ${token.trim()}';

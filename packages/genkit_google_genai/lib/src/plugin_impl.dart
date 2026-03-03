@@ -79,7 +79,6 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
       final tokenProvider = createAdcAccessTokenProvider(
         baseClient: authClient,
       );
-      final client = VertexAuthClient(tokenProvider, inner: authClient);
 
       final baseUrl = safeLocation == 'global'
           ? 'https://aiplatform.googleapis.com/'
@@ -88,10 +87,12 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
       final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
+      final customClient = CustomClient(defaultHeaders: headers, inner: authClient);
+      final client = VertexAuthClient(tokenProvider, inner: customClient);
 
       return GenerativeLanguageBaseClient(
         baseUrl: baseUrl,
-        client: CustomClient(defaultHeaders: headers, inner: client),
+        client: client,
         apiUrlPrefix: apiUrlPrefix,
       );
     } else {
