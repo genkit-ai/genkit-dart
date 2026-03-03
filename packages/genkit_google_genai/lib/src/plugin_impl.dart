@@ -857,7 +857,10 @@ GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
     totalTokens: metadata.totalTokenCount?.toDouble(),
     thoughtsTokens: metadata.thoughtsTokenCount?.toDouble(),
     cachedContentTokens: metadata.cachedContentTokenCount?.toDouble(),
-    custom: {'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount},
+    custom: {
+      if (metadata.toolUsePromptTokenCount != null)
+        'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
+    },
   );
 }
 
