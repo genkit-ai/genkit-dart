@@ -56,17 +56,21 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     this.isVertex = false,
   });
 
-  Future<GenerativeLanguageBaseClient> _getApiClient([
-    String? requestApiKey,
-  ]) async {
-    if (isVertex) {
-      final validFormat = RegExp(r'^[a-z0-9-]+$');
-      final resolvedProjectId = resolveVertexProjectId(
+  String? _resolvedProjectId;
+  String get _getResolvedProjectId =>
+      _resolvedProjectId ??= resolveVertexProjectId(
         providerName: 'vertexai',
         configTypeName: 'plugin configuration',
         projectId: projectId,
         projectIdFromCredentials: null,
       );
+
+  Future<GenerativeLanguageBaseClient> _getApiClient([
+    String? requestApiKey,
+  ]) async {
+    if (isVertex) {
+      final validFormat = RegExp(r'^[a-z0-9-]+$');
+      final resolvedProjectId = _getResolvedProjectId;
       final resolvedLocation = location ?? 'global';
 
       if (!validFormat.hasMatch(resolvedLocation) ||
@@ -115,14 +119,8 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     final service = await _getApiClient();
     try {
       if (isVertex) {
-        final resolvedProjectId = resolveVertexProjectId(
-          providerName: 'vertexai',
-          configTypeName: 'plugin configuration',
-          projectId: projectId,
-          projectIdFromCredentials: null,
-        );
         final res = await service.listPublisherModels(
-          projectId: resolvedProjectId,
+          projectId: _getResolvedProjectId,
         );
         final publisherModels = (res['publisherModels'] as List?) ?? [];
 
