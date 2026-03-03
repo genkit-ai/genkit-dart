@@ -76,7 +76,9 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
       final safeLocation = Uri.encodeComponent(resolvedLocation);
       final safeProjectId = Uri.encodeComponent(resolvedProjectId);
 
-      final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
+      final tokenProvider = createAdcAccessTokenProvider(
+        baseClient: authClient,
+      );
       final client = VertexAuthClient(tokenProvider, inner: authClient);
 
       final baseUrl = safeLocation == 'global'
@@ -85,9 +87,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
       final apiUrlPrefix =
           'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
-      final headers = {
-        'X-Goog-Api-Client': googleApiClientHeaderValue(),
-      };
+      final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
 
       return GenerativeLanguageBaseClient(
         baseUrl: baseUrl,
@@ -117,7 +117,9 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           projectId: projectId,
           projectIdFromCredentials: null,
         );
-        final res = await service.listPublisherModels(projectId: resolvedProjectId);
+        final res = await service.listPublisherModels(
+          projectId: resolvedProjectId,
+        );
         final publisherModels = (res['publisherModels'] as List?) ?? [];
 
         final models = publisherModels

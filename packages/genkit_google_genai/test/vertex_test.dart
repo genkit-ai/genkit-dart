@@ -25,10 +25,13 @@ class MockHttpClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     lastUrl = request.url;
-    if (request.url.host == 'metadata.google.internal' || request.url.host == 'oauth2.googleapis.com') {
+    if (request.url.host == 'metadata.google.internal' ||
+        request.url.host == 'oauth2.googleapis.com') {
       return http.StreamedResponse(
         Stream.value(
-          utf8.encode('{"access_token": "ya29.mock", "expires_in": 3600, "token_type": "Bearer"}'),
+          utf8.encode(
+            '{"access_token": "ya29.mock", "expires_in": 3600, "token_type": "Bearer"}',
+          ),
         ),
         200,
         headers: {'content-type': 'application/json'},
