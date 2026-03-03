@@ -14,11 +14,10 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
-import 'package:openai_dart/openai_dart.dart' hide Model;
+import 'package:openai_dart/openai_dart.dart' as sdk;
 import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
-import 'aggregation.dart';
 
 /// Returns true when the output config indicates JSON-structured output
 /// (format is 'json' or contentType is 'application/json').
@@ -26,18 +25,16 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
   return format == 'json' || contentType == 'application/json';
 }
 
-/// Builds an OpenAI [ResponseFormat] from a Genkit output schema.
+/// Builds an OpenAI [sdk.ResponseFormat] from a Genkit output schema.
 /// Flattens `$ref`/`$defs` since OpenAI requires `type` at the top level.
 /// Returns null if [schema] is null.
-ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
+sdk.ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   if (schema == null) return null;
   final flattened = schema.flatten();
-  return ResponseFormat.jsonSchema(
-    jsonSchema: JsonSchemaObject(
-      name: 'output',
-      schema: {...flattened, 'additionalProperties': false},
-      strict: true,
-    ),
+  return sdk.ResponseFormat.jsonSchema(
+    name: 'output',
+    schema: {...flattened, 'additionalProperties': false},
+    strict: true,
   );
 }
 
@@ -209,14 +206,16 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<List<String>> _fetchAvailableModels() async {
     final resolvedConfig = await _resolveClientConfig();
 
-    final client = OpenAIClient(
-      apiKey: resolvedConfig.apiKey,
-      baseUrl: resolvedConfig.baseUrl,
-      headers: resolvedConfig.headers,
+    final client = sdk.OpenAIClient(
+      config: sdk.OpenAIConfig(
+        authProvider: sdk.ApiKeyProvider(resolvedConfig.apiKey),
+        baseUrl: resolvedConfig.baseUrl ?? 'https://api.openai.com/v1',
+        defaultHeaders: resolvedConfig.headers ?? const {},
+      ),
     );
 
     try {
-      final response = await client.listModels();
+      final response = await client.models.list();
       final modelIds = <String>[];
 
       // Collect all model IDs
@@ -226,7 +225,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
       return modelIds;
     } finally {
-      client.endSession();
+      client.close();
     }
   }
 
@@ -328,10 +327,12 @@ class OpenAIPlugin extends GenkitPlugin {
             : OpenAIOptions();
 
         final resolvedConfig = await _resolveClientConfig();
-        final client = OpenAIClient(
-          apiKey: resolvedConfig.apiKey,
-          baseUrl: resolvedConfig.baseUrl,
-          headers: resolvedConfig.headers,
+        final client = sdk.OpenAIClient(
+          config: sdk.OpenAIConfig(
+            authProvider: sdk.ApiKeyProvider(resolvedConfig.apiKey),
+            baseUrl: resolvedConfig.baseUrl ?? 'https://api.openai.com/v1',
+            defaultHeaders: resolvedConfig.headers ?? const {},
+          ),
         );
 
         try {
@@ -343,8 +344,8 @@ class OpenAIPlugin extends GenkitPlugin {
             req.output?.contentType,
           );
           final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
-          final request = CreateChatCompletionRequest(
-            model: ChatCompletionModel.modelId(options.version ?? modelName),
+          final request = sdk.ChatCompletionCreateRequest(
+            model: options.version ?? modelName,
             messages: GenkitConverter.toOpenAIMessages(
               req.messages,
               options.visualDetailLevel,
@@ -354,10 +355,8 @@ class OpenAIPlugin extends GenkitPlugin {
                 : null,
             temperature: options.temperature,
             topP: options.topP,
-            maxTokens: options.maxTokens,
-            stop: options.stop != null
-                ? ChatCompletionStop.listString(options.stop!)
-                : null,
+            maxCompletionTokens: options.maxTokens,
+            stop: options.stop,
             presencePenalty: options.presencePenalty,
             frequencyPenalty: options.frequencyPenalty,
             seed: options.seed,
@@ -377,10 +376,8 @@ class OpenAIPlugin extends GenkitPlugin {
           StatusCodes? status;
           String? details;
 
-          if (e is OpenAIClientException) {
-            status = e.code != null
-                ? StatusCodes.fromHttpStatus(e.code!)
-                : null;
+          if (e is sdk.ApiException) {
+            status = StatusCodes.fromHttpStatus(e.statusCode);
             details = e.body?.toString();
           }
 
@@ -392,7 +389,7 @@ class OpenAIPlugin extends GenkitPlugin {
             stackTrace: stackTrace,
           );
         } finally {
-          client.endSession();
+          client.close();
         }
       },
     );
@@ -400,8 +397,8 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Handle streaming response
   Future<ModelResponse> _handleStreaming(
-    OpenAIClient client,
-    CreateChatCompletionRequest request,
+    sdk.OpenAIClient client,
+    sdk.ChatCompletionCreateRequest request,
     ({
       bool streamingRequested,
       void Function(ModelResponseChunk) sendChunk,
@@ -411,12 +408,12 @@ class OpenAIPlugin extends GenkitPlugin {
     })
     ctx,
   ) async {
-    final stream = client.createChatCompletionStream(request: request);
-    final chunks = <CreateChatCompletionStreamResponse>[];
+    final stream = client.chat.completions.createStream(request);
+    final accumulator = sdk.ChatStreamAccumulator();
 
     try {
       await for (final chunk in stream) {
-        chunks.add(chunk);
+        accumulator.add(chunk);
 
         final choice = (chunk.choices != null && chunk.choices!.isNotEmpty)
             ? chunk.choices!.first
@@ -442,7 +439,7 @@ class OpenAIPlugin extends GenkitPlugin {
       );
     }
 
-    final response = aggregateStreamResponses(chunks);
+    final response = accumulator.toChatCompletion();
     final choice = response.choices.first;
     final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
 
@@ -455,10 +452,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Handle non-streaming response
   Future<ModelResponse> _handleNonStreaming(
-    OpenAIClient client,
-    CreateChatCompletionRequest request,
+    sdk.OpenAIClient client,
+    sdk.ChatCompletionCreateRequest request,
   ) async {
-    final response = await client.createChatCompletion(request: request);
+    final response = await client.chat.completions.create(request);
 
     if (response.choices.isEmpty) {
       throw GenkitException('Model returned no choices.');

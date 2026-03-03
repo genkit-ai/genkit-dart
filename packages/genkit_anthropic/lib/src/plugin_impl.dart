@@ -58,9 +58,12 @@ class AnthropicPluginImpl extends GenkitPlugin {
 
   sdk.AnthropicClient get client {
     if (_client != null) return _client!;
-    return _client = sdk.AnthropicClient(
-      apiKey: apiKey ?? String.fromEnvironment('ANTHROPIC_API_KEY'),
-    );
+    if (apiKey != null) {
+      return _client = sdk.AnthropicClient(
+        config: sdk.AnthropicConfig(authProvider: sdk.ApiKeyProvider(apiKey!)),
+      );
+    }
+    return _client = sdk.AnthropicClient.fromEnvironment();
   }
 
   @override
@@ -70,9 +73,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
       return [];
     }
     // Attempt to list models from the API if available, otherwise return manual list.
-    // The SDK currently supports listing models via `client.listModels()`.
     try {
-      final response = await client.listModels();
+      final response = await client.models.list();
       return response.data
           .map(
             (m) => modelMetadata(
@@ -140,33 +142,30 @@ class AnthropicPluginImpl extends GenkitPlugin {
             body: requestBody,
             stream: true,
           );
-          final events = <sdk.MessageStreamEvent>[];
+          final accumulator = sdk.MessageStreamAccumulator();
 
           await for (final data in transport.sseDataLines(response.stream)) {
-            if (data == '[DONE]') {
-              continue;
-            }
+            if (data == '[DONE]') continue;
             try {
               final decoded = jsonDecode(data);
-              if (decoded is! Map) {
-                continue;
-              }
+              if (decoded is! Map) continue;
               final event = sdk.MessageStreamEvent.fromJson(
                 Map<String, dynamic>.from(decoded),
               );
-              events.add(event);
-              _emitStreamingChunks(event, ctx.sendChunk);
-            } catch (_) {
+              accumulator.add(event);
+              _handleStreamEvent(event, ctx.sendChunk);
+            } catch (e) {
+              if (e is GenkitException) rethrow;
               // Ignore malformed stream events and continue processing.
               continue;
             }
           }
 
-          final message = await _aggregateStream(events);
+          final message = accumulator.toMessage();
           return ModelResponse(
-            finishReason: _mapFinishReason(message.stopReason),
+            finishReason: mapFinishReason(message.stopReason),
             message: fromAnthropicMessage(message),
-            usage: _mapUsage(message.usage),
+            usage: mapUsage(message.usage),
           );
         }
 
@@ -187,9 +186,9 @@ class AnthropicPluginImpl extends GenkitPlugin {
         final payload = Map<String, dynamic>.from(decoded);
         final message = sdk.Message.fromJson(payload);
         return ModelResponse(
-          finishReason: _mapFinishReason(message.stopReason),
+          finishReason: mapFinishReason(message.stopReason),
           message: fromAnthropicMessage(message),
-          usage: _mapUsage(message.usage),
+          usage: mapUsage(message.usage),
           raw: payload,
         );
       },
@@ -207,48 +206,63 @@ class AnthropicPluginImpl extends GenkitPlugin {
             : AnthropicOptions.$schema.parse(req.config!);
 
         final requestClient = options.apiKey != null
-            ? sdk.AnthropicClient(apiKey: options.apiKey!)
+            ? sdk.AnthropicClient(
+                config: sdk.AnthropicConfig(
+                  authProvider: sdk.ApiKeyProvider(options.apiKey!),
+                ),
+              )
             : client;
 
         try {
           final createRequest = _buildCreateRequest(req, modelName, options);
 
           if (ctx.streamingRequested) {
-            final stream = requestClient.createMessageStream(
-              request: createRequest,
-            );
-            final chunks = <sdk.MessageStreamEvent>[];
+            final stream = requestClient.messages.createStream(createRequest);
+            final accumulator = sdk.MessageStreamAccumulator();
             await for (final event in stream) {
-              chunks.add(event);
-              _emitStreamingChunks(event, ctx.sendChunk);
+              accumulator.add(event);
+              _handleStreamEvent(event, ctx.sendChunk);
             }
-            final message = await _aggregateStream(chunks);
+            final message = accumulator.toMessage();
             return ModelResponse(
-              finishReason: _mapFinishReason(message.stopReason),
+              finishReason: mapFinishReason(message.stopReason),
               message: fromAnthropicMessage(message),
-              usage: _mapUsage(message.usage),
+              usage: mapUsage(message.usage),
             );
           } else {
-            final response = await requestClient.createMessage(
-              request: createRequest,
-            );
+            final response = await requestClient.messages.create(createRequest);
             return ModelResponse(
-              finishReason: _mapFinishReason(response.stopReason),
+              finishReason: mapFinishReason(response.stopReason),
               message: fromAnthropicMessage(response),
-              usage: _mapUsage(response.usage),
+              usage: mapUsage(response.usage),
               raw: response.toJson(),
             );
           }
+        } catch (e, stackTrace) {
+          if (e is GenkitException) rethrow;
+          StatusCodes? status;
+          String? details;
+          if (e is sdk.ApiException) {
+            status = StatusCodes.fromHttpStatus(e.statusCode);
+            details = e.message;
+          }
+          throw GenkitException(
+            'Anthropic API error: $e',
+            status: status,
+            details: details ?? e.toString(),
+            underlyingException: e,
+            stackTrace: stackTrace,
+          );
         } finally {
           if (options.apiKey != null) {
-            requestClient.endSession();
+            requestClient.close();
           }
         }
       },
     );
   }
 
-  sdk.CreateMessageRequest _buildCreateRequest(
+  sdk.MessageCreateRequest _buildCreateRequest(
     ModelRequest req,
     String modelName,
     AnthropicOptions options,
@@ -266,7 +280,9 @@ class AnthropicPluginImpl extends GenkitPlugin {
         .map(toAnthropicMessage)
         .toList();
 
-    final tools = req.tools?.map(toAnthropicTool).toList() ?? <sdk.Tool>[];
+    final tools =
+        req.tools?.map(toAnthropicTool).toList() ?? <sdk.ToolDefinition>[];
+
     sdk.ToolChoice? toolChoice;
 
     if (req.output?.schema != null) {
@@ -276,33 +292,30 @@ class AnthropicPluginImpl extends GenkitPlugin {
       }
       const toolName = 'return_output';
       tools.add(
-        sdk.Tool.custom(
-          name: toolName,
-          description: 'Return the structured output.',
-          inputSchema: schema,
+        sdk.ToolDefinition.custom(
+          sdk.Tool(
+            name: toolName,
+            description: 'Return the structured output.',
+            inputSchema: sdk.InputSchema.fromJson(schema),
+          ),
         ),
       );
-      toolChoice = sdk.ToolChoice(
-        type: sdk.ToolChoiceType.tool,
-        name: toolName,
-      );
+      toolChoice = sdk.ToolChoice.tool(toolName);
     }
 
     if (req.toolChoice != null) {
-      if (req.toolChoice == 'auto') {
-        toolChoice = const sdk.ToolChoice(type: sdk.ToolChoiceType.auto);
-      } else if (req.toolChoice == 'any') {
-        toolChoice = const sdk.ToolChoice(type: sdk.ToolChoiceType.any);
-      } else if (req.toolChoice != 'none') {
-        toolChoice = sdk.ToolChoice(
-          type: sdk.ToolChoiceType.tool,
-          name: req.toolChoice!,
-        );
-      }
+      toolChoice = switch (req.toolChoice) {
+        'auto' => sdk.ToolChoice.auto(),
+        'any' => sdk.ToolChoice.any(),
+        'none' => sdk.ToolChoice.none(),
+        final name => sdk.ToolChoice.tool(name!),
+      };
     }
 
-    return sdk.CreateMessageRequest(
-      model: sdk.Model.modelId(modelName),
+    final thinking = _mapThinkingConfig(options.thinking);
+
+    return sdk.MessageCreateRequest(
+      model: modelName,
       messages: messages,
       system: system,
       maxTokens: options.maxTokens ?? 4096,
@@ -310,340 +323,214 @@ class AnthropicPluginImpl extends GenkitPlugin {
       topP: options.topP,
       topK: options.topK,
       stopSequences: options.stopSequences,
-      tools: tools,
+      tools: tools.isNotEmpty ? tools : null,
       toolChoice: toolChoice,
-      thinking: options.thinking != null
-          ? sdk.ThinkingConfig.enabled(
-              type: sdk.ThinkingConfigEnabledType.enabled,
-              budgetTokens: options.thinking!.budgetTokens,
-            )
-          : null,
+      thinking: thinking,
     );
   }
 
   void close() {
-    _client?.endSession();
+    _client?.close();
     if (_ownsVertexHttpClient) {
       _vertexHttpClient.close();
     }
   }
 }
 
-void _emitStreamingChunks(
-  sdk.MessageStreamEvent event,
-  void Function(ModelResponseChunk chunk) sendChunk,
-) {
-  event.map(
-    messageStart: (_) {},
-    messageDelta: (_) {},
-    messageStop: (_) {},
-    contentBlockStart: (_) {},
-    contentBlockDelta: (e) {
-      final index = e.index;
-      e.delta.map(
-        textDelta: (d) {
-          sendChunk(
-            ModelResponseChunk(
-              index: index,
-              content: [TextPart(text: d.text)],
-            ),
-          );
-        },
-        thinking: (d) {
-          sendChunk(
-            ModelResponseChunk(
-              index: index,
-              content: [ReasoningPart(reasoning: d.thinking)],
-            ),
-          );
-        },
-        inputJsonDelta: (_) {},
-        signature: (_) {},
-        citations: (_) {},
-      );
-    },
-    contentBlockStop: (_) {},
-    ping: (_) {},
-    error: (e) {
-      throw Exception(e.error.message);
-    },
-  );
-}
-
-sdk.CreateMessageRequestSystem? convertSystemMessage(Message m) {
-  final text = m.content.whereType<TextPart>().map((p) => p.text).join('\n');
+sdk.SystemPrompt? convertSystemMessage(Message m) {
+  final parts = <String>[];
+  for (final p in m.content) {
+    if (p.isText) {
+      parts.add(p.text!);
+    }
+  }
+  final text = parts.join('\n');
   if (text.isEmpty) return null;
-  return sdk.CreateMessageRequestSystem.text(text);
+  return sdk.SystemPrompt.text(text);
 }
 
-sdk.Message toAnthropicMessage(Message m) {
-  final role = (m.role == Role.user || m.role == Role.tool)
-      ? sdk.MessageRole.user
-      : sdk.MessageRole.assistant;
+sdk.InputMessage toAnthropicMessage(Message m) {
+  final isUser = m.role == Role.user || m.role == Role.tool;
 
-  final content = sdk.MessageContent.blocks(
-    m.content.expand((p) {
-      final map = p.toJson();
-      if (map.containsKey('text')) {
-        return [sdk.Block.text(text: map['text'] as String)];
-      } else if (map.containsKey('toolRequest')) {
-        final req = map['toolRequest'] as Map<String, dynamic>;
-        return [
-          sdk.Block.toolUse(
-            id: req['ref'] as String,
-            name: req['name'] as String,
-            input: req['input'] as Map<String, dynamic>,
-            type: 'tool_use',
-          ),
-        ];
-      } else if (map.containsKey('toolResponse')) {
-        final res = map['toolResponse'] as Map<String, dynamic>;
-        return [
-          sdk.Block.toolResult(
-            toolUseId: res['ref'] as String,
-            content: sdk.ToolResultBlockContent.text(jsonEncode(res['output'])),
-          ),
-        ];
-      } else if (map.containsKey('media')) {
-        // TODO: Handle media types.
-        return <sdk.Block>[];
-      }
-      return <sdk.Block>[];
-    }).toList(),
-  );
+  final blocks = m.content.expand<sdk.InputContentBlock>((p) {
+    if (p.isText) {
+      return [sdk.InputContentBlock.text(p.text!)];
+    } else if (p.isToolRequest) {
+      final req = p.toolRequest!;
+      return [
+        sdk.InputContentBlock.toolUse(
+          id: req.ref ?? '',
+          name: req.name,
+          input: req.input ?? {},
+        ),
+      ];
+    } else if (p.isToolResponse) {
+      final res = p.toolResponse!;
+      return [
+        sdk.InputContentBlock.toolResult(
+          toolUseId: res.ref ?? '',
+          content: [sdk.ToolResultContent.text(jsonEncode(res.output))],
+        ),
+      ];
+    } else if (p.isMedia) {
+      final media = p.media!;
+      return _convertMediaFromJson(media.url, media.contentType);
+    }
+    return <sdk.InputContentBlock>[];
+  }).toList();
 
-  return sdk.Message(role: role, content: content);
+  return isUser
+      ? sdk.InputMessage.userBlocks(blocks)
+      : sdk.InputMessage.assistantBlocks(blocks);
 }
 
-sdk.Tool toAnthropicTool(ToolDefinition t) {
+List<sdk.InputContentBlock> _convertMediaFromJson(
+  String url,
+  String? contentType,
+) {
+  if (url.startsWith('data:')) {
+    final commaIdx = url.indexOf(',');
+    final base64Data = url.substring(commaIdx + 1);
+    final mimeType = contentType ?? 'image/png';
+    return [
+      sdk.InputContentBlock.image(
+        sdk.ImageSource.base64(
+          data: base64Data,
+          mediaType: _mapImageMediaType(mimeType),
+        ),
+      ),
+    ];
+  } else {
+    return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
+  }
+}
+
+sdk.ImageMediaType _mapImageMediaType(String mimeType) {
+  return switch (mimeType) {
+    'image/jpeg' || 'image/jpg' => sdk.ImageMediaType.jpeg,
+    'image/gif' => sdk.ImageMediaType.gif,
+    'image/webp' => sdk.ImageMediaType.webp,
+    _ => sdk.ImageMediaType.png,
+  };
+}
+
+sdk.ToolDefinition toAnthropicTool(ToolDefinition t) {
   final schema = Map<String, dynamic>.from(t.inputSchema ?? {});
   if (!schema.containsKey('type')) {
     schema['type'] = 'object';
   }
-  return sdk.Tool.custom(
-    name: t.name,
-    description: t.description,
-    inputSchema: schema,
+  return sdk.ToolDefinition.custom(
+    sdk.Tool(
+      name: t.name,
+      description: t.description,
+      inputSchema: sdk.InputSchema.fromJson(schema),
+    ),
   );
 }
 
 Message fromAnthropicMessage(sdk.Message m) {
-  final content = m.content.blocks
-      .map((block) {
-        return block.map(
-          text: (b) => TextPart(text: b.text),
-          toolUse: (b) {
-            if (b.name == 'return_output') {
-              var input = b.input;
-              if (input.keys.length == 1) {
-                if (input.containsKey('output') && input['output'] is Map) {
-                  input = input['output'] as Map<String, dynamic>;
-                } else if (input.containsKey('\$output') &&
-                    input['\$output'] is Map) {
-                  input = input['\$output'] as Map<String, dynamic>;
-                }
-              }
-              return TextPart(text: jsonEncode(input));
-            }
-            return ToolRequestPart(
-              toolRequest: ToolRequest(ref: b.id, name: b.name, input: b.input),
-            );
-          },
-          toolResult: (_) => TextPart(text: ''),
-          thinking: (b) => ReasoningPart(
-            reasoning: b.thinking,
-            metadata: {'signature': b.signature},
+  final content = m.content
+      .map(
+        (block) => switch (block) {
+          sdk.TextBlock(:final text) => TextPart(text: text),
+          sdk.ToolUseBlock(:final id, :final name, :final input) =>
+            name == 'return_output'
+                ? TextPart(text: jsonEncode(_extractOutput(input)))
+                : ToolRequestPart(
+                        toolRequest: ToolRequest(
+                          ref: id,
+                          name: name,
+                          input: input,
+                        ),
+                      )
+                      as Part,
+          sdk.ThinkingBlock(:final thinking, :final signature) => ReasoningPart(
+            reasoning: thinking,
+            metadata: {'signature': signature},
           ),
-          image: (_) => TextPart(text: ''),
-          redactedThinking: (_) => TextPart(text: ''),
-          codeExecutionToolResult: (_) => TextPart(text: ''),
-          containerUpload: (_) => TextPart(text: ''),
-          document: (_) => TextPart(text: ''),
-          mCPToolResult: (_) => TextPart(text: ''),
-          mCPToolUse: (_) => TextPart(text: ''),
-          searchResult: (_) => TextPart(text: ''),
-          serverToolUse: (_) => TextPart(text: ''),
-          webSearchToolResult: (_) => TextPart(text: ''),
-        );
-      })
+          _ => TextPart(text: ''),
+        },
+      )
       .where((p) => p is! TextPart || p.text.isNotEmpty)
       .toList();
 
   return Message(role: Role.model, content: content);
 }
 
-Future<sdk.Message> _aggregateStream(
-  List<sdk.MessageStreamEvent> chunks,
-) async {
-  String? id;
-  String? model;
-  sdk.MessageRole? role;
-  sdk.StopReason? stopReason;
-  String? stopSequence;
-  final usageBuilder = _MutableUsage();
-  final blockBuilders = <int, _BlockBuilder>{};
-
-  for (final event in chunks) {
-    event.map(
-      messageStart: (e) {
-        id = e.message.id;
-        model = e.message.model;
-        role = e.message.role;
-        usageBuilder.inputTokens += e.message.usage?.inputTokens.toInt() ?? 0;
-        usageBuilder.outputTokens += e.message.usage?.outputTokens.toInt() ?? 0;
-      },
-      messageDelta: (e) {
-        stopReason = e.delta.stopReason;
-        stopSequence = e.delta.stopSequence;
-        usageBuilder.outputTokens += e.usage.outputTokens.toInt();
-      },
-      messageStop: (_) {},
-      contentBlockStart: (e) {
-        final block = e.contentBlock;
-        block.map(
-          text: (b) {
-            blockBuilders[e.index] = _TextBlockBuilder(b.text);
-          },
-          toolUse: (b) {
-            blockBuilders[e.index] = _ToolUseBlockBuilder(
-              b.id,
-              b.name,
-              b.input,
-            );
-          },
-          thinking: (b) {
-            blockBuilders[e.index] = _ThinkingBlockBuilder(
-              b.thinking,
-              b.signature ?? '',
-            );
-          },
-          toolResult: (_) {},
-          image: (_) {},
-          redactedThinking: (_) {},
-          codeExecutionToolResult: (_) {},
-          containerUpload: (_) {},
-          document: (_) {},
-          mCPToolResult: (_) {},
-          mCPToolUse: (_) {},
-          searchResult: (_) {},
-          serverToolUse: (_) {},
-          webSearchToolResult: (_) {},
-        );
-      },
-      contentBlockDelta: (e) {
-        final builder = blockBuilders[e.index];
-        e.delta.map(
-          textDelta: (d) {
-            if (builder is _TextBlockBuilder) {
-              builder.buffer.write(d.text);
-            }
-          },
-          inputJsonDelta: (d) {
-            if (builder is _ToolUseBlockBuilder && d.partialJson != null) {
-              builder.jsonBuffer.write(d.partialJson);
-            }
-          },
-          thinking: (d) {
-            if (builder is _ThinkingBlockBuilder) {
-              builder.buffer.write(d.thinking);
-            }
-          },
-          signature: (d) {
-            if (builder is _ThinkingBlockBuilder) {
-              builder.signatureBuffer.write(d.signature);
-            }
-          },
-          citations: (_) {},
-        );
-      },
-      contentBlockStop: (_) {},
-      ping: (_) {},
-      error: (_) {},
-    );
+Map<String, dynamic> _extractOutput(Map<String, dynamic> input) {
+  if (input.keys.length == 1) {
+    if (input.containsKey('output') && input['output'] is Map) {
+      return input['output'] as Map<String, dynamic>;
+    } else if (input.containsKey('\$output') && input['\$output'] is Map) {
+      return input['\$output'] as Map<String, dynamic>;
+    }
   }
-
-  final blocks = blockBuilders.entries.toList()
-    ..sort((a, b) => a.key.compareTo(b.key));
-
-  return sdk.Message(
-    id: id ?? '',
-    role: role ?? sdk.MessageRole.assistant,
-    content: sdk.MessageContent.blocks(
-      blocks.map((e) => e.value.build()).toList(),
-    ),
-    model: model ?? '',
-    stopReason: stopReason,
-    stopSequence: stopSequence,
-    usage: usageBuilder.toUsage(),
-  );
+  return input;
 }
 
-class _MutableUsage {
-  int inputTokens = 0;
-  int outputTokens = 0;
-  sdk.Usage toUsage() =>
-      sdk.Usage(inputTokens: inputTokens, outputTokens: outputTokens);
+sdk.ThinkingConfig? _mapThinkingConfig(ThinkingConfig? config) {
+  if (config == null) return null;
+  return switch (config.type ?? 'enabled') {
+    'disabled' => sdk.ThinkingConfig.disabled(),
+    'adaptive' => sdk.ThinkingConfig.adaptive(),
+    // 1024 is the minimum budget_tokens required by the Anthropic API.
+    _ => sdk.ThinkingConfig.enabled(budgetTokens: config.budgetTokens ?? 1024),
+  };
 }
 
-abstract class _BlockBuilder {
-  sdk.Block build();
-}
-
-class _TextBlockBuilder extends _BlockBuilder {
-  final StringBuffer buffer;
-  _TextBlockBuilder(String initial) : buffer = StringBuffer(initial);
-  @override
-  sdk.Block build() => sdk.Block.text(text: buffer.toString());
-}
-
-class _ToolUseBlockBuilder extends _BlockBuilder {
-  final String id;
-  final String name;
-  final StringBuffer jsonBuffer = StringBuffer();
-  _ToolUseBlockBuilder(this.id, this.name, Map<String, dynamic> initial) {
-    if (initial.isNotEmpty) jsonBuffer.write(jsonEncode(initial));
-  }
-  @override
-  sdk.Block build() {
-    final str = jsonBuffer.toString();
-    final input = str.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(str) as Map<String, dynamic>;
-    return sdk.Block.toolUse(
-      id: id,
-      name: name,
-      input: input,
-      type: 'tool_use',
-    );
+/// Emits streaming chunks for content deltas and throws on error events.
+void _handleStreamEvent(
+  sdk.MessageStreamEvent event,
+  void Function(ModelResponseChunk chunk) sendChunk,
+) {
+  switch (event) {
+    case sdk.ContentBlockDeltaEvent(:final index, :final delta):
+      switch (delta) {
+        case sdk.TextDelta(:final text):
+          sendChunk(
+            ModelResponseChunk(
+              index: index,
+              content: [TextPart(text: text)],
+            ),
+          );
+        case sdk.ThinkingDelta(:final thinking):
+          sendChunk(
+            ModelResponseChunk(
+              index: index,
+              content: [ReasoningPart(reasoning: thinking)],
+            ),
+          );
+        case sdk.InputJsonDelta():
+        case sdk.SignatureDelta():
+        case sdk.CitationsDelta():
+        case sdk.CompactionDelta():
+          break;
+      }
+    case sdk.ErrorEvent(:final message):
+      throw GenkitException(
+        'Anthropic stream error: $message',
+        status: StatusCodes.INTERNAL,
+      );
+    default:
+      break;
   }
 }
 
-class _ThinkingBlockBuilder extends _BlockBuilder {
-  final StringBuffer buffer;
-  final StringBuffer signatureBuffer;
-  _ThinkingBlockBuilder(String initial, String initialSignature)
-    : buffer = StringBuffer(initial),
-      signatureBuffer = StringBuffer(initialSignature);
-  @override
-  sdk.Block build() => sdk.Block.thinking(
-    type: sdk.ThinkingBlockType.thinking,
-    thinking: buffer.toString(),
-    signature: signatureBuffer.toString(),
-  );
-}
-
-FinishReason _mapFinishReason(sdk.StopReason? reason) {
+FinishReason mapFinishReason(sdk.StopReason? reason) {
   return switch (reason) {
     sdk.StopReason.endTurn => FinishReason.stop,
     sdk.StopReason.maxTokens => FinishReason.length,
     sdk.StopReason.stopSequence => FinishReason.stop,
     sdk.StopReason.toolUse => FinishReason.stop,
+    sdk.StopReason.pauseTurn => FinishReason.stop,
+    sdk.StopReason.compaction => FinishReason.stop,
+    sdk.StopReason.modelContextWindowExceeded => FinishReason.length,
+    sdk.StopReason.refusal => FinishReason.blocked,
     null => FinishReason.unknown,
-    _ => FinishReason(reason.toString().split('.').last),
   };
 }
 
-GenerationUsage _mapUsage(sdk.Usage? usage) {
+GenerationUsage mapUsage(sdk.Usage? usage) {
   if (usage == null) {
     return GenerationUsage(inputTokens: 0, outputTokens: 0, totalTokens: 0);
   }

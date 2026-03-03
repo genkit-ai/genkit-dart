@@ -201,8 +201,8 @@ base class ThinkingConfig {
 
   ThinkingConfig._(this._json);
 
-  ThinkingConfig({required int budgetTokens}) {
-    _json = {'budgetTokens': budgetTokens};
+  ThinkingConfig({String? type, int? budgetTokens}) {
+    _json = {'type': ?type, 'budgetTokens': ?budgetTokens};
   }
 
   late final Map<String, dynamic> _json;
@@ -210,12 +210,28 @@ base class ThinkingConfig {
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
 
-  int get budgetTokens {
-    return _json['budgetTokens'] as int;
+  String? get type {
+    return _json['type'] as String?;
   }
 
-  set budgetTokens(int value) {
-    _json['budgetTokens'] = value;
+  set type(String? value) {
+    if (value == null) {
+      _json.remove('type');
+    } else {
+      _json['type'] = value;
+    }
+  }
+
+  int? get budgetTokens {
+    return _json['budgetTokens'] as int?;
+  }
+
+  set budgetTokens(int? value) {
+    if (value == null) {
+      _json.remove('budgetTokens');
+    } else {
+      _json['budgetTokens'] = value;
+    }
   }
 
   @override
@@ -242,13 +258,18 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
     definition: $Schema
         .object(
           properties: {
+            'type': $Schema.string(
+              description:
+                  'Thinking mode. "enabled" uses budgetTokens, "adaptive" lets the model decide, "disabled" turns it off.',
+              enumValues: ['enabled', 'disabled', 'adaptive'],
+            ),
             'budgetTokens': $Schema.integer(
               description:
                   'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
               minimum: 1024,
             ),
           },
-          required: ['budgetTokens'],
+          required: [],
         )
         .value,
     dependencies: [],

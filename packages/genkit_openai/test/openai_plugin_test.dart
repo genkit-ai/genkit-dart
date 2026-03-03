@@ -12,15 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/genkit.dart' hide Tool;
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:openai_dart/openai_dart.dart'
-    show
-        ChatCompletionAssistantMessage,
-        ChatCompletionMessageContentPart,
-        ChatCompletionSystemMessage,
-        ChatCompletionToolMessage,
-        ChatCompletionUserMessage;
+    show AssistantMessage, ContentPart, SystemMessage, ToolMessage, UserMessage;
 import 'package:test/test.dart';
 
 void main() {
@@ -238,11 +233,8 @@ void main() {
         content: [TextPart(text: 'You are helpful.')],
       );
       final result = GenkitConverter.toOpenAIMessage(msg, null);
-      expect(result, isA<ChatCompletionSystemMessage>());
-      expect(
-        (result as ChatCompletionSystemMessage).content,
-        'You are helpful.',
-      );
+      expect(result, isA<SystemMessage>());
+      expect((result as SystemMessage).content, 'You are helpful.');
     });
 
     test('converts user message with text', () {
@@ -251,7 +243,7 @@ void main() {
         content: [TextPart(text: 'Hello!')],
       );
       final result = GenkitConverter.toOpenAIMessage(msg, null);
-      expect(result, isA<ChatCompletionUserMessage>());
+      expect(result, isA<UserMessage>());
     });
 
     test('converts model message with tool calls', () {
@@ -269,8 +261,8 @@ void main() {
         ],
       );
       final result = GenkitConverter.toOpenAIMessage(msg, null);
-      expect(result, isA<ChatCompletionAssistantMessage>());
-      final assistantMsg = result as ChatCompletionAssistantMessage;
+      expect(result, isA<AssistantMessage>());
+      final assistantMsg = result as AssistantMessage;
       expect(assistantMsg.toolCalls, isNotNull);
       expect(assistantMsg.toolCalls!.length, 1);
     });
@@ -290,8 +282,8 @@ void main() {
       );
       final results = GenkitConverter.toOpenAIMessages([msg], null);
       expect(results.length, 1);
-      expect(results[0], isA<ChatCompletionToolMessage>());
-      final toolMsg = results[0] as ChatCompletionToolMessage;
+      expect(results[0], isA<ToolMessage>());
+      final toolMsg = results[0] as ToolMessage;
       expect(toolMsg.toolCallId, 'call_123');
     });
 
@@ -317,12 +309,30 @@ void main() {
       );
       final results = GenkitConverter.toOpenAIMessages([msg], null);
       expect(results.length, 2);
-      expect(results[0], isA<ChatCompletionToolMessage>());
-      expect(results[1], isA<ChatCompletionToolMessage>());
-      final toolMsg1 = results[0] as ChatCompletionToolMessage;
-      final toolMsg2 = results[1] as ChatCompletionToolMessage;
+      expect(results[0], isA<ToolMessage>());
+      expect(results[1], isA<ToolMessage>());
+      final toolMsg1 = results[0] as ToolMessage;
+      final toolMsg2 = results[1] as ToolMessage;
       expect(toolMsg1.toolCallId, 'call_123');
       expect(toolMsg2.toolCallId, 'call_456');
+    });
+
+    test('throws on tool message with missing ref', () {
+      final msg = Message(
+        role: Role.tool,
+        content: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              name: 'getWeather',
+              output: {'temperature': 72},
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => GenkitConverter.toOpenAIMessages([msg], null),
+        throwsA(isA<ArgumentError>()),
+      );
     });
   });
 
@@ -330,10 +340,10 @@ void main() {
     test('converts text part', () {
       final part = TextPart(text: 'Hello');
       final result = GenkitConverter.toOpenAIContentPart(part, null);
-      expect(result, isA<ChatCompletionMessageContentPart>());
+      expect(result, isA<ContentPart>());
     });
 
-    test('converts media part', () {
+    test('converts media part with URL', () {
       final part = MediaPart(
         media: Media(
           url: 'https://example.com/image.png',
@@ -341,7 +351,18 @@ void main() {
         ),
       );
       final result = GenkitConverter.toOpenAIContentPart(part, 'high');
-      expect(result, isA<ChatCompletionMessageContentPart>());
+      expect(result, isA<ContentPart>());
+    });
+
+    test('converts media part with base64 data URI', () {
+      final part = MediaPart(
+        media: Media(
+          url: 'data:image/png;base64,iVBORw0KGgoAAAANS',
+          contentType: 'image/png',
+        ),
+      );
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+      expect(result, isA<ContentPart>());
     });
   });
 
@@ -360,6 +381,15 @@ void main() {
       final result = GenkitConverter.toOpenAITool(tool);
       expect(result.function.name, 'getWeather');
       expect(result.function.description, 'Get weather for a location');
+    });
+  });
+
+  group('GenkitConverter.fromOpenAIAssistantMessage', () {
+    test('handles refusal', () {
+      final msg = AssistantMessage(refusal: 'I cannot do that.');
+      final result = GenkitConverter.fromOpenAIAssistantMessage(msg);
+      expect(result.content.length, 1);
+      expect(result.text, '[Refusal] I cannot do that.');
     });
   });
 
