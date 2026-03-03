@@ -1,3 +1,7 @@
+## 0.0.1-dev.3
+
+- Updated dependencies.
+
 ## 0.0.1-dev.2
 
 - Implemented/fixed tool calling and structured output for Gemini models.
