@@ -21,7 +21,7 @@ part of 'parallel_execution.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ProductInput {
+base class ProductInput {
   factory ProductInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class ProductInput {
   }
 }
 
-class _ProductInputTypeFactory extends SchemanticType<ProductInput> {
+base class _ProductInputTypeFactory extends SchemanticType<ProductInput> {
   const _ProductInputTypeFactory();
 
   @override
@@ -75,7 +75,7 @@ class _ProductInputTypeFactory extends SchemanticType<ProductInput> {
   );
 }
 
-class MarketingCopy {
+base class MarketingCopy {
   factory MarketingCopy.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -116,7 +116,7 @@ class MarketingCopy {
   }
 }
 
-class _MarketingCopyTypeFactory extends SchemanticType<MarketingCopy> {
+base class _MarketingCopyTypeFactory extends SchemanticType<MarketingCopy> {
   const _MarketingCopyTypeFactory();
 
   @override

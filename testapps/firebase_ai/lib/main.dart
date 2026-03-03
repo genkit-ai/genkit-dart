@@ -30,13 +30,13 @@ import 'firebase_options.dart';
 
 part 'main.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherToolInput {
   @Field(description: 'The city to get the weather for')
   String get city;
 }
 
-@Schematic()
+@Schema()
 abstract class $RpgCharacter {
   String get name;
   String get description;

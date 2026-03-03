@@ -21,7 +21,7 @@ part of 'extension_type_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Ingredient {
+base class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Ingredient._(this._json);
@@ -60,7 +60,7 @@ class Ingredient {
   }
 }
 
-class _IngredientTypeFactory extends SchemanticType<Ingredient> {
+base class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   const _IngredientTypeFactory();
 
   @override
@@ -81,7 +81,7 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   );
 }
 
-class Recipe {
+base class Recipe {
   factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Recipe._(this._json);
@@ -138,7 +138,7 @@ class Recipe {
   }
 }
 
-class _RecipeTypeFactory extends SchemanticType<Recipe> {
+base class _RecipeTypeFactory extends SchemanticType<Recipe> {
   const _RecipeTypeFactory();
 
   @override
@@ -165,7 +165,7 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
   );
 }
 
-class AnnotatedRecipe {
+base class AnnotatedRecipe {
   factory AnnotatedRecipe.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -224,7 +224,7 @@ class AnnotatedRecipe {
   }
 }
 
-class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
+base class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
   const _AnnotatedRecipeTypeFactory();
 
   @override
@@ -253,7 +253,7 @@ class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
   );
 }
 
-class MealPlan {
+base class MealPlan {
   factory MealPlan.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MealPlan._(this._json);
@@ -292,7 +292,7 @@ class MealPlan {
   }
 }
 
-class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
+base class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
   const _MealPlanTypeFactory();
 
   @override
@@ -318,7 +318,7 @@ class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
   );
 }
 
-class NullableFields {
+base class NullableFields {
   factory NullableFields.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -405,7 +405,7 @@ class NullableFields {
   }
 }
 
-class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
+base class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
   const _NullableFieldsTypeFactory();
 
   @override
@@ -433,7 +433,7 @@ class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
   );
 }
 
-class ComplexObject {
+base class ComplexObject {
   factory ComplexObject.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -528,7 +528,7 @@ class ComplexObject {
   }
 }
 
-class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
+base class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
   const _ComplexObjectTypeFactory();
 
   @override
@@ -558,7 +558,7 @@ class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
   );
 }
 
-class Menu {
+base class Menu {
   factory Menu.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Menu._(this._json);
@@ -610,7 +610,7 @@ class Menu {
   }
 }
 
-class _MenuTypeFactory extends SchemanticType<Menu> {
+base class _MenuTypeFactory extends SchemanticType<Menu> {
   const _MenuTypeFactory();
 
   @override

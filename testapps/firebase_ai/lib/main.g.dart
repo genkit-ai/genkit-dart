@@ -21,7 +21,7 @@ part of 'main.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherToolInput {
+base class WeatherToolInput {
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class WeatherToolInput {
   }
 }
 
-class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
+base class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
@@ -79,7 +80,7 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   );
 }
 
-class RpgCharacter {
+base class RpgCharacter {
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -156,7 +157,7 @@ class RpgCharacter {
   }
 }
 
-class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
+base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   const _RpgCharacterTypeFactory();
 
   @override

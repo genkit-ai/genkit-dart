@@ -21,13 +21,13 @@ import 'package:schemantic/schemantic.dart';
 
 part 'example.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherFlowInput {
   /// Natural language weather query, e.g. "What's the weather in Boston?"
   String get prompt;
 }
 
-@Schematic()
+@Schema()
 abstract class $WeatherToolInput {
   /// City name or coordinates to look up
   String get location;
@@ -37,7 +37,7 @@ abstract class $WeatherToolInput {
   String? get unit;
 }
 
-@Schematic()
+@Schema()
 abstract class $WeatherToolOutput {
   double get temperature;
   String get condition;
@@ -45,7 +45,7 @@ abstract class $WeatherToolOutput {
   int? get humidity;
 }
 
-@Schematic()
+@Schema()
 abstract class $MovieReviewInput {
   /// Title of the movie to review
   String get title;
@@ -54,7 +54,7 @@ abstract class $MovieReviewInput {
   int? get year;
 }
 
-@Schematic()
+@Schema()
 abstract class $MovieReview {
   /// Official movie title
   String get title;

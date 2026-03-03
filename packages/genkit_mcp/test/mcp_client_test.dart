@@ -289,7 +289,7 @@ void main() {
     expect(noSchemaTool.inputSchema, isNotNull);
   });
 
-  test('defineMcpClient registers plugin actions in registry', () async {
+  test('createMcpClient with DAP registers actions in registry', () async {
     final ai = Genkit();
     final transport = FakeClientTransport();
     transport.tools = [
@@ -306,31 +306,35 @@ void main() {
       {'name': 'regResource', 'uri': 'my://resource'},
     ];
 
-    final client = defineMcpClient(
-      ai,
-      McpClientOptionsWithCache(
+    final client = createMcpClient(
+      McpClientOptions(
         name: 'plugin-client',
         serverName: 'my-server',
         mcpServer: McpServerConfig(transport: transport),
       ),
     );
+    ai.defineDynamicActionProvider(
+      name: client.serverName,
+      listActionsFn: client.getCachedActions,
+      getActionFn: client.resolveAction,
+    );
     await client.ready();
 
     // Plugin should expose actions through the registry.
-    // serverName is 'my-server' (explicitly set), so action names are
-    // 'my-server/<actionName>'.
-    final actions = await ai.registry.listActions();
+    final dap =
+        await ai.registry.lookupAction('dynamic-action-provider', 'my-server')
+            as DynamicActionProvider;
+    expect(dap, isNotNull);
+
+    final actions = await dap.listActions();
     final actionNames = actions.map((a) => a.name).toList();
 
     expect(actionNames, contains('my-server/regTool'));
     expect(actionNames, contains('my-server/regPrompt'));
     expect(actionNames, contains('my-server/regResource'));
 
-    // Resolve and call a tool through the registry.
-    final resolved = await ai.registry.lookupAction(
-      'tool',
-      'my-server/regTool',
-    );
+    // Test getAction
+    final resolved = await dap.getAction('my-server/regTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
     expect(result, 'ok');

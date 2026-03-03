@@ -19,7 +19,7 @@ import 'package:genkit_mcp/genkit_mcp.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
-class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
+final class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
   const _PromptInputSchema();
 
   @override

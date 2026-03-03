@@ -54,6 +54,183 @@ void main() {
     });
   });
 
+  group('OpenAIVertexConfig', () {
+    test('builds ADC helper config', () {
+      final config = OpenAIVertexConfig.adc(projectId: 'my-project');
+
+      expect(config.projectId, 'my-project');
+      expect(config.location, 'global');
+      expect(config.endpointId, 'openapi');
+      expect(config.accessToken, isNull);
+      expect(config.accessTokenProvider, isNotNull);
+    });
+
+    test('builds service account helper config', () {
+      final config = OpenAIVertexConfig.serviceAccount(
+        credentialsJson: {
+          'type': 'service_account',
+          'project_id': 'my-project',
+          'client_email': 'svc@project.iam.gserviceaccount.com',
+          'client_id': '1234567890',
+          'private_key':
+              '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n',
+        },
+      );
+
+      expect(config.projectId, isNull);
+      expect(config.resolveProjectId(), 'my-project');
+      expect(config.location, 'global');
+      expect(config.endpointId, 'openapi');
+      expect(config.accessToken, isNull);
+      expect(config.accessTokenProvider, isNotNull);
+    });
+
+    test('prefers explicit projectId over service account project_id', () {
+      final config = OpenAIVertexConfig.serviceAccount(
+        projectId: 'my-explicit-project',
+        credentialsJson: {
+          'type': 'service_account',
+          'project_id': 'my-inferred-project',
+          'client_email': 'svc@project.iam.gserviceaccount.com',
+          'client_id': '1234567890',
+          'private_key':
+              '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n',
+        },
+      );
+
+      expect(config.resolveProjectId(), 'my-explicit-project');
+    });
+
+    test('resolves global base URL', () {
+      final config = OpenAIVertexConfig(
+        projectId: 'my-project',
+        accessToken: 'ya29.token',
+      );
+
+      expect(
+        config.resolveBaseUrl(),
+        'https://aiplatform.googleapis.com/v1/projects/my-project/locations/global/endpoints/openapi',
+      );
+    });
+
+    test('resolves regional base URL', () {
+      final config = OpenAIVertexConfig(
+        projectId: 'my-project',
+        location: 'us-east5',
+        endpointId: 'openapi',
+        accessToken: 'ya29.token',
+      );
+
+      expect(
+        config.resolveBaseUrl(),
+        'https://us-east5-aiplatform.googleapis.com/v1/projects/my-project/locations/us-east5/endpoints/openapi',
+      );
+    });
+
+    test('resolves access token from provider', () async {
+      final config = OpenAIVertexConfig(
+        projectId: 'my-project',
+        accessTokenProvider: () async => 'ya29.from-provider',
+      );
+
+      expect(await config.resolveAccessToken(), 'ya29.from-provider');
+    });
+
+    test('rejects invalid config with both token sources', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          accessToken: 'ya29.token',
+          accessTokenProvider: () async => 'ya29.provider',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either accessToken or accessTokenProvider, not both.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects invalid location', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          location: 'evil.com/path?',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI location may only contain letters, numbers, and hyphens.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects empty projectId', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: '   ',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI requires a non-empty projectId.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects empty endpointId', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          endpointId: '   ',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI requires a non-empty endpointId.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects invalid endpointId', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          endpointId: 'openapi/path',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI endpointId may only contain letters, numbers, underscores, and hyphens.',
+              ),
+        ),
+      );
+    });
+  });
+
   group('GenkitConverter.toOpenAIMessage', () {
     test('converts system message', () {
       final msg = Message(
@@ -300,6 +477,48 @@ void main() {
     test('creates plugin instance', () {
       final plugin = openAI(apiKey: 'test-key');
       expect(plugin, isNotNull);
+    });
+
+    test('rejects conflicting apiKey + vertex configuration', () {
+      expect(
+        () => openAI(
+          apiKey: 'openai-key',
+          vertex: OpenAIVertexConfig(
+            projectId: 'my-project',
+            accessToken: 'ya29.token',
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either apiKey or vertex configuration, not both.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects conflicting baseUrl + vertex configuration', () {
+      expect(
+        () => openAI(
+          baseUrl: 'https://example.com/openai/v1',
+          vertex: OpenAIVertexConfig(
+            projectId: 'my-project',
+            accessToken: 'ya29.token',
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either baseUrl or vertex configuration, not both.',
+              ),
+        ),
+      );
     });
 
     test('creates model reference', () {

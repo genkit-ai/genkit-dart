@@ -21,7 +21,7 @@ part of 'tool_restart_sample.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ApprovalRequest {
+base class ApprovalRequest {
   factory ApprovalRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -62,7 +62,7 @@ class ApprovalRequest {
   }
 }
 
-class _ApprovalRequestTypeFactory extends SchemanticType<ApprovalRequest> {
+base class _ApprovalRequestTypeFactory extends SchemanticType<ApprovalRequest> {
   const _ApprovalRequestTypeFactory();
 
   @override

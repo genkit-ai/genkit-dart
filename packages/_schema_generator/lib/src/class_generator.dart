@@ -93,7 +93,7 @@ class ClassGenerator {
         c
           ..name = '\$$className'
           ..abstract = true
-          ..annotations.add(refer('Schematic').call([]));
+          ..annotations.add(refer('Schema').call([]));
 
         if (extend != null) {
           c.implements.add(extend);
@@ -186,7 +186,7 @@ class ClassGenerator {
         c
           ..name = '\$$className'
           ..abstract = true
-          ..annotations.add(refer('Schematic').call([]));
+          ..annotations.add(refer('Schema').call([]));
         if (extend != null) {
           c.implements.add(extend);
         }

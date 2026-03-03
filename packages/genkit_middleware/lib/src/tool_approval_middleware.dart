@@ -18,7 +18,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'tool_approval_middleware.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ToolApprovalOptions {
   List<String> get approved;
 }

@@ -56,7 +56,7 @@ Requires the `schemantic` library for schema definitions.
 ```dart
 import 'package:schemantic/schemantic.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherInput {
   String get location;
 }
@@ -83,7 +83,7 @@ final response = await ai.generate(
 You can ensure the generative model returns a typed JSON object by providing an `outputSchema`.
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $Person {
   String get name;
   int get age;
@@ -251,7 +251,7 @@ Genkit uses standard data models for representing prompts (messages & parts) and
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
-@Schematic()
+@Schema()
 abstract class $MyDataModel {
   // uses Genkit's Message schema (not schemantic's Message)
   List<$Message> get messages;

@@ -21,7 +21,7 @@ part of 'sequential_processing.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class StoryInput {
+base class StoryInput {
   factory StoryInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   StoryInput._(this._json);
@@ -52,7 +52,7 @@ class StoryInput {
   }
 }
 
-class _StoryInputTypeFactory extends SchemanticType<StoryInput> {
+base class _StoryInputTypeFactory extends SchemanticType<StoryInput> {
   const _StoryInputTypeFactory();
 
   @override
@@ -70,7 +70,7 @@ class _StoryInputTypeFactory extends SchemanticType<StoryInput> {
   );
 }
 
-class StoryIdea {
+base class StoryIdea {
   factory StoryIdea.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   StoryIdea._(this._json);
@@ -101,7 +101,7 @@ class StoryIdea {
   }
 }
 
-class _StoryIdeaTypeFactory extends SchemanticType<StoryIdea> {
+base class _StoryIdeaTypeFactory extends SchemanticType<StoryIdea> {
   const _StoryIdeaTypeFactory();
 
   @override
@@ -119,7 +119,7 @@ class _StoryIdeaTypeFactory extends SchemanticType<StoryIdea> {
   );
 }
 
-class ImageGeneratorInput {
+base class ImageGeneratorInput {
   factory ImageGeneratorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -152,7 +152,7 @@ class ImageGeneratorInput {
   }
 }
 
-class _ImageGeneratorInputTypeFactory
+base class _ImageGeneratorInputTypeFactory
     extends SchemanticType<ImageGeneratorInput> {
   const _ImageGeneratorInputTypeFactory();
 

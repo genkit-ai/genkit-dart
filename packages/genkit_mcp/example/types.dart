@@ -16,7 +16,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'types.g.dart';
 
-@Schematic()
+@Schema()
+abstract class $GreetInput {
+  String get name;
+}
+
+@Schema()
 abstract class $PromptInput {
   String get input;
 }

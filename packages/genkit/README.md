@@ -95,7 +95,7 @@ Give models the ability to take actions and access external data:
 
 ```dart
 // Define schemas for tool input
-@Schematic()
+@Schema()
 abstract class $WeatherInput {
   String get location;
 }
@@ -232,7 +232,7 @@ import 'package:genkit/client.dart';
 
 ### Defining Remote Actions
 
-Remote actions represent a remote Genkit action (like flows, models and prompts) that can be invoked or streamed. You use generated `*Type` classes (from `@Schematic`) to ensure type safety.
+Remote actions represent a remote Genkit action (like flows, models and prompts) that can be invoked or streamed. You use generated `*Type` classes (from `@Schema`) to ensure type safety.
 
 #### Creating a remote action
 final stringAction = defineRemoteAction(
@@ -275,13 +275,13 @@ try {
 First, define your schemas and run `build_runner` to generate the types.
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $MyInput {
   String get message;
   int get count;
 }
 
-@Schematic()
+@Schema()
 abstract class $MyOutput {
   String get reply;
   int get newCount;
@@ -344,7 +344,7 @@ try {
 #### Example: Custom Object Streaming
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $StreamChunk {
   String get content;
 }

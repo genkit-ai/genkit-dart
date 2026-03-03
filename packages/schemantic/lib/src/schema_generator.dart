@@ -22,7 +22,7 @@ import 'package:source_gen/source_gen.dart';
 
 import '../schemantic.dart' hide Field;
 
-class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
+final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
   @override
   Future<String> generateForAnnotatedElement(
     Element element,
@@ -31,7 +31,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   ) async {
     if (element is! ClassElement || !element.isAbstract) {
       throw InvalidGenerationSourceError(
-        '`@Schematic` can only be used on abstract classes.',
+        '`@Schema` can only be used on abstract classes.',
         element: element,
       );
     }
@@ -68,7 +68,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     ).format('${library.accept(emitter)}');
   }
 
-  RegExp alphaNumeric = RegExp(r'[^a-zA-Z0-9]');
+  static final RegExp _nonAlphaNumeric = RegExp(r'[^a-zA-Z0-9]+');
 
   List<Class> _generateHelperClasses(String baseName, ClassElement element) {
     final classes = <Class>[];
@@ -88,6 +88,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       classes.add(
         Class((c) {
           c.name = baseName + _capitalize(fieldName);
+          c.modifier = .final$;
           c.fields.add(
             Field(
               (f) => f
@@ -140,12 +141,12 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
   }
 
   Class _generateClass(String baseName, ClassElement element) {
-    // If `element` is a type annotated with `@Schematic`, then it should
+    // If `element` is a type annotated with `@Schema`, then it should
     // inherit the `json` field.
     final isSubclass = _implementsAnnotatedType(element);
     return Class((b) {
       b.name = baseName;
-
+      b.modifier = .base;
       b.fields.add(
         Field((f) {
           f
@@ -312,6 +313,13 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
                   valueExpression = refer(
                     paramName!,
                   ).maybeNullSafeProperty(isNullable, 'toJson').call([]);
+                } else if (getter.returnType.element is ExtensionTypeElement) {
+                  final extElement =
+                      getter.returnType.element as ExtensionTypeElement;
+                  final repName = extElement.representation.name;
+                  valueExpression = refer(
+                    paramName!,
+                  ).maybeNullSafeProperty(isNullable, repName!);
                 } else {
                   valueExpression = refer(paramName!);
                 }
@@ -430,16 +438,16 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     );
   }
 
-  String _typeToDartName(String typeName) =>
+  static String _typeToDartName(String typeName) =>
       (typeName.endsWith('?') ? '${typeName}OrNull' : typeName).replaceAll(
-        alphaNumeric,
+        _nonAlphaNumeric,
         '',
       );
 
-  String _capitalize(String s) =>
+  static String _capitalize(String s) =>
       s.isEmpty ? s : s.substring(0, 1).toUpperCase() + s.substring(1);
 
-  String _decapitalize(String s) =>
+  static String _decapitalize(String s) =>
       s.isEmpty ? s : s.substring(0, 1).toLowerCase() + s.substring(1);
 
   String _convertSchemaType(DartType type) {
@@ -563,6 +571,21 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
       final enumName = returnType.getDisplayString().replaceAll('?', '');
       getterBody =
           "return $enumName.values.byName(_json['$jsonFieldName'] as String);";
+    } else if (returnType.element is ExtensionTypeElement) {
+      final extElement = returnType.element as ExtensionTypeElement;
+      final repTypeName = extElement.representation.type
+          .getDisplayString()
+          .replaceAll('?', '');
+      final extTypeName = returnType.getDisplayString().replaceAll('?', '');
+      if (returnType.isNullable) {
+        getterBody =
+            "final value = _json['$jsonFieldName'] as $repTypeName?;\n"
+            'return value == null ? null : $extTypeName(value);';
+      } else {
+        getterBody =
+            "final value = _json['$jsonFieldName'] as $repTypeName;\n"
+            'return $extTypeName(value);';
+      }
     } else if (returnType.isDartCoreList) {
       final itemType = (returnType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
@@ -659,6 +682,10 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
           "else { _json['$jsonFieldName'] = $valueExpression; }";
     } else if (paramType.element is EnumElement) {
       setterBody = "_json['$jsonFieldName'] = value.name;";
+    } else if (paramType.element is ExtensionTypeElement) {
+      final extElement = paramType.element as ExtensionTypeElement;
+      final repName = extElement.representation.name;
+      setterBody = "_json['$jsonFieldName'] = value.${repName!};";
     } else if (paramType.isDartCoreList) {
       final itemType = (paramType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
@@ -694,6 +721,7 @@ class SchemaGenerator extends GeneratorForAnnotation<Schematic> {
     return Class((b) {
       b
         ..name = '_${baseName}TypeFactory'
+        ..modifier = .base
         ..extend = refer('SchemanticType<$baseName>')
         ..constructors.add(Constructor((c) => c..constant = true));
 
@@ -1286,8 +1314,8 @@ const _numberFieldChecker = TypeChecker.fromUrl(
   'package:schemantic/schemantic.dart#DoubleField',
 );
 
-const _schematicChecker = TypeChecker.fromUrl(
-  'package:schemantic/schemantic.dart#Schematic',
+const _schemaChecker = TypeChecker.fromUrl(
+  'package:schemantic/schemantic.dart#Schema',
 );
 
 const _anyOfChecker = TypeChecker.fromUrl(
@@ -1309,13 +1337,13 @@ extension on DartType {
 }
 
 /// Returns `true` if the given [element] is a subclass of a type annotated with
-/// [Schematic].
+/// [Schema].
 bool _implementsAnnotatedType(ClassElement element) =>
     _annotatedInterfaces(element).isNotEmpty;
 
 Iterable<InterfaceType> _annotatedInterfaces(ClassElement element) {
   return element.interfaces.where(
-    (s) => _schematicChecker.hasAnnotationOf(s.element),
+    (s) => _schemaChecker.hasAnnotationOf(s.element),
   );
 }
 

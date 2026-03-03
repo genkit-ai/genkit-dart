@@ -17,14 +17,14 @@ import 'package:schemantic/schemantic.dart';
 
 part 'conditional_routing.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $RouterInput {
   String get query;
 }
 
-@Schematic()
+@Schema()
 abstract class $IntentClassification {
-  @Schematic()
+  @Schema()
   String get intent;
 }
 

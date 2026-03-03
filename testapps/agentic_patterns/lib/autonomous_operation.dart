@@ -17,17 +17,17 @@ import 'package:schemantic/schemantic.dart';
 
 part 'autonomous_operation.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ResearchAgentInput {
   String get task;
 }
 
-@Schematic()
+@Schema()
 abstract class $AgentSearchInput {
   String get query;
 }
 
-@Schematic()
+@Schema()
 abstract class $AgentAskUserInput {
   String get question;
 }

@@ -54,7 +54,8 @@ class WeatherFlowInput {
   }
 }
 
-class _WeatherFlowInputTypeFactory extends SchemanticType<WeatherFlowInput> {
+final class _WeatherFlowInputTypeFactory
+    extends SchemanticType<WeatherFlowInput> {
   const _WeatherFlowInputTypeFactory();
 
   @override
@@ -117,7 +118,8 @@ class WeatherToolInput {
   }
 }
 
-class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
+final class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
@@ -212,7 +214,8 @@ class WeatherToolOutput {
   }
 }
 
-class _WeatherToolOutputTypeFactory extends SchemanticType<WeatherToolOutput> {
+final class _WeatherToolOutputTypeFactory
+    extends SchemanticType<WeatherToolOutput> {
   const _WeatherToolOutputTypeFactory();
 
   @override

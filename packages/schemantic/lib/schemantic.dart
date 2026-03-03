@@ -27,14 +27,14 @@ typedef $Schema = jsb.Schema;
 ///
 /// This annotation triggers the generation of a counterpart `Schema.g.dart`
 /// file with a concrete implementation of the schema class and a type utility.
-class Schematic {
+final class Schema {
   /// A description of the schema, to be included in the generated JSON Schema.
   final String? description;
 
-  const Schematic({this.description});
+  const Schema({this.description});
 }
 
-class AnyOf {
+final class AnyOf {
   final List<Type> anyOf;
 
   const AnyOf(this.anyOf);
@@ -46,7 +46,7 @@ class AnyOf {
 /// getter
 /// to specify a custom JSON key name, description, and other schema
 /// constraints.
-class Field {
+final class Field {
   /// The key name to use in the JSON map.
   final String? name;
 
@@ -61,7 +61,7 @@ class Field {
 }
 
 /// Annotation for String fields with specific schema constraints.
-class StringField extends Field {
+final class StringField extends Field {
   final int? minLength;
   final int? maxLength;
   final String? pattern;
@@ -81,7 +81,7 @@ class StringField extends Field {
 }
 
 /// Annotation for Integer fields with specific schema constraints.
-class IntegerField extends Field {
+final class IntegerField extends Field {
   final int? minimum;
   final int? maximum;
   final int? exclusiveMinimum;
@@ -101,7 +101,7 @@ class IntegerField extends Field {
 }
 
 /// Annotation for Number (double) fields with specific schema constraints.
-class DoubleField extends Field {
+final class DoubleField extends Field {
   final num? minimum;
   final num? maximum;
   final num? exclusiveMinimum;
@@ -122,7 +122,7 @@ class DoubleField extends Field {
 
 /// Metadata associated with a [SchemanticType], primarily used for schema
 /// generation.
-class JsonSchemaMetadata {
+final class JsonSchemaMetadata {
   /// The name of the type in the schema (e.g. for $defs).
   final String? name;
 
@@ -142,7 +142,7 @@ class JsonSchemaMetadata {
 /// Base class for all runtime type utilities.
 ///
 /// Provides methods to parse JSON and retrieve the JSON Schema.
-abstract class SchemanticType<T> {
+abstract base class SchemanticType<T> {
   const SchemanticType();
 
   /// Parses the given [json] object into type [T].
@@ -169,8 +169,7 @@ abstract class SchemanticType<T> {
     if (!useRefs) {
       if (schemaMetadata == null) return jsb.Schema.any().value;
       try {
-        final inlinedMap = SchemaHelpers._inlineSchema(
-          schemaMetadata!.definition,
+        final inlinedMap = schemaMetadata!.definition.inlineSchema(
           schemaMetadata!.dependencies,
           {},
         );
@@ -181,7 +180,7 @@ abstract class SchemanticType<T> {
         );
       }
     }
-    return SchemaHelpers.buildSchema(this);
+    return buildSchema();
   }
 
   /// Metadata for this type, if available.
@@ -348,17 +347,14 @@ abstract class SchemanticType<T> {
 }
 
 /// Internal utilities for building JSON Schemas.
-abstract final class SchemaHelpers {
-  /// Builds a complete schema for the [root] type, including all `$defs`.
-  static Map<String, Object?> buildSchema(SchemanticType root) {
-    if (root.schemaMetadata == null) {
-      return root.jsonSchema(useRefs: false);
-    }
+extension on SchemanticType {
+  /// Builds a complete schema for this type, including all `$defs`.
+  Map<String, Object?> buildSchema() {
+    final rootMeta = schemaMetadata;
+    if (rootMeta == null) return jsonSchema(useRefs: false);
 
     final definitions = <String, Map<String, Object?>>{};
-    _collectDefinitions(root, definitions, {});
-
-    final rootMeta = root.schemaMetadata!;
+    collectDefinitions(definitions, {});
 
     if (rootMeta.name != null) {
       definitions[rootMeta.name!] = rootMeta.definition;
@@ -378,15 +374,13 @@ abstract final class SchemaHelpers {
     };
   }
 
-  static void _collectDefinitions(
-    SchemanticType node,
+  void collectDefinitions(
     Map<String, Map<String, Object?>> definitions,
     Set<SchemanticType> visited,
   ) {
-    if (visited.contains(node)) return;
-    visited.add(node);
+    if (!visited.add(this)) return;
 
-    final meta = node.schemaMetadata;
+    final meta = schemaMetadata;
     if (meta == null) return;
 
     if (meta.name != null) {
@@ -396,26 +390,23 @@ abstract final class SchemaHelpers {
     }
 
     for (final dep in meta.dependencies) {
-      _collectDefinitions(dep, definitions, visited);
+      dep.collectDefinitions(definitions, visited);
     }
   }
+}
 
-  static Map<String, dynamic> _inlineSchema(
-    Map<String, Object?> schema,
+extension on Map<String, Object?> {
+  Map<String, dynamic> inlineSchema(
+    List<SchemanticType> dependencies,
+    Set<String> visited,
+  ) => traverseAndInline(dependencies, visited);
+
+  Map<String, dynamic> traverseAndInline(
     List<SchemanticType> dependencies,
     Set<String> visited,
   ) {
-    final json = jsb.Schema.fromMap(schema).value;
-    return _traverseAndInline(json, dependencies, visited);
-  }
-
-  static Map<String, dynamic> _traverseAndInline(
-    Map<String, dynamic> json,
-    List<SchemanticType> dependencies,
-    Set<String> visited,
-  ) {
-    if (json.containsKey(r'$ref') || json.containsKey('ref')) {
-      final ref = (json[r'$ref'] ?? json['ref']) as String;
+    if (containsKey(r'$ref') || containsKey('ref')) {
+      final ref = (this[r'$ref'] ?? this['ref']) as String;
       if (ref.startsWith('#/\$defs/')) {
         final name = ref.replaceFirst('#/\$defs/', '');
         if (visited.contains(name)) {
@@ -431,7 +422,7 @@ abstract final class SchemaHelpers {
         );
 
         final meta = dependency.schemaMetadata!;
-        return _inlineSchema(meta.definition, meta.dependencies, {
+        return meta.definition.inlineSchema(meta.dependencies, {
           ...visited,
           name,
         });
@@ -439,14 +430,14 @@ abstract final class SchemaHelpers {
     }
 
     final result = <String, dynamic>{};
-    for (final key in json.keys) {
-      final value = json[key];
+    for (final key in keys) {
+      final value = this[key];
       if (value is Map<String, dynamic>) {
-        result[key] = _traverseAndInline(value, dependencies, visited);
+        result[key] = value.traverseAndInline(dependencies, visited);
       } else if (value is List) {
         result[key] = value.map((e) {
           if (e is Map<String, dynamic>) {
-            return _traverseAndInline(e, dependencies, visited);
+            return e.traverseAndInline(dependencies, visited);
           }
           return e;
         }).toList();

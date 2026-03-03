@@ -17,12 +17,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'iterative_refinement.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $IterativeRefinementInput {
   String get topic;
 }
 
-@Schematic()
+@Schema()
 abstract class $Evaluation {
   String get critique;
   bool get satisfied;

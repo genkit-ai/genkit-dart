@@ -31,7 +31,7 @@ part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
-@Schematic()
+@Schema()
 abstract class $GeminiOptions {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
@@ -52,35 +52,35 @@ abstract class $GeminiOptions {
   int? get logprobs;
 }
 
-@Schematic()
+@Schema()
 abstract class $FunctionCallingConfig {
   @StringField(enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'])
   String? get mode;
   List<String>? get allowedFunctionNames;
 }
 
-@Schematic()
+@Schema()
 abstract class $ThinkingConfig {
   int? get thinkingBudget;
   bool? get includeThoughts;
 }
 
-@Schematic()
+@Schema()
 abstract class $PrebuiltVoiceConfig {
   String? get voiceName;
 }
 
-@Schematic()
+@Schema()
 abstract class $VoiceConfig {
   $PrebuiltVoiceConfig? get prebuiltVoiceConfig;
 }
 
-@Schematic()
+@Schema()
 abstract class $SpeechConfig {
   $VoiceConfig? get voiceConfig;
 }
 
-@Schematic()
+@Schema()
 abstract class $LiveGenerationConfig {
   List<String>? get responseModalities;
   $SpeechConfig? get speechConfig;

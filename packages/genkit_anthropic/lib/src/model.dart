@@ -17,9 +17,12 @@ import 'package:schemantic/schemantic.dart';
 part 'model.g.dart';
 
 /// Generation options specific to Anthropic models.
-@Schematic()
+@Schema()
 abstract class $AnthropicOptions {
   /// Custom API key to use for this specific request. Overrides plugin config.
+  ///
+  /// This field is only valid for direct Anthropic API usage and is rejected
+  /// when the plugin is configured for Vertex AI.
   String? get apiKey;
 
   @IntegerField(
@@ -64,7 +67,7 @@ abstract class $AnthropicOptions {
 }
 
 /// Configuration for Anthropic's extended thinking mode.
-@Schematic()
+@Schema()
 abstract class $ThinkingConfig {
   @IntegerField(
     minimum: 1024,

@@ -20,13 +20,17 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Person {
+base class Person {
   factory Person.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Person._(this._json);
 
-  Person({required String name, required int age}) {
-    _json = {'name': name, 'age': age};
+  Person({
+    required String name,
+    required int age,
+    required List<String> hobbies,
+  }) {
+    _json = {'name': name, 'age': age, 'hobbies': hobbies};
   }
 
   late final Map<String, dynamic> _json;
@@ -49,6 +53,14 @@ class Person {
     _json['age'] = value;
   }
 
+  List<String> get hobbies {
+    return (_json['hobbies'] as List).cast<String>();
+  }
+
+  set hobbies(List<String> value) {
+    _json['hobbies'] = value;
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -59,7 +71,7 @@ class Person {
   }
 }
 
-class _PersonTypeFactory extends SchemanticType<Person> {
+base class _PersonTypeFactory extends SchemanticType<Person> {
   const _PersonTypeFactory();
 
   @override
@@ -72,15 +84,19 @@ class _PersonTypeFactory extends SchemanticType<Person> {
     name: 'Person',
     definition: $Schema
         .object(
-          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
-          required: ['name', 'age'],
+          properties: {
+            'name': $Schema.string(),
+            'age': $Schema.integer(),
+            'hobbies': $Schema.list(items: $Schema.string()),
+          },
+          required: ['name', 'age', 'hobbies'],
         )
         .value,
     dependencies: [],
   );
 }
 
-class CalculatorInput {
+base class CalculatorInput {
   factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -121,7 +137,7 @@ class CalculatorInput {
   }
 }
 
-class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
+base class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
   const _CalculatorInputTypeFactory();
 
   @override

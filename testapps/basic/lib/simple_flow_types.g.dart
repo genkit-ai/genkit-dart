@@ -21,7 +21,7 @@ part of 'simple_flow_types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Ingredient {
+base class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Ingredient._(this._json);
@@ -60,7 +60,7 @@ class Ingredient {
   }
 }
 
-class _IngredientTypeFactory extends SchemanticType<Ingredient> {
+base class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   const _IngredientTypeFactory();
 
   @override
@@ -81,7 +81,7 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   );
 }
 
-class Recipe {
+base class Recipe {
   factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Recipe._(this._json);
@@ -138,7 +138,7 @@ class Recipe {
   }
 }
 
-class _RecipeTypeFactory extends SchemanticType<Recipe> {
+base class _RecipeTypeFactory extends SchemanticType<Recipe> {
   const _RecipeTypeFactory();
 
   @override

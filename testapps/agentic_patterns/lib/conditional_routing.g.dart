@@ -21,7 +21,7 @@ part of 'conditional_routing.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class RouterInput {
+base class RouterInput {
   factory RouterInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,7 @@ class RouterInput {
   }
 }
 
-class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
+base class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
   const _RouterInputTypeFactory();
 
   @override
@@ -71,7 +71,7 @@ class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
   );
 }
 
-class IntentClassification {
+base class IntentClassification {
   factory IntentClassification.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -104,7 +104,7 @@ class IntentClassification {
   }
 }
 
-class _IntentClassificationTypeFactory
+base class _IntentClassificationTypeFactory
     extends SchemanticType<IntentClassification> {
   const _IntentClassificationTypeFactory();
 

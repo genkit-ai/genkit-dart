@@ -12,26 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:json_schema_builder/json_schema_builder.dart';
+import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 part 'extension_type_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Ingredient {
   String get name;
   String get quantity;
 }
 
-@Schematic()
+@Schema()
 abstract class $Recipe {
   String get title;
   List<$Ingredient> get ingredients;
   int get servings;
 }
 
-@Schematic()
+@Schema()
 abstract class $AnnotatedRecipe {
   @Field(
     name: 'title_key_in_json',
@@ -44,13 +44,13 @@ abstract class $AnnotatedRecipe {
 
 enum MealType { breakfast, lunch, dinner }
 
-@Schematic()
+@Schema()
 abstract class $MealPlan {
   String get day;
   MealType get mealType;
 }
 
-@Schematic()
+@Schema()
 abstract class $NullableFields {
   String? get optionalString;
   int? get optionalInt;
@@ -58,7 +58,7 @@ abstract class $NullableFields {
   $Ingredient? get optionalIngredient;
 }
 
-@Schematic()
+@Schema()
 abstract class $ComplexObject {
   String get id;
   DateTime get createdAt;
@@ -68,7 +68,7 @@ abstract class $ComplexObject {
   $NullableFields? get nestedNullable;
 }
 
-@Schematic()
+@Schema()
 abstract class $Menu {
   List<$Recipe> get recipes;
   List<$Ingredient>? get optionalIngredients;
@@ -100,19 +100,19 @@ void main() {
     });
 
     test('Generates correct JSON schema', () {
-      final expectedSchema = Schema.object(
+      final expectedSchema = jsb.Schema.object(
         properties: {
-          'title': Schema.string(),
-          'ingredients': Schema.list(
-            items: Schema.object(
+          'title': jsb.Schema.string(),
+          'ingredients': jsb.Schema.list(
+            items: jsb.Schema.object(
               properties: {
-                'name': Schema.string(),
-                'quantity': Schema.string(),
+                'name': jsb.Schema.string(),
+                'quantity': jsb.Schema.string(),
               },
               required: ['name', 'quantity'],
             ),
           ),
-          'servings': Schema.integer(),
+          'servings': jsb.Schema.integer(),
         },
         required: ['title', 'ingredients', 'servings'],
       );
@@ -121,21 +121,21 @@ void main() {
     });
 
     test('Generates correct JSON schema for annotated fields', () {
-      final expectedSchema = Schema.object(
+      final expectedSchema = jsb.Schema.object(
         properties: {
-          'title_key_in_json': Schema.string(
+          'title_key_in_json': jsb.Schema.string(
             description: 'description set in json schema',
           ),
-          'ingredients': Schema.list(
-            items: Schema.object(
+          'ingredients': jsb.Schema.list(
+            items: jsb.Schema.object(
               properties: {
-                'name': Schema.string(),
-                'quantity': Schema.string(),
+                'name': jsb.Schema.string(),
+                'quantity': jsb.Schema.string(),
               },
               required: ['name', 'quantity'],
             ),
           ),
-          'servings': Schema.integer(),
+          'servings': jsb.Schema.integer(),
         },
         required: ['title_key_in_json', 'ingredients', 'servings'],
       );
@@ -178,10 +178,10 @@ void main() {
     });
 
     test('Generates correct JSON schema for enums', () {
-      final expectedSchema = Schema.object(
+      final expectedSchema = jsb.Schema.object(
         properties: {
-          'day': Schema.string(),
-          'mealType': Schema.string(
+          'day': jsb.Schema.string(),
+          'mealType': jsb.Schema.string(
             enumValues: ['breakfast', 'lunch', 'dinner'],
           ),
         },
@@ -192,12 +192,14 @@ void main() {
     });
 
     test('Generates correct JSON schema for nullable fields', () {
-      final expectedSchema = Schema.object(
+      final expectedSchema = jsb.Schema.object(
         properties: {
-          'optionalString': Schema.string(),
-          'optionalInt': Schema.integer(),
-          'optionalList': Schema.list(items: Schema.string()),
-          'optionalIngredient': Schema.fromMap(Ingredient.$schema.jsonSchema()),
+          'optionalString': jsb.Schema.string(),
+          'optionalInt': jsb.Schema.integer(),
+          'optionalList': jsb.Schema.list(items: jsb.Schema.string()),
+          'optionalIngredient': jsb.Schema.fromMap(
+            Ingredient.$schema.jsonSchema(),
+          ),
         },
         required: [],
       );
@@ -244,14 +246,18 @@ void main() {
     });
 
     test('Generates correct JSON schema for complex objects', () {
-      final expectedSchema = Schema.object(
+      final expectedSchema = jsb.Schema.object(
         properties: {
-          'id': Schema.string(),
-          'createdAt': Schema.string(format: 'date-time'),
-          'price': Schema.number(),
-          'metadata': Schema.object(additionalProperties: Schema.string()),
-          'ratings': Schema.list(items: Schema.integer()),
-          'nestedNullable': Schema.fromMap(NullableFields.$schema.jsonSchema()),
+          'id': jsb.Schema.string(),
+          'createdAt': jsb.Schema.string(format: 'date-time'),
+          'price': jsb.Schema.number(),
+          'metadata': jsb.Schema.object(
+            additionalProperties: jsb.Schema.string(),
+          ),
+          'ratings': jsb.Schema.list(items: jsb.Schema.integer()),
+          'nestedNullable': jsb.Schema.fromMap(
+            NullableFields.$schema.jsonSchema(),
+          ),
         },
         required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
       );
@@ -296,16 +302,16 @@ void main() {
     });
 
     test('Generates correct JSON schema for lists of complex objects', () {
-      final expectedSchema = Schema.object(
+      final expectedSchema = jsb.Schema.object(
         properties: {
-          'recipes': Schema.list(
-            items: Schema.fromMap(Recipe.$schema.jsonSchema()),
+          'recipes': jsb.Schema.list(
+            items: jsb.Schema.fromMap(Recipe.$schema.jsonSchema()),
           ),
-          'optionalIngredients': Schema.list(
-            items: Schema.object(
+          'optionalIngredients': jsb.Schema.list(
+            items: jsb.Schema.object(
               properties: {
-                'name': Schema.string(),
-                'quantity': Schema.string(),
+                'name': jsb.Schema.string(),
+                'quantity': jsb.Schema.string(),
               },
               required: ['name', 'quantity'],
             ),

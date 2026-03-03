@@ -122,7 +122,7 @@ SchemanticType<Map<String, dynamic>> mcpToolInputSchemaFromJson(
 ///
 /// This allows Genkit's registry to reflect the actual input schema that
 /// the remote tool advertises, rather than an opaque `Map<String, dynamic>`.
-class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
+final class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
   final Map<String, dynamic> _jsonSchema;
 
   const McpToolInputSchema(this._jsonSchema);
@@ -135,15 +135,19 @@ class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
   }
 
   @override
-  JsonSchemaMetadata? get schemaMetadata =>
-      JsonSchemaMetadata(definition: _jsonSchema, dependencies: const []);
+  JsonSchemaMetadata? get schemaMetadata => null;
+
+  @override
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
+    return _jsonSchema;
+  }
 }
 
 /// A [SchemanticType] backed by a dynamic set of string properties.
 ///
 /// Used to represent the input schema for MCP prompts whose arguments
 /// are only known at runtime.
-class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
+final class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
   final Map<String, dynamic> properties;
   final List<String> required;
 
@@ -158,14 +162,16 @@ class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
   }
 
   @override
-  JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: {
+  JsonSchemaMetadata? get schemaMetadata => null;
+
+  @override
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
+    return {
       'type': 'object',
       'properties': properties,
       if (required.isNotEmpty) 'required': required,
-    },
-    dependencies: const [],
-  );
+    };
+  }
 }
 
 /// Extracts an object schema from a JSON schema, handling `allOf` wrappers.

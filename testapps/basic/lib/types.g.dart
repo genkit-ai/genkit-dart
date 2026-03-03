@@ -21,7 +21,7 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ProcessObjectInput {
+base class ProcessObjectInput {
   factory ProcessObjectInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -62,7 +62,7 @@ class ProcessObjectInput {
   }
 }
 
-class _ProcessObjectInputTypeFactory
+base class _ProcessObjectInputTypeFactory
     extends SchemanticType<ProcessObjectInput> {
   const _ProcessObjectInputTypeFactory();
 
@@ -84,7 +84,7 @@ class _ProcessObjectInputTypeFactory
   );
 }
 
-class ProcessObjectOutput {
+base class ProcessObjectOutput {
   factory ProcessObjectOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -125,7 +125,7 @@ class ProcessObjectOutput {
   }
 }
 
-class _ProcessObjectOutputTypeFactory
+base class _ProcessObjectOutputTypeFactory
     extends SchemanticType<ProcessObjectOutput> {
   const _ProcessObjectOutputTypeFactory();
 
@@ -150,7 +150,7 @@ class _ProcessObjectOutputTypeFactory
   );
 }
 
-class StreamObjectsInput {
+base class StreamObjectsInput {
   factory StreamObjectsInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -183,7 +183,7 @@ class StreamObjectsInput {
   }
 }
 
-class _StreamObjectsInputTypeFactory
+base class _StreamObjectsInputTypeFactory
     extends SchemanticType<StreamObjectsInput> {
   const _StreamObjectsInputTypeFactory();
 
@@ -202,7 +202,7 @@ class _StreamObjectsInputTypeFactory
   );
 }
 
-class StreamObjectsOutput {
+base class StreamObjectsOutput {
   factory StreamObjectsOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -243,7 +243,7 @@ class StreamObjectsOutput {
   }
 }
 
-class _StreamObjectsOutputTypeFactory
+base class _StreamObjectsOutputTypeFactory
     extends SchemanticType<StreamObjectsOutput> {
   const _StreamObjectsOutputTypeFactory();
 
@@ -265,7 +265,7 @@ class _StreamObjectsOutputTypeFactory
   );
 }
 
-class StreamyThrowyChunk {
+base class StreamyThrowyChunk {
   factory StreamyThrowyChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -298,7 +298,7 @@ class StreamyThrowyChunk {
   }
 }
 
-class _StreamyThrowyChunkTypeFactory
+base class _StreamyThrowyChunkTypeFactory
     extends SchemanticType<StreamyThrowyChunk> {
   const _StreamyThrowyChunkTypeFactory();
 

@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'ai/embedder.dart';
+import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
 import 'ai/generate_bidi.dart';
@@ -29,6 +30,7 @@ import 'ai/resource.dart';
 import 'ai/tool.dart';
 import 'client/client.dart';
 import 'core/action.dart';
+import 'core/dynamic_action_provider.dart';
 import 'core/flow.dart';
 import 'core/plugin.dart';
 import 'core/reflection.dart';
@@ -331,6 +333,38 @@ final class Genkit {
     );
     registry.register(embedder);
     return embedder;
+  }
+
+  DynamicActionProvider defineDynamicActionProvider({
+    required String name,
+    FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
+    FutureOr<Action?> Function(String)? getActionFn,
+    Map<String, dynamic>? metadata,
+  }) {
+    final provider = DynamicActionProvider(
+      name: name,
+      listActionsFn: listActionsFn,
+      getActionFn: getActionFn,
+      metadata: metadata,
+    );
+    registry.register(provider);
+    return provider;
+  }
+
+  Evaluator defineEvaluator({
+    required String name,
+    required String description,
+    required ActionFn<EvalRequest, List<EvalFnResponse>, void, void> fn,
+  }) {
+    final evaluator = Evaluator(
+      name: name,
+      description: description,
+      fn: (input, context) {
+        return fn(input!, context);
+      },
+    );
+    registry.register(evaluator);
+    return evaluator;
   }
 
   Future<List<Embedding>> embedMany<CustomOptions>({

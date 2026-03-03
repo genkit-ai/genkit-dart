@@ -66,7 +66,8 @@ class MovieReviewInput {
   }
 }
 
-class _MovieReviewInputTypeFactory extends SchemanticType<MovieReviewInput> {
+final class _MovieReviewInputTypeFactory
+    extends SchemanticType<MovieReviewInput> {
   const _MovieReviewInputTypeFactory();
 
   @override
@@ -173,7 +174,7 @@ class MovieReview {
   }
 }
 
-class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
+final class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
   const _MovieReviewTypeFactory();
 
   @override

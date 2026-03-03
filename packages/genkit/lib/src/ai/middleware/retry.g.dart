@@ -21,7 +21,7 @@ part of 'retry.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class RetryOptions {
+base class RetryOptions {
   factory RetryOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -160,7 +160,7 @@ class RetryOptions {
   }
 }
 
-class _RetryOptionsTypeFactory extends SchemanticType<RetryOptions> {
+base class _RetryOptionsTypeFactory extends SchemanticType<RetryOptions> {
   const _RetryOptionsTypeFactory();
 
   @override

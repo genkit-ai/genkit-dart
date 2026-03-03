@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import '../core/action.dart';
+import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../schema.dart';
@@ -115,6 +116,94 @@ abstract class GenerateConfig {}
   return (middleware: resolvedMiddleware, registry: registry);
 }
 
+Future<
+  ({
+    Registry registry,
+    List<ToolDefinition> toolDefs,
+    Set<String> activeToolNames,
+  })
+>
+_resolveTools(
+  Registry registry,
+  List<String>? requestedTools,
+  List<GenerateMiddleware> resolvedMiddleware,
+) async {
+  var toolDefs = <ToolDefinition>[];
+  final activeToolNames = <String>{};
+  var currentRegistry = registry;
+
+  if (requestedTools != null) {
+    if (requestedTools.any((t) => t.contains(':'))) {
+      currentRegistry = Registry.childOf(registry);
+    }
+    for (var toolName in requestedTools) {
+      final colonIdx = toolName.indexOf(':');
+      if (colonIdx != -1) {
+        final dapName = toolName.substring(0, colonIdx);
+        var actionMatcher = toolName.substring(colonIdx + 1);
+        if (actionMatcher.startsWith('tool/')) {
+          actionMatcher = actionMatcher.substring('tool/'.length);
+        }
+        final dap =
+            await currentRegistry.lookupAction(
+                  'dynamic-action-provider',
+                  dapName,
+                )
+                as DynamicActionProvider?;
+
+        if (dap != null) {
+          if (actionMatcher.endsWith('*')) {
+            final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
+            final actions = await dap.listActions();
+            for (final action in actions) {
+              if (action.actionType == 'tool' &&
+                  (prefix.isEmpty || action.name.startsWith(prefix))) {
+                final fullAction = await dap.getAction(action.name);
+                if (fullAction != null && fullAction is Tool) {
+                  currentRegistry.register(fullAction);
+                  activeToolNames.add(fullAction.name);
+                  toolDefs.add(toToolDefinition(fullAction));
+                }
+              }
+            }
+          } else {
+            final fullAction = await dap.getAction(actionMatcher);
+            if (fullAction != null && fullAction is Tool) {
+              currentRegistry.register(fullAction);
+              activeToolNames.add(fullAction.name);
+              toolDefs.add(toToolDefinition(fullAction));
+            }
+          }
+          continue;
+        }
+      }
+
+      activeToolNames.add(toolName);
+      final tool =
+          await currentRegistry.lookupAction('tool', toolName) as Tool?;
+      if (tool != null) {
+        toolDefs.add(toToolDefinition(tool));
+      }
+    }
+  }
+
+  final middlewareTools = resolvedMiddleware
+      .expand((m) => m.tools ?? <Tool>[])
+      .toList();
+  for (final tool in middlewareTools) {
+    if (!activeToolNames.contains(tool.name)) {
+      activeToolNames.add(tool.name);
+      toolDefs.add(toToolDefinition(tool));
+    }
+  }
+
+  return (
+    registry: currentRegistry,
+    toolDefs: toolDefs,
+    activeToolNames: activeToolNames,
+  );
+}
+
 Future<GenerateResponseHelper> _runGenerateLoop(
   Registry registry,
   GenerateActionOptions options,
@@ -155,27 +244,13 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   final format = resolveFormat(registry, options.output);
   final requestOptions = applyFormat(options, format);
 
-  var toolDefs = <ToolDefinition>[];
-  final activeToolNames = <String>{};
-  if (requestOptions.tools != null) {
-    for (var toolName in requestOptions.tools!) {
-      activeToolNames.add(toolName);
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
-      if (tool != null) {
-        toolDefs.add(toToolDefinition(tool));
-      }
-    }
-  }
-
-  final middlewareTools = resolvedMiddleware
-      .expand((m) => m.tools ?? <Tool>[])
-      .toList();
-  for (final tool in middlewareTools) {
-    if (!activeToolNames.contains(tool.name)) {
-      activeToolNames.add(tool.name);
-      toolDefs.add(toToolDefinition(tool));
-    }
-  }
+  final resolved = await _resolveTools(
+    registry,
+    requestOptions.tools,
+    resolvedMiddleware,
+  );
+  registry = resolved.registry;
+  final toolDefs = resolved.toolDefs;
 
   final request = ModelRequest(
     messages: requestOptions.messages,

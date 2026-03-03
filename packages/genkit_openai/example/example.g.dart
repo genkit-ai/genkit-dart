@@ -54,7 +54,8 @@ class WeatherFlowInput {
   }
 }
 
-class _WeatherFlowInputTypeFactory extends SchemanticType<WeatherFlowInput> {
+final class _WeatherFlowInputTypeFactory
+    extends SchemanticType<WeatherFlowInput> {
   const _WeatherFlowInputTypeFactory();
 
   @override
@@ -117,7 +118,8 @@ class WeatherToolInput {
   }
 }
 
-class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
+final class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
@@ -212,7 +214,8 @@ class WeatherToolOutput {
   }
 }
 
-class _WeatherToolOutputTypeFactory extends SchemanticType<WeatherToolOutput> {
+final class _WeatherToolOutputTypeFactory
+    extends SchemanticType<WeatherToolOutput> {
   const _WeatherToolOutputTypeFactory();
 
   @override
@@ -283,7 +286,8 @@ class MovieReviewInput {
   }
 }
 
-class _MovieReviewInputTypeFactory extends SchemanticType<MovieReviewInput> {
+final class _MovieReviewInputTypeFactory
+    extends SchemanticType<MovieReviewInput> {
   const _MovieReviewInputTypeFactory();
 
   @override
@@ -390,7 +394,7 @@ class MovieReview {
   }
 }
 
-class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
+final class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
   const _MovieReviewTypeFactory();
 
   @override

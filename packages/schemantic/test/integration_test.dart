@@ -20,27 +20,27 @@ import 'schemas/shared_test_schema.dart';
 
 part 'integration_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $User {
   String get name;
   int? get age;
   bool get isAdmin;
 }
 
-@Schematic()
+@Schema()
 abstract class $Group {
   String get groupName;
   List<$User> get members;
   $User? get leader;
 }
 
-@Schematic()
+@Schema()
 abstract class $Node {
   String get id;
   List<$Node>? get children;
 }
 
-@Schematic()
+@Schema()
 abstract class $Keyed {
   @StringField(
     name: 'custom_name',
@@ -56,7 +56,7 @@ abstract class $Keyed {
   double? get rating;
 }
 
-@Schematic()
+@Schema()
 abstract class $Comprehensive {
   @StringField(
     name: 's_field',
@@ -92,17 +92,17 @@ abstract class $Comprehensive {
   double get numberField;
 }
 
-@Schematic(description: 'A schema with description')
+@Schema(description: 'A schema with description')
 abstract class $Description {
   String get name;
 }
 
-@Schematic()
+@Schema()
 abstract class $CrossFileParent {
   $SharedChild get child;
 }
 
-@Schematic()
+@Schema()
 abstract class $Defaults {
   @StringField(defaultValue: 'prod')
   String get env;
@@ -117,16 +117,28 @@ abstract class $Defaults {
   bool get flag;
 }
 
-@Schematic()
+@Schema()
 abstract class $Poly {
   @AnyOf([int, String, $User])
   Object? get id;
 }
 
-@Schematic()
+@Schema()
 abstract class $MapSchema {
   Map<String, int> get stringToInt;
   Map<String, $User>? get stringToUser;
+}
+
+extension type MyStatus(String value) {
+  static MyStatus get active => MyStatus('active');
+  static MyStatus get inactive => MyStatus('inactive');
+}
+
+@Schema()
+abstract class $StatusContainer {
+  MyStatus get status;
+  MyStatus? get optionalStatus;
+  List<MyStatus>? get statusList;
 }
 
 void main() {
@@ -499,6 +511,43 @@ void main() {
       expect(parsed.stringToUser!['admin']!.isAdmin, true);
       expect(parsed.stringToUser!['guest']!.name, 'Guest');
       expect(parsed.stringToUser, isA<Map<String, User>>());
+    });
+  });
+
+  group('Extension Type Tests', () {
+    test('Serialization and deserialization of extension types', () {
+      final container = StatusContainer(
+        status: MyStatus.active,
+        optionalStatus: MyStatus.inactive,
+        statusList: [MyStatus('pending'), MyStatus.active],
+      );
+
+      final json = container.toJson();
+      expect(json, {
+        'status': 'active',
+        'optionalStatus': 'inactive',
+        'statusList': ['pending', 'active'],
+      });
+
+      final parsed = StatusContainer.$schema.parse(json);
+      expect(parsed.status, MyStatus.active);
+      expect(parsed.status.value, 'active');
+      expect(parsed.optionalStatus, MyStatus.inactive);
+      expect(parsed.optionalStatus?.value, 'inactive');
+
+      expect(parsed.statusList, isNotNull);
+      expect(parsed.statusList!.length, 2);
+      expect(parsed.statusList![0].value, 'pending');
+      expect(parsed.statusList![1].value, 'active');
+    });
+
+    test('Deserializes null correctly for optional extension types', () {
+      final json = {'status': 'active'};
+      final parsed = StatusContainer.$schema.parse(json);
+
+      expect(parsed.status.value, 'active');
+      expect(parsed.optionalStatus, isNull);
+      expect(parsed.statusList, isNull);
     });
   });
 }

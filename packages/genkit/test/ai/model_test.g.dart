@@ -21,7 +21,7 @@ part of 'model_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions {
+base class TestCustomOptions {
   factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class TestCustomOptions {
   }
 }
 
-class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
+base class _TestCustomOptionsTypeFactory
+    extends SchemanticType<TestCustomOptions> {
   const _TestCustomOptionsTypeFactory();
 
   @override

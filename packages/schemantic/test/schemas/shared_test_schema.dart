@@ -16,15 +16,15 @@ import 'package:schemantic/schemantic.dart';
 
 part 'shared_test_schema.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $SharedChild {
   String get childId;
 }
 
-@Schematic()
+@Schema()
 abstract class $Part {}
 
-@Schematic()
+@Schema()
 abstract class $TextPart implements $Part {
   String get text;
   Map<String, dynamic>? get data;

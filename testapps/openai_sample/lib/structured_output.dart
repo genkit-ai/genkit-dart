@@ -20,7 +20,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'structured_output.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $MovieReviewInput {
   /// Title of the movie to review
   String get title;
@@ -29,7 +29,7 @@ abstract class $MovieReviewInput {
   int? get year;
 }
 
-@Schematic()
+@Schema()
 abstract class $MovieReview {
   /// Official movie title
   String get title;

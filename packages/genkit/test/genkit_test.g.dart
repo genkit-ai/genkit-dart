@@ -21,7 +21,7 @@ part of 'genkit_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions {
+base class TestCustomOptions {
   factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class TestCustomOptions {
   }
 }
 
-class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
+base class _TestCustomOptionsTypeFactory
+    extends SchemanticType<TestCustomOptions> {
   const _TestCustomOptionsTypeFactory();
 
   @override
@@ -75,7 +76,7 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
   );
 }
 
-class TestToolInput {
+base class TestToolInput {
   factory TestToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -108,7 +109,7 @@ class TestToolInput {
   }
 }
 
-class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
+base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   const _TestToolInputTypeFactory();
 
   @override
@@ -126,7 +127,7 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   );
 }
 
-class TestOutputSchema {
+base class TestOutputSchema {
   factory TestOutputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -167,7 +168,8 @@ class TestOutputSchema {
   }
 }
 
-class _TestOutputSchemaTypeFactory extends SchemanticType<TestOutputSchema> {
+base class _TestOutputSchemaTypeFactory
+    extends SchemanticType<TestOutputSchema> {
   const _TestOutputSchemaTypeFactory();
 
   @override

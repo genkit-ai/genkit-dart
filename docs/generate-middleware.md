@@ -68,7 +68,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'logger.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $LoggerOptions {
   bool? get enableColor;
   int? get maxLogLength;
