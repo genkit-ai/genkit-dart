@@ -9,7 +9,7 @@ resolution: workspace
 dependencies:
   args: ^2.6.0
   genkit: ^0.10.0-dev.18
-  genkit_google_genai: ^0.0.1-dev.18
+  genkit_google_genai: ^0.0.1-dev.19
   schemantic: ^0.0.1-dev.19
 
 dev_dependencies:

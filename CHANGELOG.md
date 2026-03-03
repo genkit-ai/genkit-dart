@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-03-03
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit_google_genai` - `v0.0.1-dev.19`](#genkit_google_genai---v001-dev19)
+
+---
+
+#### `genkit_google_genai` - `v0.0.1-dev.19`
+
+ - **FIX**: conditionally add `toolUsePromptTokenCount` to custom metadata.
+
+
 ## 2026-03-02
 
 ### Changes

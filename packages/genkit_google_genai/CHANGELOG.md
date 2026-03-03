@@ -1,3 +1,7 @@
+## 0.0.1-dev.19
+
+ - **FIX**: conditionally add `toolUsePromptTokenCount` to custom metadata.
+
 ## 0.0.1-dev.18
 
 > Note: This release has breaking changes.
