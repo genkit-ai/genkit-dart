@@ -55,9 +55,10 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
       try {
         var matchedText = match.group(0)!;
         if (matchedText.startsWith('"') && !matchedText.endsWith('"')) {
-           // Handle escaped quotes at the end of partial string (e.g. "he\")
-           if (matchedText.endsWith(r'\')) matchedText = matchedText.substring(0, matchedText.length - 1);
-           matchedText += '"';
+          // Handle escaped quotes at the end of partial string (e.g. "he\")
+          if (matchedText.endsWith(r'\'))
+            matchedText = matchedText.substring(0, matchedText.length - 1);
+          matchedText += '"';
         }
         return jsonDecode(matchedText);
       } catch (_) {}
