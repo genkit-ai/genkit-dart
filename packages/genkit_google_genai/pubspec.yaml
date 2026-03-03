@@ -10,9 +10,9 @@ environment:
 
 dependencies:
   genkit: ^0.10.0-dev.17
+  genkit_vertex_auth: ^0.0.1-dev.1
   google_cloud_ai_generativelanguage_v1beta: ^0.4.0
   google_cloud_protobuf: ^0.4.0
-  googleapis_auth: ^2.1.0
   http: ^1.6.0
   json_annotation: ^4.9.0
   logging: ^1.3.0

@@ -54,6 +54,7 @@ class VertexAiPluginHandle {
       projectId: projectId,
       location: location,
       authClient: authClient,
+      isVertex: true,
     );
   }
 

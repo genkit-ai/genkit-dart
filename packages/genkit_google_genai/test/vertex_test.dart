@@ -25,6 +25,18 @@ class MockHttpClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     lastUrl = request.url;
+    if (request.url.host == 'metadata.google.internal' ||
+        request.url.host == 'oauth2.googleapis.com') {
+      return http.StreamedResponse(
+        Stream.value(
+          utf8.encode(
+            '{"access_token": "ya29.mock", "expires_in": 3600, "token_type": "Bearer"}',
+          ),
+        ),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     return http.StreamedResponse(
       Stream.value(
         utf8.encode(
@@ -32,6 +44,7 @@ class MockHttpClient extends http.BaseClient {
         ),
       ),
       200,
+      headers: {'content-type': 'application/json'},
     );
   }
 }
@@ -44,6 +57,7 @@ void main() {
         projectId: 'my-project',
         location: 'us-central1',
         authClient: mockClient,
+        isVertex: true,
       );
 
       final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
@@ -71,6 +85,7 @@ void main() {
         projectId: 'my-project',
         location: 'global',
         authClient: mockClient,
+        isVertex: true,
       );
 
       final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
