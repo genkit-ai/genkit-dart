@@ -1,3 +1,12 @@
+## 0.0.1-dev.9
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+ - **FEAT**(anthropic): add Vertex AI transport and sample app (#182).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
 ## 0.0.1-dev.8
 
 > Note: This release has breaking changes.

@@ -1,3 +1,11 @@
+## 0.0.1-dev.18
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **REFACTOR**: centralize status-to-http mapping for transport errors (#181).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
 ## 0.0.1-dev.17
 
 > Note: This release has breaking changes.

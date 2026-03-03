@@ -1,3 +1,13 @@
+## 0.0.1-dev.7
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **REFACTOR**: centralize status-to-http mapping for transport errors (#181).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
 ## 0.0.1-dev.6
 
 > Note: This release has breaking changes.

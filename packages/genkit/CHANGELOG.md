@@ -1,3 +1,15 @@
+## 0.10.0-dev.18
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **REFACTOR**: centralize status-to-http mapping for transport errors (#181).
+ - **FEAT**: introduce Genkit evaluation functionality (#191).
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
 ## 0.10.0-dev.17
 
 > Note: This release has breaking changes.

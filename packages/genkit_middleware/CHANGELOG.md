@@ -1,3 +1,11 @@
+## 0.0.1-dev.7
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
 ## 0.0.1-dev.6
 
 > Note: This release has breaking changes.

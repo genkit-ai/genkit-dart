@@ -1,3 +1,13 @@
+## 0.0.1-dev.19
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**: introduce Genkit evaluation functionality (#191).
+ - **BREAKING** **REFACTOR**: Remove `SchemaHelpers` utility class (#180).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
 ## 0.0.1-dev.18
 
 > Note: This release has breaking changes.

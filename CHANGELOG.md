@@ -3,6 +3,102 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-03-02
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit` - `v0.10.0-dev.18`](#genkit---v0100-dev18)
+ - [`genkit_anthropic` - `v0.0.1-dev.9`](#genkit_anthropic---v001-dev9)
+ - [`genkit_google_genai` - `v0.0.1-dev.18`](#genkit_google_genai---v001-dev18)
+ - [`genkit_mcp` - `v0.0.1-dev.7`](#genkit_mcp---v001-dev7)
+ - [`genkit_middleware` - `v0.0.1-dev.7`](#genkit_middleware---v001-dev7)
+ - [`genkit_openai` - `v0.0.1-dev.7`](#genkit_openai---v001-dev7)
+ - [`genkit_shelf` - `v0.0.1-dev.18`](#genkit_shelf---v001-dev18)
+ - [`schemantic` - `v0.0.1-dev.19`](#schemantic---v001-dev19)
+
+Packages with other changes:
+
+ - [`genkit_vertex_auth` - `v0.0.1-dev.2`](#genkit_vertex_auth---v001-dev2)
+ - [`genkit_chrome` - `v0.0.1-dev.9`](#genkit_chrome---v001-dev9)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_chrome` - `v0.0.1-dev.9`
+
+---
+
+#### `genkit` - `v0.10.0-dev.18`
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **REFACTOR**: centralize status-to-http mapping for transport errors (#181).
+ - **FEAT**: introduce Genkit evaluation functionality (#191).
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
+#### `genkit_anthropic` - `v0.0.1-dev.9`
+
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+ - **FEAT**(anthropic): add Vertex AI transport and sample app (#182).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
+#### `genkit_google_genai` - `v0.0.1-dev.18`
+
+ - **REFACTOR**: migrate Vertex AI authentication to use the `genkit_vertex_auth` (#193).
+ - **REFACTOR**(google_genai): switch to rest api (#183).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**(genkit_google_genai): implemented vertexai support (#184).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
+#### `genkit_mcp` - `v0.0.1-dev.7`
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **REFACTOR**: centralize status-to-http mapping for transport errors (#181).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
+#### `genkit_middleware` - `v0.0.1-dev.7`
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
+#### `genkit_openai` - `v0.0.1-dev.7`
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
+#### `genkit_shelf` - `v0.0.1-dev.18`
+
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **REFACTOR**: centralize status-to-http mapping for transport errors (#181).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
+#### `schemantic` - `v0.0.1-dev.19`
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**: introduce Genkit evaluation functionality (#191).
+ - **BREAKING** **REFACTOR**: Remove `SchemaHelpers` utility class (#180).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
+#### `genkit_vertex_auth` - `v0.0.1-dev.2`
+
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+
+
 ## 2026-02-27
 
 ### Changes

@@ -1,3 +1,14 @@
+## 0.0.1-dev.18
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: migrate Vertex AI authentication to use the `genkit_vertex_auth` (#193).
+ - **REFACTOR**(google_genai): switch to rest api (#183).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**(genkit_google_genai): implemented vertexai support (#184).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
 ## 0.0.1-dev.17
 
 > Note: This release has breaking changes.
