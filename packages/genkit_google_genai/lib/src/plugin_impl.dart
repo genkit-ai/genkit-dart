@@ -87,7 +87,10 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
       final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
-      final customClient = CustomClient(defaultHeaders: headers, inner: authClient);
+      final customClient = CustomClient(
+        defaultHeaders: headers,
+        inner: authClient,
+      );
       final client = VertexAuthClient(tokenProvider, inner: customClient);
 
       return GenerativeLanguageBaseClient(

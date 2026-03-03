@@ -19,10 +19,8 @@ class VertexAuthClient extends http.BaseClient {
   final AccessTokenProvider _tokenProvider;
   final http.Client _inner;
 
-  VertexAuthClient(
-    this._tokenProvider, {
-    http.Client? inner,
-  }) : _inner = inner ?? http.Client();
+  VertexAuthClient(this._tokenProvider, {http.Client? inner})
+    : _inner = inner ?? http.Client();
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
