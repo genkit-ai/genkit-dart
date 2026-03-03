@@ -37,6 +37,41 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
   bool isObject;
 
   if (firstOpenBrace < 0 && firstOpenBracket < 0) {
+    try {
+      return jsonDecode(jsonString.trim());
+    } catch (_) {}
+
+    if (allowPartial) {
+      try {
+        return jsonDecode(_repairJson(jsonString.trim()));
+      } catch (_) {}
+    }
+
+    final primitivePattern = RegExp(
+      r'(?:"(?:[^"\\]|\\.)*(?:"|$))|(?:-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)',
+    );
+    final match = primitivePattern.firstMatch(jsonString);
+    if (match != null) {
+      try {
+        var matchedText = match.group(0)!;
+        if (matchedText.startsWith('"') && !matchedText.endsWith('"')) {
+           // Handle escaped quotes at the end of partial string (e.g. "he\")
+           if (matchedText.endsWith(r'\')) matchedText = matchedText.substring(0, matchedText.length - 1);
+           matchedText += '"';
+        }
+        return jsonDecode(matchedText);
+      } catch (_) {}
+    }
+
+    if (allowPartial) {
+      final firstQuote = jsonString.indexOf('"');
+      if (firstQuote >= 0) {
+        try {
+          return jsonDecode(_repairJson(jsonString.substring(firstQuote)));
+        } catch (_) {}
+      }
+    }
+
     if (allowPartial) return null;
     throw FormatException('No JSON object or array found');
   } else if (firstOpenBrace != -1 &&
