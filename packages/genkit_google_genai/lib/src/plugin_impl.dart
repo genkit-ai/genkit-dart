@@ -15,6 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -45,29 +46,39 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
   String? projectId;
   String? location;
   http.Client? authClient;
+  final bool isVertex;
 
   GoogleGenAiPluginImpl({
     this.apiKey,
     this.projectId,
     this.location,
     this.authClient,
+    this.isVertex = false,
   });
-
-  bool get isVertex => projectId != null && location != null;
 
   Future<GenerativeLanguageBaseClient> _getApiClient([
     String? requestApiKey,
   ]) async {
     if (isVertex) {
       final validFormat = RegExp(r'^[a-z0-9-]+$');
-      if (!validFormat.hasMatch(location!) ||
-          !validFormat.hasMatch(projectId!)) {
+      final resolvedProjectId = resolveVertexProjectId(
+        providerName: 'vertexai',
+        configTypeName: 'plugin configuration',
+        projectId: projectId,
+        projectIdFromCredentials: null,
+      );
+      final resolvedLocation = location ?? 'global';
+
+      if (!validFormat.hasMatch(resolvedLocation) ||
+          !validFormat.hasMatch(resolvedProjectId)) {
         throw ArgumentError('Invalid projectId or location format.');
       }
-      final safeLocation = Uri.encodeComponent(location!);
-      final safeProjectId = Uri.encodeComponent(projectId!);
+      final safeLocation = Uri.encodeComponent(resolvedLocation);
+      final safeProjectId = Uri.encodeComponent(resolvedProjectId);
 
-      final client = await getVertexAuthClient(authClient);
+      final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
+      final client = VertexAuthClient(tokenProvider, inner: authClient);
+
       final baseUrl = safeLocation == 'global'
           ? 'https://aiplatform.googleapis.com/'
           : 'https://$safeLocation-aiplatform.googleapis.com/';
@@ -75,8 +86,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
       final headers = {
-        'X-Goog-Api-Client':
-            'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
+        'X-Goog-Api-Client': googleApiClientHeaderValue(),
       };
 
       return GenerativeLanguageBaseClient(
@@ -101,7 +111,13 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     final service = await _getApiClient();
     try {
       if (isVertex) {
-        final res = await service.listPublisherModels(projectId: projectId!);
+        final resolvedProjectId = resolveVertexProjectId(
+          providerName: 'vertexai',
+          configTypeName: 'plugin configuration',
+          projectId: projectId,
+          projectIdFromCredentials: null,
+        );
+        final res = await service.listPublisherModels(projectId: resolvedProjectId);
         final publisherModels = (res['publisherModels'] as List?) ?? [];
 
         final models = publisherModels

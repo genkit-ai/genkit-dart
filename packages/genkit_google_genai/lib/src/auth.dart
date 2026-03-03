@@ -12,14 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:async';
-
-import 'package:googleapis_auth/auth_io.dart';
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:http/http.dart' as http;
 
-Future<http.Client> getVertexAuthClient([http.Client? customClient]) async {
-  if (customClient != null) return customClient;
-  return clientViaApplicationDefaultCredentials(
-    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-  );
+class VertexAuthClient extends http.BaseClient {
+  final AccessTokenProvider _tokenProvider;
+  final http.Client _inner;
+
+  VertexAuthClient(
+    this._tokenProvider, {
+    http.Client? inner,
+  }) : _inner = inner ?? http.Client();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final token = await _tokenProvider();
+    request.headers['Authorization'] = 'Bearer ${token.trim()}';
+    return _inner.send(request);
+  }
+
+  @override
+  void close() {
+    _inner.close();
+  }
 }
