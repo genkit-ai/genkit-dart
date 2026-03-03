@@ -53,25 +53,9 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
     final match = primitivePattern.firstMatch(jsonString);
     if (match != null) {
       try {
-        var matchedText = match.group(0)!;
-        if (matchedText.startsWith('"') && !matchedText.endsWith('"')) {
-          // Handle escaped quotes at the end of partial string (e.g. "he\")
-          if (matchedText.endsWith(r'\')) {
-            matchedText = matchedText.substring(0, matchedText.length - 1);
-          }
-          matchedText += '"';
-        }
-        return jsonDecode(matchedText);
+        final repairedText = _repairJson(match.group(0)!);
+        return jsonDecode(repairedText);
       } catch (_) {}
-    }
-
-    if (allowPartial) {
-      final firstQuote = jsonString.indexOf('"');
-      if (firstQuote >= 0) {
-        try {
-          return jsonDecode(_repairJson(jsonString.substring(firstQuote)));
-        } catch (_) {}
-      }
     }
 
     if (allowPartial) return null;
