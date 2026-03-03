@@ -37,6 +37,27 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
   bool isObject;
 
   if (firstOpenBrace < 0 && firstOpenBracket < 0) {
+    try {
+      return jsonDecode(jsonString.trim());
+    } catch (_) {}
+
+    if (allowPartial) {
+      try {
+        return jsonDecode(_repairJson(jsonString.trim()));
+      } catch (_) {}
+    }
+
+    final primitivePattern = RegExp(
+      r'(?:"(?:[^"\\]|\\.)*(?:"|$))|(?:-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)',
+    );
+    final match = primitivePattern.firstMatch(jsonString);
+    if (match != null) {
+      try {
+        final repairedText = _repairJson(match.group(0)!);
+        return jsonDecode(repairedText);
+      } catch (_) {}
+    }
+
     if (allowPartial) return null;
     throw FormatException('No JSON object or array found');
   } else if (firstOpenBrace != -1 &&
