@@ -89,7 +89,7 @@ SchemanticType<Map<String, dynamic>> promptSchemaFromArgs(
   List<Map<String, dynamic>> args,
 ) {
   if (args.isEmpty) {
-    return mapSchema(stringSchema(), dynamicSchema());
+    return .map(.string(), .dynamicSchema());
   }
   final properties = <String, dynamic>{};
   final required = <String>[];
@@ -114,7 +114,7 @@ SchemanticType<Map<String, dynamic>> mcpToolInputSchemaFromJson(
   if (inputSchema is Map) {
     return McpToolInputSchema(inputSchema.cast<String, dynamic>());
   }
-  return mapSchema(stringSchema(), dynamicSchema());
+  return .map(.string(), .dynamicSchema());
 }
 
 /// A [SchemanticType] that wraps a raw JSON schema received from a remote
@@ -122,7 +122,7 @@ SchemanticType<Map<String, dynamic>> mcpToolInputSchemaFromJson(
 ///
 /// This allows Genkit's registry to reflect the actual input schema that
 /// the remote tool advertises, rather than an opaque `Map<String, dynamic>`.
-class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
+final class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
   final Map<String, dynamic> _jsonSchema;
 
   const McpToolInputSchema(this._jsonSchema);
@@ -135,17 +135,19 @@ class McpToolInputSchema extends SchemanticType<Map<String, dynamic>> {
   }
 
   @override
-  JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap(_jsonSchema),
-    dependencies: const [],
-  );
+  JsonSchemaMetadata? get schemaMetadata => null;
+
+  @override
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
+    return _jsonSchema;
+  }
 }
 
 /// A [SchemanticType] backed by a dynamic set of string properties.
 ///
 /// Used to represent the input schema for MCP prompts whose arguments
 /// are only known at runtime.
-class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
+final class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
   final Map<String, dynamic> properties;
   final List<String> required;
 
@@ -160,14 +162,16 @@ class PromptArgumentsSchema extends SchemanticType<Map<String, dynamic>> {
   }
 
   @override
-  JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+  JsonSchemaMetadata? get schemaMetadata => null;
+
+  @override
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
+    return {
       'type': 'object',
       'properties': properties,
       if (required.isNotEmpty) 'required': required,
-    }),
-    dependencies: const [],
-  );
+    };
+  }
 }
 
 /// Extracts an object schema from a JSON schema, handling `allOf` wrappers.

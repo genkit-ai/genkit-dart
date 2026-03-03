@@ -278,17 +278,20 @@ void main() {
 
     final tools = await host.getActiveTools(ai);
     final names = tools.map((t) => t.name).toList()..sort();
-    expect(names, ['serverA/tool1', 'serverB/tool2']);
+    expect(names.toSet(), equals({'serverA/tool1', 'serverB/tool2'}));
 
     // Also verify registry integration.
-    final actions = await ai.registry.listActions();
+    final dap =
+        await ai.registry.lookupAction('dynamic-action-provider', 'multi-host')
+            as DynamicActionProvider;
+    final dapActions = await dap.listActions();
     final mcpNames =
-        actions
-            .where((a) => a.name.startsWith('multi-host/'))
+        dapActions
+            .where((a) => a.actionType == 'tool')
             .map((a) => a.name)
             .toList()
           ..sort();
-    expect(mcpNames, ['multi-host/serverA:tool1', 'multi-host/serverB:tool2']);
+    expect(mcpNames, ['serverA/tool1', 'serverB/tool2']);
   });
 
   test('defineMcpHost registers plugin actions', () async {
@@ -307,16 +310,14 @@ void main() {
     );
     await host.getClient('server1')?.ready();
 
-    final actions = await ai.registry.listActions();
-    expect(
-      actions.any((action) => action.name == 'mcp-host/server1:testTool'),
-      isTrue,
-    );
+    final dap =
+        await ai.registry.lookupAction('dynamic-action-provider', 'mcp-host')
+            as DynamicActionProvider;
+    final actions = await dap.listActions();
+    final hasTool = actions.any((action) => action.name == 'server1/testTool');
+    expect(hasTool, isTrue);
 
-    final resolved = await ai.registry.lookupAction(
-      'tool',
-      'mcp-host/server1:testTool',
-    );
+    final resolved = await dap.getAction('server1/testTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
     expect(result, 'ok');

@@ -16,7 +16,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:schemantic/schemantic.dart';
 
 /// Defines a flow that generates speech audio from text using OpenAI.
 ///
@@ -24,7 +23,7 @@ import 'package:schemantic/schemantic.dart';
 Flow<String, Media, void, void> defineTextToSpeechFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'textToSpeech',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Genkit Dart supports OpenAI text to speech.',
     ),
     outputSchema: Media.$schema,

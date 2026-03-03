@@ -265,12 +265,12 @@ void main() {
 }
 
 // Simple schema for weather tool input
-@Schematic()
+@Schema()
 abstract class $WeatherInputSchema {
   String get location;
 }
 
-@Schematic()
+@Schema()
 abstract class $PersonSchema {
   String get name;
   int get age;

@@ -17,26 +17,23 @@ import 'package:schemantic/schemantic.dart';
 
 part 'iterative_refinement.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $IterativeRefinementInput {
   String get topic;
 }
 
-@Schematic()
+@Schema()
 abstract class $Evaluation {
   String get critique;
   bool get satisfied;
 }
 
 Flow<IterativeRefinementInput, String, void, void>
-    defineIterativeRefinementFlow(
-  Genkit ai,
-  ModelRef geminiFlash,
-) {
+defineIterativeRefinementFlow(Genkit ai, ModelRef geminiFlash) {
   return ai.defineFlow(
     name: 'iterativeRefinementFlow',
     inputSchema: IterativeRefinementInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       var content = '';
       var feedback = '';

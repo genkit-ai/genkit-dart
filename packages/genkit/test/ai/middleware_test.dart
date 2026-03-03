@@ -19,7 +19,7 @@ import 'package:test/test.dart';
 
 part 'middleware_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $TestToolInput {
   String get name;
 }

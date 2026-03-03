@@ -21,7 +21,7 @@ part of 'stateful_interactions.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class StatefulChatInput {
+base class StatefulChatInput {
   factory StatefulChatInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -62,7 +62,8 @@ class StatefulChatInput {
   }
 }
 
-class _StatefulChatInputTypeFactory extends SchemanticType<StatefulChatInput> {
+base class _StatefulChatInputTypeFactory
+    extends SchemanticType<StatefulChatInput> {
   const _StatefulChatInputTypeFactory();
 
   @override
@@ -72,14 +73,16 @@ class _StatefulChatInputTypeFactory extends SchemanticType<StatefulChatInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'StatefulChatInput',
-        definition: Schema.object(
+    name: 'StatefulChatInput',
+    definition: $Schema
+        .object(
           properties: {
-            'sessionId': Schema.string(),
-            'message': Schema.string()
+            'sessionId': $Schema.string(),
+            'message': $Schema.string(),
           },
           required: ['sessionId', 'message'],
-        ),
-        dependencies: [],
-      );
+        )
+        .value,
+    dependencies: [],
+  );
 }

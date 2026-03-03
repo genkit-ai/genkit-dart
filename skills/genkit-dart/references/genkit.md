@@ -56,7 +56,7 @@ Requires the `schemantic` library for schema definitions.
 ```dart
 import 'package:schemantic/schemantic.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherInput {
   String get location;
 }
@@ -83,7 +83,7 @@ final response = await ai.generate(
 You can ensure the generative model returns a typed JSON object by providing an `outputSchema`.
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $Person {
   String get name;
   int get age;
@@ -107,8 +107,8 @@ Wrap your AI logic in flows for better observability, testing, and deployment:
 ```dart
 final jokeFlow = ai.defineFlow(
   name: 'tellJoke',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
   fn: (topic, _) async {
     final response = await ai.generate(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -128,9 +128,9 @@ Stream data from your flows using `context.sendChunk(...)` and returning the fin
 ```dart
 final streamStory = ai.defineFlow(
   name: 'streamStory',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
-  streamSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
+  streamSchema: .string(),
   fn: (topic, context) async {
     final stream = ai.generateStream(
       model: googleAI.gemini('gemini-2.5-flash'),
@@ -154,8 +154,8 @@ import 'package:genkit/client.dart';
 
 final stringAction = defineRemoteAction(
   url: 'http://localhost:3400/my-flow',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
 );
 ```
 
@@ -170,9 +170,9 @@ Use the `.stream()` method on the action flow, and access `stream.onResult` to w
 ```dart
 final streamAction = defineRemoteAction(
   url: 'http://localhost:3400/stream-story',
-  inputSchema: stringSchema(),
-  outputSchema: stringSchema(),
-  streamSchema: stringSchema(),
+  inputSchema: .string(),
+  outputSchema: .string(),
+  streamSchema: .string(),
 );
 
 final stream = streamAction.stream(
@@ -251,7 +251,7 @@ Genkit uses standard data models for representing prompts (messages & parts) and
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
-@Schematic()
+@Schema()
 abstract class $MyDataModel {
   // uses Genkit's Message schema (not schemantic's Message)
   List<$Message> get messages;
@@ -360,9 +360,9 @@ void example() {
   final messageSchema = Message.$schema;
   final partSchema = Part.$schema;
   
-  final mySchema = mapSchema(
-    stringSchema(),
-    listSchema(Message.$schema), // Requires a list of Messages
+  final mySchema = SchemanticType.map(
+    .string(),
+    .list(Message.$schema), // Requires a list of Messages
   );
 
   // --- Generate Response ---

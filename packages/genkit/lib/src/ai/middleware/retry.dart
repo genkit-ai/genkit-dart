@@ -28,7 +28,7 @@ part 'retry.g.dart';
 
 final _logger = Logger('genkit.middleware.retry');
 
-@Schematic()
+@Schema()
 abstract class $RetryOptions {
   int? get maxRetries;
   List<StatusCodes>? get statuses;

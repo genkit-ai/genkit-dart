@@ -64,20 +64,20 @@ void main() {
 
     test('flatten schemas with \$ref', () {
       final json = {
-        "\$ref": "#/\$defs/WeatherToolInput",
-        "\$defs": {
-          "WeatherToolInput": {
-            "type": "object",
-            "properties": {
-              "city": {
-                "type": "string",
-                "description": "The city to get the weather for",
+        '\$ref': '#/\$defs/WeatherToolInput',
+        '\$defs': {
+          'WeatherToolInput': {
+            'type': 'object',
+            'properties': {
+              'city': {
+                'type': 'string',
+                'description': 'The city to get the weather for',
               },
             },
-            "required": ["city"],
+            'required': ['city'],
           },
         },
-        "\$schema": "http://json-schema.org/draft-07/schema#",
+        '\$schema': 'http://json-schema.org/draft-07/schema#',
       };
       final schema = toGeminiSchema(json);
       expect(schema.toJson(), {
@@ -135,20 +135,20 @@ void main() {
         name: 'myTool',
         description: 'desc',
         inputSchema: {
-          "\$ref": "#/\$defs/WeatherToolInput",
-          "\$defs": {
-            "WeatherToolInput": {
-              "type": "object",
-              "properties": {
-                "city": {
-                  "type": "string",
-                  "description": "The city to get the weather for",
+          '\$ref': '#/\$defs/WeatherToolInput',
+          '\$defs': {
+            'WeatherToolInput': {
+              'type': 'object',
+              'properties': {
+                'city': {
+                  'type': 'string',
+                  'description': 'The city to get the weather for',
                 },
               },
-              "required": ["city"],
+              'required': ['city'],
             },
           },
-          "\$schema": "http://json-schema.org/draft-07/schema#",
+          '\$schema': 'http://json-schema.org/draft-07/schema#',
         },
         outputSchema: {'type': 'string'},
       );

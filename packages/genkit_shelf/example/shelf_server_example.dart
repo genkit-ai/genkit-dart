@@ -19,17 +19,17 @@ import 'package:schemantic/schemantic.dart';
 
 part 'shelf_server_example.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $HelloInput {
   String get name;
 }
 
-@Schematic()
+@Schema()
 abstract class $HelloOutput {
   String get greeting;
 }
 
-@Schematic()
+@Schema()
 abstract class $CountChunk {
   int get count;
 }
@@ -65,7 +65,7 @@ void main() async {
   final countAction = defineRemoteAction(
     url: 'http://localhost:3400/count',
     streamSchema: CountChunk.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
   );
 
   // 1. Define a simple unary flow
@@ -88,8 +88,8 @@ void main() async {
       }
       return 'Done counting to $count';
     },
-    inputSchema: intSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .integer(),
+    outputSchema: .string(),
     streamSchema: CountChunk.$schema,
   );
 
@@ -106,8 +106,8 @@ void main() async {
       }
       return 'Secure data for $user: $input';
     },
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
   );
 
   // 4. Define a client flow that acts as a client to call other flows
@@ -141,8 +141,8 @@ void main() async {
 
       return results.join('\n');
     },
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
   );
 
   // 5. Start the flow server

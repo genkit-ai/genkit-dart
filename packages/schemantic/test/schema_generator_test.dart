@@ -21,9 +21,9 @@ import 'package:test/test.dart';
 void main() {
   group('SchemaGenerator', () {
     const schematicBuilderLib = r'''
-class Schematic {
+class Schema {
   final String? description;
-  const Schematic({this.description});
+  const Schema({this.description});
 }
 class Field {
   final String? name;
@@ -93,7 +93,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'a.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $User {
   String get name;
   int? get age;
@@ -117,13 +117,13 @@ import 'package:schemantic/schemantic.dart';
 
 part 'a.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Address {
   String get street;
   String? get city;
 }
 
-@Schematic()
+@Schema()
 abstract class $User {
   String get name;
   List<$Address> get addresses;
@@ -154,7 +154,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'a.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Product {
   @Field(name: 'product_id', description: 'The unique identifier')
   String get id;
@@ -166,7 +166,7 @@ abstract class $Product {
             allOf(
               contains("return _json['product_id'] as String;"),
               contains(
-                "'product_id': Schema.string(description: 'The unique identifier')",
+                "'product_id': \$Schema.string(description: 'The unique identifier')",
               ),
             ),
           ),
@@ -185,7 +185,7 @@ part 'a.g.dart';
 
 enum Status { active, inactive }
 
-@Schematic()
+@Schema()
 abstract class $Item {
   Status get status;
 }
@@ -213,7 +213,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'a.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Config {
   @StringField(defaultValue: 'production')
   String get environment;
@@ -235,7 +235,7 @@ abstract class $Config {
               contains("'type': 'string'"),
               contains("'type': 'integer'"),
               contains("'type': 'boolean'"),
-              contains("Schema.fromMap"),
+              contains('Schema.fromMap'),
             ),
           ),
         },
@@ -251,12 +251,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'a.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Inner {
   String get val;
 }
 
-@Schematic()
+@Schema()
 abstract class $Outer {
   @Field(defaultValue: {'val': 'default'})
   $Inner get inner;
@@ -266,7 +266,7 @@ abstract class $Outer {
         {
           'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
-              contains("Schema.fromMap({"),
+              contains('Schema.fromMap({'),
               contains("'allOf':"),
               contains(r"Schema.fromMap({'$ref': r'#/$defs/Inner'})"),
               contains("'default': {'val': 'default'}"),

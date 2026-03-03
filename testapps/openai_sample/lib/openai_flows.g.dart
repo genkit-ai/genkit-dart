@@ -21,7 +21,7 @@ part of 'openai_flows.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherInputSchema {
+base class WeatherInputSchema {
   factory WeatherInputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -66,7 +66,7 @@ class WeatherInputSchema {
   }
 }
 
-class _WeatherInputSchemaTypeFactory
+base class _WeatherInputSchemaTypeFactory
     extends SchemanticType<WeatherInputSchema> {
   const _WeatherInputSchemaTypeFactory();
 
@@ -78,18 +78,20 @@ class _WeatherInputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherInputSchema',
-    definition: Schema.object(
-      properties: {
-        'location': Schema.string(),
-        'unit': Schema.string(enumValues: ['celsius', 'fahrenheit']),
-      },
-      required: ['location'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'location': $Schema.string(),
+            'unit': $Schema.string(enumValues: ['celsius', 'fahrenheit']),
+          },
+          required: ['location'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class WeatherOutputSchema {
+base class WeatherOutputSchema {
   factory WeatherOutputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -160,7 +162,7 @@ class WeatherOutputSchema {
   }
 }
 
-class _WeatherOutputSchemaTypeFactory
+base class _WeatherOutputSchemaTypeFactory
     extends SchemanticType<WeatherOutputSchema> {
   const _WeatherOutputSchemaTypeFactory();
 
@@ -172,15 +174,17 @@ class _WeatherOutputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherOutputSchema',
-    definition: Schema.object(
-      properties: {
-        'temperature': Schema.number(),
-        'condition': Schema.string(),
-        'unit': Schema.string(),
-        'humidity': Schema.integer(),
-      },
-      required: ['temperature', 'condition', 'unit'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'temperature': $Schema.number(),
+            'condition': $Schema.string(),
+            'unit': $Schema.string(),
+            'humidity': $Schema.integer(),
+          },
+          required: ['temperature', 'condition', 'unit'],
+        )
+        .value,
     dependencies: [],
   );
 }

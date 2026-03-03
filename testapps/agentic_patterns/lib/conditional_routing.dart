@@ -17,14 +17,14 @@ import 'package:schemantic/schemantic.dart';
 
 part 'conditional_routing.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $RouterInput {
   String get query;
 }
 
-@Schematic()
+@Schema()
 abstract class $IntentClassification {
-  @Schematic()
+  @Schema()
   String get intent;
 }
 
@@ -35,7 +35,7 @@ Flow<RouterInput, String, void, void> defineRouterFlow(
   return ai.defineFlow(
     name: 'routerFlow',
     inputSchema: RouterInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       // Step 1: Classify the user's intent
       final intentResponse = await ai.generate(

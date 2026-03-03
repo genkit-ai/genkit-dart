@@ -19,12 +19,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'parallel_execution.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ProductInput {
   String get product;
 }
 
-@Schematic()
+@Schema()
 abstract class $MarketingCopy {
   String get name;
   String get tagline;
@@ -54,10 +54,7 @@ Flow<ProductInput, MarketingCopy, void, void> defineMarketingCopyFlow(
 
       final results = await Future.wait([nameFuture, taglineFuture]);
 
-      return MarketingCopy(
-        name: results[0].text,
-        tagline: results[1].text,
-      );
+      return MarketingCopy(name: results[0].text, tagline: results[1].text);
     },
   );
 }

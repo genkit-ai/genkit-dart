@@ -15,6 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 // ignore: implementation_imports
 import 'package:openai_dart/src/generated/client.dart' as openai_generated;
@@ -34,7 +35,7 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 /// Returns null if [schema] is null.
 ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   if (schema == null) return null;
-  final flattened = Schema.fromMap(schema).flatten().value;
+  final flattened = schema.flatten();
   return ResponseFormat.jsonSchema(
     jsonSchema: JsonSchemaObject(
       name: 'output',
@@ -98,22 +99,38 @@ class OpenAIPlugin extends GenkitPlugin {
 
   final String? apiKey;
   final String? baseUrl;
+  final OpenAIVertexConfig? vertex;
   final List<CustomModelDefinition> customModels;
   final Map<String, String>? headers;
 
   OpenAIPlugin({
     this.apiKey,
     this.baseUrl,
+    this.vertex,
     this.customModels = const [],
     this.headers,
-  });
+  }) {
+    if (apiKey != null && vertex != null) {
+      throw GenkitException(
+        'Provide either apiKey or vertex configuration, not both.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    if (baseUrl != null && vertex != null) {
+      throw GenkitException(
+        'Provide either baseUrl or vertex configuration, not both.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    vertex?.validate();
+  }
 
   @override
   Future<List<Action>> init() async {
     final actions = <Action>[];
 
-    // Fetch and register models from OpenAI API if using default baseUrl
-    if (baseUrl == null) {
+    // Fetch and register models from OpenAI API only for default OpenAI host.
+    if (baseUrl == null && vertex == null) {
       try {
         final availableModelIds = await _fetchAvailableModels();
 
@@ -123,7 +140,7 @@ class OpenAIPlugin extends GenkitPlugin {
           if (modelType != 'chat' &&
               modelType != 'audio' &&
               modelType != 'tts' &&
-              modelType != "unknown") {
+              modelType != 'unknown') {
             continue;
           }
 
@@ -222,14 +239,14 @@ class OpenAIPlugin extends GenkitPlugin {
 
     // GPT-N pattern: matches gpt-3, gpt-4, gpt-5, gpt-6, etc.
     // Also matches variants like gpt-4o, gpt-4-turbo, gpt-3.5-turbo
-    final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?(o)?(-|$)');
+    final gptPattern = RegExp(r'^gpt-\d+(?:\.\d+)?o?(?:-|$)');
     if (gptPattern.hasMatch(id)) {
       return 'chat';
     }
 
     // O-series reasoning models: o1, o2, o3, o4, o5, etc.
     // Matches: o1, o1-preview, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(-|$)');
+    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
     if (oSeriesPattern.hasMatch(id)) {
       return 'chat';
     }
@@ -250,14 +267,12 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Fetch available model IDs from OpenAI API
   Future<List<String>> _fetchAvailableModels() async {
-    if (apiKey == null) {
-      throw GenkitException('API key is required to fetch models from OpenAI.');
-    }
+    final resolvedConfig = await _resolveClientConfig();
 
     final client = OpenAIClient(
-      apiKey: apiKey!,
-      baseUrl: baseUrl,
-      headers: headers,
+      apiKey: resolvedConfig.apiKey,
+      baseUrl: resolvedConfig.baseUrl,
+      headers: resolvedConfig.headers,
     );
 
     try {
@@ -289,7 +304,7 @@ class OpenAIPlugin extends GenkitPlugin {
     }
     // O-series reasoning models (o1, o2, o3, o4, etc.) have different capabilities
     // Matches: o1, o1-preview, o2, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(-|$)');
+    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
     if (oSeriesPattern.hasMatch(id)) {
       return oSeriesModelInfo(modelId);
     }
@@ -297,11 +312,46 @@ class OpenAIPlugin extends GenkitPlugin {
     return defaultModelInfo(modelId);
   }
 
+  Future<_ResolvedClientConfig> _resolveClientConfig() async {
+    final vertexConfig = vertex;
+    if (vertexConfig != null) {
+      final token = (await vertexConfig.resolveAccessToken()).trim();
+      return _ResolvedClientConfig(
+        apiKey: token,
+        baseUrl: vertexConfig.resolveBaseUrl(),
+        headers: {
+          ...?headers,
+          'x-goog-api-client': googleApiClientHeaderValue(),
+        },
+      );
+    }
+
+    final configuredApiKey = apiKey;
+    if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
+      throw GenkitException(
+        'API key is required. Provide it via the plugin constructor.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    return _ResolvedClientConfig(
+      apiKey: configuredApiKey.trim(),
+      baseUrl: baseUrl,
+      headers: headers,
+    );
+  }
+
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     try {
       final modelIds = await _fetchAvailableModels();
+      for (final modelId in modelIds) {
+        final modelType = getModelType(modelId);
+        if (modelType != 'chat' && modelType != 'unknown') {
+          continue;
+        }
+      }
 
       // Filter to only chat models and generate their metadata
       final modelMetadataList = modelIds
@@ -322,8 +372,7 @@ class OpenAIPlugin extends GenkitPlugin {
             );
           })
           .toList();
-
-      return modelMetadataList;
+        return modelMetadataList;
     } catch (e, stackTrace) {
       throw GenkitException(
         'Error listing models from OpenAI: $e',
@@ -354,16 +403,11 @@ class OpenAIPlugin extends GenkitPlugin {
             ? OpenAIOptions.$schema.parse(requestInput.config!)
             : OpenAIOptions();
 
-        if (apiKey == null) {
-          throw GenkitException(
-            'API key is required. Provide it via the plugin constructor.',
-          );
-        }
-
+        final resolvedConfig = await _resolveClientConfig();
         final client = OpenAIClient(
-          apiKey: apiKey!,
-          baseUrl: baseUrl,
-          headers: headers,
+          apiKey: resolvedConfig.apiKey,
+          baseUrl: resolvedConfig.baseUrl,
+          headers: resolvedConfig.headers,
         );
 
         try {
@@ -579,9 +623,13 @@ class OpenAIPlugin extends GenkitPlugin {
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is GenkitException) rethrow;
-      throw GenkitException('Error in streaming: $e', underlyingException: e);
+      throw GenkitException(
+        'Error in streaming: $e',
+        underlyingException: e,
+        stackTrace: stackTrace,
+      );
     }
 
     final response = aggregateStreamResponses(chunks);
@@ -709,4 +757,16 @@ class OpenAIPlugin extends GenkitPlugin {
       return _speechFormatToMimeType(fallbackFormat);
     }
   }
+}
+
+final class _ResolvedClientConfig {
+  final String apiKey;
+  final String? baseUrl;
+  final Map<String, String>? headers;
+
+  const _ResolvedClientConfig({
+    required this.apiKey,
+    required this.baseUrl,
+    required this.headers,
+  });
 }

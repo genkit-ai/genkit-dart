@@ -20,7 +20,7 @@ part of 'tool_approval_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ToolApprovalOptions {
+base class ToolApprovalOptions {
   factory ToolApprovalOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,7 @@ class ToolApprovalOptions {
   }
 }
 
-class _ToolApprovalOptionsTypeFactory
+base class _ToolApprovalOptionsTypeFactory
     extends SchemanticType<ToolApprovalOptions> {
   const _ToolApprovalOptionsTypeFactory();
 
@@ -65,10 +65,12 @@ class _ToolApprovalOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolApprovalOptions',
-    definition: Schema.object(
-      properties: {'approved': Schema.list(items: Schema.string())},
-      required: ['approved'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'approved': $Schema.list(items: $Schema.string())},
+          required: ['approved'],
+        )
+        .value,
     dependencies: [],
   );
 }

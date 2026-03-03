@@ -21,7 +21,7 @@ part of 'resource.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ResourceInput {
+base class ResourceInput {
   factory ResourceInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class ResourceInput {
   }
 }
 
-class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
+base class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
   const _ResourceInputTypeFactory();
 
   @override
@@ -65,15 +65,14 @@ class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResourceInput',
-    definition: Schema.object(
-      properties: {'uri': Schema.string()},
-      required: ['uri'],
-    ),
+    definition: $Schema
+        .object(properties: {'uri': $Schema.string()}, required: ['uri'])
+        .value,
     dependencies: [],
   );
 }
 
-class ResourceOutput {
+base class ResourceOutput {
   factory ResourceOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -108,7 +107,7 @@ class ResourceOutput {
   }
 }
 
-class _ResourceOutputTypeFactory extends SchemanticType<ResourceOutput> {
+base class _ResourceOutputTypeFactory extends SchemanticType<ResourceOutput> {
   const _ResourceOutputTypeFactory();
 
   @override
@@ -119,14 +118,16 @@ class _ResourceOutputTypeFactory extends SchemanticType<ResourceOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResourceOutput',
-    definition: Schema.object(
-      properties: {
-        'content': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-        ),
-      },
-      required: ['content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'content': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+            ),
+          },
+          required: ['content'],
+        )
+        .value,
     dependencies: [Part.$schema],
   );
 }

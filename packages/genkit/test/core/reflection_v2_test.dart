@@ -22,7 +22,6 @@ import 'package:async/async.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
-import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -71,7 +70,7 @@ void main() {
     test('should handle listActions', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputSchema: mapSchema(stringSchema(), stringSchema()),
+        inputSchema: .map(.string(), .string()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
         metadata: {'description': 'A test action'},
@@ -111,7 +110,7 @@ void main() {
     test('should handle runAction', () async {
       final testAction = Action(
         actionType: 'custom',
-        inputSchema: mapSchema(stringSchema(), stringSchema()),
+        inputSchema: .map(.string(), .string()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
       );
@@ -154,7 +153,7 @@ void main() {
       final streamAction = Action(
         actionType: 'custom',
         name: 'streamAction',
-        streamSchema: stringSchema(),
+        streamSchema: .string(),
         fn: (input, context) async {
           context.sendChunk('chunk1');
           context.sendChunk('chunk2');

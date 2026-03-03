@@ -17,12 +17,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'tool_calling.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ToolCallingInput {
   String get prompt;
 }
 
-@Schematic()
+@Schema()
 abstract class $ToolCallingWeatherInput {
   String get location;
 }
@@ -36,7 +36,7 @@ Flow<ToolCallingInput, String, void, void> defineToolCallingFlow(
     name: 'getWeather',
     description: 'Get the current weather in a given location.',
     inputSchema: ToolCallingWeatherInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       // In a real app, you would call a weather API here.
       return 'The weather in ${input.location} is 75°F and sunny.';
@@ -46,7 +46,7 @@ Flow<ToolCallingInput, String, void, void> defineToolCallingFlow(
   return ai.defineFlow(
     name: 'toolCallingFlow',
     inputSchema: ToolCallingInput.$schema,
-    outputSchema: stringSchema(),
+    outputSchema: .string(),
     fn: (input, _) async {
       final response = await ai.generate(
         model: geminiFlash,

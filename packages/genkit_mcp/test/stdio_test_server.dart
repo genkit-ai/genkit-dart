@@ -20,7 +20,7 @@ import 'package:genkit_mcp/genkit_mcp.dart';
 import 'package:genkit_mcp/src/server/transports/stdio_transport.dart';
 import 'package:schemantic/schemantic.dart';
 
-class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
+final class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
   const _PromptInputSchema();
 
   @override
@@ -30,13 +30,13 @@ class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'input': {'type': 'string'},
       },
       'required': ['input'],
-    }),
+    },
     dependencies: const [],
   );
 }
@@ -46,7 +46,7 @@ Future<void> main() async {
   ai.defineTool<Map<String, dynamic>, String>(
     name: 'testTool',
     description: 'test tool',
-    inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async => 'yep ${input['foo'] as Object?}',
   );
   ai.definePrompt<Map<String, dynamic>>(

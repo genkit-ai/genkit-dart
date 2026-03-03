@@ -221,7 +221,7 @@ class StreamableHttpClientTransport implements McpClientTransport {
     String? eventName;
     String? eventId;
     final dataLines = <String>[];
-    final lines = block.split(RegExp(r'\r?\n'));
+    final lines = LineSplitter.split(block);
     for (final line in lines) {
       if (line.isEmpty || line.startsWith(':')) continue;
       final separator = line.indexOf(':');
@@ -232,13 +232,10 @@ class StreamableHttpClientTransport implements McpClientTransport {
       switch (field) {
         case 'event':
           eventName = value;
-          break;
         case 'data':
           dataLines.add(value);
-          break;
         case 'id':
           eventId = value;
-          break;
         default:
           break;
       }

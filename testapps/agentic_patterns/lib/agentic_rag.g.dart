@@ -21,7 +21,7 @@ part of 'agentic_rag.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class AgenticRagInput {
+base class AgenticRagInput {
   factory AgenticRagInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class AgenticRagInput {
   }
 }
 
-class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
+base class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
   const _AgenticRagInputTypeFactory();
 
   @override
@@ -64,16 +64,18 @@ class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'AgenticRagInput',
-        definition: Schema.object(
-          properties: {'question': Schema.string()},
+    name: 'AgenticRagInput',
+    definition: $Schema
+        .object(
+          properties: {'question': $Schema.string()},
           required: ['question'],
-        ),
-        dependencies: [],
-      );
+        )
+        .value,
+    dependencies: [],
+  );
 }
 
-class MenuRagToolInput {
+base class MenuRagToolInput {
   factory MenuRagToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -106,7 +108,8 @@ class MenuRagToolInput {
   }
 }
 
-class _MenuRagToolInputTypeFactory extends SchemanticType<MenuRagToolInput> {
+base class _MenuRagToolInputTypeFactory
+    extends SchemanticType<MenuRagToolInput> {
   const _MenuRagToolInputTypeFactory();
 
   @override
@@ -116,16 +119,18 @@ class _MenuRagToolInputTypeFactory extends SchemanticType<MenuRagToolInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'MenuRagToolInput',
-        definition: Schema.object(
+    name: 'MenuRagToolInput',
+    definition: $Schema
+        .object(
           properties: {
-            'query': Schema.string(
+            'query': $Schema.string(
               description:
                   'A short, single-word query (important -- only use one word) to search the menu (e.g. "burger" if looking for burgers).',
             ),
           },
           required: ['query'],
-        ),
-        dependencies: [],
-      );
+        )
+        .value,
+    dependencies: [],
+  );
 }

@@ -21,7 +21,7 @@ part of 'tool_interrupt_sample.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TriviaQuestions {
+base class TriviaQuestions {
   factory TriviaQuestions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -62,7 +62,7 @@ class TriviaQuestions {
   }
 }
 
-class _TriviaQuestionsTypeFactory extends SchemanticType<TriviaQuestions> {
+base class _TriviaQuestionsTypeFactory extends SchemanticType<TriviaQuestions> {
   const _TriviaQuestionsTypeFactory();
 
   @override
@@ -73,17 +73,19 @@ class _TriviaQuestionsTypeFactory extends SchemanticType<TriviaQuestions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TriviaQuestions',
-    definition: Schema.object(
-      properties: {
-        'question': Schema.string(description: 'the main question'),
-        'answers': Schema.list(
-          description:
-              'list of multiple choice answers (typically 4), 1 correct 3 wrong',
-          items: Schema.string(),
-        ),
-      },
-      required: ['question', 'answers'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'question': $Schema.string(description: 'the main question'),
+            'answers': $Schema.list(
+              description:
+                  'list of multiple choice answers (typically 4), 1 correct 3 wrong',
+              items: $Schema.string(),
+            ),
+          },
+          required: ['question', 'answers'],
+        )
+        .value,
     dependencies: [],
   );
 }

@@ -125,7 +125,7 @@ void main() {
         url: remoteUrl,
         httpClient: mockClient,
         headers: (context) {
-          return {'X-User-ID': context['userId']};
+          return {'X-User-ID': context['userId'] as String};
         },
       );
 

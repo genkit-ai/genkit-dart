@@ -83,6 +83,15 @@ void main() {
         }
       });
     }
+
+    test(
+      'works with long non-matching block',
+      () {
+        var longInput = '```'.padRight(4000, ' ');
+        expect(() => extractJson(longInput), throwsFormatException);
+      },
+      timeout: Timeout(const Duration(seconds: 5)),
+    );
   });
 
   group('extractJson (partial)', () {
@@ -159,7 +168,7 @@ void main() {
       (
         description: 'works with unterminated markdown blocks',
         input: '```json\n{"a": "banana',
-        expected: {'a': "banana"},
+        expected: {'a': 'banana'},
       ),
       (
         description: 'handles partial true',
@@ -240,13 +249,13 @@ void main() {
         input:
             '{"title": "Creamy Avocado Pasta", "description": "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It\'s a healthy and satisfying meal that comes together in minutes.", "prepTime": "15 minutes", "cookTime": "15 minutes", "servings": 4, "ingredients": ["2 ripe avocados, pitted and scooped", "250',
         expected: {
-          "title": "Creamy Avocado Pasta",
-          "description":
+          'title': 'Creamy Avocado Pasta',
+          'description':
               "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It's a healthy and satisfying meal that comes together in minutes.",
-          "prepTime": "15 minutes",
-          "cookTime": "15 minutes",
-          "servings": 4,
-          "ingredients": ["2 ripe avocados, pitted and scooped", "250"],
+          'prepTime': '15 minutes',
+          'cookTime': '15 minutes',
+          'servings': 4,
+          'ingredients': ['2 ripe avocados, pitted and scooped', '250'],
         },
       ),
       (
@@ -368,7 +377,7 @@ void main() {
       (
         description: 'handles partial unicode escape',
         input: '{"a": "u\\u12',
-        expected: {'a': "u\\u12"},
+        expected: {'a': 'u\\u12'},
       ),
       (
         description: 'handles partial special character escape',

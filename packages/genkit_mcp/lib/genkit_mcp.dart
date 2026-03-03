@@ -19,7 +19,6 @@
 library;
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 
 import 'src/client/mcp_client.dart';
 import 'src/client/mcp_host.dart';
@@ -29,15 +28,13 @@ export 'src/client/mcp_client.dart'
     show
         GenkitMcpClient,
         McpClientOptions,
-        McpClientOptionsWithCache,
-        McpClientPlugin,
         McpElicitationHandler,
         McpNotificationHandler,
         McpRoot,
         McpSamplingHandler,
         McpServerConfig;
 export 'src/client/mcp_host.dart'
-    show GenkitMcpHost, McpHostOptions, McpHostOptionsWithCache, McpHostPlugin;
+    show GenkitMcpHost, McpHostOptions, McpHostOptionsWithCache;
 export 'src/client/transports/streamable_http_transport.dart'
     show StreamableHttpClientTransport;
 export 'src/server/mcp_server.dart' show GenkitMcpServer, McpServerOptions;
@@ -61,28 +58,15 @@ GenkitMcpHost createMcpHost(McpHostOptions options) {
   return GenkitMcpHost(options);
 }
 
-/// Creates an MCP client and registers it as a [GenkitPlugin] so that
-/// tools, prompts, and resources are discoverable through [ai]'s registry.
-GenkitMcpClient defineMcpClient(Genkit ai, McpClientOptionsWithCache options) {
-  final client = GenkitMcpClient(options);
-  final plugin = McpClientPlugin(
-    client: client,
-    cacheTtlMillis: options.cacheTtlMillis,
-  );
-  ai.registry.registerPlugin(plugin);
-  return client;
-}
-
-/// Creates an MCP host and registers it as a [GenkitPlugin] so that
+/// Creates an MCP host and registers a [DynamicActionProvider] so that
 /// tools, prompts, and resources from all connected servers are
 /// discoverable through [ai]'s registry.
 GenkitMcpHost defineMcpHost(Genkit ai, McpHostOptionsWithCache options) {
   final host = GenkitMcpHost(options);
-  final plugin = McpHostPlugin(
-    host: host,
-    cacheTtlMillis: options.cacheTtlMillis,
+  ai.defineDynamicActionProvider(
+    name: host.name,
+    listActionsFn: host.getCachedActions,
+    getActionFn: host.resolveAction,
   );
-  host.plugin = plugin;
-  ai.registry.registerPlugin(plugin);
   return host;
 }

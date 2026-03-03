@@ -21,7 +21,7 @@ part of 'conditional_routing.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class RouterInput {
+base class RouterInput {
   factory RouterInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,7 @@ class RouterInput {
   }
 }
 
-class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
+base class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
   const _RouterInputTypeFactory();
 
   @override
@@ -63,16 +63,15 @@ class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'RouterInput',
-        definition: Schema.object(
-          properties: {'query': Schema.string()},
-          required: ['query'],
-        ),
-        dependencies: [],
-      );
+    name: 'RouterInput',
+    definition: $Schema
+        .object(properties: {'query': $Schema.string()}, required: ['query'])
+        .value,
+    dependencies: [],
+  );
 }
 
-class IntentClassification {
+base class IntentClassification {
   factory IntentClassification.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -105,7 +104,7 @@ class IntentClassification {
   }
 }
 
-class _IntentClassificationTypeFactory
+base class _IntentClassificationTypeFactory
     extends SchemanticType<IntentClassification> {
   const _IntentClassificationTypeFactory();
 
@@ -116,11 +115,10 @@ class _IntentClassificationTypeFactory
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'IntentClassification',
-        definition: Schema.object(
-          properties: {'intent': Schema.string()},
-          required: ['intent'],
-        ),
-        dependencies: [],
-      );
+    name: 'IntentClassification',
+    definition: $Schema
+        .object(properties: {'intent': $Schema.string()}, required: ['intent'])
+        .value,
+    dependencies: [],
+  );
 }

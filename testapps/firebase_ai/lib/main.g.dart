@@ -21,7 +21,7 @@ part of 'main.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherToolInput {
+base class WeatherToolInput {
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class WeatherToolInput {
   }
 }
 
-class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
+base class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
@@ -65,17 +66,21 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: Schema.object(
-      properties: {
-        'city': Schema.string(description: 'The city to get the weather for'),
-      },
-      required: ['city'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'city': $Schema.string(
+              description: 'The city to get the weather for',
+            ),
+          },
+          required: ['city'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class RpgCharacter {
+base class RpgCharacter {
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -152,7 +157,7 @@ class RpgCharacter {
   }
 }
 
-class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
+base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   const _RpgCharacterTypeFactory();
 
   @override
@@ -163,16 +168,24 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RpgCharacter',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'description': Schema.string(),
-        'background': Schema.string(),
-        'skills': Schema.list(items: Schema.string()),
-        'inventory': Schema.list(items: Schema.string()),
-      },
-      required: ['name', 'description', 'background', 'skills', 'inventory'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'description': $Schema.string(),
+            'background': $Schema.string(),
+            'skills': $Schema.list(items: $Schema.string()),
+            'inventory': $Schema.list(items: $Schema.string()),
+          },
+          required: [
+            'name',
+            'description',
+            'background',
+            'skills',
+            'inventory',
+          ],
+        )
+        .value,
     dependencies: [],
   );
 }

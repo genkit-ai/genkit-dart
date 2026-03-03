@@ -21,7 +21,7 @@ part of 'tool_calling.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ToolCallingInput {
+base class ToolCallingInput {
   factory ToolCallingInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class ToolCallingInput {
   }
 }
 
-class _ToolCallingInputTypeFactory extends SchemanticType<ToolCallingInput> {
+base class _ToolCallingInputTypeFactory
+    extends SchemanticType<ToolCallingInput> {
   const _ToolCallingInputTypeFactory();
 
   @override
@@ -64,16 +65,15 @@ class _ToolCallingInputTypeFactory extends SchemanticType<ToolCallingInput> {
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'ToolCallingInput',
-        definition: Schema.object(
-          properties: {'prompt': Schema.string()},
-          required: ['prompt'],
-        ),
-        dependencies: [],
-      );
+    name: 'ToolCallingInput',
+    definition: $Schema
+        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
+        .value,
+    dependencies: [],
+  );
 }
 
-class ToolCallingWeatherInput {
+base class ToolCallingWeatherInput {
   factory ToolCallingWeatherInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -106,7 +106,7 @@ class ToolCallingWeatherInput {
   }
 }
 
-class _ToolCallingWeatherInputTypeFactory
+base class _ToolCallingWeatherInputTypeFactory
     extends SchemanticType<ToolCallingWeatherInput> {
   const _ToolCallingWeatherInputTypeFactory();
 
@@ -117,11 +117,13 @@ class _ToolCallingWeatherInputTypeFactory
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-        name: 'ToolCallingWeatherInput',
-        definition: Schema.object(
-          properties: {'location': Schema.string()},
+    name: 'ToolCallingWeatherInput',
+    definition: $Schema
+        .object(
+          properties: {'location': $Schema.string()},
           required: ['location'],
-        ),
-        dependencies: [],
-      );
+        )
+        .value,
+    dependencies: [],
+  );
 }

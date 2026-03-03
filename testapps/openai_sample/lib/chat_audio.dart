@@ -16,7 +16,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:schemantic/schemantic.dart';
 
 /// Defines a flow that generates speech audio from text using OpenAI chat audio model.
 ///
@@ -24,7 +23,7 @@ import 'package:schemantic/schemantic.dart';
 Flow<String, Media, void, void> defineChatAudioFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'chatAudio',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Say hello from Genkit Dart using chat audio model.',
     ),
     outputSchema: Media.$schema,

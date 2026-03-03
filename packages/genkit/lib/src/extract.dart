@@ -24,18 +24,9 @@ import 'dart:convert';
 dynamic extractJson(String text, {bool allowPartial = false}) {
   var jsonString = text;
 
-  // Pattern to match markdown code blocks
-  final codeBlockPattern = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```');
-  final match = codeBlockPattern.firstMatch(text);
-  if (match != null) {
-    jsonString = match.group(1)!;
-  } else if (allowPartial) {
-    // If partial allowed, try to match start of code block
-    final startPattern = RegExp(r'```(?:json)?\s*([\s\S]*)');
-    final startMatch = startPattern.firstMatch(text);
-    if (startMatch != null) {
-      jsonString = startMatch.group(1)!;
-    }
+  var jsonBlock = _findJsonBlock(text, allowPartial: allowPartial);
+  if (jsonBlock != null) {
+    jsonString = jsonBlock;
   }
 
   // Find the first '{' or '['
@@ -45,11 +36,11 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
   int start;
   bool isObject;
 
-  if (firstOpenBrace == -1 && firstOpenBracket == -1) {
+  if (firstOpenBrace < 0 && firstOpenBracket < 0) {
     if (allowPartial) return null;
     throw FormatException('No JSON object or array found');
   } else if (firstOpenBrace != -1 &&
-      (firstOpenBracket == -1 || firstOpenBrace < firstOpenBracket)) {
+      (firstOpenBracket < 0 || firstOpenBrace < firstOpenBracket)) {
     start = firstOpenBrace;
     isObject = true;
   } else {
@@ -63,7 +54,7 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
   final end = jsonString.lastIndexOf(endChar);
 
   String candidate;
-  if (end == -1 || end < start) {
+  if (end < 0 || end < start) {
     if (allowPartial) {
       candidate = jsonString.substring(start);
     } else {
@@ -94,21 +85,36 @@ dynamic extractJson(String text, {bool allowPartial = false}) {
   }
 }
 
+/// Looks for JSON code fence in text.
+///
+/// If [allowPartial] is `true`, allows the end delimiter to be missing.
+String? _findJsonBlock(String text, {required bool allowPartial}) {
+  const delimiter = '```';
+  var start = text.indexOf(delimiter);
+  if (start < 0) return null;
+  start += delimiter.length;
+  if (text.startsWith('json', start)) start += 'json'.length;
+  var end = text.indexOf(delimiter, start);
+  if (end < 0) {
+    if (!allowPartial) return null;
+    end = text.length;
+  }
+  return text.substring(start, end).trim();
+}
+
 /// Attempts to repair a partial JSON string by closing open strings and containers.
 String _repairJson(String json) {
   var inString = false;
   var escaped = false;
   final stack = <String>[];
-  final buffer = StringBuffer();
 
   for (var i = 0; i < json.length; i++) {
     final char = json[i];
-    buffer.write(char);
 
     if (inString) {
       if (escaped) {
         escaped = false;
-      } else if (char == '\\') {
+      } else if (char == r'\') {
         escaped = true;
       } else if (char == '"') {
         inString = false;
@@ -126,96 +132,72 @@ String _repairJson(String json) {
           // If we just closed the last container, we are done!
           // This avoids including trailing garbage.
           if (stack.isEmpty) {
-            return buffer.toString();
+            return json.substring(0, i + 1);
           }
         }
       }
     }
   }
 
-  var repaired = buffer.toString();
-
-  // 1. Close string if open
+  var repaired = json;
+  // 1. Close string if open.
   if (inString) {
     // If the string ends with an unescaped backslash, remove it
     // as it's a partial escape sequence.
-    var s = buffer.toString();
+    var s = repaired;
     if (escaped) {
       s = s.substring(0, s.length - 1);
     }
-    // Handle partial \uXXXX escape by escaping the backslash
-    final unicodePattern = RegExp(r'\\u[0-9a-fA-F]{0,3}$');
-    if (unicodePattern.hasMatch(s)) {
-      s = s.replaceFirstMapped(unicodePattern, (m) => '\\${m.group(0)}');
-    }
+    // Handle partial \uXXXX escape by escaping the backslash.
+    // Does not recognize if the `\` before `u` is itself escaped.
+    s = s.replaceFirst(_unicodeEscapePrefixPattern, r'\');
     repaired = '$s"';
   } else {
+    var endsWithWord = false;
     // Attempt to fix partial primitives (true, false, null)
-    // and partial numbers.
-    final truePattern = RegExp(r'(^|[\s{\[,:])(t(?:r(?:u(?:e)?)?)?)\s*$');
-    final falsePattern = RegExp(
-      r'(^|[\s{\[,:])(f(?:a(?:l(?:s(?:e)?)?)?)?)\s*$',
-    );
-    final nullPattern = RegExp(r'(^|[\s{\[,:])(n(?:u(?:l(?:l)?)?)?)\s*$');
-    // undefined -> null
-    final undefinedPattern = RegExp(
-      r'(^|[\s{\[,:])(u(?:n(?:d(?:e(?:f(?:i(?:n(?:e(?:d)?)?)?)?)?)?)?)?)\s*$',
-    );
-
-    if (truePattern.hasMatch(repaired)) {
-      repaired = repaired.replaceFirstMapped(
-        truePattern,
-        (m) => '${m.group(1)}true',
-      );
-    } else if (falsePattern.hasMatch(repaired)) {
-      repaired = repaired.replaceFirstMapped(
-        falsePattern,
-        (m) => '${m.group(1)}false',
-      );
-    } else if (nullPattern.hasMatch(repaired)) {
-      repaired = repaired.replaceFirstMapped(
-        nullPattern,
-        (m) => '${m.group(1)}null',
-      );
-    } else if (undefinedPattern.hasMatch(repaired)) {
-      repaired = repaired.replaceFirstMapped(
-        undefinedPattern,
-        (m) => '${m.group(1)}null',
-      );
-    }
-
-    // Fix partial number ending with dot or exponent e/E
-    final numberSuffixPattern = RegExp(r'(-?\d+(?:\.\d+)?)[.eE][-+]?\s*$');
-    if (numberSuffixPattern.hasMatch(repaired)) {
-      repaired = repaired.replaceFirstMapped(
-        numberSuffixPattern,
-        (m) => '${m.group(1)}',
-      );
+    repaired = repaired.replaceFirstMapped(_trailingWordPattern, (match) {
+      endsWithWord = true;
+      var word = match[1]!;
+      if ('undefined'.startsWith(word) || 'null'.startsWith(word)) {
+        return 'null';
+      }
+      if ('true'.startsWith(word)) return 'true';
+      if ('false'.startsWith(word)) return 'false';
+      return word;
+    });
+    if (!endsWithWord) {
+      // Remove trailing `.` or `[eE][+-]?`
+      repaired = repaired.replaceFirst(_partialNumberSuffixPattern, '');
     }
   }
 
   // 2. Fix partial keys (e.g. {"key" -> {"key": null)
-  final tailStringPattern = RegExp(r'([{,])\s*("(?:[^"\\]|\\.)*")\s*$');
   if (stack.isNotEmpty &&
       stack.last == '}' &&
-      tailStringPattern.hasMatch(repaired)) {
-    repaired += ': null';
+      _tailKeyPattern.hasMatch(repaired)) {
+    repaired = '$repaired: null';
   }
 
   // 3. Handle trailing comma or colon
   final trimmed = repaired.trimRight();
-  if (trimmed.isNotEmpty) {
-    if (trimmed.endsWith(',')) {
-      repaired = trimmed.substring(0, trimmed.length - 1);
-    } else if (trimmed.endsWith(':')) {
-      repaired = '${trimmed}null';
-    }
+  if (trimmed.endsWith(',')) {
+    repaired = trimmed.substring(0, trimmed.length - 1);
+  } else if (trimmed.endsWith(':')) {
+    repaired = '$trimmed null';
   }
 
   // 4. Close stack
-  while (stack.isNotEmpty) {
-    repaired += stack.removeLast();
-  }
+  repaired += stack.reversed.join('');
 
   return repaired;
 }
+
+final _trailingWordPattern = RegExp(r'\b([a-zA-Z]\w*)\s*$');
+
+final _partialNumberSuffixPattern = RegExp(
+  r'(?<=\b(?:\d+\.)?\d+)[.eE][\-+]?\s*$',
+);
+
+final _unicodeEscapePrefixPattern = RegExp(r'(?=\\u[0-9a-fA-F]{0,3}$)');
+
+final _tailKeyPattern = RegExp(r'([{,])\s*("(?:[^"\\]|\\.)*")\s*$');

@@ -22,6 +22,35 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
 const _streamDelimiter = '\n\n';
+const _internalErrorMessage = 'Internal server error';
+
+final class _ShelfError {
+  final int code;
+  final String status;
+  final String message;
+
+  const _ShelfError({
+    required this.code,
+    required this.status,
+    required this.message,
+  });
+}
+
+_ShelfError _toShelfError(Object error) {
+  if (error is GenkitException) {
+    return _ShelfError(
+      code: error.status.httpStatus,
+      status: error.status.name,
+      message: error.message,
+    );
+  }
+
+  return _ShelfError(
+    code: HttpStatus.internalServerError,
+    status: StatusCodes.INTERNAL.name,
+    message: _internalErrorMessage,
+  );
+}
 
 /// Context provider function.
 typedef ContextProvider =
@@ -134,10 +163,14 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
             sendChunk('data:', {'result': result.result});
             controller.close();
           })
-          .catchError((e) {
-            // TODO: Map GenkitException to status/message properly
+          .catchError((Object e) {
+            final mapped = _toShelfError(e);
             sendChunk('error:', {
-              'error': {'message': e.toString(), 'status': 'INTERNAL'},
+              'error': {
+                'code': mapped.code,
+                'status': mapped.status,
+                'message': mapped.message,
+              },
             });
             controller.close();
           });
@@ -159,13 +192,13 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
           },
         );
       } catch (e) {
-        // TODO: Map error codes
+        final mapped = _toShelfError(e);
         return Response(
-          500,
+          mapped.code,
           body: jsonEncode({
-            'code': 500,
-            'status': 'INTERNAL',
-            'message': e.toString(),
+            'code': mapped.code,
+            'status': mapped.status,
+            'message': mapped.message,
           }),
           headers: {'Content-Type': 'application/json'},
         );
@@ -204,7 +237,8 @@ Future<HttpServer> startFlowServer({
               return Response.ok(
                 '',
                 headers: {
-                  'Access-Control-Allow-Origin': cors['origin'] ?? '*',
+                  'Access-Control-Allow-Origin':
+                      (cors['origin'] as String?) ?? '*',
                   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
                   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                 },
@@ -213,7 +247,8 @@ Future<HttpServer> startFlowServer({
             final response = await innerHandler(request);
             return response.change(
               headers: {
-                'Access-Control-Allow-Origin': cors['origin'] ?? '*',
+                'Access-Control-Allow-Origin':
+                    (cors['origin'] as String?) ?? '*',
                 ...response.headers,
               },
             );

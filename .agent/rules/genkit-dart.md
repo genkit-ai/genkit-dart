@@ -35,7 +35,7 @@ The repository is managed using [Melos](https://melos.invertase.dev/).
 
 # Schemantic
 
-Using `schemantic` package (see packages/schemantic). Defines schemas using the `@Schematic()` annotation,the abstract class name must start with $.
+Using `schemantic` package (see packages/schemantic). Defines schemas using the `@Schema()` annotation,the abstract class name must start with $.
 
 If ever encountering schemantic schemas (classes starting with $ or Blah.$schema) check out packages/schemantic/README.md
 
@@ -46,13 +46,13 @@ import 'package:schemantic/schemantic.dart';
 
 part 'my_file.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $MyObj {
   String get name;
   $MySubObj get subObj;
 }
 
-@Schematic()
+@Schema()
 abstract class $MySubObj {
   String get foo;
 }

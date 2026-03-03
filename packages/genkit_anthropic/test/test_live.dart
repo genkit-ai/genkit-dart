@@ -22,13 +22,13 @@ import 'package:test/test.dart';
 
 part 'test_live.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Person {
   String get name;
   int get age;
 }
 
-@Schematic()
+@Schema()
 abstract class $CalculatorInput {
   int get a;
   int get b;
@@ -54,8 +54,8 @@ void main() {
     test('should generate simple text', () async {
       final flow = ai.defineFlow(
         name: 'testSimple',
-        inputSchema: stringSchema(),
-        outputSchema: stringSchema(),
+        inputSchema: .string(),
+        outputSchema: .string(),
         fn: (input, _) async {
           final response = await ai.generate(
             model: anthropic.model('claude-sonnet-4-5'),
@@ -115,7 +115,7 @@ void main() {
         name: 'calculator',
         description: 'Multiplies two numbers',
         inputSchema: CalculatorInput.$schema,
-        outputSchema: intSchema(),
+        outputSchema: .integer(),
         fn: (CalculatorInput input, _) async => input.a * input.b,
       );
 

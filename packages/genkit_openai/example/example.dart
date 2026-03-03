@@ -20,13 +20,13 @@ import 'package:schemantic/schemantic.dart';
 
 part 'example.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $CalculatorInput {
   int get a;
   int get b;
 }
 
-@Schematic()
+@Schema()
 abstract class $Person {
   String get name;
   int get age;
@@ -40,8 +40,8 @@ void main(List<String> args) {
   // --- Basic Generate Flow ---
   ai.defineFlow(
     name: 'basicGenerate',
-    inputSchema: stringSchema(defaultValue: 'Hello Genkit for Dart!'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Hello Genkit for Dart!'),
+    outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o'),
@@ -54,9 +54,9 @@ void main(List<String> args) {
   // --- Streaming Flow ---
   ai.defineFlow(
     name: 'streaming',
-    inputSchema: stringSchema(defaultValue: 'Count to 5'),
-    outputSchema: stringSchema(),
-    streamSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'Count to 5'),
+    outputSchema: .string(),
+    streamSchema: .string(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
         model: openAI.model('gpt-4o'),
@@ -75,7 +75,7 @@ void main(List<String> args) {
   // --- Text-to-Speech Flow ---
   ai.defineFlow(
     name: 'textToSpeech',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Say that Genkit Dart supports OpenAI text to speech.',
     ),
     outputSchema: Media.$schema,
@@ -95,7 +95,7 @@ void main(List<String> args) {
   // --- Chat Audio Models Flow ---
   ai.defineFlow(
     name: 'chatAudioModels',
-    inputSchema: stringSchema(defaultValue: 'Say hello from Genkit Dart.'),
+    inputSchema: .string(defaultValue: 'Say hello from Genkit Dart.'),
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
@@ -112,14 +112,14 @@ void main(List<String> args) {
     name: 'calculator',
     description: 'Multiplies two numbers',
     inputSchema: CalculatorInput.$schema,
-    outputSchema: intSchema(),
+    outputSchema: .integer(),
     fn: (input, _) async => input.a * input.b,
   );
 
   ai.defineFlow(
     name: 'toolCalling',
-    inputSchema: stringSchema(defaultValue: 'What is 123 * 456?'),
-    outputSchema: stringSchema(),
+    inputSchema: .string(defaultValue: 'What is 123 * 456?'),
+    outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: openAI.model('gpt-4o'),
@@ -133,7 +133,7 @@ void main(List<String> args) {
   // --- Structured Output Flow ---
   ai.defineFlow(
     name: 'structuredOutput',
-    inputSchema: stringSchema(
+    inputSchema: .string(
       defaultValue: 'Generate a person named John Doe, age 30',
     ),
     outputSchema: Person.$schema,
@@ -144,7 +144,9 @@ void main(List<String> args) {
         prompt: prompt,
         outputSchema: Person.$schema,
         onChunk: (chunk) {
-          ctx.sendChunk(chunk.output!);
+          if (chunk.output != null) {
+            ctx.sendChunk(chunk.output!);
+          }
         },
       );
       return response.output!;

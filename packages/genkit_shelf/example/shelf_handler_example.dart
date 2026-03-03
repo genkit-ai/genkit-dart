@@ -24,12 +24,12 @@ import 'package:shelf_router/shelf_router.dart';
 
 part 'shelf_handler_example.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $HandlerInput {
   String get message;
 }
 
-@Schematic()
+@Schema()
 abstract class $HandlerOutput {
   String get processedMessage;
 }
@@ -74,8 +74,8 @@ void main() async {
       );
       return result.processedMessage;
     },
-    inputSchema: stringSchema(),
-    outputSchema: stringSchema(),
+    inputSchema: .string(),
+    outputSchema: .string(),
   );
 
   // Create a Shelf Router
