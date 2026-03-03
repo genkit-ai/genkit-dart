@@ -328,7 +328,7 @@ void main() {
 
     test('ttsModelInfo sets correct supports', () {
       final info = ttsModelInfo('gpt-4o-mini-tts');
-      expect(info.supports?['multiturn'], true);
+      expect(info.supports?['multiturn'], false);
       expect(info.supports?['tools'], false);
       expect(info.supports?['systemRole'], false);
       expect(info.supports?['media'], false);

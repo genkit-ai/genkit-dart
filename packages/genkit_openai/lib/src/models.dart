@@ -61,7 +61,7 @@ ModelInfo ttsModelInfo(String model) {
       'multiturn': false,
       'tools': false,
       'systemRole': false,
-      'media': true,
+      'media': false,
     },
   );
 }

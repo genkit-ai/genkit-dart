@@ -482,11 +482,12 @@ class OpenAIPlugin extends GenkitPlugin {
     final format = (options.audioFormat ?? 'mp3').toLowerCase();
     final responseFormat = _speechFormatToApiValue(format);
     final requestedMimeType = _speechFormatToMimeType(format);
+    final speechEndpoint = _resolveSpeechEndpoint();
 
     // ignore: invalid_use_of_protected_member
     final response = await client.makeRequest(
-      baseUrl: 'https://api.openai.com/v1',
-      path: '/audio/speech',
+      baseUrl: speechEndpoint.baseUrl,
+      path: speechEndpoint.path,
       method: openai_generated.HttpMethod.post,
       requestType: 'application/json',
       responseType: requestedMimeType,
@@ -525,7 +526,7 @@ class OpenAIPlugin extends GenkitPlugin {
         ],
       ),
       raw: {
-        'endpoint': '/audio/speech',
+        'endpoint': speechEndpoint.path,
         'model': modelId,
         'contentType': mimeType,
       },
@@ -623,25 +624,41 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   String _extractSpeechInputText(List<Message> messages) {
-    for (final message in messages.reversed) {
-      if (message.role == Role.user) {
-        final text = message.text.trim();
-        if (text.isNotEmpty) {
-          return text;
-        }
-      }
-    }
-
+    String? lastNonEmptyText;
     for (final message in messages.reversed) {
       final text = message.text.trim();
-      if (text.isNotEmpty) {
+      if (text.isEmpty) continue;
+
+      if (message.role == Role.user) {
         return text;
       }
+
+      lastNonEmptyText ??= text;
+    }
+
+    if (lastNonEmptyText != null) {
+      return lastNonEmptyText;
     }
 
     throw GenkitException(
       'Speech synthesis models require non-empty text input.',
       status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
+  ({String baseUrl, String path}) _resolveSpeechEndpoint() {
+    if (baseUrl == null) {
+      return (baseUrl: 'https://api.openai.com', path: '/v1/audio/speech');
+    }
+
+    final normalizedPath = Uri.parse(baseUrl!).path.toLowerCase();
+    final includesVersionPrefix = RegExp(
+      r'(^|/)v\d+(/|$)',
+    ).hasMatch(normalizedPath);
+
+    return (
+      baseUrl: baseUrl!,
+      path: includesVersionPrefix ? '/audio/speech' : '/v1/audio/speech',
     );
   }
 
