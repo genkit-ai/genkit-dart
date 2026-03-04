@@ -15,6 +15,65 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`genkit` - `v0.10.0`](#genkit---v0100)
+ - [`genkit_anthropic` - `v0.1.0`](#genkit_anthropic---v010)
+ - [`genkit_chrome` - `v0.0.1`](#genkit_chrome---v001)
+ - [`genkit_google_genai` - `v0.1.0`](#genkit_google_genai---v010)
+ - [`genkit_mcp` - `v0.1.0`](#genkit_mcp---v010)
+ - [`genkit_middleware` - `v0.1.0`](#genkit_middleware---v010)
+ - [`genkit_openai` - `v0.1.0`](#genkit_openai---v010)
+ - [`genkit_shelf` - `v0.1.0`](#genkit_shelf---v010)
+ - [`genkit_vertex_auth` - `v0.1.0`](#genkit_vertex_auth---v010)
+ - [`schemantic` - `v0.1.0`](#schemantic---v010)
+
+Packages graduated to a stable release (see pre-releases prior to the stable version for changelog entries):
+
+ - `genkit` - `v0.10.0`
+ - `genkit_anthropic` - `v0.1.0`
+ - `genkit_chrome` - `v0.0.1`
+ - `genkit_google_genai` - `v0.1.0`
+ - `genkit_mcp` - `v0.1.0`
+ - `genkit_middleware` - `v0.1.0`
+ - `genkit_openai` - `v0.1.0`
+ - `genkit_shelf` - `v0.1.0`
+ - `genkit_vertex_auth` - `v0.1.0`
+ - `schemantic` - `v0.1.0`
+
+---
+
+#### `genkit` - `v0.10.0`
+
+#### `genkit_anthropic` - `v0.1.0`
+
+#### `genkit_chrome` - `v0.0.1`
+
+#### `genkit_google_genai` - `v0.1.0`
+
+#### `genkit_mcp` - `v0.1.0`
+
+#### `genkit_middleware` - `v0.1.0`
+
+#### `genkit_openai` - `v0.1.0`
+
+#### `genkit_shelf` - `v0.1.0`
+
+#### `genkit_vertex_auth` - `v0.1.0`
+
+#### `schemantic` - `v0.1.0`
+
+
+## 2026-03-04
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`genkit` - `v0.10.0-dev.19`](#genkit---v0100-dev19)
  - [`genkit_mcp` - `v0.1.0-dev.1`](#genkit_mcp---v010-dev1)
  - [`genkit_google_genai` - `v0.1.0-dev.1`](#genkit_google_genai---v010-dev1)

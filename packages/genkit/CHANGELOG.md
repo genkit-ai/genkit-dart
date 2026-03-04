@@ -1,3 +1,7 @@
+## 0.10.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
 ## 0.10.0-dev.19
 
  - **FEAT**: added generate span (#196).
