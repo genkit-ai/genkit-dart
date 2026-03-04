@@ -1,3 +1,7 @@
+## 0.1.1
+
+ - bump missed genkit and schemantic versions.
+
 ## 0.1.0
 
  - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
