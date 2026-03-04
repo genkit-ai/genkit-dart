@@ -3,6 +3,49 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-03-04
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit` - `v0.10.0-dev.19`](#genkit---v0100-dev19)
+ - [`genkit_mcp` - `v0.1.0-dev.1`](#genkit_mcp---v010-dev1)
+ - [`genkit_google_genai` - `v0.1.0-dev.1`](#genkit_google_genai---v010-dev1)
+ - [`genkit_vertex_auth` - `v0.1.0-dev.1`](#genkit_vertex_auth---v010-dev1)
+ - [`genkit_openai` - `v0.1.0-dev.1`](#genkit_openai---v010-dev1)
+ - [`genkit_anthropic` - `v0.1.0-dev.1`](#genkit_anthropic---v010-dev1)
+ - [`genkit_shelf` - `v0.1.0-dev.1`](#genkit_shelf---v010-dev1)
+ - [`genkit_chrome` - `v0.0.1-dev.10`](#genkit_chrome---v001-dev10)
+ - [`genkit_middleware` - `v0.1.0-dev.1`](#genkit_middleware---v010-dev1)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_mcp` - `v0.1.0-dev.1`
+ - `genkit_google_genai` - `v0.1.0-dev.1`
+ - `genkit_vertex_auth` - `v0.1.0-dev.1`
+ - `genkit_openai` - `v0.1.0-dev.1`
+ - `genkit_anthropic` - `v0.1.0-dev.1`
+ - `genkit_shelf` - `v0.1.0-dev.1`
+ - `genkit_chrome` - `v0.0.1-dev.10`
+ - `genkit_middleware` - `v0.1.0-dev.1`
+
+---
+
+#### `genkit` - `v0.10.0-dev.19`
+
+ - **FEAT**: added generate span (#196).
+ - **FEAT**: Enhance `extract` function to support primitive JSON types (string and numbers) (#195).
+
+
 ## 2026-03-03
 
 ### Changes

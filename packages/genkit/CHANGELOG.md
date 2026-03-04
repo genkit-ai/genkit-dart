@@ -1,3 +1,8 @@
+## 0.10.0-dev.19
+
+ - **FEAT**: added generate span (#196).
+ - **FEAT**: Enhance `extract` function to support primitive JSON types (string and numbers) (#195).
+
 ## 0.10.0-dev.18
 
 > Note: This release has breaking changes.

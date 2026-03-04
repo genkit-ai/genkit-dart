@@ -1,3 +1,7 @@
+## 0.1.0-dev.1
+
+ - Update a dependency to the latest release.
+
 ## 0.0.1-dev.19
 
  - **FIX**: conditionally add `toolUsePromptTokenCount` to custom metadata.
