@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
 
 import 'model.dart';
 import 'vertex_config.dart';
@@ -409,7 +410,7 @@ sdk.ImageMediaType _mapImageMediaType(String mimeType) {
 }
 
 sdk.ToolDefinition toAnthropicTool(ToolDefinition t) {
-  final schema = Map<String, dynamic>.from(t.inputSchema ?? {});
+  final schema = Map<String, dynamic>.from(t.inputSchema?.flatten() ?? {});
   if (!schema.containsKey('type')) {
     schema['type'] = 'object';
   }
