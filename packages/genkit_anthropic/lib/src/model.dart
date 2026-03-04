@@ -62,13 +62,21 @@ abstract class $AnthropicOptions {
   /// Stop sequences to use for this generation.
   List<String>? get stopSequences;
 
-  /// Extended thinking configuration for support Anthropic models (like Claude 3.7 Sonnet).
+  /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
   $ThinkingConfig? get thinking;
 }
 
 /// Configuration for Anthropic's extended thinking mode.
 @Schema()
 abstract class $ThinkingConfig {
+  @StringField(
+    enumValues: ['enabled', 'disabled', 'adaptive'],
+    description:
+        'Thinking mode. "enabled" uses budgetTokens, '
+        '"adaptive" lets the model decide, "disabled" turns it off.',
+  )
+  String? get type;
+
   @IntegerField(
     minimum: 1024,
     description:
@@ -76,5 +84,5 @@ abstract class $ThinkingConfig {
         'Larger budgets allow for more extensive thought but increase latency and cost. '
         'The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
   )
-  int get budgetTokens;
+  int? get budgetTokens;
 }

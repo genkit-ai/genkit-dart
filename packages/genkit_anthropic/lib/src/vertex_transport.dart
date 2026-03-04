@@ -35,7 +35,7 @@ class AnthropicVertexTransport {
   AnthropicVertexTransport({required this.config, required this.httpClient});
 
   /// Converts an Anthropic request into a Vertex partner-model request body.
-  Map<String, dynamic> toRequestBody(sdk.CreateMessageRequest request) {
+  Map<String, dynamic> toRequestBody(sdk.MessageCreateRequest request) {
     final body = request.toJson();
     body.remove('model');
     body['anthropic_version'] = _anthropicVertexVersion;
