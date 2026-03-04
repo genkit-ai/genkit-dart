@@ -33,42 +33,41 @@ Future<Output> runInNewSpan<Input, Output>(
   Map<String, String>? attributes,
 }) async {
   final parentContext = Zone.current[#api.context] as api.Context?;
+  final spanAttributes = <api.Attribute>[];
+  spanAttributes.add(api.Attribute.fromString('genkit:name', name));
+  if (actionType != null) {
+    spanAttributes.add(api.Attribute.fromString('genkit:type', actionType));
+    // tmp hack...
+    if (actionType == 'flow') {
+      spanAttributes.add(
+        api.Attribute.fromString('genkit:metadata:flow:name', name),
+      );
+    }
+  }
+  if (input != null) {
+    try {
+      spanAttributes.add(
+        api.Attribute.fromString('genkit:input', jsonEncode(input)),
+      );
+    } catch (e) {
+      spanAttributes.add(
+        api.Attribute.fromString('genkit:input', 'Unable to encode input: $e'),
+      );
+    }
+  }
+  attributes?.forEach((key, value) {
+    spanAttributes.add(api.Attribute.fromString(key, value));
+  });
   final span = parentContext == null
-      ? _tracer.startSpan(name)
-      : _tracer.startSpan(name, context: parentContext);
+      ? _tracer.startSpan(name, attributes: spanAttributes)
+      : _tracer.startSpan(
+          name,
+          context: parentContext,
+          attributes: spanAttributes,
+        );
   return runZoned(
     () async {
       try {
-        span.setName(name);
-        span.setAttribute(api.Attribute.fromString('genkit:name', name));
-        if (actionType != null) {
-          span.setAttribute(
-            api.Attribute.fromString('genkit:type', actionType),
-          );
-          // tmp hack...
-          if (actionType == 'flow') {
-            span.setAttribute(
-              api.Attribute.fromString('genkit:metadata:flow:name', name),
-            );
-          }
-        }
-        if (input != null) {
-          try {
-            span.setAttribute(
-              api.Attribute.fromString('genkit:input', jsonEncode(input)),
-            );
-          } catch (e) {
-            span.setAttribute(
-              api.Attribute.fromString(
-                'genkit:input',
-                'Unable to encode input: $e',
-              ),
-            );
-          }
-        }
-        attributes?.forEach((key, value) {
-          span.setAttribute(api.Attribute.fromString(key, value));
-        });
         final telemetryContext = (
           attributes: <String, String>{},
           traceId: span.spanContext.traceId.toString(),
