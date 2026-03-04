@@ -59,9 +59,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
   sdk.AnthropicClient get client {
     if (_client != null) return _client!;
     if (apiKey != null) {
-      return _client = sdk.AnthropicClient(
-        config: sdk.AnthropicConfig(authProvider: sdk.ApiKeyProvider(apiKey!)),
-      );
+      return _client = sdk.AnthropicClient.withApiKey(apiKey!);
     }
     return _client = sdk.AnthropicClient.fromEnvironment();
   }
@@ -206,11 +204,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
             : AnthropicOptions.$schema.parse(req.config!);
 
         final requestClient = options.apiKey != null
-            ? sdk.AnthropicClient(
-                config: sdk.AnthropicConfig(
-                  authProvider: sdk.ApiKeyProvider(options.apiKey!),
-                ),
-              )
+            ? sdk.AnthropicClient.withApiKey(options.apiKey!)
             : client;
 
         try {
