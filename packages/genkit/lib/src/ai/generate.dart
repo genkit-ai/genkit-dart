@@ -18,6 +18,7 @@ import '../core/action.dart';
 import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
+import '../o11y/instrumentation.dart';
 import '../schema.dart';
 import '../schema_extensions.dart';
 import '../types.dart';
@@ -48,7 +49,12 @@ GenerateAction defineGenerateAction(Registry registry) {
           status: StatusCodes.INVALID_ARGUMENT,
         );
       }
-      final response = await runGenerateAction(registry, options, ctx);
+      final response = await runGenerateAction(
+        registry,
+        options,
+        ctx,
+        skipTelemetry: true,
+      );
       return response.modelResponse;
     },
   );
@@ -396,6 +402,26 @@ Future<GenerateResponseHelper> _runGenerateLoop(
 }
 
 Future<GenerateResponseHelper> runGenerateAction(
+  Registry registry,
+  GenerateActionOptions options,
+  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
+  List<GenerateMiddlewareOneof>? middleware,
+  bool skipTelemetry = false,
+}) async {
+  if (skipTelemetry) {
+    return _runGenerateAction(registry, options, ctx, middleware: middleware);
+  }
+  return runInNewSpan(
+    'generate',
+    (telemetryContext) {
+      return _runGenerateAction(registry, options, ctx, middleware: middleware);
+    },
+    input: options,
+    actionType: 'util',
+  );
+}
+
+Future<GenerateResponseHelper> _runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
