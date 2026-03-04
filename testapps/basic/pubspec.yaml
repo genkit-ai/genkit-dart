@@ -8,10 +8,10 @@ environment:
 
 dependencies:
   genkit: ^0.10.0-dev.18
-  genkit_google_genai: ^0.0.1-dev.19
-  genkit_shelf: ^0.0.1-dev.18
+  genkit_google_genai: ^0.1.0-dev.0
+  genkit_shelf: ^0.1.0-dev.0
   http: ^1.6.0
-  schemantic: ^0.0.1-dev.19
+  schemantic: ^0.1.0-dev.0
   shelf: ^1.4.2
   shelf_cors_headers: ^0.1.5
   shelf_router: ^1.1.4
