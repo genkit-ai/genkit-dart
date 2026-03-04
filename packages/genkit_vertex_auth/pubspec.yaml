@@ -1,7 +1,7 @@
 name: genkit_vertex_auth
 description: Shared Vertex AI auth utilities for Genkit Dart provider plugins.
 resolution: workspace
-version: 0.0.1-dev.2
+version: 0.1.0-dev.0
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
