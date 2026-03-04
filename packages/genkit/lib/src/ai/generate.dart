@@ -413,7 +413,7 @@ Future<GenerateResponseHelper> runGenerateAction(
   }
   return runInNewSpan(
     'generate',
-    (telemetryContext) async {
+    (telemetryContext) {
       return _runGenerateAction(registry, options, ctx, middleware: middleware);
     },
     input: options,

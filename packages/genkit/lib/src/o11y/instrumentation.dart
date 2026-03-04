@@ -36,13 +36,12 @@ Future<Output> runInNewSpan<Input, Output>(
   final spanAttributes = <api.Attribute>[];
   spanAttributes.add(api.Attribute.fromString('genkit:name', name));
   if (actionType != null) {
-    spanAttributes.add(api.Attribute.fromString('genkit:type', actionType));
-    // tmp hack...
-    if (actionType == 'flow') {
-      spanAttributes.add(
+    spanAttributes.addAll([
+      api.Attribute.fromString('genkit:type', actionType),
+      // tmp hack...
+      if (actionType == 'flow')
         api.Attribute.fromString('genkit:metadata:flow:name', name),
-      );
-    }
+    ]);
   }
   if (input != null) {
     try {
