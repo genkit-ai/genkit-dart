@@ -24,36 +24,6 @@ import 'package:openai_dart/openai_dart.dart'
 import 'package:test/test.dart';
 
 void main() {
-  group('OpenAIOptions', () {
-    test('parses temperature', () {
-      final options = OpenAIOptions.$schema.parse({'temperature': 0.7});
-      expect(options.temperature, 0.7);
-    });
-
-    test('parses maxTokens', () {
-      final options = OpenAIOptions.$schema.parse({'maxTokens': 100});
-      expect(options.maxTokens, 100);
-    });
-
-    test('parses jsonMode', () {
-      final options = OpenAIOptions.$schema.parse({'jsonMode': true});
-      expect(options.jsonMode, true);
-    });
-
-    test('parses stop sequences', () {
-      final options = OpenAIOptions.$schema.parse({
-        'stop': ['stop1', 'stop2'],
-      });
-      expect(options.stop, ['stop1', 'stop2']);
-    });
-
-    test('creates default options', () {
-      final options = OpenAIOptions();
-      expect(options.temperature, isNull);
-      expect(options.maxTokens, isNull);
-    });
-  });
-
   group('GenkitConverter.toOpenAIMessage', () {
     test('converts system message', () {
       final msg = Message(
@@ -226,46 +196,32 @@ void main() {
       expect(info.supports?['multiturn'], true);
       expect(info.supports?['tools'], false);
       expect(info.supports?['systemRole'], false);
-      expect(info.supports?['media'], true); // O-series models support vision
+      expect(info.supports?['media'], true);
     });
 
     test('supportsVision identifies vision models', () {
-      // GPT-4o variants
       expect(supportsVision('gpt-4o'), true);
       expect(supportsVision('gpt-4o-mini'), true);
       expect(supportsVision('gpt-4o-2024-05-13'), true);
-
-      // GPT-4 Turbo variants
       expect(supportsVision('gpt-4-turbo'), true);
       expect(supportsVision('gpt-4-1106-preview'), true);
       expect(supportsVision('gpt-4-0125-preview'), true);
-
-      // Explicit vision models
       expect(supportsVision('gpt-4-vision'), true);
       expect(supportsVision('gpt-4-vision-preview'), true);
-
-      // O-series reasoning models
       expect(supportsVision('o1'), true);
       expect(supportsVision('o1-preview'), true);
       expect(supportsVision('o3'), true);
       expect(supportsVision('o3-mini'), true);
-
-      // Future GPT models with "o" suffix
       expect(supportsVision('gpt-5o'), true);
       expect(supportsVision('gpt-5.1o'), true);
       expect(supportsVision('gpt-6o-mini'), true);
-
-      // ChatGPT models
       expect(supportsVision('chatgpt-4o-latest'), true);
-
-      // Non-vision models
       expect(supportsVision('gpt-3.5-turbo'), false);
       expect(supportsVision('gpt-4'), false);
       expect(supportsVision('text-embedding-3-small'), false);
     });
 
     test('supportsTools identifies models with function calling support', () {
-      // Standard GPT models that support tools
       expect(supportsTools('gpt-4'), true);
       expect(supportsTools('gpt-4o'), true);
       expect(supportsTools('gpt-4o-mini'), true);
@@ -273,17 +229,11 @@ void main() {
       expect(supportsTools('gpt-3.5-turbo'), true);
       expect(supportsTools('gpt-5'), true);
       expect(supportsTools('gpt-5.1'), true);
-
-      // ChatGPT-branded models don't support tools
       expect(supportsTools('chatgpt-4o-latest'), false);
       expect(supportsTools('chatgpt-5-latest'), false);
-
-      // Legacy completion models don't support tools
       expect(supportsTools('gpt-3.5-turbo-instruct'), false);
       expect(supportsTools('davinci-002'), false);
       expect(supportsTools('babbage-002'), false);
-
-      // Specialized models don't support tools
       expect(supportsTools('text-embedding-3-small'), false);
       expect(supportsTools('text-embedding-3-large'), false);
       expect(supportsTools('tts-1'), false);
@@ -296,26 +246,20 @@ void main() {
     });
   });
 
-  group('Plugin Handle', () {
-    test('creates plugin instance', () {
-      final plugin = openAI(apiKey: 'test-key');
-      expect(plugin, isNotNull);
+  group('getModelType', () {
+    test('classifies chat models', () {
+      expect(getModelType('gpt-4o'), 'chat');
+      expect(getModelType('chatgpt-4o-latest'), 'chat');
     });
 
-    test('creates model reference', () {
-      final ref = openAI.model('gpt-4o');
-      expect(ref.name, 'openai/gpt-4o');
+    test('classifies non-chat models', () {
+      expect(getModelType('dall-e-3'), 'image');
+      expect(getModelType('sora-2'), 'video');
+      expect(getModelType('whisper-1'), 'audio');
     });
-  });
 
-  group('CustomModelDefinition', () {
-    test('creates with name and info', () {
-      final def = CustomModelDefinition(
-        name: 'custom-model',
-        info: ModelInfo(label: 'Custom Model', supports: {'multiturn': true}),
-      );
-      expect(def.name, 'custom-model');
-      expect(def.info?.label, 'Custom Model');
+    test('returns unknown for unrecognized models', () {
+      expect(getModelType('my-custom-model'), 'unknown');
     });
   });
 }

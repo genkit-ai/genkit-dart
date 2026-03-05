@@ -17,9 +17,15 @@ import 'package:schemantic/schemantic.dart';
 
 import 'src/openai_plugin.dart';
 
+export 'src/chat.dart' show buildOpenAIResponseFormat, isJsonStructuredOutput;
 export 'src/converters.dart' show GenkitConverter;
-export 'src/models.dart'
-    show defaultModelInfo, oSeriesModelInfo, supportsTools, supportsVision;
+export 'src/utils.dart'
+    show
+        defaultModelInfo,
+        getModelType,
+        oSeriesModelInfo,
+        supportsTools,
+        supportsVision;
 
 part 'genkit_openai.g.dart';
 
@@ -96,6 +102,6 @@ class OpenAICompatPluginHandle {
 
   /// Reference to a model
   ModelRef<OpenAIOptions> model(String name) {
-    return modelRef('openai/$name', customOptions: OpenAIOptions.$schema);
+    return modelRef('openai/$name', customOptions: optionsSchemaForModel(name));
   }
 }

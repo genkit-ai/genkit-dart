@@ -18,29 +18,22 @@ import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
 import 'aggregation.dart';
+import 'chat.dart' as chat;
+
+/// Returns a model-specific custom options schema.
+SchemanticType<OpenAIOptions> optionsSchemaForModel(String _) {
+  return chat.chatModelOptionsSchema();
+}
 
 /// Returns true when the output config indicates JSON-structured output
 /// (format is 'json' or contentType is 'application/json').
 bool isJsonStructuredOutput(String? format, String? contentType) {
-  return format == 'json' || contentType == 'application/json';
+  return chat.isJsonStructuredOutput(format, contentType);
 }
 
 /// Builds an OpenAI [ResponseFormat] from a Genkit output schema.
-/// Flattens `$ref`/`$defs` since OpenAI requires `type` at the top level.
-/// Returns null if [schema] is null.
 ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
-  if (schema == null) return null;
-  final flattened = Schema.fromMap(schema).flatten().value;
-  return ResponseFormat.jsonSchema(
-    jsonSchema: JsonSchemaObject(
-      name: 'output',
-      schema: {
-        ...flattened,
-        'additionalProperties': false,
-      },
-      strict: true,
-    ),
-  );
+  return chat.buildOpenAIResponseFormat(schema);
 }
 
 /// Core plugin implementation
@@ -93,102 +86,6 @@ class OpenAIPlugin extends GenkitPlugin {
     }
 
     return actions;
-  }
-
-  /// Determines the type of model based on its ID.
-  ///
-  /// Returns one of the following model types:
-  /// - 'chat': Chat completion models (gpt-4, gpt-4o, o1, etc.)
-  /// - 'embedding': Text embedding models
-  /// - 'audio': Audio processing models (TTS, transcription, realtime)
-  /// - 'image': Image generation models (DALL-E, gpt-image)
-  /// - 'video': Video generation models (Sora)
-  /// - 'moderation': Content moderation models
-  /// - 'completion': Legacy text completion models (instruct, davinci, babbage)
-  /// - 'code': Code generation models (codex)
-  /// - 'search': Search-specific models (search, deep-research)
-  /// - 'research': Research-specific models (research, deep-research)
-  /// - 'unknown': Unknown or unrecognized model type
-  String getModelType(String modelId) {
-    final id = modelId.toLowerCase();
-
-    // Video generation models
-    if (id.contains('sora')) {
-      return 'video';
-    }
-
-    // Image generation models
-    if (id.contains('dall-e') || id.contains('image')) {
-      return 'image';
-    }
-
-    // Embedding models
-    if (id.contains('embedding')) {
-      return 'embedding';
-    }
-
-    // Moderation models
-    if (id.contains('moderation')) {
-      return 'moderation';
-    }
-
-    // Code generation models
-    if (id.contains('codex')) {
-      return 'code';
-    }
-
-    // Audio models (TTS, transcription, realtime, speech-to-text)
-    if (id.contains('tts') ||
-        id.contains('audio') ||
-        id.contains('realtime') ||
-        id.contains('transcribe') ||
-        id.contains('whisper')) {
-      return 'audio';
-    }
-
-    // Legacy completion models (not chat)
-    if (id.contains('instruct') ||
-        id.contains('davinci') ||
-        id.contains('babbage')) {
-      return 'completion';
-    }
-
-    // Research-specific models
-    if (id.contains('research')) {
-      return 'research';
-    }
-
-    // Search-specific models
-    if (id.contains('search')) {
-      return 'search';
-    }
-
-    // GPT-N pattern: matches gpt-3, gpt-4, gpt-5, gpt-6, etc.
-    // Also matches variants like gpt-4o, gpt-4-turbo, gpt-3.5-turbo
-    final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?(o)?(-|$)');
-    if (gptPattern.hasMatch(id)) {
-      return 'chat';
-    }
-
-    // O-series reasoning models: o1, o2, o3, o4, o5, etc.
-    // Matches: o1, o1-preview, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(-|$)');
-    if (oSeriesPattern.hasMatch(id)) {
-      return 'chat';
-    }
-
-    // ChatGPT-branded models
-    // Matches: chatgpt-4o-latest, chatgpt-5-latest, chatgpt-image-latest, etc.
-    if (id.startsWith('chatgpt-')) {
-      // Special handling for non-chat ChatGPT variants
-      if (id.contains('image')) {
-        return 'image';
-      }
-      return 'chat';
-    }
-
-    // Unknown model type
-    return 'unknown';
   }
 
   /// Fetch available model IDs from OpenAI API
@@ -251,7 +148,7 @@ class OpenAIPlugin extends GenkitPlugin {
             return modelMetadata(
               'openai/$modelId',
               modelInfo: modelInfo,
-              customOptions: OpenAIOptions.$schema,
+              customOptions: optionsSchemaForModel(modelId),
             );
           })
           .toList();
@@ -279,7 +176,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
     return Model(
       name: 'openai/$modelName',
-      customOptions: OpenAIOptions.$schema,
+      customOptions: optionsSchemaForModel(modelName),
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
         final options = req!.config != null
@@ -306,8 +203,7 @@ class OpenAIPlugin extends GenkitPlugin {
             req.output?.format,
             req.output?.contentType,
           );
-          final responseFormat =
-              buildOpenAIResponseFormat(req.output?.schema);
+          final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
           final request = CreateChatCompletionRequest(
             model: ChatCompletionModel.modelId(options.version ?? modelName),
             messages: GenkitConverter.toOpenAIMessages(
