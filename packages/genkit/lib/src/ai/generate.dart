@@ -49,6 +49,7 @@ GenerateAction defineGenerateAction(Registry registry) {
           status: StatusCodes.INVALID_ARGUMENT,
         );
       }
+      // TODO: resolve middleware from `options.use`.
       final response = await runGenerateAction(
         registry,
         options,
@@ -534,6 +535,8 @@ typedef GenerateMiddlewareOneof = ({
   GenerateMiddlewareRef? middlewareRef,
 });
 
+/// A helper that takes loose generate arguments, contstructs GenerateActionOptions
+/// and runs the generate action.
 Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
   String? prompt,

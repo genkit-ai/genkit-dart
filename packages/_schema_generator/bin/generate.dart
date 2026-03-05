@@ -107,6 +107,7 @@ const _allowlist = {
   'ModelRequest',
   'ModelResponse',
   'ModelResponseChunk',
+  'MiddlewareRef',
   'GenerateResponse',
   'GenerateRequest',
   'GenerationUsage',
