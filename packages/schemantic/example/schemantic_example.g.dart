@@ -21,7 +21,7 @@ part of 'schemantic_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Address {
+base class Address {
   factory Address.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Address._(this._json);
@@ -73,7 +73,7 @@ class Address {
   }
 }
 
-class AddressZipCode {
+final class AddressZipCode {
   AddressZipCode.int(int this.value);
 
   AddressZipCode.string(String this.value);
@@ -81,7 +81,7 @@ class AddressZipCode {
   final Object? value;
 }
 
-class _AddressTypeFactory extends SchemanticType<Address> {
+base class _AddressTypeFactory extends SchemanticType<Address> {
   const _AddressTypeFactory();
 
   @override
@@ -92,19 +92,23 @@ class _AddressTypeFactory extends SchemanticType<Address> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Address',
-    definition: Schema.object(
-      properties: {
-        'street': Schema.string(),
-        'city': Schema.string(),
-        'zipCode': Schema.combined(anyOf: [Schema.integer(), Schema.string()]),
-      },
-      required: ['street', 'city', 'zipCode'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'street': $Schema.string(),
+            'city': $Schema.string(),
+            'zipCode': $Schema.combined(
+              anyOf: [$Schema.integer(), $Schema.string()],
+            ),
+          },
+          required: ['street', 'city', 'zipCode'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class User {
+base class User {
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   User._(this._json);
@@ -179,7 +183,7 @@ class User {
   }
 }
 
-class _UserTypeFactory extends SchemanticType<User> {
+base class _UserTypeFactory extends SchemanticType<User> {
   const _UserTypeFactory();
 
   @override
@@ -190,28 +194,30 @@ class _UserTypeFactory extends SchemanticType<User> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'User',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(
-          minLength: 1,
-          maxLength: 150,
-          pattern: r'^[a-zA-Z\s]+$',
-        ),
-        'years_old': Schema.integer(
-          description: 'Age of the user',
-          minimum: 0,
-          maximum: 200,
-        ),
-        'isAdmin': Schema.boolean(description: 'Is this user an admin?'),
-        'address': Schema.fromMap({'\$ref': r'#/$defs/Address'}),
-      },
-      required: ['name', 'isAdmin'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(
+              minLength: 1,
+              maxLength: 150,
+              pattern: r'^[a-zA-Z\s]+$',
+            ),
+            'years_old': $Schema.integer(
+              description: 'Age of the user',
+              minimum: 0,
+              maximum: 200,
+            ),
+            'isAdmin': $Schema.boolean(description: 'Is this user an admin?'),
+            'address': $Schema.fromMap({'\$ref': r'#/$defs/Address'}),
+          },
+          required: ['name', 'isAdmin'],
+        )
+        .value,
     dependencies: [Address.$schema],
   );
 }
 
-class Product {
+base class Product {
   factory Product.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Product._(this._json);
@@ -275,7 +281,7 @@ class Product {
   }
 }
 
-class _ProductTypeFactory extends SchemanticType<Product> {
+base class _ProductTypeFactory extends SchemanticType<Product> {
   const _ProductTypeFactory();
 
   @override
@@ -286,15 +292,17 @@ class _ProductTypeFactory extends SchemanticType<Product> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Product',
-    definition: Schema.object(
-      properties: {
-        'id': Schema.string(),
-        'name': Schema.string(),
-        'price': Schema.number(),
-        'tags': Schema.list(items: Schema.string()),
-      },
-      required: ['id', 'name', 'price'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.string(),
+            'name': $Schema.string(),
+            'price': $Schema.number(),
+            'tags': $Schema.list(items: $Schema.string()),
+          },
+          required: ['id', 'name', 'price'],
+        )
+        .value,
     dependencies: [],
   );
 }

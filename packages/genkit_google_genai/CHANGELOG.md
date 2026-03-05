@@ -1,3 +1,35 @@
+## 0.1.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
+## 0.1.0-dev.1
+
+ - Update a dependency to the latest release.
+
+## 0.0.1-dev.19
+
+ - **FIX**: conditionally add `toolUsePromptTokenCount` to custom metadata.
+
+## 0.0.1-dev.18
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: migrate Vertex AI authentication to use the `genkit_vertex_auth` (#193).
+ - **REFACTOR**(google_genai): switch to rest api (#183).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**(genkit_google_genai): implemented vertexai support (#184).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
+## 0.0.1-dev.17
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: fix strict casts (#165).
+ - **FEAT**: Allow implicit media content types for data URIs (#162).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
 ## 0.0.1-dev.16
 
  - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).

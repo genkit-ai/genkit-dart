@@ -15,11 +15,7 @@
 import 'dart:async';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
-import 'package:schemantic/schemantic.dart';
 
-import '../util/common.dart';
-import '../util/convert_messages.dart';
 import '../util/logging.dart';
 import 'mcp_client.dart';
 
@@ -69,14 +65,14 @@ class GenkitMcpHost {
   final String? version;
   final bool rawToolResponses;
   final List<McpRoot>? roots;
+  final McpHostOptions options;
 
   final Map<String, GenkitMcpClient> _clients = {};
   final Map<String, _ClientState> _clientStates = {};
   final List<Completer<void>> _readyListeners = [];
   bool _ready = false;
-  McpHostPlugin? _plugin;
 
-  GenkitMcpHost(McpHostOptions options)
+  GenkitMcpHost(this.options)
     : name = options.name ?? 'genkit-mcp',
       version = options.version,
       rawToolResponses = options.rawToolResponses,
@@ -86,10 +82,6 @@ class GenkitMcpHost {
     } else {
       _ready = true;
     }
-  }
-
-  set plugin(McpHostPlugin plugin) {
-    _plugin = plugin;
   }
 
   Future<void> ready() {
@@ -126,11 +118,7 @@ class GenkitMcpHost {
           version: version,
           rawToolResponses: rawToolResponses,
           notificationHandler: (method, _) {
-            if (method == 'notifications/tools/list_changed' ||
-                method == 'notifications/prompts/list_changed' ||
-                method == 'notifications/resources/list_changed') {
-              _invalidateCache();
-            }
+            // Caching is handled entirely by the client now.
           },
           mcpServer: McpServerConfig(
             transport: config.transport,
@@ -154,7 +142,6 @@ class GenkitMcpHost {
         detail: e,
       );
     }
-    _invalidateCache();
   }
 
   Future<void> disconnect(String serverName) async {
@@ -178,7 +165,6 @@ class GenkitMcpHost {
       );
     }
     _clients.remove(serverName);
-    _invalidateCache();
   }
 
   Future<void> disable(String serverName) async {
@@ -195,7 +181,6 @@ class GenkitMcpHost {
       '[MCP Host] Disabling MCP server "$serverName" in host "$name".',
     );
     await client.disable();
-    _invalidateCache();
   }
 
   Future<void> enable(String serverName) async {
@@ -217,7 +202,6 @@ class GenkitMcpHost {
         detail: e,
       );
     }
-    _invalidateCache();
   }
 
   Future<void> reconnect(String serverName) async {
@@ -239,7 +223,6 @@ class GenkitMcpHost {
         detail: e,
       );
     }
-    _invalidateCache();
   }
 
   void updateServers(Map<String, McpServerConfig> mcpServers) {
@@ -264,13 +247,11 @@ class GenkitMcpHost {
             _readyListeners.removeLast().complete();
           }
         })
-        .catchError((error) {
+        .catchError((Object error) {
           while (_readyListeners.isNotEmpty) {
             _readyListeners.removeLast().completeError(error);
           }
         });
-
-    _invalidateCache();
   }
 
   Future<List<Tool<Map<String, dynamic>, dynamic>>> getActiveTools(
@@ -360,7 +341,6 @@ class GenkitMcpHost {
     for (final client in _clients.values) {
       await client.close();
     }
-    _invalidateCache();
   }
 
   Iterable<GenkitMcpClient> get activeClients {
@@ -369,8 +349,24 @@ class GenkitMcpHost {
 
   GenkitMcpClient? getClient(String name) => _clients[name];
 
-  void _invalidateCache() {
-    _plugin?.invalidateCache();
+  int? get cacheTtlMillis => options is McpHostOptionsWithCache
+      ? (options as McpHostOptionsWithCache).cacheTtlMillis
+      : null;
+
+  Future<List<ActionMetadata>> getCachedActions() async {
+    final futures = activeClients.map((client) => client.getCachedActions());
+    final results = await Future.wait(futures);
+    return results.expand((actions) => actions).toList();
+  }
+
+  Action? resolveAction(String actionName) {
+    for (final client in activeClients) {
+      final action = client.resolveAction(actionName);
+      if (action != null) {
+        return action;
+      }
+    }
+    return null;
   }
 
   void _setError(String serverName, {required String message, Object? detail}) {
@@ -391,230 +387,6 @@ class GenkitMcpHost {
   }
 }
 
-class McpHostPlugin extends GenkitPlugin {
-  final GenkitMcpHost host;
-  final int? cacheTtlMillis;
-  final Map<String, _McpActionDescriptor> _actionIndex = {};
-  List<ActionMetadata> _cachedActions = [];
-  DateTime? _cacheExpiresAt;
-  Future<List<ActionMetadata>>? _inflight;
-
-  McpHostPlugin({required this.host, this.cacheTtlMillis});
-
-  @override
-  String get name => host.name;
-
-  void invalidateCache() {
-    _cachedActions = [];
-    _cacheExpiresAt = null;
-    _actionIndex.clear();
-  }
-
-  @override
-  Future<List<ActionMetadata>> list() async {
-    final now = DateTime.now();
-    if (_shouldUseCache() &&
-        _cacheExpiresAt != null &&
-        now.isBefore(_cacheExpiresAt!) &&
-        _cachedActions.isNotEmpty) {
-      return _cachedActions;
-    }
-    if (_inflight != null) return _inflight!;
-    _inflight = _buildCache();
-    try {
-      return await _inflight!;
-    } finally {
-      _inflight = null;
-    }
-  }
-
-  @override
-  Action? resolve(String actionType, String name) {
-    final descriptor = _actionIndex[_descriptorKey(actionType, name)];
-    if (descriptor == null) return null;
-    final client = host.getClient(descriptor.serverName);
-    if (client == null) return null;
-    final fullName = '${host.name}/$name';
-    switch (actionType) {
-      case 'tool':
-        return _createToolAction(
-          client,
-          fullName,
-          descriptor.actionName,
-          descriptor.payload,
-          host.rawToolResponses,
-        );
-      case 'prompt':
-        return _createPromptAction(
-          client,
-          fullName,
-          descriptor.actionName,
-          descriptor.payload,
-        );
-      case 'resource':
-        return _createResourceAction(
-          client,
-          fullName,
-          descriptor.actionName,
-          descriptor.payload,
-        );
-      default:
-        return null;
-    }
-  }
-
-  Future<List<ActionMetadata>> _buildCache() async {
-    await host.ready();
-    final actions = <ActionMetadata>[];
-    final index = <String, _McpActionDescriptor>{};
-
-    for (final entry in host.activeClients) {
-      final serverName = entry.serverName;
-      if (host._hasError(serverName)) continue;
-      final tools = await _listAll(entry.listTools);
-      for (final tool in tools) {
-        final name = tool['name'];
-        if (name is! String) continue;
-        final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
-        final meta = extractMcpMeta(tool);
-        final metadata = meta == null
-            ? null
-            : {
-                'mcp': {'_meta': meta},
-              };
-        actions.add(
-          ActionMetadata(
-            name: fullName,
-            actionType: 'tool',
-            description: tool['description']?.toString(),
-            inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-            outputSchema: dynamicSchema(),
-            metadata: metadata,
-          ),
-        );
-        index[_descriptorKey('tool', shortName)] = _McpActionDescriptor(
-          serverName: serverName,
-          actionName: name,
-          payload: tool,
-        );
-      }
-
-      final prompts = await _listAll(entry.listPrompts);
-      for (final prompt in prompts) {
-        final name = prompt['name'];
-        if (name is! String) continue;
-        final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
-        final meta = extractMcpMeta(prompt);
-        final metadata = meta == null
-            ? null
-            : {
-                'mcp': {'_meta': meta},
-              };
-        final args = asListOfMaps(prompt['arguments']);
-        actions.add(
-          ActionMetadata(
-            name: fullName,
-            actionType: 'prompt',
-            description: prompt['description']?.toString(),
-            inputSchema: promptSchemaFromArgs(args),
-            outputSchema: GenerateActionOptions.$schema,
-            metadata: metadata,
-          ),
-        );
-        index[_descriptorKey('prompt', shortName)] = _McpActionDescriptor(
-          serverName: serverName,
-          actionName: name,
-          payload: prompt,
-        );
-      }
-
-      final resources = await _listAll(entry.listResources);
-      for (final resource in resources) {
-        final name = resource['name'];
-        if (name is! String) continue;
-        final uri = resource['uri'] as String?;
-        if (uri == null) continue;
-        final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
-        final meta = extractMcpMeta(resource);
-        final metadata = {
-          'resource': {'uri': uri, 'template': null},
-          if (meta != null) 'mcp': {'_meta': meta},
-        };
-        actions.add(
-          ActionMetadata(
-            name: fullName,
-            actionType: 'resource',
-            description: resource['description']?.toString(),
-            inputSchema: ResourceInput.$schema,
-            outputSchema: ResourceOutput.$schema,
-            metadata: metadata,
-          ),
-        );
-        index[_descriptorKey('resource', shortName)] = _McpActionDescriptor(
-          serverName: serverName,
-          actionName: name,
-          payload: resource,
-        );
-      }
-
-      final templates = await _listAll(entry.listResourceTemplates);
-      for (final template in templates) {
-        final name = template['name'];
-        if (name is! String) continue;
-        final uriTemplate = template['uriTemplate'] as String?;
-        if (uriTemplate == null) continue;
-        final shortName = '$serverName:$name';
-        final fullName = '${host.name}/$shortName';
-        final meta = extractMcpMeta(template);
-        final metadata = {
-          'resource': {'uri': null, 'template': uriTemplate},
-          if (meta != null) 'mcp': {'_meta': meta},
-        };
-        actions.add(
-          ActionMetadata(
-            name: fullName,
-            actionType: 'resource',
-            description: template['description']?.toString(),
-            inputSchema: ResourceInput.$schema,
-            outputSchema: ResourceOutput.$schema,
-            metadata: metadata,
-          ),
-        );
-        index[_descriptorKey('resource', shortName)] = _McpActionDescriptor(
-          serverName: serverName,
-          actionName: name,
-          payload: template,
-        );
-      }
-    }
-
-    _actionIndex
-      ..clear()
-      ..addAll(index);
-    _cachedActions = actions;
-    if (_shouldUseCache()) {
-      _cacheExpiresAt = DateTime.now().add(
-        Duration(milliseconds: _effectiveCacheTtlMillis()),
-      );
-    }
-    return actions;
-  }
-
-  bool _shouldUseCache() {
-    return cacheTtlMillis == null || cacheTtlMillis! >= 0;
-  }
-
-  int _effectiveCacheTtlMillis() {
-    if (cacheTtlMillis == null || cacheTtlMillis == 0) {
-      return 3000;
-    }
-    return cacheTtlMillis!.abs();
-  }
-}
-
 class _ClientState {
   final _ClientError? error;
 
@@ -626,124 +398,4 @@ class _ClientError {
   final Object? detail;
 
   _ClientError({required this.message, this.detail});
-}
-
-class _McpActionDescriptor {
-  final String serverName;
-  final String actionName;
-  final Map<String, dynamic> payload;
-
-  _McpActionDescriptor({
-    required this.serverName,
-    required this.actionName,
-    required this.payload,
-  });
-}
-
-String _descriptorKey(String actionType, String name) => '$actionType|$name';
-
-Future<List<Map<String, dynamic>>> _listAll(
-  Future<Map<String, dynamic>> Function({String? cursor}) lister,
-) async {
-  final items = <Map<String, dynamic>>[];
-  String? cursor;
-  do {
-    final result = await lister(cursor: cursor);
-    items.addAll(asListOfMaps(result['tools']));
-    items.addAll(asListOfMaps(result['prompts']));
-    items.addAll(asListOfMaps(result['resources']));
-    items.addAll(asListOfMaps(result['resourceTemplates']));
-    cursor = result['nextCursor'] as String?;
-  } while (cursor != null);
-  return items;
-}
-
-Tool<Map<String, dynamic>, dynamic> _createToolAction(
-  GenkitMcpClient client,
-  String fullName,
-  String toolName,
-  Map<String, dynamic> tool,
-  bool rawToolResponses,
-) {
-  final description = tool['description']?.toString() ?? '';
-  final meta = extractMcpMeta(tool);
-  return Tool<Map<String, dynamic>, dynamic>(
-    name: fullName,
-    description: description,
-    inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-    outputSchema: dynamicSchema(),
-    metadata: {
-      if (meta != null) 'mcp': {'_meta': meta},
-    },
-    fn: (input, ctx) async {
-      final result = await client.callTool(
-        name: toolName,
-        arguments: input,
-        meta: extractMcpMeta(ctx.context),
-      );
-      if (rawToolResponses) return result;
-      return processToolResult(result);
-    },
-  );
-}
-
-PromptAction<Map<String, dynamic>> _createPromptAction(
-  GenkitMcpClient client,
-  String fullName,
-  String promptName,
-  Map<String, dynamic> prompt,
-) {
-  final description = prompt['description']?.toString();
-  final meta = extractMcpMeta(prompt);
-  final args = asListOfMaps(prompt['arguments']);
-  return PromptAction<Map<String, dynamic>>(
-    name: fullName,
-    description: description,
-    inputSchema: promptSchemaFromArgs(args),
-    metadata: {
-      if (meta != null) 'mcp': {'_meta': meta},
-    },
-    fn: (input, ctx) async {
-      final result = await client.getPromptResult(
-        name: promptName,
-        arguments: input,
-        meta: extractMcpMeta(ctx.context),
-      );
-      final messages = asListOfMaps(
-        result['messages'],
-      ).map(fromMcpPromptMessage).toList();
-      return GenerateActionOptions(messages: messages);
-    },
-  );
-}
-
-ResourceAction _createResourceAction(
-  GenkitMcpClient client,
-  String fullName,
-  String resourceName,
-  Map<String, dynamic> resource,
-) {
-  final description = resource['description']?.toString();
-  final meta = extractMcpMeta(resource);
-  final uri = resource['uri'] as String?;
-  final template = resource['uriTemplate'] as String?;
-  return ResourceAction(
-    name: fullName,
-    description: description,
-    metadata: {
-      'resource': {'uri': uri, 'template': template},
-      if (meta != null) 'mcp': {'_meta': meta},
-    },
-    matches: createResourceMatcher(uri: uri, template: template),
-    fn: (input, ctx) async {
-      final result = await client.readResource(
-        uri: input.uri,
-        meta: extractMcpMeta(ctx.context),
-      );
-      final contents = asListOfMaps(
-        result['contents'],
-      ).map(fromMcpResourceContent).toList();
-      return ResourceOutput(content: contents);
-    },
-  );
 }

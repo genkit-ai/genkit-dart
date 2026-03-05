@@ -21,17 +21,17 @@ part of 'shelf_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ShelfTestOutput {
+base class ShelfTestOutput {
   factory ShelfTestOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
   ShelfTestOutput._(this._json);
 
-  factory ShelfTestOutput({required String greeting}) {
-    return ShelfTestOutput._({'greeting': greeting});
+  ShelfTestOutput({required String greeting}) {
+    _json = {'greeting': greeting};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ShelfTestOutput> $schema =
       _ShelfTestOutputTypeFactory();
@@ -54,7 +54,7 @@ class ShelfTestOutput {
   }
 }
 
-class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
+base class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
   const _ShelfTestOutputTypeFactory();
 
   @override
@@ -65,25 +65,27 @@ class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ShelfTestOutput',
-    definition: Schema.object(
-      properties: {'greeting': Schema.string()},
-      required: ['greeting'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'greeting': $Schema.string()},
+          required: ['greeting'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ShelfTestStream {
+base class ShelfTestStream {
   factory ShelfTestStream.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
   ShelfTestStream._(this._json);
 
-  factory ShelfTestStream({required String chunk}) {
-    return ShelfTestStream._({'chunk': chunk});
+  ShelfTestStream({required String chunk}) {
+    _json = {'chunk': chunk};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<ShelfTestStream> $schema =
       _ShelfTestStreamTypeFactory();
@@ -106,7 +108,7 @@ class ShelfTestStream {
   }
 }
 
-class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
+base class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
   const _ShelfTestStreamTypeFactory();
 
   @override
@@ -117,10 +119,9 @@ class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ShelfTestStream',
-    definition: Schema.object(
-      properties: {'chunk': Schema.string()},
-      required: ['chunk'],
-    ),
+    definition: $Schema
+        .object(properties: {'chunk': $Schema.string()}, required: ['chunk'])
+        .value,
     dependencies: [],
   );
 }

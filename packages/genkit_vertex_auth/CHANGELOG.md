@@ -1,0 +1,15 @@
+## 0.1.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
+## 0.1.0-dev.1
+
+ - Update a dependency to the latest release.
+
+## 0.0.1-dev.2
+
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+
+## 0.0.1-dev.1
+
+- Initial release.

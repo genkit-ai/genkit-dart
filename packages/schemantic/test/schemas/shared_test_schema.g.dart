@@ -21,7 +21,7 @@ part of 'shared_test_schema.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class SharedChild {
+base class SharedChild {
   factory SharedChild.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,7 @@ class SharedChild {
   }
 }
 
-class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
+base class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
   const _SharedChildTypeFactory();
 
   @override
@@ -64,15 +64,17 @@ class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SharedChild',
-    definition: Schema.object(
-      properties: {'childId': Schema.string()},
-      required: ['childId'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'childId': $Schema.string()},
+          required: ['childId'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Part {
+base class Part {
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Part._(this._json);
@@ -95,7 +97,7 @@ class Part {
   }
 }
 
-class _PartTypeFactory extends SchemanticType<Part> {
+base class _PartTypeFactory extends SchemanticType<Part> {
   const _PartTypeFactory();
 
   @override
@@ -106,12 +108,12 @@ class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: Schema.object(properties: {}, required: []),
+    definition: $Schema.object(properties: {}, required: []).value,
     dependencies: [],
   );
 }
 
-class TextPart implements Part {
+base class TextPart implements Part {
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TextPart._(this._json);
@@ -190,7 +192,7 @@ class TextPart implements Part {
   }
 }
 
-class _TextPartTypeFactory extends SchemanticType<TextPart> {
+base class _TextPartTypeFactory extends SchemanticType<TextPart> {
   const _TextPartTypeFactory();
 
   @override
@@ -201,15 +203,17 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextPart',
-    definition: Schema.object(
-      properties: {
-        'text': Schema.string(),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['text'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'text': $Schema.string(),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['text'],
+        )
+        .value,
     dependencies: [],
   );
 }

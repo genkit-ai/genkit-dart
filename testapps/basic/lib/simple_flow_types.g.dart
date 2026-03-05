@@ -21,7 +21,7 @@ part of 'simple_flow_types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Ingredient {
+base class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Ingredient._(this._json);
@@ -60,7 +60,7 @@ class Ingredient {
   }
 }
 
-class _IngredientTypeFactory extends SchemanticType<Ingredient> {
+base class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   const _IngredientTypeFactory();
 
   @override
@@ -71,15 +71,17 @@ class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Ingredient',
-    definition: Schema.object(
-      properties: {'name': Schema.string(), 'quantity': Schema.string()},
-      required: ['name', 'quantity'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'name': $Schema.string(), 'quantity': $Schema.string()},
+          required: ['name', 'quantity'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Recipe {
+base class Recipe {
   factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Recipe._(this._json);
@@ -136,7 +138,7 @@ class Recipe {
   }
 }
 
-class _RecipeTypeFactory extends SchemanticType<Recipe> {
+base class _RecipeTypeFactory extends SchemanticType<Recipe> {
   const _RecipeTypeFactory();
 
   @override
@@ -147,16 +149,18 @@ class _RecipeTypeFactory extends SchemanticType<Recipe> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Recipe',
-    definition: Schema.object(
-      properties: {
-        'title': Schema.string(),
-        'ingredients': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
-        ),
-        'servings': Schema.integer(),
-      },
-      required: ['title', 'ingredients', 'servings'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'title': $Schema.string(),
+            'ingredients': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
+            ),
+            'servings': $Schema.integer(),
+          },
+          required: ['title', 'ingredients', 'servings'],
+        )
+        .value,
     dependencies: [Ingredient.$schema],
   );
 }

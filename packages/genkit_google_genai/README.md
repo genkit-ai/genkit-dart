@@ -21,6 +21,31 @@ void main() async {
   print(response.text);
 }
 ```
+### Vertex AI
+
+To use Google's Vertex AI models, simply use the `vertexAI` plugin handle instead:
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
+
+void main() async {
+  // Initialize Genkit with the Vertex AI plugin
+  // Authentication is handled automatically via Application Default Credentials.
+  // Project ID and location can be specified explicitly or inferred from the environment.
+  final ai = Genkit(
+    plugins: [vertexAI(location: 'us-central1')],
+  );
+
+  // Generate text
+  final response = await ai.generate(
+    model: vertexAI.gemini('gemini-2.5-flash'),
+    prompt: 'Tell me a joke about a developer.',
+  );
+
+  print(response.text);
+}
+```
 
 ### Tool Calling
 
@@ -30,7 +55,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 part 'main.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherToolInput {
   String get location;
 }

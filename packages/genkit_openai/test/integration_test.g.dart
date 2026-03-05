@@ -21,7 +21,7 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherInputSchema {
+base class WeatherInputSchema {
   factory WeatherInputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class WeatherInputSchema {
   }
 }
 
-class _WeatherInputSchemaTypeFactory
+base class _WeatherInputSchemaTypeFactory
     extends SchemanticType<WeatherInputSchema> {
   const _WeatherInputSchemaTypeFactory();
 
@@ -66,15 +66,17 @@ class _WeatherInputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherInputSchema',
-    definition: Schema.object(
-      properties: {'location': Schema.string()},
-      required: ['location'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'location': $Schema.string()},
+          required: ['location'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class PersonSchema {
+base class PersonSchema {
   factory PersonSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -115,7 +117,7 @@ class PersonSchema {
   }
 }
 
-class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
+base class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
   const _PersonSchemaTypeFactory();
 
   @override
@@ -126,10 +128,12 @@ class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PersonSchema',
-    definition: Schema.object(
-      properties: {'name': Schema.string(), 'age': Schema.integer()},
-      required: ['name', 'age'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
+          required: ['name', 'age'],
+        )
+        .value,
     dependencies: [],
   );
 }

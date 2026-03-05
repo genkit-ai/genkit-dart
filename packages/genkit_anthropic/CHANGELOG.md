@@ -1,3 +1,29 @@
+## 0.1.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
+## 0.1.0-dev.1
+
+ - Update a dependency to the latest release.
+
+## 0.0.1-dev.9
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+ - **FEAT**(anthropic): add Vertex AI transport and sample app (#182).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
+## 0.0.1-dev.8
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: do not default instructions for json format (should use native constrained generation) (#176).
+ - **FIX**: fix strict casts (#165).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
 ## 0.0.1-dev.7
 
  - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).

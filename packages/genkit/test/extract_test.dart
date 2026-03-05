@@ -72,6 +72,49 @@ void main() {
         expected: null,
         throws: true,
       ),
+      (
+        description: 'extracts string primitive',
+        input: '"hello"',
+        expected: 'hello',
+        throws: false,
+      ),
+      (
+        description: 'extracts partial string primitive',
+        input: '"hello',
+        expected: 'hello',
+        throws: false,
+      ),
+      (
+        description: 'extracts string primitive from text',
+        input: 'prefix "hello" suffix',
+        expected: 'hello',
+        throws: false,
+      ),
+      (
+        description: 'extracts number primitive',
+        input: '123',
+        expected: 123,
+        throws: false,
+      ),
+      (
+        description: 'extracts number primitive from text',
+        input: 'prefix 123.45 suffix',
+        expected: 123.45,
+        throws: false,
+      ),
+      (
+        description: 'extracts partial number primitive from text',
+        input: 'prefix 123.',
+        expected: 123,
+        throws: false,
+      ),
+
+      (
+        description: 'throws on non-JSON text',
+        input: 'just some plain text without any json primitives',
+        expected: null,
+        throws: true,
+      ),
     ];
 
     for (final t in testCases) {
@@ -83,6 +126,15 @@ void main() {
         }
       });
     }
+
+    test(
+      'works with long non-matching block',
+      () {
+        var longInput = '```'.padRight(4000, ' ');
+        expect(() => extractJson(longInput), throwsFormatException);
+      },
+      timeout: Timeout(const Duration(seconds: 5)),
+    );
   });
 
   group('extractJson (partial)', () {
@@ -159,7 +211,7 @@ void main() {
       (
         description: 'works with unterminated markdown blocks',
         input: '```json\n{"a": "banana',
-        expected: {'a': "banana"},
+        expected: {'a': 'banana'},
       ),
       (
         description: 'handles partial true',
@@ -240,13 +292,13 @@ void main() {
         input:
             '{"title": "Creamy Avocado Pasta", "description": "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It\'s a healthy and satisfying meal that comes together in minutes.", "prepTime": "15 minutes", "cookTime": "15 minutes", "servings": 4, "ingredients": ["2 ripe avocados, pitted and scooped", "250',
         expected: {
-          "title": "Creamy Avocado Pasta",
-          "description":
+          'title': 'Creamy Avocado Pasta',
+          'description':
               "A quick and easy vegetarian pasta dish featuring a rich, creamy sauce made from fresh avocados, lime, and herbs. It's a healthy and satisfying meal that comes together in minutes.",
-          "prepTime": "15 minutes",
-          "cookTime": "15 minutes",
-          "servings": 4,
-          "ingredients": ["2 ripe avocados, pitted and scooped", "250"],
+          'prepTime': '15 minutes',
+          'cookTime': '15 minutes',
+          'servings': 4,
+          'ingredients': ['2 ripe avocados, pitted and scooped', '250'],
         },
       ),
       (
@@ -368,7 +420,7 @@ void main() {
       (
         description: 'handles partial unicode escape',
         input: '{"a": "u\\u12',
-        expected: {'a': "u\\u12"},
+        expected: {'a': 'u\\u12'},
       ),
       (
         description: 'handles partial special character escape',

@@ -17,7 +17,6 @@ import 'dart:io';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
 import 'package:mcp_server_sample/types.dart';
-import 'package:schemantic/schemantic.dart';
 
 /// A simple MCP server that communicates over stdio (JSON-RPC via stdin/stdout).
 ///
@@ -41,7 +40,7 @@ void main() async {
   ai.defineTool<Map<String, dynamic>, String>(
     name: 'greet',
     description: 'Greets a user by name.',
-    inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       final name = input['name']?.toString();
       return 'Hello, ${name ?? 'world'}!';
@@ -51,7 +50,7 @@ void main() async {
   ai.defineTool<Map<String, dynamic>, String>(
     name: 'add',
     description: 'Adds two numbers together.',
-    inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       final a = (input['a'] as num?)?.toDouble() ?? 0;
       final b = (input['b'] as num?)?.toDouble() ?? 0;

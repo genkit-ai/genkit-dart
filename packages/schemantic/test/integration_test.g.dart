@@ -21,7 +21,7 @@ part of 'integration_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class User {
+base class User {
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   User._(this._json);
@@ -72,7 +72,7 @@ class User {
   }
 }
 
-class _UserTypeFactory extends SchemanticType<User> {
+base class _UserTypeFactory extends SchemanticType<User> {
   const _UserTypeFactory();
 
   @override
@@ -83,19 +83,21 @@ class _UserTypeFactory extends SchemanticType<User> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'User',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'age': Schema.integer(),
-        'isAdmin': Schema.boolean(),
-      },
-      required: ['name', 'isAdmin'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'age': $Schema.integer(),
+            'isAdmin': $Schema.boolean(),
+          },
+          required: ['name', 'isAdmin'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Group {
+base class Group {
   factory Group.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Group._(this._json);
@@ -158,7 +160,7 @@ class Group {
   }
 }
 
-class _GroupTypeFactory extends SchemanticType<Group> {
+base class _GroupTypeFactory extends SchemanticType<Group> {
   const _GroupTypeFactory();
 
   @override
@@ -169,21 +171,23 @@ class _GroupTypeFactory extends SchemanticType<Group> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Group',
-    definition: Schema.object(
-      properties: {
-        'groupName': Schema.string(),
-        'members': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/User'}),
-        ),
-        'leader': Schema.fromMap({'\$ref': r'#/$defs/User'}),
-      },
-      required: ['groupName', 'members'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'groupName': $Schema.string(),
+            'members': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+            ),
+            'leader': $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+          },
+          required: ['groupName', 'members'],
+        )
+        .value,
     dependencies: [User.$schema],
   );
 }
 
-class Node {
+base class Node {
   factory Node.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Node._(this._json);
@@ -228,7 +232,7 @@ class Node {
   }
 }
 
-class _NodeTypeFactory extends SchemanticType<Node> {
+base class _NodeTypeFactory extends SchemanticType<Node> {
   const _NodeTypeFactory();
 
   @override
@@ -239,20 +243,22 @@ class _NodeTypeFactory extends SchemanticType<Node> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Node',
-    definition: Schema.object(
-      properties: {
-        'id': Schema.string(),
-        'children': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Node'}),
-        ),
-      },
-      required: ['id'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.string(),
+            'children': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Node'}),
+            ),
+          },
+          required: ['id'],
+        )
+        .value,
     dependencies: [Node.$schema],
   );
 }
 
-class Keyed {
+base class Keyed {
   factory Keyed.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Keyed._(this._json);
@@ -307,7 +313,7 @@ class Keyed {
   }
 }
 
-class _KeyedTypeFactory extends SchemanticType<Keyed> {
+base class _KeyedTypeFactory extends SchemanticType<Keyed> {
   const _KeyedTypeFactory();
 
   @override
@@ -318,22 +324,24 @@ class _KeyedTypeFactory extends SchemanticType<Keyed> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Keyed',
-    definition: Schema.object(
-      properties: {
-        'custom_name': Schema.string(
-          description: 'A custom named field',
-          minLength: 3,
-        ),
-        'score': Schema.integer(minimum: 10, maximum: 100),
-        'rating': Schema.number(minimum: 0.5, maximum: 5.5),
-      },
-      required: ['custom_name'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'custom_name': $Schema.string(
+              description: 'A custom named field',
+              minLength: 3,
+            ),
+            'score': $Schema.integer(minimum: 10, maximum: 100),
+            'rating': $Schema.number(minimum: 0.5, maximum: 5.5),
+          },
+          required: ['custom_name'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Comprehensive {
+base class Comprehensive {
   factory Comprehensive.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -390,7 +398,7 @@ class Comprehensive {
   }
 }
 
-class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
+base class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   const _ComprehensiveTypeFactory();
 
   @override
@@ -401,40 +409,42 @@ class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Comprehensive',
-    definition: Schema.object(
-      properties: {
-        's_field': Schema.string(
-          description: 'A string field',
-          minLength: 1,
-          maxLength: 10,
-          pattern: r'^[a-z]+$',
-          format: 'email',
-          enumValues: ['a', 'b'],
-        ),
-        'i_field': Schema.integer(
-          description: 'An integer field',
-          minimum: 0,
-          maximum: 100,
-          exclusiveMinimum: 0,
-          exclusiveMaximum: 100,
-          multipleOf: 5,
-        ),
-        'n_field': Schema.number(
-          description: 'A number field',
-          minimum: 0.0,
-          maximum: 100.0,
-          exclusiveMinimum: 0.0,
-          exclusiveMaximum: 100.0,
-          multipleOf: 0.5,
-        ),
-      },
-      required: ['s_field', 'i_field', 'n_field'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            's_field': $Schema.string(
+              description: 'A string field',
+              minLength: 1,
+              maxLength: 10,
+              pattern: r'^[a-z]+$',
+              format: 'email',
+              enumValues: ['a', 'b'],
+            ),
+            'i_field': $Schema.integer(
+              description: 'An integer field',
+              minimum: 0,
+              maximum: 100,
+              exclusiveMinimum: 0,
+              exclusiveMaximum: 100,
+              multipleOf: 5,
+            ),
+            'n_field': $Schema.number(
+              description: 'A number field',
+              minimum: 0.0,
+              maximum: 100.0,
+              exclusiveMinimum: 0.0,
+              exclusiveMaximum: 100.0,
+              multipleOf: 0.5,
+            ),
+          },
+          required: ['s_field', 'i_field', 'n_field'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Description {
+base class Description {
   factory Description.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -466,7 +476,7 @@ class Description {
   }
 }
 
-class _DescriptionTypeFactory extends SchemanticType<Description> {
+base class _DescriptionTypeFactory extends SchemanticType<Description> {
   const _DescriptionTypeFactory();
 
   @override
@@ -477,16 +487,18 @@ class _DescriptionTypeFactory extends SchemanticType<Description> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Description',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-      description: 'A schema with description',
-    ),
+    definition: $Schema
+        .object(
+          properties: {'name': $Schema.string()},
+          required: ['name'],
+          description: 'A schema with description',
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class CrossFileParent {
+base class CrossFileParent {
   factory CrossFileParent.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -519,7 +531,7 @@ class CrossFileParent {
   }
 }
 
-class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
+base class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
   const _CrossFileParentTypeFactory();
 
   @override
@@ -530,17 +542,19 @@ class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CrossFileParent',
-    definition: Schema.object(
-      properties: {
-        'child': Schema.fromMap({'\$ref': r'#/$defs/SharedChild'}),
-      },
-      required: ['child'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'child': $Schema.fromMap({'\$ref': r'#/$defs/SharedChild'}),
+          },
+          required: ['child'],
+        )
+        .value,
     dependencies: [SharedChild.$schema],
   );
 }
 
-class Defaults {
+base class Defaults {
   factory Defaults.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Defaults._(this._json);
@@ -600,7 +614,7 @@ class Defaults {
   }
 }
 
-class _DefaultsTypeFactory extends SchemanticType<Defaults> {
+base class _DefaultsTypeFactory extends SchemanticType<Defaults> {
   const _DefaultsTypeFactory();
 
   @override
@@ -611,20 +625,22 @@ class _DefaultsTypeFactory extends SchemanticType<Defaults> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Defaults',
-    definition: Schema.object(
-      properties: {
-        'env': Schema.fromMap({'default': 'prod', 'type': 'string'}),
-        'port': Schema.fromMap({'default': 8080, 'type': 'integer'}),
-        'ratio': Schema.fromMap({'default': 1.5, 'type': 'number'}),
-        'flag': Schema.fromMap({'default': true, 'type': 'boolean'}),
-      },
-      required: ['env', 'port', 'ratio', 'flag'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'env': $Schema.fromMap({'default': 'prod', 'type': 'string'}),
+            'port': $Schema.fromMap({'default': 8080, 'type': 'integer'}),
+            'ratio': $Schema.fromMap({'default': 1.5, 'type': 'number'}),
+            'flag': $Schema.fromMap({'default': true, 'type': 'boolean'}),
+          },
+          required: ['env', 'port', 'ratio', 'flag'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Poly {
+base class Poly {
   factory Poly.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Poly._(this._json);
@@ -656,7 +672,7 @@ class Poly {
   }
 }
 
-class PolyId {
+final class PolyId {
   PolyId.int(int this.value);
 
   PolyId.string(String this.value);
@@ -666,7 +682,7 @@ class PolyId {
   final Object? value;
 }
 
-class _PolyTypeFactory extends SchemanticType<Poly> {
+base class _PolyTypeFactory extends SchemanticType<Poly> {
   const _PolyTypeFactory();
 
   @override
@@ -677,23 +693,25 @@ class _PolyTypeFactory extends SchemanticType<Poly> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Poly',
-    definition: Schema.object(
-      properties: {
-        'id': Schema.combined(
-          anyOf: [
-            Schema.integer(),
-            Schema.string(),
-            Schema.fromMap({'\$ref': r'#/$defs/User'}),
-          ],
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.combined(
+              anyOf: [
+                $Schema.integer(),
+                $Schema.string(),
+                $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+              ],
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [User.$schema],
   );
 }
 
-class MapSchema {
+base class MapSchema {
   factory MapSchema.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MapSchema._(this._json);
@@ -744,7 +762,7 @@ class MapSchema {
   }
 }
 
-class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
+base class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
   const _MapSchemaTypeFactory();
 
   @override
@@ -755,15 +773,110 @@ class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MapSchema',
-    definition: Schema.object(
-      properties: {
-        'stringToInt': Schema.object(additionalProperties: Schema.integer()),
-        'stringToUser': Schema.object(
-          additionalProperties: Schema.fromMap({'\$ref': r'#/$defs/User'}),
-        ),
-      },
-      required: ['stringToInt'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'stringToInt': $Schema.object(
+              additionalProperties: $Schema.integer(),
+            ),
+            'stringToUser': $Schema.object(
+              additionalProperties: $Schema.fromMap({'\$ref': r'#/$defs/User'}),
+            ),
+          },
+          required: ['stringToInt'],
+        )
+        .value,
     dependencies: [User.$schema],
+  );
+}
+
+base class StatusContainer {
+  factory StatusContainer.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  StatusContainer._(this._json);
+
+  StatusContainer({
+    required MyStatus status,
+    MyStatus? optionalStatus,
+    List<MyStatus>? statusList,
+  }) {
+    _json = {
+      'status': status.value,
+      'optionalStatus': ?optionalStatus?.value,
+      'statusList': ?statusList,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<StatusContainer> $schema =
+      _StatusContainerTypeFactory();
+
+  MyStatus get status {
+    final value = _json['status'] as String;
+    return MyStatus(value);
+  }
+
+  set status(MyStatus value) {
+    _json['status'] = value.value;
+  }
+
+  MyStatus? get optionalStatus {
+    return _json['optionalStatus'] as MyStatus?;
+  }
+
+  set optionalStatus(MyStatus? value) {
+    if (value == null) {
+      _json.remove('optionalStatus');
+    } else {
+      _json['optionalStatus'] = value;
+    }
+  }
+
+  List<MyStatus>? get statusList {
+    return (_json['statusList'] as List?)?.cast<MyStatus>();
+  }
+
+  set statusList(List<MyStatus>? value) {
+    if (value == null) {
+      _json.remove('statusList');
+    } else {
+      _json['statusList'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _StatusContainerTypeFactory extends SchemanticType<StatusContainer> {
+  const _StatusContainerTypeFactory();
+
+  @override
+  StatusContainer parse(Object? json) {
+    return StatusContainer._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'StatusContainer',
+    definition: $Schema
+        .object(
+          properties: {
+            'status': $Schema.any(),
+            'optionalStatus': $Schema.any(),
+            'statusList': $Schema.list(items: $Schema.any()),
+          },
+          required: ['status'],
+        )
+        .value,
+    dependencies: [],
   );
 }

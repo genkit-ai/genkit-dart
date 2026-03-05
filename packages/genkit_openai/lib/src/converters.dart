@@ -15,16 +15,16 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
-import 'package:openai_dart/openai_dart.dart';
+import 'package:openai_dart/openai_dart.dart' as sdk;
 
 /// Converter class for transforming between Genkit and OpenAI formats
-class GenkitConverter {
+abstract final class GenkitConverter {
   /// Convert Genkit messages to OpenAI format
-  static List<ChatCompletionMessage> toOpenAIMessages(
+  static List<sdk.ChatMessage> toOpenAIMessages(
     List<Message> messages,
     String? visualDetailLevel,
   ) {
-    final result = <ChatCompletionMessage>[];
+    final result = <sdk.ChatMessage>[];
     for (final message in messages) {
       // Tool messages may contain multiple responses and need to be expanded
       if (message.role == Role.tool) {
@@ -48,7 +48,7 @@ class GenkitConverter {
             );
           }
           result.add(
-            ChatCompletionMessage.tool(
+            sdk.ChatMessage.tool(
               toolCallId: ref,
               content: jsonEncode(toolResponse.output),
             ),
@@ -63,24 +63,22 @@ class GenkitConverter {
 
   /// Convert a single Genkit message to OpenAI format
   /// Note: Tool messages are handled separately in toOpenAIMessages()
-  static ChatCompletionMessage toOpenAIMessage(
+  static sdk.ChatMessage toOpenAIMessage(
     Message msg,
     String? visualDetailLevel,
   ) {
     if (msg.role == Role.system) {
-      return ChatCompletionMessage.system(content: msg.text);
+      return sdk.ChatMessage.system(msg.text);
     }
     if (msg.role == Role.user) {
       final parts = msg.content
           .map((p) => toOpenAIContentPart(p, visualDetailLevel))
           .toList();
-      return ChatCompletionMessage.user(
-        content: ChatCompletionUserMessageContent.parts(parts),
-      );
+      return sdk.ChatMessage.user(parts);
     }
     if (msg.role == Role.model) {
       final toolCalls = _extractToolCalls(msg.content);
-      return ChatCompletionMessage.assistant(
+      return sdk.ChatMessage.assistant(
         content: msg.text,
         toolCalls: toolCalls.isNotEmpty ? toolCalls : null,
       );
@@ -94,39 +92,46 @@ class GenkitConverter {
   }
 
   /// Convert Genkit Part to OpenAI content part
-  static ChatCompletionMessageContentPart toOpenAIContentPart(
+  static sdk.ContentPart toOpenAIContentPart(
     Part part,
     String? visualDetailLevel,
   ) {
     if (part.isText) {
-      return ChatCompletionMessageContentPart.text(text: part.text!);
+      return sdk.ContentPart.text(part.text!);
     }
     if (part.isMedia) {
       final media = (part as MediaPart).media;
-      return ChatCompletionMessageContentPart.image(
-        imageUrl: ChatCompletionMessageImageUrl(
-          url: media.url,
+      if (media.url.startsWith('data:')) {
+        // Parse data URI: data:<mediaType>;base64,<data>
+        final commaIdx = media.url.indexOf(',');
+        final base64Data = media.url.substring(commaIdx + 1);
+        final mimeType = media.contentType ?? 'image/png';
+        return sdk.ContentPart.imageBase64(
+          data: base64Data,
+          mediaType: mimeType,
           detail: _mapVisualDetailLevel(visualDetailLevel),
-        ),
+        );
+      }
+      return sdk.ContentPart.imageUrl(
+        media.url,
+        detail: _mapVisualDetailLevel(visualDetailLevel),
       );
     }
     throw UnimplementedError('Unsupported part type: $part');
   }
 
   /// Map visual detail level string to enum
-  static ChatCompletionMessageImageDetail _mapVisualDetailLevel(String? level) {
+  static sdk.ImageDetail _mapVisualDetailLevel(String? level) {
     return switch (level) {
-      'low' => ChatCompletionMessageImageDetail.low,
-      'high' => ChatCompletionMessageImageDetail.high,
-      _ => ChatCompletionMessageImageDetail.auto,
+      'low' => sdk.ImageDetail.low,
+      'high' => sdk.ImageDetail.high,
+      _ => sdk.ImageDetail.auto,
     };
   }
 
   /// Extract tool calls from message content
-  static List<ChatCompletionMessageToolCall> _extractToolCalls(
-    List<Part> content,
-  ) {
-    final toolCalls = <ChatCompletionMessageToolCall>[];
+  static List<sdk.ToolCall> _extractToolCalls(List<Part> content) {
+    final toolCalls = <sdk.ToolCall>[];
     for (final part in content) {
       if (part.isToolRequest) {
         final toolRequest = part.toolRequest!;
@@ -137,10 +142,9 @@ class GenkitConverter {
           );
         }
         toolCalls.add(
-          ChatCompletionMessageToolCall(
+          sdk.ToolCall.functionCall(
             id: ref,
-            type: ChatCompletionMessageToolCallType.function,
-            function: ChatCompletionMessageFunctionCall(
+            call: sdk.FunctionCall(
               name: toolRequest.name,
               arguments: jsonEncode(toolRequest.input ?? {}),
             ),
@@ -152,7 +156,7 @@ class GenkitConverter {
   }
 
   /// Convert Genkit tool to OpenAI format
-  static ChatCompletionTool toOpenAITool(ToolDefinition tool) {
+  static sdk.Tool toOpenAITool(ToolDefinition tool) {
     // OpenAI requires parameters to be a valid JSON Schema object
     // If no schema is provided, use an empty object schema
     var parameters = tool.inputSchema;
@@ -164,25 +168,25 @@ class GenkitConverter {
       parameters = {'type': 'object', ...parameters};
     }
 
-    return ChatCompletionTool(
-      type: ChatCompletionToolType.function,
-      function: FunctionObject(
-        name: tool.name,
-        description: tool.description,
-        parameters: parameters,
-      ),
+    return sdk.Tool.function(
+      name: tool.name,
+      description: tool.description,
+      parameters: parameters,
     );
   }
 
   /// Convert OpenAI assistant message to Genkit format.
   ///
   /// This is used for converting response messages from the OpenAI API.
-  /// For responses, we always get a ChatCompletionAssistantMessage with
-  /// optional text content and/or tool calls.
-  static Message fromOpenAIAssistantMessage(
-    ChatCompletionAssistantMessage msg,
-  ) {
+  /// For responses, we always get an [sdk.AssistantMessage] with
+  /// optional text content, refusal, and/or tool calls.
+  static Message fromOpenAIAssistantMessage(sdk.AssistantMessage msg) {
     final parts = <Part>[];
+
+    // Handle refusal
+    if (msg.refusal != null && msg.refusal!.isNotEmpty) {
+      parts.add(TextPart(text: '[Refusal] ${msg.refusal}'));
+    }
 
     // Handle text content (always a String? for assistant messages)
     if (msg.content != null && msg.content!.isNotEmpty) {

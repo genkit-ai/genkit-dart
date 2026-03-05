@@ -20,7 +20,7 @@ part of 'filesystem_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class FilesystemOptions {
+base class FilesystemOptions {
   factory FilesystemOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,8 @@ class FilesystemOptions {
   }
 }
 
-class _FilesystemOptionsTypeFactory extends SchemanticType<FilesystemOptions> {
+base class _FilesystemOptionsTypeFactory
+    extends SchemanticType<FilesystemOptions> {
   const _FilesystemOptionsTypeFactory();
 
   @override
@@ -64,20 +65,22 @@ class _FilesystemOptionsTypeFactory extends SchemanticType<FilesystemOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FilesystemOptions',
-    definition: Schema.object(
-      properties: {
-        'rootDirectory': Schema.string(
-          description:
-              'The root directory to which all filesystem operations are restricted.',
-        ),
-      },
-      required: ['rootDirectory'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'rootDirectory': $Schema.string(
+              description:
+                  'The root directory to which all filesystem operations are restricted.',
+            ),
+          },
+          required: ['rootDirectory'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ListFilesInput {
+base class ListFilesInput {
   factory ListFilesInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -126,7 +129,7 @@ class ListFilesInput {
   }
 }
 
-class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
+base class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
   const _ListFilesInputTypeFactory();
 
   @override
@@ -137,26 +140,28 @@ class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ListFilesInput',
-    definition: Schema.object(
-      properties: {
-        'dirPath': Schema.fromMap({
-          'description': 'Directory path relative to root.',
-          'default': '',
-          'type': 'string',
-        }),
-        'recursive': Schema.fromMap({
-          'description': 'Whether to list files recursively.',
-          'default': false,
-          'type': 'boolean',
-        }),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'dirPath': $Schema.fromMap({
+              'description': 'Directory path relative to root.',
+              'default': '',
+              'type': 'string',
+            }),
+            'recursive': $Schema.fromMap({
+              'description': 'Whether to list files recursively.',
+              'default': false,
+              'type': 'boolean',
+            }),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ReadFileInput {
+base class ReadFileInput {
   factory ReadFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -189,7 +194,7 @@ class ReadFileInput {
   }
 }
 
-class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
+base class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
   const _ReadFileInputTypeFactory();
 
   @override
@@ -200,17 +205,21 @@ class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReadFileInput',
-    definition: Schema.object(
-      properties: {
-        'filePath': Schema.string(description: 'File path relative to root.'),
-      },
-      required: ['filePath'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'filePath': $Schema.string(
+              description: 'File path relative to root.',
+            ),
+          },
+          required: ['filePath'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class WriteFileInput {
+base class WriteFileInput {
   factory WriteFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -251,7 +260,7 @@ class WriteFileInput {
   }
 }
 
-class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
+base class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
   const _WriteFileInputTypeFactory();
 
   @override
@@ -262,18 +271,24 @@ class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WriteFileInput',
-    definition: Schema.object(
-      properties: {
-        'filePath': Schema.string(description: 'File path relative to root.'),
-        'content': Schema.string(description: 'Content to write to the file.'),
-      },
-      required: ['filePath', 'content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'filePath': $Schema.string(
+              description: 'File path relative to root.',
+            ),
+            'content': $Schema.string(
+              description: 'Content to write to the file.',
+            ),
+          },
+          required: ['filePath', 'content'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class SearchAndReplaceInput {
+base class SearchAndReplaceInput {
   factory SearchAndReplaceInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -317,7 +332,7 @@ class SearchAndReplaceInput {
   }
 }
 
-class _SearchAndReplaceInputTypeFactory
+base class _SearchAndReplaceInputTypeFactory
     extends SchemanticType<SearchAndReplaceInput> {
   const _SearchAndReplaceInputTypeFactory();
 
@@ -329,22 +344,26 @@ class _SearchAndReplaceInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SearchAndReplaceInput',
-    definition: Schema.object(
-      properties: {
-        'filePath': Schema.string(description: 'File path relative to root.'),
-        'edits': Schema.list(
-          description:
-              'A search and replace block string in the format:\n<<<<<<< SEARCH\n[search content]\n=======\n[replace content]\n>>>>>>> REPLACE',
-          items: Schema.string(),
-        ),
-      },
-      required: ['filePath', 'edits'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'filePath': $Schema.string(
+              description: 'File path relative to root.',
+            ),
+            'edits': $Schema.list(
+              description:
+                  'A search and replace block string in the format:\n<<<<<<< SEARCH\n[search content]\n=======\n[replace content]\n>>>>>>> REPLACE',
+              items: $Schema.string(),
+            ),
+          },
+          required: ['filePath', 'edits'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ListFileOutputItem {
+base class ListFileOutputItem {
   factory ListFileOutputItem.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -385,7 +404,7 @@ class ListFileOutputItem {
   }
 }
 
-class _ListFileOutputItemTypeFactory
+base class _ListFileOutputItemTypeFactory
     extends SchemanticType<ListFileOutputItem> {
   const _ListFileOutputItemTypeFactory();
 
@@ -397,10 +416,15 @@ class _ListFileOutputItemTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ListFileOutputItem',
-    definition: Schema.object(
-      properties: {'path': Schema.string(), 'isDirectory': Schema.boolean()},
-      required: ['path', 'isDirectory'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'path': $Schema.string(),
+            'isDirectory': $Schema.boolean(),
+          },
+          required: ['path', 'isDirectory'],
+        )
+        .value,
     dependencies: [],
   );
 }

@@ -21,7 +21,7 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ProcessObjectInput {
+base class ProcessObjectInput {
   factory ProcessObjectInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -62,7 +62,7 @@ class ProcessObjectInput {
   }
 }
 
-class _ProcessObjectInputTypeFactory
+base class _ProcessObjectInputTypeFactory
     extends SchemanticType<ProcessObjectInput> {
   const _ProcessObjectInputTypeFactory();
 
@@ -74,15 +74,17 @@ class _ProcessObjectInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ProcessObjectInput',
-    definition: Schema.object(
-      properties: {'message': Schema.string(), 'count': Schema.integer()},
-      required: ['message', 'count'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'message': $Schema.string(), 'count': $Schema.integer()},
+          required: ['message', 'count'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ProcessObjectOutput {
+base class ProcessObjectOutput {
   factory ProcessObjectOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -123,7 +125,7 @@ class ProcessObjectOutput {
   }
 }
 
-class _ProcessObjectOutputTypeFactory
+base class _ProcessObjectOutputTypeFactory
     extends SchemanticType<ProcessObjectOutput> {
   const _ProcessObjectOutputTypeFactory();
 
@@ -135,15 +137,20 @@ class _ProcessObjectOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ProcessObjectOutput',
-    definition: Schema.object(
-      properties: {'reply': Schema.string(), 'newCount': Schema.integer()},
-      required: ['reply', 'newCount'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'reply': $Schema.string(),
+            'newCount': $Schema.integer(),
+          },
+          required: ['reply', 'newCount'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class StreamObjectsInput {
+base class StreamObjectsInput {
   factory StreamObjectsInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -176,7 +183,7 @@ class StreamObjectsInput {
   }
 }
 
-class _StreamObjectsInputTypeFactory
+base class _StreamObjectsInputTypeFactory
     extends SchemanticType<StreamObjectsInput> {
   const _StreamObjectsInputTypeFactory();
 
@@ -188,15 +195,14 @@ class _StreamObjectsInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StreamObjectsInput',
-    definition: Schema.object(
-      properties: {'prompt': Schema.string()},
-      required: ['prompt'],
-    ),
+    definition: $Schema
+        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
+        .value,
     dependencies: [],
   );
 }
 
-class StreamObjectsOutput {
+base class StreamObjectsOutput {
   factory StreamObjectsOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -237,7 +243,7 @@ class StreamObjectsOutput {
   }
 }
 
-class _StreamObjectsOutputTypeFactory
+base class _StreamObjectsOutputTypeFactory
     extends SchemanticType<StreamObjectsOutput> {
   const _StreamObjectsOutputTypeFactory();
 
@@ -249,15 +255,17 @@ class _StreamObjectsOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StreamObjectsOutput',
-    definition: Schema.object(
-      properties: {'text': Schema.string(), 'summary': Schema.string()},
-      required: ['text', 'summary'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'text': $Schema.string(), 'summary': $Schema.string()},
+          required: ['text', 'summary'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class StreamyThrowyChunk {
+base class StreamyThrowyChunk {
   factory StreamyThrowyChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -290,7 +298,7 @@ class StreamyThrowyChunk {
   }
 }
 
-class _StreamyThrowyChunkTypeFactory
+base class _StreamyThrowyChunkTypeFactory
     extends SchemanticType<StreamyThrowyChunk> {
   const _StreamyThrowyChunkTypeFactory();
 
@@ -302,10 +310,9 @@ class _StreamyThrowyChunkTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StreamyThrowyChunk',
-    definition: Schema.object(
-      properties: {'count': Schema.integer()},
-      required: ['count'],
-    ),
+    definition: $Schema
+        .object(properties: {'count': $Schema.integer()}, required: ['count'])
+        .value,
     dependencies: [],
   );
 }

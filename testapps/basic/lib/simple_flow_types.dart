@@ -16,13 +16,13 @@ import 'package:schemantic/schemantic.dart';
 
 part 'simple_flow_types.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Ingredient {
   String get name;
   String get quantity;
 }
 
-@Schematic()
+@Schema()
 abstract class $Recipe {
   String get title;
   List<$Ingredient> get ingredients;

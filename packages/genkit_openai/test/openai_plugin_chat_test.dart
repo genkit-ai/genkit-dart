@@ -12,18 +12,220 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/genkit.dart' hide Tool;
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:openai_dart/openai_dart.dart'
-    show
-        ChatCompletionAssistantMessage,
-        ChatCompletionMessageContentPart,
-        ChatCompletionSystemMessage,
-        ChatCompletionToolMessage,
-        ChatCompletionUserMessage;
+    show AssistantMessage, ContentPart, SystemMessage, ToolMessage, UserMessage;
 import 'package:test/test.dart';
 
 void main() {
+  group('OpenAIOptions', () {
+    test('parses temperature', () {
+      final options = OpenAIOptions.$schema.parse({'temperature': 0.7});
+      expect(options.temperature, 0.7);
+    });
+
+    test('parses maxTokens', () {
+      final options = OpenAIOptions.$schema.parse({'maxTokens': 100});
+      expect(options.maxTokens, 100);
+    });
+
+    test('parses jsonMode', () {
+      final options = OpenAIOptions.$schema.parse({'jsonMode': true});
+      expect(options.jsonMode, true);
+    });
+
+    test('parses stop sequences', () {
+      final options = OpenAIOptions.$schema.parse({
+        'stop': ['stop1', 'stop2'],
+      });
+      expect(options.stop, ['stop1', 'stop2']);
+    });
+
+    test('creates default options', () {
+      final options = OpenAIOptions();
+      expect(options.temperature, isNull);
+      expect(options.maxTokens, isNull);
+    });
+  });
+
+  group('OpenAIVertexConfig', () {
+    test('builds ADC helper config', () {
+      final config = OpenAIVertexConfig.adc(projectId: 'my-project');
+
+      expect(config.projectId, 'my-project');
+      expect(config.location, 'global');
+      expect(config.endpointId, 'openapi');
+      expect(config.accessToken, isNull);
+      expect(config.accessTokenProvider, isNotNull);
+    });
+
+    test('builds service account helper config', () {
+      final config = OpenAIVertexConfig.serviceAccount(
+        credentialsJson: {
+          'type': 'service_account',
+          'project_id': 'my-project',
+          'client_email': 'svc@project.iam.gserviceaccount.com',
+          'client_id': '1234567890',
+          'private_key':
+              '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n',
+        },
+      );
+
+      expect(config.projectId, isNull);
+      expect(config.resolveProjectId(), 'my-project');
+      expect(config.location, 'global');
+      expect(config.endpointId, 'openapi');
+      expect(config.accessToken, isNull);
+      expect(config.accessTokenProvider, isNotNull);
+    });
+
+    test('prefers explicit projectId over service account project_id', () {
+      final config = OpenAIVertexConfig.serviceAccount(
+        projectId: 'my-explicit-project',
+        credentialsJson: {
+          'type': 'service_account',
+          'project_id': 'my-inferred-project',
+          'client_email': 'svc@project.iam.gserviceaccount.com',
+          'client_id': '1234567890',
+          'private_key':
+              '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n',
+        },
+      );
+
+      expect(config.resolveProjectId(), 'my-explicit-project');
+    });
+
+    test('resolves global base URL', () {
+      final config = OpenAIVertexConfig(
+        projectId: 'my-project',
+        accessToken: 'ya29.token',
+      );
+
+      expect(
+        config.resolveBaseUrl(),
+        'https://aiplatform.googleapis.com/v1/projects/my-project/locations/global/endpoints/openapi',
+      );
+    });
+
+    test('resolves regional base URL', () {
+      final config = OpenAIVertexConfig(
+        projectId: 'my-project',
+        location: 'us-east5',
+        endpointId: 'openapi',
+        accessToken: 'ya29.token',
+      );
+
+      expect(
+        config.resolveBaseUrl(),
+        'https://us-east5-aiplatform.googleapis.com/v1/projects/my-project/locations/us-east5/endpoints/openapi',
+      );
+    });
+
+    test('resolves access token from provider', () async {
+      final config = OpenAIVertexConfig(
+        projectId: 'my-project',
+        accessTokenProvider: () async => 'ya29.from-provider',
+      );
+
+      expect(await config.resolveAccessToken(), 'ya29.from-provider');
+    });
+
+    test('rejects invalid config with both token sources', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          accessToken: 'ya29.token',
+          accessTokenProvider: () async => 'ya29.provider',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either accessToken or accessTokenProvider, not both.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects invalid location', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          location: 'evil.com/path?',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI location may only contain letters, numbers, and hyphens.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects empty projectId', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: '   ',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI requires a non-empty projectId.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects empty endpointId', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          endpointId: '   ',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI requires a non-empty endpointId.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects invalid endpointId', () {
+      expect(
+        () => OpenAIVertexConfig(
+          projectId: 'my-project',
+          endpointId: 'openapi/path',
+          accessToken: 'ya29.token',
+        ).validate(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Vertex OpenAI endpointId may only contain letters, numbers, underscores, and hyphens.',
+              ),
+        ),
+      );
+    });
+  });
+
   group('GenkitConverter.toOpenAIMessage', () {
     test('converts system message', () {
       final msg = Message(
@@ -31,11 +233,8 @@ void main() {
         content: [TextPart(text: 'You are helpful.')],
       );
       final result = GenkitConverter.toOpenAIMessage(msg, null);
-      expect(result, isA<ChatCompletionSystemMessage>());
-      expect(
-        (result as ChatCompletionSystemMessage).content,
-        'You are helpful.',
-      );
+      expect(result, isA<SystemMessage>());
+      expect((result as SystemMessage).content, 'You are helpful.');
     });
 
     test('converts user message with text', () {
@@ -44,7 +243,7 @@ void main() {
         content: [TextPart(text: 'Hello!')],
       );
       final result = GenkitConverter.toOpenAIMessage(msg, null);
-      expect(result, isA<ChatCompletionUserMessage>());
+      expect(result, isA<UserMessage>());
     });
 
     test('converts model message with tool calls', () {
@@ -62,8 +261,8 @@ void main() {
         ],
       );
       final result = GenkitConverter.toOpenAIMessage(msg, null);
-      expect(result, isA<ChatCompletionAssistantMessage>());
-      final assistantMsg = result as ChatCompletionAssistantMessage;
+      expect(result, isA<AssistantMessage>());
+      final assistantMsg = result as AssistantMessage;
       expect(assistantMsg.toolCalls, isNotNull);
       expect(assistantMsg.toolCalls!.length, 1);
     });
@@ -83,8 +282,8 @@ void main() {
       );
       final results = GenkitConverter.toOpenAIMessages([msg], null);
       expect(results.length, 1);
-      expect(results[0], isA<ChatCompletionToolMessage>());
-      final toolMsg = results[0] as ChatCompletionToolMessage;
+      expect(results[0], isA<ToolMessage>());
+      final toolMsg = results[0] as ToolMessage;
       expect(toolMsg.toolCallId, 'call_123');
     });
 
@@ -110,12 +309,30 @@ void main() {
       );
       final results = GenkitConverter.toOpenAIMessages([msg], null);
       expect(results.length, 2);
-      expect(results[0], isA<ChatCompletionToolMessage>());
-      expect(results[1], isA<ChatCompletionToolMessage>());
-      final toolMsg1 = results[0] as ChatCompletionToolMessage;
-      final toolMsg2 = results[1] as ChatCompletionToolMessage;
+      expect(results[0], isA<ToolMessage>());
+      expect(results[1], isA<ToolMessage>());
+      final toolMsg1 = results[0] as ToolMessage;
+      final toolMsg2 = results[1] as ToolMessage;
       expect(toolMsg1.toolCallId, 'call_123');
       expect(toolMsg2.toolCallId, 'call_456');
+    });
+
+    test('throws on tool message with missing ref', () {
+      final msg = Message(
+        role: Role.tool,
+        content: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              name: 'getWeather',
+              output: {'temperature': 72},
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => GenkitConverter.toOpenAIMessages([msg], null),
+        throwsA(isA<ArgumentError>()),
+      );
     });
   });
 
@@ -123,10 +340,10 @@ void main() {
     test('converts text part', () {
       final part = TextPart(text: 'Hello');
       final result = GenkitConverter.toOpenAIContentPart(part, null);
-      expect(result, isA<ChatCompletionMessageContentPart>());
+      expect(result, isA<ContentPart>());
     });
 
-    test('converts media part', () {
+    test('converts media part with URL', () {
       final part = MediaPart(
         media: Media(
           url: 'https://example.com/image.png',
@@ -134,7 +351,18 @@ void main() {
         ),
       );
       final result = GenkitConverter.toOpenAIContentPart(part, 'high');
-      expect(result, isA<ChatCompletionMessageContentPart>());
+      expect(result, isA<ContentPart>());
+    });
+
+    test('converts media part with base64 data URI', () {
+      final part = MediaPart(
+        media: Media(
+          url: 'data:image/png;base64,iVBORw0KGgoAAAANS',
+          contentType: 'image/png',
+        ),
+      );
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+      expect(result, isA<ContentPart>());
     });
   });
 
@@ -153,6 +381,15 @@ void main() {
       final result = GenkitConverter.toOpenAITool(tool);
       expect(result.function.name, 'getWeather');
       expect(result.function.description, 'Get weather for a location');
+    });
+  });
+
+  group('GenkitConverter.fromOpenAIAssistantMessage', () {
+    test('handles refusal', () {
+      final msg = AssistantMessage(refusal: 'I cannot do that.');
+      final result = GenkitConverter.fromOpenAIAssistantMessage(msg);
+      expect(result.content.length, 1);
+      expect(result.text, '[Refusal] I cannot do that.');
     });
   });
 
@@ -260,6 +497,50 @@ void main() {
 
     test('returns unknown for unrecognized models', () {
       expect(getModelType('my-custom-model'), 'unknown');
+    });
+  });
+
+  group('Plugin configuration', () {
+    test('rejects conflicting apiKey + vertex configuration', () {
+      expect(
+        () => openAI(
+          apiKey: 'openai-key',
+          vertex: OpenAIVertexConfig(
+            projectId: 'my-project',
+            accessToken: 'ya29.token',
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either apiKey or vertex configuration, not both.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects conflicting baseUrl + vertex configuration', () {
+      expect(
+        () => openAI(
+          baseUrl: 'https://example.com/openai/v1',
+          vertex: OpenAIVertexConfig(
+            projectId: 'my-project',
+            accessToken: 'ya29.token',
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either baseUrl or vertex configuration, not both.',
+              ),
+        ),
+      );
     });
   });
 }

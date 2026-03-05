@@ -21,7 +21,7 @@ part of 'genkit_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestCustomOptions {
+base class TestCustomOptions {
   factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class TestCustomOptions {
   }
 }
 
-class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
+base class _TestCustomOptionsTypeFactory
+    extends SchemanticType<TestCustomOptions> {
   const _TestCustomOptionsTypeFactory();
 
   @override
@@ -65,15 +66,17 @@ class _TestCustomOptionsTypeFactory extends SchemanticType<TestCustomOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestCustomOptions',
-    definition: Schema.object(
-      properties: {'customField': Schema.string()},
-      required: ['customField'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'customField': $Schema.string()},
+          required: ['customField'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class TestToolInput {
+base class TestToolInput {
   factory TestToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -106,7 +109,7 @@ class TestToolInput {
   }
 }
 
-class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
+base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   const _TestToolInputTypeFactory();
 
   @override
@@ -117,15 +120,14 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestToolInput',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(properties: {'name': $Schema.string()}, required: ['name'])
+        .value,
     dependencies: [],
   );
 }
 
-class TestOutputSchema {
+base class TestOutputSchema {
   factory TestOutputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -166,7 +168,8 @@ class TestOutputSchema {
   }
 }
 
-class _TestOutputSchemaTypeFactory extends SchemanticType<TestOutputSchema> {
+base class _TestOutputSchemaTypeFactory
+    extends SchemanticType<TestOutputSchema> {
   const _TestOutputSchemaTypeFactory();
 
   @override
@@ -177,10 +180,12 @@ class _TestOutputSchemaTypeFactory extends SchemanticType<TestOutputSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestOutputSchema',
-    definition: Schema.object(
-      properties: {'title': Schema.string(), 'rating': Schema.integer()},
-      required: ['title', 'rating'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'title': $Schema.string(), 'rating': $Schema.integer()},
+          required: ['title', 'rating'],
+        )
+        .value,
     dependencies: [],
   );
 }

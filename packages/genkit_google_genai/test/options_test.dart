@@ -14,8 +14,6 @@
 
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/plugin_impl.dart';
-import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
-    as gcl;
 import 'package:test/test.dart';
 
 void main() {
@@ -47,13 +45,16 @@ void main() {
         thinkingConfig: ThinkingConfig(
           includeThoughts: true,
           thinkingBudget: 2048,
+          thinkingLevel: 'HIGH',
         ),
       );
 
       final settings = toGeminiSettings(options, null, false);
 
-      expect(settings.thinkingConfig?.includeThoughts, isTrue);
-      expect(settings.thinkingConfig?.thinkingBudget, 2048);
+      expect(settings.thinkingConfig, isNotNull);
+      expect(settings.thinkingConfig!.includeThoughts, isTrue);
+      expect(settings.thinkingConfig!.thinkingBudget, 2048);
+      expect(settings.thinkingConfig!.thinkingLevel, 'HIGH');
     });
 
     test('maps response modalities', () {
@@ -63,11 +64,7 @@ void main() {
 
       final settings = toGeminiSettings(options, null, false);
 
-      expect(settings.responseModalities, [
-        gcl.GenerationConfig_Modality.text,
-        gcl.GenerationConfig_Modality.audio,
-        gcl.GenerationConfig_Modality.image,
-      ]);
+      expect(settings.responseModalities, ['TEXT', 'AUDIO', 'IMAGE']);
     });
   });
 
@@ -85,14 +82,8 @@ void main() {
       final settings = toGeminiSafetySettings(options.safetySettings);
 
       expect(settings, hasLength(1));
-      expect(
-        settings!.first.category,
-        gcl.HarmCategory.harmCategoryDangerousContent,
-      );
-      expect(
-        settings.first.threshold,
-        gcl.SafetySetting_HarmBlockThreshold.blockOnlyHigh,
-      );
+      expect(settings!.first.category, 'HARM_CATEGORY_DANGEROUS_CONTENT');
+      expect(settings.first.threshold, 'BLOCK_ONLY_HIGH');
     });
   });
 
@@ -124,10 +115,7 @@ void main() {
       );
       final config = toGeminiToolConfig(options.functionCallingConfig);
 
-      expect(
-        config?.functionCallingConfig?.mode,
-        gcl.FunctionCallingConfig_Mode.any,
-      );
+      expect(config?.functionCallingConfig?.mode, 'ANY');
       expect(config?.functionCallingConfig?.allowedFunctionNames, ['foo']);
     });
   });
