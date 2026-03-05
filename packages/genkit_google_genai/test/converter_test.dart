@@ -14,9 +14,9 @@
 
 import 'dart:convert';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/src/common_plugin.dart';
 import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
     as gcl;
-import 'package:genkit_google_genai/src/plugin_impl.dart';
 import 'package:test/test.dart';
 
 void main() {

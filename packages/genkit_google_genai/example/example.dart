@@ -24,10 +24,6 @@ void main(List<String> args) async {
   final ai = Genkit(
     plugins: [
       googleAI(),
-      vertexAI(
-        projectId: Platform.environment['GCLOUD_PROJECT'],
-        location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
-      ),
     ],
   );
 

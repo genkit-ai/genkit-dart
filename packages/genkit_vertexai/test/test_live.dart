@@ -15,7 +15,7 @@
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_vertexai/genkit_vertexai.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -34,24 +34,23 @@ abstract class $CalculatorInput {
 }
 
 void main() {
-  // Check if API key is available
-  final apiKey =
-      Platform.environment['GOOGLE_GENAI_API_KEY'] ??
-      Platform.environment['GEMINI_API_KEY'];
+  final projectId = Platform.environment['GCLOUD_PROJECT'];
+  final location = Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1';
+
   final configs = [
-    if (apiKey != null)
+    if (projectId != null)
       (
-        name: 'Google AI',
-        plugin: googleAI(apiKey: apiKey),
-        gemini: googleAI.gemini,
-        textEmbedding: googleAI.textEmbedding,
+        name: 'Vertex AI',
+        plugin: vertexAI(projectId: projectId, location: location),
+        gemini: vertexAI.gemini,
+        textEmbedding: vertexAI.textEmbedding,
         modelName: 'gemini-2.5-flash',
         embedderName: 'gemini-embedding-001',
       ),
   ];
 
   if (configs.isEmpty) {
-    print('Skipping live tests: No API key found');
+    print('Skipping live tests: No GCLOUD_PROJECT found');
     return;
   }
 

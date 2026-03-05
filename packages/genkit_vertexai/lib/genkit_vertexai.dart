@@ -13,28 +13,37 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:http/http.dart' as http;
 
-import 'src/google_api_client.dart';
-import 'src/model.dart';
+import 'src/vertex_api_client.dart';
 
-export 'src/model.dart';
+export 'package:genkit_google_genai/genkit_google_genai.dart' show GeminiOptions, TextEmbedderOptions;
 
-const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
+const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
-class GoogleGenAiPluginHandle {
-  const GoogleGenAiPluginHandle();
+class VertexAiPluginHandle {
+  const VertexAiPluginHandle();
 
-  GenkitPlugin call({String? apiKey}) {
-    return GoogleGenAiPluginImpl(apiKey: apiKey);
+  GenkitPlugin call({
+    String? projectId,
+    String? location,
+    http.Client? authClient,
+  }) {
+    return VertexAiPluginImpl(
+      projectId: projectId,
+      location: location,
+      authClient: authClient,
+    );
   }
 
   ModelRef<GeminiOptions> gemini(String name) {
-    return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
+    return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
   }
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
-      'googleai/$name',
+      'vertexai/$name',
       customOptions: TextEmbedderOptions.$schema,
     );
   }

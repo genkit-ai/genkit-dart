@@ -15,7 +15,8 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/src/plugin_impl.dart';
+
+import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -53,11 +54,10 @@ void main() {
   group('Vertex AI Plugin', () {
     test('uses correct endpoint for regional location', () async {
       final mockClient = MockHttpClient();
-      final plugin = GoogleGenAiPluginImpl(
+      final plugin = VertexAiPluginImpl(
         projectId: 'my-project',
         location: 'us-central1',
         authClient: mockClient,
-        isVertex: true,
       );
 
       final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
@@ -81,11 +81,10 @@ void main() {
 
     test('uses correct endpoint for global location', () async {
       final mockClient = MockHttpClient();
-      final plugin = GoogleGenAiPluginImpl(
+      final plugin = VertexAiPluginImpl(
         projectId: 'my-project',
         location: 'global',
         authClient: mockClient,
-        isVertex: true,
       );
 
       final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
