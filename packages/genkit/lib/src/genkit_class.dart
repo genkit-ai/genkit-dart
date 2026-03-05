@@ -26,9 +26,9 @@ import 'ai/generate_middleware.dart';
 import 'ai/generate_types.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
+import 'ai/remote_model.dart';
 import 'ai/resource.dart';
 import 'ai/tool.dart';
-import 'client/client.dart';
 import 'core/action.dart';
 import 'core/dynamic_action_provider.dart';
 import 'core/flow.dart';
@@ -277,59 +277,15 @@ final class Genkit {
     ModelInfo? modelInfo,
     http.Client? httpClient,
   }) {
-    final remoteAction =
-        defineRemoteAction<
-          ModelRequest,
-          ModelResponse,
-          ModelResponseChunk,
-          void
-        >(
-          url: url,
-          httpClient: httpClient,
-          inputSchema: ModelRequest.$schema,
-          outputSchema: ModelResponse.$schema,
-          streamSchema: ModelResponseChunk.$schema,
-        );
-
-    return defineModel(
-        name: name,
-        fn: (input, context) async {
-          if (context.streamingRequested) {
-            final stream = remoteAction.stream(
-              input: input,
-              headers: headers?.call(context.context ?? {}),
-            );
-
-            await for (final chunk in stream) {
-              context.sendChunk(chunk);
-            }
-
-            return stream.result;
-          }
-
-          return await remoteAction(
-            input: input,
-            headers: headers?.call(context.context ?? {}),
-          );
-        },
-      )
-      ..metadata.addAll(
-        modelMetadata(
-          name,
-          modelInfo:
-              modelInfo ??
-              ModelInfo(
-                supports: {
-                  'multiturn': true,
-                  'media': true,
-                  'tools': true,
-                  'toolChoice': true,
-                  'systemRole': true,
-                  'constrained': true,
-                },
-              ),
-        ).metadata,
-      );
+    final model = remoteModel(
+      name: name,
+      url: url,
+      headers: headers,
+      modelInfo: modelInfo,
+      httpClient: httpClient,
+    );
+    registry.register(model);
+    return model;
   }
 
   /// Defines an embedder model.
