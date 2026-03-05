@@ -54,6 +54,10 @@ jobs:
         working-directory: testapps/firebase_ai
         run: flutter analyze
 
+      - name: "testapps/flutter_genai: Analyzer"
+        working-directory: testapps/flutter_genai
+        run: flutter analyze
+
       - name: Verify clean git tree
         run: |
           git diff --exit-code
