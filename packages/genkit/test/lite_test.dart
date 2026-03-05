@@ -166,15 +166,15 @@ void main() {
         );
       });
 
-      final receivedChunks = <String>[];
       final stream = lite.generateStream(model: model, prompt: 'stream it');
 
-      final chunksList = await stream.toList();
-      for (final c in chunksList) {
-        receivedChunks.add(c.text);
+      final receivedChunks = <String>[];
+      await for (final chunk in stream) {
+        receivedChunks.add(chunk.text);
       }
       final response = await stream.onResult;
 
+      expect(receivedChunks, ['Part 1 ', 'Part 2']);
       expect(response.text, 'Part 1 Part 2');
     });
   });
