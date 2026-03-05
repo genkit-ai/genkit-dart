@@ -15,26 +15,78 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'openai_flows.dart';
+part of 'tool_calling.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-base class WeatherInputSchema {
-  factory WeatherInputSchema.fromJson(Map<String, dynamic> json) =>
+base class WeatherFlowInput {
+  factory WeatherFlowInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  WeatherInputSchema._(this._json);
+  WeatherFlowInput._(this._json);
 
-  WeatherInputSchema({required String location, String? unit}) {
+  WeatherFlowInput({required String prompt}) {
+    _json = {'prompt': prompt};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<WeatherFlowInput> $schema =
+      _WeatherFlowInputTypeFactory();
+
+  String get prompt {
+    return _json['prompt'] as String;
+  }
+
+  set prompt(String value) {
+    _json['prompt'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _WeatherFlowInputTypeFactory
+    extends SchemanticType<WeatherFlowInput> {
+  const _WeatherFlowInputTypeFactory();
+
+  @override
+  WeatherFlowInput parse(Object? json) {
+    return WeatherFlowInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'WeatherFlowInput',
+    definition: $Schema
+        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
+        .value,
+    dependencies: [],
+  );
+}
+
+base class WeatherToolInput {
+  factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  WeatherToolInput._(this._json);
+
+  WeatherToolInput({required String location, String? unit}) {
     _json = {'location': location, 'unit': ?unit};
   }
 
   late final Map<String, dynamic> _json;
 
-  static const SchemanticType<WeatherInputSchema> $schema =
-      _WeatherInputSchemaTypeFactory();
+  static const SchemanticType<WeatherToolInput> $schema =
+      _WeatherToolInputTypeFactory();
 
   String get location {
     return _json['location'] as String;
@@ -66,18 +118,18 @@ base class WeatherInputSchema {
   }
 }
 
-base class _WeatherInputSchemaTypeFactory
-    extends SchemanticType<WeatherInputSchema> {
-  const _WeatherInputSchemaTypeFactory();
+base class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
+  const _WeatherToolInputTypeFactory();
 
   @override
-  WeatherInputSchema parse(Object? json) {
-    return WeatherInputSchema._(json as Map<String, dynamic>);
+  WeatherToolInput parse(Object? json) {
+    return WeatherToolInput._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'WeatherInputSchema',
+    name: 'WeatherToolInput',
     definition: $Schema
         .object(
           properties: {
@@ -91,13 +143,13 @@ base class _WeatherInputSchemaTypeFactory
   );
 }
 
-base class WeatherOutputSchema {
-  factory WeatherOutputSchema.fromJson(Map<String, dynamic> json) =>
+base class WeatherToolOutput {
+  factory WeatherToolOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  WeatherOutputSchema._(this._json);
+  WeatherToolOutput._(this._json);
 
-  WeatherOutputSchema({
+  WeatherToolOutput({
     required double temperature,
     required String condition,
     required String unit,
@@ -113,8 +165,8 @@ base class WeatherOutputSchema {
 
   late final Map<String, dynamic> _json;
 
-  static const SchemanticType<WeatherOutputSchema> $schema =
-      _WeatherOutputSchemaTypeFactory();
+  static const SchemanticType<WeatherToolOutput> $schema =
+      _WeatherToolOutputTypeFactory();
 
   double get temperature {
     return (_json['temperature'] as num).toDouble();
@@ -162,18 +214,18 @@ base class WeatherOutputSchema {
   }
 }
 
-base class _WeatherOutputSchemaTypeFactory
-    extends SchemanticType<WeatherOutputSchema> {
-  const _WeatherOutputSchemaTypeFactory();
+base class _WeatherToolOutputTypeFactory
+    extends SchemanticType<WeatherToolOutput> {
+  const _WeatherToolOutputTypeFactory();
 
   @override
-  WeatherOutputSchema parse(Object? json) {
-    return WeatherOutputSchema._(json as Map<String, dynamic>);
+  WeatherToolOutput parse(Object? json) {
+    return WeatherToolOutput._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'WeatherOutputSchema',
+    name: 'WeatherToolOutput',
     definition: $Schema
         .object(
           properties: {
