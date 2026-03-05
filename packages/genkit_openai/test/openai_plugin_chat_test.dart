@@ -437,6 +437,7 @@ void main() {
     });
 
     test('supportsVision identifies vision models', () {
+      // Vision models
       expect(supportsVision('gpt-4o'), true);
       expect(supportsVision('gpt-4o-mini'), true);
       expect(supportsVision('gpt-4o-2024-05-13'), true);
@@ -453,12 +454,15 @@ void main() {
       expect(supportsVision('gpt-5.1o'), true);
       expect(supportsVision('gpt-6o-mini'), true);
       expect(supportsVision('chatgpt-4o-latest'), true);
+
+      // Non-vision models
       expect(supportsVision('gpt-3.5-turbo'), false);
       expect(supportsVision('gpt-4'), false);
       expect(supportsVision('text-embedding-3-small'), false);
     });
 
     test('supportsTools identifies models with function calling support', () {
+      // Tool models
       expect(supportsTools('gpt-4'), true);
       expect(supportsTools('gpt-4o'), true);
       expect(supportsTools('gpt-4o-mini'), true);
@@ -466,6 +470,8 @@ void main() {
       expect(supportsTools('gpt-3.5-turbo'), true);
       expect(supportsTools('gpt-5'), true);
       expect(supportsTools('gpt-5.1'), true);
+
+      // Non-tool models
       expect(supportsTools('chatgpt-4o-latest'), false);
       expect(supportsTools('chatgpt-5-latest'), false);
       expect(supportsTools('gpt-3.5-turbo-instruct'), false);

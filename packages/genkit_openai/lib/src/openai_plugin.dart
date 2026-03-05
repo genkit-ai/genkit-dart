@@ -20,18 +20,14 @@ import 'package:schemantic/schemantic.dart';
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
 
-/// Returns a model-specific custom options schema.
 SchemanticType<OpenAIOptions> optionsSchemaForModel(String _) {
   return chat.chatModelOptionsSchema();
 }
 
-/// Returns true when the output config indicates JSON-structured output
-/// (format is 'json' or contentType is 'application/json').
 bool isJsonStructuredOutput(String? format, String? contentType) {
   return chat.isJsonStructuredOutput(format, contentType);
 }
 
-/// Builds an OpenAI [sdk.ResponseFormat] from a Genkit output schema.
 sdk.ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   return chat.buildOpenAIResponseFormat(schema);
 }
