@@ -440,10 +440,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
     if (defaultModel != null) {
       resolvedModelName = defaultModel.name;
       if (resolvedConfigMap == null && defaultModel.config != null) {
-        var c = defaultModel.config;
-        resolvedConfigMap = c is Map
-            ? c as Map<String, dynamic>
-            : (c as dynamic)?.toJson() as Map<String, dynamic>?;
+        resolvedConfigMap = _configToMap(defaultModel.config);
       }
     }
   }
@@ -623,15 +620,10 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   }
 
   var resolvedModelName = model?.name;
-  var resolvedConfigMap = config is Map
-      ? config as Map<String, dynamic>
-      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
+  var resolvedConfigMap = _configToMap(config);
 
   if (resolvedConfigMap == null && model?.config != null) {
-    var c = model!.config;
-    resolvedConfigMap = c is Map
-        ? c as Map<String, dynamic>
-        : (c as dynamic)?.toJson() as Map<String, dynamic>?;
+    resolvedConfigMap = _configToMap(model!.config);
   }
 
   final format = resolveFormat(registry, output);
@@ -922,4 +914,11 @@ _executeTools(
     interrupted: interrupted,
     toolStatus: toolStatus,
   );
+}
+
+Map<String, dynamic>? _configToMap(dynamic config) {
+  if (config == null) return null;
+  return config is Map
+      ? config as Map<String, dynamic>
+      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
 }
