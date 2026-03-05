@@ -16,8 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 
-final ai = Genkit(plugins: [googleAI(apiKey: 'dummy_key')]);
-
 void main() {
   runApp(const MyApp());
 }
@@ -30,17 +28,27 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final _apiKeyController = TextEditingController();
   final _controller = TextEditingController(text: 'Say hello');
   String _output = '';
   bool _isLoading = false;
 
   Future<void> _generate() async {
+    final apiKey = _apiKeyController.text;
+    if (apiKey.isEmpty) {
+      setState(() {
+        _output = 'Error: API Key is required.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _output = '';
     });
 
     try {
+      final ai = Genkit(plugins: [googleAI(apiKey: apiKey)]);
       final response = await ai.generate(
         model: googleAI.gemini('gemini-2.5-flash'),
         prompt: _controller.text,
@@ -61,6 +69,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
+    _apiKeyController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -74,6 +83,15 @@ class _MyAppState extends State<MyApp> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              TextField(
+                controller: _apiKeyController,
+                decoration: const InputDecoration(
+                  labelText: 'Gemini API Key',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _controller,
                 decoration: const InputDecoration(
