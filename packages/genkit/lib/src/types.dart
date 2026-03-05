@@ -218,6 +218,12 @@ abstract class $ModelResponseChunk {
 }
 
 @Schema()
+abstract class $MiddlewareRef {
+  String get name;
+  Map<String, dynamic>? get config;
+}
+
+@Schema()
 abstract class $GenerateResponse {
   $Message? get message;
   FinishReason? get finishReason;
@@ -305,6 +311,7 @@ abstract class $GenerateActionOptions {
   List<$DocumentData>? get docs;
   List<$Message> get messages;
   List<String>? get tools;
+  List<String>? get resources;
   String? get toolChoice;
   Map<String, dynamic>? get config;
   $GenerateActionOutputConfig? get output;
@@ -312,6 +319,7 @@ abstract class $GenerateActionOptions {
   bool? get returnToolRequests;
   int? get maxTurns;
   String? get stepName;
+  List<$MiddlewareRef>? get use;
 }
 
 @Schema()

@@ -2558,6 +2558,75 @@ base class _ModelResponseChunkTypeFactory
   );
 }
 
+base class MiddlewareRef {
+  factory MiddlewareRef.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  MiddlewareRef._(this._json);
+
+  MiddlewareRef({required String name, Map<String, dynamic>? config}) {
+    _json = {'name': name, 'config': ?config};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<MiddlewareRef> $schema =
+      _MiddlewareRefTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  Map<String, dynamic>? get config {
+    return (_json['config'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set config(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('config');
+    } else {
+      _json['config'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _MiddlewareRefTypeFactory extends SchemanticType<MiddlewareRef> {
+  const _MiddlewareRefTypeFactory();
+
+  @override
+  MiddlewareRef parse(Object? json) {
+    return MiddlewareRef._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MiddlewareRef',
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['name'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
 base class GenerateResponse {
   factory GenerateResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
@@ -3533,6 +3602,7 @@ base class GenerateActionOptions {
     List<DocumentData>? docs,
     required List<Message> messages,
     List<String>? tools,
+    List<String>? resources,
     String? toolChoice,
     Map<String, dynamic>? config,
     GenerateActionOutputConfig? output,
@@ -3540,12 +3610,14 @@ base class GenerateActionOptions {
     bool? returnToolRequests,
     int? maxTurns,
     String? stepName,
+    List<MiddlewareRef>? use,
   }) {
     _json = {
       'model': ?model,
       'docs': ?docs?.map((e) => e.toJson()).toList(),
       'messages': messages.map((e) => e.toJson()).toList(),
       'tools': ?tools,
+      'resources': ?resources,
       'toolChoice': ?toolChoice,
       'config': ?config,
       'output': ?output?.toJson(),
@@ -3553,6 +3625,7 @@ base class GenerateActionOptions {
       'returnToolRequests': ?returnToolRequests,
       'maxTurns': ?maxTurns,
       'stepName': ?stepName,
+      'use': ?use?.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -3606,6 +3679,18 @@ base class GenerateActionOptions {
       _json.remove('tools');
     } else {
       _json['tools'] = value;
+    }
+  }
+
+  List<String>? get resources {
+    return (_json['resources'] as List?)?.cast<String>();
+  }
+
+  set resources(List<String>? value) {
+    if (value == null) {
+      _json.remove('resources');
+    } else {
+      _json['resources'] = value;
     }
   }
 
@@ -3701,6 +3786,20 @@ base class GenerateActionOptions {
     }
   }
 
+  List<MiddlewareRef>? get use {
+    return (_json['use'] as List?)
+        ?.map((e) => MiddlewareRef.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set use(List<MiddlewareRef>? value) {
+    if (value == null) {
+      _json.remove('use');
+    } else {
+      _json['use'] = value.toList();
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -3734,6 +3833,7 @@ base class _GenerateActionOptionsTypeFactory
               items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
             ),
             'tools': $Schema.list(items: $Schema.string()),
+            'resources': $Schema.list(items: $Schema.string()),
             'toolChoice': $Schema.string(),
             'config': $Schema.object(additionalProperties: $Schema.any()),
             'output': $Schema.fromMap({
@@ -3745,6 +3845,9 @@ base class _GenerateActionOptionsTypeFactory
             'returnToolRequests': $Schema.boolean(),
             'maxTurns': $Schema.integer(),
             'stepName': $Schema.string(),
+            'use': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/MiddlewareRef'}),
+            ),
           },
           required: ['messages'],
         )
@@ -3754,6 +3857,7 @@ base class _GenerateActionOptionsTypeFactory
       Message.$schema,
       GenerateActionOutputConfig.$schema,
       GenerateResumeOptions.$schema,
+      MiddlewareRef.$schema,
     ],
   );
 }
