@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-03-05
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit_google_genai` - `v0.2.0`](#genkit_google_genai---v020)
+ - [`genkit_vertexai` - `v0.2.0`](#genkit_vertexai---v020)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `genkit_google_genai` - `v0.2.0`
+
+ - **BREAKING** **REFACTOR**: moved vertexAI plugin from genkit_google_genai into genkit_vertexai package (#202).
+
+#### `genkit_vertexai` - `v0.2.0`
+
+ - **BREAKING** **REFACTOR**: moved vertexAI plugin from genkit_google_genai into genkit_vertexai package (#202).
+
+
 ## 2026-03-04
 
 ### Changes

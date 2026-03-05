@@ -1,7 +1,7 @@
 name: genkit_vertexai
 description: Vertex AI plugin for Genkit Dart.
 resolution: workspace
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
@@ -10,7 +10,7 @@ environment:
 
 dependencies:
   genkit: ^0.10.0
-  genkit_google_genai: ^0.1.0
+  genkit_google_genai: ^0.2.0
   genkit_vertex_auth: ^0.1.0
   http: ^1.6.0
   meta: ^1.17.0

@@ -8,8 +8,8 @@ environment:
 
 dependencies:
   genkit: ^0.10.0
-  genkit_google_genai: ^0.1.0
-  genkit_vertexai: ^0.1.0
+  genkit_google_genai: ^0.2.0
+  genkit_vertexai: ^0.2.0
   schemantic: ^0.1.0
 
 dev_dependencies:
