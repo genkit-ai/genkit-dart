@@ -223,6 +223,36 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   composedGenerate,
   int currentTurn = 0,
 }) async {
+  var optionsModel = options.model;
+  var optionsConfigMap = options.config;
+
+  if (optionsModel == null) {
+    final defaultModel = registry.lookupValue<ModelRef>('defaultModel', 'defaultModel');
+    if (defaultModel != null) {
+      optionsModel = defaultModel.name;
+      if (optionsConfigMap == null && defaultModel.config != null) {
+        var c = defaultModel.config;
+        optionsConfigMap = c is Map
+            ? c as Map<String, dynamic>
+            : (c as dynamic)?.toJson() as Map<String, dynamic>?;
+      }
+      options = GenerateActionOptions(
+        model: optionsModel,
+        messages: options.messages,
+        config: optionsConfigMap,
+        tools: options.tools,
+        toolChoice: options.toolChoice,
+        returnToolRequests: options.returnToolRequests,
+        maxTurns: options.maxTurns,
+        output: options.output,
+        resume: options.resume,
+        docs: options.docs,
+        stepName: options.stepName,
+        use: options.use,
+      );
+    }
+  }
+
   if (options.model == null) {
     throw GenkitException(
       'Model must be provided',
@@ -541,7 +571,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
-  required ModelRef<CustomOptions> model,
+  ModelRef<CustomOptions>? model,
   CustomOptions? config,
   List<String>? tools,
   String? toolChoice,
@@ -595,7 +625,31 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
       ),
     );
   }
-  final modelName = model.name;
+
+  var resolvedModelName = model?.name;
+  var resolvedConfigMap = config is Map
+      ? config as Map<String, dynamic>
+      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
+
+  if (resolvedConfigMap == null && model?.config != null) {
+    var c = model!.config;
+    resolvedConfigMap = c is Map
+        ? c as Map<String, dynamic>
+        : (c as dynamic)?.toJson() as Map<String, dynamic>?;
+  }
+
+  if (resolvedModelName == null) {
+    final defaultModel = registry.lookupValue<ModelRef>('defaultModel', 'defaultModel');
+    if (defaultModel != null) {
+      resolvedModelName = defaultModel.name;
+      if (resolvedConfigMap == null && defaultModel.config != null) {
+        var c = defaultModel.config;
+        resolvedConfigMap = c is Map
+            ? c as Map<String, dynamic>
+            : (c as dynamic)?.toJson() as Map<String, dynamic>?;
+      }
+    }
+  }
 
   final format = resolveFormat(registry, output);
   final chunkParser = format?.handler(output?.jsonSchema).parseChunk;
@@ -604,11 +658,9 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   return await runGenerateAction(
     registry,
     GenerateActionOptions(
-      model: modelName,
+      model: resolvedModelName,
       messages: resolvedMessages,
-      config: config is Map
-          ? config as Map<String, dynamic>
-          : (config as dynamic)?.toJson() as Map<String, dynamic>?,
+      config: resolvedConfigMap,
       tools: tools,
       toolChoice: toolChoice,
       returnToolRequests: returnToolRequests,

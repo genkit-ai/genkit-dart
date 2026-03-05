@@ -21,12 +21,14 @@ import '../types.dart';
 ModelRef<CustomOptions> modelRef<CustomOptions>(
   String name, {
   SchemanticType<CustomOptions>? customOptions,
+  CustomOptions? config,
 }) {
-  return _ModelRef<CustomOptions>(name, customOptions);
+  return _ModelRef<CustomOptions>(name, customOptions, config: config);
 }
 
 abstract class ModelRef<CustomOptions> {
   String get name;
+  CustomOptions? get config;
   SchemanticType<CustomOptions>? get customOptions;
 }
 
@@ -34,16 +36,22 @@ class _ModelRef<CustomOptions> implements ModelRef<CustomOptions> {
   @override
   final String name;
   @override
+  final CustomOptions? config;
+  @override
   final SchemanticType<CustomOptions>? customOptions;
 
-  _ModelRef(this.name, this.customOptions);
+  _ModelRef(this.name, this.customOptions, {this.config});
 }
 
 class Model<CustomOptions>
     extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
     implements ModelRef<CustomOptions> {
+  // For a model instance the config is always null.
   @override
-  SchemanticType<CustomOptions>? customOptions;
+  final CustomOptions? config = null;
+
+  @override
+  final SchemanticType<CustomOptions>? customOptions;
 
   Model({
     required super.name,
