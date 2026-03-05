@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit_google_genai/src/plugin_impl.dart';
+import 'package:genkit_google_genai/src/google_api_client.dart';
 import 'package:test/test.dart';
 
 void main() {

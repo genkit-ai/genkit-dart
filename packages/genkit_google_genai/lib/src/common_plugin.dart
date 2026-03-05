@@ -13,9 +13,7 @@
 // limitations under the License.
 
 import 'dart:convert';
-
 import 'package:genkit/plugin.dart';
-import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -23,11 +21,10 @@ import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
 import 'api_client.dart';
-import 'auth.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
 
-final _logger = Logger('genkit_google_genai');
+final logger = Logger('genkit_google_genai');
 
 final commonModelInfo = ModelInfo(
   supports: {
@@ -40,187 +37,10 @@ final commonModelInfo = ModelInfo(
   },
 );
 
-@visibleForTesting
-class GoogleGenAiPluginImpl extends GenkitPlugin {
-  String? apiKey;
-  String? projectId;
-  String? location;
-  http.Client? authClient;
-  final bool isVertex;
+abstract class CommonGoogleGenPlugin extends GenkitPlugin {
+  Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
-  GoogleGenAiPluginImpl({
-    this.apiKey,
-    this.projectId,
-    this.location,
-    this.authClient,
-    this.isVertex = false,
-  });
-
-  String? _resolvedProjectId;
-  String get _getResolvedProjectId =>
-      _resolvedProjectId ??= resolveVertexProjectId(
-        providerName: 'vertexai',
-        configTypeName: 'plugin configuration',
-        projectId: projectId,
-        projectIdFromCredentials: null,
-      );
-
-  Future<GenerativeLanguageBaseClient> _getApiClient([
-    String? requestApiKey,
-  ]) async {
-    if (isVertex) {
-      final validFormat = RegExp(r'^[a-z0-9-]+$');
-      final resolvedProjectId = _getResolvedProjectId;
-      final resolvedLocation = location ?? 'global';
-
-      if (!validFormat.hasMatch(resolvedLocation) ||
-          !validFormat.hasMatch(resolvedProjectId)) {
-        throw ArgumentError('Invalid projectId or location format.');
-      }
-      final safeLocation = Uri.encodeComponent(resolvedLocation);
-      final safeProjectId = Uri.encodeComponent(resolvedProjectId);
-
-      final tokenProvider = createAdcAccessTokenProvider(
-        baseClient: authClient,
-      );
-
-      final baseUrl = safeLocation == 'global'
-          ? 'https://aiplatform.googleapis.com/'
-          : 'https://$safeLocation-aiplatform.googleapis.com/';
-      final apiUrlPrefix =
-          'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
-
-      final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
-      final customClient = CustomClient(
-        defaultHeaders: headers,
-        inner: authClient,
-      );
-      final client = VertexAuthClient(tokenProvider, inner: customClient);
-
-      return GenerativeLanguageBaseClient(
-        baseUrl: baseUrl,
-        client: client,
-        apiUrlPrefix: apiUrlPrefix,
-      );
-    } else {
-      return GenerativeLanguageBaseClient(
-        baseUrl: 'https://generativelanguage.googleapis.com/',
-        client: httpClientFromApiKey(requestApiKey ?? apiKey),
-      );
-    }
-  }
-
-  @override
-  String get name => isVertex ? 'vertexai' : 'googleai';
-
-  @override
-  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
-  list() async {
-    final service = await _getApiClient();
-    try {
-      if (isVertex) {
-        final res = await service.listPublisherModels(
-          projectId: _getResolvedProjectId,
-        );
-        final publisherModels = (res['publisherModels'] as List?) ?? [];
-
-        final models = publisherModels
-            .where((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final name = modelMap['name'] as String?;
-              return name != null && name.contains('gemini-');
-            })
-            .map((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final modelName = (modelMap['name'] as String).split('/').last;
-              final isTts = modelName.contains('-tts');
-              return modelMetadata(
-                '$name/$modelName',
-                customOptions: isTts
-                    ? GeminiTtsOptions.$schema
-                    : GeminiOptions.$schema,
-                modelInfo: commonModelInfo,
-              );
-            })
-            .toList();
-
-        final embedders = publisherModels
-            .where((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final name = modelMap['name'] as String?;
-              return name != null &&
-                  (name.contains('text-embedding-') ||
-                      name.contains('embedding-'));
-            })
-            .map((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final modelName = (modelMap['name'] as String).split('/').last;
-              return embedderMetadata('$name/$modelName');
-            })
-            .toList();
-
-        return [...models, ...embedders];
-      }
-
-      final gcl.ListModelsResponse modelsResponse;
-      try {
-        modelsResponse = await service.listModels(pageSize: 1000);
-      } catch (e, stack) {
-        _logger.warning('Failed to list models: $e', e, stack);
-        throw _handleException(e, stack);
-      }
-      final models = (modelsResponse.models ?? [])
-          .where((model) {
-            return model.name != null &&
-                model.name!.startsWith('models/gemini-');
-          })
-          .map((model) {
-            final isTts = model.name!.contains('-tts');
-            return modelMetadata(
-              '$name/${model.name!.split('/').last}',
-              customOptions: isTts
-                  ? GeminiTtsOptions.$schema
-                  : GeminiOptions.$schema,
-              modelInfo: commonModelInfo,
-            );
-          })
-          .toList();
-      final embedders = (modelsResponse.models ?? [])
-          .where(
-            (model) =>
-                model.name != null &&
-                (model.name!.startsWith('models/text-embedding-') ||
-                    model.name!.startsWith('models/embedding-')),
-          )
-          .map((model) {
-            return embedderMetadata('$name/${model.name!.split('/').last}');
-          })
-          .toList();
-      return [...models, ...embedders];
-    } catch (e, stack) {
-      if (e is GenkitException) rethrow;
-      _logger.warning('Failed to list models: $e', e, stack);
-      throw _handleException(e, stack);
-    } finally {
-      service.client.close();
-    }
-  }
-
-  @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'embedder') {
-      return _createEmbedder(name);
-    }
-    if (actionType == 'model') {
-      if (name.contains('-tts')) {
-        return _createModel(name, GeminiTtsOptions.$schema);
-      }
-      return _createModel(name, GeminiOptions.$schema);
-    }
-    return null;
-  }
-
-  Model _createModel(String modelName, SchemanticType customOptions) {
+  Model createModel(String modelName, SchemanticType customOptions) {
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
@@ -272,7 +92,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
 
-        final service = await _getApiClient(apiKey);
+        final service = await getApiClient(apiKey);
 
         try {
           final systemMessage = req.messages
@@ -307,7 +127,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             await for (final chunk in stream) {
               chunks.add(chunk);
               if (chunk.candidates?.isNotEmpty == true) {
-                final (message, finishReason) = _fromGeminiCandidate(
+                final (message, finishReason) = fromGeminiCandidate(
                   chunk.candidates!.first,
                 );
                 ctx.sendChunk(
@@ -322,7 +142,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                 'No candidates returned from generative stream. Block reason: $blockReason',
               );
             }
-            final (message, finishReason) = _fromGeminiCandidate(
+            final (message, finishReason) = fromGeminiCandidate(
               aggregated.candidates!.first,
             );
             return ModelResponse(
@@ -342,7 +162,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
                 'No candidates returned from generateContent. Block reason: $blockReason',
               );
             }
-            final (message, finishReason) = _fromGeminiCandidate(
+            final (message, finishReason) = fromGeminiCandidate(
               response.candidates!.first,
             );
             return ModelResponse(
@@ -353,7 +173,7 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
             );
           }
         } catch (e, stack) {
-          throw _handleException(e, stack);
+          throw handleException(e, stack);
         } finally {
           service.client.close();
         }
@@ -361,105 +181,23 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
     );
   }
 
-  Embedder _createEmbedder(String embedderName) {
-    return Embedder(
-      name: '$name/$embedderName',
-      fn: (req, ctx) async {
-        if (req == null || req.input.isEmpty) {
-          return EmbedResponse(embeddings: []);
-        }
-        final service = await _getApiClient();
-        try {
-          final options = req.options != null
-              ? TextEmbedderOptions.fromJson(req.options!)
-              : null;
+  Embedder createEmbedder(String embedderName);
 
-          if (isVertex) {
-            final instances = req.input.map((doc) {
-              final text = doc.content
-                  .where((p) => p.isText)
-                  .map((p) => p.text)
-                  .join('\n');
-              return {'content': text};
-            }).toList();
-
-            final parameters = <String, dynamic>{};
-            if (options?.outputDimensionality != null) {
-              parameters['outputDimensionality'] =
-                  options!.outputDimensionality;
-            }
-            if (options?.taskType != null) {
-              parameters['taskType'] = options!.taskType;
-            }
-
-            final res = await service.predict({
-              'instances': instances,
-              if (parameters.isNotEmpty) 'parameters': parameters,
-            }, model: 'models/$embedderName');
-
-            final predictions = res['predictions'] as List;
-            final embeddings = predictions.map((p) {
-              final emb =
-                  (p as Map<String, dynamic>)['embeddings']
-                      as Map<String, dynamic>;
-              final vals = emb['values'] as List;
-              return Embedding(
-                embedding: vals.map((e) => (e as num).toDouble()).toList(),
-              );
-            }).toList();
-            return EmbedResponse(embeddings: embeddings);
-          }
-
-          if (req.input.length == 1) {
-            final doc = req.input.first;
-            final text = doc.content
-                .where((p) => p.isText)
-                .map((p) => p.text)
-                .join('\n');
-            final content = gcl.Content(parts: [gcl.Part(text: text)]);
-            final res = await service.embedContent(
-              gcl.EmbedContentRequest(
-                content: content,
-                outputDimensionality: options?.outputDimensionality,
-                taskType: options?.taskType,
-                title: options?.title,
-              ),
-              model: 'models/$embedderName',
-            );
-            return EmbedResponse(
-              embeddings: [Embedding(embedding: res.embedding?.values ?? [])],
-            );
-          } else {
-            final futures = req.input.map((doc) async {
-              final text = doc.content
-                  .map((p) => p.toJson()['text'] as String?)
-                  .nonNulls
-                  .join('\n');
-              final content = gcl.Content(parts: [gcl.Part(text: text)]);
-              final res = await service.embedContent(
-                gcl.EmbedContentRequest(
-                  content: content,
-                  outputDimensionality: options?.outputDimensionality,
-                  taskType: options?.taskType,
-                  title: options?.title,
-                ),
-                model: 'models/$embedderName',
-              );
-              return Embedding(embedding: res.embedding?.values ?? []);
-            });
-            final embeddings = await Future.wait(futures);
-            return EmbedResponse(embeddings: embeddings);
-          }
-        } catch (e, stack) {
-          throw _handleException(e, stack);
-        } finally {
-          service.client.close();
-        }
-      },
-    );
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'embedder') {
+      return createEmbedder(name);
+    }
+    if (actionType == 'model') {
+      if (name.contains('-tts')) {
+        return createModel(name, GeminiTtsOptions.$schema);
+      }
+      return createModel(name, GeminiOptions.$schema);
+    }
+    return null;
   }
 
-  GenkitException _handleException(Object e, StackTrace stack) {
+  GenkitException handleException(Object e, StackTrace stack) {
     if (e is GenkitException) return e;
 
     int? httpStatus;
@@ -492,6 +230,17 @@ class GoogleGenAiPluginImpl extends GenkitPlugin {
       stackTrace: stack,
     );
   }
+}
+
+(Message, FinishReason) fromGeminiCandidate(gcl.Candidate candidate) {
+  final finishReason = FinishReason(
+    candidate.finishReason?.toLowerCase() ?? 'unspecified',
+  );
+  final message = Message(
+    role: Role(candidate.content!.role!),
+    content: candidate.content?.parts?.map(fromGeminiPart).toList() ?? [],
+  );
+  return (message, finishReason);
 }
 
 @visibleForTesting
@@ -676,17 +425,6 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
         ),
       )
       .toList();
-}
-
-(Message, FinishReason) _fromGeminiCandidate(gcl.Candidate candidate) {
-  final finishReason = FinishReason(
-    candidate.finishReason?.toLowerCase() ?? 'unspecified',
-  );
-  final message = Message(
-    role: Role(candidate.content!.role!),
-    content: candidate.content?.parts?.map(fromGeminiPart).toList() ?? [],
-  );
-  return (message, finishReason);
 }
 
 @visibleForTesting
