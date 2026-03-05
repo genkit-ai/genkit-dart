@@ -22,16 +22,83 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _controller = TextEditingController(text: 'Say hello');
+  String _output = '';
+  bool _isLoading = false;
+
+  Future<void> _generate() async {
+    setState(() {
+      _isLoading = true;
+      _output = '';
+    });
+
+    try {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-2.5-flash'),
+        prompt: _controller.text,
+      );
+      setState(() {
+        _output = response.text;
+      });
+    } catch (e) {
+      setState(() {
+        _output = 'Error: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(title: const Text('Flutter GenAI')),
-        body: const Center(
-          child: Text('Genkit loaded!'),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                controller: _controller,
+                decoration: const InputDecoration(
+                  labelText: 'Prompt',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _generate,
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text('Generate'),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Text(_output),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
