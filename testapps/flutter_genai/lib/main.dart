@@ -110,11 +110,7 @@ class _MyAppState extends State<MyApp> {
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Text(_output),
-                ),
-              ),
+              Expanded(child: SingleChildScrollView(child: Text(_output))),
             ],
           ),
         ),

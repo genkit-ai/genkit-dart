@@ -223,36 +223,6 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   composedGenerate,
   int currentTurn = 0,
 }) async {
-  var optionsModel = options.model;
-  var optionsConfigMap = options.config;
-
-  if (optionsModel == null) {
-    final defaultModel = registry.lookupValue<ModelRef>('defaultModel', 'defaultModel');
-    if (defaultModel != null) {
-      optionsModel = defaultModel.name;
-      if (optionsConfigMap == null && defaultModel.config != null) {
-        var c = defaultModel.config;
-        optionsConfigMap = c is Map
-            ? c as Map<String, dynamic>
-            : (c as dynamic)?.toJson() as Map<String, dynamic>?;
-      }
-      options = GenerateActionOptions(
-        model: optionsModel,
-        messages: options.messages,
-        config: optionsConfigMap,
-        tools: options.tools,
-        toolChoice: options.toolChoice,
-        returnToolRequests: options.returnToolRequests,
-        maxTurns: options.maxTurns,
-        output: options.output,
-        resume: options.resume,
-        docs: options.docs,
-        stepName: options.stepName,
-        use: options.use,
-      );
-    }
-  }
-
   if (options.model == null) {
     throw GenkitException(
       'Model must be provided',
@@ -269,10 +239,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  final model = await registry.lookupAction('model', options.model!) as Model?;
+  final modelName = options.model!;
+  final model = await registry.lookupAction('model', modelName) as Model?;
   if (model == null) {
     throw GenkitException(
-      'Model ${options.model} not found',
+      'Model $modelName not found',
       status: StatusCodes.NOT_FOUND,
     );
   }
@@ -458,6 +429,31 @@ Future<GenerateResponseHelper> _runGenerateAction(
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   List<GenerateMiddlewareOneof>? middleware,
 }) async {
+  var resolvedModelName = options.model;
+  var resolvedConfigMap = options.config;
+
+  if (resolvedModelName == null) {
+    final defaultModel = registry.lookupValue<ModelRef>(
+      'defaultModel',
+      'defaultModel',
+    );
+    if (defaultModel != null) {
+      resolvedModelName = defaultModel.name;
+      if (resolvedConfigMap == null && defaultModel.config != null) {
+        var c = defaultModel.config;
+        resolvedConfigMap = c is Map
+            ? c as Map<String, dynamic>
+            : (c as dynamic)?.toJson() as Map<String, dynamic>?;
+      }
+    }
+  }
+
+  options = GenerateActionOptions.fromJson({
+    ...options.toJson(),
+    'model': resolvedModelName,
+    'config': resolvedConfigMap,
+  });
+
   final resolved = _resolveMiddleware(registry, middleware);
   final generateRegistry = resolved.registry;
   final resolvedMiddleware = resolved.middleware;
@@ -636,19 +632,6 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
     resolvedConfigMap = c is Map
         ? c as Map<String, dynamic>
         : (c as dynamic)?.toJson() as Map<String, dynamic>?;
-  }
-
-  if (resolvedModelName == null) {
-    final defaultModel = registry.lookupValue<ModelRef>('defaultModel', 'defaultModel');
-    if (defaultModel != null) {
-      resolvedModelName = defaultModel.name;
-      if (resolvedConfigMap == null && defaultModel.config != null) {
-        var c = defaultModel.config;
-        resolvedConfigMap = c is Map
-            ? c as Map<String, dynamic>
-            : (c as dynamic)?.toJson() as Map<String, dynamic>?;
-      }
-    }
   }
 
   final format = resolveFormat(registry, output);

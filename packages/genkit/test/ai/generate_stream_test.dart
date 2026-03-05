@@ -124,10 +124,7 @@ void main() {
       var defaultModelCalled = false;
       genkit = Genkit(
         isDevEnv: false,
-        model: modelRef(
-          'defaultTestModel',
-          config: {'temperature': 0.7},
-        ),
+        model: modelRef('defaultTestModel', config: {'temperature': 0.7}),
       );
 
       genkit.defineModel(
@@ -137,7 +134,10 @@ void main() {
           expect(request.config?['temperature'], 0.7);
 
           context.sendChunk(
-            ModelResponseChunk(index: 0, content: [TextPart(text: 'Stream Chunk')]),
+            ModelResponseChunk(
+              index: 0,
+              content: [TextPart(text: 'Stream Chunk')],
+            ),
           );
 
           return ModelResponse(
@@ -151,7 +151,10 @@ void main() {
       );
 
       final chunks = <GenerateResponseChunk>[];
-      await genkit.generateStream(prompt: 'Hello').listen(chunks.add).asFuture();
+      await genkit
+          .generateStream(prompt: 'Hello')
+          .listen(chunks.add)
+          .asFuture();
 
       expect(defaultModelCalled, isTrue);
       expect(chunks.length, 1);

@@ -716,10 +716,7 @@ void main() {
       var defaultModelCalled = false;
       genkit = Genkit(
         isDevEnv: false,
-        model: modelRef(
-          'defaultTestModel',
-          config: {'temperature': 0.7},
-        ),
+        model: modelRef('defaultTestModel', config: {'temperature': 0.7}),
       );
 
       genkit.defineModel(
@@ -742,118 +739,116 @@ void main() {
       expect(response.text, 'Default Model Output');
     });
 
-    test('generate(model: myModelRef) uses myModelRef and its config', () async {
-      var customModelCalled = false;
-      var defaultModelCalled = false;
-      genkit = Genkit(
-        isDevEnv: false,
-        model: modelRef(
-          'defaultTestModel',
-          config: {'temperature': 0.7},
-        ),
-      );
+    test(
+      'generate(model: myModelRef) uses myModelRef and its config',
+      () async {
+        var customModelCalled = false;
+        var defaultModelCalled = false;
+        genkit = Genkit(
+          isDevEnv: false,
+          model: modelRef('defaultTestModel', config: {'temperature': 0.7}),
+        );
 
-      genkit.defineModel(
-        name: 'defaultTestModel',
-        fn: (request, context) async {
-          defaultModelCalled = true;
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: 'Default')],
-            ),
-          );
-        },
-      );
+        genkit.defineModel(
+          name: 'defaultTestModel',
+          fn: (request, context) async {
+            defaultModelCalled = true;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Default')],
+              ),
+            );
+          },
+        );
 
-      genkit.defineModel(
-        name: 'customTestModel',
-        fn: (request, context) async {
-          customModelCalled = true;
-          expect(request.config?['temperature'], 0.9);
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: 'Custom')],
-            ),
-          );
-        },
-      );
+        genkit.defineModel(
+          name: 'customTestModel',
+          fn: (request, context) async {
+            customModelCalled = true;
+            expect(request.config?['temperature'], 0.9);
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Custom')],
+              ),
+            );
+          },
+        );
 
-      await genkit.generate(
-        prompt: 'Hello',
-        model: modelRef('customTestModel', config: {'temperature': 0.9}),
-      );
-      
-      expect(defaultModelCalled, isFalse);
-      expect(customModelCalled, isTrue);
-    });
+        await genkit.generate(
+          prompt: 'Hello',
+          model: modelRef('customTestModel', config: {'temperature': 0.9}),
+        );
 
-    test('generate() with explicit config overrides defaultModel.config', () async {
-      var defaultModelCalled = false;
-      genkit = Genkit(
-        isDevEnv: false,
-        model: modelRef(
-          'defaultTestModel',
-          config: {'temperature': 0.7},
-        ),
-      );
+        expect(defaultModelCalled, isFalse);
+        expect(customModelCalled, isTrue);
+      },
+    );
 
-      genkit.defineModel(
-        name: 'defaultTestModel',
-        fn: (request, context) async {
-          defaultModelCalled = true;
-          // explicit config should be used
-          expect(request.config?['temperature'], 0.5);
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: 'Default')],
-            ),
-          );
-        },
-      );
+    test(
+      'generate() with explicit config overrides defaultModel.config',
+      () async {
+        var defaultModelCalled = false;
+        genkit = Genkit(
+          isDevEnv: false,
+          model: modelRef('defaultTestModel', config: {'temperature': 0.7}),
+        );
 
-      await genkit.generate(
-        prompt: 'Hello',
-        config: {'temperature': 0.5},
-      );
-      
-      expect(defaultModelCalled, isTrue);
-    });
+        genkit.defineModel(
+          name: 'defaultTestModel',
+          fn: (request, context) async {
+            defaultModelCalled = true;
+            // explicit config should be used
+            expect(request.config?['temperature'], 0.5);
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Default')],
+              ),
+            );
+          },
+        );
 
-    test('generate(model: myModelRef, config: explicitConfig) uses myModelRef and explicit config', () async {
-      var customModelCalled = false;
-      genkit = Genkit(
-        isDevEnv: false,
-      );
+        await genkit.generate(prompt: 'Hello', config: {'temperature': 0.5});
 
-      genkit.defineModel(
-        name: 'customTestModel',
-        fn: (request, context) async {
-          customModelCalled = true;
-          // explicit config should override modelRef's config
-          expect(request.config?['temperature'], 0.5);
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: 'Custom')],
-            ),
-          );
-        },
-      );
+        expect(defaultModelCalled, isTrue);
+      },
+    );
 
-      await genkit.generate(
-        prompt: 'Hello',
-        model: modelRef('customTestModel', config: {'temperature': 0.9}),
-        config: {'temperature': 0.5},
-      );
-      
-      expect(customModelCalled, isTrue);
-    });
+    test(
+      'generate(model: myModelRef, config: explicitConfig) uses myModelRef and explicit config',
+      () async {
+        var customModelCalled = false;
+        genkit = Genkit(isDevEnv: false);
+
+        genkit.defineModel(
+          name: 'customTestModel',
+          fn: (request, context) async {
+            customModelCalled = true;
+            // explicit config should override modelRef's config
+            expect(request.config?['temperature'], 0.5);
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Custom')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          prompt: 'Hello',
+          model: modelRef('customTestModel', config: {'temperature': 0.9}),
+          config: {'temperature': 0.5},
+        );
+
+        expect(customModelCalled, isTrue);
+      },
+    );
   });
 }
