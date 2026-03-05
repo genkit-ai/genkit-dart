@@ -30,7 +30,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   String get name => 'googleai';
 
   @override
-  Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]) async {
+  Future<GenerativeLanguageBaseClient> getApiClient([
+    String? requestApiKey,
+  ]) async {
     return GenerativeLanguageBaseClient(
       baseUrl: 'https://generativelanguage.googleapis.com/',
       client: httpClientFromApiKey(requestApiKey ?? apiKey),
@@ -38,7 +40,8 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   }
 
   @override
-  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> list() async {
+  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
+  list() async {
     final service = await getApiClient();
     try {
       final gcl.ListModelsResponse modelsResponse;

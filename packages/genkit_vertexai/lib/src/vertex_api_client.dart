@@ -26,11 +26,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? location;
   http.Client? authClient;
 
-  VertexAiPluginImpl({
-    this.projectId,
-    this.location,
-    this.authClient,
-  });
+  VertexAiPluginImpl({this.projectId, this.location, this.authClient});
 
   String? _resolvedProjectId;
   String get _getResolvedProjectId =>
@@ -45,87 +41,88 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String get name => 'vertexai';
 
   @override
-  Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]) async {
-      final validFormat = RegExp(r'^[a-z0-9-]+$');
-      final resolvedProjectId = _getResolvedProjectId;
-      final resolvedLocation = location ?? 'global';
+  Future<GenerativeLanguageBaseClient> getApiClient([
+    String? requestApiKey,
+  ]) async {
+    final validFormat = RegExp(r'^[a-z0-9-]+$');
+    final resolvedProjectId = _getResolvedProjectId;
+    final resolvedLocation = location ?? 'global';
 
-      if (!validFormat.hasMatch(resolvedLocation) ||
-          !validFormat.hasMatch(resolvedProjectId)) {
-        throw ArgumentError('Invalid projectId or location format.');
-      }
-      final safeLocation = Uri.encodeComponent(resolvedLocation);
-      final safeProjectId = Uri.encodeComponent(resolvedProjectId);
+    if (!validFormat.hasMatch(resolvedLocation) ||
+        !validFormat.hasMatch(resolvedProjectId)) {
+      throw ArgumentError('Invalid projectId or location format.');
+    }
+    final safeLocation = Uri.encodeComponent(resolvedLocation);
+    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
 
-      final tokenProvider = createAdcAccessTokenProvider(
-        baseClient: authClient,
-      );
+    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
 
-      final baseUrl = safeLocation == 'global'
-          ? 'https://aiplatform.googleapis.com/'
-          : 'https://$safeLocation-aiplatform.googleapis.com/';
-      final apiUrlPrefix =
-          'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
+    final baseUrl = safeLocation == 'global'
+        ? 'https://aiplatform.googleapis.com/'
+        : 'https://$safeLocation-aiplatform.googleapis.com/';
+    final apiUrlPrefix =
+        'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
-      final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
-      final customClient = CustomClient(
-        defaultHeaders: headers,
-        inner: authClient,
-      );
-      final client = VertexAuthClient(tokenProvider, inner: customClient);
+    final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
+    final customClient = CustomClient(
+      defaultHeaders: headers,
+      inner: authClient,
+    );
+    final client = VertexAuthClient(tokenProvider, inner: customClient);
 
-      return GenerativeLanguageBaseClient(
-        baseUrl: baseUrl,
-        client: client,
-        apiUrlPrefix: apiUrlPrefix,
-      );
+    return GenerativeLanguageBaseClient(
+      baseUrl: baseUrl,
+      client: client,
+      apiUrlPrefix: apiUrlPrefix,
+    );
   }
 
   @override
-  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> list() async {
+  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
+  list() async {
     final service = await getApiClient();
     try {
-        final res = await service.listPublisherModels(
-          projectId: _getResolvedProjectId,
-        );
-        final publisherModels = (res['publisherModels'] as List?) ?? [];
+      final res = await service.listPublisherModels(
+        projectId: _getResolvedProjectId,
+      );
+      final publisherModels = (res['publisherModels'] as List?) ?? [];
 
-        final models = publisherModels
-            .where((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final name = modelMap['name'] as String?;
-              return name != null && name.contains('gemini-');
-            })
-            .map((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final modelName = (modelMap['name'] as String).split('/').last;
-              final isTts = modelName.contains('-tts');
-              return modelMetadata(
-                '$name/$modelName',
-                customOptions: isTts
-                    ? GeminiTtsOptions.$schema
-                    : GeminiOptions.$schema,
-                modelInfo: commonModelInfo,
-              );
-            })
-            .toList();
+      final models = publisherModels
+          .where((m) {
+            final modelMap = m as Map<String, dynamic>;
+            final name = modelMap['name'] as String?;
+            return name != null && name.contains('gemini-');
+          })
+          .map((m) {
+            final modelMap = m as Map<String, dynamic>;
+            final modelName = (modelMap['name'] as String).split('/').last;
+            final isTts = modelName.contains('-tts');
+            return modelMetadata(
+              '$name/$modelName',
+              customOptions: isTts
+                  ? GeminiTtsOptions.$schema
+                  : GeminiOptions.$schema,
+              modelInfo: commonModelInfo,
+            );
+          })
+          .toList();
 
-        final embedders = publisherModels
-            .where((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final name = modelMap['name'] as String?;
-              return name != null &&
-                  (name.contains('text-embedding-') ||
-                      name.contains('embedding-'));
-            })
-            .map((m) {
-              final modelMap = m as Map<String, dynamic>;
-              final modelName = (modelMap['name'] as String).split('/').last;
-              return embedderMetadata('$name/$modelName');
-            })
-            .toList();
+      final embedders = publisherModels
+          .where((m) {
+            final modelMap = m as Map<String, dynamic>;
+            final name = modelMap['name'] as String?;
+            return name != null &&
+                (name.contains('text-embedding-') ||
+                    name.contains('embedding-'));
+          })
+          .map((m) {
+            final modelMap = m as Map<String, dynamic>;
+            final modelName = (modelMap['name'] as String).split('/').last;
+            return embedderMetadata('$name/$modelName');
+          })
+          .toList();
 
-        return [...models, ...embedders];
+      return [...models, ...embedders];
     } catch (e, stack) {
       if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
@@ -159,8 +156,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
           final parameters = <String, dynamic>{};
           if (options?.outputDimensionality != null) {
-            parameters['outputDimensionality'] =
-                options!.outputDimensionality;
+            parameters['outputDimensionality'] = options!.outputDimensionality;
           }
           if (options?.taskType != null) {
             parameters['taskType'] = options!.taskType;

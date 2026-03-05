@@ -18,7 +18,8 @@ import 'package:http/http.dart' as http;
 
 import 'src/vertex_api_client.dart';
 
-export 'package:genkit_google_genai/genkit_google_genai.dart' show GeminiOptions, TextEmbedderOptions;
+export 'package:genkit_google_genai/genkit_google_genai.dart'
+    show GeminiOptions, TextEmbedderOptions;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
