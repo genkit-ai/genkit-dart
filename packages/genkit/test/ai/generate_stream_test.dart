@@ -119,5 +119,46 @@ void main() {
       );
       expect(chunks[2].index, 1, reason: 'Chunk of second turn should be 1');
     });
+
+    test('generateStream() without model uses defaultModel', () async {
+      var defaultModelCalled = false;
+      genkit = Genkit(
+        isDevEnv: false,
+        model: modelRef('defaultTestModel', config: {'temperature': 0.7}),
+      );
+
+      genkit.defineModel(
+        name: 'defaultTestModel',
+        fn: (request, context) async {
+          defaultModelCalled = true;
+          expect(request.config?['temperature'], 0.7);
+
+          context.sendChunk(
+            ModelResponseChunk(
+              index: 0,
+              content: [TextPart(text: 'Stream Chunk')],
+            ),
+          );
+
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'Stream Chunk')],
+            ),
+          );
+        },
+      );
+
+      final chunks = <GenerateResponseChunk>[];
+      await genkit
+          .generateStream(prompt: 'Hello')
+          .listen(chunks.add)
+          .asFuture();
+
+      expect(defaultModelCalled, isTrue);
+      expect(chunks.length, 1);
+      expect(chunks[0].text, 'Stream Chunk');
+    });
   });
 }

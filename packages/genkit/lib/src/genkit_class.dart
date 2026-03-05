@@ -64,6 +64,7 @@ final class Genkit {
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
+    ModelRef? model,
     bool? isDevEnv,
     int? reflectionPort,
   }) {
@@ -75,6 +76,10 @@ final class Genkit {
       for (final mw in plugin.middleware()) {
         registry.registerValue('middleware', mw.name, mw);
       }
+    }
+
+    if (model != null) {
+      registry.registerValue('defaultModel', 'defaultModel', model);
     }
 
     // Register default formats
@@ -432,7 +437,7 @@ final class Genkit {
   Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<CustomOptions> model,
+    ModelRef<CustomOptions>? model,
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
@@ -561,7 +566,7 @@ final class Genkit {
   generateStream<CustomOptions, Output>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<CustomOptions> model,
+    ModelRef<CustomOptions>? model,
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
