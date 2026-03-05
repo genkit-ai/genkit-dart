@@ -10,8 +10,8 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.10.0
-  genkit_openai: ^0.1.0
+  genkit: ^0.10.1
+  genkit_openai: ^0.1.0+1
 
 dev_dependencies:
   test: ^1.29.0
