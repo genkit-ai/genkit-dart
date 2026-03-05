@@ -6,13 +6,15 @@ import 'package:genkit/genkit.dart';
 
 void main() async {
   // Initialize Genkit
-  final ai = Genkit(plugins: [
-    // install plugin:
-    //
-    // googleAI(),
-    // anthropic(),
-    // openAI(),
-  ]);
+  final ai = Genkit(
+    plugins: [
+      // install plugin:
+      //
+      // googleAI(),
+      // anthropic(),
+      // openAI(),
+    ],
+  );
 
   // Define a simple flow
   final basicFlow = ai.defineFlow(
