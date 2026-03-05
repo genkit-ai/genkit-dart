@@ -120,12 +120,12 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             );
             return EmbedResponse(
               embeddings: [Embedding(embedding: res.embedding?.values ?? [])],
+            );
+          } else {
+            final futures = req.input.map((doc) async {
               final text = doc.content
                   .where((p) => p.isText)
                   .map((p) => p.text)
-                  .join('\n');
-                  .map((p) => p.toJson()['text'] as String?)
-                  .nonNulls
                   .join('\n');
               final content = gcl.Content(parts: [gcl.Part(text: text)]);
               final res = await service.embedContent(

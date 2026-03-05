@@ -128,7 +128,9 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       logger.warning('Failed to list models: $e', e, stack);
       throw handleException(e, stack);
     } finally {
-      service.client.close();
+      if (authClient == null) {
+        service.client.close();
+      }
     }
   }
 
@@ -181,7 +183,9 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
-          service.client.close();
+          if (authClient == null) {
+            service.client.close();
+          }
         }
       },
     );

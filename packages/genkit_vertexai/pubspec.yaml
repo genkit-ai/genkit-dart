@@ -12,7 +12,7 @@ dependencies:
   genkit: ^0.10.0
   genkit_google_genai: ^0.1.0
   genkit_vertex_auth: ^0.1.0
-  http: ^1.5.0
+  http: ^1.6.0
   meta: ^1.17.0
   schemantic: ^0.1.0
 
