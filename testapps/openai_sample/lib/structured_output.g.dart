@@ -21,7 +21,7 @@ part of 'structured_output.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class MovieReviewInput {
+base class MovieReviewInput {
   factory MovieReviewInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -66,7 +66,7 @@ class MovieReviewInput {
   }
 }
 
-final class _MovieReviewInputTypeFactory
+base class _MovieReviewInputTypeFactory
     extends SchemanticType<MovieReviewInput> {
   const _MovieReviewInputTypeFactory();
 
@@ -88,7 +88,7 @@ final class _MovieReviewInputTypeFactory
   );
 }
 
-class MovieReview {
+base class MovieReview {
   factory MovieReview.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -174,7 +174,7 @@ class MovieReview {
   }
 }
 
-final class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
+base class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
   const _MovieReviewTypeFactory();
 
   @override

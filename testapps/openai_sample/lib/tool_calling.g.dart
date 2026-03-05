@@ -21,7 +21,7 @@ part of 'tool_calling.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherFlowInput {
+base class WeatherFlowInput {
   factory WeatherFlowInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class WeatherFlowInput {
   }
 }
 
-final class _WeatherFlowInputTypeFactory
+base class _WeatherFlowInputTypeFactory
     extends SchemanticType<WeatherFlowInput> {
   const _WeatherFlowInputTypeFactory();
 
@@ -73,7 +73,7 @@ final class _WeatherFlowInputTypeFactory
   );
 }
 
-class WeatherToolInput {
+base class WeatherToolInput {
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -118,7 +118,7 @@ class WeatherToolInput {
   }
 }
 
-final class _WeatherToolInputTypeFactory
+base class _WeatherToolInputTypeFactory
     extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
@@ -143,7 +143,7 @@ final class _WeatherToolInputTypeFactory
   );
 }
 
-class WeatherToolOutput {
+base class WeatherToolOutput {
   factory WeatherToolOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -214,7 +214,7 @@ class WeatherToolOutput {
   }
 }
 
-final class _WeatherToolOutputTypeFactory
+base class _WeatherToolOutputTypeFactory
     extends SchemanticType<WeatherToolOutput> {
   const _WeatherToolOutputTypeFactory();
 
