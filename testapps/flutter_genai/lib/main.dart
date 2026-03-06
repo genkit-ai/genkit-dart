@@ -44,11 +44,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
           body: const TabBarView(
-            children: [
-              ClientSideTab(),
-              RemoteModelTab(),
-              ServerFlowTab(),
-            ],
+            children: [ClientSideTab(), RemoteModelTab(), ServerFlowTab()],
           ),
         ),
       ),
@@ -89,7 +85,7 @@ class _ClientSideTabState extends State<ClientSideTab> {
         plugins: [
           _selectedProvider == AiProvider.google
               ? googleAI(apiKey: apiKey)
-              : openAI(apiKey: apiKey)
+              : openAI(apiKey: apiKey),
         ],
       );
 
@@ -129,7 +125,9 @@ class _ClientSideTabState extends State<ClientSideTab> {
             isExpanded: true,
             items: const [
               DropdownMenuItem(
-                  value: AiProvider.google, child: Text('Google Gemini')),
+                value: AiProvider.google,
+                child: Text('Google Gemini'),
+              ),
               DropdownMenuItem(value: AiProvider.openai, child: Text('OpenAI')),
             ],
             onChanged: (val) {
@@ -151,7 +149,9 @@ class _ClientSideTabState extends State<ClientSideTab> {
           TextField(
             controller: _promptController,
             decoration: const InputDecoration(
-                labelText: 'Prompt', border: OutlineInputBorder()),
+              labelText: 'Prompt',
+              border: OutlineInputBorder(),
+            ),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
@@ -197,10 +197,7 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
           ? 'http://localhost:8080/googleai/gemini-2.5-flash'
           : 'http://localhost:8080/openai/gpt-4o';
 
-      final remoteModel = ai.defineRemoteModel(
-        name: 'remoteModel',
-        url: url,
-      );
+      final remoteModel = ai.defineRemoteModel(name: 'remoteModel', url: url);
 
       final response = await ai.generate(
         model: remoteModel,
@@ -233,10 +230,13 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
             isExpanded: true,
             items: const [
               DropdownMenuItem(
-                  value: AiProvider.google,
-                  child: Text('Google Gemini (via Server)')),
+                value: AiProvider.google,
+                child: Text('Google Gemini (via Server)'),
+              ),
               DropdownMenuItem(
-                  value: AiProvider.openai, child: Text('OpenAI (via Server)')),
+                value: AiProvider.openai,
+                child: Text('OpenAI (via Server)'),
+              ),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedProvider = val);
@@ -246,7 +246,9 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
           TextField(
             controller: _promptController,
             decoration: const InputDecoration(
-                labelText: 'Prompt', border: OutlineInputBorder()),
+              labelText: 'Prompt',
+              border: OutlineInputBorder(),
+            ),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
@@ -286,15 +288,18 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
     });
 
     try {
-      final remoteFlow = defineRemoteAction<ServerFlowInput, String, void, void>(
-        url: 'http://localhost:8080/serverFlow',
-        inputSchema: ServerFlowInput.$schema,
-        outputSchema: .string(),
-      );
+      final remoteFlow =
+          defineRemoteAction<ServerFlowInput, String, void, void>(
+            url: 'http://localhost:8080/serverFlow',
+            inputSchema: ServerFlowInput.$schema,
+            outputSchema: .string(),
+          );
 
       final response = await remoteFlow(
         input: ServerFlowInput(
-          provider: _selectedProvider == AiProvider.google ? 'google' : 'openai',
+          provider: _selectedProvider == AiProvider.google
+              ? 'google'
+              : 'openai',
           prompt: _promptController.text,
         ),
       );
@@ -324,23 +329,30 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
             isExpanded: true,
             items: const [
               DropdownMenuItem(
-                  value: AiProvider.google,
-                  child: Text('Google Gemini (via ServerFlow)')),
+                value: AiProvider.google,
+                child: Text('Google Gemini (via ServerFlow)'),
+              ),
               DropdownMenuItem(
-                  value: AiProvider.openai, child: Text('OpenAI (via ServerFlow)')),
+                value: AiProvider.openai,
+                child: Text('OpenAI (via ServerFlow)'),
+              ),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedProvider = val);
             },
           ),
           const SizedBox(height: 16),
-          const Text('Executes a remote action named `serverFlow`',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Executes a remote action named `serverFlow`',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _promptController,
             decoration: const InputDecoration(
-                labelText: 'Prompt', border: OutlineInputBorder()),
+              labelText: 'Prompt',
+              border: OutlineInputBorder(),
+            ),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
