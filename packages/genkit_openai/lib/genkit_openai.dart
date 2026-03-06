@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
-import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'src/openai_plugin.dart';
