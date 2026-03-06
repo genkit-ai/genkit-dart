@@ -593,10 +593,7 @@ void main(List<String> args) async {
   }
 
   print('\nCreating git commit...');
-  final addResult = await Process.run('git', [
-    'add',
-    'packages.yaml',
-  ]);
+  final addResult = await Process.run('git', ['add', 'packages.yaml']);
   if (addResult.exitCode != 0) {
     print('Warning: Failed to stage packages.yaml: ${addResult.stderr}');
   }
