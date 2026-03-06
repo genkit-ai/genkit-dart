@@ -19,7 +19,6 @@ import 'package:schemantic/schemantic.dart';
 
 import 'src/openai_plugin.dart';
 
-export 'src/chat.dart' show buildOpenAIResponseFormat, isJsonStructuredOutput;
 export 'src/converters.dart' show GenkitConverter;
 export 'src/utils.dart'
     show

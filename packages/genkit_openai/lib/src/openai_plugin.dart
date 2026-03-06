@@ -20,7 +20,8 @@ import 'package:schemantic/schemantic.dart';
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
 
-SchemanticType<OpenAIOptions> optionsSchemaForModel(String _) {
+SchemanticType<OpenAIOptions> optionsSchemaForModel(String modelName) {
+  // TODO: Return model-specific option schemas as non-chat model support expands.
   return chat.chatModelOptionsSchema();
 }
 
