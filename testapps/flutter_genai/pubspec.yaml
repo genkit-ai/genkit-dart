@@ -14,12 +14,16 @@ dependencies:
     path: ../../packages/genkit
   genkit_google_genai:
     path: ../../packages/genkit_google_genai
+  genkit_openai:
+    path: ../../packages/genkit_openai
 
 dependency_overrides:
   genkit:
     path: ../../packages/genkit
   genkit_google_genai:
     path: ../../packages/genkit_google_genai
+  genkit_openai:
+    path: ../../packages/genkit_openai
   schemantic:
     path: ../../packages/schemantic
 

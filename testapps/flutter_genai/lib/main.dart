@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_openai/genkit_openai.dart';
 
 void main() {
   runApp(const MyApp());
@@ -27,11 +28,14 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
+enum AiProvider { google, openai }
+
 class _MyAppState extends State<MyApp> {
   final _apiKeyController = TextEditingController();
   final _controller = TextEditingController(text: 'Say hello');
   String _output = '';
   bool _isLoading = false;
+  AiProvider _selectedProvider = AiProvider.google;
 
   Future<void> _generate() async {
     final apiKey = _apiKeyController.text;
@@ -48,9 +52,19 @@ class _MyAppState extends State<MyApp> {
     });
 
     try {
-      final ai = Genkit(plugins: [googleAI(apiKey: apiKey)]);
+      final ai = Genkit(
+        plugins: [
+          _selectedProvider == AiProvider.google
+              ? googleAI(apiKey: apiKey)
+              : openAI(apiKey: apiKey)
+        ],
+      );
+      final model = _selectedProvider == AiProvider.google
+          ? googleAI.gemini('gemini-2.5-flash')
+          : openAI.model('gpt-4o');
+
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: model,
         prompt: _controller.text,
       );
       setState(() {
@@ -83,11 +97,33 @@ class _MyAppState extends State<MyApp> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              DropdownButton<AiProvider>(
+                value: _selectedProvider,
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(
+                    value: AiProvider.google,
+                    child: Text('Google Gemini'),
+                  ),
+                  DropdownMenuItem(
+                    value: AiProvider.openai,
+                    child: Text('OpenAI'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    if (value != null) _selectedProvider = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _apiKeyController,
-                decoration: const InputDecoration(
-                  labelText: 'Gemini API Key',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _selectedProvider == AiProvider.google
+                      ? 'Gemini API Key'
+                      : 'OpenAI API Key',
+                  border: const OutlineInputBorder(),
                 ),
                 obscureText: true,
               ),
