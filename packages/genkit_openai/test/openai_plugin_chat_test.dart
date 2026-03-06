@@ -507,6 +507,24 @@ void main() {
   });
 
   group('Plugin configuration', () {
+    test('rejects conflicting apiKey + apiKeyProvider', () {
+      expect(
+        () => openAI(
+          apiKey: 'openai-key',
+          apiKeyProvider: () async => 'openai-key-provider',
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either apiKey or apiKeyProvider, not both.',
+              ),
+        ),
+      );
+    });
+
     test('rejects conflicting apiKey + vertex configuration', () {
       expect(
         () => openAI(
@@ -523,6 +541,27 @@ void main() {
                 (e) => e.message,
                 'message',
                 'Provide either apiKey or vertex configuration, not both.',
+              ),
+        ),
+      );
+    });
+
+    test('rejects conflicting apiKeyProvider + vertex configuration', () {
+      expect(
+        () => openAI(
+          apiKeyProvider: () async => 'openai-key-provider',
+          vertex: OpenAIVertexConfig(
+            projectId: 'my-project',
+            accessToken: 'ya29.token',
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either apiKeyProvider or vertex configuration, not both.',
               ),
         ),
       );

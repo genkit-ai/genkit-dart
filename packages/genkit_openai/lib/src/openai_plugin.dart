@@ -39,6 +39,7 @@ class OpenAIPlugin extends GenkitPlugin {
   String get name => 'openai';
 
   final String? apiKey;
+  final OpenAIApiKeyProvider? apiKeyProvider;
   final String? baseUrl;
   final OpenAIVertexConfig? vertex;
   final List<CustomModelDefinition> customModels;
@@ -46,14 +47,27 @@ class OpenAIPlugin extends GenkitPlugin {
 
   OpenAIPlugin({
     this.apiKey,
+    this.apiKeyProvider,
     this.baseUrl,
     this.vertex,
     this.customModels = const [],
     this.headers,
   }) {
+    if (apiKey != null && apiKeyProvider != null) {
+      throw GenkitException(
+        'Provide either apiKey or apiKeyProvider, not both.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
     if (apiKey != null && vertex != null) {
       throw GenkitException(
         'Provide either apiKey or vertex configuration, not both.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    if (apiKeyProvider != null && vertex != null) {
+      throw GenkitException(
+        'Provide either apiKeyProvider or vertex configuration, not both.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -156,10 +170,10 @@ class OpenAIPlugin extends GenkitPlugin {
       );
     }
 
-    final configuredApiKey = apiKey;
+    final configuredApiKey = await _resolveApiKey();
     if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
       throw GenkitException(
-        'API key is required. Provide it via the plugin constructor.',
+        'API key is required. Provide it via apiKey or apiKeyProvider in the plugin constructor.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -169,6 +183,14 @@ class OpenAIPlugin extends GenkitPlugin {
       baseUrl: baseUrl,
       headers: headers,
     );
+  }
+
+  Future<String?> _resolveApiKey() async {
+    final configuredApiKeyProvider = apiKeyProvider;
+    if (configuredApiKeyProvider != null) {
+      return await configuredApiKeyProvider();
+    }
+    return apiKey;
   }
 
   @override

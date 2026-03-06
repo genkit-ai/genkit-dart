@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:genkit/plugin.dart';
 import 'package:genkit_vertex_auth/genkit_vertex_auth.dart' as vertex_auth;
 import 'package:http/http.dart' as http;
@@ -78,6 +80,9 @@ class CustomModelDefinition {
 
   const CustomModelDefinition({required this.name, this.info});
 }
+
+/// Signature used to provide an API key (or bearer token) for requests.
+typedef OpenAIApiKeyProvider = FutureOr<String> Function();
 
 /// Signature used to provide an OAuth2 access token for Vertex AI requests.
 ///
@@ -242,6 +247,7 @@ class OpenAICompatPluginHandle {
   /// Create the plugin instance
   GenkitPlugin call({
     String? apiKey,
+    OpenAIApiKeyProvider? apiKeyProvider,
     String? baseUrl,
     List<CustomModelDefinition>? models,
     Map<String, String>? headers,
@@ -249,6 +255,7 @@ class OpenAICompatPluginHandle {
   }) {
     return OpenAIPlugin(
       apiKey: apiKey,
+      apiKeyProvider: apiKeyProvider,
       baseUrl: baseUrl,
       vertex: vertex,
       customModels: models ?? const [],

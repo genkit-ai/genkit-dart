@@ -53,6 +53,11 @@ void main() {
       expect(plugin, isNotNull);
     });
 
+    test('creates plugin instance with apiKeyProvider', () {
+      final plugin = openAI(apiKeyProvider: () async => 'test-key');
+      expect(plugin, isNotNull);
+    });
+
     test('creates model reference', () {
       final ref = openAI.model('gpt-4o');
       expect(ref.name, 'openai/gpt-4o');
