@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
-import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
 import 'package:schemantic/schemantic.dart';
 
@@ -45,38 +44,22 @@ class OpenAIPlugin extends GenkitPlugin {
 
   final String? apiKey;
   final String? baseUrl;
-  final OpenAIVertexConfig? vertex;
   final List<CustomModelDefinition> customModels;
   final Map<String, String>? headers;
 
   OpenAIPlugin({
     this.apiKey,
     this.baseUrl,
-    this.vertex,
     this.customModels = const [],
     this.headers,
-  }) {
-    if (apiKey != null && vertex != null) {
-      throw GenkitException(
-        'Provide either apiKey or vertex configuration, not both.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    if (baseUrl != null && vertex != null) {
-      throw GenkitException(
-        'Provide either baseUrl or vertex configuration, not both.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    vertex?.validate();
-  }
+  });
 
   @override
   Future<List<Action>> init() async {
     final actions = <Action>[];
 
     // Fetch and register models from OpenAI API only for default OpenAI host.
-    if (baseUrl == null && vertex == null) {
+    if (baseUrl == null) {
       try {
         final availableModelIds = await _fetchAvailableModels();
 
@@ -244,19 +227,6 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   Future<_ResolvedClientConfig> _resolveClientConfig() async {
-    final vertexConfig = vertex;
-    if (vertexConfig != null) {
-      final token = (await vertexConfig.resolveAccessToken()).trim();
-      return _ResolvedClientConfig(
-        apiKey: token,
-        baseUrl: vertexConfig.resolveBaseUrl(),
-        headers: {
-          ...?headers,
-          'x-goog-api-client': googleApiClientHeaderValue(),
-        },
-      );
-    }
-
     final configuredApiKey = apiKey;
     if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
       throw GenkitException(
