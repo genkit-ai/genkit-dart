@@ -471,15 +471,7 @@ class VersionApplier {
       }
       buf.writeln();
     }
-    if (others.isNotEmpty &&
-        breaking.isEmpty &&
-        feats.isEmpty &&
-        fixes.isEmpty) {
-      for (final msg in others) {
-        buf.writeln(' - $msg');
-      }
-      buf.writeln();
-    } else if (others.isNotEmpty) {
+    if (others.isNotEmpty) {
       buf.writeln('### Other Changes\n');
       for (final msg in others) {
         buf.writeln(' - $msg');
@@ -601,10 +593,13 @@ void main(List<String> args) async {
   }
 
   print('\nCreating git commit...');
-  await Process.run('git', [
+  final addResult = await Process.run('git', [
     'add',
     'packages.yaml',
-  ]); // placeholder just ignoring error if any
+  ]);
+  if (addResult.exitCode != 0) {
+    print('Warning: Failed to stage packages.yaml: ${addResult.stderr}');
+  }
   for (final pkgName in modifiedPackages) {
     final pkg = workspace.packages[pkgName]!;
     await Process.run('git', ['add', p.join(pkg.path, 'pubspec.yaml')]);
@@ -632,7 +627,7 @@ void main(List<String> args) async {
     final pkgName = entry.key;
     final newVersion = entry.value;
     final tagName = '$pkgName-v$newVersion';
-    await Process.run('git', ['tag', tagName]);
+    await Process.run('git', ['tag', '--', tagName]);
     print('Created tag $tagName');
   }
 
