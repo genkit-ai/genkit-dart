@@ -187,7 +187,7 @@ class GitService {
     if (result.exitCode == 0) {
       final out = result.stdout.toString().trim();
       if (out.isEmpty) return [];
-      return out.split('\\n');
+      return out.split('\n');
     }
     return [];
   }
@@ -400,7 +400,7 @@ class VersionApplier {
         final changelogFile = File(p.join(pkg.path, 'CHANGELOG.md'));
         if (await changelogFile.exists()) {
           final existing = await changelogFile.readAsString();
-          await changelogFile.writeAsString('$changelogEntry\\n$existing');
+          await changelogFile.writeAsString('$changelogEntry\n$existing');
         } else {
           await changelogFile.writeAsString(changelogEntry);
         }
@@ -412,7 +412,7 @@ class VersionApplier {
 
   String _buildChangelogEntry(Version version, List<String> commitMessages) {
     if (commitMessages.isEmpty) {
-      return '## $version\\n\\n - updated internal dependencies.\\n';
+      return '## $version\n\n - updated internal dependencies.\n';
     }
 
     final breaking = <String>[];
@@ -434,24 +434,24 @@ class VersionApplier {
     }
 
     final buf = StringBuffer();
-    buf.writeln('## $version\\n');
+    buf.writeln('## $version\n');
 
     if (breaking.isNotEmpty) {
-      buf.writeln('### Breaking Changes\\n');
+      buf.writeln('### Breaking Changes\n');
       for (final msg in breaking) {
         buf.writeln(' - $msg');
       }
       buf.writeln();
     }
     if (feats.isNotEmpty) {
-      buf.writeln('### Features\\n');
+      buf.writeln('### Features\n');
       for (final msg in feats) {
         buf.writeln(' - $msg');
       }
       buf.writeln();
     }
     if (fixes.isNotEmpty) {
-      buf.writeln('### Fixes\\n');
+      buf.writeln('### Fixes\n');
       for (final msg in fixes) {
         buf.writeln(' - $msg');
       }
@@ -466,7 +466,7 @@ class VersionApplier {
       }
       buf.writeln();
     } else if (others.isNotEmpty) {
-      buf.writeln('### Other Changes\\n');
+      buf.writeln('### Other Changes\n');
       for (final msg in others) {
         buf.writeln(' - $msg');
       }
@@ -570,7 +570,7 @@ void main(List<String> args) async {
         commitMessages,
       );
       print('\nPackage: $pkgName');
-      print(changelogEntry.replaceAll('\\n', '\n').trimRight());
+      print(changelogEntry.trimRight());
       print('--------------------------');
     }
     print('\nDry run complete. No files were changed.');
