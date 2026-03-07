@@ -14,36 +14,75 @@
 
 import 'package:genkit/genkit.dart';
 
-/// Default model info for standard OpenAI models.
-ModelInfo defaultModelInfo(String model) {
-  return ModelInfo(
-    label: model,
-    supports: {
-      'multiturn': true,
-      'tools': supportsTools(model),
-      'systemRole': true,
-      'media': supportsVision(model),
-    },
-  );
+final RegExp _oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
+final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
+final RegExp _gptOPattern = RegExp(r'gpt-\d+(?:\.\d+)?o');
+
+const List<String> _nonToolKeywords = [
+  'embedding',
+  'tts',
+  'whisper',
+  'dall-e',
+  'moderation',
+  'sora',
+  'search',
+  'research',
+];
+
+/// Encapsulates model capability rules so model families can override behavior.
+abstract class _ModelCapabilities {
+  final String modelId;
+
+  const _ModelCapabilities(this.modelId);
+
+  String get id => modelId.toLowerCase();
+
+  bool get supportsMultiturn => true;
+  bool get supportsTools => _supportsToolsByHeuristics(id);
+  bool get supportsSystemRole => true;
+  bool get supportsMedia => _supportsVisionByHeuristics(id);
+
+  ModelInfo toModelInfo() {
+    return ModelInfo(
+      label: modelId,
+      supports: {
+        'multiturn': supportsMultiturn,
+        'tools': supportsTools,
+        'systemRole': supportsSystemRole,
+        'media': supportsMedia,
+      },
+    );
+  }
+
+  static _ModelCapabilities forModel(String modelId) {
+    if (_oSeriesPattern.hasMatch(modelId.toLowerCase())) {
+      return _OSeriesModelCapabilities(modelId);
+    }
+
+    return _DefaultModelCapabilities(modelId);
+  }
 }
 
-/// Model info for O-series reasoning models (o1, o2, o3, o4, etc.).
-ModelInfo oSeriesModelInfo(String model) {
-  return ModelInfo(
-    label: model,
-    supports: {
-      'multiturn': true,
-      'tools': false, // O-series models don't support tools yet
-      'systemRole': false, // O-series models use developer messages instead
-      'media': true, // O-series models support vision/image inputs
-    },
-  );
+/// Default capability behavior for standard OpenAI models.
+class _DefaultModelCapabilities extends _ModelCapabilities {
+  const _DefaultModelCapabilities(super.modelId);
 }
 
-/// Check if a model supports tools/function calling.
-bool supportsTools(String model) {
-  final id = model.toLowerCase();
+/// O-series reasoning models override key capability defaults.
+class _OSeriesModelCapabilities extends _DefaultModelCapabilities {
+  const _OSeriesModelCapabilities(super.modelId);
 
+  @override
+  bool get supportsTools => false;
+
+  @override
+  bool get supportsSystemRole => false;
+
+  @override
+  bool get supportsMedia => true;
+}
+
+bool _supportsToolsByHeuristics(String id) {
   // ChatGPT-branded models don't support tools.
   if (id.startsWith('chatgpt-')) {
     return false;
@@ -58,26 +97,14 @@ bool supportsTools(String model) {
   }
 
   // Specialized models that don't support tools.
-  const nonToolKeywords = [
-    'embedding',
-    'tts',
-    'whisper',
-    'dall-e',
-    'moderation',
-    'sora',
-    'search',
-    'research',
-  ];
-
-  for (final keyword in nonToolKeywords) {
+  for (final keyword in _nonToolKeywords) {
     if (id.contains(keyword)) {
       return false;
     }
   }
 
   // Standard GPT models support tools.
-  final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
-  if (gptPattern.hasMatch(id)) {
+  if (_gptPattern.hasMatch(id)) {
     return true;
   }
 
@@ -85,10 +112,7 @@ bool supportsTools(String model) {
   return true;
 }
 
-/// Check if a model supports vision (image inputs).
-bool supportsVision(String model) {
-  final id = model.toLowerCase();
-
+bool _supportsVisionByHeuristics(String id) {
   // Explicitly named vision models.
   if (id.contains('vision')) {
     return true;
@@ -107,14 +131,12 @@ bool supportsVision(String model) {
   }
 
   // Future GPT models with "o" suffix: gpt-5o, gpt-6o, gpt-10o, etc.
-  final gptOPattern = RegExp(r'gpt-\d+(?:\.\d+)?o');
-  if (gptOPattern.hasMatch(id)) {
+  if (_gptOPattern.hasMatch(id)) {
     return true;
   }
 
   // O-series reasoning models (o1, o2, o3, etc.) support vision.
-  final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
-  if (oSeriesPattern.hasMatch(id)) {
+  if (_oSeriesPattern.hasMatch(id)) {
     return true;
   }
 
@@ -125,6 +147,31 @@ bool supportsVision(String model) {
   }
 
   return false;
+}
+
+/// Default model info for standard OpenAI models.
+ModelInfo defaultModelInfo(String model) {
+  return _DefaultModelCapabilities(model).toModelInfo();
+}
+
+/// Model info for O-series reasoning models (o1, o2, o3, o4, etc.).
+ModelInfo oSeriesModelInfo(String model) {
+  return _OSeriesModelCapabilities(model).toModelInfo();
+}
+
+/// Model info for any OpenAI model based on its model family.
+ModelInfo modelInfoFor(String model) {
+  return _ModelCapabilities.forModel(model).toModelInfo();
+}
+
+/// Check if a model supports tools/function calling.
+bool supportsTools(String model) {
+  return _DefaultModelCapabilities(model).supportsTools;
+}
+
+/// Check if a model supports vision (image inputs).
+bool supportsVision(String model) {
+  return _DefaultModelCapabilities(model).supportsMedia;
 }
 
 /// Determines the type of model based on its ID.
@@ -196,14 +243,12 @@ String getModelType(String modelId) {
   }
 
   // GPT-N pattern: matches gpt-3, gpt-4, gpt-5, gpt-6, etc.
-  final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
-  if (gptPattern.hasMatch(id)) {
+  if (_gptPattern.hasMatch(id)) {
     return 'chat';
   }
 
   // O-series reasoning models: o1, o2, o3, o4, o5, etc.
-  final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
-  if (oSeriesPattern.hasMatch(id)) {
+  if (_oSeriesPattern.hasMatch(id)) {
     return 'chat';
   }
 

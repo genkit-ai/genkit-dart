@@ -15,19 +15,19 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'genkit_openai.dart';
+part of 'chat.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-base class OpenAIOptions {
-  factory OpenAIOptions.fromJson(Map<String, dynamic> json) =>
+base class OpenAIChatOptions {
+  factory OpenAIChatOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  OpenAIOptions._(this._json);
+  OpenAIChatOptions._(this._json);
 
-  OpenAIOptions({
+  OpenAIChatOptions({
     String? version,
     double? temperature,
     double? topP,
@@ -57,8 +57,8 @@ base class OpenAIOptions {
 
   late final Map<String, dynamic> _json;
 
-  static const SchemanticType<OpenAIOptions> $schema =
-      _OpenAIOptionsTypeFactory();
+  static const SchemanticType<OpenAIChatOptions> $schema =
+      _OpenAIChatOptionsTypeFactory();
 
   String? get version {
     return _json['version'] as String?;
@@ -202,17 +202,18 @@ base class OpenAIOptions {
   }
 }
 
-base class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
-  const _OpenAIOptionsTypeFactory();
+base class _OpenAIChatOptionsTypeFactory
+    extends SchemanticType<OpenAIChatOptions> {
+  const _OpenAIChatOptionsTypeFactory();
 
   @override
-  OpenAIOptions parse(Object? json) {
-    return OpenAIOptions._(json as Map<String, dynamic>);
+  OpenAIChatOptions parse(Object? json) {
+    return OpenAIChatOptions._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'OpenAIOptions',
+    name: 'OpenAIChatOptions',
     definition: $Schema
         .object(
           properties: {

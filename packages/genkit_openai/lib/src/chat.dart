@@ -15,7 +15,52 @@
 import 'package:openai_dart/openai_dart.dart';
 import 'package:schemantic/schemantic.dart';
 
-import '../genkit_openai.dart';
+part 'chat.g.dart';
+
+/// Chat-specific options for OpenAI chat models.
+@Schema()
+abstract class $OpenAIChatOptions {
+  /// Model version override (e.g., 'gpt-4o-2024-08-06')
+  String? get version;
+
+  /// Sampling temperature (0.0 - 2.0)
+  @DoubleField(minimum: 0.0, maximum: 2.0)
+  double? get temperature;
+
+  /// Nucleus sampling (0.0 - 1.0)
+  @DoubleField(minimum: 0.0, maximum: 1.0)
+  double? get topP;
+
+  /// Maximum tokens to generate
+  int? get maxTokens;
+
+  /// Stop sequences
+  List<String>? get stop;
+
+  /// Presence penalty (-2.0 - 2.0)
+  @DoubleField(minimum: -2.0, maximum: 2.0)
+  double? get presencePenalty;
+
+  /// Frequency penalty (-2.0 - 2.0)
+  @DoubleField(minimum: -2.0, maximum: 2.0)
+  double? get frequencyPenalty;
+
+  /// Seed for deterministic sampling
+  int? get seed;
+
+  /// User identifier for abuse detection
+  String? get user;
+
+  /// JSON mode
+  bool? get jsonMode;
+
+  /// Visual detail level for images ('auto', 'low', 'high')
+  @StringField(enumValues: ['auto', 'low', 'high'])
+  String? get visualDetailLevel;
+}
+
+typedef OpenAIOptions = OpenAIChatOptions;
+typedef ChatModelOptions = OpenAIChatOptions;
 
 /// Returns true when the output config indicates JSON-structured output
 /// (format is 'json' or contentType is 'application/json').
@@ -37,4 +82,12 @@ ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
 }
 
 /// Returns custom options schema for standard chat models.
-SchemanticType<OpenAIOptions> chatModelOptionsSchema() => OpenAIOptions.$schema;
+SchemanticType<ChatModelOptions> chatModelOptionsSchema() =>
+    OpenAIChatOptions.$schema;
+
+/// Parses chat-model options from action config.
+ChatModelOptions parseChatModelOptions(Map<String, dynamic>? config) {
+  return config != null
+      ? OpenAIChatOptions.$schema.parse(config)
+      : OpenAIChatOptions();
+}

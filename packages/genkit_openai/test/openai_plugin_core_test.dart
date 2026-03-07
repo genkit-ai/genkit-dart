@@ -17,36 +17,6 @@ import 'package:genkit_openai/genkit_openai.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('OpenAIOptions', () {
-    test('parses temperature', () {
-      final options = OpenAIOptions.$schema.parse({'temperature': 0.7});
-      expect(options.temperature, 0.7);
-    });
-
-    test('parses maxTokens', () {
-      final options = OpenAIOptions.$schema.parse({'maxTokens': 100});
-      expect(options.maxTokens, 100);
-    });
-
-    test('parses jsonMode', () {
-      final options = OpenAIOptions.$schema.parse({'jsonMode': true});
-      expect(options.jsonMode, true);
-    });
-
-    test('parses stop sequences', () {
-      final options = OpenAIOptions.$schema.parse({
-        'stop': ['stop1', 'stop2'],
-      });
-      expect(options.stop, ['stop1', 'stop2']);
-    });
-
-    test('creates default options', () {
-      final options = OpenAIOptions();
-      expect(options.temperature, isNull);
-      expect(options.maxTokens, isNull);
-    });
-  });
-
   group('Plugin Handle', () {
     test('creates plugin instance', () {
       final plugin = openAI(apiKey: 'test-key');

@@ -14,23 +14,9 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
-import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
-
-SchemanticType<OpenAIOptions> optionsSchemaForModel(String modelName) {
-  // TODO: Return model-specific option schemas as non-chat model support expands.
-  return chat.chatModelOptionsSchema();
-}
-
-bool isJsonStructuredOutput(String? format, String? contentType) {
-  return chat.isJsonStructuredOutput(format, contentType);
-}
-
-sdk.ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
-  return chat.buildOpenAIResponseFormat(schema);
-}
 
 /// Core plugin implementation
 class OpenAIPlugin extends GenkitPlugin {
@@ -122,16 +108,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Get appropriate ModelInfo for a given model ID
   ModelInfo _getModelInfo(String modelId) {
-    final id = modelId.toLowerCase();
-
-    // O-series reasoning models (o1, o2, o3, o4, etc.) have different capabilities
-    // Matches: o1, o1-preview, o2, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
-    if (oSeriesPattern.hasMatch(id)) {
-      return oSeriesModelInfo(modelId);
-    }
-
-    return defaultModelInfo(modelId);
+    return modelInfoFor(modelId);
   }
 
   Future<_ResolvedClientConfig> _resolveClientConfig() async {
@@ -177,7 +154,7 @@ class OpenAIPlugin extends GenkitPlugin {
           modelMetadata(
             'openai/$modelId',
             modelInfo: modelInfo,
-            customOptions: optionsSchemaForModel(modelId),
+            customOptions: chat.chatModelOptionsSchema(),
           ),
         );
       }
@@ -205,12 +182,11 @@ class OpenAIPlugin extends GenkitPlugin {
 
     return Model(
       name: 'openai/$modelName',
-      customOptions: optionsSchemaForModel(modelName),
+      customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
-        final options = req!.config != null
-            ? OpenAIOptions.$schema.parse(req.config!)
-            : OpenAIOptions();
+        final modelRequest = req!;
+        final options = chat.parseChatModelOptions(modelRequest.config);
 
         final resolvedConfig = await _resolveClientConfig();
         final client = sdk.OpenAIClient(
@@ -225,19 +201,21 @@ class OpenAIPlugin extends GenkitPlugin {
           final supports = modelInfo.supports;
           final supportsTools = supports?['tools'] == true;
 
-          final isJsonMode = isJsonStructuredOutput(
-            req.output?.format,
-            req.output?.contentType,
+          final isJsonMode = chat.isJsonStructuredOutput(
+            modelRequest.output?.format,
+            modelRequest.output?.contentType,
           );
-          final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
+          final responseFormat = chat.buildOpenAIResponseFormat(
+            modelRequest.output?.schema,
+          );
           final request = sdk.ChatCompletionCreateRequest(
             model: options.version ?? modelName,
             messages: GenkitConverter.toOpenAIMessages(
-              req.messages,
+              modelRequest.messages,
               options.visualDetailLevel,
             ),
             tools: supportsTools
-                ? req.tools?.map(GenkitConverter.toOpenAITool).toList()
+                ? modelRequest.tools?.map(GenkitConverter.toOpenAITool).toList()
                 : null,
             temperature: options.temperature,
             topP: options.topP,

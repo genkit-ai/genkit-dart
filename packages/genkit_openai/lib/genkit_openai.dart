@@ -15,61 +15,20 @@
 import 'dart:async';
 
 import 'package:genkit/plugin.dart';
-import 'package:schemantic/schemantic.dart';
 
+import 'src/chat.dart' as chat;
 import 'src/openai_plugin.dart';
 
+export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
 export 'src/utils.dart'
     show
         defaultModelInfo,
         getModelType,
+        modelInfoFor,
         oSeriesModelInfo,
         supportsTools,
         supportsVision;
-
-part 'genkit_openai.g.dart';
-
-@Schema()
-abstract class $OpenAIOptions {
-  /// Model version override (e.g., 'gpt-4o-2024-08-06')
-  String? get version;
-
-  /// Sampling temperature (0.0 - 2.0)
-  @DoubleField(minimum: 0.0, maximum: 2.0)
-  double? get temperature;
-
-  /// Nucleus sampling (0.0 - 1.0)
-  @DoubleField(minimum: 0.0, maximum: 1.0)
-  double? get topP;
-
-  /// Maximum tokens to generate
-  int? get maxTokens;
-
-  /// Stop sequences
-  List<String>? get stop;
-
-  /// Presence penalty (-2.0 - 2.0)
-  @DoubleField(minimum: -2.0, maximum: 2.0)
-  double? get presencePenalty;
-
-  /// Frequency penalty (-2.0 - 2.0)
-  @DoubleField(minimum: -2.0, maximum: 2.0)
-  double? get frequencyPenalty;
-
-  /// Seed for deterministic sampling
-  int? get seed;
-
-  /// User identifier for abuse detection
-  String? get user;
-
-  /// JSON mode
-  bool? get jsonMode;
-
-  /// Visual detail level for images ('auto', 'low', 'high')
-  @StringField(enumValues: ['auto', 'low', 'high'])
-  String? get visualDetailLevel;
-}
 
 /// Custom model definition for registering models from compatible providers
 class CustomModelDefinition {
@@ -107,7 +66,10 @@ class OpenAICompatPluginHandle {
   }
 
   /// Reference to a model
-  ModelRef<OpenAIOptions> model(String name) {
-    return modelRef('openai/$name', customOptions: optionsSchemaForModel(name));
+  ModelRef<chat.OpenAIChatOptions> model(String name) {
+    return modelRef(
+      'openai/$name',
+      customOptions: chat.chatModelOptionsSchema(),
+    );
   }
 }

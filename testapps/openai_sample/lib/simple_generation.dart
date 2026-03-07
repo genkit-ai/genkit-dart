@@ -42,7 +42,7 @@ Flow<String, String, void, void> defineSimpleGenerationFlow(Genkit ai) {
 ///
 /// When called with streaming requested, text chunks are emitted as they arrive
 /// from the model. The full concatenated text is returned as the final output.
-/// Uses [OpenAIOptions] to configure temperature and token limits.
+/// Uses [OpenAIChatOptions] to configure temperature and token limits.
 Flow<String, String, String, void> defineStreamedSimpleGenerationFlow(
   Genkit ai,
 ) {

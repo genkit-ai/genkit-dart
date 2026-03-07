@@ -19,31 +19,31 @@ import 'package:openai_dart/openai_dart.dart'
 import 'package:test/test.dart';
 
 void main() {
-  group('OpenAIOptions', () {
+  group('OpenAIChatOptions', () {
     test('parses temperature', () {
-      final options = OpenAIOptions.$schema.parse({'temperature': 0.7});
+      final options = OpenAIChatOptions.$schema.parse({'temperature': 0.7});
       expect(options.temperature, 0.7);
     });
 
     test('parses maxTokens', () {
-      final options = OpenAIOptions.$schema.parse({'maxTokens': 100});
+      final options = OpenAIChatOptions.$schema.parse({'maxTokens': 100});
       expect(options.maxTokens, 100);
     });
 
     test('parses jsonMode', () {
-      final options = OpenAIOptions.$schema.parse({'jsonMode': true});
+      final options = OpenAIChatOptions.$schema.parse({'jsonMode': true});
       expect(options.jsonMode, true);
     });
 
     test('parses stop sequences', () {
-      final options = OpenAIOptions.$schema.parse({
+      final options = OpenAIChatOptions.$schema.parse({
         'stop': ['stop1', 'stop2'],
       });
       expect(options.stop, ['stop1', 'stop2']);
     });
 
     test('creates default options', () {
-      final options = OpenAIOptions();
+      final options = OpenAIChatOptions();
       expect(options.temperature, isNull);
       expect(options.maxTokens, isNull);
     });
@@ -257,6 +257,17 @@ void main() {
       expect(info.supports?['tools'], false);
       expect(info.supports?['systemRole'], false);
       expect(info.supports?['media'], true);
+    });
+
+    test('modelInfoFor uses family-specific capability profile', () {
+      final defaultInfo = modelInfoFor('gpt-4o');
+      expect(defaultInfo.supports?['tools'], true);
+      expect(defaultInfo.supports?['systemRole'], true);
+
+      final oSeriesInfo = modelInfoFor('o3-mini');
+      expect(oSeriesInfo.supports?['tools'], false);
+      expect(oSeriesInfo.supports?['systemRole'], false);
+      expect(oSeriesInfo.supports?['media'], true);
     });
 
     test('supportsVision identifies vision models', () {
