@@ -49,6 +49,7 @@ GenerateAction defineGenerateAction(Registry registry) {
           status: StatusCodes.INVALID_ARGUMENT,
         );
       }
+      // TODO: resolve middleware from `options.use`.
       final response = await runGenerateAction(
         registry,
         options,
@@ -238,10 +239,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  final model = await registry.lookupAction('model', options.model!) as Model?;
+  final modelName = options.model!;
+  final model = await registry.lookupAction('model', modelName) as Model?;
   if (model == null) {
     throw GenkitException(
-      'Model ${options.model} not found',
+      'Model $modelName not found',
       status: StatusCodes.NOT_FOUND,
     );
   }
@@ -427,6 +429,28 @@ Future<GenerateResponseHelper> _runGenerateAction(
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   List<GenerateMiddlewareOneof>? middleware,
 }) async {
+  var resolvedModelName = options.model;
+  var resolvedConfigMap = options.config;
+
+  if (resolvedModelName == null) {
+    final defaultModel = registry.lookupValue<ModelRef>(
+      'defaultModel',
+      'defaultModel',
+    );
+    if (defaultModel != null) {
+      resolvedModelName = defaultModel.name;
+      if (resolvedConfigMap == null && defaultModel.config != null) {
+        resolvedConfigMap = _configToMap(defaultModel.config);
+      }
+    }
+  }
+
+  options = GenerateActionOptions.fromJson({
+    ...options.toJson(),
+    'model': resolvedModelName,
+    'config': resolvedConfigMap,
+  });
+
   final resolved = _resolveMiddleware(registry, middleware);
   final generateRegistry = resolved.registry;
   final resolvedMiddleware = resolved.middleware;
@@ -534,11 +558,13 @@ typedef GenerateMiddlewareOneof = ({
   GenerateMiddlewareRef? middlewareRef,
 });
 
+/// A helper that takes loose generate arguments, contstructs GenerateActionOptions
+/// and runs the generate action.
 Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
-  required ModelRef<CustomOptions> model,
+  ModelRef<CustomOptions>? model,
   CustomOptions? config,
   List<String>? tools,
   String? toolChoice,
@@ -592,7 +618,13 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
       ),
     );
   }
-  final modelName = model.name;
+
+  var resolvedModelName = model?.name;
+  var resolvedConfigMap = _configToMap(config);
+
+  if (resolvedConfigMap == null && model?.config != null) {
+    resolvedConfigMap = _configToMap(model!.config);
+  }
 
   final format = resolveFormat(registry, output);
   final chunkParser = format?.handler(output?.jsonSchema).parseChunk;
@@ -601,11 +633,9 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   return await runGenerateAction(
     registry,
     GenerateActionOptions(
-      model: modelName,
+      model: resolvedModelName,
       messages: resolvedMessages,
-      config: config is Map
-          ? config as Map<String, dynamic>
-          : (config as dynamic)?.toJson() as Map<String, dynamic>?,
+      config: resolvedConfigMap,
       tools: tools,
       toolChoice: toolChoice,
       returnToolRequests: returnToolRequests,
@@ -884,4 +914,11 @@ _executeTools(
     interrupted: interrupted,
     toolStatus: toolStatus,
   );
+}
+
+Map<String, dynamic>? _configToMap(dynamic config) {
+  if (config == null) return null;
+  return config is Map
+      ? config as Map<String, dynamic>
+      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
 }

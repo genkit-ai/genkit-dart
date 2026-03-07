@@ -1,3 +1,9 @@
+## 0.10.1
+
+ - **FEAT**: Add support for a default model and make generate model param optional (#203).
+ - **FEAT**: added `remoteModel` for defining remote AI models with lite api (#198).
+ - **DOCS**: update docs, example, package descriptions and regen types (#201).
+
 ## 0.10.0
 
  - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.

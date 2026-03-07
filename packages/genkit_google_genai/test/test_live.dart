@@ -34,13 +34,10 @@ abstract class $CalculatorInput {
 }
 
 void main() {
-  // Check if API key or Vertex Config is available
+  // Check if API key is available
   final apiKey =
       Platform.environment['GOOGLE_GENAI_API_KEY'] ??
       Platform.environment['GEMINI_API_KEY'];
-  final projectId = Platform.environment['GCLOUD_PROJECT'];
-  final location = Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1';
-
   final configs = [
     if (apiKey != null)
       (
@@ -51,19 +48,10 @@ void main() {
         modelName: 'gemini-2.5-flash',
         embedderName: 'gemini-embedding-001',
       ),
-    if (projectId != null)
-      (
-        name: 'Vertex AI',
-        plugin: vertexAI(projectId: projectId, location: location),
-        gemini: vertexAI.gemini,
-        textEmbedding: vertexAI.textEmbedding,
-        modelName: 'gemini-2.5-flash',
-        embedderName: 'gemini-embedding-001',
-      ),
   ];
 
   if (configs.isEmpty) {
-    print('Skipping live tests: No API key or Vertex config found');
+    print('Skipping live tests: No API key found');
     return;
   }
 

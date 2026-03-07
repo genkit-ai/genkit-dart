@@ -1,3 +1,14 @@
+## 0.2.0
+
+### Breaking Changes
+
+ - removed vertex support to unblock using plugin with flutter (#205)
+
+
+## 0.1.0+1
+
+ - Update a dependency to the latest release.
+
 ## 0.1.0
 
  - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.

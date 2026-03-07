@@ -3,6 +3,78 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-03-05
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`genkit` - `v0.10.1`](#genkit---v0101)
+ - [`genkit_mcp` - `v0.1.0+1`](#genkit_mcp---v0101)
+ - [`genkit_google_genai` - `v0.2.0+1`](#genkit_google_genai---v0201)
+ - [`genkit_vertexai` - `v0.2.0+1`](#genkit_vertexai---v0201)
+ - [`genkit_vertex_auth` - `v0.1.0+1`](#genkit_vertex_auth---v0101)
+ - [`genkit_openai` - `v0.1.0+1`](#genkit_openai---v0101)
+ - [`genkit_anthropic` - `v0.1.0+1`](#genkit_anthropic---v0101)
+ - [`genkit_shelf` - `v0.1.0+1`](#genkit_shelf---v0101)
+ - [`genkit_chrome` - `v0.0.1+1`](#genkit_chrome---v0011)
+ - [`genkit_middleware` - `v0.1.0+1`](#genkit_middleware---v0101)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `genkit_mcp` - `v0.1.0+1`
+ - `genkit_google_genai` - `v0.2.0+1`
+ - `genkit_vertexai` - `v0.2.0+1`
+ - `genkit_vertex_auth` - `v0.1.0+1`
+ - `genkit_openai` - `v0.1.0+1`
+ - `genkit_anthropic` - `v0.1.0+1`
+ - `genkit_shelf` - `v0.1.0+1`
+ - `genkit_chrome` - `v0.0.1+1`
+ - `genkit_middleware` - `v0.1.0+1`
+
+---
+
+#### `genkit` - `v0.10.1`
+
+ - **FEAT**: Add support for a default model and make generate model param optional (#203).
+ - **FEAT**: added `remoteModel` for defining remote AI models with lite api (#198).
+ - **DOCS**: update docs, example, package descriptions and regen types (#201).
+
+
+## 2026-03-05
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`genkit_google_genai` - `v0.2.0`](#genkit_google_genai---v020)
+ - [`genkit_vertexai` - `v0.2.0`](#genkit_vertexai---v020)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `genkit_google_genai` - `v0.2.0`
+
+ - **BREAKING** **REFACTOR**: moved vertexAI plugin from genkit_google_genai into genkit_vertexai package (#202).
+
+#### `genkit_vertexai` - `v0.2.0`
+
+ - **BREAKING** **REFACTOR**: moved vertexAI plugin from genkit_google_genai into genkit_vertexai package (#202).
+
+
 ## 2026-03-04
 
 ### Changes

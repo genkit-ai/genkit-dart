@@ -296,6 +296,7 @@ class Action<Input, Output, Chunk, Init>
   }
 }
 
+/// A stream of chunks emitted by an action, which also resolves to a final response.
 class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   bool _done = false;
   Response? _result;
@@ -303,6 +304,7 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   StackTrace? _streamStackTrace;
   Completer<Response>? _completer;
 
+  /// A future that resolves to the final response of the action once the stream is complete.
   Future<Response> get onResult {
     if (_completer == null) {
       _completer = Completer<Response>();
@@ -317,6 +319,7 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
     return _completer!.future;
   }
 
+  /// The final response of the action, throws an error if the stream has not completed yet.
   Response get result {
     if (!_done) {
       throw GenkitException('Stream not consumed yet');
@@ -328,6 +331,7 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
     return _result as Response;
   }
 
+  /// Sets the final result of the action stream and completes the future.
   void setResult(Response result) {
     _done = true;
     _result = result;
@@ -336,6 +340,7 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
     }
   }
 
+  /// Sets an error on the action stream and completes the future with an error.
   void setError(Object error, StackTrace st) {
     _done = true;
     _streamError = error;
@@ -345,15 +350,18 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
     }
   }
 
+  /// Creates a new [ActionStream] from a [Stream] of chunks.
   ActionStream(super.stream);
 }
 
+/// A bi-directional version of [ActionStream] that allows sending chunks back to the action.
 class BidiActionStream<Chunk, Response, Request>
     extends ActionStream<Chunk, Response> {
   final StreamSink<Request>? _inputSink;
 
   BidiActionStream(super.stream, this._inputSink);
 
+  /// Sends a chunk of data back to the action.
   void send(Request chunk) {
     if (_inputSink == null) {
       throw GenkitException('Cannot send to this stream (external input)');
@@ -361,6 +369,7 @@ class BidiActionStream<Chunk, Response, Request>
     _inputSink.add(chunk);
   }
 
+  /// Closes the input sink.
   Future<void> close() async {
     await _inputSink?.close();
   }

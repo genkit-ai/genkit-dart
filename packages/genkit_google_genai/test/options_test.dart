@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_google_genai/src/plugin_impl.dart';
+import 'package:genkit_google_genai/src/common_plugin.dart';
 import 'package:test/test.dart';
 
 void main() {

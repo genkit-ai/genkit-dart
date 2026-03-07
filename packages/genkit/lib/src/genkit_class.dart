@@ -26,9 +26,9 @@ import 'ai/generate_middleware.dart';
 import 'ai/generate_types.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
+import 'ai/remote_model.dart';
 import 'ai/resource.dart';
 import 'ai/tool.dart';
-import 'client/client.dart';
 import 'core/action.dart';
 import 'core/dynamic_action_provider.dart';
 import 'core/flow.dart';
@@ -64,6 +64,7 @@ final class Genkit {
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
+    ModelRef? model,
     bool? isDevEnv,
     int? reflectionPort,
   }) {
@@ -75,6 +76,10 @@ final class Genkit {
       for (final mw in plugin.middleware()) {
         registry.registerValue('middleware', mw.name, mw);
       }
+    }
+
+    if (model != null) {
+      registry.registerValue('defaultModel', 'defaultModel', model);
     }
 
     // Register default formats
@@ -89,16 +94,21 @@ final class Genkit {
     registry.register(_generateAction);
   }
 
+  /// Shuts down the Genkit instance, stopping the reflection server if it is running.
+  ///
+  /// This is mostly meant for testing purposes.
   Future<void> shutdown() async {
     if (_reflectionServer != null) {
       await _reflectionServer!.stop();
     }
   }
 
+  /// Runs an AI operation within a new trace span.
   Future<Output> run<Output>(String name, Future<Output> Function() fn) {
     return runInNewSpan(name, (_) => fn());
   }
 
+  /// Defines a new strongly-typed Genkit flow.
   Flow<Input, Output, Chunk, Init> defineFlow<Input, Output, Chunk, Init>({
     required String name,
     required ActionFn<Input, Output, Chunk, Init> fn,
@@ -124,6 +134,7 @@ final class Genkit {
     return flow;
   }
 
+  /// Defines a bi-directional Genkit flow.
   Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({
     required String name,
     required BidiActionFn<Input, Output, Chunk, Init> fn,
@@ -152,6 +163,7 @@ final class Genkit {
     return flow;
   }
 
+  /// Defines an AI tool (function) that can be invoked by a model.
   Tool<Input, Output> defineTool<Input, Output>({
     required String name,
     required String description,
@@ -170,6 +182,7 @@ final class Genkit {
     return tool;
   }
 
+  /// Defines an executable prompt.
   PromptAction<Input> definePrompt<Input>({
     required String name,
     String? description,
@@ -188,6 +201,7 @@ final class Genkit {
     return prompt;
   }
 
+  /// Defines a Genkit resource.
   ResourceAction defineResource({
     String? name,
     String? uri,
@@ -218,6 +232,7 @@ final class Genkit {
     return resource;
   }
 
+  /// Defines an AI model interface.
   Model defineModel({
     required String name,
     required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
@@ -232,6 +247,7 @@ final class Genkit {
     return model;
   }
 
+  /// Defines a bi-directional AI model interface.
   BidiModel defineBidiModel({
     required String name,
     required BidiActionFn<
@@ -266,61 +282,18 @@ final class Genkit {
     ModelInfo? modelInfo,
     http.Client? httpClient,
   }) {
-    final remoteAction =
-        defineRemoteAction<
-          ModelRequest,
-          ModelResponse,
-          ModelResponseChunk,
-          void
-        >(
-          url: url,
-          httpClient: httpClient,
-          inputSchema: ModelRequest.$schema,
-          outputSchema: ModelResponse.$schema,
-          streamSchema: ModelResponseChunk.$schema,
-        );
-
-    return defineModel(
-        name: name,
-        fn: (input, context) async {
-          if (context.streamingRequested) {
-            final stream = remoteAction.stream(
-              input: input,
-              headers: headers?.call(context.context ?? {}),
-            );
-
-            await for (final chunk in stream) {
-              context.sendChunk(chunk);
-            }
-
-            return stream.result;
-          }
-
-          return await remoteAction(
-            input: input,
-            headers: headers?.call(context.context ?? {}),
-          );
-        },
-      )
-      ..metadata.addAll(
-        modelMetadata(
-          name,
-          modelInfo:
-              modelInfo ??
-              ModelInfo(
-                supports: {
-                  'multiturn': true,
-                  'media': true,
-                  'tools': true,
-                  'toolChoice': true,
-                  'systemRole': true,
-                  'constrained': true,
-                },
-              ),
-        ).metadata,
-      );
+    final model = remoteModel(
+      name: name,
+      url: url,
+      headers: headers,
+      modelInfo: modelInfo,
+      httpClient: httpClient,
+    );
+    registry.register(model);
+    return model;
   }
 
+  /// Defines an embedder model.
   Embedder defineEmbedder({
     required String name,
     required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
@@ -335,6 +308,7 @@ final class Genkit {
     return embedder;
   }
 
+  /// Defines a dynamic provider for actions.
   DynamicActionProvider defineDynamicActionProvider({
     required String name,
     FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
@@ -351,6 +325,7 @@ final class Genkit {
     return provider;
   }
 
+  /// Defines an evaluator.
   Evaluator defineEvaluator({
     required String name,
     required String description,
@@ -367,6 +342,7 @@ final class Genkit {
     return evaluator;
   }
 
+  /// Embeds multiple documents using the specified embedder.
   Future<List<Embedding>> embedMany<CustomOptions>({
     required EmbedderRef<CustomOptions> embedder,
     required List<DocumentData> documents,
@@ -390,6 +366,7 @@ final class Genkit {
     return response.embeddings;
   }
 
+  /// Embeds a single document or a list of documents.
   Future<List<Embedding>> embed<CustomOptions>({
     required EmbedderRef<CustomOptions> embedder,
     DocumentData? document,
@@ -405,6 +382,7 @@ final class Genkit {
     return embedMany(embedder: embedder, documents: docs, options: options);
   }
 
+  /// Starts a bi-directional generator session.
   Future<GenerateBidiSession> generateBidi({
     required String model,
     dynamic config,
@@ -455,10 +433,11 @@ final class Genkit {
     return (registry: childRegistry, toolNames: resolvedToolNames);
   }
 
+  /// Generates a response using the specified model and context.
   Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<CustomOptions> model,
+    ModelRef<CustomOptions>? model,
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
@@ -582,11 +561,12 @@ final class Genkit {
     }
   }
 
+  /// Streams a response from the specified model.
   ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
   generateStream<CustomOptions, Output>({
     String? prompt,
     List<Message>? messages,
-    required ModelRef<CustomOptions> model,
+    ModelRef<CustomOptions>? model,
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
