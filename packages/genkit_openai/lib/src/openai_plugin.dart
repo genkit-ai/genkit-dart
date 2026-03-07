@@ -14,28 +14,9 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
-import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
-
-/// Returns true when the output config indicates JSON-structured output
-/// (format is 'json' or contentType is 'application/json').
-bool isJsonStructuredOutput(String? format, String? contentType) {
-  return format == 'json' || contentType == 'application/json';
-}
-
-/// Builds an OpenAI [sdk.ResponseFormat] from a Genkit output schema.
-/// Flattens `$ref`/`$defs` since OpenAI requires `type` at the top level.
-/// Returns null if [schema] is null.
-sdk.ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
-  if (schema == null) return null;
-  final flattened = schema.flatten();
-  return sdk.ResponseFormat.jsonSchema(
-    name: 'output',
-    schema: {...flattened, 'additionalProperties': false},
-    strict: true,
-  );
-}
+import 'chat.dart' as chat;
 
 /// Core plugin implementation
 class OpenAIPlugin extends GenkitPlugin {
@@ -43,16 +24,25 @@ class OpenAIPlugin extends GenkitPlugin {
   String get name => 'openai';
 
   final String? apiKey;
+  final OpenAIApiKeyProvider? apiKeyProvider;
   final String? baseUrl;
   final List<CustomModelDefinition> customModels;
   final Map<String, String>? headers;
 
   OpenAIPlugin({
     this.apiKey,
+    this.apiKeyProvider,
     this.baseUrl,
     this.customModels = const [],
     this.headers,
-  });
+  }) {
+    if (apiKey != null && apiKeyProvider != null) {
+      throw GenkitException(
+        'Provide either apiKey or apiKeyProvider, not both.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+  }
 
   @override
   Future<List<Action>> init() async {
@@ -89,102 +79,6 @@ class OpenAIPlugin extends GenkitPlugin {
     return actions;
   }
 
-  /// Determines the type of model based on its ID.
-  ///
-  /// Returns one of the following model types:
-  /// - 'chat': Chat completion models (gpt-4, gpt-4o, o1, etc.)
-  /// - 'embedding': Text embedding models
-  /// - 'audio': Audio processing models (TTS, transcription, realtime)
-  /// - 'image': Image generation models (DALL-E, gpt-image)
-  /// - 'video': Video generation models (Sora)
-  /// - 'moderation': Content moderation models
-  /// - 'completion': Legacy text completion models (instruct, davinci, babbage)
-  /// - 'code': Code generation models (codex)
-  /// - 'search': Search-specific models (search, deep-research)
-  /// - 'research': Research-specific models (research, deep-research)
-  /// - 'unknown': Unknown or unrecognized model type
-  String getModelType(String modelId) {
-    final id = modelId.toLowerCase();
-
-    // Video generation models
-    if (id.contains('sora')) {
-      return 'video';
-    }
-
-    // Image generation models
-    if (id.contains('dall-e') || id.contains('image')) {
-      return 'image';
-    }
-
-    // Embedding models
-    if (id.contains('embedding')) {
-      return 'embedding';
-    }
-
-    // Moderation models
-    if (id.contains('moderation')) {
-      return 'moderation';
-    }
-
-    // Code generation models
-    if (id.contains('codex')) {
-      return 'code';
-    }
-
-    // Audio models (TTS, transcription, realtime, speech-to-text)
-    if (id.contains('tts') ||
-        id.contains('audio') ||
-        id.contains('realtime') ||
-        id.contains('transcribe') ||
-        id.contains('whisper')) {
-      return 'audio';
-    }
-
-    // Legacy completion models (not chat)
-    if (id.contains('instruct') ||
-        id.contains('davinci') ||
-        id.contains('babbage')) {
-      return 'completion';
-    }
-
-    // Research-specific models
-    if (id.contains('research')) {
-      return 'research';
-    }
-
-    // Search-specific models
-    if (id.contains('search')) {
-      return 'search';
-    }
-
-    // GPT-N pattern: matches gpt-3, gpt-4, gpt-5, gpt-6, etc.
-    // Also matches variants like gpt-4o, gpt-4-turbo, gpt-3.5-turbo
-    final gptPattern = RegExp(r'^gpt-\d+(?:\.\d+)?o?(?:-|$)');
-    if (gptPattern.hasMatch(id)) {
-      return 'chat';
-    }
-
-    // O-series reasoning models: o1, o2, o3, o4, o5, etc.
-    // Matches: o1, o1-preview, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
-    if (oSeriesPattern.hasMatch(id)) {
-      return 'chat';
-    }
-
-    // ChatGPT-branded models
-    // Matches: chatgpt-4o-latest, chatgpt-5-latest, chatgpt-image-latest, etc.
-    if (id.startsWith('chatgpt-')) {
-      // Special handling for non-chat ChatGPT variants
-      if (id.contains('image')) {
-        return 'image';
-      }
-      return 'chat';
-    }
-
-    // Unknown model type
-    return 'unknown';
-  }
-
   /// Fetch available model IDs from OpenAI API
   Future<List<String>> _fetchAvailableModels() async {
     final resolvedConfig = await _resolveClientConfig();
@@ -214,23 +108,14 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Get appropriate ModelInfo for a given model ID
   ModelInfo _getModelInfo(String modelId) {
-    final id = modelId.toLowerCase();
-
-    // O-series reasoning models (o1, o2, o3, o4, etc.) have different capabilities
-    // Matches: o1, o1-preview, o2, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
-    if (oSeriesPattern.hasMatch(id)) {
-      return oSeriesModelInfo(modelId);
-    }
-
-    return defaultModelInfo(modelId);
+    return modelInfoFor(modelId);
   }
 
   Future<_ResolvedClientConfig> _resolveClientConfig() async {
-    final configuredApiKey = apiKey;
+    final configuredApiKey = await _resolveApiKey();
     if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
       throw GenkitException(
-        'API key is required. Provide it via the plugin constructor.',
+        'API key is required. Provide it via apiKey or apiKeyProvider in the plugin constructor.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -240,6 +125,14 @@ class OpenAIPlugin extends GenkitPlugin {
       baseUrl: baseUrl,
       headers: headers,
     );
+  }
+
+  Future<String?> _resolveApiKey() async {
+    final configuredApiKeyProvider = apiKeyProvider;
+    if (configuredApiKeyProvider != null) {
+      return await configuredApiKeyProvider();
+    }
+    return apiKey;
   }
 
   @override
@@ -261,7 +154,7 @@ class OpenAIPlugin extends GenkitPlugin {
           modelMetadata(
             'openai/$modelId',
             modelInfo: modelInfo,
-            customOptions: OpenAIOptions.$schema,
+            customOptions: chat.chatModelOptionsSchema(),
           ),
         );
       }
@@ -289,12 +182,11 @@ class OpenAIPlugin extends GenkitPlugin {
 
     return Model(
       name: 'openai/$modelName',
-      customOptions: OpenAIOptions.$schema,
+      customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
-        final options = req!.config != null
-            ? OpenAIOptions.$schema.parse(req.config!)
-            : OpenAIOptions();
+        final modelRequest = req!;
+        final options = chat.parseChatModelOptions(modelRequest.config);
 
         final resolvedConfig = await _resolveClientConfig();
         final client = sdk.OpenAIClient(
@@ -309,19 +201,21 @@ class OpenAIPlugin extends GenkitPlugin {
           final supports = modelInfo.supports;
           final supportsTools = supports?['tools'] == true;
 
-          final isJsonMode = isJsonStructuredOutput(
-            req.output?.format,
-            req.output?.contentType,
+          final isJsonMode = chat.isJsonStructuredOutput(
+            modelRequest.output?.format,
+            modelRequest.output?.contentType,
           );
-          final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
+          final responseFormat = chat.buildOpenAIResponseFormat(
+            modelRequest.output?.schema,
+          );
           final request = sdk.ChatCompletionCreateRequest(
             model: options.version ?? modelName,
             messages: GenkitConverter.toOpenAIMessages(
-              req.messages,
+              modelRequest.messages,
               options.visualDetailLevel,
             ),
             tools: supportsTools
-                ? req.tools?.map(GenkitConverter.toOpenAITool).toList()
+                ? modelRequest.tools?.map(GenkitConverter.toOpenAITool).toList()
                 : null,
             temperature: options.temperature,
             topP: options.topP,
