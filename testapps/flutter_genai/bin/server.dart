@@ -18,6 +18,7 @@ import 'package:flutter_genai/types.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_anthropic/genkit_anthropic.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -26,11 +27,13 @@ import 'package:shelf_router/shelf_router.dart';
 void main() async {
   final googleApiKey = Platform.environment['GEMINI_API_KEY'];
   final openAiApiKey = Platform.environment['OPENAI_API_KEY'];
+  final anthropicApiKey = Platform.environment['ANTHROPIC_API_KEY'];
 
   final ai = Genkit(
     plugins: [
       googleAI(apiKey: googleApiKey ?? ''),
       openAI(apiKey: openAiApiKey ?? ''),
+      anthropic(apiKey: anthropicApiKey ?? ''),
     ],
   );
 
@@ -41,7 +44,9 @@ void main() async {
     fn: (ServerFlowInput input, _) async {
       final model = input.provider == 'google'
           ? googleAI.gemini('gemini-2.5-flash')
-          : openAI.model('gpt-4o');
+          : input.provider == 'openai'
+          ? openAI.model('gpt-4o')
+          : anthropic.model('claude-3-5-sonnet-latest');
 
       final response = await ai.generate(model: model, prompt: input.prompt);
       return response.text;
@@ -50,11 +55,18 @@ void main() async {
 
   final geminiModel = googleAI(apiKey: googleApiKey).model('gemini-2.5-flash');
   final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-4o');
+  final anthropicModel = anthropic(
+    apiKey: anthropicApiKey,
+  ).model('claude-3-5-sonnet-latest');
 
   final router = Router();
 
   router.post('/googleai/gemini-2.5-flash', shelfHandler(geminiModel));
   router.post('/openai/gpt-4o', shelfHandler(openAiModel));
+  router.post(
+    '/anthropic/claude-3-5-sonnet-latest',
+    shelfHandler(anthropicModel),
+  );
   router.post('/serverFlow', shelfHandler(serverFlow));
   router.get('/health', (Request request) => Response.ok('OK'));
 

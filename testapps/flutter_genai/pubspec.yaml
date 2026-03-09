@@ -16,6 +16,8 @@ dependencies:
     path: ../../packages/genkit_google_genai
   genkit_openai:
     path: ../../packages/genkit_openai
+  genkit_anthropic:
+    path: ../../packages/genkit_anthropic
   genkit_shelf:
     path: ../../packages/genkit_shelf
   schemantic:
@@ -30,6 +32,8 @@ dependency_overrides:
     path: ../../packages/genkit_google_genai
   genkit_openai:
     path: ../../packages/genkit_openai
+  genkit_anthropic:
+    path: ../../packages/genkit_anthropic
   genkit_shelf:
     path: ../../packages/genkit_shelf
   schemantic:

@@ -16,12 +16,9 @@ import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
-import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'model.dart';
-import 'vertex_config.dart';
-import 'vertex_transport.dart';
 
 final commonModelInfo = ModelInfo(
   supports: {
@@ -37,22 +34,9 @@ final commonModelInfo = ModelInfo(
 
 class AnthropicPluginImpl extends GenkitPlugin {
   final String? apiKey;
-  final AnthropicVertexConfig? vertex;
-  final http.Client _vertexHttpClient;
-  final bool _ownsVertexHttpClient;
   sdk.AnthropicClient? _client;
 
-  AnthropicPluginImpl({this.apiKey, this.vertex, http.Client? vertexHttpClient})
-    : _vertexHttpClient = vertexHttpClient ?? http.Client(),
-      _ownsVertexHttpClient = vertexHttpClient == null {
-    if (apiKey != null && vertex != null) {
-      throw GenkitException(
-        'Provide either apiKey or vertex configuration, not both.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    vertex?.validate();
-  }
+  AnthropicPluginImpl({this.apiKey});
 
   @override
   String get name => 'anthropic';
@@ -67,10 +51,6 @@ class AnthropicPluginImpl extends GenkitPlugin {
 
   @override
   Future<List<ActionMetadata>> list() async {
-    if (vertex != null) {
-      // Listing Anthropic models on Vertex is not currently supported here.
-      return [];
-    }
     // Attempt to list models from the API if available, otherwise return manual list.
     try {
       final response = await client.models.list();
@@ -96,102 +76,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
   }
 
   Model _createModel(String modelName) {
-    if (vertex != null) {
-      return _createVertexModel(modelName);
-    }
     return _createModelWithClient(modelName, client);
-  }
-
-  AnthropicVertexTransport get _vertexTransport {
-    final vertexConfig = vertex;
-    if (vertexConfig == null) {
-      throw GenkitException(
-        'Vertex configuration is required.',
-        status: StatusCodes.INTERNAL,
-      );
-    }
-    return AnthropicVertexTransport(
-      config: vertexConfig,
-      httpClient: _vertexHttpClient,
-    );
-  }
-
-  Model _createVertexModel(String modelName) {
-    return Model(
-      name: 'anthropic/$modelName',
-      customOptions: AnthropicOptions.$schema,
-      metadata: {'model': commonModelInfo.toJson()},
-      fn: (req, ctx) async {
-        final transport = _vertexTransport;
-        final options = req!.config == null
-            ? AnthropicOptions()
-            : AnthropicOptions.$schema.parse(req.config!);
-        if (options.apiKey != null) {
-          throw GenkitException(
-            'AnthropicOptions.apiKey is not supported when using Vertex configuration.',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        final createRequest = _buildCreateRequest(req, modelName, options);
-        final requestBody = transport.toRequestBody(createRequest);
-
-        if (ctx.streamingRequested) {
-          final response = await transport.sendRequest(
-            modelName: modelName,
-            body: requestBody,
-            stream: true,
-          );
-          final accumulator = sdk.MessageStreamAccumulator();
-
-          await for (final data in transport.sseDataLines(response.stream)) {
-            if (data == '[DONE]') continue;
-            try {
-              final decoded = jsonDecode(data);
-              if (decoded is! Map) continue;
-              final event = sdk.MessageStreamEvent.fromJson(
-                Map<String, dynamic>.from(decoded),
-              );
-              accumulator.add(event);
-              _handleStreamEvent(event, ctx.sendChunk);
-            } catch (e) {
-              if (e is GenkitException) rethrow;
-              // Ignore malformed stream events and continue processing.
-              continue;
-            }
-          }
-
-          final message = accumulator.toMessage();
-          return ModelResponse(
-            finishReason: mapFinishReason(message.stopReason),
-            message: fromAnthropicMessage(message),
-            usage: mapUsage(message.usage),
-          );
-        }
-
-        final response = await transport.sendRequest(
-          modelName: modelName,
-          body: requestBody,
-          stream: false,
-        );
-        final body = await response.stream.bytesToString();
-        final decoded = jsonDecode(body);
-        if (decoded is! Map) {
-          throw GenkitException(
-            'Invalid Vertex Anthropic response payload.',
-            status: StatusCodes.INTERNAL,
-            details: body,
-          );
-        }
-        final payload = Map<String, dynamic>.from(decoded);
-        final message = sdk.Message.fromJson(payload);
-        return ModelResponse(
-          finishReason: mapFinishReason(message.stopReason),
-          message: fromAnthropicMessage(message),
-          usage: mapUsage(message.usage),
-          raw: payload,
-        );
-      },
-    );
   }
 
   Model _createModelWithClient(String modelName, sdk.AnthropicClient client) {
@@ -326,9 +211,6 @@ class AnthropicPluginImpl extends GenkitPlugin {
 
   void close() {
     _client?.close();
-    if (_ownsVertexHttpClient) {
-      _vertexHttpClient.close();
-    }
   }
 }
 
