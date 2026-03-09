@@ -84,24 +84,19 @@ class _ClientSideTabState extends State<ClientSideTab> {
     try {
       final ai = Genkit(
         plugins: [
-          _selectedProvider == AiProvider.google
-              ? googleAI(apiKey: apiKey)
-              : _selectedProvider == AiProvider.openai
-              ? openAI(apiKey: apiKey)
-              : anthropic(
-                  apiKey: apiKey,
-                  headers: {
-                    'anthropic-dangerous-direct-browser-access': 'true',
-                  },
-                ),
+          switch (_selectedProvider) {
+            AiProvider.google => googleAI(apiKey: apiKey),
+            AiProvider.openai => openAI(apiKey: apiKey),
+            AiProvider.anthropic => anthropic(apiKey: apiKey),
+          },
         ],
       );
 
-      final model = _selectedProvider == AiProvider.google
-          ? googleAI.gemini('gemini-2.5-flash')
-          : _selectedProvider == AiProvider.openai
-          ? openAI.model('gpt-4o')
-          : anthropic.model('claude-sonnet-4-5');
+      final model = switch (_selectedProvider) {
+        AiProvider.google => googleAI.gemini('gemini-2.5-flash'),
+        AiProvider.openai => openAI.model('gpt-4o'),
+        AiProvider.anthropic => anthropic.model('claude-3-5-sonnet-latest'),
+      };
 
       final response = await ai.generate(
         model: model,
@@ -152,11 +147,11 @@ class _ClientSideTabState extends State<ClientSideTab> {
           TextField(
             controller: _apiKeyController,
             decoration: InputDecoration(
-              labelText: _selectedProvider == AiProvider.google
-                  ? 'Gemini API Key'
-                  : _selectedProvider == AiProvider.openai
-                  ? 'OpenAI API Key'
-                  : 'Anthropic API Key',
+              labelText: switch (_selectedProvider) {
+                AiProvider.google => 'Gemini API Key',
+                AiProvider.openai => 'OpenAI API Key',
+                AiProvider.anthropic => 'Anthropic API Key',
+              },
               border: const OutlineInputBorder(),
             ),
             obscureText: true,
@@ -209,11 +204,12 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
     try {
       final ai = Genkit();
 
-      final url = _selectedProvider == AiProvider.google
-          ? 'http://localhost:8080/googleai/gemini-2.5-flash'
-          : _selectedProvider == AiProvider.openai
-          ? 'http://localhost:8080/openai/gpt-4o'
-          : 'http://localhost:8080/anthropic/claude-sonnet-4-5';
+      final url = switch (_selectedProvider) {
+        AiProvider.google => 'http://localhost:8080/googleai/gemini-2.5-flash',
+        AiProvider.openai => 'http://localhost:8080/openai/gpt-4o',
+        AiProvider.anthropic =>
+          'http://localhost:8080/anthropic/claude-3-5-sonnet-latest',
+      };
 
       final remoteModel = ai.defineRemoteModel(name: 'remoteModel', url: url);
 
@@ -319,11 +315,7 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
 
       final response = await remoteFlow(
         input: ServerFlowInput(
-          provider: _selectedProvider == AiProvider.google
-              ? 'google'
-              : _selectedProvider == AiProvider.openai
-              ? 'openai'
-              : 'anthropic',
+          provider: _selectedProvider.name,
           prompt: _promptController.text,
         ),
       );

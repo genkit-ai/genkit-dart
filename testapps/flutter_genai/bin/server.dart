@@ -42,11 +42,11 @@ void main() async {
     inputSchema: ServerFlowInput.$schema,
     outputSchema: .string(),
     fn: (ServerFlowInput input, _) async {
-      final model = input.provider == 'google'
-          ? googleAI.gemini('gemini-2.5-flash')
-          : input.provider == 'openai'
-          ? openAI.model('gpt-4o')
-          : anthropic.model('claude-sonnet-4-5');
+      final model = switch (input.provider) {
+        'google' => googleAI.gemini('gemini-2.5-flash'),
+        'openai' => openAI.model('gpt-4o'),
+        _ => anthropic.model('claude-3-5-sonnet-latest'),
+      };
 
       final response = await ai.generate(model: model, prompt: input.prompt);
       return response.text;
