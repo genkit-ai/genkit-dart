@@ -58,7 +58,7 @@ abstract class $MySubObj {
 }
 ```
 
-in addition to beinable to generate object schemas from abstract classes schemantic has conveninent helpers for basic types: string, voidSchema, dynamicSchema, list, map.
+in addition to being able to generate object schemas from abstract classes schemantic has convenient helpers for basic types: string, voidSchema, dynamicSchema, list, map.
 
 ## Generation
 
