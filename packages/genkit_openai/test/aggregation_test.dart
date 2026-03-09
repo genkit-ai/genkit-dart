@@ -242,4 +242,33 @@ void main() {
       expect(parsed['age'], 30);
     });
   });
+
+  group('Round-trip: stream aggregation then conversion', () {
+    test('preserves nested JSON structure', () {
+      final originalJson = {
+        'name': 'John Doe',
+        'age': 30,
+        'address': {'city': 'New York', 'zip': '10001'},
+      };
+      final jsonStr = jsonEncode(originalJson);
+      final split = jsonStr.length ~/ 2;
+      final chunks = [
+        _textChunk(jsonStr.substring(0, split), model: 'gpt-4o'),
+        _textChunk(
+          jsonStr.substring(split),
+          finishReason: FinishReason.stop,
+        ),
+      ];
+
+      final aggregated = _aggregate(chunks);
+      final message = GenkitConverter.fromOpenAIAssistantMessage(
+        aggregated.choices.first.message,
+      );
+      final parsed = jsonDecode(message.text) as Map<String, dynamic>;
+      expect(parsed['name'], 'John Doe');
+      expect(parsed['age'], 30);
+      // ignore: avoid_dynamic_calls
+      expect(parsed['address']['city'], 'New York');
+    });
+  });
 }

@@ -13,7 +13,31 @@
 // limitations under the License.
 
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/chat.dart'
+    show buildOpenAIResponseFormat, isJsonStructuredOutput;
+import 'package:openai_dart/openai_dart.dart' hide Model;
 import 'package:test/test.dart';
+
+JsonSchemaResponseFormat _jsonSchema(ResponseFormat format) {
+  return format as JsonSchemaResponseFormat;
+}
+
+Map<String, dynamic> _createPersonSchema() {
+  return {
+    r'$defs': {
+      'Person': {
+        'type': 'object',
+        'properties': {
+          'name': {'type': 'string'},
+          'age': {'type': 'integer'},
+        },
+        'required': ['name', 'age'],
+      },
+    },
+    'type': 'object',
+    r'$ref': '#/\$defs/Person',
+  };
+}
 
 void main() {
   group('OpenAIChatOptions', () {
@@ -43,6 +67,43 @@ void main() {
       final options = OpenAIChatOptions();
       expect(options.temperature, isNull);
       expect(options.maxTokens, isNull);
+    });
+  });
+
+  group('buildOpenAIResponseFormat', () {
+    test('builds ResponseFormat from schema with \$defs', () {
+      final result = buildOpenAIResponseFormat(_createPersonSchema());
+      expect(result, isNotNull);
+      final js = _jsonSchema(result!);
+      expect(js.name, 'output');
+      expect(js.schema['type'], 'object');
+      expect(js.schema['additionalProperties'], false);
+      expect(js.schema['properties'], isNotNull);
+    });
+
+    test('returns null only for null schema', () {
+      expect(buildOpenAIResponseFormat(null), isNull);
+    });
+
+    test('builds ResponseFormat from schema without \$defs', () {
+      final result = buildOpenAIResponseFormat({'type': 'object'});
+      expect(result, isNotNull);
+      final js = _jsonSchema(result!);
+      expect(js.name, 'output');
+      expect(js.schema['type'], 'object');
+      expect(js.schema['additionalProperties'], false);
+    });
+  });
+
+  group('isJsonStructuredOutput', () {
+    test('true when format or contentType is json', () {
+      expect(isJsonStructuredOutput('json', null), isTrue);
+      expect(isJsonStructuredOutput(null, 'application/json'), isTrue);
+    });
+
+    test('false when neither set', () {
+      expect(isJsonStructuredOutput(null, null), isFalse);
+      expect(isJsonStructuredOutput('text', null), isFalse);
     });
   });
 }

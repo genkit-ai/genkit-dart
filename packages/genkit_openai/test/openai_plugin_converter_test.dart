@@ -15,7 +15,15 @@
 import 'package:genkit/genkit.dart' hide Tool;
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:openai_dart/openai_dart.dart'
-    show AssistantMessage, ContentPart, SystemMessage, ToolMessage, UserMessage;
+    show
+        AssistantMessage,
+        ChatMessage,
+        ContentPart,
+        FunctionCall,
+        SystemMessage,
+        ToolCall,
+        ToolMessage,
+        UserMessage;
 import 'package:test/test.dart';
 
 void main() {
@@ -183,6 +191,39 @@ void main() {
       final result = GenkitConverter.fromOpenAIAssistantMessage(msg);
       expect(result.content.length, 1);
       expect(result.text, '[Refusal] I cannot do that.');
+    });
+
+    test('converts JSON content', () {
+      final message =
+          ChatMessage.assistant(content: '{"name": "Test", "age": 25}')
+              as AssistantMessage;
+      final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
+      expect(genkitMessage.role, Role.model);
+      expect(genkitMessage.text, '{"name": "Test", "age": 25}');
+    });
+
+    test('converts message with tool calls', () {
+      final message =
+          ChatMessage.assistant(
+                content: '{"result": "ok"}',
+                toolCalls: [
+                  ToolCall.functionCall(
+                    id: 'call_123',
+                    call: FunctionCall(
+                      name: 'getWeather',
+                      arguments: '{"location": "NYC"}',
+                    ),
+                  ),
+                ],
+              )
+              as AssistantMessage;
+      final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
+      expect(genkitMessage.text, '{"result": "ok"}');
+      final toolParts = genkitMessage.content
+          .where((p) => p.isToolRequest)
+          .toList();
+      expect(toolParts.length, 1);
+      expect(toolParts.first.toolRequest!.name, 'getWeather');
     });
   });
 
