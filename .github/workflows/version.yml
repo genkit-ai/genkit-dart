@@ -24,7 +24,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run version bump script
-        run: dart run tools/version.dart --dry-run
+        run: dart run tools/version.dart
 
       - name: Push changes and tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
         run: git push --follow-tags
