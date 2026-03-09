@@ -45,7 +45,7 @@ void main() async {
       final model = switch (input.provider) {
         'google' => googleAI.gemini('gemini-2.5-flash'),
         'openai' => openAI.model('gpt-4o'),
-        _ => anthropic.model('claude-3-5-sonnet-latest'),
+        _ => anthropic.model('claude-sonnet-4-5'),
       };
 
       final response = await ai.generate(model: model, prompt: input.prompt);

@@ -87,7 +87,11 @@ class _ClientSideTabState extends State<ClientSideTab> {
           switch (_selectedProvider) {
             AiProvider.google => googleAI(apiKey: apiKey),
             AiProvider.openai => openAI(apiKey: apiKey),
-            AiProvider.anthropic => anthropic(apiKey: apiKey),
+            AiProvider.anthropic => anthropic(apiKey: apiKey, headers: {
+              // Required for direct browser access.
+              // DO NOT use this in production.
+              'anthropic-dangerous-direct-browser-access': 'true',
+            }),
           },
         ],
       );
@@ -95,7 +99,7 @@ class _ClientSideTabState extends State<ClientSideTab> {
       final model = switch (_selectedProvider) {
         AiProvider.google => googleAI.gemini('gemini-2.5-flash'),
         AiProvider.openai => openAI.model('gpt-4o'),
-        AiProvider.anthropic => anthropic.model('claude-3-5-sonnet-latest'),
+        AiProvider.anthropic => anthropic.model('claude-sonnet-4-5'),
       };
 
       final response = await ai.generate(
@@ -208,7 +212,7 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
         AiProvider.google => 'http://localhost:8080/googleai/gemini-2.5-flash',
         AiProvider.openai => 'http://localhost:8080/openai/gpt-4o',
         AiProvider.anthropic =>
-          'http://localhost:8080/anthropic/claude-3-5-sonnet-latest',
+          'http://localhost:8080/anthropic/claude-sonnet-4-5',
       };
 
       final remoteModel = ai.defineRemoteModel(name: 'remoteModel', url: url);
