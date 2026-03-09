@@ -56,9 +56,7 @@ void main() async {
   final geminiModel = googleAI(apiKey: googleApiKey).model('gemini-2.5-flash');
   final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-4o');
   final anthropicModel = anthropic(
-    apiKey: 'zJDgdBa5WA-ql0A9InxYkwqViynAm5OmrapqN-BX',
-    baseUrl:
-        'https://gateway.ai.cloudflare.com/v1/87bb3f54541df47711b6fcdf066d9095/test/anthropic',
+    apiKey: anthropicApiKey,
   ).model('claude-sonnet-4-5');
 
   final router = Router();
