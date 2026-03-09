@@ -17,6 +17,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/client.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_anthropic/genkit_anthropic.dart';
 
 import 'types.dart';
 
@@ -52,7 +53,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-enum AiProvider { google, openai }
+enum AiProvider { google, openai, anthropic }
 
 class ClientSideTab extends StatefulWidget {
   const ClientSideTab({super.key});
@@ -83,15 +84,26 @@ class _ClientSideTabState extends State<ClientSideTab> {
     try {
       final ai = Genkit(
         plugins: [
-          _selectedProvider == AiProvider.google
-              ? googleAI(apiKey: apiKey)
-              : openAI(apiKey: apiKey),
+          switch (_selectedProvider) {
+            AiProvider.google => googleAI(apiKey: apiKey),
+            AiProvider.openai => openAI(apiKey: apiKey),
+            AiProvider.anthropic => anthropic(
+              apiKey: apiKey,
+              headers: {
+                // Required for direct browser access.
+                // DO NOT use this in production.
+                'anthropic-dangerous-direct-browser-access': 'true',
+              },
+            ),
+          },
         ],
       );
 
-      final model = _selectedProvider == AiProvider.google
-          ? googleAI.gemini('gemini-2.5-flash')
-          : openAI.model('gpt-4o');
+      final model = switch (_selectedProvider) {
+        AiProvider.google => googleAI.gemini('gemini-2.5-flash'),
+        AiProvider.openai => openAI.model('gpt-4o'),
+        AiProvider.anthropic => anthropic.model('claude-sonnet-4-5'),
+      };
 
       final response = await ai.generate(
         model: model,
@@ -129,6 +141,10 @@ class _ClientSideTabState extends State<ClientSideTab> {
                 child: Text('Google Gemini'),
               ),
               DropdownMenuItem(value: AiProvider.openai, child: Text('OpenAI')),
+              DropdownMenuItem(
+                value: AiProvider.anthropic,
+                child: Text('Anthropic'),
+              ),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedProvider = val);
@@ -138,9 +154,11 @@ class _ClientSideTabState extends State<ClientSideTab> {
           TextField(
             controller: _apiKeyController,
             decoration: InputDecoration(
-              labelText: _selectedProvider == AiProvider.google
-                  ? 'Gemini API Key'
-                  : 'OpenAI API Key',
+              labelText: switch (_selectedProvider) {
+                AiProvider.google => 'Gemini API Key',
+                AiProvider.openai => 'OpenAI API Key',
+                AiProvider.anthropic => 'Anthropic API Key',
+              },
               border: const OutlineInputBorder(),
             ),
             obscureText: true,
@@ -193,9 +211,12 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
     try {
       final ai = Genkit();
 
-      final url = _selectedProvider == AiProvider.google
-          ? 'http://localhost:8080/googleai/gemini-2.5-flash'
-          : 'http://localhost:8080/openai/gpt-4o';
+      final url = switch (_selectedProvider) {
+        AiProvider.google => 'http://localhost:8080/googleai/gemini-2.5-flash',
+        AiProvider.openai => 'http://localhost:8080/openai/gpt-4o',
+        AiProvider.anthropic =>
+          'http://localhost:8080/anthropic/claude-sonnet-4-5',
+      };
 
       final remoteModel = ai.defineRemoteModel(name: 'remoteModel', url: url);
 
@@ -236,6 +257,10 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
               DropdownMenuItem(
                 value: AiProvider.openai,
                 child: Text('OpenAI (via Server)'),
+              ),
+              DropdownMenuItem(
+                value: AiProvider.anthropic,
+                child: Text('Anthropic (via Server)'),
               ),
             ],
             onChanged: (val) {
@@ -297,9 +322,7 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
 
       final response = await remoteFlow(
         input: ServerFlowInput(
-          provider: _selectedProvider == AiProvider.google
-              ? 'google'
-              : 'openai',
+          provider: _selectedProvider.name,
           prompt: _promptController.text,
         ),
       );
@@ -335,6 +358,10 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
               DropdownMenuItem(
                 value: AiProvider.openai,
                 child: Text('OpenAI (via ServerFlow)'),
+              ),
+              DropdownMenuItem(
+                value: AiProvider.anthropic,
+                child: Text('Anthropic (via ServerFlow)'),
               ),
             ],
             onChanged: (val) {

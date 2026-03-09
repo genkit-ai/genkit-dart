@@ -11,8 +11,6 @@ environment:
 dependencies:
   anthropic_sdk_dart: ^1.1.0
   genkit: ^0.10.1
-  genkit_vertex_auth: ^0.1.0+1
-  http: ^1.5.0
   meta: ^1.17.0
   schemantic: ^0.1.0
 
