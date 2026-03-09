@@ -28,6 +28,24 @@ void main() {
       expect(plugin, isNotNull);
     });
 
+    test('rejects conflicting apiKey + apiKeyProvider', () {
+      expect(
+        () => openAI(
+          apiKey: 'openai-key',
+          apiKeyProvider: () async => 'openai-key-provider',
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Provide either apiKey or apiKeyProvider, not both.',
+              ),
+        ),
+      );
+    });
+
     test('creates model reference', () {
       final ref = openAI.model('gpt-4o');
       expect(ref.name, 'openai/gpt-4o');
