@@ -87,11 +87,14 @@ class _ClientSideTabState extends State<ClientSideTab> {
           switch (_selectedProvider) {
             AiProvider.google => googleAI(apiKey: apiKey),
             AiProvider.openai => openAI(apiKey: apiKey),
-            AiProvider.anthropic => anthropic(apiKey: apiKey, headers: {
-              // Required for direct browser access.
-              // DO NOT use this in production.
-              'anthropic-dangerous-direct-browser-access': 'true',
-            }),
+            AiProvider.anthropic => anthropic(
+              apiKey: apiKey,
+              headers: {
+                // Required for direct browser access.
+                // DO NOT use this in production.
+                'anthropic-dangerous-direct-browser-access': 'true',
+              },
+            ),
           },
         ],
       );
