@@ -254,10 +254,7 @@ void main() {
       final split = jsonStr.length ~/ 2;
       final chunks = [
         _textChunk(jsonStr.substring(0, split), model: 'gpt-4o'),
-        _textChunk(
-          jsonStr.substring(split),
-          finishReason: FinishReason.stop,
-        ),
+        _textChunk(jsonStr.substring(split), finishReason: FinishReason.stop),
       ];
 
       final aggregated = _aggregate(chunks);
