@@ -80,6 +80,9 @@ void main() {
       expect(supportsTools('gpt-5.1'), true);
 
       // Non-tool models
+      expect(supportsTools('o1'), false);
+      expect(supportsTools('o1-mini'), false);
+      expect(supportsTools('o3-mini'), false);
       expect(supportsTools('chatgpt-4o-latest'), false);
       expect(supportsTools('chatgpt-5-latest'), false);
       expect(supportsTools('gpt-3.5-turbo-instruct'), false);

@@ -60,7 +60,7 @@ class OpenAIPlugin extends GenkitPlugin {
             continue;
           }
 
-          final info = _getModelInfo(modelId);
+          final info = modelInfoFor(modelId);
           actions.add(_createModel(modelId, info));
         }
       } catch (e) {
@@ -106,11 +106,6 @@ class OpenAIPlugin extends GenkitPlugin {
     }
   }
 
-  /// Get appropriate ModelInfo for a given model ID
-  ModelInfo _getModelInfo(String modelId) {
-    return modelInfoFor(modelId);
-  }
-
   Future<_ResolvedClientConfig> _resolveClientConfig() async {
     final configuredApiKey = await _resolveApiKey();
     if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
@@ -149,11 +144,10 @@ class OpenAIPlugin extends GenkitPlugin {
           continue;
         }
 
-        final modelInfo = _getModelInfo(modelId);
         modelMetadataList.add(
           modelMetadata(
             'openai/$modelId',
-            modelInfo: modelInfo,
+            modelInfo: modelInfoFor(modelId),
             customOptions: chat.chatModelOptionsSchema(),
           ),
         );
@@ -178,7 +172,7 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   Model _createModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? _getModelInfo(modelName);
+    final modelInfo = info ?? modelInfoFor(modelName);
 
     return Model(
       name: 'openai/$modelName',

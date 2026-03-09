@@ -166,12 +166,12 @@ ModelInfo modelInfoFor(String model) {
 
 /// Check if a model supports tools/function calling.
 bool supportsTools(String model) {
-  return _DefaultModelCapabilities(model).supportsTools;
+  return _ModelCapabilities.forModel(model).supportsTools;
 }
 
 /// Check if a model supports vision (image inputs).
 bool supportsVision(String model) {
-  return _DefaultModelCapabilities(model).supportsMedia;
+  return _ModelCapabilities.forModel(model).supportsMedia;
 }
 
 /// Determines the type of model based on its ID.
