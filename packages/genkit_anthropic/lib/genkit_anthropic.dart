@@ -30,8 +30,16 @@ class AnthropicPluginHandle {
   ///
   /// You can optionally provide an [apiKey]. If omitted, it will be mapped
   /// to the standard `ANTHROPIC_API_KEY` environment variable.
-  GenkitPlugin call({String? apiKey}) {
-    return AnthropicPluginImpl(apiKey: apiKey);
+  GenkitPlugin call({
+    String? apiKey,
+    Map<String, String>? headers,
+    String? baseUrl,
+  }) {
+    return AnthropicPluginImpl(
+      apiKey: apiKey,
+      headers: headers,
+      baseUrl: baseUrl,
+    );
   }
 
   /// Returns a [ModelRef] for the specified Anthropic model [name].

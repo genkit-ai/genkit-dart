@@ -46,7 +46,7 @@ void main() async {
           ? googleAI.gemini('gemini-2.5-flash')
           : input.provider == 'openai'
           ? openAI.model('gpt-4o')
-          : anthropic.model('claude-3-5-sonnet-latest');
+          : anthropic.model('claude-sonnet-4-5');
 
       final response = await ai.generate(model: model, prompt: input.prompt);
       return response.text;
@@ -56,17 +56,16 @@ void main() async {
   final geminiModel = googleAI(apiKey: googleApiKey).model('gemini-2.5-flash');
   final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-4o');
   final anthropicModel = anthropic(
-    apiKey: anthropicApiKey,
-  ).model('claude-3-5-sonnet-latest');
+    apiKey: 'zJDgdBa5WA-ql0A9InxYkwqViynAm5OmrapqN-BX',
+    baseUrl:
+        'https://gateway.ai.cloudflare.com/v1/87bb3f54541df47711b6fcdf066d9095/test/anthropic',
+  ).model('claude-sonnet-4-5');
 
   final router = Router();
 
   router.post('/googleai/gemini-2.5-flash', shelfHandler(geminiModel));
   router.post('/openai/gpt-4o', shelfHandler(openAiModel));
-  router.post(
-    '/anthropic/claude-3-5-sonnet-latest',
-    shelfHandler(anthropicModel),
-  );
+  router.post('/anthropic/claude-sonnet-4-5', shelfHandler(anthropicModel));
   router.post('/serverFlow', shelfHandler(serverFlow));
   router.get('/health', (Request request) => Response.ok('OK'));
 

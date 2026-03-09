@@ -34,9 +34,11 @@ final commonModelInfo = ModelInfo(
 
 class AnthropicPluginImpl extends GenkitPlugin {
   final String? apiKey;
+  final Map<String, String>? headers;
+  final String? baseUrl;
   sdk.AnthropicClient? _client;
 
-  AnthropicPluginImpl({this.apiKey});
+  AnthropicPluginImpl({this.apiKey, this.headers, this.baseUrl});
 
   @override
   String get name => 'anthropic';
@@ -44,9 +46,16 @@ class AnthropicPluginImpl extends GenkitPlugin {
   sdk.AnthropicClient get client {
     if (_client != null) return _client!;
     if (apiKey != null) {
-      return _client = sdk.AnthropicClient.withApiKey(apiKey!);
+      return _client = sdk.AnthropicClient.withApiKey(
+        apiKey!,
+        defaultHeaders: headers,
+        baseUrl: baseUrl,
+      );
     }
-    return _client = sdk.AnthropicClient.fromEnvironment();
+    final config = sdk.AnthropicConfig.fromEnvironment();
+    return _client = sdk.AnthropicClient(
+      config: config.copyWith(defaultHeaders: headers, baseUrl: baseUrl),
+    );
   }
 
   @override
