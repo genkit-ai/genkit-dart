@@ -167,16 +167,3 @@ extension PartExtension on Part {
   Map<String, dynamic>? get metadata =>
       toJson()['metadata'] as Map<String, dynamic>?;
 }
-
-/// Extension methods for [ToolRequestPart].
-extension ToolRequestPartExtension on ToolRequestPart {
-  /// Returns a new [ToolRequestPart] with the given [metadata] merged in.
-  ToolRequestPart withMetadata(Map<String, dynamic> metadata) {
-    return ToolRequestPart(
-      toolRequest: toolRequest,
-      data: data,
-      metadata: {...?this.metadata, ...metadata},
-      custom: custom,
-    );
-  }
-}

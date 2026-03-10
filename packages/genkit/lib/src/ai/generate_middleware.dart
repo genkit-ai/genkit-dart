@@ -62,10 +62,10 @@ abstract class GenerateMiddleware {
   /// Wraps independent tool calls.
   /// Input is dynamic because tools can have varied input schemas.
   Future<ToolResponse> tool(
-    ToolRequestPart request,
+    ToolRequest request,
     ActionFnArg<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
-      ToolRequestPart request,
+      ToolRequest request,
       ActionFnArg<void, dynamic, void> ctx,
     )
     next,

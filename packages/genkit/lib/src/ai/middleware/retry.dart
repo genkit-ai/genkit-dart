@@ -167,10 +167,10 @@ class RetryMiddleware extends GenerateMiddleware {
 
   @override
   Future<ToolResponse> tool(
-    ToolRequestPart request,
+    ToolRequest request,
     ActionFnArg<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
-      ToolRequestPart request,
+      ToolRequest request,
       ActionFnArg<void, dynamic, void> ctx,
     )
     next,

@@ -867,15 +867,11 @@ _executeTools(
     }
 
     Future<ToolResponse> coreTool(
-      ToolRequestPart req,
+      ToolRequest req,
       ActionFnArg<void, dynamic, void> c,
     ) async {
-      final out = await tool.runRaw(req.toolRequest.input, context: c.context);
-      return ToolResponse(
-        ref: req.toolRequest.ref,
-        name: req.toolRequest.name,
-        output: out.result,
-      );
+      final out = await tool.runRaw(req.input, context: c.context);
+      return ToolResponse(ref: req.ref, name: req.name, output: out.result);
     }
 
     final composedTool =
@@ -887,16 +883,13 @@ _executeTools(
         coreTool;
 
     try {
-      final toolResponse = await runZoned(
-        () => composedTool(toolRequest, (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          context: context,
-          inputStream: null,
-          init: null,
-        )),
-        zoneValues: {ToolRequestPart: toolRequest},
-      );
+      final toolResponse = await composedTool(toolRequest.toolRequest, (
+        streamingRequested: false,
+        sendChunk: (_) {},
+        context: context,
+        inputStream: null,
+        init: null,
+      ));
       toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
           toolResponse.output;

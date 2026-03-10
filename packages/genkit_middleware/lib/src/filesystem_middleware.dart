@@ -335,10 +335,10 @@ class FilesystemMiddleware extends GenerateMiddleware {
 
   @override
   Future<ToolResponse> tool(
-    ToolRequestPart request,
+    ToolRequest request,
     ActionFnArg<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
-      ToolRequestPart request,
+      ToolRequest request,
       ActionFnArg<void, dynamic, void> ctx,
     )
     next,
@@ -352,8 +352,8 @@ class FilesystemMiddleware extends GenerateMiddleware {
         'read_file',
         'write_file',
         'search_and_replace',
-      ].contains(request.toolRequest.name)) {
-        final errorText = "Tool '${request.toolRequest.name}' failed: $e";
+      ].contains(request.name)) {
+        final errorText = "Tool '${request.name}' failed: $e";
 
         if (_messageQueue.isNotEmpty && _messageQueue.last.role == Role.user) {
           final lastMsg = _messageQueue.last;
@@ -371,7 +371,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
 
         // Return a response to satisfy the signature, but the model will primarily see the user message
         return ToolResponse(
-          name: request.toolRequest.name,
+          name: request.name,
           output: 'Tool failed. See context for details.',
         );
       }

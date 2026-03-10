@@ -138,7 +138,13 @@ if (response.finishReason == FinishReason.interrupted) {
       toolChoice: ToolChoice.none, // Prevent immediate re-call
       // ... other options
       interruptRestart: [
-        interrupt.toolRequestPart!.withMetadata({'tool-approved': true}),
+        ToolRequestPart(
+          toolRequest: interrupt.toolRequest,
+          metadata: {
+            ...?interrupt.metadata, 
+            'tool-approved': true // The middleware checks for this
+          }, 
+        ),
       ],
     );
   }

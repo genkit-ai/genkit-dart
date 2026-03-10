@@ -103,7 +103,11 @@ void main() async {
       use: [approvalMw],
       toolNames: ['transferFunds'],
       interruptRestart: [
-        interrupt.toolRequestPart!.withMetadata({'tool-approved': true}),
+        ToolRequestPart(
+          toolRequest: interrupt.toolRequest,
+          // Inject metadata indicating the tool call was approved by the user
+          metadata: {'tool-approved': true},
+        ),
       ],
     );
 
