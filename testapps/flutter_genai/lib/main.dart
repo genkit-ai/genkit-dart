@@ -64,7 +64,8 @@ class ClientSideTab extends StatefulWidget {
 
 class _ClientSideTabState extends State<ClientSideTab> {
   final _apiKeyController = TextEditingController();
-  final _promptController = TextEditingController(text: 'Say hello');
+  final _dietFriendlyController = TextEditingController(text: 'Vegan');
+  final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
   bool _isLoading = false;
   AiProvider _selectedProvider = AiProvider.google;
@@ -99,18 +100,31 @@ class _ClientSideTabState extends State<ClientSideTab> {
         ],
       );
 
+      ai.defineTool(
+        name: 'checkPantry',
+        description: 'Checks if we have specific spices in the kitchen pantry',
+        inputSchema: CheckPantryInput.$schema,
+        fn: (CheckPantryInput input, _) async =>
+            input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+      );
+
       final model = switch (_selectedProvider) {
         AiProvider.google => googleAI.gemini('gemini-2.5-flash'),
         AiProvider.openai => openAI.model('gpt-4o'),
         AiProvider.anthropic => anthropic.model('claude-sonnet-4-5'),
       };
 
-      final response = await ai.generate(
+      final stream = ai.generateStream(
         model: model,
-        prompt: _promptController.text,
+        prompt:
+            'Create a ${_dietFriendlyController.text} recipe using ${_mainIngredientController.text}. '
+            'Before suggesting spices, check the pantry to see if we have them.',
+        toolNames: ['checkPantry'],
       );
 
-      setState(() => _output = response.text);
+      await for (final chunk in stream) {
+        setState(() => _output += chunk.text);
+      }
     } catch (e) {
       setState(() => _output = 'Error: $e');
     } finally {
@@ -121,7 +135,8 @@ class _ClientSideTabState extends State<ClientSideTab> {
   @override
   void dispose() {
     _apiKeyController.dispose();
-    _promptController.dispose();
+    _dietFriendlyController.dispose();
+    _mainIngredientController.dispose();
     super.dispose();
   }
 
@@ -165,12 +180,19 @@ class _ClientSideTabState extends State<ClientSideTab> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _promptController,
+            controller: _dietFriendlyController,
             decoration: const InputDecoration(
-              labelText: 'Prompt',
+              labelText: 'Diet Friendly',
               border: OutlineInputBorder(),
             ),
-            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _mainIngredientController,
+            decoration: const InputDecoration(
+              labelText: 'Main Ingredient',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -197,7 +219,8 @@ class RemoteModelTab extends StatefulWidget {
 }
 
 class _RemoteModelTabState extends State<RemoteModelTab> {
-  final _promptController = TextEditingController(text: 'Say hello');
+  final _dietFriendlyController = TextEditingController(text: 'Vegan');
+  final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
   bool _isLoading = false;
   AiProvider _selectedProvider = AiProvider.google;
@@ -220,12 +243,25 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
 
       final remoteModel = ai.defineRemoteModel(name: 'remoteModel', url: url);
 
-      final response = await ai.generate(
-        model: remoteModel,
-        prompt: _promptController.text,
+      ai.defineTool(
+        name: 'checkPantry',
+        description: 'Checks if we have specific spices in the kitchen pantry',
+        inputSchema: CheckPantryInput.$schema,
+        fn: (CheckPantryInput input, _) async =>
+            input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
       );
 
-      setState(() => _output = response.text);
+      final stream = ai.generateStream(
+        model: remoteModel,
+        prompt:
+            'Create a ${_dietFriendlyController.text} recipe using ${_mainIngredientController.text}. '
+            'Before suggesting spices, check the pantry to see if we have them.',
+        toolNames: ['checkPantry'],
+      );
+
+      await for (final chunk in stream) {
+        setState(() => _output += chunk.text);
+      }
     } catch (e) {
       setState(() => _output = 'Error: $e');
     } finally {
@@ -235,7 +271,8 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
 
   @override
   void dispose() {
-    _promptController.dispose();
+    _dietFriendlyController.dispose();
+    _mainIngredientController.dispose();
     super.dispose();
   }
 
@@ -269,12 +306,19 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _promptController,
+            controller: _dietFriendlyController,
             decoration: const InputDecoration(
-              labelText: 'Prompt',
+              labelText: 'Diet Friendly',
               border: OutlineInputBorder(),
             ),
-            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _mainIngredientController,
+            decoration: const InputDecoration(
+              labelText: 'Main Ingredient',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -301,7 +345,8 @@ class ServerFlowTab extends StatefulWidget {
 }
 
 class _ServerFlowTabState extends State<ServerFlowTab> {
-  final _promptController = TextEditingController(text: 'Say hello');
+  final _dietFriendlyController = TextEditingController(text: 'Vegan');
+  final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
   bool _isLoading = false;
   AiProvider _selectedProvider = AiProvider.google;
@@ -313,20 +358,24 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
     });
 
     try {
-      final remoteFlow =
-          defineRemoteAction<ServerFlowInput, String, void, void>(
-            url: 'http://localhost:8080/serverFlow',
-            inputSchema: ServerFlowInput.$schema,
-            outputSchema: .string(),
-          );
+      final remoteFlow = defineRemoteAction(
+        url: 'http://localhost:8080/serverFlow',
+        inputSchema: RecipeRequest.$schema,
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
 
-      final response = await remoteFlow(
-        input: ServerFlowInput(
+      final stream = remoteFlow.stream(
+        input: RecipeRequest(
           provider: _selectedProvider.name,
-          prompt: _promptController.text,
+          dietFriendly: _dietFriendlyController.text,
+          mainIngredient: _mainIngredientController.text,
         ),
       );
-      setState(() => _output = response);
+
+      await for (final chunk in stream) {
+        setState(() => _output += chunk);
+      }
     } catch (e) {
       setState(() => _output = 'Error: $e');
     } finally {
@@ -336,7 +385,8 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
 
   @override
   void dispose() {
-    _promptController.dispose();
+    _dietFriendlyController.dispose();
+    _mainIngredientController.dispose();
     super.dispose();
   }
 
@@ -375,12 +425,19 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _promptController,
+            controller: _dietFriendlyController,
             decoration: const InputDecoration(
-              labelText: 'Prompt',
+              labelText: 'Diet Friendly',
               border: OutlineInputBorder(),
             ),
-            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _mainIngredientController,
+            decoration: const InputDecoration(
+              labelText: 'Main Ingredient',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
