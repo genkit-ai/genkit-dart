@@ -131,22 +131,26 @@ class Workspace {
       final glob = Glob(p.join(rootDir, globStr.toString()));
       await for (final entity in glob.list()) {
         if (entity is Directory) {
+          final segments = p.split(entity.path);
+          if (segments.contains('build') || segments.contains('.dart_tool')) {
+            continue;
+          }
           final pubspecFile = File(p.join(entity.path, 'pubspec.yaml'));
           if (await pubspecFile.exists()) {
             final pubspecContent = await pubspecFile.readAsString();
             final pubspec = loadYaml(pubspecContent) as YamlMap;
             final name = pubspec['name'] as String;
             final versionStr = pubspec['version'] as String?;
-            if (versionStr == null) continue; // Skip unversioned packages
 
             final deps = _parseDeps(pubspec['dependencies']);
             final devDeps = _parseDeps(pubspec['dev_dependencies']);
-            final publishToNone = pubspec['publish_to'] == 'none';
+            final publishToNone =
+                pubspec['publish_to'] == 'none' || versionStr == null;
 
             loadedPackages[name] = Package(
               name: name,
               path: entity.path,
-              version: Version.parse(versionStr),
+              version: Version.parse(versionStr ?? '0.0.0'),
               publishToNone: publishToNone,
               dependencies: deps,
               devDependencies: devDeps,
@@ -394,9 +398,9 @@ class VersionApplier {
               '^(\\s+)$depName:\\s*\\^?[\\d\\.]+.*?\$',
               multiLine: true,
             );
-            pubspecContent = pubspecContent.replaceAll(
+            pubspecContent = pubspecContent.replaceAllMapped(
               depRegex,
-              '\$1$depName: ^$depNewVersion',
+              (m) => '${m[1]}$depName: ^$depNewVersion',
             );
           }
         }
@@ -425,7 +429,8 @@ class VersionApplier {
   }
 
   String _buildChangelogEntry(Version version, List<String> commitMessages) {
-    if (commitMessages.isEmpty) {
+    final filteredMessages = _filterReverts(commitMessages);
+    if (filteredMessages.isEmpty) {
       return '## $version\n\n - updated internal dependencies.\n';
     }
 
@@ -434,8 +439,10 @@ class VersionApplier {
     final fixes = <String>[];
     final others = <String>[];
 
-    for (final msg in commitMessages) {
+    for (final msg in filteredMessages) {
       final commit = ConventionalCommit.parse(msg);
+      if (commit.type == 'chore' && !commit.isBreaking) continue;
+
       if (commit.isBreaking) {
         breaking.add(commit.message);
       } else if (commit.type == 'feat') {
@@ -480,6 +487,30 @@ class VersionApplier {
     }
 
     return buf.toString();
+  }
+
+  List<String> _filterReverts(List<String> messages) {
+    final toSkip = List<bool>.filled(messages.length, false);
+
+    for (int i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      if (msg.startsWith('Revert "') && msg.endsWith('"')) {
+        final original = msg.substring(8, msg.length - 1);
+        // Look for the original message to cancel out
+        for (int j = 0; j < messages.length; j++) {
+          if (!toSkip[j] && messages[j] == original) {
+            toSkip[i] = true;
+            toSkip[j] = true;
+            break;
+          }
+        }
+      }
+    }
+
+    return [
+      for (int i = 0; i < messages.length; i++)
+        if (!toSkip[i]) messages[i]
+    ];
   }
 }
 
