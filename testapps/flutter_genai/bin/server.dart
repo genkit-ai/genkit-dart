@@ -37,19 +37,40 @@ void main() async {
     ],
   );
 
+  ai.defineTool(
+    name: 'checkPantry',
+    description: 'Checks if we have specific spices in the kitchen pantry',
+    inputSchema: CheckPantryInput.$schema,
+    fn: (CheckPantryInput input, _) async =>
+        input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+  );
+
   final serverFlow = ai.defineFlow(
     name: 'serverFlow',
-    inputSchema: ServerFlowInput.$schema,
+    inputSchema: RecipeRequest.$schema,
     outputSchema: .string(),
-    fn: (ServerFlowInput input, _) async {
-      final model = switch (input.provider) {
+    streamSchema: .string(),
+    fn: (RecipeRequest request, context) async {
+      final model = switch (request.provider) {
         'google' => googleAI.gemini('gemini-2.5-flash'),
         'openai' => openAI.model('gpt-4o'),
         _ => anthropic.model('claude-sonnet-4-5'),
       };
 
-      final response = await ai.generate(model: model, prompt: input.prompt);
-      return response.text;
+      final stream = ai.generateStream(
+        model: model,
+        prompt:
+            'Create a ${request.dietFriendly} recipe using ${request.mainIngredient}. '
+            'Before suggesting spices, check the pantry to see if we have them.',
+        toolNames: ['checkPantry'],
+      );
+
+      var fullText = '';
+      await for (final chunk in stream) {
+        fullText += chunk.text;
+        context.sendChunk(chunk.text);
+      }
+      return fullText;
     },
   );
 
