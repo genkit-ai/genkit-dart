@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import '../core/action.dart';
+import '../types.dart';
 import 'interrupt.dart';
 
 /// Arguments passed to a tool function execution.
@@ -25,6 +26,10 @@ class ToolFnArgs<Input> {
 
   /// The execution context.
   Map<String, dynamic>? get context => _base.context;
+
+  /// The tool request that triggered this execution.
+  ToolRequestPart? get toolRequest =>
+      Zone.current[ToolRequestPart] as ToolRequestPart?;
 
   /// Interrupts the generation loop with optional [data].
   Never interrupt([dynamic data]) {
