@@ -179,6 +179,11 @@ class Workspace {
 }
 
 class GitService {
+  Future<bool> tagExists(String tagName) async {
+    final result = await Process.run('git', ['tag', '-l', tagName]);
+    return result.exitCode == 0 && result.stdout.toString().trim() == tagName;
+  }
+
   Future<String?> getLatestTag(String packageName) async {
     final result = await Process.run('git', [
       'describe',
@@ -224,9 +229,15 @@ class VersionPlanner {
 
     for (final pkg in workspace.packages.values) {
       if (pkg.publishToNone) continue;
+
+      final currentTagName = '${pkg.name}-v${pkg.version}';
+      final currentTagExists = await git.tagExists(currentTagName);
+
       final latestTag = await git.getLatestTag(pkg.name);
 
       final commitMessages = await git.getCommitsSince(latestTag, pkg.path);
+
+      if (currentTagExists && commitMessages.isEmpty) continue;
       if (commitMessages.isEmpty && !graduate && rcTag == null) continue;
 
       var maxBump = BumpType.none;
@@ -363,7 +374,7 @@ class VersionApplier {
 
     for (final pkg in workspace.packages.values) {
       final newVersion = bumps[pkg.name];
-      bool needsDepUpdate = false;
+      var needsDepUpdate = false;
 
       for (final depName in bumps.keys) {
         if (pkg.dependsOn(depName)) {
@@ -418,7 +429,13 @@ class VersionApplier {
         final changelogFile = File(p.join(pkg.path, 'CHANGELOG.md'));
         if (await changelogFile.exists()) {
           final existing = await changelogFile.readAsString();
-          await changelogFile.writeAsString('$changelogEntry\n$existing');
+          if (existing.contains('## $newVersion')) {
+            print(
+              'Changelog for $newVersion already exists in ${pkg.name}. Skipping.',
+            );
+          } else {
+            await changelogFile.writeAsString('$changelogEntry\n$existing');
+          }
         } else {
           await changelogFile.writeAsString(changelogEntry);
         }
@@ -492,12 +509,12 @@ class VersionApplier {
   List<String> _filterReverts(List<String> messages) {
     final toSkip = List<bool>.filled(messages.length, false);
 
-    for (int i = 0; i < messages.length; i++) {
+    for (var i = 0; i < messages.length; i++) {
       final msg = messages[i];
       if (msg.startsWith('Revert "') && msg.endsWith('"')) {
         final original = msg.substring(8, msg.length - 1);
         // Look for the original message to cancel out
-        for (int j = 0; j < messages.length; j++) {
+        for (var j = 0; j < messages.length; j++) {
           if (!toSkip[j] && messages[j] == original) {
             toSkip[i] = true;
             toSkip[j] = true;
@@ -509,7 +526,7 @@ class VersionApplier {
 
     return [
       for (int i = 0; i < messages.length; i++)
-        if (!toSkip[i]) messages[i]
+        if (!toSkip[i]) messages[i],
     ];
   }
 }
@@ -655,8 +672,25 @@ void main(List<String> args) async {
     final pkgName = entry.key;
     final newVersion = entry.value;
     final tagName = '$pkgName-v$newVersion';
-    await Process.run('git', ['tag', '--', tagName]);
-    print('Created tag $tagName');
+
+    if (await git.tagExists(tagName)) {
+      print('Tag $tagName already exists. Skipping.');
+      continue;
+    }
+
+    final tagResult = await Process.run('git', [
+      'tag',
+      '-a',
+      tagName,
+      '-m',
+      'Release $tagName',
+    ]);
+
+    if (tagResult.exitCode != 0) {
+      print('Warning: Failed to create tag $tagName: ${tagResult.stderr}');
+    } else {
+      print('Created annotated tag $tagName');
+    }
   }
 
   print('Done!');
