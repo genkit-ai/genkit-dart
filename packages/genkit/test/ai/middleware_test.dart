@@ -64,17 +64,17 @@ class TestMiddleware extends GenerateMiddleware {
 
   @override
   Future<ToolResponse> tool(
-    ToolRequest request,
+    ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
     Future<ToolResponse> Function(
-      ToolRequest request,
+      ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
     next,
   ) async {
-    log.add('$name:tool:${request.name}:start');
+    log.add('$name:tool:${request.toolRequest.name}:start');
     final result = await next(request, ctx);
-    log.add('$name:tool:${request.name}:end');
+    log.add('$name:tool:${request.toolRequest.name}:end');
     return result;
   }
 }
