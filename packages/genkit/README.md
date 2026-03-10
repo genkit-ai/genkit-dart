@@ -228,9 +228,23 @@ while (response.finishReason == FinishReason.interrupted) {
 
 ##### Restart the tool (`interruptRestart`)
 
-Use `interruptRestart` when the environment has changed or the user has taken an action that allows the tool to proceed on its own. You can also pass additional metadata to the tool:
+Use `interruptRestart` when the environment has changed or the user has taken an action that allows the tool to proceed on its own. You can pass additional metadata to the tool (e.g., an approval token), which the tool can then access via `context.metadata`:
 
 ```dart
+final confirmAction = ai.defineTool(
+  name: 'confirmAction',
+  description: 'A tool that requires approval metadata',
+  fn: (input, context) async {
+    // Access the metadata passed during the initial call or restart
+    if (context.metadata['approved'] != true) {
+      context.interrupt('Approval required');
+    }
+    return 'Action confirmed';
+  },
+);
+
+// ...
+
 var response = await ai.generate(
   prompt: 'Delete the database',
   toolNames: ['confirmAction'],
@@ -241,6 +255,7 @@ if (response.finishReason == FinishReason.interrupted) {
   final confirmed = true; 
 
   if (confirmed) {
+    // Resume generation and use `withMetadata` to inject the approval
     response = await ai.generate(
       messages: response.messages,
       toolNames: ['confirmAction'],
@@ -252,26 +267,9 @@ if (response.finishReason == FinishReason.interrupted) {
 }
 ```
 
-#### Accessing Metadata in Tools
-
-Tools can access their trigger request and associated metadata via `context.toolRequest` and `context.metadata`:
-
-```dart
-final secureTool = ai.defineTool(
-  name: 'secureTool',
-  description: 'A tool that requires approval metadata',
-  fn: (input, context) async {
-    if (context.metadata['approved'] != true) {
-      context.interrupt('Approval required');
-    }
-    // ...
-  },
-);
-```
-
 ### Middleware
 
-Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `retry` for robust error handling.
+Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `retry` for robust error handling. Check out the [genkit_middleware](https://pub.dev/packages/genkit_middleware) package for more specialized middleware like tool approval, filesystem access, and skills.
 
 #### Retry Middleware
 
@@ -586,6 +584,8 @@ final response = await ai.generate(
 
 print(response.text);
 ```
+
+Check out the [genkit_shelf](https://pub.dev/packages/genkit_shelf) package for details on how to host remote models and flows.
 
 ---
 
