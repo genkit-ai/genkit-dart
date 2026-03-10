@@ -1,3 +1,10 @@
+## 0.1.1
+
+### Other Changes
+
+ - Add context provider examples to `genkit_shelf` README and update schema helper syntax (#208)
+
+
 ## 0.1.0+1
 
  - Update a dependency to the latest release.

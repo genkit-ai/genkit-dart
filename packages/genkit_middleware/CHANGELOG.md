@@ -1,3 +1,10 @@
+## 0.2.0
+
+### Breaking Changes
+
+ - changed tool hook signature on middleware, pass toolRequest to tool (#211)
+
+
 ## 0.1.0+1
 
  - Update a dependency to the latest release.

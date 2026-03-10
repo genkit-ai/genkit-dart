@@ -1,3 +1,10 @@
+## 0.11.0
+
+### Breaking Changes
+
+ - changed tool hook signature on middleware, pass toolRequest to tool (#211)
+
+
 ## 0.10.1
 
  - **FEAT**: Add support for a default model and make generate model param optional (#203).
