@@ -166,6 +166,109 @@ final streamStory = ai.defineFlow(
 );
 ```
 
+### Interrupts
+
+Interrupts allow a flow or model to pause execution and wait for external input (human-in-the-loop). A tool can trigger an interrupt, which pauses the `ai.generate` loop and returns control to the caller with the interrupt metadata.
+
+#### Triggering an Interrupt
+
+To trigger an interrupt, call `context.interrupt()` within a tool definition:
+
+```dart
+@Schema()
+abstract class $AskUserInput {
+  String get question;
+}
+
+// ... run build_runner ...
+
+final askUser = ai.defineTool(
+  name: 'askUser',
+  description: 'Ask the user a clarifying question.',
+  inputSchema: AskUserInput.$schema,
+  fn: (input, context) async {
+    context.interrupt(input.question);
+  },
+);
+```
+
+#### Resuming from an Interrupt
+
+When `ai.generate` is interrupted, it returns a response with `finishReason == FinishReason.interrupted`. You can then resume the generation by providing either a direct response to the tool or by requesting to restart the tool execution:
+
+##### Provide a response (`interruptRespond`)
+
+Use `interruptRespond` when you have the data the tool was waiting for (e.g., a user's confirmation or additional input):
+
+```dart
+var response = await ai.generate(
+  prompt: 'Research Genkit support for Dart',
+  toolNames: ['askUser', 'webSearch'],
+);
+
+while (response.finishReason == FinishReason.interrupted) {
+  for (final interrupt in response.interrupts) {
+    if (interrupt.toolRequest.name == 'askUser') {
+      final question = interrupt.metadata?['interrupt'] as String;
+      
+      // Prompt user for answer...
+      final answer = 'Dart support is coming soon!';
+
+      response = await ai.generate(
+        messages: response.messages,
+        toolNames: ['askUser', 'webSearch'],
+        interruptRespond: [
+          InterruptResponse(interrupt.toolRequestPart!, answer),
+        ],
+      );
+    }
+  }
+}
+```
+
+##### Restart the tool (`interruptRestart`)
+
+Use `interruptRestart` when the environment has changed or the user has taken an action that allows the tool to proceed on its own. You can also pass additional metadata to the tool:
+
+```dart
+var response = await ai.generate(
+  prompt: 'Delete the database',
+  toolNames: ['confirmAction'],
+);
+
+if (response.finishReason == FinishReason.interrupted) {
+  // Use UI to get user confirmation...
+  final confirmed = true; 
+
+  if (confirmed) {
+    response = await ai.generate(
+      messages: response.messages,
+      toolNames: ['confirmAction'],
+      interruptRestart: [
+        response.interrupts.first.toolRequestPart!.withMetadata({'approved': true}),
+      ],
+    );
+  }
+}
+```
+
+#### Accessing Metadata in Tools
+
+Tools can access their trigger request and associated metadata via `context.toolRequest` and `context.metadata`:
+
+```dart
+final secureTool = ai.defineTool(
+  name: 'secureTool',
+  description: 'A tool that requires approval metadata',
+  fn: (input, context) async {
+    if (context.metadata['approved'] != true) {
+      context.interrupt('Approval required');
+    }
+    // ...
+  },
+);
+```
+
 ### Middleware
 
 Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `retry` for robust error handling.
