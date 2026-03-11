@@ -1,3 +1,10 @@
+## 0.11.1
+
+### Features
+
+ - Allow asynchronous header generation for remote models (#212)
+
+
 ## 0.11.0
 
 ### Breaking Changes
