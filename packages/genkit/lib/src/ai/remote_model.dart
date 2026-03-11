@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import '../../client.dart';
@@ -21,7 +22,8 @@ import '../../genkit.dart';
 Model remoteModel({
   required String name,
   required String url,
-  Map<String, String>? Function(Map<String, dynamic> context)? headers,
+  FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
+  headers,
   ModelInfo? modelInfo,
   http.Client? httpClient,
 }) {
@@ -40,10 +42,13 @@ Model remoteModel({
         if (request == null) {
           throw ArgumentError('Model request cannot be null');
         }
+
+        final resolvedHeaders = await headers?.call(context.context ?? {});
+
         if (context.streamingRequested) {
           final stream = remoteAction.stream(
             input: request,
-            headers: headers?.call(context.context ?? {}),
+            headers: resolvedHeaders,
           );
 
           await for (final chunk in stream) {
@@ -53,10 +58,7 @@ Model remoteModel({
           return stream.result;
         }
 
-        return await remoteAction(
-          input: request,
-          headers: headers?.call(context.context ?? {}),
-        );
+        return await remoteAction(input: request, headers: resolvedHeaders);
       },
     )
     ..metadata.addAll(

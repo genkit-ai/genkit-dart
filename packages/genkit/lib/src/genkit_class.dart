@@ -278,7 +278,8 @@ final class Genkit {
   Model defineRemoteModel({
     required String name,
     required String url,
-    Map<String, String>? Function(Map<String, dynamic> context)? headers,
+    FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
+    headers,
     ModelInfo? modelInfo,
     http.Client? httpClient,
   }) {
