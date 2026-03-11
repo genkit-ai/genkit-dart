@@ -161,5 +161,95 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('should include custom headers (sync callback)', () async {
+      final remoteModel = ai.defineRemoteModel(
+        name: 'my-remote-model-callback-sync',
+        url: remoteUrl,
+        httpClient: mockClient,
+        headers: (context) {
+          return {'X-User-ID': context['userId'] as String};
+        },
+      );
+
+      when(
+        mockClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'result': ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(role: Role.model, content: []),
+            ).toJson(),
+          }),
+          200,
+        ),
+      );
+
+      await ai.generate(
+        model: remoteModel,
+        prompt: 'test headers callback sync',
+        context: {'userId': '456'},
+      );
+
+      verify(
+        mockClient.post(
+          any,
+          headers: argThat(containsPair('X-User-ID', '456'), named: 'headers'),
+          body: anyNamed('body'),
+        ),
+      ).called(1);
+    });
+
+    test('should include custom headers (async callback)', () async {
+      final remoteModel = ai.defineRemoteModel(
+        name: 'my-remote-model-callback-async',
+        url: remoteUrl,
+        httpClient: mockClient,
+        headers: (context) async {
+          await Future.delayed(Duration(milliseconds: 10));
+          return {'X-Auth-Token': 'secret-${context['token']}'};
+        },
+      );
+
+      when(
+        mockClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'result': ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(role: Role.model, content: []),
+            ).toJson(),
+          }),
+          200,
+        ),
+      );
+
+      await ai.generate(
+        model: remoteModel,
+        prompt: 'test headers callback async',
+        context: {'token': 'abc'},
+      );
+
+      verify(
+        mockClient.post(
+          any,
+          headers: argThat(
+            containsPair('X-Auth-Token', 'secret-abc'),
+            named: 'headers',
+          ),
+          body: anyNamed('body'),
+        ),
+      ).called(1);
+    });
   });
 }

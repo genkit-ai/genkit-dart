@@ -571,7 +571,7 @@ final remoteModel = ai.defineRemoteModel(
   name: 'my-remote-model',
   url: 'http://localhost:3400/my-model',
   // Optional: Provide custom headers dynamically based on context
-  headers: (context) {
+  headers: (context) async {
     return {'Authorization': 'Bearer ${context['token']}'};
   },
 );
