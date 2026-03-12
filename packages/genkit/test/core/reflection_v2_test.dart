@@ -141,9 +141,14 @@ void main() {
         }),
       );
 
+      // First message is runActionState notification
+      var msg = await queue.next;
+      var decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      expect(decoded['method'], equals('runActionState'));
+
       // Response
-      final msg = await queue.next;
-      final decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      msg = await queue.next;
+      decoded = jsonDecode(msg as String) as Map<String, dynamic>;
 
       expect(decoded['id'], equals('456'));
       expect(decoded['result']['result']['bar'], equals('baz'));
@@ -200,12 +205,61 @@ void main() {
         final decoded = jsonDecode(msg as String);
         if (decoded['method'] == 'streamChunk') {
           chunks.add(decoded['params']['chunk']);
+        } else if (decoded['method'] == 'runActionState') {
+          expect(decoded['params']['requestId'], equals('789'));
         } else if (decoded['id'] == '789') {
           expect(decoded['result']['result'], equals('done'));
           done = true;
         }
       }
       expect(chunks, equals(['chunk1', 'chunk2']));
+    });
+    test('should send early trace ID via runActionState', () async {
+      final testAction = Action(
+        actionType: 'custom',
+        name: 'traceAction',
+        fn: (input, context) async => 'done',
+      );
+      registry.register(testAction);
+
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+
+      // Register message
+      await queue.next;
+
+      // Request runAction
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'runAction',
+          'params': {'key': '/custom/traceAction'},
+          'id': 'trace-123',
+        }),
+      );
+
+      // First message should be runActionState
+      final stateMsg = await queue.next;
+      final stateDecoded =
+          jsonDecode(stateMsg as String) as Map<String, dynamic>;
+      expect(stateDecoded['method'], equals('runActionState'));
+      expect(stateDecoded['params']['requestId'], equals('trace-123'));
+      expect(stateDecoded['params']['state']['traceId'], isNotEmpty);
+
+      // Second message should be response
+      final respMsg = await queue.next;
+      final respDecoded = jsonDecode(respMsg as String) as Map<String, dynamic>;
+      expect(respDecoded['id'], equals('trace-123'));
+      expect(
+        respDecoded['result']['telemetry']['traceId'],
+        equals(stateDecoded['params']['state']['traceId']),
+      );
     });
   });
 }

@@ -210,6 +210,13 @@ class ReflectionServerV2 {
       inputStream = controller.stream;
     }
 
+    void onTraceStart({required String traceId, required String spanId}) {
+      _sendNotification('runActionState', {
+        'requestId': id,
+        'state': {'traceId': traceId},
+      });
+    }
+
     try {
       if (stream) {
         final result = await action.runRaw(
@@ -219,6 +226,7 @@ class ReflectionServerV2 {
           },
           context: context,
           inputStream: inputStream,
+          onTraceStart: onTraceStart,
         );
 
         _sendResponse(id, {
@@ -230,6 +238,7 @@ class ReflectionServerV2 {
           input,
           context: context,
           inputStream: inputStream,
+          onTraceStart: onTraceStart,
         );
         _sendResponse(id, {
           'result': result.result,
