@@ -887,8 +887,16 @@ base class OrderStatus {
 
   OrderStatus._(this._json);
 
-  OrderStatus({required String id, required Color color}) {
-    _json = {'id': id, 'color': color.name};
+  OrderStatus({
+    required String id,
+    required Color color,
+    Color? nullableColor,
+  }) {
+    _json = {
+      'id': id,
+      'color': color.name,
+      'nullableColor': ?nullableColor?.name,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -909,6 +917,20 @@ base class OrderStatus {
 
   set color(Color value) {
     _json['color'] = value.name;
+  }
+
+  Color? get nullableColor {
+    return _json['nullableColor'] == null
+        ? null
+        : Color.values.byName(_json['nullableColor'] as String);
+  }
+
+  set nullableColor(Color? value) {
+    if (value == null) {
+      _json.remove('nullableColor');
+    } else {
+      _json['nullableColor'] = value.name;
+    }
   }
 
   @override
@@ -937,6 +959,9 @@ base class _OrderStatusTypeFactory extends SchemanticType<OrderStatus> {
           properties: {
             'id': $Schema.string(),
             'color': $Schema.string(enumValues: ['red', 'green', 'blue']),
+            'nullableColor': $Schema.string(
+              enumValues: ['red', 'green', 'blue'],
+            ),
           },
           required: ['id', 'color'],
         )
