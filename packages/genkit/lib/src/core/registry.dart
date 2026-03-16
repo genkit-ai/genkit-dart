@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import '../../plugin.dart';
+import '../ai/generate_middleware.dart';
+import './action.dart';
+import './plugin.dart';
 
 class Registry {
   final Map<String, Action> _actions = {};
