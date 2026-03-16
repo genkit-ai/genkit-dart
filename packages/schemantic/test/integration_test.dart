@@ -141,6 +141,14 @@ abstract class $StatusContainer {
   List<MyStatus>? get statusList;
 }
 
+enum Color { red, green, blue }
+
+@Schema()
+abstract class $OrderStatus {
+  String get id;
+  Color get color;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -548,6 +556,21 @@ void main() {
       expect(parsed.status.value, 'active');
       expect(parsed.optionalStatus, isNull);
       expect(parsed.statusList, isNull);
+    });
+  });
+
+  group('Enum Tests', () {
+    test('OrderStatus serialization and deserialization', () {
+      final order = OrderStatus(id: 'o1', color: Color.green);
+      expect(order.id, 'o1');
+      expect(order.color, Color.green);
+
+      final json = order.toJson();
+      expect(json, {'id': 'o1', 'color': 'green'});
+
+      final parsed = OrderStatus.$schema.parse(json);
+      expect(parsed.id, 'o1');
+      expect(parsed.color, Color.green);
     });
   });
 }

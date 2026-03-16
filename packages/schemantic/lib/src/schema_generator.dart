@@ -320,6 +320,9 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
                   valueExpression = refer(
                     paramName!,
                   ).maybeNullSafeProperty(isNullable, repName!);
+                } else if (getter.returnType.element is EnumElement) {
+                  valueExpression =
+                      refer(paramName!).maybeNullSafeProperty(isNullable, 'name');
                 } else {
                   valueExpression = refer(paramName!);
                 }
