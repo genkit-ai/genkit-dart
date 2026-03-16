@@ -851,7 +851,7 @@ _executeTools(
   Map<String, dynamic>? context, {
   List<GenerateMiddleware>? middleware,
 }) async {
-  final toolResponses = <Part>[];
+  final toolResponses = <ToolResponsePart>[];
   final toolStatus = <String, dynamic>{};
   var interrupted = false;
 
