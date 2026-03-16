@@ -97,7 +97,7 @@ void main(List<String> args) async {
   );
   ai.defineTool(
     name: 'temperatureConverter',
-    description: 'Converts temperature',
+    description: 'Converts temperatures between Celsius (C) and Fahrenheit (F).',
     inputSchema: TemperatureConverterInput.$schema,
     outputSchema: TemperatureConverterOutput.$schema,
     fn: (input, context) async {
