@@ -189,12 +189,10 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<List<String>> _fetchAvailableModels() async {
     final resolvedConfig = await _resolveClientConfig();
 
-    final client = sdk.OpenAIClient(
-      config: sdk.OpenAIConfig(
-        authProvider: sdk.ApiKeyProvider(resolvedConfig.apiKey),
-        baseUrl: resolvedConfig.baseUrl ?? 'https://api.openai.com/v1',
-        defaultHeaders: resolvedConfig.headers ?? const {},
-      ),
+    final client = sdk.OpenAIClient.withApiKey(
+      resolvedConfig.apiKey,
+      baseUrl: resolvedConfig.baseUrl,
+      defaultHeaders: resolvedConfig.headers,
     );
 
     try {
@@ -297,12 +295,10 @@ class OpenAIPlugin extends GenkitPlugin {
             : OpenAIOptions();
 
         final resolvedConfig = await _resolveClientConfig();
-        final client = sdk.OpenAIClient(
-          config: sdk.OpenAIConfig(
-            authProvider: sdk.ApiKeyProvider(resolvedConfig.apiKey),
-            baseUrl: resolvedConfig.baseUrl ?? 'https://api.openai.com/v1',
-            defaultHeaders: resolvedConfig.headers ?? const {},
-          ),
+        final client = sdk.OpenAIClient.withApiKey(
+          resolvedConfig.apiKey,
+          baseUrl: resolvedConfig.baseUrl,
+          defaultHeaders: resolvedConfig.headers,
         );
 
         try {
@@ -385,17 +381,12 @@ class OpenAIPlugin extends GenkitPlugin {
       await for (final chunk in stream) {
         accumulator.add(chunk);
 
-        final choice = (chunk.choices != null && chunk.choices!.isNotEmpty)
-            ? chunk.choices!.first
-            : null;
-        final delta = choice?.delta;
-        if (delta == null) continue;
-
-        if (delta.content != null) {
+        final textDelta = chunk.textDelta;
+        if (textDelta != null) {
           ctx.sendChunk(
             ModelResponseChunk(
               index: 0,
-              content: [TextPart(text: delta.content!)],
+              content: [TextPart(text: textDelta)],
             ),
           );
         }

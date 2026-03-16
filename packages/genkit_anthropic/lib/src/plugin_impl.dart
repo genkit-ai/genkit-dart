@@ -99,7 +99,11 @@ class AnthropicPluginImpl extends GenkitPlugin {
             : AnthropicOptions.$schema.parse(req.config!);
 
         final requestClient = options.apiKey != null
-            ? sdk.AnthropicClient.withApiKey(options.apiKey!)
+            ? sdk.AnthropicClient.withApiKey(
+                options.apiKey!,
+                defaultHeaders: headers,
+                baseUrl: baseUrl,
+              )
             : client;
 
         try {
