@@ -24,6 +24,7 @@ class TestPlugin extends GenkitPlugin {
   final List<ActionMetadata> listedActions;
   final List<Action> initActions;
   int initCount = 0;
+  int listCount = 0;
 
   TestPlugin(
     this.name, {
@@ -48,6 +49,7 @@ class TestPlugin extends GenkitPlugin {
 
   @override
   Future<List<ActionMetadata>> list() async {
+    listCount++;
     return listedActions;
   }
 }
@@ -207,6 +209,31 @@ void main() {
 
       final actions = await registry.listActions();
       expect(actions.length, 1);
+    });
+
+    test('list actions caching', () async {
+      final registry = Registry();
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+        ],
+      );
+      registry.registerPlugin(plugin);
+
+      expect(plugin.initCount, 0);
+
+      // First call should trigger discovery
+      final actions1 = await registry.listActions();
+      expect(actions1.length, 1);
+      expect(plugin.initCount, 1);
+      expect(plugin.listCount, 1);
+
+      // Second call should use cache
+      final actions2 = await registry.listActions();
+      expect(actions2.length, 1);
+      expect(plugin.initCount, 1);
+      expect(plugin.listCount, 1); // Should still be 1
     });
   });
 

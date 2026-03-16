@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import './action.dart';
-import './plugin.dart';
+import '../../plugin.dart';
 
 class Registry {
   final Map<String, Action> _actions = {};
@@ -45,7 +44,7 @@ class Registry {
   }
 
   void registerPlugin(GenkitPlugin plugin) {
-    _plugins.add(plugin);
+    _plugins.add(_ListActionsCachingPluginAdapter(plugin));
   }
 
   String _getKey(String actionType, String name) {
@@ -138,4 +137,31 @@ class Registry {
 
 String getKey(String actionType, String name) {
   return '/$actionType/$name';
+}
+
+// Plugin adapter/wrapper that caches the list of actions.
+class _ListActionsCachingPluginAdapter extends GenkitPlugin {
+  final GenkitPlugin _plugin;
+  List<ActionMetadata>? _cachedActions;
+
+  _ListActionsCachingPluginAdapter(this._plugin);
+
+  @override
+  String get name => _plugin.name;
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => _plugin.middleware();
+
+  @override
+  Future<List<Action>> init() => _plugin.init();
+
+  @override
+  Action? resolve(String actionType, String name) =>
+      _plugin.resolve(actionType, name);
+
+  @override
+  Future<List<ActionMetadata>> list() async {
+    _cachedActions ??= await _plugin.list();
+    return _cachedActions!;
+  }
 }
