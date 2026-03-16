@@ -334,10 +334,10 @@ class FilesystemMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<ToolResponse> tool(
+  Future<ToolResponsePart> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponse> Function(
+    Future<ToolResponsePart> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -370,9 +370,11 @@ class FilesystemMiddleware extends GenerateMiddleware {
         }
 
         // Return a response to satisfy the signature, but the model will primarily see the user message
-        return ToolResponse(
-          name: request.toolRequest.name,
-          output: 'Tool failed. See context for details.',
+        return ToolResponsePart(
+          toolResponse: ToolResponse(
+            name: request.toolRequest.name,
+            output: 'Tool failed. See context for details.',
+          ),
         );
       }
       rethrow;
