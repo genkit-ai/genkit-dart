@@ -61,10 +61,10 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
     : approvedTools = options.approved;
 
   @override
-  Future<ToolResponse> tool(
+  Future<ToolResponsePart> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponse> Function(
+    Future<ToolResponsePart> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
