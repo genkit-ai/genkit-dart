@@ -89,9 +89,9 @@ base class TemperatureConverterInput {
 
   TemperatureConverterInput({
     required double temperature,
-    required String unit,
+    required TemperatureUnit unit,
   }) {
-    _json = {'temperature': temperature, 'unit': unit};
+    _json = {'temperature': temperature, 'unit': unit.name};
   }
 
   late final Map<String, dynamic> _json;
@@ -107,12 +107,12 @@ base class TemperatureConverterInput {
     _json['temperature'] = value;
   }
 
-  String get unit {
-    return _json['unit'] as String;
+  TemperatureUnit get unit {
+    return TemperatureUnit.values.byName(_json['unit'] as String);
   }
 
-  set unit(String value) {
-    _json['unit'] = value;
+  set unit(TemperatureUnit value) {
+    _json['unit'] = value.name;
   }
 
   @override
@@ -158,9 +158,9 @@ base class TemperatureConverterOutput {
 
   TemperatureConverterOutput({
     required double temperature,
-    required String unit,
+    required TemperatureUnit unit,
   }) {
-    _json = {'temperature': temperature, 'unit': unit};
+    _json = {'temperature': temperature, 'unit': unit.name};
   }
 
   late final Map<String, dynamic> _json;
@@ -176,12 +176,12 @@ base class TemperatureConverterOutput {
     _json['temperature'] = value;
   }
 
-  String get unit {
-    return _json['unit'] as String;
+  TemperatureUnit get unit {
+    return TemperatureUnit.values.byName(_json['unit'] as String);
   }
 
-  set unit(String value) {
-    _json['unit'] = value;
+  set unit(TemperatureUnit value) {
+    _json['unit'] = value.name;
   }
 
   @override

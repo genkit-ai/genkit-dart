@@ -101,15 +101,15 @@ void main(List<String> args) async {
     inputSchema: TemperatureConverterInput.$schema,
     outputSchema: TemperatureConverterOutput.$schema,
     fn: (input, context) async {
-      if (input.unit == 'C') {
+      if (input.unit == TemperatureUnit.C) {
         return TemperatureConverterOutput(
           temperature: (input.temperature * 9 / 5) + 32,
-          unit: 'F',
+          unit: TemperatureUnit.F,
         );
       }
       return TemperatureConverterOutput(
         temperature: (input.temperature - 32) * 5 / 9,
-        unit: 'C',
+        unit: TemperatureUnit.C,
       );
     },
   );
