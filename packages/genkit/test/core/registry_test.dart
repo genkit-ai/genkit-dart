@@ -23,6 +23,7 @@ class TestPlugin extends GenkitPlugin {
   final Action? resolvedAction;
   final List<ActionMetadata> listedActions;
   final List<Action> initActions;
+  final Duration? listDelay;
   int initCount = 0;
   int listCount = 0;
 
@@ -31,6 +32,7 @@ class TestPlugin extends GenkitPlugin {
     this.resolvedAction,
     this.listedActions = const [],
     this.initActions = const [],
+    this.listDelay,
   });
 
   @override
@@ -50,6 +52,9 @@ class TestPlugin extends GenkitPlugin {
   @override
   Future<List<ActionMetadata>> list() async {
     listCount++;
+    if (listDelay != null) {
+      await Future.delayed(listDelay!);
+    }
     return listedActions;
   }
 }
@@ -234,6 +239,30 @@ void main() {
       expect(actions2.length, 1);
       expect(plugin.initCount, 1);
       expect(plugin.listCount, 1); // Should still be 1
+    });
+
+    test('list actions caching concurrent', () async {
+      final registry = Registry();
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+        ],
+        listDelay: Duration(milliseconds: 100),
+      );
+      registry.registerPlugin(plugin);
+
+      // Invoke listActions multiple times concurrently
+      final futures = Iterable.generate(5, (_) => registry.listActions());
+      final results = await Future.wait(futures);
+
+      expect(results.length, 5);
+      for (final actions in results) {
+        expect(actions.length, 1);
+        expect(actions.first.name, 'myPlugin/myModel');
+      }
+
+      expect(plugin.listCount, 1); // Should ONLY be called once
     });
   });
 

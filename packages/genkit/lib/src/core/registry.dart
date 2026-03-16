@@ -142,7 +142,7 @@ String getKey(String actionType, String name) {
 // Plugin adapter/wrapper that caches the list of actions.
 class _ListActionsCachingPluginAdapter extends GenkitPlugin {
   final GenkitPlugin _plugin;
-  List<ActionMetadata>? _cachedActions;
+  Future<List<ActionMetadata>>? _listFuture;
 
   _ListActionsCachingPluginAdapter(this._plugin);
 
@@ -160,8 +160,7 @@ class _ListActionsCachingPluginAdapter extends GenkitPlugin {
       _plugin.resolve(actionType, name);
 
   @override
-  Future<List<ActionMetadata>> list() async {
-    _cachedActions ??= await _plugin.list();
-    return _cachedActions!;
+  Future<List<ActionMetadata>> list() {
+    return _listFuture ??= _plugin.list();
   }
 }
