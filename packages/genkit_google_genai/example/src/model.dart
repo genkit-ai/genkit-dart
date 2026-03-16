@@ -25,6 +25,24 @@ abstract class $WeatherToolInput {
   String get location;
 }
 
+@Schema()
+abstract class $TemperatureConverterInput {
+  @Field(description: 'Input temperature')
+  double get temperature;
+
+  @StringField(enumValues: ['C', 'F'])
+  String get unit;
+}
+
+@Schema()
+abstract class $TemperatureConverterOutput {
+  @Field(description: 'Output temperature')
+  double get temperature;
+
+  @StringField(enumValues: ['C', 'F'])
+  String get unit;
+}
+
 // --- Schemas for Structured Streaming Example ---
 
 @Schema()
