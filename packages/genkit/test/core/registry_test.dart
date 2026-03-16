@@ -264,7 +264,44 @@ void main() {
 
       expect(plugin.listCount, 1); // Should ONLY be called once
     });
+
+    test('list actions retry on failure', () async {
+      final registry = Registry();
+      var fail = true;
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+        ],
+      );
+
+      // A plugin that fails the first time
+      final failingPlugin = _FailingPlugin(plugin, () => fail);
+      registry.registerPlugin(failingPlugin);
+
+      // First call fails (silently in listActions, but logged)
+      fail = true;
+      final actionsEmpty = await registry.listActions();
+      expect(actionsEmpty, isEmpty);
+      expect(failingPlugin.listCount, 1);
+      expect(plugin.listCount, 0);
+
+      // Second call should retry since first one failed
+      fail = false;
+      final actions = await registry.listActions();
+      expect(actions.length, 1);
+      expect(failingPlugin.listCount, 2);
+      expect(plugin.listCount, 1);
+
+      // Third call should use cache
+      final actionsCached = await registry.listActions();
+      expect(actionsCached.length, 1);
+      expect(failingPlugin.listCount, 2); // Should still be 2
+      expect(plugin.listCount, 1);
+    });
   });
+
+
 
   group('Registry Hierarchy', () {
     test('lookupValue delegates to parent if not found locally', () {
@@ -352,4 +389,31 @@ void main() {
       expect(values, containsPair('/test/shared', 'child'));
     });
   });
+}
+
+class _FailingPlugin extends GenkitPlugin {
+  final GenkitPlugin _plugin;
+  final bool Function() _shouldFail;
+  int listCount = 0;
+
+  _FailingPlugin(this._plugin, this._shouldFail);
+
+  @override
+  String get name => _plugin.name;
+
+  @override
+  Future<List<Action>> init() => _plugin.init();
+
+  @override
+  Action? resolve(String actionType, String name) =>
+      _plugin.resolve(actionType, name);
+
+  @override
+  Future<List<ActionMetadata>> list() async {
+    listCount++;
+    if (_shouldFail()) {
+      throw Exception('Failing on purpose');
+    }
+    return _plugin.list();
+  }
 }

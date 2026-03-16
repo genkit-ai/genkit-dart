@@ -160,7 +160,14 @@ class _ListActionsCachingPluginAdapter extends GenkitPlugin {
       _plugin.resolve(actionType, name);
 
   @override
-  Future<List<ActionMetadata>> list() {
-    return _listFuture ??= _plugin.list();
+  Future<List<ActionMetadata>> list() async {
+    if (_listFuture != null) return _listFuture!;
+    try {
+      return await (_listFuture = _plugin.list());
+    } catch (e) {
+      // Clear the future so that the next call will retry.
+      _listFuture = null;
+      rethrow;
+    }
   }
 }
