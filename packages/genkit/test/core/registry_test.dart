@@ -301,8 +301,6 @@ void main() {
     });
   });
 
-
-
   group('Registry Hierarchy', () {
     test('lookupValue delegates to parent if not found locally', () {
       final parent = Registry();
