@@ -853,7 +853,7 @@ _executeTools(
   Map<String, dynamic>? context, {
   List<GenerateMiddleware>? middleware,
 }) async {
-  final toolResponses = <Part>[];
+  final toolResponses = <ToolResponsePart>[];
   final toolStatus = <String, _ToolStatus>{};
   var interrupted = false;
 
@@ -868,15 +868,17 @@ _executeTools(
       );
     }
 
-    Future<ToolResponse> coreTool(
+    Future<ToolResponsePart> coreTool(
       ToolRequestPart req,
       ActionFnArg<void, dynamic, void> c,
     ) async {
       final out = await tool.runRaw(req.toolRequest.input, context: c.context);
-      return ToolResponse(
-        ref: req.toolRequest.ref,
-        name: req.toolRequest.name,
-        output: out.result,
+      return ToolResponsePart(
+        toolResponse: ToolResponse(
+          ref: req.toolRequest.ref,
+          name: req.toolRequest.name,
+          output: out.result,
+        ),
       );
     }
 
@@ -889,7 +891,7 @@ _executeTools(
         coreTool;
 
     try {
-      final toolResponse = await runZoned(
+      final toolResponsePart = await runZoned(
         () => composedTool(toolRequest, (
           streamingRequested: false,
           sendChunk: (_) {},
@@ -899,9 +901,9 @@ _executeTools(
         )),
         zoneValues: {ToolRequestPart: toolRequest},
       );
-      toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
+      toolResponses.add(toolResponsePart);
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          (output: toolResponse.output, interrupt: null);
+          (output: toolResponsePart.toolResponse.output, interrupt: null);
     } on ToolInterruptException catch (e) {
       interrupted = true;
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
