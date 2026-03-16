@@ -384,10 +384,7 @@ class OpenAIPlugin extends GenkitPlugin {
         final textDelta = chunk.textDelta;
         if (textDelta != null) {
           ctx.sendChunk(
-            ModelResponseChunk(
-              index: 0,
-              content: [TextPart(text: textDelta)],
-            ),
+            ModelResponseChunk(index: 0, content: [TextPart(text: textDelta)]),
           );
         }
       }
