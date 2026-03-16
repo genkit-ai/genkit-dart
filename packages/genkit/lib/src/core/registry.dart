@@ -139,7 +139,7 @@ String getKey(String actionType, String name) {
   return '/$actionType/$name';
 }
 
-// Plugin adapter/wrapper that caches the list of actions.
+// Plugin adapter/wrapper that caches the list actions result.
 class _ListActionsCachingPluginAdapter extends GenkitPlugin {
   final GenkitPlugin _plugin;
   Future<List<ActionMetadata>>? _listFuture;
