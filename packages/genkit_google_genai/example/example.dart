@@ -117,7 +117,7 @@ void main(List<String> args) async {
   ai.defineFlow(
     name: 'weatherFlow',
     inputSchema: .string(
-      defaultValue: 'What is the weather like in Boston in Celcius?',
+      defaultValue: 'What is the weather like in Boston in Celsius?',
     ),
     outputSchema: .string(),
     fn: (prompt, context) async {
