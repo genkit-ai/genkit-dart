@@ -141,6 +141,15 @@ abstract class $StatusContainer {
   List<MyStatus>? get statusList;
 }
 
+enum Color { red, green, blue }
+
+@Schema()
+abstract class $OrderStatus {
+  String get id;
+  Color get color;
+  Color? get nullableColor;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -548,6 +557,56 @@ void main() {
       expect(parsed.status.value, 'active');
       expect(parsed.optionalStatus, isNull);
       expect(parsed.statusList, isNull);
+    });
+  });
+
+  group('Enum Tests', () {
+    test('OrderStatus serialization and deserialization', () {
+      final order = OrderStatus(id: 'o1', color: Color.green);
+      expect(order.id, 'o1');
+      expect(order.color, Color.green);
+
+      final json = order.toJson();
+      expect(json, {'id': 'o1', 'color': 'green'});
+
+      final parsed = OrderStatus.$schema.parse(json);
+      expect(parsed.id, 'o1');
+      expect(parsed.color, Color.green);
+    });
+
+    test('OrderStatus with nullable color', () {
+      final order = OrderStatus(
+        id: 'o2',
+        color: Color.red,
+        nullableColor: null,
+      );
+      expect(order.nullableColor, isNull);
+      expect(order.toJson(), {'id': 'o2', 'color': 'red'});
+
+      final order2 = OrderStatus(
+        id: 'o3',
+        color: Color.blue,
+        nullableColor: Color.red,
+      );
+      expect(order2.nullableColor, Color.red);
+      expect(order2.toJson(), {
+        'id': 'o3',
+        'color': 'blue',
+        'nullableColor': 'red',
+      });
+
+      final parsed = OrderStatus.$schema.parse({
+        'id': 'o4',
+        'color': 'red',
+        'nullableColor': 'blue',
+      });
+      expect(parsed.nullableColor, Color.blue);
+
+      final parsedNull = OrderStatus.$schema.parse({
+        'id': 'o5',
+        'color': 'red',
+      });
+      expect(parsedNull.nullableColor, isNull);
     });
   });
 }

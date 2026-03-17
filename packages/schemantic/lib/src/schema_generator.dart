@@ -320,6 +320,10 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
                   valueExpression = refer(
                     paramName!,
                   ).maybeNullSafeProperty(isNullable, repName!);
+                } else if (getter.returnType.element is EnumElement) {
+                  valueExpression = refer(
+                    paramName!,
+                  ).maybeNullSafeProperty(isNullable, 'name');
                 } else {
                   valueExpression = refer(paramName!);
                 }
@@ -566,6 +570,11 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : "
             "DateTime.parse(_json['$jsonFieldName'] as String);";
+      } else if (returnType.element is EnumElement) {
+        final enumName = returnType.getDisplayString().replaceAll('?', '');
+        getterBody =
+            "return _json['$jsonFieldName'] == null ? null : "
+            "$enumName.values.byName(_json['$jsonFieldName'] as String);";
       }
     } else if (returnType.element is EnumElement) {
       final enumName = returnType.getDisplayString().replaceAll('?', '');
@@ -676,6 +685,8 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         if (itemTypeName.isSchema) {
           valueExpression = 'value.toList()';
         }
+      } else if (paramType.element is EnumElement) {
+        valueExpression = 'value.name';
       }
       setterBody =
           "if (value == null) { _json.remove('$jsonFieldName'); } "

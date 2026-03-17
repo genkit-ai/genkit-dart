@@ -880,3 +880,92 @@ base class _StatusContainerTypeFactory extends SchemanticType<StatusContainer> {
     dependencies: [],
   );
 }
+
+base class OrderStatus {
+  factory OrderStatus.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  OrderStatus._(this._json);
+
+  OrderStatus({
+    required String id,
+    required Color color,
+    Color? nullableColor,
+  }) {
+    _json = {
+      'id': id,
+      'color': color.name,
+      'nullableColor': ?nullableColor?.name,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<OrderStatus> $schema = _OrderStatusTypeFactory();
+
+  String get id {
+    return _json['id'] as String;
+  }
+
+  set id(String value) {
+    _json['id'] = value;
+  }
+
+  Color get color {
+    return Color.values.byName(_json['color'] as String);
+  }
+
+  set color(Color value) {
+    _json['color'] = value.name;
+  }
+
+  Color? get nullableColor {
+    return _json['nullableColor'] == null
+        ? null
+        : Color.values.byName(_json['nullableColor'] as String);
+  }
+
+  set nullableColor(Color? value) {
+    if (value == null) {
+      _json.remove('nullableColor');
+    } else {
+      _json['nullableColor'] = value.name;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _OrderStatusTypeFactory extends SchemanticType<OrderStatus> {
+  const _OrderStatusTypeFactory();
+
+  @override
+  OrderStatus parse(Object? json) {
+    return OrderStatus._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'OrderStatus',
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.string(),
+            'color': $Schema.string(enumValues: ['red', 'green', 'blue']),
+            'nullableColor': $Schema.string(
+              enumValues: ['red', 'green', 'blue'],
+            ),
+          },
+          required: ['id', 'color'],
+        )
+        .value,
+    dependencies: [],
+  );
+}

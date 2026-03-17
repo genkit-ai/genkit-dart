@@ -259,7 +259,7 @@ base class MealPlan {
   MealPlan._(this._json);
 
   MealPlan({required String day, required MealType mealType}) {
-    _json = {'day': day, 'mealType': mealType};
+    _json = {'day': day, 'mealType': mealType.name};
   }
 
   late final Map<String, dynamic> _json;
