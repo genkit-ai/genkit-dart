@@ -25,10 +25,7 @@ abstract class $WeatherToolInput {
   String get location;
 }
 
-enum TemperatureUnit {
-  C,
-  F,
-}
+enum TemperatureUnit { C, F }
 
 @Schema()
 abstract class $TemperatureConverterInput {
