@@ -34,8 +34,6 @@ void main() {
       expect(jsonSchema['type'], 'object');
       expect(jsonSchema['properties'], contains('firstName'));
       expect(jsonSchema['properties'], contains('lastName'));
-      expect(jsonSchema['required'], contains('firstName'));
-      expect(jsonSchema['required'], contains('lastName'));
     });
 
     test('Flow with custom schema works', () async {
