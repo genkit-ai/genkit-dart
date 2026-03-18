@@ -142,8 +142,14 @@ final class JsonSchemaMetadata {
 /// Base class for all runtime type utilities.
 ///
 /// Provides methods to parse JSON and retrieve the JSON Schema.
-abstract base class SchemanticType<T> {
+abstract class SchemanticType<T> {
   const SchemanticType();
+
+  /// Creates a schema from a JSON schema and a parse function.
+  static SchemanticType<T> from<T>({
+    required Map<String, Object?> jsonSchema,
+    required T Function(dynamic json) parse,
+  }) => _AdHocSchema(jsonSchema, parse);
 
   /// Parses the given [json] object into type [T].
   ///
@@ -558,4 +564,17 @@ extension on jsb.ValidationErrorType {
     .exclusiveMaximumExceeded => .exclusiveMaximumExceeded,
     .multipleOfInvalid => .multipleOfInvalid,
   };
+}
+
+class _AdHocSchema<T> extends SchemanticType<T> {
+  final Map<String, Object?> _jsonSchema;
+  final T Function(dynamic json) _parse;
+
+  const _AdHocSchema(this._jsonSchema, this._parse);
+
+  @override
+  T parse(Object? json) => _parse(json);
+
+  @override
+  Map<String, Object?> jsonSchema({bool useRefs = false}) => _jsonSchema;
 }
