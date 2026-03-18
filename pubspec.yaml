@@ -30,6 +30,7 @@ workspace:
   - testapps/remote_models
   - testapps/gemini
   - testapps/evals
+  - testapps/schemantic
 
 dev_dependencies:
   args: ^2.7.0
