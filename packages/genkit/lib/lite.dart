@@ -25,6 +25,7 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
+import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
 import 'src/ai/generate_middleware.dart';
 import 'src/ai/generate_types.dart';
@@ -49,6 +50,7 @@ Future<GenerateResponseHelper> generate<C>({
   bool? returnToolRequests,
   int? maxTurns,
   SchemanticType? outputSchema,
+  Map<String, dynamic>? outputJsonSchema,
   String? outputFormat,
   bool? outputConstrained,
   String? outputInstructions,
@@ -86,19 +88,26 @@ Future<GenerateResponseHelper> generate<C>({
     );
   }
 
+  if (outputSchema != null && outputJsonSchema != null) {
+    throw ArgumentError('Cannot set both outputSchema and outputJsonSchema.');
+  }
+
   final registry = Registry();
   registry.register(model);
   tools?.forEach(registry.register);
   GenerateActionOutputConfig? outputConfig;
   if (outputSchema != null ||
+      outputJsonSchema != null ||
       outputFormat != null ||
       outputConstrained != null ||
       outputInstructions != null ||
       outputNoInstructions != null ||
       outputContentType != null) {
+    configureFormats(registry);
     outputConfig = GenerateActionOutputConfig.fromJson({
       'format': ?outputFormat,
       if (outputSchema != null) 'jsonSchema': outputSchema.jsonSchema(),
+      if (outputJsonSchema != null) 'jsonSchema': outputJsonSchema,
       'constrained': ?outputConstrained,
       'instructions': ?outputInstructions,
       'contentType': ?outputContentType,
@@ -137,6 +146,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   bool? returnToolRequests,
   int? maxTurns,
   SchemanticType? outputSchema,
+  Map<String, dynamic>? outputJsonSchema,
   String? outputFormat,
   bool? outputConstrained,
   String? outputInstructions,
@@ -164,6 +174,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
         returnToolRequests: returnToolRequests,
         maxTurns: maxTurns,
         outputSchema: outputSchema,
+        outputJsonSchema: outputJsonSchema,
         outputFormat: outputFormat,
         outputConstrained: outputConstrained,
         outputInstructions: outputInstructions,

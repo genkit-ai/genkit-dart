@@ -87,6 +87,60 @@ void main() {
     expect(response.text, '{"result": "success"}');
   });
 
+  test('lite generate with outputJsonSchema should work', () async {
+    const expectedSchema = {
+      'type': 'object',
+      'properties': {
+        'title': {'type': 'string'},
+        'rating': {'type': 'integer'},
+      },
+    };
+
+    final model = Model<void>(
+      name: 'testModelJson',
+      fn: (request, context) async {
+        expect(request!.output?.schema, expectedSchema);
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: '{"title": "Test", "rating": 5}')],
+          ),
+        );
+      },
+    );
+
+    final response = await lite.generate(
+      model: model,
+      prompt: 'Hello',
+      outputJsonSchema: expectedSchema,
+    );
+
+    expect(response.text, '{"title": "Test", "rating": 5}');
+    expect(response.output, {'title': 'Test', 'rating': 5});
+  });
+
+  test(
+    'lite generate with both outputSchema and outputJsonSchema should throw',
+    () async {
+      final model = Model<void>(
+        name: 'testModel',
+        fn: (request, context) async =>
+            ModelResponse(finishReason: FinishReason.stop),
+      );
+
+      expect(
+        () => lite.generate(
+          model: model,
+          prompt: 'Hello',
+          outputSchema: .string(),
+          outputJsonSchema: {'type': 'object'},
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
+
   group('remoteModel', () {
     late MockClient mockClient;
     const remoteUrl = 'http://localhost:3400/remote-model';

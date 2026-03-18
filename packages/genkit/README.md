@@ -74,6 +74,49 @@ await for (final chunk in stream) {
 }
 ```
 
+### Structured Output
+
+Get fully type-safe output by defining a schema (requires `build_runner`):
+
+```dart
+@Schema()
+abstract class $Person {
+  String get name;
+  int get age;
+}
+
+final response = await ai.generate(
+  model: googleAI.gemini('gemini-2.5-flash'),
+  prompt: 'Generate a person profile.',
+  outputSchema: Person.$schema,
+);
+
+print(response.output?.name);
+```
+
+For dynamic JSON schemas without code generation, use `outputJsonSchema`:
+
+```dart
+final response = await ai.generate(
+  model: googleAI.gemini('gemini-2.5-flash'),
+  prompt: 'Generate a person profile.',
+  outputJsonSchema: {
+    'type': 'object',
+    'properties': {
+      'name': {'type': 'string'},
+      'age': {'type': 'integer'},
+    },
+    'required': ['name', 'age'],
+  },
+);
+
+print((response.output as Map<String, dynamic>)['name']);
+```
+
+Note that the output is not type-safe, so you need to manually unmarshal it to the expected type, but it offers ultimate flexibility and allows using other schema libraries.
+
+Not all model providers support all fetures of JSON Schema, refer to provider documentation for more information.
+
 ### Embed Text
 
 Turn text into vector embeddings for search and retrieval tasks:

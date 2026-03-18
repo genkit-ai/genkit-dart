@@ -446,6 +446,7 @@ final class Genkit {
     bool? returnToolRequests,
     int? maxTurns,
     SchemanticType<Output>? outputSchema,
+    Map<String, dynamic>? outputJsonSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
@@ -483,8 +484,13 @@ final class Genkit {
       );
     }
 
+    if (outputSchema != null && outputJsonSchema != null) {
+      throw ArgumentError('Cannot set both outputSchema and outputJsonSchema.');
+    }
+
     GenerateActionOutputConfig? outputConfig;
     if (outputSchema != null ||
+        outputJsonSchema != null ||
         outputFormat != null ||
         outputConstrained != null ||
         outputInstructions != null ||
@@ -494,6 +500,7 @@ final class Genkit {
         'format': ?outputFormat,
         if (outputSchema != null)
           'jsonSchema': toJsonSchema(type: outputSchema),
+        if (outputJsonSchema != null) 'jsonSchema': outputJsonSchema,
         'constrained': ?outputConstrained,
         'instructions': ?outputInstructions,
         'contentType': ?outputContentType,
@@ -575,6 +582,7 @@ final class Genkit {
     bool? returnToolRequests,
     int? maxTurns,
     SchemanticType<Output>? outputSchema,
+    Map<String, dynamic>? outputJsonSchema,
     String? outputFormat,
     bool? outputConstrained,
     String? outputInstructions,
@@ -603,6 +611,7 @@ final class Genkit {
           returnToolRequests: returnToolRequests,
           maxTurns: maxTurns,
           outputSchema: outputSchema,
+          outputJsonSchema: outputJsonSchema,
           outputFormat: outputFormat,
           outputConstrained: outputConstrained,
           outputInstructions: outputInstructions,

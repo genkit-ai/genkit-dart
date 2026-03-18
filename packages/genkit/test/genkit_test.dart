@@ -413,5 +413,56 @@ void main() {
         expect(result.output?.rating, 5);
       },
     );
+
+    test('generate with outputJsonSchema should work', () async {
+      const modelName = 'jsonSchemaModel';
+      const expectedSchema = {
+        'type': 'object',
+        'properties': {
+          'title': {'type': 'string'},
+          'rating': {'type': 'integer'},
+        },
+      };
+
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+          expect(request.output?.schema, expectedSchema);
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: '{"title": "Test", "rating": 5}')],
+            ),
+          );
+        },
+      );
+
+      final result = await genkit.generate<void, Map<String, dynamic>>(
+        model: modelRef(modelName),
+        prompt: 'test',
+        outputJsonSchema: expectedSchema,
+      );
+
+      expect(result.text, '{"title": "Test", "rating": 5}');
+      expect(result.output, {'title': 'Test', 'rating': 5});
+    });
+
+    test(
+      'generate with both outputSchema and outputJsonSchema should throw',
+      () async {
+        const modelName = 'testModel';
+
+        expect(
+          () => genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'test',
+            outputSchema: TestOutputSchema.$schema,
+            outputJsonSchema: {'type': 'object'},
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
   });
 }
