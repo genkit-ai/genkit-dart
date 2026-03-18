@@ -1,3 +1,10 @@
+## 0.3.0
+
+### Breaking Changes
+
+ - changed middleware tool hook return type to Part for greater flexibility (#218)
+
+
 ## 0.2.1
 
  - updated internal dependencies.

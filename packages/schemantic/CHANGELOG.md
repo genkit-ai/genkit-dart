@@ -1,3 +1,14 @@
+## 0.1.1
+
+### Features
+
+ - added support for bring-your-own-type and schema with schemantic (#223)
+
+### Fixes
+
+ - correctly handle enums in the generated constructor (#220)
+
+
 ## 0.1.0
 
  - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.

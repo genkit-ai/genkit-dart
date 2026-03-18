@@ -1,3 +1,10 @@
+## 0.2.3
+
+### Other Changes
+
+ - minor improvements to tool calling example (#216)
+
+
 ## 0.2.2
 
  - updated internal dependencies.

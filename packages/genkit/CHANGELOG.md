@@ -1,3 +1,22 @@
+## 0.12.0
+
+### Breaking Changes
+
+ - changed middleware tool hook return type to Part for greater flexibility (#218)
+
+### Features
+
+ - Cache plugin action lists using a new adapter to optimize discovery (#217)
+
+### Fixes
+
+ - correctly handle enums in the generated constructor (#220)
+
+### Other Changes
+
+ - minor refactor to avoid use of dynamic for tool status (#219)
+
+
 ## 0.11.1
 
 ### Features
