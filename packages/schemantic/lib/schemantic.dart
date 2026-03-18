@@ -576,5 +576,6 @@ class _AdHocSchema<T> extends SchemanticType<T> {
   T parse(Object? json) => _parse(json);
 
   @override
-  Map<String, Object?> jsonSchema({bool useRefs = false}) => _jsonSchema;
+  Map<String, Object?> jsonSchema({bool useRefs = false}) =>
+      Map.from(_jsonSchema);
 }

@@ -29,8 +29,7 @@ Map<String, dynamic> toJsonSchema({
     result = type.jsonSchema(useRefs: useRefs);
   }
 
-  final finalSchema = Map<String, dynamic>.from(result);
-  finalSchema['\$schema'] = 'http://json-schema.org/draft-07/schema#';
+  result['\$schema'] = 'http://json-schema.org/draft-07/schema#';
 
-  return finalSchema;
+  return result;
 }
