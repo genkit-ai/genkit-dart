@@ -22,13 +22,13 @@ import 'package:test/test.dart';
 
 part 'test_live.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Person {
   String get name;
   int get age;
 }
 
-@Schematic()
+@Schema()
 abstract class $CalculatorInput {
   int get a;
   int get b;

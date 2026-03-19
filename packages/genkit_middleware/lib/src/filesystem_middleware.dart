@@ -21,7 +21,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'filesystem_middleware.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $FilesystemOptions {
   @Field(
     description:
@@ -30,7 +30,7 @@ abstract class $FilesystemOptions {
   String get rootDirectory;
 }
 
-@Schematic()
+@Schema()
 abstract class $ListFilesInput {
   @Field(description: 'Directory path relative to root.', defaultValue: '')
   String? get dirPath;
@@ -38,13 +38,13 @@ abstract class $ListFilesInput {
   bool? get recursive;
 }
 
-@Schematic()
+@Schema()
 abstract class $ReadFileInput {
   @Field(description: 'File path relative to root.')
   String get filePath;
 }
 
-@Schematic()
+@Schema()
 abstract class $WriteFileInput {
   @Field(description: 'File path relative to root.')
   String get filePath;
@@ -52,7 +52,7 @@ abstract class $WriteFileInput {
   String get content;
 }
 
-@Schematic()
+@Schema()
 abstract class $SearchAndReplaceInput {
   @Field(description: 'File path relative to root.')
   String get filePath;
@@ -64,7 +64,7 @@ abstract class $SearchAndReplaceInput {
   List<String> get edits;
 }
 
-@Schematic()
+@Schema()
 abstract class $ListFileOutputItem {
   String get path;
   bool get isDirectory;
@@ -334,11 +334,11 @@ class FilesystemMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<ToolResponse> tool(
-    ToolRequest request,
+  Future<ToolResponsePart> tool(
+    ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponse> Function(
-      ToolRequest request,
+    Future<ToolResponsePart> Function(
+      ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
     next,
@@ -352,8 +352,8 @@ class FilesystemMiddleware extends GenerateMiddleware {
         'read_file',
         'write_file',
         'search_and_replace',
-      ].contains(request.name)) {
-        final errorText = "Tool '${request.name}' failed: $e";
+      ].contains(request.toolRequest.name)) {
+        final errorText = "Tool '${request.toolRequest.name}' failed: $e";
 
         if (_messageQueue.isNotEmpty && _messageQueue.last.role == Role.user) {
           final lastMsg = _messageQueue.last;
@@ -370,9 +370,11 @@ class FilesystemMiddleware extends GenerateMiddleware {
         }
 
         // Return a response to satisfy the signature, but the model will primarily see the user message
-        return ToolResponse(
-          name: request.name,
-          output: 'Tool failed. See context for details.',
+        return ToolResponsePart(
+          toolResponse: ToolResponse(
+            name: request.toolRequest.name,
+            output: 'Tool failed. See context for details.',
+          ),
         );
       }
       rethrow;

@@ -21,7 +21,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class WeatherToolInput {
+base class WeatherToolInput {
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,8 @@ class WeatherToolInput {
   }
 }
 
-class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
+base class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
   const _WeatherToolInputTypeFactory();
 
   @override
@@ -65,20 +66,160 @@ class _WeatherToolInputTypeFactory extends SchemanticType<WeatherToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: Schema.object(
-      properties: {
-        'location': Schema.string(
-          description:
-              'The location (ex. city, state, country) to get the weather for',
-        ),
-      },
-      required: ['location'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'location': $Schema.string(
+              description:
+                  'The location (ex. city, state, country) to get the weather for',
+            ),
+          },
+          required: ['location'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Category {
+base class TemperatureConverterInput {
+  factory TemperatureConverterInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  TemperatureConverterInput._(this._json);
+
+  TemperatureConverterInput({
+    required double temperature,
+    required TemperatureUnit unit,
+  }) {
+    _json = {'temperature': temperature, 'unit': unit.name};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<TemperatureConverterInput> $schema =
+      _TemperatureConverterInputTypeFactory();
+
+  double get temperature {
+    return (_json['temperature'] as num).toDouble();
+  }
+
+  set temperature(double value) {
+    _json['temperature'] = value;
+  }
+
+  TemperatureUnit get unit {
+    return TemperatureUnit.values.byName(_json['unit'] as String);
+  }
+
+  set unit(TemperatureUnit value) {
+    _json['unit'] = value.name;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _TemperatureConverterInputTypeFactory
+    extends SchemanticType<TemperatureConverterInput> {
+  const _TemperatureConverterInputTypeFactory();
+
+  @override
+  TemperatureConverterInput parse(Object? json) {
+    return TemperatureConverterInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TemperatureConverterInput',
+    definition: $Schema
+        .object(
+          properties: {
+            'temperature': $Schema.number(description: 'Input temperature'),
+            'unit': $Schema.string(enumValues: ['C', 'F']),
+          },
+          required: ['temperature', 'unit'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class TemperatureConverterOutput {
+  factory TemperatureConverterOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  TemperatureConverterOutput._(this._json);
+
+  TemperatureConverterOutput({
+    required double temperature,
+    required TemperatureUnit unit,
+  }) {
+    _json = {'temperature': temperature, 'unit': unit.name};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<TemperatureConverterOutput> $schema =
+      _TemperatureConverterOutputTypeFactory();
+
+  double get temperature {
+    return (_json['temperature'] as num).toDouble();
+  }
+
+  set temperature(double value) {
+    _json['temperature'] = value;
+  }
+
+  TemperatureUnit get unit {
+    return TemperatureUnit.values.byName(_json['unit'] as String);
+  }
+
+  set unit(TemperatureUnit value) {
+    _json['unit'] = value.name;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _TemperatureConverterOutputTypeFactory
+    extends SchemanticType<TemperatureConverterOutput> {
+  const _TemperatureConverterOutputTypeFactory();
+
+  @override
+  TemperatureConverterOutput parse(Object? json) {
+    return TemperatureConverterOutput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TemperatureConverterOutput',
+    definition: $Schema
+        .object(
+          properties: {
+            'temperature': $Schema.number(description: 'Output temperature'),
+            'unit': $Schema.string(enumValues: ['C', 'F']),
+          },
+          required: ['temperature', 'unit'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class Category {
   factory Category.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Category._(this._json);
@@ -126,7 +267,7 @@ class Category {
   }
 }
 
-class _CategoryTypeFactory extends SchemanticType<Category> {
+base class _CategoryTypeFactory extends SchemanticType<Category> {
   const _CategoryTypeFactory();
 
   @override
@@ -137,20 +278,22 @@ class _CategoryTypeFactory extends SchemanticType<Category> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Category',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'subcategories': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-        ),
-      },
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'subcategories': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
+            ),
+          },
+          required: ['name'],
+        )
+        .value,
     dependencies: [Category.$schema],
   );
 }
 
-class Weapon {
+base class Weapon {
   factory Weapon.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Weapon._(this._json);
@@ -201,7 +344,7 @@ class Weapon {
   }
 }
 
-class _WeaponTypeFactory extends SchemanticType<Weapon> {
+base class _WeaponTypeFactory extends SchemanticType<Weapon> {
   const _WeaponTypeFactory();
 
   @override
@@ -212,19 +355,21 @@ class _WeaponTypeFactory extends SchemanticType<Weapon> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Weapon',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'damage': Schema.number(),
-        'category': Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-      },
-      required: ['name', 'damage', 'category'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'damage': $Schema.number(),
+            'category': $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
+          },
+          required: ['name', 'damage', 'category'],
+        )
+        .value,
     dependencies: [Category.$schema],
   );
 }
 
-class RpgCharacter {
+base class RpgCharacter {
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -307,7 +452,7 @@ class RpgCharacter {
   }
 }
 
-class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
+base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   const _RpgCharacterTypeFactory();
 
   @override
@@ -318,25 +463,27 @@ class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RpgCharacter',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'backstory': Schema.string(),
-        'weapons': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Weapon'}),
-        ),
-        'classType': Schema.string(
-          enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
-        ),
-        'affiliation': Schema.string(),
-      },
-      required: ['name', 'backstory', 'weapons', 'classType'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'backstory': $Schema.string(),
+            'weapons': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Weapon'}),
+            ),
+            'classType': $Schema.string(
+              enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
+            ),
+            'affiliation': $Schema.string(),
+          },
+          required: ['name', 'backstory', 'weapons', 'classType'],
+        )
+        .value,
     dependencies: [Weapon.$schema],
   );
 }
 
-class CharacterProfile {
+base class CharacterProfile {
   factory CharacterProfile.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -389,7 +536,8 @@ class CharacterProfile {
   }
 }
 
-class _CharacterProfileTypeFactory extends SchemanticType<CharacterProfile> {
+base class _CharacterProfileTypeFactory
+    extends SchemanticType<CharacterProfile> {
   const _CharacterProfileTypeFactory();
 
   @override
@@ -400,14 +548,16 @@ class _CharacterProfileTypeFactory extends SchemanticType<CharacterProfile> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CharacterProfile',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'bio': Schema.string(),
-        'age': Schema.integer(),
-      },
-      required: ['name', 'bio', 'age'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'bio': $Schema.string(),
+            'age': $Schema.integer(),
+          },
+          required: ['name', 'bio', 'age'],
+        )
+        .value,
     dependencies: [],
   );
 }

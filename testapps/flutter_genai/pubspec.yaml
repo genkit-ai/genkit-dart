@@ -1,0 +1,49 @@
+name: flutter_genai
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  genkit:
+    path: ../../packages/genkit
+  genkit_google_genai:
+    path: ../../packages/genkit_google_genai
+  genkit_openai:
+    path: ../../packages/genkit_openai
+  genkit_anthropic:
+    path: ../../packages/genkit_anthropic
+  genkit_shelf:
+    path: ../../packages/genkit_shelf
+  schemantic:
+    path: ../../packages/schemantic
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+
+dependency_overrides:
+  genkit:
+    path: ../../packages/genkit
+  genkit_google_genai:
+    path: ../../packages/genkit_google_genai
+  genkit_openai:
+    path: ../../packages/genkit_openai
+  genkit_anthropic:
+    path: ../../packages/genkit_anthropic
+  genkit_shelf:
+    path: ../../packages/genkit_shelf
+  schemantic:
+    path: ../../packages/schemantic
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.0
+
+flutter:
+  uses-material-design: true

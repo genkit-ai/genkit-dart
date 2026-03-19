@@ -16,7 +16,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'model.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $WeatherToolInput {
   @Field(
     description:
@@ -25,30 +25,48 @@ abstract class $WeatherToolInput {
   String get location;
 }
 
+enum TemperatureUnit { C, F }
+
+@Schema()
+abstract class $TemperatureConverterInput {
+  @Field(description: 'Input temperature')
+  double get temperature;
+
+  TemperatureUnit get unit;
+}
+
+@Schema()
+abstract class $TemperatureConverterOutput {
+  @Field(description: 'Output temperature')
+  double get temperature;
+
+  TemperatureUnit get unit;
+}
+
 // --- Schemas for Structured Streaming Example ---
 
-@Schematic()
+@Schema()
 abstract class $Category {
   String get name;
-  @Schematic(
+  @Schema(
     description: 'make sure there are at least 2-3 levels of subcategories',
   )
   List<$Category>? get subcategories;
 }
 
-@Schematic()
+@Schema()
 abstract class $Weapon {
   String get name;
   double get damage;
   $Category get category;
 }
 
-@Schematic()
+@Schema()
 abstract class $RpgCharacter {
-  @Schematic(description: 'name of the character')
+  @Schema(description: 'name of the character')
   String get name;
 
-  @Schematic(description: "character's backstory, about a paragraph")
+  @Schema(description: "character's backstory, about a paragraph")
   String get backstory;
 
   List<$Weapon> get weapons;
@@ -59,7 +77,7 @@ abstract class $RpgCharacter {
   String? get affiliation;
 }
 
-@Schematic()
+@Schema()
 abstract class $CharacterProfile {
   String get name;
   String get bio;

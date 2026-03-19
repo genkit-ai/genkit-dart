@@ -21,7 +21,7 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Candidate {
+base class Candidate {
   factory Candidate.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Candidate._(this._json);
@@ -38,7 +38,7 @@ class Candidate {
       'index': index,
       'message': message.toJson(),
       'usage': ?usage?.toJson(),
-      'finishReason': finishReason,
+      'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
       'custom': ?custom,
     };
@@ -79,11 +79,12 @@ class Candidate {
   }
 
   FinishReason get finishReason {
-    return _json['finishReason'] as FinishReason;
+    final value = _json['finishReason'] as String;
+    return FinishReason(value);
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value;
+    _json['finishReason'] = value.value;
   }
 
   String? get finishMessage {
@@ -120,7 +121,7 @@ class Candidate {
   }
 }
 
-class _CandidateTypeFactory extends SchemanticType<Candidate> {
+base class _CandidateTypeFactory extends SchemanticType<Candidate> {
   const _CandidateTypeFactory();
 
   @override
@@ -131,22 +132,24 @@ class _CandidateTypeFactory extends SchemanticType<Candidate> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Candidate',
-    definition: Schema.object(
-      properties: {
-        'index': Schema.number(),
-        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-        'finishReason': Schema.any(),
-        'finishMessage': Schema.string(),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['index', 'message', 'finishReason'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'index': $Schema.number(),
+            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
+            'finishReason': $Schema.any(),
+            'finishMessage': $Schema.string(),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['index', 'message', 'finishReason'],
+        )
+        .value,
     dependencies: [Message.$schema, GenerationUsage.$schema],
   );
 }
 
-class Message {
+base class Message {
   factory Message.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Message._(this._json);
@@ -157,7 +160,7 @@ class Message {
     Map<String, dynamic>? metadata,
   }) {
     _json = {
-      'role': role,
+      'role': role.value,
       'content': content.map((e) => e.toJson()).toList(),
       'metadata': ?metadata,
     };
@@ -168,11 +171,12 @@ class Message {
   static const SchemanticType<Message> $schema = _MessageTypeFactory();
 
   Role get role {
-    return _json['role'] as Role;
+    final value = _json['role'] as String;
+    return Role(value);
   }
 
   set role(Role value) {
-    _json['role'] = value;
+    _json['role'] = value.value;
   }
 
   List<Part> get content {
@@ -207,7 +211,7 @@ class Message {
   }
 }
 
-class _MessageTypeFactory extends SchemanticType<Message> {
+base class _MessageTypeFactory extends SchemanticType<Message> {
   const _MessageTypeFactory();
 
   @override
@@ -218,21 +222,23 @@ class _MessageTypeFactory extends SchemanticType<Message> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Message',
-    definition: Schema.object(
-      properties: {
-        'role': Schema.any(),
-        'content': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-        ),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['role', 'content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'role': $Schema.any(),
+            'content': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+            ),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['role', 'content'],
+        )
+        .value,
     dependencies: [Part.$schema],
   );
 }
 
-class ToolDefinition {
+base class ToolDefinition {
   factory ToolDefinition.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -321,7 +327,7 @@ class ToolDefinition {
   }
 }
 
-class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
+base class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   const _ToolDefinitionTypeFactory();
 
   @override
@@ -332,21 +338,23 @@ class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolDefinition',
-    definition: Schema.object(
-      properties: {
-        'name': Schema.string(),
-        'description': Schema.string(),
-        'inputSchema': Schema.object(additionalProperties: Schema.any()),
-        'outputSchema': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['name', 'description'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'description': $Schema.string(),
+            'inputSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'outputSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['name', 'description'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Part {
+base class Part {
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Part._(this._json);
@@ -369,7 +377,7 @@ class Part {
   }
 }
 
-class _PartTypeFactory extends SchemanticType<Part> {
+base class _PartTypeFactory extends SchemanticType<Part> {
   const _PartTypeFactory();
 
   @override
@@ -380,12 +388,12 @@ class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: Schema.object(properties: {}, required: []),
+    definition: $Schema.object(properties: {}, required: []).value,
     dependencies: [],
   );
 }
 
-class TextPart implements Part {
+base class TextPart implements Part {
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TextPart._(this._json);
@@ -464,7 +472,7 @@ class TextPart implements Part {
   }
 }
 
-class _TextPartTypeFactory extends SchemanticType<TextPart> {
+base class _TextPartTypeFactory extends SchemanticType<TextPart> {
   const _TextPartTypeFactory();
 
   @override
@@ -475,20 +483,22 @@ class _TextPartTypeFactory extends SchemanticType<TextPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextPart',
-    definition: Schema.object(
-      properties: {
-        'text': Schema.string(),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['text'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'text': $Schema.string(),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['text'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class MediaPart implements Part {
+base class MediaPart implements Part {
   factory MediaPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MediaPart._(this._json);
@@ -567,7 +577,7 @@ class MediaPart implements Part {
   }
 }
 
-class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
+base class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
   const _MediaPartTypeFactory();
 
   @override
@@ -578,20 +588,22 @@ class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MediaPart',
-    definition: Schema.object(
-      properties: {
-        'media': Schema.fromMap({'\$ref': r'#/$defs/Media'}),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['media'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'media': $Schema.fromMap({'\$ref': r'#/$defs/Media'}),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['media'],
+        )
+        .value,
     dependencies: [Media.$schema],
   );
 }
 
-class ToolRequestPart implements Part {
+base class ToolRequestPart implements Part {
   factory ToolRequestPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -672,7 +684,7 @@ class ToolRequestPart implements Part {
   }
 }
 
-class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
+base class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
   const _ToolRequestPartTypeFactory();
 
   @override
@@ -683,20 +695,22 @@ class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolRequestPart',
-    definition: Schema.object(
-      properties: {
-        'toolRequest': Schema.fromMap({'\$ref': r'#/$defs/ToolRequest'}),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['toolRequest'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'toolRequest': $Schema.fromMap({'\$ref': r'#/$defs/ToolRequest'}),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['toolRequest'],
+        )
+        .value,
     dependencies: [ToolRequest.$schema],
   );
 }
 
-class ToolResponsePart implements Part {
+base class ToolResponsePart implements Part {
   factory ToolResponsePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -777,7 +791,8 @@ class ToolResponsePart implements Part {
   }
 }
 
-class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
+base class _ToolResponsePartTypeFactory
+    extends SchemanticType<ToolResponsePart> {
   const _ToolResponsePartTypeFactory();
 
   @override
@@ -788,20 +803,22 @@ class _ToolResponsePartTypeFactory extends SchemanticType<ToolResponsePart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolResponsePart',
-    definition: Schema.object(
-      properties: {
-        'toolResponse': Schema.fromMap({'\$ref': r'#/$defs/ToolResponse'}),
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['toolResponse'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'toolResponse': $Schema.fromMap({'\$ref': r'#/$defs/ToolResponse'}),
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['toolResponse'],
+        )
+        .value,
     dependencies: [ToolResponse.$schema],
   );
 }
 
-class DataPart implements Part {
+base class DataPart implements Part {
   factory DataPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   DataPart._(this._json);
@@ -866,7 +883,7 @@ class DataPart implements Part {
   }
 }
 
-class _DataPartTypeFactory extends SchemanticType<DataPart> {
+base class _DataPartTypeFactory extends SchemanticType<DataPart> {
   const _DataPartTypeFactory();
 
   @override
@@ -877,19 +894,21 @@ class _DataPartTypeFactory extends SchemanticType<DataPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DataPart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class CustomPart implements Part {
+base class CustomPart implements Part {
   factory CustomPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   CustomPart._(this._json);
@@ -950,7 +969,7 @@ class CustomPart implements Part {
   }
 }
 
-class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
+base class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   const _CustomPartTypeFactory();
 
   @override
@@ -961,19 +980,21 @@ class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CustomPart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['custom'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['custom'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ReasoningPart implements Part {
+base class ReasoningPart implements Part {
   factory ReasoningPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1054,7 +1075,7 @@ class ReasoningPart implements Part {
   }
 }
 
-class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
+base class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   const _ReasoningPartTypeFactory();
 
   @override
@@ -1065,20 +1086,22 @@ class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReasoningPart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'reasoning': Schema.string(),
-      },
-      required: ['reasoning'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'reasoning': $Schema.string(),
+          },
+          required: ['reasoning'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ResourcePart implements Part {
+base class ResourcePart implements Part {
   factory ResourcePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1159,7 +1182,7 @@ class ResourcePart implements Part {
   }
 }
 
-class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
+base class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   const _ResourcePartTypeFactory();
 
   @override
@@ -1170,20 +1193,515 @@ class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResourcePart',
-    definition: Schema.object(
-      properties: {
-        'data': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'resource': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['resource'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'data': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'resource': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['resource'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Media {
+base class BaseDataPoint {
+  factory BaseDataPoint.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  BaseDataPoint._(this._json);
+
+  BaseDataPoint({
+    Map<String, dynamic>? input,
+    Map<String, dynamic>? output,
+    List<Map<String, dynamic>>? context,
+    Map<String, dynamic>? reference,
+    String? testCaseId,
+    List<String>? traceIds,
+  }) {
+    _json = {
+      'input': ?input,
+      'output': ?output,
+      'context': ?context,
+      'reference': ?reference,
+      'testCaseId': ?testCaseId,
+      'traceIds': ?traceIds,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<BaseDataPoint> $schema =
+      _BaseDataPointTypeFactory();
+
+  Map<String, dynamic>? get input {
+    return (_json['input'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set input(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('input');
+    } else {
+      _json['input'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get output {
+    return (_json['output'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set output(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('output');
+    } else {
+      _json['output'] = value;
+    }
+  }
+
+  List<Map<String, dynamic>>? get context {
+    return (_json['context'] as List?)?.cast<Map<String, dynamic>>();
+  }
+
+  set context(List<Map<String, dynamic>>? value) {
+    if (value == null) {
+      _json.remove('context');
+    } else {
+      _json['context'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get reference {
+    return (_json['reference'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set reference(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('reference');
+    } else {
+      _json['reference'] = value;
+    }
+  }
+
+  String? get testCaseId {
+    return _json['testCaseId'] as String?;
+  }
+
+  set testCaseId(String? value) {
+    if (value == null) {
+      _json.remove('testCaseId');
+    } else {
+      _json['testCaseId'] = value;
+    }
+  }
+
+  List<String>? get traceIds {
+    return (_json['traceIds'] as List?)?.cast<String>();
+  }
+
+  set traceIds(List<String>? value) {
+    if (value == null) {
+      _json.remove('traceIds');
+    } else {
+      _json['traceIds'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _BaseDataPointTypeFactory extends SchemanticType<BaseDataPoint> {
+  const _BaseDataPointTypeFactory();
+
+  @override
+  BaseDataPoint parse(Object? json) {
+    return BaseDataPoint._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'BaseDataPoint',
+    definition: $Schema
+        .object(
+          properties: {
+            'input': $Schema.object(additionalProperties: $Schema.any()),
+            'output': $Schema.object(additionalProperties: $Schema.any()),
+            'context': $Schema.list(
+              items: $Schema.object(additionalProperties: $Schema.any()),
+            ),
+            'reference': $Schema.object(additionalProperties: $Schema.any()),
+            'testCaseId': $Schema.string(),
+            'traceIds': $Schema.list(items: $Schema.string()),
+          },
+          required: [],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class EvalRequest {
+  factory EvalRequest.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  EvalRequest._(this._json);
+
+  EvalRequest({
+    required List<BaseDataPoint> dataset,
+    required String evalRunId,
+    Map<String, dynamic>? options,
+  }) {
+    _json = {
+      'dataset': dataset.map((e) => e.toJson()).toList(),
+      'evalRunId': evalRunId,
+      'options': ?options,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<EvalRequest> $schema = _EvalRequestTypeFactory();
+
+  List<BaseDataPoint> get dataset {
+    return (_json['dataset'] as List)
+        .map((e) => BaseDataPoint.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set dataset(List<BaseDataPoint> value) {
+    _json['dataset'] = value.toList();
+  }
+
+  String get evalRunId {
+    return _json['evalRunId'] as String;
+  }
+
+  set evalRunId(String value) {
+    _json['evalRunId'] = value;
+  }
+
+  Map<String, dynamic>? get options {
+    return (_json['options'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set options(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('options');
+    } else {
+      _json['options'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _EvalRequestTypeFactory extends SchemanticType<EvalRequest> {
+  const _EvalRequestTypeFactory();
+
+  @override
+  EvalRequest parse(Object? json) {
+    return EvalRequest._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'EvalRequest',
+    definition: $Schema
+        .object(
+          properties: {
+            'dataset': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/BaseDataPoint'}),
+            ),
+            'evalRunId': $Schema.string(),
+            'options': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['dataset', 'evalRunId'],
+        )
+        .value,
+    dependencies: [BaseDataPoint.$schema],
+  );
+}
+
+base class EvalFnResponse {
+  factory EvalFnResponse.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  EvalFnResponse._(this._json);
+
+  EvalFnResponse({
+    double? sampleIndex,
+    required String testCaseId,
+    String? traceId,
+    String? spanId,
+    EvalFnResponseEvaluation? evaluation,
+  }) {
+    _json = {
+      'sampleIndex': ?sampleIndex,
+      'testCaseId': testCaseId,
+      'traceId': ?traceId,
+      'spanId': ?spanId,
+      if (evaluation != null) 'evaluation': evaluation.value,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<EvalFnResponse> $schema =
+      _EvalFnResponseTypeFactory();
+
+  double? get sampleIndex {
+    return (_json['sampleIndex'] as num?)?.toDouble();
+  }
+
+  set sampleIndex(double? value) {
+    if (value == null) {
+      _json.remove('sampleIndex');
+    } else {
+      _json['sampleIndex'] = value;
+    }
+  }
+
+  String get testCaseId {
+    return _json['testCaseId'] as String;
+  }
+
+  set testCaseId(String value) {
+    _json['testCaseId'] = value;
+  }
+
+  String? get traceId {
+    return _json['traceId'] as String?;
+  }
+
+  set traceId(String? value) {
+    if (value == null) {
+      _json.remove('traceId');
+    } else {
+      _json['traceId'] = value;
+    }
+  }
+
+  String? get spanId {
+    return _json['spanId'] as String?;
+  }
+
+  set spanId(String? value) {
+    if (value == null) {
+      _json.remove('spanId');
+    } else {
+      _json['spanId'] = value;
+    }
+  }
+
+  set evaluation(EvalFnResponseEvaluation value) {
+    _json['evaluation'] = value.value;
+  }
+
+  // Possible return values are `$Score`, `List<$Score>`
+  Object? get evaluation {
+    return _json['evaluation'] as Object?;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+final class EvalFnResponseEvaluation {
+  EvalFnResponseEvaluation.score(Score value) : value = value.toJson();
+
+  EvalFnResponseEvaluation.listScore(List<Score> this.value);
+
+  final Object? value;
+}
+
+base class _EvalFnResponseTypeFactory extends SchemanticType<EvalFnResponse> {
+  const _EvalFnResponseTypeFactory();
+
+  @override
+  EvalFnResponse parse(Object? json) {
+    return EvalFnResponse._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'EvalFnResponse',
+    definition: $Schema
+        .object(
+          properties: {
+            'sampleIndex': $Schema.number(),
+            'testCaseId': $Schema.string(),
+            'traceId': $Schema.string(),
+            'spanId': $Schema.string(),
+            'evaluation': $Schema.combined(
+              anyOf: [
+                $Schema.fromMap({'\$ref': r'#/$defs/Score'}),
+                $Schema.list(
+                  items: $Schema.fromMap({'\$ref': r'#/$defs/Score'}),
+                ),
+              ],
+            ),
+          },
+          required: ['testCaseId'],
+        )
+        .value,
+    dependencies: [Score.$schema],
+  );
+}
+
+base class Score {
+  factory Score.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Score._(this._json);
+
+  Score({
+    String? id,
+    ScoreScore? score,
+    EvalStatusEnum? status,
+    String? error,
+    Map<String, dynamic>? details,
+  }) {
+    _json = {
+      'id': ?id,
+      if (score != null) 'score': score.value,
+      'status': ?status?.value,
+      'error': ?error,
+      'details': ?details,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<Score> $schema = _ScoreTypeFactory();
+
+  String? get id {
+    return _json['id'] as String?;
+  }
+
+  set id(String? value) {
+    if (value == null) {
+      _json.remove('id');
+    } else {
+      _json['id'] = value;
+    }
+  }
+
+  set score(ScoreScore value) {
+    _json['score'] = value.value;
+  }
+
+  // Possible return values are `double`, `String`, `bool`
+  Object? get score {
+    return _json['score'] as Object?;
+  }
+
+  EvalStatusEnum? get status {
+    return _json['status'] as EvalStatusEnum?;
+  }
+
+  set status(EvalStatusEnum? value) {
+    if (value == null) {
+      _json.remove('status');
+    } else {
+      _json['status'] = value;
+    }
+  }
+
+  String? get error {
+    return _json['error'] as String?;
+  }
+
+  set error(String? value) {
+    if (value == null) {
+      _json.remove('error');
+    } else {
+      _json['error'] = value;
+    }
+  }
+
+  Map<String, dynamic>? get details {
+    return (_json['details'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set details(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('details');
+    } else {
+      _json['details'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+final class ScoreScore {
+  ScoreScore.double(double this.value);
+
+  ScoreScore.string(String this.value);
+
+  ScoreScore.bool(bool this.value);
+
+  final Object? value;
+}
+
+base class _ScoreTypeFactory extends SchemanticType<Score> {
+  const _ScoreTypeFactory();
+
+  @override
+  Score parse(Object? json) {
+    return Score._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Score',
+    definition: $Schema
+        .object(
+          properties: {
+            'id': $Schema.string(),
+            'score': $Schema.combined(
+              anyOf: [$Schema.number(), $Schema.string(), $Schema.boolean()],
+            ),
+            'status': $Schema.any(),
+            'error': $Schema.string(),
+            'details': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: [],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class Media {
   factory Media.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Media._(this._json);
@@ -1226,7 +1744,7 @@ class Media {
   }
 }
 
-class _MediaTypeFactory extends SchemanticType<Media> {
+base class _MediaTypeFactory extends SchemanticType<Media> {
   const _MediaTypeFactory();
 
   @override
@@ -1237,15 +1755,20 @@ class _MediaTypeFactory extends SchemanticType<Media> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Media',
-    definition: Schema.object(
-      properties: {'contentType': Schema.string(), 'url': Schema.string()},
-      required: ['url'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'contentType': $Schema.string(),
+            'url': $Schema.string(),
+          },
+          required: ['url'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ToolRequest {
+base class ToolRequest {
   factory ToolRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1318,7 +1841,7 @@ class ToolRequest {
   }
 }
 
-class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
+base class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   const _ToolRequestTypeFactory();
 
   @override
@@ -1329,20 +1852,22 @@ class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolRequest',
-    definition: Schema.object(
-      properties: {
-        'ref': Schema.string(),
-        'name': Schema.string(),
-        'input': Schema.object(additionalProperties: Schema.any()),
-        'partial': Schema.boolean(),
-      },
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'ref': $Schema.string(),
+            'name': $Schema.string(),
+            'input': $Schema.object(additionalProperties: $Schema.any()),
+            'partial': $Schema.boolean(),
+          },
+          required: ['name'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ToolResponse {
+base class ToolResponse {
   factory ToolResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1412,7 +1937,7 @@ class ToolResponse {
   }
 }
 
-class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
+base class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   const _ToolResponseTypeFactory();
 
   @override
@@ -1423,20 +1948,22 @@ class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolResponse',
-    definition: Schema.object(
-      properties: {
-        'ref': Schema.string(),
-        'name': Schema.string(),
-        'output': Schema.any(),
-        'content': Schema.list(items: Schema.any()),
-      },
-      required: ['name', 'output'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'ref': $Schema.string(),
+            'name': $Schema.string(),
+            'output': $Schema.any(),
+            'content': $Schema.list(items: $Schema.any()),
+          },
+          required: ['name', 'output'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ModelInfo {
+base class ModelInfo {
   factory ModelInfo.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   ModelInfo._(this._json);
@@ -1531,7 +2058,7 @@ class ModelInfo {
   }
 }
 
-class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
+base class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   const _ModelInfoTypeFactory();
 
   @override
@@ -1542,21 +2069,23 @@ class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelInfo',
-    definition: Schema.object(
-      properties: {
-        'versions': Schema.list(items: Schema.string()),
-        'label': Schema.string(),
-        'configSchema': Schema.object(additionalProperties: Schema.any()),
-        'supports': Schema.object(additionalProperties: Schema.any()),
-        'stage': Schema.string(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'versions': $Schema.list(items: $Schema.string()),
+            'label': $Schema.string(),
+            'configSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'supports': $Schema.object(additionalProperties: $Schema.any()),
+            'stage': $Schema.string(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ModelRequest {
+base class ModelRequest {
   factory ModelRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1671,7 +2200,7 @@ class ModelRequest {
   }
 }
 
-class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
+base class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   const _ModelRequestTypeFactory();
 
   @override
@@ -1682,23 +2211,25 @@ class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelRequest',
-    definition: Schema.object(
-      properties: {
-        'messages': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        ),
-        'config': Schema.object(additionalProperties: Schema.any()),
-        'tools': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
-        ),
-        'toolChoice': Schema.string(),
-        'output': Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
-        'docs': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-      },
-      required: ['messages'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'messages': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            ),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+            'tools': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
+            ),
+            'toolChoice': $Schema.string(),
+            'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
+            'docs': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+          },
+          required: ['messages'],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       ToolDefinition.$schema,
@@ -1708,7 +2239,7 @@ class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   );
 }
 
-class ModelResponse {
+base class ModelResponse {
   factory ModelResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1727,7 +2258,7 @@ class ModelResponse {
   }) {
     _json = {
       'message': ?message?.toJson(),
-      'finishReason': finishReason,
+      'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
@@ -1758,11 +2289,12 @@ class ModelResponse {
   }
 
   FinishReason get finishReason {
-    return _json['finishReason'] as FinishReason;
+    final value = _json['finishReason'] as String;
+    return FinishReason(value);
   }
 
   set finishReason(FinishReason value) {
-    _json['finishReason'] = value;
+    _json['finishReason'] = value.value;
   }
 
   String? get finishMessage {
@@ -1865,7 +2397,7 @@ class ModelResponse {
   }
 }
 
-class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
+base class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   const _ModelResponseTypeFactory();
 
   @override
@@ -1876,20 +2408,22 @@ class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelResponse',
-    definition: Schema.object(
-      properties: {
-        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        'finishReason': Schema.any(),
-        'finishMessage': Schema.string(),
-        'latencyMs': Schema.number(),
-        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'raw': Schema.object(additionalProperties: Schema.any()),
-        'request': Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
-        'operation': Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
-      },
-      required: ['finishReason'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            'finishReason': $Schema.any(),
+            'finishMessage': $Schema.string(),
+            'latencyMs': $Schema.number(),
+            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'raw': $Schema.object(additionalProperties: $Schema.any()),
+            'request': $Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
+            'operation': $Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
+          },
+          required: ['finishReason'],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       GenerationUsage.$schema,
@@ -1899,7 +2433,7 @@ class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   );
 }
 
-class ModelResponseChunk {
+base class ModelResponseChunk {
   factory ModelResponseChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1913,7 +2447,7 @@ class ModelResponseChunk {
     bool? aggregated,
   }) {
     _json = {
-      'role': ?role,
+      'role': ?role?.value,
       'index': ?index,
       'content': content.map((e) => e.toJson()).toList(),
       'custom': ?custom,
@@ -1994,7 +2528,7 @@ class ModelResponseChunk {
   }
 }
 
-class _ModelResponseChunkTypeFactory
+base class _ModelResponseChunkTypeFactory
     extends SchemanticType<ModelResponseChunk> {
   const _ModelResponseChunkTypeFactory();
 
@@ -2006,23 +2540,94 @@ class _ModelResponseChunkTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelResponseChunk',
-    definition: Schema.object(
-      properties: {
-        'role': Schema.any(),
-        'index': Schema.integer(),
-        'content': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-        ),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'aggregated': Schema.boolean(),
-      },
-      required: ['content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'role': $Schema.any(),
+            'index': $Schema.integer(),
+            'content': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+            ),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'aggregated': $Schema.boolean(),
+          },
+          required: ['content'],
+        )
+        .value,
     dependencies: [Part.$schema],
   );
 }
 
-class GenerateResponse {
+base class MiddlewareRef {
+  factory MiddlewareRef.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  MiddlewareRef._(this._json);
+
+  MiddlewareRef({required String name, Map<String, dynamic>? config}) {
+    _json = {'name': name, 'config': ?config};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<MiddlewareRef> $schema =
+      _MiddlewareRefTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  Map<String, dynamic>? get config {
+    return (_json['config'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set config(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('config');
+    } else {
+      _json['config'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _MiddlewareRefTypeFactory extends SchemanticType<MiddlewareRef> {
+  const _MiddlewareRefTypeFactory();
+
+  @override
+  MiddlewareRef parse(Object? json) {
+    return MiddlewareRef._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MiddlewareRef',
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['name'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class GenerateResponse {
   factory GenerateResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2042,7 +2647,7 @@ class GenerateResponse {
   }) {
     _json = {
       'message': ?message?.toJson(),
-      'finishReason': ?finishReason,
+      'finishReason': ?finishReason?.value,
       'finishMessage': ?finishMessage,
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
@@ -2199,7 +2804,8 @@ class GenerateResponse {
   }
 }
 
-class _GenerateResponseTypeFactory extends SchemanticType<GenerateResponse> {
+base class _GenerateResponseTypeFactory
+    extends SchemanticType<GenerateResponse> {
   const _GenerateResponseTypeFactory();
 
   @override
@@ -2210,23 +2816,25 @@ class _GenerateResponseTypeFactory extends SchemanticType<GenerateResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateResponse',
-    definition: Schema.object(
-      properties: {
-        'message': Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        'finishReason': Schema.any(),
-        'finishMessage': Schema.string(),
-        'latencyMs': Schema.number(),
-        'usage': Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'raw': Schema.object(additionalProperties: Schema.any()),
-        'request': Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
-        'operation': Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
-        'candidates': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Candidate'}),
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            'finishReason': $Schema.any(),
+            'finishMessage': $Schema.string(),
+            'latencyMs': $Schema.number(),
+            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'raw': $Schema.object(additionalProperties: $Schema.any()),
+            'request': $Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
+            'operation': $Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
+            'candidates': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Candidate'}),
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       GenerationUsage.$schema,
@@ -2237,7 +2845,7 @@ class _GenerateResponseTypeFactory extends SchemanticType<GenerateResponse> {
   );
 }
 
-class GenerateRequest {
+base class GenerateRequest {
   factory GenerateRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2366,7 +2974,7 @@ class GenerateRequest {
   }
 }
 
-class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
+base class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   const _GenerateRequestTypeFactory();
 
   @override
@@ -2377,24 +2985,26 @@ class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateRequest',
-    definition: Schema.object(
-      properties: {
-        'messages': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        ),
-        'config': Schema.object(additionalProperties: Schema.any()),
-        'tools': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
-        ),
-        'toolChoice': Schema.string(),
-        'output': Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
-        'docs': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-        'candidates': Schema.number(),
-      },
-      required: ['messages'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'messages': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            ),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+            'tools': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
+            ),
+            'toolChoice': $Schema.string(),
+            'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
+            'docs': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+            'candidates': $Schema.number(),
+          },
+          required: ['messages'],
+        )
+        .value,
     dependencies: [
       Message.$schema,
       ToolDefinition.$schema,
@@ -2404,7 +3014,7 @@ class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   );
 }
 
-class GenerationUsage {
+base class GenerationUsage {
   factory GenerationUsage.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2627,7 +3237,7 @@ class GenerationUsage {
   }
 }
 
-class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
+base class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   const _GenerationUsageTypeFactory();
 
   @override
@@ -2638,30 +3248,32 @@ class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerationUsage',
-    definition: Schema.object(
-      properties: {
-        'inputTokens': Schema.number(),
-        'outputTokens': Schema.number(),
-        'totalTokens': Schema.number(),
-        'inputCharacters': Schema.number(),
-        'outputCharacters': Schema.number(),
-        'inputImages': Schema.number(),
-        'outputImages': Schema.number(),
-        'inputVideos': Schema.number(),
-        'outputVideos': Schema.number(),
-        'inputAudioFiles': Schema.number(),
-        'outputAudioFiles': Schema.number(),
-        'custom': Schema.object(additionalProperties: Schema.any()),
-        'thoughtsTokens': Schema.number(),
-        'cachedContentTokens': Schema.number(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'inputTokens': $Schema.number(),
+            'outputTokens': $Schema.number(),
+            'totalTokens': $Schema.number(),
+            'inputCharacters': $Schema.number(),
+            'outputCharacters': $Schema.number(),
+            'inputImages': $Schema.number(),
+            'outputImages': $Schema.number(),
+            'inputVideos': $Schema.number(),
+            'outputVideos': $Schema.number(),
+            'inputAudioFiles': $Schema.number(),
+            'outputAudioFiles': $Schema.number(),
+            'custom': $Schema.object(additionalProperties: $Schema.any()),
+            'thoughtsTokens': $Schema.number(),
+            'cachedContentTokens': $Schema.number(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class Operation {
+base class Operation {
   factory Operation.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Operation._(this._json);
@@ -2766,7 +3378,7 @@ class Operation {
   }
 }
 
-class _OperationTypeFactory extends SchemanticType<Operation> {
+base class _OperationTypeFactory extends SchemanticType<Operation> {
   const _OperationTypeFactory();
 
   @override
@@ -2777,22 +3389,24 @@ class _OperationTypeFactory extends SchemanticType<Operation> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Operation',
-    definition: Schema.object(
-      properties: {
-        'action': Schema.string(),
-        'id': Schema.string(),
-        'done': Schema.boolean(),
-        'output': Schema.object(additionalProperties: Schema.any()),
-        'error': Schema.object(additionalProperties: Schema.any()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['id'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'action': $Schema.string(),
+            'id': $Schema.string(),
+            'done': $Schema.boolean(),
+            'output': $Schema.object(additionalProperties: $Schema.any()),
+            'error': $Schema.object(additionalProperties: $Schema.any()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['id'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class OutputConfig {
+base class OutputConfig {
   factory OutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2875,7 +3489,7 @@ class OutputConfig {
   }
 }
 
-class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
+base class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   const _OutputConfigTypeFactory();
 
   @override
@@ -2886,20 +3500,22 @@ class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OutputConfig',
-    definition: Schema.object(
-      properties: {
-        'format': Schema.string(),
-        'schema': Schema.object(additionalProperties: Schema.any()),
-        'constrained': Schema.boolean(),
-        'contentType': Schema.string(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'format': $Schema.string(),
+            'schema': $Schema.object(additionalProperties: $Schema.any()),
+            'constrained': $Schema.boolean(),
+            'contentType': $Schema.string(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class DocumentData {
+base class DocumentData {
   factory DocumentData.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2949,7 +3565,7 @@ class DocumentData {
   }
 }
 
-class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
+base class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
   const _DocumentDataTypeFactory();
 
   @override
@@ -2960,20 +3576,22 @@ class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DocumentData',
-    definition: Schema.object(
-      properties: {
-        'content': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-        ),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['content'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'content': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
+            ),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['content'],
+        )
+        .value,
     dependencies: [Part.$schema],
   );
 }
 
-class GenerateActionOptions {
+base class GenerateActionOptions {
   factory GenerateActionOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2984,6 +3602,7 @@ class GenerateActionOptions {
     List<DocumentData>? docs,
     required List<Message> messages,
     List<String>? tools,
+    List<String>? resources,
     String? toolChoice,
     Map<String, dynamic>? config,
     GenerateActionOutputConfig? output,
@@ -2991,12 +3610,14 @@ class GenerateActionOptions {
     bool? returnToolRequests,
     int? maxTurns,
     String? stepName,
+    List<MiddlewareRef>? use,
   }) {
     _json = {
       'model': ?model,
       'docs': ?docs?.map((e) => e.toJson()).toList(),
       'messages': messages.map((e) => e.toJson()).toList(),
       'tools': ?tools,
+      'resources': ?resources,
       'toolChoice': ?toolChoice,
       'config': ?config,
       'output': ?output?.toJson(),
@@ -3004,6 +3625,7 @@ class GenerateActionOptions {
       'returnToolRequests': ?returnToolRequests,
       'maxTurns': ?maxTurns,
       'stepName': ?stepName,
+      'use': ?use?.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -3057,6 +3679,18 @@ class GenerateActionOptions {
       _json.remove('tools');
     } else {
       _json['tools'] = value;
+    }
+  }
+
+  List<String>? get resources {
+    return (_json['resources'] as List?)?.cast<String>();
+  }
+
+  set resources(List<String>? value) {
+    if (value == null) {
+      _json.remove('resources');
+    } else {
+      _json['resources'] = value;
     }
   }
 
@@ -3152,6 +3786,20 @@ class GenerateActionOptions {
     }
   }
 
+  List<MiddlewareRef>? get use {
+    return (_json['use'] as List?)
+        ?.map((e) => MiddlewareRef.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set use(List<MiddlewareRef>? value) {
+    if (value == null) {
+      _json.remove('use');
+    } else {
+      _json['use'] = value.toList();
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -3162,7 +3810,7 @@ class GenerateActionOptions {
   }
 }
 
-class _GenerateActionOptionsTypeFactory
+base class _GenerateActionOptionsTypeFactory
     extends SchemanticType<GenerateActionOptions> {
   const _GenerateActionOptionsTypeFactory();
 
@@ -3174,38 +3822,47 @@ class _GenerateActionOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateActionOptions',
-    definition: Schema.object(
-      properties: {
-        'model': Schema.string(),
-        'docs': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-        'messages': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-        ),
-        'tools': Schema.list(items: Schema.string()),
-        'toolChoice': Schema.string(),
-        'config': Schema.object(additionalProperties: Schema.any()),
-        'output': Schema.fromMap({
-          '\$ref': r'#/$defs/GenerateActionOutputConfig',
-        }),
-        'resume': Schema.fromMap({'\$ref': r'#/$defs/GenerateResumeOptions'}),
-        'returnToolRequests': Schema.boolean(),
-        'maxTurns': Schema.integer(),
-        'stepName': Schema.string(),
-      },
-      required: ['messages'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'model': $Schema.string(),
+            'docs': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+            'messages': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            ),
+            'tools': $Schema.list(items: $Schema.string()),
+            'resources': $Schema.list(items: $Schema.string()),
+            'toolChoice': $Schema.string(),
+            'config': $Schema.object(additionalProperties: $Schema.any()),
+            'output': $Schema.fromMap({
+              '\$ref': r'#/$defs/GenerateActionOutputConfig',
+            }),
+            'resume': $Schema.fromMap({
+              '\$ref': r'#/$defs/GenerateResumeOptions',
+            }),
+            'returnToolRequests': $Schema.boolean(),
+            'maxTurns': $Schema.integer(),
+            'stepName': $Schema.string(),
+            'use': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/MiddlewareRef'}),
+            ),
+          },
+          required: ['messages'],
+        )
+        .value,
     dependencies: [
       DocumentData.$schema,
       Message.$schema,
       GenerateActionOutputConfig.$schema,
       GenerateResumeOptions.$schema,
+      MiddlewareRef.$schema,
     ],
   );
 }
 
-class GenerateResumeOptions {
+base class GenerateResumeOptions {
   factory GenerateResumeOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3278,7 +3935,7 @@ class GenerateResumeOptions {
   }
 }
 
-class _GenerateResumeOptionsTypeFactory
+base class _GenerateResumeOptionsTypeFactory
     extends SchemanticType<GenerateResumeOptions> {
   const _GenerateResumeOptionsTypeFactory();
 
@@ -3290,23 +3947,25 @@ class _GenerateResumeOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateResumeOptions',
-    definition: Schema.object(
-      properties: {
-        'respond': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
-        ),
-        'restart': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
-        ),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'respond': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
+            ),
+            'restart': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
+            ),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [ToolResponsePart.$schema, ToolRequestPart.$schema],
   );
 }
 
-class GenerateActionOutputConfig {
+base class GenerateActionOutputConfig {
   factory GenerateActionOutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3318,6 +3977,7 @@ class GenerateActionOutputConfig {
     GenerateActionOutputConfigInstructions? instructions,
     Map<String, dynamic>? jsonSchema,
     bool? constrained,
+    bool? defaultInstructions,
   }) {
     _json = {
       'format': ?format,
@@ -3325,6 +3985,7 @@ class GenerateActionOutputConfig {
       if (instructions != null) 'instructions': instructions.value,
       'jsonSchema': ?jsonSchema,
       'constrained': ?constrained,
+      'defaultInstructions': ?defaultInstructions,
     };
   }
 
@@ -3390,6 +4051,18 @@ class GenerateActionOutputConfig {
     }
   }
 
+  bool? get defaultInstructions {
+    return _json['defaultInstructions'] as bool?;
+  }
+
+  set defaultInstructions(bool? value) {
+    if (value == null) {
+      _json.remove('defaultInstructions');
+    } else {
+      _json['defaultInstructions'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -3400,7 +4073,7 @@ class GenerateActionOutputConfig {
   }
 }
 
-class GenerateActionOutputConfigInstructions {
+final class GenerateActionOutputConfigInstructions {
   GenerateActionOutputConfigInstructions.bool(bool this.value);
 
   GenerateActionOutputConfigInstructions.string(String this.value);
@@ -3408,7 +4081,7 @@ class GenerateActionOutputConfigInstructions {
   final Object? value;
 }
 
-class _GenerateActionOutputConfigTypeFactory
+base class _GenerateActionOutputConfigTypeFactory
     extends SchemanticType<GenerateActionOutputConfig> {
   const _GenerateActionOutputConfigTypeFactory();
 
@@ -3420,23 +4093,26 @@ class _GenerateActionOutputConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateActionOutputConfig',
-    definition: Schema.object(
-      properties: {
-        'format': Schema.string(),
-        'contentType': Schema.string(),
-        'instructions': Schema.combined(
-          anyOf: [Schema.boolean(), Schema.string()],
-        ),
-        'jsonSchema': Schema.object(additionalProperties: Schema.any()),
-        'constrained': Schema.boolean(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'format': $Schema.string(),
+            'contentType': $Schema.string(),
+            'instructions': $Schema.combined(
+              anyOf: [$Schema.boolean(), $Schema.string()],
+            ),
+            'jsonSchema': $Schema.object(additionalProperties: $Schema.any()),
+            'constrained': $Schema.boolean(),
+            'defaultInstructions': $Schema.boolean(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class EmbedRequest {
+base class EmbedRequest {
   factory EmbedRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3489,7 +4165,7 @@ class EmbedRequest {
   }
 }
 
-class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
+base class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
   const _EmbedRequestTypeFactory();
 
   @override
@@ -3500,20 +4176,22 @@ class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EmbedRequest',
-    definition: Schema.object(
-      properties: {
-        'input': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-        ),
-        'options': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['input'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'input': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
+            ),
+            'options': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['input'],
+        )
+        .value,
     dependencies: [DocumentData.$schema],
   );
 }
 
-class EmbedResponse {
+base class EmbedResponse {
   factory EmbedResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3548,7 +4226,7 @@ class EmbedResponse {
   }
 }
 
-class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
+base class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
   const _EmbedResponseTypeFactory();
 
   @override
@@ -3559,19 +4237,21 @@ class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EmbedResponse',
-    definition: Schema.object(
-      properties: {
-        'embeddings': Schema.list(
-          items: Schema.fromMap({'\$ref': r'#/$defs/Embedding'}),
-        ),
-      },
-      required: ['embeddings'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'embeddings': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/Embedding'}),
+            ),
+          },
+          required: ['embeddings'],
+        )
+        .value,
     dependencies: [Embedding.$schema],
   );
 }
 
-class Embedding {
+base class Embedding {
   factory Embedding.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Embedding._(this._json);
@@ -3614,7 +4294,7 @@ class Embedding {
   }
 }
 
-class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
+base class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
   const _EmbeddingTypeFactory();
 
   @override
@@ -3625,13 +4305,15 @@ class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Embedding',
-    definition: Schema.object(
-      properties: {
-        'embedding': Schema.list(items: Schema.number()),
-        'metadata': Schema.object(additionalProperties: Schema.any()),
-      },
-      required: ['embedding'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'embedding': $Schema.list(items: $Schema.number()),
+            'metadata': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['embedding'],
+        )
+        .value,
     dependencies: [],
   );
 }

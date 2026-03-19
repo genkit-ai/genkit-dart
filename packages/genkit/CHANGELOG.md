@@ -1,3 +1,81 @@
+## 0.12.0
+
+### Breaking Changes
+
+ - changed middleware tool hook return type to Part for greater flexibility (#218)
+
+### Features
+
+ - Cache plugin action lists using a new adapter to optimize discovery (#217)
+
+### Fixes
+
+ - correctly handle enums in the generated constructor (#220)
+
+### Other Changes
+
+ - minor refactor to avoid use of dynamic for tool status (#219)
+
+
+## 0.11.1
+
+### Features
+
+ - Allow asynchronous header generation for remote models (#212)
+
+
+## 0.11.0
+
+### Breaking Changes
+
+ - changed tool hook signature on middleware, pass toolRequest to tool (#211)
+
+
+## 0.10.1
+
+ - **FEAT**: Add support for a default model and make generate model param optional (#203).
+ - **FEAT**: added `remoteModel` for defining remote AI models with lite api (#198).
+ - **DOCS**: update docs, example, package descriptions and regen types (#201).
+
+## 0.10.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
+## 0.10.0-dev.19
+
+ - **FEAT**: added generate span (#196).
+ - **FEAT**: Enhance `extract` function to support primitive JSON types (string and numbers) (#195).
+
+## 0.10.0-dev.18
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **REFACTOR**: centralize status-to-http mapping for transport errors (#181).
+ - **FEAT**: introduce Genkit evaluation functionality (#191).
+ - **FEAT**(openai): add Vertex support with shared Vertex auth utilities (#185).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+ - **BREAKING** **FEAT**: introduced dynamic action provider and migrated MCP plugin to use DAP (#187).
+
+## 0.10.0-dev.17
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **FIX**: do not default instructions for json format (should use native constrained generation) (#176).
+ - **FIX**: enable and fix a couple of lints (#174).
+ - **FIX**: enforce formatting check in CI (#166).
+ - **FIX**: be consistent with String quotes (#164).
+ - **FIX**: fix strict casts (#165).
+ - **FIX**: don't import dart:io in registry (#159).
+ - **FIX**: lite.dart needs to call the function (#160).
+ - **FIX**: better generics (#153).
+ - **FIX**: move Genkit class to a library and export (#152).
+ - **FIX**: fix a couple of dartdoc issues (#151).
+ - **FIX**: extractJson return null for partial mode when no JSON started (#141).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
 ## 0.10.0-dev.16
 
  - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).

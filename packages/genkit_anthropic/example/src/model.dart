@@ -16,13 +16,14 @@ import 'package:schemantic/schemantic.dart';
 
 part 'model.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $Person {
   String get name;
   int get age;
+  List<String> get hobbies;
 }
 
-@Schematic()
+@Schema()
 abstract class $CalculatorInput {
   int get a;
   int get b;

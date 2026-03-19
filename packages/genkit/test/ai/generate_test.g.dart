@@ -21,7 +21,7 @@ part of 'generate_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestToolInput {
+base class TestToolInput {
   factory TestToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class TestToolInput {
   }
 }
 
-class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
+base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   const _TestToolInputTypeFactory();
 
   @override
@@ -65,10 +65,9 @@ class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestToolInput',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(properties: {'name': $Schema.string()}, required: ['name'])
+        .value,
     dependencies: [],
   );
 }

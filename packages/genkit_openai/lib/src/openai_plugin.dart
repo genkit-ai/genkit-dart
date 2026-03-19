@@ -13,11 +13,10 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
-import 'package:openai_dart/openai_dart.dart' hide Model;
+import 'package:openai_dart/openai_dart.dart' as sdk;
 import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
-import 'aggregation.dart';
 
 /// Returns true when the output config indicates JSON-structured output
 /// (format is 'json' or contentType is 'application/json').
@@ -25,18 +24,16 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
   return format == 'json' || contentType == 'application/json';
 }
 
-/// Builds an OpenAI [ResponseFormat] from a Genkit output schema.
+/// Builds an OpenAI [sdk.ResponseFormat] from a Genkit output schema.
 /// Flattens `$ref`/`$defs` since OpenAI requires `type` at the top level.
 /// Returns null if [schema] is null.
-ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
+sdk.ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
   if (schema == null) return null;
-  final flattened = Schema.fromMap(schema).flatten().value;
-  return ResponseFormat.jsonSchema(
-    jsonSchema: JsonSchemaObject(
-      name: 'output',
-      schema: {...flattened, 'additionalProperties': false},
-      strict: true,
-    ),
+  final flattened = schema.flatten();
+  return sdk.ResponseFormat.jsonSchema(
+    name: 'output',
+    schema: {...flattened, 'additionalProperties': false},
+    strict: true,
   );
 }
 
@@ -61,7 +58,7 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<List<Action>> init() async {
     final actions = <Action>[];
 
-    // Fetch and register models from OpenAI API if using default baseUrl
+    // Fetch and register models from OpenAI API only for default OpenAI host.
     if (baseUrl == null) {
       try {
         final availableModelIds = await _fetchAvailableModels();
@@ -162,14 +159,14 @@ class OpenAIPlugin extends GenkitPlugin {
 
     // GPT-N pattern: matches gpt-3, gpt-4, gpt-5, gpt-6, etc.
     // Also matches variants like gpt-4o, gpt-4-turbo, gpt-3.5-turbo
-    final gptPattern = RegExp(r'^gpt-\d+(\.\d+)?(o)?(-|$)');
+    final gptPattern = RegExp(r'^gpt-\d+(?:\.\d+)?o?(?:-|$)');
     if (gptPattern.hasMatch(id)) {
       return 'chat';
     }
 
     // O-series reasoning models: o1, o2, o3, o4, o5, etc.
     // Matches: o1, o1-preview, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(-|$)');
+    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
     if (oSeriesPattern.hasMatch(id)) {
       return 'chat';
     }
@@ -190,18 +187,16 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Fetch available model IDs from OpenAI API
   Future<List<String>> _fetchAvailableModels() async {
-    if (apiKey == null) {
-      throw GenkitException('API key is required to fetch models from OpenAI.');
-    }
+    final resolvedConfig = await _resolveClientConfig();
 
-    final client = OpenAIClient(
-      apiKey: apiKey!,
-      baseUrl: baseUrl,
-      headers: headers,
+    final client = sdk.OpenAIClient.withApiKey(
+      resolvedConfig.apiKey,
+      baseUrl: resolvedConfig.baseUrl,
+      defaultHeaders: resolvedConfig.headers,
     );
 
     try {
-      final response = await client.listModels();
+      final response = await client.models.list();
       final modelIds = <String>[];
 
       // Collect all model IDs
@@ -211,7 +206,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
       return modelIds;
     } finally {
-      client.endSession();
+      client.close();
     }
   }
 
@@ -221,7 +216,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
     // O-series reasoning models (o1, o2, o3, o4, etc.) have different capabilities
     // Matches: o1, o1-preview, o2, o3-mini, o4-mini-2025-01-01, etc.
-    final oSeriesPattern = RegExp(r'^o\d+(-|$)');
+    final oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
     if (oSeriesPattern.hasMatch(id)) {
       return oSeriesModelInfo(modelId);
     }
@@ -229,29 +224,45 @@ class OpenAIPlugin extends GenkitPlugin {
     return defaultModelInfo(modelId);
   }
 
+  Future<_ResolvedClientConfig> _resolveClientConfig() async {
+    final configuredApiKey = apiKey;
+    if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
+      throw GenkitException(
+        'API key is required. Provide it via the plugin constructor.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    return _ResolvedClientConfig(
+      apiKey: configuredApiKey.trim(),
+      baseUrl: baseUrl,
+      headers: headers,
+    );
+  }
+
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     try {
       final modelIds = await _fetchAvailableModels();
+      final modelMetadataList =
+          <ActionMetadata<dynamic, dynamic, dynamic, dynamic>>[];
 
-      // Filter to only chat models and generate their metadata
-      final modelMetadataList = modelIds
-          .where(
-            (modelId) =>
-                getModelType(modelId) == 'chat' ||
-                getModelType(modelId) == 'unknown',
-          )
-          .map((modelId) {
-            final modelInfo = _getModelInfo(modelId);
+      for (final modelId in modelIds) {
+        final modelType = getModelType(modelId);
+        if (modelType != 'chat' && modelType != 'unknown') {
+          continue;
+        }
 
-            return modelMetadata(
-              'openai/$modelId',
-              modelInfo: modelInfo,
-              customOptions: OpenAIOptions.$schema,
-            );
-          })
-          .toList();
+        final modelInfo = _getModelInfo(modelId);
+        modelMetadataList.add(
+          modelMetadata(
+            'openai/$modelId',
+            modelInfo: modelInfo,
+            customOptions: OpenAIOptions.$schema,
+          ),
+        );
+      }
 
       return modelMetadataList;
     } catch (e, stackTrace) {
@@ -283,16 +294,11 @@ class OpenAIPlugin extends GenkitPlugin {
             ? OpenAIOptions.$schema.parse(req.config!)
             : OpenAIOptions();
 
-        if (apiKey == null) {
-          throw GenkitException(
-            'API key is required. Provide it via the plugin constructor.',
-          );
-        }
-
-        final client = OpenAIClient(
-          apiKey: apiKey!,
-          baseUrl: baseUrl,
-          headers: headers,
+        final resolvedConfig = await _resolveClientConfig();
+        final client = sdk.OpenAIClient.withApiKey(
+          resolvedConfig.apiKey,
+          baseUrl: resolvedConfig.baseUrl,
+          defaultHeaders: resolvedConfig.headers,
         );
 
         try {
@@ -304,8 +310,8 @@ class OpenAIPlugin extends GenkitPlugin {
             req.output?.contentType,
           );
           final responseFormat = buildOpenAIResponseFormat(req.output?.schema);
-          final request = CreateChatCompletionRequest(
-            model: ChatCompletionModel.modelId(options.version ?? modelName),
+          final request = sdk.ChatCompletionCreateRequest(
+            model: options.version ?? modelName,
             messages: GenkitConverter.toOpenAIMessages(
               req.messages,
               options.visualDetailLevel,
@@ -315,10 +321,8 @@ class OpenAIPlugin extends GenkitPlugin {
                 : null,
             temperature: options.temperature,
             topP: options.topP,
-            maxTokens: options.maxTokens,
-            stop: options.stop != null
-                ? ChatCompletionStop.listString(options.stop!)
-                : null,
+            maxCompletionTokens: options.maxTokens,
+            stop: options.stop,
             presencePenalty: options.presencePenalty,
             frequencyPenalty: options.frequencyPenalty,
             seed: options.seed,
@@ -338,10 +342,8 @@ class OpenAIPlugin extends GenkitPlugin {
           StatusCodes? status;
           String? details;
 
-          if (e is OpenAIClientException) {
-            status = e.code != null
-                ? StatusCodes.fromHttpStatus(e.code!)
-                : null;
+          if (e is sdk.ApiException) {
+            status = StatusCodes.fromHttpStatus(e.statusCode);
             details = e.body?.toString();
           }
 
@@ -353,7 +355,7 @@ class OpenAIPlugin extends GenkitPlugin {
             stackTrace: stackTrace,
           );
         } finally {
-          client.endSession();
+          client.close();
         }
       },
     );
@@ -361,8 +363,8 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Handle streaming response
   Future<ModelResponse> _handleStreaming(
-    OpenAIClient client,
-    CreateChatCompletionRequest request,
+    sdk.OpenAIClient client,
+    sdk.ChatCompletionCreateRequest request,
     ({
       bool streamingRequested,
       void Function(ModelResponseChunk) sendChunk,
@@ -372,34 +374,30 @@ class OpenAIPlugin extends GenkitPlugin {
     })
     ctx,
   ) async {
-    final stream = client.createChatCompletionStream(request: request);
-    final chunks = <CreateChatCompletionStreamResponse>[];
+    final stream = client.chat.completions.createStream(request);
+    final accumulator = sdk.ChatStreamAccumulator();
 
     try {
       await for (final chunk in stream) {
-        chunks.add(chunk);
+        accumulator.add(chunk);
 
-        final choice = (chunk.choices != null && chunk.choices!.isNotEmpty)
-            ? chunk.choices!.first
-            : null;
-        final delta = choice?.delta;
-        if (delta == null) continue;
-
-        if (delta.content != null) {
+        final textDelta = chunk.textDelta;
+        if (textDelta != null) {
           ctx.sendChunk(
-            ModelResponseChunk(
-              index: 0,
-              content: [TextPart(text: delta.content!)],
-            ),
+            ModelResponseChunk(index: 0, content: [TextPart(text: textDelta)]),
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is GenkitException) rethrow;
-      throw GenkitException('Error in streaming: $e', underlyingException: e);
+      throw GenkitException(
+        'Error in streaming: $e',
+        underlyingException: e,
+        stackTrace: stackTrace,
+      );
     }
 
-    final response = aggregateStreamResponses(chunks);
+    final response = accumulator.toChatCompletion();
     final choice = response.choices.first;
     final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
 
@@ -412,10 +410,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Handle non-streaming response
   Future<ModelResponse> _handleNonStreaming(
-    OpenAIClient client,
-    CreateChatCompletionRequest request,
+    sdk.OpenAIClient client,
+    sdk.ChatCompletionCreateRequest request,
   ) async {
-    final response = await client.createChatCompletion(request: request);
+    final response = await client.chat.completions.create(request);
 
     if (response.choices.isEmpty) {
       throw GenkitException('Model returned no choices.');
@@ -430,4 +428,16 @@ class OpenAIPlugin extends GenkitPlugin {
       raw: response.toJson(),
     );
   }
+}
+
+final class _ResolvedClientConfig {
+  final String apiKey;
+  final String? baseUrl;
+  final Map<String, String>? headers;
+
+  const _ResolvedClientConfig({
+    required this.apiKey,
+    required this.baseUrl,
+    required this.headers,
+  });
 }

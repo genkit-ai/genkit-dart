@@ -21,17 +21,17 @@ part of 'shelf_handler_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class HandlerInput {
+base class HandlerInput {
   factory HandlerInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
   HandlerInput._(this._json);
 
-  factory HandlerInput({required String message}) {
-    return HandlerInput._({'message': message});
+  HandlerInput({required String message}) {
+    _json = {'message': message};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<HandlerInput> $schema =
       _HandlerInputTypeFactory();
@@ -54,7 +54,7 @@ class HandlerInput {
   }
 }
 
-class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
+base class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
   const _HandlerInputTypeFactory();
 
   @override
@@ -65,25 +65,27 @@ class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'HandlerInput',
-    definition: Schema.object(
-      properties: {'message': Schema.string()},
-      required: ['message'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'message': $Schema.string()},
+          required: ['message'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class HandlerOutput {
+base class HandlerOutput {
   factory HandlerOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
   HandlerOutput._(this._json);
 
-  factory HandlerOutput({required String processedMessage}) {
-    return HandlerOutput._({'processedMessage': processedMessage});
+  HandlerOutput({required String processedMessage}) {
+    _json = {'processedMessage': processedMessage};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<HandlerOutput> $schema =
       _HandlerOutputTypeFactory();
@@ -106,7 +108,7 @@ class HandlerOutput {
   }
 }
 
-class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
+base class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
   const _HandlerOutputTypeFactory();
 
   @override
@@ -117,10 +119,12 @@ class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'HandlerOutput',
-    definition: Schema.object(
-      properties: {'processedMessage': Schema.string()},
-      required: ['processedMessage'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'processedMessage': $Schema.string()},
+          required: ['processedMessage'],
+        )
+        .value,
     dependencies: [],
   );
 }

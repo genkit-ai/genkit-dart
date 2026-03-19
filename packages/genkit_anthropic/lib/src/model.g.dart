@@ -20,7 +20,7 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class AnthropicOptions {
+base class AnthropicOptions {
   factory AnthropicOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -147,7 +147,8 @@ class AnthropicOptions {
   }
 }
 
-class _AnthropicOptionsTypeFactory extends SchemanticType<AnthropicOptions> {
+base class _AnthropicOptionsTypeFactory
+    extends SchemanticType<AnthropicOptions> {
   const _AnthropicOptionsTypeFactory();
 
   @override
@@ -158,48 +159,50 @@ class _AnthropicOptionsTypeFactory extends SchemanticType<AnthropicOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AnthropicOptions',
-    definition: Schema.object(
-      properties: {
-        'apiKey': Schema.string(),
-        'maxTokens': Schema.integer(
-          description:
-              'The maximum number of tokens to generate before stopping.',
-          minimum: 1,
-        ),
-        'temperature': Schema.number(
-          description:
-              'Amount of randomness injected into the response. Ranges from 0.0 to 1.0. Use temperature closer to 0.0 for analytical / multiple choice, and closer to 1.0 for creative and generative tasks.',
-          minimum: 0.0,
-          maximum: 1.0,
-        ),
-        'topP': Schema.number(
-          description:
-              'Use nucleus sampling. In nucleus sampling, we compute the cumulative distribution over all the options for each subsequent token in decreasing probability order and cut it off once it reaches a particular probability specified by top_p.',
-          minimum: 0.0,
-          maximum: 1.0,
-        ),
-        'topK': Schema.integer(
-          description:
-              'Only sample from the top K options for each subsequent token.',
-          minimum: 0,
-        ),
-        'stopSequences': Schema.list(items: Schema.string()),
-        'thinking': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'apiKey': $Schema.string(),
+            'maxTokens': $Schema.integer(
+              description:
+                  'The maximum number of tokens to generate before stopping.',
+              minimum: 1,
+            ),
+            'temperature': $Schema.number(
+              description:
+                  'Amount of randomness injected into the response. Ranges from 0.0 to 1.0. Use temperature closer to 0.0 for analytical / multiple choice, and closer to 1.0 for creative and generative tasks.',
+              minimum: 0.0,
+              maximum: 1.0,
+            ),
+            'topP': $Schema.number(
+              description:
+                  'Use nucleus sampling. In nucleus sampling, we compute the cumulative distribution over all the options for each subsequent token in decreasing probability order and cut it off once it reaches a particular probability specified by top_p.',
+              minimum: 0.0,
+              maximum: 1.0,
+            ),
+            'topK': $Schema.integer(
+              description:
+                  'Only sample from the top K options for each subsequent token.',
+              minimum: 0,
+            ),
+            'stopSequences': $Schema.list(items: $Schema.string()),
+            'thinking': $Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [ThinkingConfig.$schema],
   );
 }
 
-class ThinkingConfig {
+base class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
   ThinkingConfig._(this._json);
 
-  ThinkingConfig({required int budgetTokens}) {
-    _json = {'budgetTokens': budgetTokens};
+  ThinkingConfig({String? type, int? budgetTokens}) {
+    _json = {'type': ?type, 'budgetTokens': ?budgetTokens};
   }
 
   late final Map<String, dynamic> _json;
@@ -207,12 +210,28 @@ class ThinkingConfig {
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
 
-  int get budgetTokens {
-    return _json['budgetTokens'] as int;
+  String? get type {
+    return _json['type'] as String?;
   }
 
-  set budgetTokens(int value) {
-    _json['budgetTokens'] = value;
+  set type(String? value) {
+    if (value == null) {
+      _json.remove('type');
+    } else {
+      _json['type'] = value;
+    }
+  }
+
+  int? get budgetTokens {
+    return _json['budgetTokens'] as int?;
+  }
+
+  set budgetTokens(int? value) {
+    if (value == null) {
+      _json.remove('budgetTokens');
+    } else {
+      _json['budgetTokens'] = value;
+    }
   }
 
   @override
@@ -225,7 +244,7 @@ class ThinkingConfig {
   }
 }
 
-class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
+base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   const _ThinkingConfigTypeFactory();
 
   @override
@@ -236,16 +255,23 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ThinkingConfig',
-    definition: Schema.object(
-      properties: {
-        'budgetTokens': Schema.integer(
-          description:
-              'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
-          minimum: 1024,
-        ),
-      },
-      required: ['budgetTokens'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'type': $Schema.string(
+              description:
+                  'Thinking mode. "enabled" uses budgetTokens, "adaptive" lets the model decide, "disabled" turns it off.',
+              enumValues: ['enabled', 'disabled', 'adaptive'],
+            ),
+            'budgetTokens': $Schema.integer(
+              description:
+                  'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
+              minimum: 1024,
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }

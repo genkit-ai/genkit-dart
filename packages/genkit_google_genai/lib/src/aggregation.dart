@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:google_cloud_ai_generativelanguage_v1beta/generativelanguage.dart'
-    as gcl;
+import 'generated/generativelanguage.dart' as gcl;
 
 /// Aggregates a list of streaming responses into a single response.
 gcl.GenerateContentResponse aggregateResponses(
@@ -21,8 +20,8 @@ gcl.GenerateContentResponse aggregateResponses(
 ) {
   if (responses.isEmpty) return gcl.GenerateContentResponse();
 
-  gcl.GenerateContentResponse_PromptFeedback? promptFeedback;
-  gcl.GenerateContentResponse_UsageMetadata? usageMetadata;
+  gcl.PromptFeedback? promptFeedback;
+  gcl.UsageMetadata? usageMetadata;
   final candidateStates = <int, _CandidateState>{};
 
   for (final response in responses) {
@@ -33,8 +32,8 @@ gcl.GenerateContentResponse aggregateResponses(
       usageMetadata = response.usageMetadata;
     }
 
-    if (response.candidates.isNotEmpty) {
-      for (final candidate in response.candidates) {
+    if (response.candidates != null && response.candidates!.isNotEmpty) {
+      for (final candidate in response.candidates!) {
         final index = candidate.index ?? 0;
         final state = candidateStates.putIfAbsent(
           index,
@@ -54,8 +53,7 @@ gcl.GenerateContentResponse aggregateResponses(
 
 class _CandidateState {
   final int index;
-  gcl.Candidate_FinishReason finalFinishReason =
-      gcl.Candidate_FinishReason.finishReasonUnspecified;
+  String? finalFinishReason;
   String? finalFinishMessage;
   List<gcl.SafetyRating> safetyRatings = [];
   gcl.CitationMetadata? citationMetadata;
@@ -66,15 +64,11 @@ class _CandidateState {
   _CandidateState({required this.index});
 
   void merge(gcl.Candidate chunk) {
-    if (chunk.finishReason !=
-        gcl.Candidate_FinishReason.finishReasonUnspecified) {
+    if (chunk.finishReason != null) {
       finalFinishReason = chunk.finishReason;
     }
-    if (chunk.finishMessage != null) {
-      finalFinishMessage = chunk.finishMessage;
-    }
-    if (chunk.safetyRatings.isNotEmpty) {
-      safetyRatings.addAll(chunk.safetyRatings);
+    if (chunk.safetyRatings != null && chunk.safetyRatings!.isNotEmpty) {
+      safetyRatings.addAll(chunk.safetyRatings!);
     }
     if (chunk.citationMetadata != null) {
       citationMetadata = chunk.citationMetadata;
@@ -83,8 +77,12 @@ class _CandidateState {
       groundingMetadata = chunk.groundingMetadata;
     }
     if (chunk.content != null) {
-      role = chunk.content!.role;
-      _mergeParts(chunk.content!.parts);
+      if (chunk.content!.role != null) {
+        role = chunk.content!.role!;
+      }
+      if (chunk.content!.parts != null) {
+        _mergeParts(chunk.content!.parts!);
+      }
     }
   }
 
@@ -110,7 +108,6 @@ class _CandidateState {
     return gcl.Candidate(
       index: index,
       finishReason: finalFinishReason,
-      finishMessage: finalFinishMessage,
       safetyRatings: safetyRatings,
       citationMetadata: citationMetadata,
       groundingMetadata: groundingMetadata,

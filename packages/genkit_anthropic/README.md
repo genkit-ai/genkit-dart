@@ -53,7 +53,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'main.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $CalculatorInput {
   int get a;
   int get b;
@@ -94,7 +94,7 @@ print(response.message?.content);
 ### Structured Output
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $Person {
   String get name;
   int get age;

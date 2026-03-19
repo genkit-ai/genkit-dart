@@ -20,7 +20,7 @@ part of 'skills_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class UseSkillInput {
+base class UseSkillInput {
   factory UseSkillInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -53,7 +53,7 @@ class UseSkillInput {
   }
 }
 
-class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
+base class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
   const _UseSkillInputTypeFactory();
 
   @override
@@ -64,19 +64,21 @@ class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'UseSkillInput',
-    definition: Schema.object(
-      properties: {
-        'skillName': Schema.string(
-          description: 'The name of the skill to use.',
-        ),
-      },
-      required: ['skillName'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'skillName': $Schema.string(
+              description: 'The name of the skill to use.',
+            ),
+          },
+          required: ['skillName'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class SkillsPluginOptions {
+base class SkillsPluginOptions {
   factory SkillsPluginOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -113,7 +115,7 @@ class SkillsPluginOptions {
   }
 }
 
-class _SkillsPluginOptionsTypeFactory
+base class _SkillsPluginOptionsTypeFactory
     extends SchemanticType<SkillsPluginOptions> {
   const _SkillsPluginOptionsTypeFactory();
 
@@ -125,16 +127,18 @@ class _SkillsPluginOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SkillsPluginOptions',
-    definition: Schema.object(
-      properties: {
-        'skillPaths': Schema.list(
-          description:
-              'The directories containing skill files. Defaults to ["skills"].',
-          items: Schema.string(),
-        ),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'skillPaths': $Schema.list(
+              description:
+                  'The directories containing skill files. Defaults to ["skills"].',
+              items: $Schema.string(),
+            ),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }

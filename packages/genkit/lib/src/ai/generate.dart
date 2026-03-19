@@ -15,8 +15,10 @@
 import 'dart:async';
 
 import '../core/action.dart';
+import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
+import '../o11y/instrumentation.dart';
 import '../schema.dart';
 import '../schema_extensions.dart';
 import '../types.dart';
@@ -28,6 +30,8 @@ import 'model.dart';
 import 'tool.dart';
 
 const _defaultMaxTurns = 5;
+
+typedef _ToolStatus = ({Object? output, ToolInterruptException? interrupt});
 
 typedef GenerateAction =
     Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>;
@@ -47,7 +51,13 @@ GenerateAction defineGenerateAction(Registry registry) {
           status: StatusCodes.INVALID_ARGUMENT,
         );
       }
-      final response = await runGenerateAction(registry, options, ctx);
+      // TODO: resolve middleware from `options.use`.
+      final response = await runGenerateAction(
+        registry,
+        options,
+        ctx,
+        skipTelemetry: true,
+      );
       return response.modelResponse;
     },
   );
@@ -115,6 +125,94 @@ abstract class GenerateConfig {}
   return (middleware: resolvedMiddleware, registry: registry);
 }
 
+Future<
+  ({
+    Registry registry,
+    List<ToolDefinition> toolDefs,
+    Set<String> activeToolNames,
+  })
+>
+_resolveTools(
+  Registry registry,
+  List<String>? requestedTools,
+  List<GenerateMiddleware> resolvedMiddleware,
+) async {
+  var toolDefs = <ToolDefinition>[];
+  final activeToolNames = <String>{};
+  var currentRegistry = registry;
+
+  if (requestedTools != null) {
+    if (requestedTools.any((t) => t.contains(':'))) {
+      currentRegistry = Registry.childOf(registry);
+    }
+    for (var toolName in requestedTools) {
+      final colonIdx = toolName.indexOf(':');
+      if (colonIdx != -1) {
+        final dapName = toolName.substring(0, colonIdx);
+        var actionMatcher = toolName.substring(colonIdx + 1);
+        if (actionMatcher.startsWith('tool/')) {
+          actionMatcher = actionMatcher.substring('tool/'.length);
+        }
+        final dap =
+            await currentRegistry.lookupAction(
+                  'dynamic-action-provider',
+                  dapName,
+                )
+                as DynamicActionProvider?;
+
+        if (dap != null) {
+          if (actionMatcher.endsWith('*')) {
+            final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
+            final actions = await dap.listActions();
+            for (final action in actions) {
+              if (action.actionType == 'tool' &&
+                  (prefix.isEmpty || action.name.startsWith(prefix))) {
+                final fullAction = await dap.getAction(action.name);
+                if (fullAction != null && fullAction is Tool) {
+                  currentRegistry.register(fullAction);
+                  activeToolNames.add(fullAction.name);
+                  toolDefs.add(toToolDefinition(fullAction));
+                }
+              }
+            }
+          } else {
+            final fullAction = await dap.getAction(actionMatcher);
+            if (fullAction != null && fullAction is Tool) {
+              currentRegistry.register(fullAction);
+              activeToolNames.add(fullAction.name);
+              toolDefs.add(toToolDefinition(fullAction));
+            }
+          }
+          continue;
+        }
+      }
+
+      activeToolNames.add(toolName);
+      final tool =
+          await currentRegistry.lookupAction('tool', toolName) as Tool?;
+      if (tool != null) {
+        toolDefs.add(toToolDefinition(tool));
+      }
+    }
+  }
+
+  final middlewareTools = resolvedMiddleware
+      .expand((m) => m.tools ?? <Tool>[])
+      .toList();
+  for (final tool in middlewareTools) {
+    if (!activeToolNames.contains(tool.name)) {
+      activeToolNames.add(tool.name);
+      toolDefs.add(toToolDefinition(tool));
+    }
+  }
+
+  return (
+    registry: currentRegistry,
+    toolDefs: toolDefs,
+    activeToolNames: activeToolNames,
+  );
+}
+
 Future<GenerateResponseHelper> _runGenerateLoop(
   Registry registry,
   GenerateActionOptions options,
@@ -143,10 +241,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  final model = await registry.lookupAction('model', options.model!) as Model?;
+  final modelName = options.model!;
+  final model = await registry.lookupAction('model', modelName) as Model?;
   if (model == null) {
     throw GenkitException(
-      'Model ${options.model} not found',
+      'Model $modelName not found',
       status: StatusCodes.NOT_FOUND,
     );
   }
@@ -155,27 +254,13 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   final format = resolveFormat(registry, options.output);
   final requestOptions = applyFormat(options, format);
 
-  var toolDefs = <ToolDefinition>[];
-  final activeToolNames = <String>{};
-  if (requestOptions.tools != null) {
-    for (var toolName in requestOptions.tools!) {
-      activeToolNames.add(toolName);
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
-      if (tool != null) {
-        toolDefs.add(toToolDefinition(tool));
-      }
-    }
-  }
-
-  final middlewareTools = resolvedMiddleware
-      .expand((m) => m.tools ?? <Tool>[])
-      .toList();
-  for (final tool in middlewareTools) {
-    if (!activeToolNames.contains(tool.name)) {
-      activeToolNames.add(tool.name);
-      toolDefs.add(toToolDefinition(tool));
-    }
-  }
+  final resolved = await _resolveTools(
+    registry,
+    requestOptions.tools,
+    resolvedMiddleware,
+  );
+  registry = resolved.registry;
+  final toolDefs = resolved.toolDefs;
 
   final request = ModelRequest(
     messages: requestOptions.messages,
@@ -325,7 +410,49 @@ Future<GenerateResponseHelper> runGenerateAction(
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   List<GenerateMiddlewareOneof>? middleware,
+  bool skipTelemetry = false,
 }) async {
+  if (skipTelemetry) {
+    return _runGenerateAction(registry, options, ctx, middleware: middleware);
+  }
+  return runInNewSpan(
+    'generate',
+    (telemetryContext) {
+      return _runGenerateAction(registry, options, ctx, middleware: middleware);
+    },
+    input: options,
+    actionType: 'util',
+  );
+}
+
+Future<GenerateResponseHelper> _runGenerateAction(
+  Registry registry,
+  GenerateActionOptions options,
+  ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
+  List<GenerateMiddlewareOneof>? middleware,
+}) async {
+  var resolvedModelName = options.model;
+  var resolvedConfigMap = options.config;
+
+  if (resolvedModelName == null) {
+    final defaultModel = registry.lookupValue<ModelRef>(
+      'defaultModel',
+      'defaultModel',
+    );
+    if (defaultModel != null) {
+      resolvedModelName = defaultModel.name;
+      if (resolvedConfigMap == null && defaultModel.config != null) {
+        resolvedConfigMap = _configToMap(defaultModel.config);
+      }
+    }
+  }
+
+  options = GenerateActionOptions.fromJson({
+    ...options.toJson(),
+    'model': resolvedModelName,
+    'config': resolvedConfigMap,
+  });
+
   final resolved = _resolveMiddleware(registry, middleware);
   final generateRegistry = resolved.registry;
   final resolvedMiddleware = resolved.middleware;
@@ -343,7 +470,7 @@ Future<GenerateResponseHelper> runGenerateAction(
     int currentTurn,
   ) async {
     final resumeRestart = opts.resume?.restart ?? [];
-    final toolStatus = <String, dynamic>{};
+    final toolStatus = <String, _ToolStatus>{};
 
     if (resumeRestart.isNotEmpty) {
       final execution = await _executeTools(
@@ -373,7 +500,7 @@ Future<GenerateResponseHelper> runGenerateAction(
       // Map outputs back to respondents
       final respond = opts.resume?.respond?.toList() ?? [];
       for (final entry in toolStatus.entries) {
-        if (entry.value is! ToolInterruptException && entry.value != null) {
+        if (entry.value.interrupt == null && entry.value.output != null) {
           final reqPart = resumeRestart.firstWhere((p) {
             final t = p.toolRequest;
             return (t.ref ?? t.name) == entry.key;
@@ -383,7 +510,7 @@ Future<GenerateResponseHelper> runGenerateAction(
               toolResponse: ToolResponse(
                 ref: reqPart.toolRequest.ref,
                 name: reqPart.toolRequest.name,
-                output: entry.value,
+                output: entry.value.output,
               ),
             ),
           );
@@ -433,11 +560,13 @@ typedef GenerateMiddlewareOneof = ({
   GenerateMiddlewareRef? middlewareRef,
 });
 
+/// A helper that takes loose generate arguments, contstructs GenerateActionOptions
+/// and runs the generate action.
 Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
-  required ModelRef<CustomOptions> model,
+  ModelRef<CustomOptions>? model,
   CustomOptions? config,
   List<String>? tools,
   String? toolChoice,
@@ -491,7 +620,13 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
       ),
     );
   }
-  final modelName = model.name;
+
+  var resolvedModelName = model?.name;
+  var resolvedConfigMap = _configToMap(config);
+
+  if (resolvedConfigMap == null && model?.config != null) {
+    resolvedConfigMap = _configToMap(model!.config);
+  }
 
   final format = resolveFormat(registry, output);
   final chunkParser = format?.handler(output?.jsonSchema).parseChunk;
@@ -500,11 +635,9 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   return await runGenerateAction(
     registry,
     GenerateActionOptions(
-      model: modelName,
+      model: resolvedModelName,
       messages: resolvedMessages,
-      config: config is Map
-          ? config as Map<String, dynamic>
-          : (config as dynamic)?.toJson() as Map<String, dynamic>?,
+      config: resolvedConfigMap,
       tools: tools,
       toolChoice: toolChoice,
       returnToolRequests: returnToolRequests,
@@ -658,7 +791,7 @@ _resolveResume(
 
 ModelResponse _buildInterruptedResponse(
   Message lastMessage,
-  Map<String, dynamic> toolStatus, {
+  Map<String, _ToolStatus> toolStatus, {
   ModelResponse? originalResponse,
   String? finishMessage,
 }) {
@@ -670,10 +803,10 @@ ModelResponse _buildInterruptedResponse(
       final status = toolStatus[ref];
       final meta = Map<String, dynamic>.from(part.metadata ?? {});
 
-      if (status is ToolInterruptException) {
-        meta['interrupt'] = status.interrupt;
-      } else if (status != null) {
-        meta['pendingOutput'] = status;
+      if (status?.interrupt != null) {
+        meta['interrupt'] = status!.interrupt!.interrupt;
+      } else if (status?.output != null) {
+        meta['pendingOutput'] = status!.output;
       }
       newContent.add(
         ToolRequestPart(
@@ -711,7 +844,7 @@ Future<
   ({
     List<Part> toolResponses,
     bool interrupted,
-    Map<String, dynamic> toolStatus,
+    Map<String, _ToolStatus> toolStatus,
   })
 >
 _executeTools(
@@ -720,8 +853,8 @@ _executeTools(
   Map<String, dynamic>? context, {
   List<GenerateMiddleware>? middleware,
 }) async {
-  final toolResponses = <Part>[];
-  final toolStatus = <String, dynamic>{};
+  final toolResponses = <ToolResponsePart>[];
+  final toolStatus = <String, _ToolStatus>{};
   var interrupted = false;
 
   for (final toolRequest in toolRequests) {
@@ -735,12 +868,18 @@ _executeTools(
       );
     }
 
-    Future<ToolResponse> coreTool(
-      ToolRequest req,
+    Future<ToolResponsePart> coreTool(
+      ToolRequestPart req,
       ActionFnArg<void, dynamic, void> c,
     ) async {
-      final out = await tool.runRaw(req.input, context: c.context);
-      return ToolResponse(ref: req.ref, name: req.name, output: out.result);
+      final out = await tool.runRaw(req.toolRequest.input, context: c.context);
+      return ToolResponsePart(
+        toolResponse: ToolResponse(
+          ref: req.toolRequest.ref,
+          name: req.toolRequest.name,
+          output: out.result,
+        ),
+      );
     }
 
     final composedTool =
@@ -752,20 +891,23 @@ _executeTools(
         coreTool;
 
     try {
-      final toolResponse = await composedTool(toolRequest.toolRequest, (
-        streamingRequested: false,
-        sendChunk: (_) {},
-        context: context,
-        inputStream: null,
-        init: null,
-      ));
-      toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
+      final toolResponsePart = await runZoned(
+        () => composedTool(toolRequest, (
+          streamingRequested: false,
+          sendChunk: (_) {},
+          context: context,
+          inputStream: null,
+          init: null,
+        )),
+        zoneValues: {ToolRequestPart: toolRequest},
+      );
+      toolResponses.add(toolResponsePart);
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          toolResponse.output;
+          (output: toolResponsePart.toolResponse.output, interrupt: null);
     } on ToolInterruptException catch (e) {
       interrupted = true;
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          e;
+          (output: null, interrupt: e);
     } catch (e) {
       toolResponses.add(
         ToolResponsePart(
@@ -783,4 +925,11 @@ _executeTools(
     interrupted: interrupted,
     toolStatus: toolStatus,
   );
+}
+
+Map<String, dynamic>? _configToMap(dynamic config) {
+  if (config == null) return null;
+  return config is Map
+      ? config as Map<String, dynamic>
+      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
 }

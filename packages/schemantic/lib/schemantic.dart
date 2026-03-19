@@ -12,29 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 import 'src/basic_types.dart' as bt;
 
 export 'package:json_schema_builder/json_schema_builder.dart'
-    show Schema, SchemaValidation;
+    show SchemaValidation;
 
 export 'package:schemantic/src/flatten.dart' show SchemaFlatten;
+
+typedef $Schema = jsb.Schema;
 
 /// Annotation to mark a class as a schema definition.
 ///
 /// This annotation triggers the generation of a counterpart `Schema.g.dart`
 /// file with a concrete implementation of the schema class and a type utility.
-class Schematic {
+final class Schema {
   /// A description of the schema, to be included in the generated JSON Schema.
   final String? description;
 
-  const Schematic({this.description});
+  const Schema({this.description});
 }
 
-class AnyOf {
+final class AnyOf {
   final List<Type> anyOf;
 
   const AnyOf(this.anyOf);
@@ -46,7 +46,7 @@ class AnyOf {
 /// getter
 /// to specify a custom JSON key name, description, and other schema
 /// constraints.
-class Field {
+final class Field {
   /// The key name to use in the JSON map.
   final String? name;
 
@@ -61,7 +61,7 @@ class Field {
 }
 
 /// Annotation for String fields with specific schema constraints.
-class StringField extends Field {
+final class StringField extends Field {
   final int? minLength;
   final int? maxLength;
   final String? pattern;
@@ -81,7 +81,7 @@ class StringField extends Field {
 }
 
 /// Annotation for Integer fields with specific schema constraints.
-class IntegerField extends Field {
+final class IntegerField extends Field {
   final int? minimum;
   final int? maximum;
   final int? exclusiveMinimum;
@@ -101,7 +101,7 @@ class IntegerField extends Field {
 }
 
 /// Annotation for Number (double) fields with specific schema constraints.
-class DoubleField extends Field {
+final class DoubleField extends Field {
   final num? minimum;
   final num? maximum;
   final num? exclusiveMinimum;
@@ -122,12 +122,12 @@ class DoubleField extends Field {
 
 /// Metadata associated with a [SchemanticType], primarily used for schema
 /// generation.
-class JsonSchemaMetadata {
+final class JsonSchemaMetadata {
   /// The name of the type in the schema (e.g. for $defs).
   final String? name;
 
   /// The JSON Schema definition.
-  final jsb.Schema definition;
+  final Map<String, Object?> definition;
 
   /// Other types that this type depends on (for referencing via $defs).
   final List<SchemanticType> dependencies;
@@ -145,32 +145,48 @@ class JsonSchemaMetadata {
 abstract class SchemanticType<T> {
   const SchemanticType();
 
+  /// Creates a schema from a JSON schema and a parse function.
+  static SchemanticType<T> from<T>({
+    required Map<String, Object?> jsonSchema,
+    required T Function(dynamic json) parse,
+  }) => _AdHocSchema(jsonSchema, parse);
+
   /// Parses the given [json] object into type [T].
   ///
   /// Throws if the JSON data does not match the expected structure.
   T parse(Object? json);
 
-  /// Returns the [jsb.Schema] for this type.
+  /// Validates the given [data] against this schema.
+  ///
+  /// Returns a list of [ValidationError] if validation fails,
+  /// or an empty list if validation succeeds.
+  Future<List<ValidationError>> validate(
+    Object? data, {
+    bool useRefs = false,
+  }) async => (await jsb.Schema.fromMap(
+    jsonSchema(useRefs: useRefs),
+  ).validate(data)).map(ValidationError._).toList();
+
+  /// Returns the schema for this type.
   ///
   /// If [useRefs] is true, the schema will use `$ref` to reference dependent
   /// types in a global `$defs` section. This is required for recursive schemas.
-  jsb.Schema jsonSchema({bool useRefs = false}) {
+  Map<String, Object?> jsonSchema({bool useRefs = false}) {
     if (!useRefs) {
-      if (schemaMetadata == null) return jsb.Schema.any();
+      if (schemaMetadata == null) return jsb.Schema.any().value;
       try {
-        final inlinedMap = SchemaHelpers._inlineSchema(
-          schemaMetadata!.definition,
+        final inlinedMap = schemaMetadata!.definition.inlineSchema(
           schemaMetadata!.dependencies,
           {},
         );
-        return jsb.Schema.fromMap(inlinedMap);
+        return jsb.Schema.fromMap(inlinedMap).value;
       } catch (e) {
         throw StateError(
           'Failed to inline schema for ${schemaMetadata?.name}: $e',
         );
       }
     }
-    return SchemaHelpers.buildSchema(this);
+    return buildSchema();
   }
 
   /// Metadata for this type, if available.
@@ -337,43 +353,40 @@ abstract class SchemanticType<T> {
 }
 
 /// Internal utilities for building JSON Schemas.
-class SchemaHelpers {
-  /// Builds a complete [jsb.Schema] for the [root] type, including all `$defs`.
-  static jsb.Schema buildSchema(SchemanticType root) {
-    if (root.schemaMetadata == null) {
-      return root.jsonSchema(useRefs: false);
-    }
+extension on SchemanticType {
+  /// Builds a complete schema for this type, including all `$defs`.
+  Map<String, Object?> buildSchema() {
+    final rootMeta = schemaMetadata;
+    if (rootMeta == null) return jsonSchema(useRefs: false);
 
-    final definitions = <String, jsb.Schema>{};
-    _collectDefinitions(root, definitions, {});
-
-    final rootMeta = root.schemaMetadata!;
+    final definitions = <String, Map<String, Object?>>{};
+    collectDefinitions(definitions, {});
 
     if (rootMeta.name != null) {
       definitions[rootMeta.name!] = rootMeta.definition;
-      return jsb.Schema.fromMap({
+      return {
         r'$ref': '#/\$defs/${rootMeta.name}',
         r'$defs': definitions.map(
-          (k, v) => MapEntry(k, jsonDecode(v.toJson())),
+          (k, v) => MapEntry(k, jsb.Schema.fromMap(v).value),
         ),
-      });
+      };
     }
 
-    return jsb.Schema.fromMap({
-      'allOf': [rootMeta.definition.toJson()],
-      r'$defs': definitions.map((k, v) => MapEntry(k, jsonDecode(v.toJson()))),
-    });
+    return {
+      'allOf': [rootMeta.definition],
+      r'$defs': definitions.map(
+        (k, v) => MapEntry(k, jsb.Schema.fromMap(v).value),
+      ),
+    };
   }
 
-  static void _collectDefinitions(
-    SchemanticType node,
-    Map<String, jsb.Schema> definitions,
+  void collectDefinitions(
+    Map<String, Map<String, Object?>> definitions,
     Set<SchemanticType> visited,
   ) {
-    if (visited.contains(node)) return;
-    visited.add(node);
+    if (!visited.add(this)) return;
 
-    final meta = node.schemaMetadata;
+    final meta = schemaMetadata;
     if (meta == null) return;
 
     if (meta.name != null) {
@@ -383,26 +396,23 @@ class SchemaHelpers {
     }
 
     for (final dep in meta.dependencies) {
-      _collectDefinitions(dep, definitions, visited);
+      dep.collectDefinitions(definitions, visited);
     }
   }
+}
 
-  static Map<String, dynamic> _inlineSchema(
-    jsb.Schema schema,
+extension on Map<String, Object?> {
+  Map<String, dynamic> inlineSchema(
+    List<SchemanticType> dependencies,
+    Set<String> visited,
+  ) => traverseAndInline(dependencies, visited);
+
+  Map<String, dynamic> traverseAndInline(
     List<SchemanticType> dependencies,
     Set<String> visited,
   ) {
-    final json = jsonDecode(schema.toJson()) as Map<String, dynamic>;
-    return _traverseAndInline(json, dependencies, visited);
-  }
-
-  static Map<String, dynamic> _traverseAndInline(
-    Map<String, dynamic> json,
-    List<SchemanticType> dependencies,
-    Set<String> visited,
-  ) {
-    if (json.containsKey(r'$ref') || json.containsKey('ref')) {
-      final ref = (json[r'$ref'] ?? json['ref']) as String;
+    if (containsKey(r'$ref') || containsKey('ref')) {
+      final ref = (this[r'$ref'] ?? this['ref']) as String;
       if (ref.startsWith('#/\$defs/')) {
         final name = ref.replaceFirst('#/\$defs/', '');
         if (visited.contains(name)) {
@@ -418,7 +428,7 @@ class SchemaHelpers {
         );
 
         final meta = dependency.schemaMetadata!;
-        return _inlineSchema(meta.definition, meta.dependencies, {
+        return meta.definition.inlineSchema(meta.dependencies, {
           ...visited,
           name,
         });
@@ -426,14 +436,14 @@ class SchemaHelpers {
     }
 
     final result = <String, dynamic>{};
-    for (final key in json.keys) {
-      final value = json[key];
+    for (final key in keys) {
+      final value = this[key];
       if (value is Map<String, dynamic>) {
-        result[key] = _traverseAndInline(value, dependencies, visited);
+        result[key] = value.traverseAndInline(dependencies, visited);
       } else if (value is List) {
         result[key] = value.map((e) {
           if (e is Map<String, dynamic>) {
-            return _traverseAndInline(e, dependencies, visited);
+            return e.traverseAndInline(dependencies, visited);
           }
           return e;
         }).toList();
@@ -443,4 +453,129 @@ class SchemaHelpers {
     }
     return result;
   }
+}
+
+extension type ValidationError._(jsb.ValidationError _error) {
+  /// The type of validation error that occurred.
+  ValidationErrorType get error => _error.error.wrapped;
+
+  /// The path to the object that had the error.
+  List<String> get path => _error.path;
+
+  /// Additional details about the error (optional).
+  String? get details => _error.details;
+
+  /// Returns a human-readable string representation of the error.
+  String toErrorString() {
+    return '${details != null ? '$details' : error.name} at path '
+        '#root${path.map((p) => '["$p"]').join('')}'
+        '';
+  }
+}
+
+enum ValidationErrorType {
+  // For custom validation.
+  custom,
+
+  // General
+  typeMismatch,
+  constMismatch,
+  enumValueNotAllowed,
+  formatInvalid,
+  refResolutionError,
+
+  // Schema combinators
+  allOfNotMet,
+  anyOfNotMet,
+  oneOfNotMet,
+  notConditionViolated,
+  ifThenElseInvalid,
+
+  // Object specific
+  requiredPropertyMissing,
+  dependentRequiredMissing,
+  additionalPropertyNotAllowed,
+  minPropertiesNotMet,
+  maxPropertiesExceeded,
+  propertyNamesInvalid,
+  patternPropertyValueInvalid,
+  unevaluatedPropertyNotAllowed,
+
+  // Array/List specific
+  minItemsNotMet,
+  maxItemsExceeded,
+  uniqueItemsViolated,
+  containsInvalid,
+  minContainsNotMet,
+  maxContainsExceeded,
+  itemInvalid,
+  prefixItemInvalid,
+  unevaluatedItemNotAllowed,
+
+  // String specific
+  minLengthNotMet,
+  maxLengthExceeded,
+  patternMismatch,
+
+  // Number/Integer specific
+  minimumNotMet,
+  maximumExceeded,
+  exclusiveMinimumNotMet,
+  exclusiveMaximumExceeded,
+  multipleOfInvalid,
+}
+
+extension on jsb.ValidationErrorType {
+  ValidationErrorType get wrapped => switch (this) {
+    .custom => .custom,
+    .typeMismatch => .typeMismatch,
+    .constMismatch => .constMismatch,
+    .enumValueNotAllowed => .enumValueNotAllowed,
+    .formatInvalid => .formatInvalid,
+    .refResolutionError => .refResolutionError,
+    .allOfNotMet => .allOfNotMet,
+    .anyOfNotMet => .anyOfNotMet,
+    .oneOfNotMet => .oneOfNotMet,
+    .notConditionViolated => .notConditionViolated,
+    .ifThenElseInvalid => .ifThenElseInvalid,
+    .requiredPropertyMissing => .requiredPropertyMissing,
+    .dependentRequiredMissing => .dependentRequiredMissing,
+    .additionalPropertyNotAllowed => .additionalPropertyNotAllowed,
+    .minPropertiesNotMet => .minPropertiesNotMet,
+    .maxPropertiesExceeded => .maxPropertiesExceeded,
+    .propertyNamesInvalid => .propertyNamesInvalid,
+    .patternPropertyValueInvalid => .patternPropertyValueInvalid,
+    .unevaluatedPropertyNotAllowed => .unevaluatedPropertyNotAllowed,
+    .minItemsNotMet => .minItemsNotMet,
+    .maxItemsExceeded => .maxItemsExceeded,
+    .uniqueItemsViolated => .uniqueItemsViolated,
+    .containsInvalid => .containsInvalid,
+    .minContainsNotMet => .minContainsNotMet,
+    .maxContainsExceeded => .maxContainsExceeded,
+    .itemInvalid => .itemInvalid,
+    .prefixItemInvalid => .prefixItemInvalid,
+    .unevaluatedItemNotAllowed => .unevaluatedItemNotAllowed,
+    .minLengthNotMet => .minLengthNotMet,
+    .maxLengthExceeded => .maxLengthExceeded,
+    .patternMismatch => .patternMismatch,
+    .minimumNotMet => .minimumNotMet,
+    .maximumExceeded => .maximumExceeded,
+    .exclusiveMinimumNotMet => .exclusiveMinimumNotMet,
+    .exclusiveMaximumExceeded => .exclusiveMaximumExceeded,
+    .multipleOfInvalid => .multipleOfInvalid,
+  };
+}
+
+class _AdHocSchema<T> extends SchemanticType<T> {
+  final Map<String, Object?> _jsonSchema;
+  final T Function(dynamic json) _parse;
+
+  const _AdHocSchema(this._jsonSchema, this._parse);
+
+  @override
+  T parse(Object? json) => _parse(json);
+
+  @override
+  Map<String, Object?> jsonSchema({bool useRefs = false}) =>
+      Map.from(_jsonSchema);
 }

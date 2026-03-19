@@ -17,18 +17,18 @@ import 'package:schemantic/schemantic.dart';
 
 part 'sequential_processing.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $StoryInput {
   String get topic;
 }
 
-@Schematic()
+@Schema()
 abstract class $StoryIdea {
   /// A short, compelling story concept
   String get idea;
 }
 
-@Schematic()
+@Schema()
 abstract class $ImageGeneratorInput {
   String get concept;
 }

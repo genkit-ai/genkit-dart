@@ -61,11 +61,11 @@ abstract class GenerateMiddleware {
   ///
   /// Wraps independent tool calls.
   /// Input is dynamic because tools can have varied input schemas.
-  Future<ToolResponse> tool(
-    ToolRequest request,
+  Future<ToolResponsePart> tool(
+    ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponse> Function(
-      ToolRequest request,
+    Future<ToolResponsePart> Function(
+      ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
     next,
@@ -77,7 +77,7 @@ abstract class GenerateMiddleware {
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get configSchema;
-  Schema? get configJsonSchema;
+  Map<String, Object?>? get configJsonSchema;
 
   GenerateMiddleware create([CustomOptions? config]);
 }
@@ -93,7 +93,7 @@ class _GenerateMiddlewareDef<CustomOptions>
   _GenerateMiddlewareDef(this.name, this._create, this.configSchema);
 
   @override
-  Schema? get configJsonSchema => configSchema?.jsonSchema();
+  Map<String, Object?>? get configJsonSchema => configSchema?.jsonSchema();
 
   @override
   GenerateMiddleware create([CustomOptions? config]) => _create(config);

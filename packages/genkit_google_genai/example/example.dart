@@ -90,21 +90,42 @@ void main(List<String> args) async {
     inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
-        return 'The weather in Boston is 72 and sunny.';
+        return 'The weather in Boston is 72F and sunny.';
       }
-      return 'The weather in ${input.location} is 75 and cloudy.';
+      return 'The weather in ${input.location} is 75F and cloudy.';
+    },
+  );
+  ai.defineTool(
+    name: 'temperatureConverter',
+    description:
+        'Converts temperatures between Celsius (C) and Fahrenheit (F).',
+    inputSchema: TemperatureConverterInput.$schema,
+    outputSchema: TemperatureConverterOutput.$schema,
+    fn: (input, context) async {
+      if (input.unit == TemperatureUnit.C) {
+        return TemperatureConverterOutput(
+          temperature: (input.temperature * 9 / 5) + 32,
+          unit: TemperatureUnit.F,
+        );
+      }
+      return TemperatureConverterOutput(
+        temperature: (input.temperature - 32) * 5 / 9,
+        unit: TemperatureUnit.C,
+      );
     },
   );
 
   ai.defineFlow(
     name: 'weatherFlow',
-    inputSchema: .string(defaultValue: 'What is the weather like in Boston?'),
+    inputSchema: .string(
+      defaultValue: 'What is the weather like in Boston in Celsius?',
+    ),
     outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-3-flash-preview'),
         prompt: prompt,
-        toolNames: ['getWeather'],
+        toolNames: ['getWeather', 'temperatureConverter'],
       );
       return response.text;
     },
@@ -148,9 +169,11 @@ void main(List<String> args) async {
         model: googleAI.gemini('gemini-2.5-flash'),
         outputSchema: CharacterProfile.$schema,
         prompt: prompt,
-        onChunk: (chunk) {
-          ctx.sendChunk(chunk.output!);
-        },
+        onChunk: ctx.streamingRequested
+            ? (GenerateResponseChunk<CharacterProfile?> chunk) {
+                ctx.sendChunk(chunk.output!);
+              }
+            : null,
       );
       return response.output!;
     },
@@ -222,7 +245,7 @@ void main(List<String> args) async {
     streamSchema: ModelResponseChunk.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-pro'),
+        model: googleAI.gemini('gemini-3.1-pro-preview'),
         prompt: prompt,
         config: GeminiOptions(
           // Configured to return thoughts as ReasoningParts.
@@ -369,7 +392,7 @@ void main(List<String> args) async {
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
       final embeddings = await ai.embedMany(
-        embedder: googleAI.textEmbedding('text-embedding-004'),
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],

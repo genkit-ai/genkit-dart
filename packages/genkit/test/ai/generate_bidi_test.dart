@@ -20,7 +20,7 @@ import 'package:test/test.dart';
 
 part 'generate_bidi_test.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $MyToolInput {
   String get location;
 }

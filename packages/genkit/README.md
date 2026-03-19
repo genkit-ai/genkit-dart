@@ -95,7 +95,7 @@ Give models the ability to take actions and access external data:
 
 ```dart
 // Define schemas for tool input
-@Schematic()
+@Schema()
 abstract class $WeatherInput {
   String get location;
 }
@@ -166,9 +166,110 @@ final streamStory = ai.defineFlow(
 );
 ```
 
+### Interrupts
+
+Interrupts allow a flow or model to pause execution and wait for external input (human-in-the-loop). A tool can trigger an interrupt, which pauses the `ai.generate` loop and returns control to the caller with the interrupt metadata.
+
+#### Triggering an Interrupt
+
+To trigger an interrupt, call `context.interrupt()` within a tool definition:
+
+```dart
+@Schema()
+abstract class $AskUserInput {
+  String get question;
+}
+
+// ... run build_runner ...
+
+final askUser = ai.defineTool(
+  name: 'askUser',
+  description: 'Ask the user a clarifying question.',
+  inputSchema: AskUserInput.$schema,
+  fn: (input, context) async {
+    context.interrupt(input.question);
+  },
+);
+```
+
+#### Resuming from an Interrupt
+
+When `ai.generate` is interrupted, it returns a response with `finishReason == FinishReason.interrupted`. You can then resume the generation by providing either a direct response to the tool or by requesting to restart the tool execution:
+
+##### Provide a response (`interruptRespond`)
+
+Use `interruptRespond` when you have the data the tool was waiting for (e.g., a user's confirmation or additional input):
+
+```dart
+var response = await ai.generate(
+  prompt: 'Research Genkit support for Dart',
+  toolNames: ['askUser', 'webSearch'],
+);
+
+while (response.finishReason == FinishReason.interrupted) {
+  for (final interrupt in response.interrupts) {
+    if (interrupt.toolRequest.name == 'askUser') {
+      final question = interrupt.metadata?['interrupt'] as String;
+      
+      // Prompt user for answer...
+      final answer = 'Dart support is coming soon!';
+
+      response = await ai.generate(
+        messages: response.messages,
+        toolNames: ['askUser', 'webSearch'],
+        interruptRespond: [
+          InterruptResponse(interrupt.toolRequestPart!, answer),
+        ],
+      );
+    }
+  }
+}
+```
+
+##### Restart the tool (`interruptRestart`)
+
+Use `interruptRestart` when the environment has changed or the user has taken an action that allows the tool to proceed on its own. You can pass additional metadata to the tool (e.g., an approval token), which the tool can then access via `context.metadata`:
+
+```dart
+final confirmAction = ai.defineTool(
+  name: 'confirmAction',
+  description: 'A tool that requires approval metadata',
+  fn: (input, context) async {
+    // Access the metadata passed during the initial call or restart
+    if (context.metadata['approved'] != true) {
+      context.interrupt('Approval required');
+    }
+    return 'Action confirmed';
+  },
+);
+
+// ...
+
+var response = await ai.generate(
+  prompt: 'Delete the database',
+  toolNames: ['confirmAction'],
+);
+
+if (response.finishReason == FinishReason.interrupted) {
+  // Use UI to get user confirmation...
+  final confirmed = true; 
+
+  if (confirmed) {
+    // Resume generation and use `withMetadata` to inject the approval
+    response = await ai.generate(
+      messages: response.messages,
+      toolNames: ['confirmAction'],
+      interruptRestart: [
+        response.interrupts.first.toolRequestPart!.withMetadata({'approved': true}),
+      ],
+    );
+  }
+}
+```
+
 ### Middleware
 
-Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `retry` for robust error handling.
+Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `retry` for robust error handling. Check out the [genkit_middleware](https://pub.dev/packages/genkit_middleware) package for more specialized middleware like tool approval, filesystem access, and skills.
 
 #### Retry Middleware
 
@@ -232,7 +333,7 @@ import 'package:genkit/client.dart';
 
 ### Defining Remote Actions
 
-Remote actions represent a remote Genkit action (like flows, models and prompts) that can be invoked or streamed. You use generated `*Type` classes (from `@Schematic`) to ensure type safety.
+Remote actions represent a remote Genkit action (like flows, models and prompts) that can be invoked or streamed. You use generated `*Type` classes (from `@Schema`) to ensure type safety.
 
 #### Creating a remote action
 final stringAction = defineRemoteAction(
@@ -275,13 +376,13 @@ try {
 First, define your schemas and run `build_runner` to generate the types.
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $MyInput {
   String get message;
   int get count;
 }
 
-@Schematic()
+@Schema()
 abstract class $MyOutput {
   String get reply;
   int get newCount;
@@ -344,7 +445,7 @@ try {
 #### Example: Custom Object Streaming
 
 ```dart
-@Schematic()
+@Schema()
 abstract class $StreamChunk {
   String get content;
 }
@@ -470,7 +571,7 @@ final remoteModel = ai.defineRemoteModel(
   name: 'my-remote-model',
   url: 'http://localhost:3400/my-model',
   // Optional: Provide custom headers dynamically based on context
-  headers: (context) {
+  headers: (context) async {
     return {'Authorization': 'Bearer ${context['token']}'};
   },
 );
@@ -483,6 +584,8 @@ final response = await ai.generate(
 
 print(response.text);
 ```
+
+Check out the [genkit_shelf](https://pub.dev/packages/genkit_shelf) package for details on how to host remote models and flows.
 
 ---
 

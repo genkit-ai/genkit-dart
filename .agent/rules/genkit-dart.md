@@ -35,7 +35,7 @@ The repository is managed using [Melos](https://melos.invertase.dev/).
 
 # Schemantic
 
-Using `schemantic` package (see packages/schemantic). Defines schemas using the `@Schematic()` annotation,the abstract class name must start with $.
+Using `schemantic` package (see packages/schemantic). Defines schemas using the `@Schema()` annotation,the abstract class name must start with $.
 
 If ever encountering schemantic schemas (classes starting with $ or Blah.$schema) check out packages/schemantic/README.md
 
@@ -46,19 +46,19 @@ import 'package:schemantic/schemantic.dart';
 
 part 'my_file.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $MyObj {
   String get name;
   $MySubObj get subObj;
 }
 
-@Schematic()
+@Schema()
 abstract class $MySubObj {
   String get foo;
 }
 ```
 
-in addition to beinable to generate object schemas from abstract classes schemantic has conveninent helpers for basic types: stringSchema, voidSchema, dynamicSchema, listSchema, mapSchema.
+in addition to being able to generate object schemas from abstract classes schemantic has convenient helpers for basic types: string, voidSchema, dynamicSchema, list, map.
 
 ## Generation
 
@@ -77,7 +77,7 @@ Use the generated `$schema` when defining flows, actions, or tools, etc.:
 ai.defineFlow(
   name: 'my-flow',
   inputSchema: MyObj.$schema,
-  outputSchema: stringSchema(),
+  outputSchema: .string(),
   fn: (input, _) async {
     print(input.name); // Typed access
     ...

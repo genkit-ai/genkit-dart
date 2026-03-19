@@ -14,8 +14,8 @@
 
 import 'package:genkit/plugin.dart';
 
+import 'src/google_api_client.dart';
 import 'src/model.dart';
-import 'src/plugin_impl.dart';
 
 export 'src/model.dart';
 

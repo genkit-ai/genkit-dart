@@ -21,7 +21,7 @@ part of 'autonomous_operation.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class ResearchAgentInput {
+base class ResearchAgentInput {
   factory ResearchAgentInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -54,7 +54,7 @@ class ResearchAgentInput {
   }
 }
 
-class _ResearchAgentInputTypeFactory
+base class _ResearchAgentInputTypeFactory
     extends SchemanticType<ResearchAgentInput> {
   const _ResearchAgentInputTypeFactory();
 
@@ -66,15 +66,14 @@ class _ResearchAgentInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResearchAgentInput',
-    definition: Schema.object(
-      properties: {'task': Schema.string()},
-      required: ['task'],
-    ),
+    definition: $Schema
+        .object(properties: {'task': $Schema.string()}, required: ['task'])
+        .value,
     dependencies: [],
   );
 }
 
-class AgentSearchInput {
+base class AgentSearchInput {
   factory AgentSearchInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -107,7 +106,8 @@ class AgentSearchInput {
   }
 }
 
-class _AgentSearchInputTypeFactory extends SchemanticType<AgentSearchInput> {
+base class _AgentSearchInputTypeFactory
+    extends SchemanticType<AgentSearchInput> {
   const _AgentSearchInputTypeFactory();
 
   @override
@@ -118,15 +118,14 @@ class _AgentSearchInputTypeFactory extends SchemanticType<AgentSearchInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentSearchInput',
-    definition: Schema.object(
-      properties: {'query': Schema.string()},
-      required: ['query'],
-    ),
+    definition: $Schema
+        .object(properties: {'query': $Schema.string()}, required: ['query'])
+        .value,
     dependencies: [],
   );
 }
 
-class AgentAskUserInput {
+base class AgentAskUserInput {
   factory AgentAskUserInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -159,7 +158,8 @@ class AgentAskUserInput {
   }
 }
 
-class _AgentAskUserInputTypeFactory extends SchemanticType<AgentAskUserInput> {
+base class _AgentAskUserInputTypeFactory
+    extends SchemanticType<AgentAskUserInput> {
   const _AgentAskUserInputTypeFactory();
 
   @override
@@ -170,10 +170,12 @@ class _AgentAskUserInputTypeFactory extends SchemanticType<AgentAskUserInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentAskUserInput',
-    definition: Schema.object(
-      properties: {'question': Schema.string()},
-      required: ['question'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'question': $Schema.string()},
+          required: ['question'],
+        )
+        .value,
     dependencies: [],
   );
 }

@@ -14,54 +14,50 @@
 
 import 'dart:convert';
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/genkit.dart' hide FinishReason, Tool;
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/aggregation.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 import 'package:test/test.dart';
 
-CreateChatCompletionStreamResponse _textChunk(
+ChatStreamEvent _textChunk(
   String text, {
-  ChatCompletionFinishReason? finishReason,
-  CompletionUsage? usage,
+  FinishReason? finishReason,
+  Usage? usage,
   String? id,
   String? model,
 }) {
-  return CreateChatCompletionStreamResponse(
+  return ChatStreamEvent(
     id: id,
     model: model,
     usage: usage,
     choices: [
-      ChatCompletionStreamResponseChoice(
+      ChatStreamChoice(
         index: 0,
         finishReason: finishReason,
-        delta: ChatCompletionStreamResponseDelta(content: text),
+        delta: ChatDelta(content: text),
       ),
     ],
   );
 }
 
-CreateChatCompletionStreamResponse _toolCallChunk({
+ChatStreamEvent _toolCallChunk({
   required int index,
   String? id,
   String? name,
   String? arguments,
-  ChatCompletionFinishReason? finishReason,
+  FinishReason? finishReason,
 }) {
-  return CreateChatCompletionStreamResponse(
+  return ChatStreamEvent(
     choices: [
-      ChatCompletionStreamResponseChoice(
+      ChatStreamChoice(
         index: 0,
         finishReason: finishReason,
-        delta: ChatCompletionStreamResponseDelta(
+        delta: ChatDelta(
           toolCalls: [
-            ChatCompletionStreamMessageToolCallChunk(
+            ToolCallDelta(
               index: index,
               id: id,
-              function: ChatCompletionStreamMessageFunctionCall(
-                name: name,
-                arguments: arguments,
-              ),
+              function: FunctionCallDelta(name: name, arguments: arguments),
             ),
           ],
         ),
@@ -70,12 +66,23 @@ CreateChatCompletionStreamResponse _toolCallChunk({
   );
 }
 
-void main() {
-  group('aggregateStreamResponses', () {
-    test('aggregates split text chunks', () {
-      final chunks = [_textChunk('Hello'), _textChunk(' World')];
+ChatCompletion _aggregate(List<ChatStreamEvent> chunks) {
+  final acc = ChatStreamAccumulator();
+  for (final chunk in chunks) {
+    acc.add(chunk);
+  }
+  return acc.toChatCompletion();
+}
 
-      final response = aggregateStreamResponses(chunks);
+void main() {
+  group('ChatStreamAccumulator', () {
+    test('aggregates split text chunks', () {
+      final chunks = [
+        _textChunk('Hello', model: 'gpt-4o'),
+        _textChunk(' World'),
+      ];
+
+      final response = _aggregate(chunks);
       expect(response.choices.length, 1);
       final message = response.choices.first.message;
       expect(message.content, 'Hello World');
@@ -83,15 +90,12 @@ void main() {
 
     test('preserves finish reason from last chunk', () {
       final chunks = [
-        _textChunk('Hello'),
-        _textChunk('', finishReason: ChatCompletionFinishReason.stop),
+        _textChunk('Hello', model: 'gpt-4o'),
+        _textChunk('', finishReason: FinishReason.stop),
       ];
 
-      final response = aggregateStreamResponses(chunks);
-      expect(
-        response.choices.first.finishReason,
-        ChatCompletionFinishReason.stop,
-      );
+      final response = _aggregate(chunks);
+      expect(response.choices.first.finishReason, FinishReason.stop);
     });
 
     test('preserves metadata from chunks', () {
@@ -99,15 +103,11 @@ void main() {
         _textChunk('Hi', id: 'chatcmpl-123', model: 'gpt-4o'),
         _textChunk(
           '!',
-          usage: CompletionUsage(
-            promptTokens: 5,
-            completionTokens: 2,
-            totalTokens: 7,
-          ),
+          usage: Usage(promptTokens: 5, completionTokens: 2, totalTokens: 7),
         ),
       ];
 
-      final response = aggregateStreamResponses(chunks);
+      final response = _aggregate(chunks);
       expect(response.id, 'chatcmpl-123');
       expect(response.model, 'gpt-4o');
       expect(response.usage, isNotNull);
@@ -127,11 +127,13 @@ void main() {
         _toolCallChunk(
           index: 0,
           arguments: '"Boston"}',
-          finishReason: ChatCompletionFinishReason.toolCalls,
+          finishReason: FinishReason.toolCalls,
         ),
       ];
+      // Add a model chunk so toChatCompletion() doesn't throw.
+      chunks.insert(0, _textChunk('', model: 'gpt-4o'));
 
-      final response = aggregateStreamResponses(chunks);
+      final response = _aggregate(chunks);
       final message = response.choices.first.message;
       expect(message.toolCalls, isNotNull);
       expect(message.toolCalls!.length, 1);
@@ -140,14 +142,12 @@ void main() {
       expect(toolCall.id, 'call_abc');
       expect(toolCall.function.name, 'getWeather');
       expect(toolCall.function.arguments, '{"location":"Boston"}');
-      expect(
-        response.choices.first.finishReason,
-        ChatCompletionFinishReason.toolCalls,
-      );
+      expect(response.choices.first.finishReason, FinishReason.toolCalls);
     });
 
     test('aggregates multiple parallel tool calls', () {
       final chunks = [
+        _textChunk('', model: 'gpt-4o'),
         _toolCallChunk(
           index: 0,
           id: 'call_1',
@@ -164,7 +164,7 @@ void main() {
         _toolCallChunk(index: 1, arguments: ':"EST"}'),
       ];
 
-      final response = aggregateStreamResponses(chunks);
+      final response = _aggregate(chunks);
       final message = response.choices.first.message;
       expect(message.toolCalls, isNotNull);
       expect(message.toolCalls!.length, 2);
@@ -177,7 +177,7 @@ void main() {
 
     test('aggregates text with tool calls', () {
       final chunks = [
-        _textChunk('Let me check that.'),
+        _textChunk('Let me check that.', model: 'gpt-4o'),
         _toolCallChunk(
           index: 0,
           id: 'call_1',
@@ -186,7 +186,7 @@ void main() {
         ),
       ];
 
-      final response = aggregateStreamResponses(chunks);
+      final response = _aggregate(chunks);
       final message = response.choices.first.message;
       expect(message.content, 'Let me check that.');
       expect(message.toolCalls, isNotNull);
@@ -194,33 +194,31 @@ void main() {
     });
 
     test('skips tool calls with incomplete id or name', () {
-      final chunks = [_toolCallChunk(index: 0, arguments: '{"partial": true}')];
+      final chunks = [
+        _textChunk('', model: 'gpt-4o'),
+        _toolCallChunk(index: 0, arguments: '{"partial": true}'),
+      ];
 
-      final response = aggregateStreamResponses(chunks);
+      final response = _aggregate(chunks);
       final message = response.choices.first.message;
       expect(message.toolCalls, isNull);
     });
 
-    test('handles empty chunks list', () {
-      final response = aggregateStreamResponses([]);
-      expect(response.choices.length, 1);
-      final message = response.choices.first.message;
-      expect(message.content, isNull);
-      expect(message.toolCalls, isNull);
+    test('returns default ChatCompletion for empty chunks list', () {
+      final response = _aggregate([]);
+      expect(response.choices, hasLength(1));
+      expect(response.choices.first.message.content, isNull);
     });
 
     test('handles chunks with no choices', () {
       final chunks = [
-        CreateChatCompletionStreamResponse(
-          usage: CompletionUsage(
-            promptTokens: 10,
-            completionTokens: 5,
-            totalTokens: 15,
-          ),
+        ChatStreamEvent(
+          model: 'gpt-4o',
+          usage: Usage(promptTokens: 10, completionTokens: 5, totalTokens: 15),
         ),
       ];
 
-      final response = aggregateStreamResponses(chunks);
+      final response = _aggregate(chunks);
       expect(response.usage!.totalTokens, 15);
       final message = response.choices.first.message;
       expect(message.content, isNull);
@@ -230,14 +228,11 @@ void main() {
       final jsonObj = {'name': 'John Doe', 'age': 30};
       final jsonStr = jsonEncode(jsonObj);
       final chunks = [
-        _textChunk(jsonStr.substring(0, 15)),
-        _textChunk(
-          jsonStr.substring(15),
-          finishReason: ChatCompletionFinishReason.stop,
-        ),
+        _textChunk(jsonStr.substring(0, 15), model: 'gpt-4o'),
+        _textChunk(jsonStr.substring(15), finishReason: FinishReason.stop),
       ];
 
-      final response = aggregateStreamResponses(chunks);
+      final response = _aggregate(chunks);
       final message = GenkitConverter.fromOpenAIAssistantMessage(
         response.choices.first.message,
       );

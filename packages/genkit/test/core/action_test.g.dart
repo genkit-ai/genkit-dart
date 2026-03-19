@@ -21,7 +21,7 @@ part of 'action_test.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class TestInput {
+base class TestInput {
   factory TestInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TestInput._(this._json);
@@ -52,7 +52,7 @@ class TestInput {
   }
 }
 
-class _TestInputTypeFactory extends SchemanticType<TestInput> {
+base class _TestInputTypeFactory extends SchemanticType<TestInput> {
   const _TestInputTypeFactory();
 
   @override
@@ -63,15 +63,14 @@ class _TestInputTypeFactory extends SchemanticType<TestInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestInput',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(properties: {'name': $Schema.string()}, required: ['name'])
+        .value,
     dependencies: [],
   );
 }
 
-class TestOutput {
+base class TestOutput {
   factory TestOutput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TestOutput._(this._json);
@@ -102,7 +101,7 @@ class TestOutput {
   }
 }
 
-class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
+base class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
   const _TestOutputTypeFactory();
 
   @override
@@ -113,10 +112,12 @@ class _TestOutputTypeFactory extends SchemanticType<TestOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestOutput',
-    definition: Schema.object(
-      properties: {'greeting': Schema.string()},
-      required: ['greeting'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'greeting': $Schema.string()},
+          required: ['greeting'],
+        )
+        .value,
     dependencies: [],
   );
 }

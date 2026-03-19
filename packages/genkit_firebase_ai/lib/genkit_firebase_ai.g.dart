@@ -21,7 +21,7 @@ part of 'genkit_firebase_ai.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class GeminiOptions {
+base class GeminiOptions {
   factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -294,7 +294,7 @@ class GeminiOptions {
   }
 }
 
-class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
+base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   const _GeminiOptionsTypeFactory();
 
   @override
@@ -305,35 +305,43 @@ class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GeminiOptions',
-    definition: Schema.object(
-      properties: {
-        'stopSequences': Schema.list(items: Schema.string()),
-        'maxOutputTokens': Schema.integer(),
-        'temperature': Schema.number(),
-        'topP': Schema.number(),
-        'topK': Schema.integer(),
-        'presencePenalty': Schema.number(),
-        'frequencyPenalty': Schema.number(),
-        'responseModalities': Schema.list(items: Schema.string()),
-        'responseMimeType': Schema.string(),
-        'responseSchema': Schema.object(additionalProperties: Schema.any()),
-        'responseJsonSchema': Schema.object(additionalProperties: Schema.any()),
-        'thinkingConfig': Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
-        'candidateCount': Schema.integer(),
-        'codeExecution': Schema.boolean(),
-        'functionCallingConfig': Schema.fromMap({
-          '\$ref': r'#/$defs/FunctionCallingConfig',
-        }),
-        'responseLogprobs': Schema.boolean(),
-        'logprobs': Schema.integer(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'stopSequences': $Schema.list(items: $Schema.string()),
+            'maxOutputTokens': $Schema.integer(),
+            'temperature': $Schema.number(),
+            'topP': $Schema.number(),
+            'topK': $Schema.integer(),
+            'presencePenalty': $Schema.number(),
+            'frequencyPenalty': $Schema.number(),
+            'responseModalities': $Schema.list(items: $Schema.string()),
+            'responseMimeType': $Schema.string(),
+            'responseSchema': $Schema.object(
+              additionalProperties: $Schema.any(),
+            ),
+            'responseJsonSchema': $Schema.object(
+              additionalProperties: $Schema.any(),
+            ),
+            'thinkingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/ThinkingConfig',
+            }),
+            'candidateCount': $Schema.integer(),
+            'codeExecution': $Schema.boolean(),
+            'functionCallingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/FunctionCallingConfig',
+            }),
+            'responseLogprobs': $Schema.boolean(),
+            'logprobs': $Schema.integer(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
   );
 }
 
-class FunctionCallingConfig {
+base class FunctionCallingConfig {
   factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -382,7 +390,7 @@ class FunctionCallingConfig {
   }
 }
 
-class _FunctionCallingConfigTypeFactory
+base class _FunctionCallingConfigTypeFactory
     extends SchemanticType<FunctionCallingConfig> {
   const _FunctionCallingConfigTypeFactory();
 
@@ -394,20 +402,22 @@ class _FunctionCallingConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FunctionCallingConfig',
-    definition: Schema.object(
-      properties: {
-        'mode': Schema.string(
-          enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
-        ),
-        'allowedFunctionNames': Schema.list(items: Schema.string()),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'mode': $Schema.string(
+              enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
+            ),
+            'allowedFunctionNames': $Schema.list(items: $Schema.string()),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class ThinkingConfig {
+base class ThinkingConfig {
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -459,7 +469,7 @@ class ThinkingConfig {
   }
 }
 
-class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
+base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   const _ThinkingConfigTypeFactory();
 
   @override
@@ -470,18 +480,20 @@ class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ThinkingConfig',
-    definition: Schema.object(
-      properties: {
-        'thinkingBudget': Schema.integer(),
-        'includeThoughts': Schema.boolean(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'thinkingBudget': $Schema.integer(),
+            'includeThoughts': $Schema.boolean(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class PrebuiltVoiceConfig {
+base class PrebuiltVoiceConfig {
   factory PrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -518,7 +530,7 @@ class PrebuiltVoiceConfig {
   }
 }
 
-class _PrebuiltVoiceConfigTypeFactory
+base class _PrebuiltVoiceConfigTypeFactory
     extends SchemanticType<PrebuiltVoiceConfig> {
   const _PrebuiltVoiceConfigTypeFactory();
 
@@ -530,15 +542,14 @@ class _PrebuiltVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PrebuiltVoiceConfig',
-    definition: Schema.object(
-      properties: {'voiceName': Schema.string()},
-      required: [],
-    ),
+    definition: $Schema
+        .object(properties: {'voiceName': $Schema.string()}, required: [])
+        .value,
     dependencies: [],
   );
 }
 
-class VoiceConfig {
+base class VoiceConfig {
   factory VoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -578,7 +589,7 @@ class VoiceConfig {
   }
 }
 
-class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
+base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   const _VoiceConfigTypeFactory();
 
   @override
@@ -589,19 +600,21 @@ class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'VoiceConfig',
-    definition: Schema.object(
-      properties: {
-        'prebuiltVoiceConfig': Schema.fromMap({
-          '\$ref': r'#/$defs/PrebuiltVoiceConfig',
-        }),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'prebuiltVoiceConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/PrebuiltVoiceConfig',
+            }),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [PrebuiltVoiceConfig.$schema],
   );
 }
 
-class SpeechConfig {
+base class SpeechConfig {
   factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -640,7 +653,7 @@ class SpeechConfig {
   }
 }
 
-class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
+base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   const _SpeechConfigTypeFactory();
 
   @override
@@ -651,17 +664,19 @@ class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SpeechConfig',
-    definition: Schema.object(
-      properties: {
-        'voiceConfig': Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'voiceConfig': $Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [VoiceConfig.$schema],
   );
 }
 
-class LiveGenerationConfig {
+base class LiveGenerationConfig {
   factory LiveGenerationConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -816,7 +831,7 @@ class LiveGenerationConfig {
   }
 }
 
-class _LiveGenerationConfigTypeFactory
+base class _LiveGenerationConfigTypeFactory
     extends SchemanticType<LiveGenerationConfig> {
   const _LiveGenerationConfigTypeFactory();
 
@@ -828,20 +843,22 @@ class _LiveGenerationConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'LiveGenerationConfig',
-    definition: Schema.object(
-      properties: {
-        'responseModalities': Schema.list(items: Schema.string()),
-        'speechConfig': Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
-        'stopSequences': Schema.list(items: Schema.string()),
-        'maxOutputTokens': Schema.integer(),
-        'temperature': Schema.number(),
-        'topP': Schema.number(),
-        'topK': Schema.integer(),
-        'presencePenalty': Schema.number(),
-        'frequencyPenalty': Schema.number(),
-      },
-      required: [],
-    ),
+    definition: $Schema
+        .object(
+          properties: {
+            'responseModalities': $Schema.list(items: $Schema.string()),
+            'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
+            'stopSequences': $Schema.list(items: $Schema.string()),
+            'maxOutputTokens': $Schema.integer(),
+            'temperature': $Schema.number(),
+            'topP': $Schema.number(),
+            'topK': $Schema.integer(),
+            'presencePenalty': $Schema.number(),
+            'frequencyPenalty': $Schema.number(),
+          },
+          required: [],
+        )
+        .value,
     dependencies: [SpeechConfig.$schema],
   );
 }

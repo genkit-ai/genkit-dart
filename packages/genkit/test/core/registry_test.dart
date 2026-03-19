@@ -23,13 +23,16 @@ class TestPlugin extends GenkitPlugin {
   final Action? resolvedAction;
   final List<ActionMetadata> listedActions;
   final List<Action> initActions;
+  final Duration? listDelay;
   int initCount = 0;
+  int listCount = 0;
 
   TestPlugin(
     this.name, {
     this.resolvedAction,
     this.listedActions = const [],
     this.initActions = const [],
+    this.listDelay,
   });
 
   @override
@@ -48,6 +51,10 @@ class TestPlugin extends GenkitPlugin {
 
   @override
   Future<List<ActionMetadata>> list() async {
+    listCount++;
+    if (listDelay != null) {
+      await Future.delayed(listDelay!);
+    }
     return listedActions;
   }
 }
@@ -111,6 +118,26 @@ void main() {
         'myPlugin/myModel',
       );
       expect(cachedAction, same(retrievedAction));
+    });
+
+    test('get action from plugin with slash in action name', () async {
+      final registry = Registry();
+      final action = Action(
+        actionType: 'model',
+        name: 'zai-org/glm-5-maas',
+        fn: (input, context) async => 'output',
+      );
+      final plugin = TestPlugin('openai', resolvedAction: action);
+      registry.registerPlugin(plugin);
+
+      expect(plugin.initCount, 0);
+      final retrievedAction = await registry.lookupAction(
+        'model',
+        'openai/zai-org/glm-5-maas',
+      );
+      expect(plugin.initCount, 1);
+      expect(retrievedAction, isNotNull);
+      expect(retrievedAction!.name, 'zai-org/glm-5-maas');
     });
 
     test('list actions with plugins', () async {
@@ -187,6 +214,90 @@ void main() {
 
       final actions = await registry.listActions();
       expect(actions.length, 1);
+    });
+
+    test('list actions caching', () async {
+      final registry = Registry();
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+        ],
+      );
+      registry.registerPlugin(plugin);
+
+      expect(plugin.initCount, 0);
+
+      // First call should trigger discovery
+      final actions1 = await registry.listActions();
+      expect(actions1.length, 1);
+      expect(plugin.initCount, 1);
+      expect(plugin.listCount, 1);
+
+      // Second call should use cache
+      final actions2 = await registry.listActions();
+      expect(actions2.length, 1);
+      expect(plugin.initCount, 1);
+      expect(plugin.listCount, 1); // Should still be 1
+    });
+
+    test('list actions caching concurrent', () async {
+      final registry = Registry();
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+        ],
+        listDelay: Duration(milliseconds: 100),
+      );
+      registry.registerPlugin(plugin);
+
+      // Invoke listActions multiple times concurrently
+      final futures = Iterable.generate(5, (_) => registry.listActions());
+      final results = await Future.wait(futures);
+
+      expect(results.length, 5);
+      for (final actions in results) {
+        expect(actions.length, 1);
+        expect(actions.first.name, 'myPlugin/myModel');
+      }
+
+      expect(plugin.listCount, 1); // Should ONLY be called once
+    });
+
+    test('list actions retry on failure', () async {
+      final registry = Registry();
+      var fail = true;
+      final plugin = TestPlugin(
+        'myPlugin',
+        listedActions: [
+          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+        ],
+      );
+
+      // A plugin that fails the first time
+      final failingPlugin = _FailingPlugin(plugin, () => fail);
+      registry.registerPlugin(failingPlugin);
+
+      // First call fails (silently in listActions, but logged)
+      fail = true;
+      final actionsEmpty = await registry.listActions();
+      expect(actionsEmpty, isEmpty);
+      expect(failingPlugin.listCount, 1);
+      expect(plugin.listCount, 0);
+
+      // Second call should retry since first one failed
+      fail = false;
+      final actions = await registry.listActions();
+      expect(actions.length, 1);
+      expect(failingPlugin.listCount, 2);
+      expect(plugin.listCount, 1);
+
+      // Third call should use cache
+      final actionsCached = await registry.listActions();
+      expect(actionsCached.length, 1);
+      expect(failingPlugin.listCount, 2); // Should still be 2
+      expect(plugin.listCount, 1);
     });
   });
 
@@ -276,4 +387,31 @@ void main() {
       expect(values, containsPair('/test/shared', 'child'));
     });
   });
+}
+
+class _FailingPlugin extends GenkitPlugin {
+  final GenkitPlugin _plugin;
+  final bool Function() _shouldFail;
+  int listCount = 0;
+
+  _FailingPlugin(this._plugin, this._shouldFail);
+
+  @override
+  String get name => _plugin.name;
+
+  @override
+  Future<List<Action>> init() => _plugin.init();
+
+  @override
+  Action? resolve(String actionType, String name) =>
+      _plugin.resolve(actionType, name);
+
+  @override
+  Future<List<ActionMetadata>> list() async {
+    listCount++;
+    if (_shouldFail()) {
+      throw Exception('Failing on purpose');
+    }
+    return _plugin.list();
+  }
 }

@@ -19,12 +19,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'parallel_execution.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ProductInput {
   String get product;
 }
 
-@Schematic()
+@Schema()
 abstract class $MarketingCopy {
   String get name;
   String get tagline;

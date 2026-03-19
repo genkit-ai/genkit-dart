@@ -135,10 +135,8 @@ class ReflectionServerV2 {
       switch (method) {
         case 'listActions':
           await _handleListActions(id);
-          break;
         case 'runAction':
           await _handleRunAction(id, request['params'] as Map<String, dynamic>);
-          break;
         case 'configure':
           // Not implemented yet
           break;
@@ -146,12 +144,10 @@ class ReflectionServerV2 {
           await _handleStreamInputChunk(
             request['params'] as Map<String, dynamic>,
           );
-          break;
         case 'endStreamInput':
           await _handleEndStreamInput(
             request['params'] as Map<String, dynamic>,
           );
-          break;
         default:
           if (id != null) {
             _sendError(id, -32601, 'Method not found: $method');

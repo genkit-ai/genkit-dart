@@ -1,7 +1,50 @@
+## 0.1.1
+
+### Features
+
+ - added support for bring-your-own-type and schema with schemantic (#223)
+
+### Fixes
+
+ - correctly handle enums in the generated constructor (#220)
+
+
+## 0.1.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
+## 0.1.0-dev.0
+ - base version change
+
+## 0.0.1-dev.19
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: Tweak RegExps and avoid non-linear complexity (#175).
+ - **REFACTOR**: make all classes `final` or `base` (#179).
+ - **FEAT**: introduce Genkit evaluation functionality (#191).
+ - **BREAKING** **REFACTOR**: Remove `SchemaHelpers` utility class (#180).
+ - **BREAKING** **REFACTOR**: renamed @Schematic() to @Schema() (#192).
+
+## 0.0.1-dev.18
+
+> Note: This release has breaking changes.
+
+ - **REFACTOR**: hide package:json_schema_builder (#167).
+ - **REFACTOR**: Internal Dart style tweaks (#156).
+ - **FIX**: make static helper classes abstract final (#173).
+ - **FIX**: enable and fix a couple of lints (#174).
+ - **FIX**: be consistent with String quotes (#164).
+ - **BREAKING** **FEAT**: move basic type functions to static creation method on SchemanticType (#154).
+
 ## 0.0.1-dev.17
 
 - **BREAKING** **REFACTOR**: Replace `*Schema` top-level methods with static
   methods on the `SchemanticType` class to allow invoking with dot shorthands.
+- **BREAKING** **REFACTOR**: Remove the direct export of `Schema`, replaced with
+  `$Schema` for use only in generated part files.
+- **REFACTOR**: Make all generated and fixed classes `final` other than
+  `SchemanticType` which is `base`.
 
 ## 0.0.1-dev.16
 

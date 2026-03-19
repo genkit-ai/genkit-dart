@@ -23,7 +23,7 @@ export 'src/models.dart'
 
 part 'genkit_openai.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $OpenAIOptions {
   /// Model version override (e.g., 'gpt-4o-2024-08-06')
   String? get version;

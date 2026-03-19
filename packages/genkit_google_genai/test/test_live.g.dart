@@ -21,7 +21,7 @@ part of 'test_live.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class Person {
+base class Person {
   factory Person.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Person._(this._json);
@@ -60,7 +60,7 @@ class Person {
   }
 }
 
-class _PersonTypeFactory extends SchemanticType<Person> {
+base class _PersonTypeFactory extends SchemanticType<Person> {
   const _PersonTypeFactory();
 
   @override
@@ -71,15 +71,17 @@ class _PersonTypeFactory extends SchemanticType<Person> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Person',
-    definition: Schema.object(
-      properties: {'name': Schema.string(), 'age': Schema.integer()},
-      required: ['name', 'age'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
+          required: ['name', 'age'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class CalculatorInput {
+base class CalculatorInput {
   factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -120,7 +122,7 @@ class CalculatorInput {
   }
 }
 
-class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
+base class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
   const _CalculatorInputTypeFactory();
 
   @override
@@ -131,10 +133,12 @@ class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CalculatorInput',
-    definition: Schema.object(
-      properties: {'a': Schema.integer(), 'b': Schema.integer()},
-      required: ['a', 'b'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'a': $Schema.integer(), 'b': $Schema.integer()},
+          required: ['a', 'b'],
+        )
+        .value,
     dependencies: [],
   );
 }

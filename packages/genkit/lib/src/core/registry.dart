@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import '../ai/generate_middleware.dart';
 import './action.dart';
 import './plugin.dart';
 
@@ -45,7 +46,7 @@ class Registry {
   }
 
   void registerPlugin(GenkitPlugin plugin) {
-    _plugins.add(plugin);
+    _plugins.add(_ListActionsCachingPluginAdapter(plugin));
   }
 
   String _getKey(String actionType, String name) {
@@ -89,10 +90,10 @@ class Registry {
     if (_actions.containsKey(key)) {
       return _actions[key];
     }
-    final parts = name.split('/');
-    if (parts.length == 2) {
-      final pluginName = parts[0];
-      final resolvedActionName = parts[1];
+    final separatorIndex = name.indexOf('/');
+    if (separatorIndex > 0 && separatorIndex < name.length - 1) {
+      final pluginName = name.substring(0, separatorIndex);
+      final resolvedActionName = name.substring(separatorIndex + 1);
       for (final plugin in _plugins) {
         if (plugin.name == pluginName) {
           await _ensurePluginInitialized(plugin);
@@ -138,4 +139,37 @@ class Registry {
 
 String getKey(String actionType, String name) {
   return '/$actionType/$name';
+}
+
+// Plugin adapter/wrapper that caches the list actions result.
+class _ListActionsCachingPluginAdapter extends GenkitPlugin {
+  final GenkitPlugin _plugin;
+  Future<List<ActionMetadata>>? _listFuture;
+
+  _ListActionsCachingPluginAdapter(this._plugin);
+
+  @override
+  String get name => _plugin.name;
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => _plugin.middleware();
+
+  @override
+  Future<List<Action>> init() => _plugin.init();
+
+  @override
+  Action? resolve(String actionType, String name) =>
+      _plugin.resolve(actionType, name);
+
+  @override
+  Future<List<ActionMetadata>> list() async {
+    if (_listFuture != null) return _listFuture!;
+    try {
+      return await (_listFuture = _plugin.list());
+    } catch (e) {
+      // Clear the future so that the next call will retry.
+      _listFuture = null;
+      rethrow;
+    }
+  }
 }

@@ -21,35 +21,27 @@ part of 'example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class CalculatorInput {
-  factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
+base class WeatherFlowInput {
+  factory WeatherFlowInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  CalculatorInput._(this._json);
+  WeatherFlowInput._(this._json);
 
-  CalculatorInput({required int a, required int b}) {
-    _json = {'a': a, 'b': b};
+  WeatherFlowInput({required String prompt}) {
+    _json = {'prompt': prompt};
   }
 
   late final Map<String, dynamic> _json;
 
-  static const SchemanticType<CalculatorInput> $schema =
-      _CalculatorInputTypeFactory();
+  static const SchemanticType<WeatherFlowInput> $schema =
+      _WeatherFlowInputTypeFactory();
 
-  int get a {
-    return _json['a'] as int;
+  String get prompt {
+    return _json['prompt'] as String;
   }
 
-  set a(int value) {
-    _json['a'] = value;
-  }
-
-  int get b {
-    return _json['b'] as int;
-  }
-
-  set b(int value) {
-    _json['b'] = value;
+  set prompt(String value) {
+    _json['prompt'] = value;
   }
 
   @override
@@ -62,52 +54,58 @@ class CalculatorInput {
   }
 }
 
-class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
-  const _CalculatorInputTypeFactory();
+base class _WeatherFlowInputTypeFactory
+    extends SchemanticType<WeatherFlowInput> {
+  const _WeatherFlowInputTypeFactory();
 
   @override
-  CalculatorInput parse(Object? json) {
-    return CalculatorInput._(json as Map<String, dynamic>);
+  WeatherFlowInput parse(Object? json) {
+    return WeatherFlowInput._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'CalculatorInput',
-    definition: Schema.object(
-      properties: {'a': Schema.integer(), 'b': Schema.integer()},
-      required: ['a', 'b'],
-    ),
+    name: 'WeatherFlowInput',
+    definition: $Schema
+        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
+        .value,
     dependencies: [],
   );
 }
 
-class Person {
-  factory Person.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+base class WeatherToolInput {
+  factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  Person._(this._json);
+  WeatherToolInput._(this._json);
 
-  Person({required String name, required int age}) {
-    _json = {'name': name, 'age': age};
+  WeatherToolInput({required String location, String? unit}) {
+    _json = {'location': location, 'unit': ?unit};
   }
 
   late final Map<String, dynamic> _json;
 
-  static const SchemanticType<Person> $schema = _PersonTypeFactory();
+  static const SchemanticType<WeatherToolInput> $schema =
+      _WeatherToolInputTypeFactory();
 
-  String get name {
-    return _json['name'] as String;
+  String get location {
+    return _json['location'] as String;
   }
 
-  set name(String value) {
-    _json['name'] = value;
+  set location(String value) {
+    _json['location'] = value;
   }
 
-  int get age {
-    return _json['age'] as int;
+  String? get unit {
+    return _json['unit'] as String?;
   }
 
-  set age(int value) {
-    _json['age'] = value;
+  set unit(String? value) {
+    if (value == null) {
+      _json.remove('unit');
+    } else {
+      _json['unit'] = value;
+    }
   }
 
   @override
@@ -120,21 +118,313 @@ class Person {
   }
 }
 
-class _PersonTypeFactory extends SchemanticType<Person> {
-  const _PersonTypeFactory();
+base class _WeatherToolInputTypeFactory
+    extends SchemanticType<WeatherToolInput> {
+  const _WeatherToolInputTypeFactory();
 
   @override
-  Person parse(Object? json) {
-    return Person._(json as Map<String, dynamic>);
+  WeatherToolInput parse(Object? json) {
+    return WeatherToolInput._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'Person',
-    definition: Schema.object(
-      properties: {'name': Schema.string(), 'age': Schema.integer()},
-      required: ['name', 'age'],
-    ),
+    name: 'WeatherToolInput',
+    definition: $Schema
+        .object(
+          properties: {
+            'location': $Schema.string(),
+            'unit': $Schema.string(enumValues: ['celsius', 'fahrenheit']),
+          },
+          required: ['location'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class WeatherToolOutput {
+  factory WeatherToolOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  WeatherToolOutput._(this._json);
+
+  WeatherToolOutput({
+    required double temperature,
+    required String condition,
+    required String unit,
+    int? humidity,
+  }) {
+    _json = {
+      'temperature': temperature,
+      'condition': condition,
+      'unit': unit,
+      'humidity': ?humidity,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<WeatherToolOutput> $schema =
+      _WeatherToolOutputTypeFactory();
+
+  double get temperature {
+    return (_json['temperature'] as num).toDouble();
+  }
+
+  set temperature(double value) {
+    _json['temperature'] = value;
+  }
+
+  String get condition {
+    return _json['condition'] as String;
+  }
+
+  set condition(String value) {
+    _json['condition'] = value;
+  }
+
+  String get unit {
+    return _json['unit'] as String;
+  }
+
+  set unit(String value) {
+    _json['unit'] = value;
+  }
+
+  int? get humidity {
+    return _json['humidity'] as int?;
+  }
+
+  set humidity(int? value) {
+    if (value == null) {
+      _json.remove('humidity');
+    } else {
+      _json['humidity'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _WeatherToolOutputTypeFactory
+    extends SchemanticType<WeatherToolOutput> {
+  const _WeatherToolOutputTypeFactory();
+
+  @override
+  WeatherToolOutput parse(Object? json) {
+    return WeatherToolOutput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'WeatherToolOutput',
+    definition: $Schema
+        .object(
+          properties: {
+            'temperature': $Schema.number(),
+            'condition': $Schema.string(),
+            'unit': $Schema.string(),
+            'humidity': $Schema.integer(),
+          },
+          required: ['temperature', 'condition', 'unit'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class MovieReviewInput {
+  factory MovieReviewInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  MovieReviewInput._(this._json);
+
+  MovieReviewInput({required String title, int? year}) {
+    _json = {'title': title, 'year': ?year};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<MovieReviewInput> $schema =
+      _MovieReviewInputTypeFactory();
+
+  String get title {
+    return _json['title'] as String;
+  }
+
+  set title(String value) {
+    _json['title'] = value;
+  }
+
+  int? get year {
+    return _json['year'] as int?;
+  }
+
+  set year(int? value) {
+    if (value == null) {
+      _json.remove('year');
+    } else {
+      _json['year'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _MovieReviewInputTypeFactory
+    extends SchemanticType<MovieReviewInput> {
+  const _MovieReviewInputTypeFactory();
+
+  @override
+  MovieReviewInput parse(Object? json) {
+    return MovieReviewInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MovieReviewInput',
+    definition: $Schema
+        .object(
+          properties: {'title': $Schema.string(), 'year': $Schema.integer()},
+          required: ['title'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class MovieReview {
+  factory MovieReview.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  MovieReview._(this._json);
+
+  MovieReview({
+    required String title,
+    required double rating,
+    required String summary,
+    required List<String> pros,
+    required List<String> cons,
+    required String recommendedFor,
+  }) {
+    _json = {
+      'title': title,
+      'rating': rating,
+      'summary': summary,
+      'pros': pros,
+      'cons': cons,
+      'recommendedFor': recommendedFor,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<MovieReview> $schema = _MovieReviewTypeFactory();
+
+  String get title {
+    return _json['title'] as String;
+  }
+
+  set title(String value) {
+    _json['title'] = value;
+  }
+
+  double get rating {
+    return (_json['rating'] as num).toDouble();
+  }
+
+  set rating(double value) {
+    _json['rating'] = value;
+  }
+
+  String get summary {
+    return _json['summary'] as String;
+  }
+
+  set summary(String value) {
+    _json['summary'] = value;
+  }
+
+  List<String> get pros {
+    return (_json['pros'] as List).cast<String>();
+  }
+
+  set pros(List<String> value) {
+    _json['pros'] = value;
+  }
+
+  List<String> get cons {
+    return (_json['cons'] as List).cast<String>();
+  }
+
+  set cons(List<String> value) {
+    _json['cons'] = value;
+  }
+
+  String get recommendedFor {
+    return _json['recommendedFor'] as String;
+  }
+
+  set recommendedFor(String value) {
+    _json['recommendedFor'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
+  const _MovieReviewTypeFactory();
+
+  @override
+  MovieReview parse(Object? json) {
+    return MovieReview._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MovieReview',
+    definition: $Schema
+        .object(
+          properties: {
+            'title': $Schema.string(),
+            'rating': $Schema.number(),
+            'summary': $Schema.string(),
+            'pros': $Schema.list(items: $Schema.string()),
+            'cons': $Schema.list(items: $Schema.string()),
+            'recommendedFor': $Schema.string(),
+          },
+          required: [
+            'title',
+            'rating',
+            'summary',
+            'pros',
+            'cons',
+            'recommendedFor',
+          ],
+        )
+        .value,
     dependencies: [],
   );
 }

@@ -14,59 +14,56 @@
 
 import 'dart:convert';
 
-import 'package:genkit/genkit.dart';
-import 'package:genkit_openai/src/aggregation.dart';
+import 'package:genkit/genkit.dart' hide FinishReason, Tool;
+import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/converters.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 import 'package:test/test.dart';
 
-JsonSchemaObject _jsonSchema(ResponseFormat format) {
-  return (format as ResponseFormatJsonSchema).jsonSchema;
+JsonSchemaResponseFormat _jsonSchema(ResponseFormat format) {
+  return format as JsonSchemaResponseFormat;
 }
 
-CreateChatCompletionStreamResponse _jsonChunk(
+ChatStreamEvent _jsonChunk(
   String jsonText, {
-  ChatCompletionFinishReason? finishReason,
-  CompletionUsage? usage,
+  FinishReason? finishReason,
+  Usage? usage,
   String? id,
   String? model,
 }) {
-  return CreateChatCompletionStreamResponse(
+  return ChatStreamEvent(
     id: id,
     model: model,
     usage: usage,
     choices: [
-      ChatCompletionStreamResponseChoice(
+      ChatStreamChoice(
         index: 0,
         finishReason: finishReason,
-        delta: ChatCompletionStreamResponseDelta(content: jsonText),
+        delta: ChatDelta(content: jsonText),
       ),
     ],
   );
 }
 
-CreateChatCompletionStreamResponse _toolCallChunk({
+ChatStreamEvent _toolCallChunk({
   required int index,
   String? id,
   String? name,
   String? arguments,
-  ChatCompletionFinishReason? finishReason,
+  FinishReason? finishReason,
 }) {
-  return CreateChatCompletionStreamResponse(
+  return ChatStreamEvent(
     choices: [
-      ChatCompletionStreamResponseChoice(
+      ChatStreamChoice(
         index: 0,
         finishReason: finishReason,
-        delta: ChatCompletionStreamResponseDelta(
+        delta: ChatDelta(
           toolCalls: [
-            ChatCompletionStreamMessageToolCallChunk(
+            ToolCallDelta(
               index: index,
               id: id,
-              function: ChatCompletionStreamMessageFunctionCall(
-                name: name,
-                arguments: arguments,
-              ),
+              function: FunctionCallDelta(name: name, arguments: arguments),
             ),
           ],
         ),
@@ -129,33 +126,32 @@ void main() {
     });
   });
 
-  group('aggregateStreamResponses', () {
+  group('ChatStreamAccumulator', () {
     test('concatenates content chunks', () {
       final jsonStr = '{"name": "Jane", "age": 25}';
       final mid = jsonStr.length ~/ 2;
-      final chunks = [
-        _jsonChunk(jsonStr.substring(0, mid)),
-        _jsonChunk(
-          jsonStr.substring(mid),
-          finishReason: ChatCompletionFinishReason.stop,
-        ),
-      ];
-      final response = aggregateStreamResponses(chunks);
+      final acc = ChatStreamAccumulator();
+      acc.add(_jsonChunk(jsonStr.substring(0, mid), model: 'gpt-4o'));
+      acc.add(
+        _jsonChunk(jsonStr.substring(mid), finishReason: FinishReason.stop),
+      );
+      final response = acc.toChatCompletion();
       expect(response.choices.first.message.content, jsonStr);
     });
 
     test('aggregates content and tool calls', () {
-      final chunks = [
-        _jsonChunk('{"name": "Test"'),
+      final acc = ChatStreamAccumulator();
+      acc.add(_jsonChunk('{"name": "Test"', model: 'gpt-4o'));
+      acc.add(
         _toolCallChunk(
           index: 0,
           id: 'call_1',
           name: 'getWeather',
           arguments: '{"location": "Boston"}',
-          finishReason: ChatCompletionFinishReason.toolCalls,
+          finishReason: FinishReason.toolCalls,
         ),
-      ];
-      final response = aggregateStreamResponses(chunks);
+      );
+      final response = acc.toChatCompletion();
       expect(response.choices.first.message.content, '{"name": "Test"');
       expect(response.choices.first.message.toolCalls!.length, 1);
       expect(
@@ -168,10 +164,8 @@ void main() {
   group('GenkitConverter', () {
     test('fromOpenAIAssistantMessage converts JSON content', () {
       final message =
-          ChatCompletionMessage.assistant(
-                content: '{"name": "Test", "age": 25}',
-              )
-              as ChatCompletionAssistantMessage;
+          ChatMessage.assistant(content: '{"name": "Test", "age": 25}')
+              as AssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.role, Role.model);
       expect(genkitMessage.text, '{"name": "Test", "age": 25}');
@@ -179,20 +173,19 @@ void main() {
 
     test('fromOpenAIAssistantMessage converts message with tool calls', () {
       final message =
-          ChatCompletionMessage.assistant(
+          ChatMessage.assistant(
                 content: '{"result": "ok"}',
                 toolCalls: [
-                  ChatCompletionMessageToolCall(
+                  ToolCall.functionCall(
                     id: 'call_123',
-                    type: ChatCompletionMessageToolCallType.function,
-                    function: ChatCompletionMessageFunctionCall(
+                    call: FunctionCall(
                       name: 'getWeather',
                       arguments: '{"location": "NYC"}',
                     ),
                   ),
                 ],
               )
-              as ChatCompletionAssistantMessage;
+              as AssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.text, '{"result": "ok"}');
       final toolParts = genkitMessage.content
@@ -212,14 +205,12 @@ void main() {
       };
       final jsonStr = jsonEncode(originalJson);
       final split = jsonStr.length ~/ 2;
-      final chunks = [
-        _jsonChunk(jsonStr.substring(0, split)),
-        _jsonChunk(
-          jsonStr.substring(split),
-          finishReason: ChatCompletionFinishReason.stop,
-        ),
-      ];
-      final aggregated = aggregateStreamResponses(chunks);
+      final acc = ChatStreamAccumulator();
+      acc.add(_jsonChunk(jsonStr.substring(0, split), model: 'gpt-4o'));
+      acc.add(
+        _jsonChunk(jsonStr.substring(split), finishReason: FinishReason.stop),
+      );
+      final aggregated = acc.toChatCompletion();
       final message = GenkitConverter.fromOpenAIAssistantMessage(
         aggregated.choices.first.message,
       );

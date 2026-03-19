@@ -34,6 +34,7 @@ import 'src/core/action.dart';
 import 'src/core/registry.dart';
 import 'src/types.dart';
 
+export 'src/ai/remote_model.dart' show remoteModel;
 export 'src/schema_extensions.dart';
 export 'src/types.dart';
 

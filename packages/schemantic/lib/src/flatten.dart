@@ -12,16 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
-
-extension SchemaFlatten on jsb.Schema {
+extension SchemaFlatten on Map<String, Object?> {
   /// Flattens a JSON schema by dereferencing all `$ref`s and removing `$defs`.
   ///
   /// Throws [FormatException] if recursive references are detected.
-  jsb.Schema flatten() {
-    final flatMap = _flatten(value);
-    return jsb.Schema.fromMap(flatMap);
-  }
+  Map<String, Object?> flatten() => _flatten(this);
 }
 
 /// Flattens a JSON schema by dereferencing all `$ref`s and removing `$defs`.

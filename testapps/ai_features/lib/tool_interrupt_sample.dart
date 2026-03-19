@@ -20,7 +20,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'tool_interrupt_sample.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $TriviaQuestions {
   @Field(description: 'the main question')
   String get question;

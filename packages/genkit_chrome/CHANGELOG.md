@@ -1,3 +1,35 @@
+## 0.0.4
+
+ - updated internal dependencies.
+
+## 0.0.3
+
+ - updated internal dependencies.
+
+## 0.0.2
+
+ - updated internal dependencies.
+
+## 0.0.1+1
+
+ - Update a dependency to the latest release.
+
+## 0.0.1
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
+## 0.0.1-dev.10
+
+ - Update a dependency to the latest release.
+
+## 0.0.1-dev.9
+
+ - Update a dependency to the latest release.
+
+## 0.0.1-dev.8
+
+ - Update a dependency to the latest release.
+
 ## 0.0.1-dev.7
 
  - **REFACTOR**: Introduce a dedicated plugin.dart entry point for plugin-related exports (#149).

@@ -17,12 +17,12 @@ import 'package:schemantic/schemantic.dart';
 
 part 'tool_calling.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ToolCallingInput {
   String get prompt;
 }
 
-@Schematic()
+@Schema()
 abstract class $ToolCallingWeatherInput {
   String get location;
 }

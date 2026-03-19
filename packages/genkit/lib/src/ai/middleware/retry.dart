@@ -28,7 +28,7 @@ part 'retry.g.dart';
 
 final _logger = Logger('genkit.middleware.retry');
 
-@Schematic()
+@Schema()
 abstract class $RetryOptions {
   int? get maxRetries;
   List<StatusCodes>? get statuses;
@@ -166,11 +166,11 @@ class RetryMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<ToolResponse> tool(
-    ToolRequest request,
+  Future<ToolResponsePart> tool(
+    ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponse> Function(
-      ToolRequest request,
+    Future<ToolResponsePart> Function(
+      ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
     next,

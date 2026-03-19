@@ -20,7 +20,7 @@ import 'package:genkit_mcp/genkit_mcp.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
-class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
+final class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
   const _PromptInputSchema();
 
   @override
@@ -30,13 +30,13 @@ class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'input': {'type': 'string'},
       },
       'required': ['input'],
-    }),
+    },
     dependencies: const [],
   );
 }
@@ -78,7 +78,7 @@ class _Unencodable {
   String toString() => 'unencodable';
 }
 
-class _EnumPromptSchema extends SchemanticType<Map<String, dynamic>> {
+final class _EnumPromptSchema extends SchemanticType<Map<String, dynamic>> {
   const _EnumPromptSchema();
 
   @override
@@ -88,7 +88,7 @@ class _EnumPromptSchema extends SchemanticType<Map<String, dynamic>> {
 
   @override
   JsonSchemaMetadata? get schemaMetadata => JsonSchemaMetadata(
-    definition: Schema.fromMap({
+    definition: {
       'type': 'object',
       'properties': {
         'color': {
@@ -97,7 +97,7 @@ class _EnumPromptSchema extends SchemanticType<Map<String, dynamic>> {
         },
       },
       'required': ['color'],
-    }),
+    },
     dependencies: const [],
   );
 }

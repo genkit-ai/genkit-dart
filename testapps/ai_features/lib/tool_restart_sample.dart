@@ -20,7 +20,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'tool_restart_sample.g.dart';
 
-@Schematic()
+@Schema()
 abstract class $ApprovalRequest {
   @Field(description: 'the main question')
   String get question;

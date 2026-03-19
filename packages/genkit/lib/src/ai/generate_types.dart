@@ -17,7 +17,7 @@ import '../schema_extensions.dart';
 import '../types.dart';
 
 /// A chunk of a response from a generate action.
-class GenerateResponseChunk<Output> extends ModelResponseChunk {
+final class GenerateResponseChunk<Output> extends ModelResponseChunk {
   final ModelResponseChunk _chunk;
   final List<ModelResponseChunk> previousChunks;
   final Output? output;
@@ -73,7 +73,7 @@ class InterruptResponse {
 }
 
 /// A response from a generate action.
-class GenerateResponseHelper<Output> extends GenerateResponse {
+final class GenerateResponseHelper<Output> extends GenerateResponse {
   final ModelResponse _response;
   final ModelRequest? _request;
   final Output? output;

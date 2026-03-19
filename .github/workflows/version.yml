@@ -1,0 +1,32 @@
+name: Version bump
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+          fetch-depth: 0 # Required for git describe and git log
+
+      - name: Set up Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run version bump script
+        run: dart run tools/version.dart
+
+      - name: Push changes and tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+        run: git push --follow-tags

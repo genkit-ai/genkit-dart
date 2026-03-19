@@ -21,16 +21,16 @@ part of 'shelf_server_example.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class HelloInput {
+base class HelloInput {
   factory HelloInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   HelloInput._(this._json);
 
-  factory HelloInput({required String name}) {
-    return HelloInput._({'name': name});
+  HelloInput({required String name}) {
+    _json = {'name': name};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<HelloInput> $schema = _HelloInputTypeFactory();
 
@@ -52,7 +52,7 @@ class HelloInput {
   }
 }
 
-class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
+base class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   const _HelloInputTypeFactory();
 
   @override
@@ -63,25 +63,24 @@ class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'HelloInput',
-    definition: Schema.object(
-      properties: {'name': Schema.string()},
-      required: ['name'],
-    ),
+    definition: $Schema
+        .object(properties: {'name': $Schema.string()}, required: ['name'])
+        .value,
     dependencies: [],
   );
 }
 
-class HelloOutput {
+base class HelloOutput {
   factory HelloOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
   HelloOutput._(this._json);
 
-  factory HelloOutput({required String greeting}) {
-    return HelloOutput._({'greeting': greeting});
+  HelloOutput({required String greeting}) {
+    _json = {'greeting': greeting};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<HelloOutput> $schema = _HelloOutputTypeFactory();
 
@@ -103,7 +102,7 @@ class HelloOutput {
   }
 }
 
-class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
+base class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   const _HelloOutputTypeFactory();
 
   @override
@@ -114,24 +113,26 @@ class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'HelloOutput',
-    definition: Schema.object(
-      properties: {'greeting': Schema.string()},
-      required: ['greeting'],
-    ),
+    definition: $Schema
+        .object(
+          properties: {'greeting': $Schema.string()},
+          required: ['greeting'],
+        )
+        .value,
     dependencies: [],
   );
 }
 
-class CountChunk {
+base class CountChunk {
   factory CountChunk.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   CountChunk._(this._json);
 
-  factory CountChunk({required int count}) {
-    return CountChunk._({'count': count});
+  CountChunk({required int count}) {
+    _json = {'count': count};
   }
 
-  Map<String, dynamic> _json;
+  late final Map<String, dynamic> _json;
 
   static const SchemanticType<CountChunk> $schema = _CountChunkTypeFactory();
 
@@ -153,7 +154,7 @@ class CountChunk {
   }
 }
 
-class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
+base class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
   const _CountChunkTypeFactory();
 
   @override
@@ -164,10 +165,9 @@ class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CountChunk',
-    definition: Schema.object(
-      properties: {'count': Schema.integer()},
-      required: ['count'],
-    ),
+    definition: $Schema
+        .object(properties: {'count': $Schema.integer()}, required: ['count'])
+        .value,
     dependencies: [],
   );
 }

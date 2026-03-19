@@ -20,7 +20,7 @@ part of 'types.dart';
 // SchemaGenerator
 // **************************************************************************
 
-class PromptInput {
+base class PromptInput {
   factory PromptInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -52,7 +52,7 @@ class PromptInput {
   }
 }
 
-class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
+base class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
   const _PromptInputTypeFactory();
 
   @override
@@ -63,10 +63,9 @@ class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PromptInput',
-    definition: Schema.object(
-      properties: {'input': Schema.string()},
-      required: ['input'],
-    ),
+    definition: $Schema
+        .object(properties: {'input': $Schema.string()}, required: ['input'])
+        .value,
     dependencies: [],
   );
 }

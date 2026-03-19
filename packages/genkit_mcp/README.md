@@ -74,7 +74,7 @@ flowchart LR
 
 ## MCP Host
 
-To connect to one or more MCP servers, use the `defineMcpHost` function. This returns a `GenkitMcpHost` instance that manages connections to the configured MCP servers and registers their tools, prompts, and resources as Genkit actions.
+To connect to one or more MCP servers (the recommended approach), use the `defineMcpHost` function. This returns a `GenkitMcpHost` instance that manages connections to the configured MCP servers and automatically registers their tools, prompts, and resources as Genkit actions.
 
 ```dart
 import 'package:genkit/genkit.dart';
@@ -101,10 +101,21 @@ void main() async {
     ),
   );
 
-  final tools = await host.getActiveTools(ai);
-  for (final tool in tools) {
-    print('Tool: ${tool.name}');
-  }
+  // Tools can be discovered and executed dynamically using a wildcard...
+  final response = await ai.generate(
+    model: 'gemini-2.5-flash',
+    prompt: 'Summarize the contents of README.md',
+    toolNames: ['my-host:tool/fs/*'],
+  );
+
+  // ...or by specifying the exact tool name
+  final exactResponse = await ai.generate(
+    model: 'gemini-2.5-flash',
+    prompt: 'Read README.md',
+    toolNames: ['my-host:tool/fs/read_file'],
+  );
+
+  print(response.text);
 }
 ```
 
@@ -121,7 +132,9 @@ void main() async {
 
 ## MCP Client (Single Server)
 
-To connect to a single MCP server and register its tools, prompts, and resources in the Genkit registry, use `defineMcpClient`. This is the recommended approach — it mirrors `defineMcpHost` and enables registry-based action discovery.
+Connecting to a single MCP server with a client object is an advanced usecase for when you need manual control over the client lifecycle or want to avoid automatic registry integration. To connect to a single MCP server, use `createMcpClient`.
+
+Because a standalone client does not automatically register its tools with the Genkit registry, you must fetch the active tools and provide them directly to the `ai.generate` function in order to use them.
 
 ```dart
 import 'package:genkit/genkit.dart';
@@ -130,9 +143,8 @@ import 'package:genkit_mcp/genkit_mcp.dart';
 void main() async {
   final ai = Genkit();
 
-  final client = defineMcpClient(
-    ai,
-    McpClientOptionsWithCache(
+  final client = createMcpClient(
+    McpClientOptions(
       name: 'my-client',
       mcpServer: McpServerConfig(
         command: 'npx',
@@ -140,29 +152,21 @@ void main() async {
       ),
     ),
   );
+
   await client.ready();
 
-  // Tools are automatically available through the registry.
+  // Retrieve the tools from the connected client
   final tools = await client.getActiveTools(ai);
-  for (final tool in tools) {
-    print('Tool: ${tool.name}');
-  }
+  
+  final response = await ai.generate(
+    model: 'gemini-2.5-flash',
+    prompt: 'Read the contents of README.md',
+    // Pass the tools directly to generate
+    tools: tools,
+  );
+
+  print(response.text);
 }
-```
-
-If you need manual control over the client lifecycle without registry integration, use `createMcpClient` instead:
-
-```dart
-final client = createMcpClient(McpClientOptions(
-  name: 'my-client',
-  mcpServer: McpServerConfig(
-    command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-filesystem', '.'],
-  ),
-));
-await client.ready();
-
-final tools = await client.getActiveTools(ai);
 ```
 
 ### `McpClientOptions`
@@ -178,7 +182,7 @@ final tools = await client.getActiveTools(ai);
 - **`samplingHandler`**: (optional) Handler for server-initiated sampling requests.
 - **`elicitationHandler`**: (optional) Handler for server-initiated elicitation requests.
 - **`notificationHandler`**: (optional) Handler for server notifications.
-- **`cacheTtlMillis`**: (optional, `McpClientOptionsWithCache` only) Cache TTL in milliseconds for the registry plugin.
+- **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for remote actions.
 
 ---
 
@@ -197,7 +201,7 @@ void main() async {
   ai.defineTool(
     name: 'add',
     description: 'Add two numbers together',
-    inputSchema: mapSchema(stringSchema(), dynamicSchema()),
+    inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       final a = num.parse(input['a'].toString());
       final b = num.parse(input['b'].toString());
