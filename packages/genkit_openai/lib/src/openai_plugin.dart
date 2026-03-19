@@ -210,7 +210,9 @@ class OpenAIPlugin extends GenkitPlugin {
 
       return modelIds;
     } finally {
-      client.close();
+      if (httpClient == null) {
+        client.close();
+      }
     }
   }
 
@@ -360,7 +362,9 @@ class OpenAIPlugin extends GenkitPlugin {
             stackTrace: stackTrace,
           );
         } finally {
-          client.close();
+          if (httpClient == null) {
+            client.close();
+          }
         }
       },
     );
