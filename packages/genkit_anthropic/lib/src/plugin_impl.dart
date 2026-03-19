@@ -16,6 +16,7 @@ import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'model.dart';
@@ -36,9 +37,15 @@ class AnthropicPluginImpl extends GenkitPlugin {
   final String? apiKey;
   final Map<String, String>? headers;
   final String? baseUrl;
+  final http.Client? httpClient;
   sdk.AnthropicClient? _client;
 
-  AnthropicPluginImpl({this.apiKey, this.headers, this.baseUrl});
+  AnthropicPluginImpl({
+    this.apiKey,
+    this.headers,
+    this.baseUrl,
+    this.httpClient,
+  });
 
   @override
   String get name => 'anthropic';
@@ -50,11 +57,13 @@ class AnthropicPluginImpl extends GenkitPlugin {
         apiKey!,
         defaultHeaders: headers,
         baseUrl: baseUrl,
+        httpClient: httpClient,
       );
     }
     final config = sdk.AnthropicConfig.fromEnvironment();
     return _client = sdk.AnthropicClient(
       config: config.copyWith(defaultHeaders: headers, baseUrl: baseUrl),
+      httpClient: httpClient,
     );
   }
 
@@ -103,6 +112,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
                 options.apiKey!,
                 defaultHeaders: headers,
                 baseUrl: baseUrl,
+                httpClient: httpClient,
               )
             : client;
 
@@ -147,7 +157,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
             stackTrace: stackTrace,
           );
         } finally {
-          if (options.apiKey != null) {
+          if (options.apiKey != null && httpClient == null) {
             requestClient.close();
           }
         }
@@ -223,7 +233,9 @@ class AnthropicPluginImpl extends GenkitPlugin {
   }
 
   void close() {
-    _client?.close();
+    if (httpClient == null) {
+      _client?.close();
+    }
   }
 }
 
