@@ -1,3 +1,10 @@
+## 0.1.2-wip
+
+- **REFACTOR** Export `SchemanticType` from `package:schemantic_api`
+  instead of implementing it in this package. Move the `validate` method to an
+  extension. This may introduce static diagnostics in classes that implement or
+  extend this class and annotate a definition of `validate` with `@override`.
+
 ## 0.1.1
 
 ### Features

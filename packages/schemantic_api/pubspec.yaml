@@ -1,0 +1,15 @@
+name: schemantic_api
+description: >-
+  An interface for conveying a JSON schema and parsing JSON of that schema.
+repository: https://github.com/genkit-ai/genkit-dart
+license: Apache-2.0
+resolution: workspace
+version: 0.1.0
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  json_schema_builder: ^0.1.3
+
+dev_dependencies:
+  test: ^1.29.0
