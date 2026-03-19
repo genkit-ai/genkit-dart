@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
 import 'src/openai_plugin.dart';
@@ -85,12 +86,14 @@ class OpenAICompatPluginHandle {
     String? baseUrl,
     List<CustomModelDefinition>? models,
     Map<String, String>? headers,
+    http.Client? httpClient,
   }) {
     return OpenAIPlugin(
       apiKey: apiKey,
       baseUrl: baseUrl,
       customModels: models ?? const [],
       headers: headers,
+      httpClient: httpClient,
     );
   }
 
