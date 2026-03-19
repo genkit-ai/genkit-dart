@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'src/model.dart';
 import 'src/plugin_impl.dart';
 
@@ -39,12 +40,14 @@ class AnthropicPluginHandle {
     Map<String, String>? headers,
     String? baseUrl,
     String? apiVersion,
+    http.Client? httpClient,
   }) {
     return AnthropicPluginImpl(
       apiKey: apiKey,
       headers: headers,
       baseUrl: baseUrl,
       apiVersion: apiVersion,
+      httpClient: httpClient,
     );
   }
 
