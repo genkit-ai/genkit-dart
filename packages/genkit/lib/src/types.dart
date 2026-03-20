@@ -428,5 +428,5 @@ abstract class $ReflectionSendInputStreamChunkParams {
 @Schema()
 abstract class $ReflectionStreamChunkParams {
   String get requestId;
-  Map<String, dynamic>? get chunk;
+  dynamic get chunk;
 }

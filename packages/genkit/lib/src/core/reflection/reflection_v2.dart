@@ -271,7 +271,18 @@ class ReflectionServerV2 {
         final result = await action.runRaw(
           input,
           onChunk: (chunk) {
-            _sendNotification('streamChunk', {'requestId': id, 'chunk': chunk});
+            final params = ReflectionStreamChunkParams(
+              requestId: id.toString(),
+              chunk: chunk,
+            );
+            _sendNotification('streamChunk', params.toJson());
+          },
+          onTraceStart: ({required String traceId, required String spanId}) {
+            final params = ReflectionRunActionStateParams(
+              requestId: id.toString(),
+              state: {'traceId': traceId, 'spanId': spanId},
+            );
+            _sendNotification('runActionState', params.toJson());
           },
           context: context,
           inputStream: inputStream,
@@ -284,6 +295,13 @@ class ReflectionServerV2 {
       } else {
         final result = await action.runRaw(
           input,
+          onTraceStart: ({required String traceId, required String spanId}) {
+            final params = ReflectionRunActionStateParams(
+              requestId: id.toString(),
+              state: {'traceId': traceId, 'spanId': spanId},
+            );
+            _sendNotification('runActionState', params.toJson());
+          },
           context: context,
           inputStream: inputStream,
         );

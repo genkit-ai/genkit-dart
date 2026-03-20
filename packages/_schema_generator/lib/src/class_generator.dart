@@ -23,6 +23,7 @@ const typeOverrides = {
   },
   'ModelResponseChunk': {'index': 'int'},
   'ReflectionRegisterParams': {'pid': 'int'},
+  'ReflectionStreamChunkParams': {'chunk': 'dynamic'},
 };
 
 class ClassGenerator {

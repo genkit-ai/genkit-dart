@@ -5142,10 +5142,7 @@ base class ReflectionStreamChunkParams {
 
   ReflectionStreamChunkParams._(this._json);
 
-  ReflectionStreamChunkParams({
-    required String requestId,
-    Map<String, dynamic>? chunk,
-  }) {
+  ReflectionStreamChunkParams({required String requestId, dynamic chunk}) {
     _json = {'requestId': requestId, 'chunk': ?chunk};
   }
 
@@ -5162,16 +5159,12 @@ base class ReflectionStreamChunkParams {
     _json['requestId'] = value;
   }
 
-  Map<String, dynamic>? get chunk {
-    return (_json['chunk'] as Map?)?.cast<String, dynamic>();
+  dynamic get chunk {
+    return _json['chunk'] as dynamic;
   }
 
-  set chunk(Map<String, dynamic>? value) {
-    if (value == null) {
-      _json.remove('chunk');
-    } else {
-      _json['chunk'] = value;
-    }
+  set chunk(dynamic value) {
+    _json['chunk'] = value;
   }
 
   @override
@@ -5198,11 +5191,8 @@ base class _ReflectionStreamChunkParamsTypeFactory
     name: 'ReflectionStreamChunkParams',
     definition: $Schema
         .object(
-          properties: {
-            'requestId': $Schema.string(),
-            'chunk': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['requestId'],
+          properties: {'requestId': $Schema.string(), 'chunk': $Schema.any()},
+          required: ['requestId', 'chunk'],
         )
         .value,
     dependencies: [],
