@@ -15,12 +15,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:logging/logging.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../../exception.dart';
 import '../../schema.dart';
+import '../../types.dart';
 import '../../utils.dart';
 import '../registry.dart';
+
+final _logger = Logger('genkit.reflection.v2');
 
 const genkitVersion = '0.9.0';
 const genkitReflectionApiSpecVersion = 2;
@@ -32,24 +35,25 @@ class ReflectionServerV2 {
   final String url;
   final List<String> configuredEnvs;
   final String? name;
+  final String runtimeId;
 
   WebSocketChannel? _ws;
-  final String _pid = getPid();
   final int _apiIndex = reflectionInstanceCount++;
   final Map<dynamic, StreamController> _inputStreams = {};
 
   ReflectionServerV2(
     this.registry, {
     required this.url,
-    this.configuredEnvs = const ['dev'],
+    this.configuredEnvs = const [],
     this.name,
+    required this.runtimeId,
   });
 
   Future<void> start() async {
-    print('Connecting to Reflection V2 server at $url');
+    _logger.info('Connecting to Reflection V2 server at $url');
     try {
       _ws = WebSocketChannel.connect(Uri.parse(url));
-      print('Connected to Reflection V2 server.');
+      _logger.info('Connected to Reflection V2 server.');
 
       _register();
 
@@ -60,14 +64,14 @@ class ReflectionServerV2 {
           }
         },
         onDone: () {
-          print('Reflection V2 WebSocket closed.');
+          _logger.info('Reflection V2 WebSocket closed.');
         },
         onError: (error) {
-          print('Reflection V2 WebSocket error: $error');
+          _logger.severe('Reflection V2 WebSocket error: $error');
         },
       );
     } catch (e) {
-      print('Failed to connect to Reflection V2 server: $e');
+      _logger.severe('Failed to connect to Reflection V2 server: $e');
     }
   }
 
@@ -81,7 +85,7 @@ class ReflectionServerV2 {
       try {
         _ws!.sink.add(jsonEncode(message));
       } catch (e) {
-        print('Error sending message: $e');
+        _logger.severe('Error sending message: $e');
       }
     }
   }
@@ -102,18 +106,25 @@ class ReflectionServerV2 {
     _send({'jsonrpc': '2.0', 'method': method, 'params': params});
   }
 
-  String get _runtimeId => '$_pid${_apiIndex > 0 ? '-$_apiIndex' : ''}';
+  String get _runtimeId => runtimeId.isEmpty
+      ? '${getPid() == 0 ? 'web' : getPid()}${_apiIndex > 0 ? '-$_apiIndex' : ''}'
+      : runtimeId;
 
   void _register() {
-    final params = {
-      'id': getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
-      'pid': _pid,
-      'name': name ?? _runtimeId,
-      'genkitVersion': genkitVersion,
-      'reflectionApiSpecVersion': genkitReflectionApiSpecVersion,
-      'envs': configuredEnvs,
-    };
-    _sendNotification('register', params);
+    final params = ReflectionRegisterParams(
+      id: _runtimeId,
+      pid: getPid(),
+      name: name ?? _runtimeId,
+      genkitVersion: genkitVersion,
+      reflectionApiSpecVersion: genkitReflectionApiSpecVersion.toDouble(),
+      envs: configuredEnvs,
+    );
+    _send({
+      'jsonrpc': '2.0',
+      'method': 'register',
+      'params': params.toJson(),
+      'id': '$_runtimeId-register',
+    });
   }
 
   Future<void> _handleMessage(String data) async {
@@ -121,9 +132,25 @@ class ReflectionServerV2 {
       final message = jsonDecode(data) as Map<String, dynamic>;
       if (message.containsKey('method')) {
         await _handleRequest(message);
+      } else if (message.containsKey('id')) {
+        _handleResponse(message);
       }
     } catch (e, stack) {
-      print('Error handling message: $e\n$stack');
+      _logger.severe('Error handling message: $e', stack);
+    }
+  }
+
+  void _handleResponse(Map<String, dynamic> response) {
+    final id = response['id'];
+    final result = response['result'];
+    final error = response['error'];
+
+    if (id == '$_runtimeId-register') {
+      if (error != null) {
+        _logger.severe('Failed to register with Manager: $error');
+      } else {
+        _logger.info('Successfully registered with Manager. Config: $result');
+      }
     }
   }
 
@@ -135,19 +162,28 @@ class ReflectionServerV2 {
       switch (method) {
         case 'listActions':
           await _handleListActions(id);
+        case 'listValues':
+          final params = request['params'] != null
+              ? ReflectionListValuesParams.fromJson(
+                  request['params'] as Map<String, dynamic>,
+                )
+              : null;
+          await _handleListValues(id, params);
         case 'runAction':
-          await _handleRunAction(id, request['params'] as Map<String, dynamic>);
-        case 'configure':
-          // Not implemented yet
-          break;
-        case 'streamInputChunk':
-          await _handleStreamInputChunk(
+          final params = ReflectionRunActionParams.fromJson(
             request['params'] as Map<String, dynamic>,
           );
-        case 'endStreamInput':
-          await _handleEndStreamInput(
+          await _handleRunAction(id, params);
+        case 'sendInputStreamChunk':
+          final params = ReflectionSendInputStreamChunkParams.fromJson(
             request['params'] as Map<String, dynamic>,
           );
+          await _handleSendInputStreamChunk(params);
+        case 'endInputStream':
+          final params = ReflectionEndInputStreamParams.fromJson(
+            request['params'] as Map<String, dynamic>,
+          );
+          await _handleEndInputStream(params);
         default:
           if (id != null) {
             _sendError(id, -32601, 'Method not found: $method');
@@ -169,7 +205,8 @@ class ReflectionServerV2 {
       convertedActions[key] = {
         'key': key,
         'name': action.name,
-        'description': action.metadata['description'],
+        if (action.metadata['description'] != null)
+          'description': action.metadata['description'],
         'metadata': action.metadata,
         if (action.inputSchema != null)
           'inputSchema': toJsonSchema(type: action.inputSchema),
@@ -179,17 +216,36 @@ class ReflectionServerV2 {
           'initSchema': toJsonSchema(type: action.initSchema),
       };
     }
-    _sendResponse(id, convertedActions);
+    final response = ReflectionListActionsResponse(actions: convertedActions);
+    _sendResponse(id, response.toJson());
   }
 
-  Future<void> _handleRunAction(dynamic id, Map<String, dynamic> params) async {
+  Future<void> _handleListValues(
+    dynamic id,
+    ReflectionListValuesParams? params,
+  ) async {
+    if (id == null) return;
+    final type = params?.type;
+    if (type == null) {
+      _sendError(id, -32602, 'Missing type parameter for listValues');
+      return;
+    }
+    final values = registry.listValues<dynamic>(type);
+    final response = ReflectionListValuesResponse(values: values);
+    _sendResponse(id, response.toJson());
+  }
+
+  Future<void> _handleRunAction(
+    dynamic id,
+    ReflectionRunActionParams params,
+  ) async {
     if (id == null) return;
 
-    final key = params['key'] as String;
-    final input = params['input'];
-    final context = params['context'] as Map<String, dynamic>?;
-    final stream = params['stream'] == true;
-    final streamInput = params['streamInput'] == true;
+    final key = params.key;
+    final input = params.input;
+    final context = params.context as Map<String, dynamic>?;
+    final stream = params.stream == true;
+    final streamInput = params.streamInput == true;
 
     final parts = key.split('/');
     if (parts.length < 3 || parts[0] != '') {
@@ -215,7 +271,18 @@ class ReflectionServerV2 {
         final result = await action.runRaw(
           input,
           onChunk: (chunk) {
-            _sendNotification('streamChunk', {'requestId': id, 'chunk': chunk});
+            final params = ReflectionStreamChunkParams(
+              requestId: id.toString(),
+              chunk: chunk,
+            );
+            _sendNotification('streamChunk', params.toJson());
+          },
+          onTraceStart: ({required String traceId, required String spanId}) {
+            final params = ReflectionRunActionStateParams(
+              requestId: id.toString(),
+              state: {'traceId': traceId, 'spanId': spanId},
+            );
+            _sendNotification('runActionState', params.toJson());
           },
           context: context,
           inputStream: inputStream,
@@ -228,6 +295,13 @@ class ReflectionServerV2 {
       } else {
         final result = await action.runRaw(
           input,
+          onTraceStart: ({required String traceId, required String spanId}) {
+            final params = ReflectionRunActionStateParams(
+              requestId: id.toString(),
+              state: {'traceId': traceId, 'spanId': spanId},
+            );
+            _sendNotification('runActionState', params.toJson());
+          },
           context: context,
           inputStream: inputStream,
         );
@@ -237,7 +311,7 @@ class ReflectionServerV2 {
         });
       }
     } catch (e, stack) {
-      printError(e, stack);
+      _logger.severe('Error running action: $e', stack);
       final errorResponse = {
         'code': 13, // StatusCodes.INTERNAL
         'message': e.toString(),
@@ -247,17 +321,21 @@ class ReflectionServerV2 {
     }
   }
 
-  Future<void> _handleStreamInputChunk(Map<String, dynamic> params) async {
-    final id = params['requestId'];
-    final chunk = params['chunk'];
-    if (id != null && _inputStreams.containsKey(id)) {
+  Future<void> _handleSendInputStreamChunk(
+    ReflectionSendInputStreamChunkParams params,
+  ) async {
+    final id = params.requestId;
+    final chunk = params.chunk;
+    if (_inputStreams.containsKey(id)) {
       _inputStreams[id]!.add(chunk);
     }
   }
 
-  Future<void> _handleEndStreamInput(Map<String, dynamic> params) async {
-    final id = params['requestId'];
-    if (id != null && _inputStreams.containsKey(id)) {
+  Future<void> _handleEndInputStream(
+    ReflectionEndInputStreamParams params,
+  ) async {
+    final id = params.requestId;
+    if (_inputStreams.containsKey(id)) {
       await _inputStreams[id]!.close();
       _inputStreams.remove(id);
     }
