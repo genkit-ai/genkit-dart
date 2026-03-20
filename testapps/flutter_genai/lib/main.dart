@@ -235,14 +235,10 @@ class RemoteModelTab extends StatefulWidget {
   const RemoteModelTab({super.key, required this.ai});
 
   @override
-  State<RemoteModelTab> createState() => _RemoteModelTabState(ai: ai);
+  State<RemoteModelTab> createState() => _RemoteModelTabState();
 }
 
 class _RemoteModelTabState extends State<RemoteModelTab> {
-  final Genkit ai;
-
-  _RemoteModelTabState({required this.ai});
-
   final _dietFriendlyController = TextEditingController(text: 'Vegan');
   final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
@@ -262,7 +258,7 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
         AiProvider.anthropic => 'anthropic/claude-sonnet-4-5',
       };
 
-      final stream = ai.generateStream(
+      final stream = widget.ai.generateStream(
         model: modelRef(modelName),
         prompt:
             'Create a ${_dietFriendlyController.text} recipe using ${_mainIngredientController.text}. '
