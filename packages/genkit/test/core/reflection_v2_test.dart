@@ -56,6 +56,7 @@ void main() {
         registry,
         url: 'ws://localhost:$port',
         name: 'test-app',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 
@@ -80,6 +81,7 @@ void main() {
       reflectionServer = ReflectionServerV2(
         registry,
         url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 
@@ -119,6 +121,7 @@ void main() {
       reflectionServer = ReflectionServerV2(
         registry,
         url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 
@@ -165,6 +168,7 @@ void main() {
       reflectionServer = ReflectionServerV2(
         registry,
         url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 
