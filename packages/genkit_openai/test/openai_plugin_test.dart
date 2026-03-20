@@ -400,7 +400,10 @@ void main() {
       final plugin = openAI(
         apiKey: 'test-key',
         models: [CustomModelDefinition(name: 'my-custom')],
-        httpClient: _throwingClient(Exception('connection refused')),
+        httpClient: _modelsClient(
+          body: '{"error":{"message":"Forbidden"}}',
+          statusCode: 403,
+        ),
       );
       // Should not throw
       final actions = await plugin.init();
@@ -457,7 +460,10 @@ void main() {
     test('API failure degrades gracefully', () async {
       final plugin = openAI(
         apiKey: 'test-key',
-        httpClient: _throwingClient(Exception('DNS resolution failed')),
+        httpClient: _modelsClient(
+          body: '{"error":{"message":"Forbidden"}}',
+          statusCode: 403,
+        ),
       );
       // Should not throw
       final metadata = await plugin.list();
@@ -485,10 +491,9 @@ MockClient _modelsClient({required String body, int statusCode = 200}) {
   );
 }
 
-/// Creates a [MockClient] that throws [error] on any request.
+/// Creates a [MockClient] that throws on any request.
 ///
-/// Uses plain [Exception] (not [http.ClientException]) so that
-/// openai_dart's retry wrapper rethrows immediately.
+/// Used as a sentinel to verify no HTTP calls are made.
 MockClient _throwingClient(Exception error) {
   return MockClient((_) => throw error);
 }
