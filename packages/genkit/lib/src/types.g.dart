@@ -4716,7 +4716,7 @@ base class ReflectionRegisterParams {
 
   ReflectionRegisterParams({
     required String id,
-    required double pid,
+    int? pid,
     String? name,
     String? genkitVersion,
     double? reflectionApiSpecVersion,
@@ -4724,7 +4724,7 @@ base class ReflectionRegisterParams {
   }) {
     _json = {
       'id': id,
-      'pid': pid,
+      'pid': ?pid,
       'name': ?name,
       'genkitVersion': ?genkitVersion,
       'reflectionApiSpecVersion': ?reflectionApiSpecVersion,
@@ -4745,12 +4745,16 @@ base class ReflectionRegisterParams {
     _json['id'] = value;
   }
 
-  double get pid {
-    return (_json['pid'] as num).toDouble();
+  int? get pid {
+    return _json['pid'] as int?;
   }
 
-  set pid(double value) {
-    _json['pid'] = value;
+  set pid(int? value) {
+    if (value == null) {
+      _json.remove('pid');
+    } else {
+      _json['pid'] = value;
+    }
   }
 
   String? get name {
@@ -4827,13 +4831,13 @@ base class _ReflectionRegisterParamsTypeFactory
         .object(
           properties: {
             'id': $Schema.string(),
-            'pid': $Schema.number(),
+            'pid': $Schema.integer(),
             'name': $Schema.string(),
             'genkitVersion': $Schema.string(),
             'reflectionApiSpecVersion': $Schema.number(),
             'envs': $Schema.list(items: $Schema.string()),
           },
-          required: ['id', 'pid'],
+          required: ['id'],
         )
         .value,
     dependencies: [],

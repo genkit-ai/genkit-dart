@@ -14,6 +14,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit/lite.dart' as lite;
 import 'package:genkit/client.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_openai/genkit_openai.dart';
@@ -22,11 +23,35 @@ import 'package:genkit_anthropic/genkit_anthropic.dart';
 import 'types.dart';
 
 void main() {
-  runApp(const MyApp());
+  final ai = Genkit();
+
+  ai.defineTool(
+    name: 'checkPantry',
+    description: 'Checks if we have specific spices in the kitchen pantry',
+    inputSchema: CheckPantryInput.$schema,
+    fn: (CheckPantryInput input, _) async =>
+        input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+  );
+
+  ai.defineRemoteModel(
+    name: 'googleai/gemini-2.5-flash',
+    url: 'http://localhost:8080/googleai/gemini-2.5-flash',
+  );
+  ai.defineRemoteModel(
+    name: 'openai/gpt-4o',
+    url: 'http://localhost:8080/openai/gpt-4o',
+  );
+  ai.defineRemoteModel(
+    name: 'anthropic/claude-sonnet-4-5',
+    url: 'http://localhost:8080/anthropic/claude-sonnet-4-5',
+  );
+
+  runApp(MyApp(ai: ai));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Genkit ai;
+  const MyApp({super.key, required this.ai});
 
   @override
   Widget build(BuildContext context) {
@@ -44,8 +69,12 @@ class MyApp extends StatelessWidget {
               ],
             ),
           ),
-          body: const TabBarView(
-            children: [ClientSideTab(), RemoteModelTab(), ServerFlowTab()],
+          body: TabBarView(
+            children: [
+              ClientSideTab(),
+              RemoteModelTab(ai: ai),
+              ServerFlowTab(),
+            ],
           ),
         ),
       ),
@@ -83,24 +112,7 @@ class _ClientSideTabState extends State<ClientSideTab> {
     });
 
     try {
-      final ai = Genkit(
-        plugins: [
-          switch (_selectedProvider) {
-            AiProvider.google => googleAI(apiKey: apiKey),
-            AiProvider.openai => openAI(apiKey: apiKey),
-            AiProvider.anthropic => anthropic(
-              apiKey: apiKey,
-              headers: {
-                // Required for direct browser access.
-                // DO NOT use this in production.
-                'anthropic-dangerous-direct-browser-access': 'true',
-              },
-            ),
-          },
-        ],
-      );
-
-      ai.defineTool(
+      final tool = Tool(
         name: 'checkPantry',
         description: 'Checks if we have specific spices in the kitchen pantry',
         inputSchema: CheckPantryInput.$schema,
@@ -109,17 +121,24 @@ class _ClientSideTabState extends State<ClientSideTab> {
       );
 
       final model = switch (_selectedProvider) {
-        AiProvider.google => googleAI.gemini('gemini-2.5-flash'),
-        AiProvider.openai => openAI.model('gpt-4o'),
-        AiProvider.anthropic => anthropic.model('claude-sonnet-4-5'),
+        AiProvider.google => googleAI(apiKey: apiKey).model('gemini-2.5-flash'),
+        AiProvider.openai => openAI(apiKey: apiKey).model('gpt-4o'),
+        AiProvider.anthropic => anthropic(
+          apiKey: apiKey,
+          headers: {
+            // Required for direct browser access.
+            // DO NOT use this in production.
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+        ).model('claude-sonnet-4-5'),
       };
 
-      final stream = ai.generateStream(
+      final stream = lite.generateStream(
         model: model,
         prompt:
             'Create a ${_dietFriendlyController.text} recipe using ${_mainIngredientController.text}. '
             'Before suggesting spices, check the pantry to see if we have them.',
-        toolNames: ['checkPantry'],
+        tools: [tool],
       );
 
       await for (final chunk in stream) {
@@ -212,13 +231,18 @@ class _ClientSideTabState extends State<ClientSideTab> {
 }
 
 class RemoteModelTab extends StatefulWidget {
-  const RemoteModelTab({super.key});
+  final Genkit ai;
+  const RemoteModelTab({super.key, required this.ai});
 
   @override
-  State<RemoteModelTab> createState() => _RemoteModelTabState();
+  State<RemoteModelTab> createState() => _RemoteModelTabState(ai: ai);
 }
 
 class _RemoteModelTabState extends State<RemoteModelTab> {
+  final Genkit ai;
+
+  _RemoteModelTabState({required this.ai});
+
   final _dietFriendlyController = TextEditingController(text: 'Vegan');
   final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
@@ -232,27 +256,14 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
     });
 
     try {
-      final ai = Genkit();
-
-      final url = switch (_selectedProvider) {
-        AiProvider.google => 'http://localhost:8080/googleai/gemini-2.5-flash',
-        AiProvider.openai => 'http://localhost:8080/openai/gpt-4o',
-        AiProvider.anthropic =>
-          'http://localhost:8080/anthropic/claude-sonnet-4-5',
+      final modelName = switch (_selectedProvider) {
+        AiProvider.google => 'googleai/gemini-2.5-flash',
+        AiProvider.openai => 'openai/gpt-4o',
+        AiProvider.anthropic => 'anthropic/claude-sonnet-4-5',
       };
 
-      final remoteModel = ai.defineRemoteModel(name: 'remoteModel', url: url);
-
-      ai.defineTool(
-        name: 'checkPantry',
-        description: 'Checks if we have specific spices in the kitchen pantry',
-        inputSchema: CheckPantryInput.$schema,
-        fn: (CheckPantryInput input, _) async =>
-            input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
-      );
-
       final stream = ai.generateStream(
-        model: remoteModel,
+        model: modelRef(modelName),
         prompt:
             'Create a ${_dietFriendlyController.text} recipe using ${_mainIngredientController.text}. '
             'Before suggesting spices, check the pantry to see if we have them.',

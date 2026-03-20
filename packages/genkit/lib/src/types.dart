@@ -395,7 +395,7 @@ abstract class $ReflectionListValuesResponse {
 @Schema()
 abstract class $ReflectionRegisterParams {
   String get id;
-  double get pid;
+  int? get pid;
   String? get name;
   String? get genkitVersion;
   double? get reflectionApiSpecVersion;

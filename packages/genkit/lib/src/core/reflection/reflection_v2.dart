@@ -35,17 +35,18 @@ class ReflectionServerV2 {
   final String url;
   final List<String> configuredEnvs;
   final String? name;
+  final String runtimeId;
 
   WebSocketChannel? _ws;
-  final String _pid = getPid();
   final int _apiIndex = reflectionInstanceCount++;
   final Map<dynamic, StreamController> _inputStreams = {};
 
   ReflectionServerV2(
     this.registry, {
     required this.url,
-    this.configuredEnvs = const ['dev'],
+    this.configuredEnvs = const [],
     this.name,
+    required this.runtimeId,
   });
 
   Future<void> start() async {
@@ -105,12 +106,14 @@ class ReflectionServerV2 {
     _send({'jsonrpc': '2.0', 'method': method, 'params': params});
   }
 
-  String get _runtimeId => '$_pid${_apiIndex > 0 ? '-$_apiIndex' : ''}';
+  String get _runtimeId => runtimeId.isEmpty
+      ? '${getPid() == 0 ? 'web' : getPid()}${_apiIndex > 0 ? '-$_apiIndex' : ''}'
+      : runtimeId;
 
   void _register() {
     final params = ReflectionRegisterParams(
-      id: getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
-      pid: double.parse(_pid),
+      id: _runtimeId,
+      pid: getPid(),
       name: name ?? _runtimeId,
       genkitVersion: genkitVersion,
       reflectionApiSpecVersion: genkitReflectionApiSpecVersion.toDouble(),
@@ -202,7 +205,8 @@ class ReflectionServerV2 {
       convertedActions[key] = {
         'key': key,
         'name': action.name,
-        'description': action.metadata['description'],
+        if (action.metadata['description'] != null)
+          'description': action.metadata['description'],
         'metadata': action.metadata,
         if (action.inputSchema != null)
           'inputSchema': toJsonSchema(type: action.inputSchema),
@@ -216,7 +220,10 @@ class ReflectionServerV2 {
     _sendResponse(id, response.toJson());
   }
 
-  Future<void> _handleListValues(dynamic id, ReflectionListValuesParams? params) async {
+  Future<void> _handleListValues(
+    dynamic id,
+    ReflectionListValuesParams? params,
+  ) async {
     if (id == null) return;
     final type = params?.type;
     if (type == null) {
@@ -228,7 +235,10 @@ class ReflectionServerV2 {
     _sendResponse(id, response.toJson());
   }
 
-  Future<void> _handleRunAction(dynamic id, ReflectionRunActionParams params) async {
+  Future<void> _handleRunAction(
+    dynamic id,
+    ReflectionRunActionParams params,
+  ) async {
     if (id == null) return;
 
     final key = params.key;
@@ -293,7 +303,9 @@ class ReflectionServerV2 {
     }
   }
 
-  Future<void> _handleSendInputStreamChunk(ReflectionSendInputStreamChunkParams params) async {
+  Future<void> _handleSendInputStreamChunk(
+    ReflectionSendInputStreamChunkParams params,
+  ) async {
     final id = params.requestId;
     final chunk = params.chunk;
     if (_inputStreams.containsKey(id)) {
@@ -301,7 +313,9 @@ class ReflectionServerV2 {
     }
   }
 
-  Future<void> _handleEndInputStream(ReflectionEndInputStreamParams params) async {
+  Future<void> _handleEndInputStream(
+    ReflectionEndInputStreamParams params,
+  ) async {
     final id = params.requestId;
     if (_inputStreams.containsKey(id)) {
       await _inputStreams[id]!.close();
