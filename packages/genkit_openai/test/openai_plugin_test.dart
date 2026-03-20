@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart' hide Tool;
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:openai_dart/openai_dart.dart'
     show AssistantMessage, ContentPart, SystemMessage, ToolMessage, UserMessage;
 import 'package:test/test.dart';
@@ -348,4 +352,163 @@ void main() {
       expect(def.info?.label, 'Custom Model');
     });
   });
+
+  group('init()', () {
+    test('registers models from API when baseUrl is null', () async {
+      final plugin = openAI(
+        apiKey: 'test-key',
+        httpClient: _modelsClient(
+          body: _modelsResponse(['gpt-4o', 'gpt-4o-mini', 'dall-e-3']),
+        ),
+      );
+      final actions = await plugin.init();
+      final names = actions.map((a) => a.name).toList();
+      expect(names, contains('openai/gpt-4o'));
+      expect(names, contains('openai/gpt-4o-mini'));
+      // dall-e-3 is an image model, should be filtered out
+      expect(names, isNot(contains('openai/dall-e-3')));
+    });
+
+    test('skips API call when baseUrl is set', () async {
+      // Throwing client proves no HTTP call is made
+      final plugin = openAI(
+        apiKey: 'test-key',
+        baseUrl: 'https://custom.api.example.com/v1',
+        httpClient: _throwingClient(Exception('should not be called')),
+      );
+      final actions = await plugin.init();
+      expect(actions, isEmpty);
+    });
+
+    test('registers custom models when baseUrl is set', () async {
+      final plugin = openAI(
+        apiKey: 'test-key',
+        baseUrl: 'https://custom.api.example.com/v1',
+        models: [
+          CustomModelDefinition(name: 'my-model'),
+          CustomModelDefinition(name: 'my-other-model'),
+        ],
+        httpClient: _throwingClient(Exception('should not be called')),
+      );
+      final actions = await plugin.init();
+      final names = actions.map((a) => a.name).toList();
+      expect(names, contains('openai/my-model'));
+      expect(names, contains('openai/my-other-model'));
+    });
+
+    test('API failure degrades gracefully, custom models survive', () async {
+      final plugin = openAI(
+        apiKey: 'test-key',
+        models: [CustomModelDefinition(name: 'my-custom')],
+        httpClient: _modelsClient(
+          body: '{"error":{"message":"Forbidden"}}',
+          statusCode: 403,
+        ),
+      );
+      // Should not throw
+      final actions = await plugin.init();
+      final names = actions.map((a) => a.name).toList();
+      expect(names, contains('openai/my-custom'));
+    });
+
+    test('401 error degrades gracefully', () async {
+      final plugin = openAI(
+        apiKey: 'bad-key',
+        models: [CustomModelDefinition(name: 'my-custom')],
+        httpClient: _modelsClient(
+          body: '{"error":{"message":"Invalid API key"}}',
+          statusCode: 401,
+        ),
+      );
+      final actions = await plugin.init();
+      final names = actions.map((a) => a.name).toList();
+      expect(names, contains('openai/my-custom'));
+    });
+  });
+
+  group('list()', () {
+    test('returns model metadata when baseUrl is null', () async {
+      final plugin = openAI(
+        apiKey: 'test-key',
+        httpClient: _modelsClient(
+          body: _modelsResponse(['gpt-4o', 'gpt-4o-mini', 'dall-e-3']),
+        ),
+      );
+      final metadata = await plugin.list();
+      final names = metadata.map((m) => m.name).toList();
+      expect(names, contains('openai/gpt-4o'));
+      expect(names, contains('openai/gpt-4o-mini'));
+      // dall-e-3 is an image model, should be filtered out
+      expect(names, isNot(contains('openai/dall-e-3')));
+    });
+
+    test('discovers models from custom baseUrl', () async {
+      final plugin = openAI(
+        apiKey: 'test-key',
+        baseUrl: 'https://ollama.local/v1',
+        httpClient: _modelsClient(
+          body: _modelsResponse(['llama3', 'codestral']),
+        ),
+      );
+      final metadata = await plugin.list();
+      final names = metadata.map((m) => m.name).toList();
+      // Both are 'unknown' type which is included
+      expect(names, contains('openai/llama3'));
+      expect(names, contains('openai/codestral'));
+    });
+
+    test('API failure degrades gracefully', () async {
+      final plugin = openAI(
+        apiKey: 'test-key',
+        httpClient: _modelsClient(
+          body: '{"error":{"message":"Forbidden"}}',
+          statusCode: 403,
+        ),
+      );
+      // Should not throw
+      final metadata = await plugin.list();
+      expect(metadata, isEmpty);
+    });
+
+    test('401 error degrades gracefully', () async {
+      final plugin = openAI(
+        apiKey: 'bad-key',
+        httpClient: _modelsClient(
+          body: '{"error":{"message":"Invalid API key"}}',
+          statusCode: 401,
+        ),
+      );
+      final metadata = await plugin.list();
+      expect(metadata, isEmpty);
+    });
+  });
+}
+
+/// Creates a [MockClient] that returns a canned response for `/models`.
+MockClient _modelsClient({required String body, int statusCode = 200}) {
+  return MockClient(
+    (_) async => http.Response(body, statusCode),
+  );
+}
+
+/// Creates a [MockClient] that throws on any request.
+///
+/// Used as a sentinel to verify no HTTP calls are made.
+MockClient _throwingClient(Exception error) {
+  return MockClient((_) => throw error);
+}
+
+/// Returns a valid OpenAI `/v1/models` JSON response body.
+String _modelsResponse(List<String> modelIds) {
+  final models = modelIds
+      .map(
+        (id) => {
+          'id': id,
+          'object': 'model',
+          'created': 1700000000,
+          'owned_by': 'test',
+        },
+      )
+      .toList();
+  return jsonEncode({'object': 'list', 'data': models});
 }
