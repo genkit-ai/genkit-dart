@@ -14,10 +14,13 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
 import 'package:schemantic/schemantic.dart';
 
 import '../genkit_openai.dart';
+
+final _logger = Logger('genkit_openai');
 
 /// Returns true when the output config indicates JSON-structured output
 /// (format is 'json' or contentType is 'application/json').
@@ -76,10 +79,12 @@ class OpenAIPlugin extends GenkitPlugin {
           final info = _getModelInfo(modelId);
           actions.add(_createModel(modelId, info));
         }
-      } catch (e) {
-        throw GenkitException(
-          'Error fetching available models from OpenAI: $e',
-          underlyingException: e,
+      } catch (e, s) {
+        _logger.warning(
+          'Failed to fetch available models from OpenAI. '
+          'Only custom models will be available.',
+          e,
+          s,
         );
       }
     }
@@ -271,12 +276,9 @@ class OpenAIPlugin extends GenkitPlugin {
       }
 
       return modelMetadataList;
-    } catch (e, stackTrace) {
-      throw GenkitException(
-        'Error listing models from OpenAI: $e',
-        underlyingException: e,
-        stackTrace: stackTrace,
-      );
+    } catch (e, s) {
+      _logger.warning('Failed to list models from OpenAI', e, s);
+      return [];
     }
   }
 
