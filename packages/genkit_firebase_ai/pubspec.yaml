@@ -27,8 +27,8 @@ dev_dependencies:
 
 # Used to resolve local packages during development
 dependency_overrides:
+  dartastic_opentelemetry_api: 1.0.0-alpha
   genkit:
     path: ../genkit
   schemantic:
     path: ../schemantic
-  dartastic_opentelemetry_api: 1.0.0-alpha

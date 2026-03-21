@@ -21,9 +21,6 @@ dependencies:
   stack_trace: ^1.12.0
   web_socket_channel: ^3.0.3
 
-dependency_overrides:
-  dartastic_opentelemetry_api: 1.0.0-alpha
-
 dev_dependencies:
   async: ^2.13.0
   build_runner: ^2.10.5
