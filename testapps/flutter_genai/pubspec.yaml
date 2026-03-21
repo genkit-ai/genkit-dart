@@ -38,6 +38,7 @@ dependency_overrides:
     path: ../../packages/genkit_shelf
   schemantic:
     path: ../../packages/schemantic
+  dartastic_opentelemetry_api: 1.0.0-alpha
 
 dev_dependencies:
   flutter_test:

@@ -16,11 +16,11 @@
 
 import 'dart:convert';
 
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 import 'package:genkit/src/o11y/telemetry/exporter_impl.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:opentelemetry/api.dart' as api;
-import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:test/test.dart';
 
 void main() {
@@ -81,27 +81,32 @@ void main() {
         client: client,
       );
 
-      final processor = sdk.SimpleSpanProcessor(exporter);
-      final provider = sdk.TracerProviderBase(
-        processors: [processor],
-        resource: sdk.Resource([
-          api.Attribute.fromString('service.name', 'test-service'),
-        ]),
+      final processor = SimpleSpanProcessor(exporter);
+
+      OTelFactory.otelFactory ??= otelSDKFactoryFactoryFunction(
+        apiEndpoint: 'http://localhost:4317',
+        apiServiceName: 'test-service',
+        apiServiceVersion: '1.2.3',
       );
+
+      final provider = OTel.tracerProvider();
+      provider.addSpanProcessor(processor);
+      provider.resource = OTel.resource(
+        OTel.attributes([OTel.attributeString('service.name', 'test-service')]),
+      );
+
       final tracer = provider.getTracer('test-tracer', version: '1.2.3');
 
       final parentSpan = tracer.startSpan('parent-span');
 
-      final context = api.contextWithSpan(api.Context.current, parentSpan);
+      final context = Context.current.withSpan(parentSpan);
 
       final span = tracer.startSpan('test-span', context: context);
-      span.setAttribute(
-        api.Attribute.fromString('test-attribute', 'test-value'),
-      );
-      span.setStatus(api.StatusCode.error, 'test-error');
+      span.setStringAttribute('test-attribute', 'test-value');
+      span.setStatus(SpanStatusCode.Error, 'test-error');
       span.end();
 
-      processor.forceFlush();
+      await processor.forceFlush();
     });
   });
 }

@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:opentelemetry/sdk.dart' as sdk;
+import 'dart:async';
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
 
-class TextExporter implements sdk.SpanExporter {
+class TextExporter implements SpanExporter {
   var _isShutdown = false;
-  final List<sdk.ReadOnlySpan> spans = [];
+  final List<Span> spans = [];
 
   @override
-  void export(List<sdk.ReadOnlySpan> spans) {
+  Future<void> export(List<Span> spans) async {
     if (_isShutdown) {
       return;
     }
@@ -30,16 +31,13 @@ class TextExporter implements sdk.SpanExporter {
     spans.clear();
   }
 
-  @Deprecated(
-    'This method will be removed in 0.19.0. Use [SpanProcessor] instead.',
-  )
   @override
-  void forceFlush() {
+  Future<void> forceFlush() async {
     return;
   }
 
   @override
-  void shutdown() {
+  Future<void> shutdown() async {
     _isShutdown = true;
   }
 }
