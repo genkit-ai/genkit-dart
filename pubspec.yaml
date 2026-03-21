@@ -41,6 +41,9 @@ dev_dependencies:
   pub_semver: ^2.2.0
   test: ^1.30.0
   yaml: ^3.1.2
+
+dependency_overrides:
+  dartastic_opentelemetry_api: 1.0.0-alpha
   
 melos:
   name: genkit_workspace

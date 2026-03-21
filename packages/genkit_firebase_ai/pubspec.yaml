@@ -31,3 +31,4 @@ dependency_overrides:
     path: ../genkit
   schemantic:
     path: ../schemantic
+  dartastic_opentelemetry_api: 1.0.0-alpha
