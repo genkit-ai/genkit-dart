@@ -12,31 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 import 'package:genkit/genkit.dart';
-import 'package:opentelemetry/api.dart' as api;
-import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:test/test.dart';
 import '../test_util.dart';
 
 void main() {
   group('Instrumentation with nested spans', () {
-    late sdk.TracerProviderBase provider;
+    late TracerProvider provider;
     late TextExporter exporter;
-    late sdk.SimpleSpanProcessor processor;
+    late SimpleSpanProcessor processor;
     late Genkit genkit;
 
-    setUp(() {
+    setUp(() async {
+      // Reset OTel for each test
+      await OTel.reset();
+
       // Set up an in-memory exporter to capture spans
       exporter = TextExporter();
-      processor = sdk.SimpleSpanProcessor(exporter);
-      provider = sdk.TracerProviderBase(processors: [processor]);
-      api.registerGlobalTracerProvider(provider);
+      processor = SimpleSpanProcessor(exporter);
+
+      OTelFactory.otelFactory = otelSDKFactoryFactoryFunction(
+        apiEndpoint: 'http://localhost:4317',
+        apiServiceName: 'genkit-dart-test',
+        apiServiceVersion: '0.11.1',
+      );
+
+      provider = OTel.tracerProvider();
+      provider.addSpanProcessor(processor);
 
       genkit = Genkit();
     });
 
-    tearDown(() {
-      provider.shutdown();
+    tearDown(() async {
+      await provider.shutdown();
+      await OTel.reset();
     });
 
     test(
@@ -59,7 +70,7 @@ void main() {
         await parentFlow('World');
 
         // Force flush to ensure spans are exported
-        processor.forceFlush();
+        await processor.forceFlush();
 
         final spans = exporter.spans;
         expect(spans.length, 2);
@@ -68,8 +79,11 @@ void main() {
         final childSpan = spans.firstWhere((s) => s.name == 'childFlow');
 
         // Verify the parent-child relationship
-        expect(childSpan.parentSpanId, parentSpan.spanContext.spanId);
-        expect(parentSpan.parentSpanId.isValid, isFalse);
+        expect(
+          childSpan.spanContext.parentSpanId,
+          parentSpan.spanContext.spanId,
+        );
+        expect(parentSpan.spanContext.parentSpanId!.isValid, isFalse);
       },
     );
   });

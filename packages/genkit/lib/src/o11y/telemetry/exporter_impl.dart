@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: invalid_use_of_visible_for_testing_member
+
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
-import 'package:opentelemetry/api.dart' as api;
-import 'package:opentelemetry/sdk.dart' as sdk;
 
 final _logger = Logger('CollectorHttpExporter');
 
@@ -25,8 +28,14 @@ void setupExporter(String baseUrl) {
   try {
     final exporter = CollectorHttpExporter('$baseUrl/api/otlp');
     final processor = RealtimeSpanProcessor(exporter);
-    final provider = sdk.TracerProviderBase(processors: [processor]);
-    api.registerGlobalTracerProvider(provider);
+
+    OTelFactory.otelFactory ??= otelSDKFactoryFactoryFunction(
+      apiEndpoint: baseUrl,
+      apiServiceName: 'genkit-dart',
+      apiServiceVersion: '0.11.1',
+    );
+
+    OTel.tracerProvider().addSpanProcessor(processor);
   } catch (e, stackTrace) {
     _logger.warning(
       'Failed to configure telemetry exporter: $e',
@@ -36,7 +45,7 @@ void setupExporter(String baseUrl) {
   }
 }
 
-class CollectorHttpExporter implements sdk.SpanExporter {
+class CollectorHttpExporter implements SpanExporter {
   final Uri _uri;
   final Map<String, String> _headers;
   final http.Client _client;
@@ -51,132 +60,135 @@ class CollectorHttpExporter implements sdk.SpanExporter {
        _client = client ?? http.Client();
 
   @override
-  void export(List<sdk.ReadOnlySpan> spans) {
+  Future<void> export(List<Span> spans) async {
     if (_isShutdown) {
       return;
     }
 
     final body = {'resourceSpans': _translateSpans(spans)};
 
-    _client
-        .post(
-          _uri,
-          headers: {'Content-Type': 'application/json', ..._headers},
-          body: jsonEncode(body),
-        )
-        .then(
-          (_) {},
-          onError: (e, stackTrace) {
-            _logger.severe('Failed to export spans: $e', stackTrace);
-          },
-        );
+    try {
+      await _client.post(
+        _uri,
+        headers: {'Content-Type': 'application/json', ..._headers},
+        body: jsonEncode(body),
+      );
+    } catch (e, stackTrace) {
+      _logger.severe('Failed to export spans: $e', stackTrace);
+    }
   }
 
   @override
-  void forceFlush() {
+  Future<void> forceFlush() async {
     // This exporter does not buffer spans, so this is a no-op.
   }
 
   @override
-  void shutdown() {
+  Future<void> shutdown() async {
     _isShutdown = true;
   }
 
-  List<Map<String, dynamic>> _translateSpans(List<sdk.ReadOnlySpan> spans) {
-    final resourceSpans =
+  List<Map<String, dynamic>> _translateSpans(List<Span> spans) {
+    final resourceGroups =
         <
-          sdk.Resource,
-          Map<sdk.InstrumentationScope, List<Map<String, dynamic>>>
+          Resource?,
+          Map<String, (InstrumentationScope, List<Map<String, dynamic>>)>
         >{};
 
     for (final span in spans) {
       final resource = span.resource;
       final scope = span.instrumentationScope;
+      final scopeKey = '${scope.name}:${scope.version}:${scope.schemaUrl}';
 
-      final scopeSpans = resourceSpans.putIfAbsent(resource, () => {});
-      final spanList = scopeSpans.putIfAbsent(scope, () => []);
+      final scopeSpans = resourceGroups.putIfAbsent(resource, () => {});
+      final scopeEntry = scopeSpans.putIfAbsent(scopeKey, () => (scope, []));
 
-      spanList.add(_translateSpan(span));
+      scopeEntry.$2.add(_translateSpan(span));
     }
 
-    return resourceSpans.entries.map((resourceEntry) {
+    return resourceGroups.entries.map((resourceEntry) {
+      final resource = resourceEntry.key;
       return {
         'resource': {
-          'attributes': _translateAttributes(resourceEntry.key.attributes),
+          'attributes': resource != null
+              ? _translateAttributes(resource.attributes)
+              : [],
           'droppedAttributesCount': 0,
         },
-        'scopeSpans': resourceEntry.value.entries.map((scopeEntry) {
+        'scopeSpans': resourceEntry.value.values.map((scopeGroup) {
+          final scope = scopeGroup.$1;
           return {
-            'scope': {
-              'name': scopeEntry.key.name,
-              'version': scopeEntry.key.version,
-            },
-            'spans': scopeEntry.value,
+            'scope': {'name': scope.name, 'version': scope.version},
+            'spans': scopeGroup.$2,
           };
         }).toList(),
       };
     }).toList();
   }
 
-  Map<String, dynamic> _translateSpan(sdk.ReadOnlySpan span) {
+  Map<String, dynamic> _translateSpan(Span span) {
     final map = <String, dynamic>{
       'traceId': span.spanContext.traceId.toString(),
       'spanId': span.spanContext.spanId.toString(),
       'name': span.name,
       'kind': _translateSpanKind(span.kind),
-      'startTimeUnixNano': span.startTime.toInt().toString(),
-      'endTimeUnixNano': (span.endTime?.toInt() ?? 0).toString(),
+      'startTimeUnixNano': (span.startTime.microsecondsSinceEpoch * 1000)
+          .toString(),
+      'endTimeUnixNano': (span.endTime != null)
+          ? (span.endTime!.microsecondsSinceEpoch * 1000).toString()
+          : '0',
       'attributes': _translateAttributes(span.attributes),
       'droppedAttributesCount': 0,
-      'events': [],
+      'events': _translateEvents(span.spanEvents),
       'droppedEventsCount': 0,
-      'status': _translateStatus(span.status),
-      'links': [],
+      'status': _translateStatus(span.status, span.statusDescription),
+      'links': _translateLinks(span.spanLinks),
       'droppedLinksCount': 0,
     };
-    if (span.parentSpanId.isValid) {
-      map['parentSpanId'] = span.parentSpanId.toString();
+    final parentSpanId = span.spanContext.parentSpanId;
+    if (parentSpanId != null && parentSpanId.isValid) {
+      map['parentSpanId'] = parentSpanId.toString();
     }
     return map;
   }
 
-  int _translateSpanKind(api.SpanKind kind) {
+  int _translateSpanKind(SpanKind kind) {
     return switch (kind) {
-      api.SpanKind.internal => 1,
-      api.SpanKind.server => 2,
-      api.SpanKind.client => 3,
-      api.SpanKind.producer => 4,
-      api.SpanKind.consumer => 5,
+      SpanKind.internal => 1,
+      SpanKind.server => 2,
+      SpanKind.client => 3,
+      SpanKind.producer => 4,
+      SpanKind.consumer => 5,
     };
   }
 
-  List<Map<String, dynamic>> _translateAttributes(sdk.Attributes attributes) {
+  List<Map<String, dynamic>> _translateAttributes(Attributes attributes) {
     final result = <Map<String, dynamic>>[];
-    for (var key in attributes.keys) {
-      final value = attributes.get(key);
+    for (var attr in attributes.toList()) {
+      final value = attr.value;
       if (value is String) {
         result.add({
-          'key': key,
+          'key': attr.key,
           'value': {'stringValue': value},
         });
       } else if (value is bool) {
         result.add({
-          'key': key,
+          'key': attr.key,
           'value': {'boolValue': value},
         });
       } else if (value is int) {
         result.add({
-          'key': key,
+          'key': attr.key,
           'value': {'intValue': value},
         });
       } else if (value is double) {
         result.add({
-          'key': key,
+          'key': attr.key,
           'value': {'doubleValue': value},
         });
       } else {
         result.add({
-          'key': key,
+          'key': attr.key,
           'value': {'stringValue': value.toString()},
         });
       }
@@ -184,39 +196,77 @@ class CollectorHttpExporter implements sdk.SpanExporter {
     return result;
   }
 
-  Map<String, dynamic> _translateStatus(api.SpanStatus status) {
-    final code = switch (status.code) {
-      api.StatusCode.ok => 1,
-      api.StatusCode.error => 2,
-      api.StatusCode.unset => 0,
+  Map<String, dynamic> _translateStatus(
+    SpanStatusCode status,
+    String? message,
+  ) {
+    final code = switch (status) {
+      SpanStatusCode.Ok => 1,
+      SpanStatusCode.Error => 2,
+      SpanStatusCode.Unset => 0,
     };
-    return {'code': code, 'message': status.description};
+    return {'code': code, 'message': message ?? ''};
+  }
+
+  List<Map<String, dynamic>> _translateEvents(List<SpanEvent>? events) {
+    if (events == null) return [];
+    return events
+        .map(
+          (e) => {
+            'timeUnixNano': (e.timestamp.microsecondsSinceEpoch * 1000)
+                .toString(),
+            'name': e.name,
+            'attributes': e.attributes != null
+                ? _translateAttributes(e.attributes!)
+                : [],
+            'droppedAttributesCount': 0,
+          },
+        )
+        .toList();
+  }
+
+  List<Map<String, dynamic>> _translateLinks(List<SpanLink>? links) {
+    if (links == null) return [];
+    return links
+        .map(
+          (l) => {
+            'traceId': l.spanContext.traceId.toString(),
+            'spanId': l.spanContext.spanId.toString(),
+            'attributes': _translateAttributes(l.attributes),
+            'droppedAttributesCount': 0,
+          },
+        )
+        .toList();
   }
 }
 
-class RealtimeSpanProcessor implements sdk.SpanProcessor {
-  final sdk.SpanExporter _exporter;
+class RealtimeSpanProcessor implements SpanProcessor {
+  final SpanExporter _exporter;
 
   RealtimeSpanProcessor(this._exporter);
 
   @override
-  void onStart(sdk.ReadWriteSpan span, api.Context parentContext) {
-    _exporter.export([span]);
+  Future<void> onStart(Span span, Context? parentContext) async {
+    await _exporter.export([span]);
   }
 
   @override
-  void onEnd(sdk.ReadOnlySpan span) {
-    _exporter.export([span]);
+  Future<void> onEnd(Span span) async {
+    await _exporter.export([span]);
   }
 
   @override
-  void shutdown() {
-    _exporter.shutdown();
+  Future<void> shutdown() async {
+    await _exporter.shutdown();
   }
 
   @override
-  void forceFlush() {
-    // ignore: deprecated_member_use
-    _exporter.forceFlush();
+  Future<void> forceFlush() async {
+    await _exporter.forceFlush();
+  }
+
+  @override
+  Future<void> onNameUpdate(Span span, String newName) async {
+    // ignore
   }
 }

@@ -15,9 +15,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:opentelemetry/api.dart' as api;
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 
-final _tracer = api.globalTracerProvider.getTracer('genkit-dart');
+final _tracer = OTelAPI.tracer('genkit-dart');
 
 typedef TelemetryContext = ({
   Map<String, String> attributes,
@@ -32,73 +32,59 @@ Future<Output> runInNewSpan<Input, Output>(
   Input? input,
   Map<String, String>? attributes,
 }) async {
-  final parentContext = Zone.current[#api.context] as api.Context?;
-  final spanAttributes = <api.Attribute>[];
-  spanAttributes.add(api.Attribute.fromString('genkit:name', name));
+  final spanAttributes = <Attribute>[];
+  spanAttributes.add(OTelAPI.attributeString('genkit:name', name));
   if (actionType != null) {
     spanAttributes.addAll([
-      api.Attribute.fromString('genkit:type', actionType),
+      OTelAPI.attributeString('genkit:type', actionType),
       // tmp hack...
       if (actionType == 'flow')
-        api.Attribute.fromString('genkit:metadata:flow:name', name),
+        OTelAPI.attributeString('genkit:metadata:flow:name', name),
     ]);
   }
   if (input != null) {
     try {
       spanAttributes.add(
-        api.Attribute.fromString('genkit:input', jsonEncode(input)),
+        OTelAPI.attributeString('genkit:input', jsonEncode(input)),
       );
     } catch (e) {
       spanAttributes.add(
-        api.Attribute.fromString('genkit:input', 'Unable to encode input: $e'),
+        OTelAPI.attributeString('genkit:input', 'Unable to encode input: $e'),
       );
     }
   }
   attributes?.forEach((key, value) {
-    spanAttributes.add(api.Attribute.fromString(key, value));
+    spanAttributes.add(OTelAPI.attributeString(key, value));
   });
-  final span = parentContext == null
-      ? _tracer.startSpan(name, attributes: spanAttributes)
-      : _tracer.startSpan(
-          name,
-          context: parentContext,
-          attributes: spanAttributes,
-        );
-  return runZoned(
-    () async {
-      try {
-        final telemetryContext = (
-          attributes: <String, String>{},
-          traceId: span.spanContext.traceId.toString(),
-          spanId: span.spanContext.spanId.toString(),
-        );
-        final output = await fn(telemetryContext);
-        telemetryContext.attributes.forEach((key, value) {
-          span.setAttribute(api.Attribute.fromString(key, value));
-        });
-        try {
-          span.setAttribute(
-            api.Attribute.fromString('genkit:output', jsonEncode(output)),
-          );
-        } catch (e) {
-          // Ignore json encoding errors for output
-          span.setAttribute(
-            api.Attribute.fromString(
-              'genkit:output',
-              'Unable to encode output: $e',
-            ),
-          );
-        }
-        return output;
-      } catch (e, s) {
-        span
-          ..setStatus(api.StatusCode.error, e.toString())
-          ..recordException(e, stackTrace: s);
-        rethrow;
-      } finally {
-        span.end();
-      }
-    },
-    zoneValues: {#api.context: api.contextWithSpan(api.Context.current, span)},
+
+  final span = _tracer.startSpan(
+    name,
+    attributes: OTelAPI.attributes(spanAttributes),
   );
+
+  return Context.current.withSpan(span).run(() async {
+    try {
+      final telemetryContext = (
+        attributes: <String, String>{},
+        traceId: span.spanContext.traceId.toString(),
+        spanId: span.spanContext.spanId.toString(),
+      );
+      final output = await fn(telemetryContext);
+      telemetryContext.attributes.forEach(span.setStringAttribute);
+      try {
+        span.setStringAttribute('genkit:output', jsonEncode(output));
+      } catch (e) {
+        // Ignore json encoding errors for output
+        span.setStringAttribute('genkit:output', 'Unable to encode output: $e');
+      }
+      return output;
+    } catch (e, s) {
+      span
+        ..setStatus(SpanStatusCode.Error, e.toString())
+        ..recordException(e, stackTrace: s);
+      rethrow;
+    } finally {
+      span.end();
+    }
+  });
 }
