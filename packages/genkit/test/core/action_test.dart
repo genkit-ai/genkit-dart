@@ -44,7 +44,7 @@ void main() {
     OTelFactory.otelFactory = otelSDKFactoryFactoryFunction(
       apiEndpoint: 'http://localhost:4317',
       apiServiceName: 'genkit-dart-test',
-      apiServiceVersion: '0.11.1',
+      apiServiceVersion: '0.12.0',
     );
 
     provider = OTel.tracerProvider();

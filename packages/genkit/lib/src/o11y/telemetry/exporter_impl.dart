@@ -32,7 +32,7 @@ void setupExporter(String baseUrl) {
     OTelFactory.otelFactory ??= otelSDKFactoryFactoryFunction(
       apiEndpoint: baseUrl,
       apiServiceName: 'genkit-dart',
-      apiServiceVersion: '0.11.1',
+      apiServiceVersion: '0.12.0',
     );
 
     OTel.tracerProvider().addSpanProcessor(processor);
