@@ -105,9 +105,12 @@ class ReflectionServerV2 {
     _send({'jsonrpc': '2.0', 'method': method, 'params': params});
   }
 
-  String get _runtimeId => runtimeId.isEmpty
-      ? '${getPid() == 0 ? 'web' : getPid()}${_apiIndex > 0 ? '-$_apiIndex' : ''}'
-      : runtimeId;
+  String get _runtimeId {
+    final pid = getPid();
+    final prefix = runtimeId.isEmpty ? (pid == 0 ? 'web' : pid) : runtimeId;
+    final suffix = _apiIndex > 0 ? '-$_apiIndex' : '';
+    return '$prefix$suffix';
+  }
 
   void _register() {
     final params = ReflectionRegisterParams(
