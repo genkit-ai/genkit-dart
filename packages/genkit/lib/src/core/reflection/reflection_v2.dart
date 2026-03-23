@@ -90,11 +90,11 @@ class ReflectionServerV2 {
     }
   }
 
-  void _sendResponse(dynamic id, dynamic result) {
+  void _sendResponse(String id, dynamic result) {
     _send({'jsonrpc': '2.0', 'result': result, 'id': id});
   }
 
-  void _sendError(dynamic id, int code, String message, [dynamic data]) {
+  void _sendError(String? id, int code, String message, [dynamic data]) {
     _send({
       'jsonrpc': '2.0',
       'error': {'code': code, 'message': message, 'data': ?data},
@@ -156,7 +156,7 @@ class ReflectionServerV2 {
 
   Future<void> _handleRequest(Map<String, dynamic> request) async {
     final method = request['method'];
-    final id = request['id'];
+    final id = request['id'] as String?;
 
     try {
       switch (method) {
@@ -196,7 +196,7 @@ class ReflectionServerV2 {
     }
   }
 
-  Future<void> _handleListActions(dynamic id) async {
+  Future<void> _handleListActions(String? id) async {
     if (id == null) return;
     final actions = await registry.listActions();
     final convertedActions = <String, dynamic>{};
@@ -221,7 +221,7 @@ class ReflectionServerV2 {
   }
 
   Future<void> _handleListValues(
-    dynamic id,
+    String? id,
     ReflectionListValuesParams? params,
   ) async {
     if (id == null) return;
@@ -236,11 +236,10 @@ class ReflectionServerV2 {
   }
 
   Future<void> _handleRunAction(
-    dynamic id,
+    String? id,
     ReflectionRunActionParams params,
   ) async {
     if (id == null) return;
-
     final key = params.key;
     final input = params.input;
     final context = params.context as Map<String, dynamic>?;

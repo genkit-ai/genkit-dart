@@ -16,13 +16,16 @@ import '../reflection.dart';
 import '../registry.dart';
 import 'reflection_v2.dart';
 
+const _v2ServerEnvKey = 'GENKIT_REFLECTION_V2_SERVER';
+const _runtimeIdEnvKey = 'GENKIT_RUNTIME_ID';
+
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
   const v2ServerUrl = String.fromEnvironment(
-    'GENKIT_REFLECTION_V2_SERVER',
+    _v2ServerEnvKey,
     defaultValue: '',
   );
   const runtimeId = String.fromEnvironment(
-    'GENKIT_RUNTIME_ID',
+    _runtimeIdEnvKey,
     defaultValue: '',
   );
   if (v2ServerUrl == '') {
