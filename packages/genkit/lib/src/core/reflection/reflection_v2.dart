@@ -25,7 +25,6 @@ import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v2');
 
-const genkitVersion = '0.9.0';
 const genkitReflectionApiSpecVersion = 2;
 
 int reflectionInstanceCount = 0;

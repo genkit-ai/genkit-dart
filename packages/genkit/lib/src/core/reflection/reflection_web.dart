@@ -20,14 +20,8 @@ const _v2ServerEnvKey = 'GENKIT_REFLECTION_V2_SERVER';
 const _runtimeIdEnvKey = 'GENKIT_RUNTIME_ID';
 
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  const v2ServerUrl = String.fromEnvironment(
-    _v2ServerEnvKey,
-    defaultValue: '',
-  );
-  const runtimeId = String.fromEnvironment(
-    _runtimeIdEnvKey,
-    defaultValue: '',
-  );
+  const v2ServerUrl = String.fromEnvironment(_v2ServerEnvKey, defaultValue: '');
+  const runtimeId = String.fromEnvironment(_runtimeIdEnvKey, defaultValue: '');
   if (v2ServerUrl == '') {
     throw UnimplementedError(
       'GENKIT_REFLECTION_V2_SERVER environment variable is not set',
