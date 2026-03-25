@@ -457,7 +457,7 @@ void main() {
       expect(names, contains('openai/codestral'));
     });
 
-    test('API failure degrades gracefully', () async {
+    test('API failure throws to allow retry', () async {
       final plugin = openAI(
         apiKey: 'test-key',
         httpClient: _modelsClient(
@@ -465,12 +465,10 @@ void main() {
           statusCode: 403,
         ),
       );
-      // Should not throw
-      final metadata = await plugin.list();
-      expect(metadata, isEmpty);
+      expect(plugin.list(), throwsA(isA<GenkitException>()));
     });
 
-    test('401 error degrades gracefully', () async {
+    test('401 error throws to allow retry', () async {
       final plugin = openAI(
         apiKey: 'bad-key',
         httpClient: _modelsClient(
@@ -478,17 +476,14 @@ void main() {
           statusCode: 401,
         ),
       );
-      final metadata = await plugin.list();
-      expect(metadata, isEmpty);
+      expect(plugin.list(), throwsA(isA<GenkitException>()));
     });
   });
 }
 
 /// Creates a [MockClient] that returns a canned response for `/models`.
 MockClient _modelsClient({required String body, int statusCode = 200}) {
-  return MockClient(
-    (_) async => http.Response(body, statusCode),
-  );
+  return MockClient((_) async => http.Response(body, statusCode));
 }
 
 /// Creates a [MockClient] that throws on any request.

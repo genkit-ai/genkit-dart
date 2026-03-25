@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:logging/logging.dart';
+
 import '../ai/generate_middleware.dart';
 import './action.dart';
 import './plugin.dart';
+
+final _logger = Logger('genkit.registry');
 
 class Registry {
   final Map<String, Action> _actions = {};
@@ -130,7 +134,11 @@ class Registry {
           }
         }
       } catch (e, st) {
-        print('Failed to list actions from plugin ${plugin.name}: $e $st');
+        _logger.warning(
+          'Failed to list actions from plugin ${plugin.name}',
+          e,
+          st,
+        );
       }
     }
     return allActions.values.toList();

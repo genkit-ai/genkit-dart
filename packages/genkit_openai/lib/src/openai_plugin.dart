@@ -276,9 +276,12 @@ class OpenAIPlugin extends GenkitPlugin {
       }
 
       return modelMetadataList;
-    } catch (e, s) {
-      _logger.warning('Failed to list models from OpenAI', e, s);
-      return [];
+    } catch (e, stackTrace) {
+      throw GenkitException(
+        'Error listing models from OpenAI: $e',
+        underlyingException: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
