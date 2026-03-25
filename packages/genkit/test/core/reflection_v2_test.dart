@@ -56,6 +56,7 @@ void main() {
         registry,
         url: 'ws://localhost:$port',
         name: 'test-app',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 
@@ -80,6 +81,7 @@ void main() {
       reflectionServer = ReflectionServerV2(
         registry,
         url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 
@@ -100,9 +102,9 @@ void main() {
       msg = await queue.next;
       decoded = jsonDecode(msg as String) as Map<String, dynamic>;
       expect(decoded['id'], equals('123'));
-      expect(decoded['result']['/custom/testAction'], isNotNull);
+      expect(decoded['result']['actions']['/custom/testAction'], isNotNull);
       expect(
-        decoded['result']['/custom/testAction']['name'],
+        decoded['result']['actions']['/custom/testAction']['name'],
         equals('testAction'),
       );
     });
@@ -119,6 +121,7 @@ void main() {
       reflectionServer = ReflectionServerV2(
         registry,
         url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 
@@ -141,9 +144,14 @@ void main() {
         }),
       );
 
+      // Notification
+      var msg = await queue.next;
+      var decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      expect(decoded['method'], equals('runActionState'));
+
       // Response
-      final msg = await queue.next;
-      final decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      msg = await queue.next;
+      decoded = jsonDecode(msg as String) as Map<String, dynamic>;
 
       expect(decoded['id'], equals('456'));
       expect(decoded['result']['result']['bar'], equals('baz'));
@@ -165,6 +173,7 @@ void main() {
       reflectionServer = ReflectionServerV2(
         registry,
         url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
       );
       await reflectionServer.start();
 

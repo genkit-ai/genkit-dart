@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import '../../utils.dart';
+import 'dart:io' as io;
+
 import '../reflection.dart';
 import '../registry.dart';
 import 'reflection_v1.dart';
 import 'reflection_v2.dart';
 
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  final v2ServerUrl = getConfigVar('GENKIT_REFLECTION_V2_SERVER');
+  final v2ServerUrl = io.Platform.environment['GENKIT_REFLECTION_V2_SERVER'];
+  final runtimeId = io.Platform.environment['GENKIT_RUNTIME_ID'] ?? '';
   if (v2ServerUrl != null) {
-    final server = ReflectionServerV2(registry, url: v2ServerUrl);
+    final server = ReflectionServerV2(
+      registry,
+      url: v2ServerUrl,
+      runtimeId: runtimeId,
+    );
     server.start();
     return ReflectionServerHandle(server.stop);
   } else {
