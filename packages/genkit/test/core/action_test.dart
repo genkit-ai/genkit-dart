@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 import 'package:genkit/src/core/action.dart';
-import 'package:opentelemetry/api.dart' as api;
-import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -34,14 +34,29 @@ abstract class $TestOutput {
 
 void main() {
   final exporter = TextExporter();
-  final processor = sdk.SimpleSpanProcessor(exporter);
-  final provider = sdk.TracerProviderBase(processors: [processor]);
-  api.registerGlobalTracerProvider(provider);
+  late SimpleSpanProcessor processor;
+  late TracerProvider provider;
+
+  setUpAll(() async {
+    await OTel.reset();
+    processor = SimpleSpanProcessor(exporter);
+
+    OTelFactory.otelFactory = otelSDKFactoryFactoryFunction(
+      apiEndpoint: 'http://localhost:4317',
+      apiServiceName: 'genkit-dart-test',
+      apiServiceVersion: '0.12.0',
+    );
+
+    provider = OTel.tracerProvider();
+    provider.addSpanProcessor(processor);
+  });
 
   group('Action', () {
     setUp(exporter.reset);
 
-    tearDown(processor.forceFlush);
+    tearDown(() async {
+      await processor.forceFlush();
+    });
 
     test('should start and end a span when run', () async {
       final action = Action(
@@ -51,7 +66,7 @@ void main() {
       );
 
       await action('input');
-      processor.forceFlush();
+      await processor.forceFlush();
 
       expect(exporter.spans.length, 1);
       expect(exporter.spans[0].name, 'testAction');
@@ -65,14 +80,14 @@ void main() {
       );
 
       await action('input');
-      processor.forceFlush();
+      await processor.forceFlush();
 
       expect(exporter.spans.length, 1);
       final span = exporter.spans[0];
-      expect(span.attributes.get('genkit:type'), 'test');
-      expect(span.attributes.get('genkit:name'), 'testAction');
-      expect(span.attributes.get('genkit:input'), '"input"');
-      expect(span.attributes.get('genkit:output'), '"output"');
+      expect(span.attributes.getString('genkit:type'), 'test');
+      expect(span.attributes.getString('genkit:name'), 'testAction');
+      expect(span.attributes.getString('genkit:input'), '"input"');
+      expect(span.attributes.getString('genkit:output'), '"output"');
     });
 
     test('should run a basic action', () async {
@@ -113,15 +128,15 @@ void main() {
       );
 
       await action(TestInput.$schema.parse({'name': 'world'}));
-      processor.forceFlush();
+      await processor.forceFlush();
 
       expect(exporter.spans.length, 1);
       final span = exporter.spans[0];
-      expect(span.attributes.get('genkit:type'), 'test');
-      expect(span.attributes.get('genkit:name'), 'testAction');
-      expect(span.attributes.get('genkit:input'), '{"name":"world"}');
+      expect(span.attributes.getString('genkit:type'), 'test');
+      expect(span.attributes.getString('genkit:name'), 'testAction');
+      expect(span.attributes.getString('genkit:input'), '{"name":"world"}');
       expect(
-        span.attributes.get('genkit:output'),
+        span.attributes.getString('genkit:output'),
         '{"greeting":"Hello world"}',
       );
     });
