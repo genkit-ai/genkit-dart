@@ -399,6 +399,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     returnToolRequests: options.returnToolRequests,
     maxTurns: options.maxTurns,
     stepName: options.stepName,
+    use: options.use,
   );
 
   // Recursively call composedGenerate for the next turn
@@ -530,6 +531,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
           restart: [],
           metadata: opts.resume?.metadata,
         ),
+        use: opts.use,
       );
 
       return composedGenerate(opts, c, currentTurn);
@@ -632,6 +634,12 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   final chunkParser = format?.handler(output?.jsonSchema).parseChunk;
   final previousChunks = <ModelResponseChunk>[];
 
+  var resolvedMiddleware = middleware
+      ?.map((m) => m.middlewareRef)
+      .nonNulls
+      .map((m) => MiddlewareRef(name: m.name, config: _configToMap(m.config)))
+      .toList();
+
   return await runGenerateAction(
     registry,
     GenerateActionOptions(
@@ -644,6 +652,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
       maxTurns: maxTurns,
       output: output,
       resume: resolvedResume,
+      use: resolvedMiddleware,
     ),
     (
       streamingRequested: onChunk != null,
@@ -929,7 +938,10 @@ _executeTools(
 
 Map<String, dynamic>? _configToMap(dynamic config) {
   if (config == null) return null;
-  return config is Map
-      ? config as Map<String, dynamic>
-      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
+  if (config is Map) return config.cast<String, dynamic>();
+  try {
+    return (config as dynamic).toJson() as Map<String, dynamic>?;
+  } catch (_) {
+    return null;
+  }
 }

@@ -413,5 +413,18 @@ void main() {
       // Chunk 3: '{"a": 1, "b": 2}' -> valid
       expect(outputs[2], equals({'a': 1, 'b': 2}));
     });
+
+    test('propagates middleware through applyFormat', () async {
+      final mwRef = MiddlewareRef(name: 'test-mw');
+      final options = GenerateActionOptions(
+        messages: [],
+        model: 'test-model',
+        use: [mwRef],
+      );
+
+      final result = applyFormat(options, null);
+      expect(result.use, isNotNull);
+      expect(result.use!.first.name, 'test-mw');
+    });
   });
 }

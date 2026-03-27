@@ -124,6 +124,7 @@ GenerateActionOptions applyFormat(
     returnToolRequests: request.returnToolRequests,
     maxTurns: request.maxTurns,
     stepName: request.stepName,
+    use: request.use,
   );
 }
 

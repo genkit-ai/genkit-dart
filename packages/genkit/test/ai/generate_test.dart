@@ -850,5 +850,130 @@ void main() {
         expect(customModelCalled, isTrue);
       },
     );
+
+    test('propagates "use" (middleware) across multiple turns', () async {
+      final mwInstance = _CheckUseMiddleware('test-mw');
+      genkit.registry.registerValue(
+        'middleware',
+        'test-mw',
+        defineMiddleware(name: 'test-mw', create: ([_]) => mwInstance),
+      );
+
+      genkit.defineModel(
+        name: 'multi-turn-model',
+        fn: (req, ctx) async {
+          if (req.messages.any((m) => m.role == Role.tool)) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Done')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'test-tool',
+                    input: {'name': 'world'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'test-tool',
+        description: 'Test Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, ctx) async => 'result',
+      );
+
+      await genkit.generate(
+        model: modelRef('multi-turn-model'),
+        prompt: 'start',
+        toolNames: ['test-tool'],
+        use: [middlewareRef(name: 'test-mw')],
+      );
+
+      // Should have 2 turns (initial + tool response)
+      expect(mwInstance.turns, equals(2));
+    });
+
+    test('propagates "use" (middleware) when restarting tools', () async {
+      final mwInstance = _CheckUseMiddleware('test-mw-restart');
+      genkit.registry.registerValue(
+        'middleware',
+        'test-mw-restart',
+        defineMiddleware(name: 'test-mw-restart', create: ([_]) => mwInstance),
+      );
+
+      genkit.defineModel(
+        name: 'restart-model',
+        fn: (req, ctx) async {
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'Final Answer')],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'test-tool',
+        description: 'Test Tool',
+        inputSchema: TestToolInput.$schema,
+        fn: (input, ctx) async => 'result',
+      );
+
+      final toolReq = ToolRequestPart(
+        toolRequest: ToolRequest(name: 'test-tool', input: {'name': 'world'}),
+      );
+
+      await genkit.generate(
+        model: modelRef('restart-model'),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(role: Role.model, content: [toolReq]),
+        ],
+        use: [middlewareRef(name: 'test-mw-restart')],
+        interruptRestart: [toolReq],
+      );
+
+      // Should have at least one turn call where middleware is active
+      expect(mwInstance.turns, greaterThanOrEqualTo(1));
+    });
   });
+}
+
+class _CheckUseMiddleware extends GenerateMiddleware {
+  int turns = 0;
+  final String expectedName;
+  _CheckUseMiddleware(this.expectedName);
+
+  @override
+  Future<GenerateResponseHelper> generate(
+    GenerateActionOptions options,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResponseHelper> Function(
+      GenerateActionOptions options,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  ) {
+    turns++;
+    expect(options.use?.any((m) => m.name == expectedName), isTrue);
+    return next(options, ctx);
+  }
 }
