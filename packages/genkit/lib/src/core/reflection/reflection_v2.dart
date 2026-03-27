@@ -18,6 +18,8 @@ import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../../ai/generate_middleware.dart';
+import '../../ai/model.dart';
 import '../../schema.dart';
 import '../../types.dart';
 import '../../utils.dart';
@@ -232,8 +234,35 @@ class ReflectionServerV2 {
       _sendError(id, -32602, 'Missing type parameter for listValues');
       return;
     }
+
+    if (type != 'middleware' && type != 'defaultModel') {
+      _sendError(
+        id,
+        -32602,
+        'Unsupported type parameter for listValues: $type',
+      );
+      return;
+    }
+
     final values = registry.listValues<dynamic>(type);
-    final response = ReflectionListValuesResponse(values: values);
+    final sanitizedValues = <String, dynamic>{};
+
+    values.forEach((key, value) {
+      if (type == 'middleware' && value is GenerateMiddlewareDef) {
+        sanitizedValues[key] = {
+          'name': value.name,
+          if (value.configJsonSchema != null)
+            'configSchema': value.configJsonSchema,
+        };
+      } else if (type == 'defaultModel' && value is ModelRef) {
+        sanitizedValues[key] = {
+          'name': value.name,
+          if (value.config != null) 'config': value.config,
+        };
+      }
+    });
+
+    final response = ReflectionListValuesResponse(values: sanitizedValues);
     _sendResponse(id, response.toJson());
   }
 
