@@ -1,3 +1,10 @@
+## 0.3.1
+
+### Other Changes
+
+ - update mime dependency to ^2.0.0 (#235)
+
+
 ## 0.3.0
 
 ### Breaking Changes
