@@ -1,3 +1,14 @@
+## 0.12.1
+
+### Features
+
+ - support middleware and defaultModel in listValues (#240)
+
+### Fixes
+
+ - updated reflection v2 implementation in line with latest spec changes (#231)
+
+
 ## 0.12.0
 
 ### Breaking Changes

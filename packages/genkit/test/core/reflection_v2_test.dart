@@ -19,6 +19,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:async/async.dart';
+import 'package:genkit/src/ai/generate_middleware.dart';
+import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
@@ -106,6 +108,164 @@ void main() {
       expect(
         decoded['result']['actions']['/custom/testAction']['name'],
         equals('testAction'),
+      );
+    });
+
+    test('should handle listValues for middleware', () async {
+      final def = defineMiddleware<dynamic>(
+        name: 'retry',
+        create: ([config]) => throw UnimplementedError(),
+      );
+      registry.registerValue('middleware', def.name, def);
+
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+
+      // First message is register
+      await queue.next;
+
+      // Request listValues for middleware
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'listValues',
+          'params': {'type': 'middleware'},
+          'id': 'list-middleware',
+        }),
+      );
+
+      // Response for middleware
+      final msg = await queue.next;
+      final decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      expect(decoded['id'], equals('list-middleware'));
+      expect(decoded['result']['values']['/middleware/retry'], isNotNull);
+      expect(
+        decoded['result']['values']['/middleware/retry']['name'],
+        equals('retry'),
+      );
+    });
+
+    test('should skip non-conforming values in listValues', () async {
+      registry.registerValue('middleware', 'not-a-middleware', 'just-a-string');
+
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+
+      // First message is register
+      await queue.next;
+
+      // Request listValues for middleware
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'listValues',
+          'params': {'type': 'middleware'},
+          'id': 'list-skip',
+        }),
+      );
+
+      // Response for middleware
+      final msg = await queue.next;
+      final decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      expect(decoded['id'], equals('list-skip'));
+      expect(
+        decoded['result']['values']['/middleware/not-a-middleware'],
+        isNull,
+      );
+    });
+
+    test('should handle listValues for defaultModel', () async {
+      final model = modelRef('test-model', config: {'temperature': 2});
+      registry.registerValue('defaultModel', 'defaultModel', model);
+
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+
+      // First message is register
+      await queue.next;
+
+      // Request listValues for defaultModel
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'listValues',
+          'params': {'type': 'defaultModel'},
+          'id': 'list-model',
+        }),
+      );
+
+      // Response for defaultModel
+      final msg = await queue.next;
+      final decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      expect(decoded['id'], equals('list-model'));
+      expect(
+        decoded['result']['values']['/defaultModel/defaultModel'],
+        isNotNull,
+      );
+      expect(
+        decoded['result']['values']['/defaultModel/defaultModel']['name'],
+        equals('test-model'),
+      );
+      expect(
+        decoded['result']['values']['/defaultModel/defaultModel']['config']['temperature'],
+        equals(2),
+      );
+    });
+
+    test('should handle listValues for unsupported type', () async {
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+
+      // First message is register
+      await queue.next;
+
+      // Request listValues for unsupported type
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'listValues',
+          'params': {'type': 'unsupported'},
+          'id': 'list-err',
+        }),
+      );
+
+      // Response for unsupported type
+      final msg = await queue.next;
+      final decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+      expect(decoded['id'], equals('list-err'));
+      expect(decoded['error'], isNotNull);
+      expect(decoded['error']['code'], equals(-32602));
+      expect(
+        decoded['error']['message'],
+        contains('Unsupported type parameter'),
       );
     });
 
