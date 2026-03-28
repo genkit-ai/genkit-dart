@@ -15,7 +15,7 @@
 // ignore_for_file: avoid_dynamic_calls
 
 import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
-import 'package:schemantic/schemantic.dart';
+import 'package:schemantic_api/schemantic.dart';
 import 'package:test/test.dart';
 
 void main() {
