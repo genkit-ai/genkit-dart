@@ -187,6 +187,18 @@ void main() {
       final result = GenkitConverter.toOpenAIContentPart(part, null);
       expect(result, isA<ContentPart>());
     });
+
+    test('converts deserialized Part with media data', () {
+      final part = Part.fromJson({
+        'media': {
+          'url': 'https://example.com/document.pdf',
+          'contentType': 'application/pdf',
+        },
+      });
+
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+      expect(result, isA<ContentPart>());
+    });
   });
 
   group('GenkitConverter.toOpenAITool', () {
