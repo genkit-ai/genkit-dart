@@ -100,7 +100,7 @@ abstract final class GenkitConverter {
       return sdk.ContentPart.text(part.text!);
     }
     if (part.isMedia) {
-      final media = (part as MediaPart).media;
+      final media = part.mediaPart!.media;
       if (media.url.startsWith('data:')) {
         // Parse data URI: data:<mediaType>;base64,<data>
         final commaIdx = media.url.indexOf(',');
