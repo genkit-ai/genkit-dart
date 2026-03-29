@@ -187,6 +187,28 @@ void main() {
       final result = GenkitConverter.toOpenAIContentPart(part, null);
       expect(result, isA<ContentPart>());
     });
+
+    test('converts media part rehydrated from Message.content as base Part', () {
+      final msg = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:image/png;base64,iVBORw0KGgoAAAANS',
+              contentType: 'image/png',
+            ),
+          ),
+        ],
+      );
+
+      final part = msg.content.single;
+      expect(part, isA<Part>());
+      expect(part, isNot(isA<MediaPart>()));
+      expect(part.isMedia, isTrue);
+
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+      expect(result, isA<ContentPart>());
+    });
   });
 
   group('GenkitConverter.toOpenAITool', () {
