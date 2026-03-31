@@ -388,7 +388,7 @@ base class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: $Schema.object(properties: {}, required: []).value,
+    definition: $Schema.object(properties: {}).value,
     dependencies: [],
   );
 }
@@ -901,7 +901,6 @@ base class _DataPartTypeFactory extends SchemanticType<DataPart> {
             'metadata': $Schema.object(additionalProperties: $Schema.any()),
             'custom': $Schema.object(additionalProperties: $Schema.any()),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -1342,7 +1341,6 @@ base class _BaseDataPointTypeFactory extends SchemanticType<BaseDataPoint> {
             'testCaseId': $Schema.string(),
             'traceIds': $Schema.list(items: $Schema.string()),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -1694,7 +1692,6 @@ base class _ScoreTypeFactory extends SchemanticType<Score> {
             'error': $Schema.string(),
             'details': $Schema.object(additionalProperties: $Schema.any()),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -2078,7 +2075,6 @@ base class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
             'supports': $Schema.object(additionalProperties: $Schema.any()),
             'stage': $Schema.string(),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -2832,7 +2828,6 @@ base class _GenerateResponseTypeFactory
               items: $Schema.fromMap({'\$ref': r'#/$defs/Candidate'}),
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [
@@ -3266,7 +3261,6 @@ base class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
             'thoughtsTokens': $Schema.number(),
             'cachedContentTokens': $Schema.number(),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -3508,7 +3502,6 @@ base class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
             'constrained': $Schema.boolean(),
             'contentType': $Schema.string(),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -3958,7 +3951,6 @@ base class _GenerateResumeOptionsTypeFactory
             ),
             'metadata': $Schema.object(additionalProperties: $Schema.any()),
           },
-          required: [],
         )
         .value,
     dependencies: [ToolResponsePart.$schema, ToolRequestPart.$schema],
@@ -4105,7 +4097,6 @@ base class _GenerateActionOutputConfigTypeFactory
             'constrained': $Schema.boolean(),
             'defaultInstructions': $Schema.boolean(),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -4478,10 +4469,7 @@ base class _ReflectionConfigureParamsTypeFactory
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionConfigureParams',
     definition: $Schema
-        .object(
-          properties: {'telemetryServerUrl': $Schema.string()},
-          required: [],
-        )
+        .object(properties: {'telemetryServerUrl': $Schema.string()})
         .value,
     dependencies: [],
   );

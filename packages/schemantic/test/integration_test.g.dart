@@ -704,7 +704,6 @@ base class _PolyTypeFactory extends SchemanticType<Poly> {
               ],
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [User.$schema],

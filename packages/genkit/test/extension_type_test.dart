@@ -201,7 +201,6 @@ void main() {
             Ingredient.$schema.jsonSchema(),
           ),
         },
-        required: [],
       );
 
       expect(NullableFields.$schema.jsonSchema(), expectedSchema.value);

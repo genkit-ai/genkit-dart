@@ -426,7 +426,6 @@ base class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
               '\$ref': r'#/$defs/Ingredient',
             }),
           },
-          required: [],
         )
         .value,
     dependencies: [Ingredient.$schema],
