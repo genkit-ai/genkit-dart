@@ -400,7 +400,6 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
             'seed': $Schema.integer(),
             'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
           },
-          required: [],
         )
         .value,
     dependencies: [
@@ -496,7 +495,6 @@ base class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
               ],
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -602,7 +600,6 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
               enumValues: ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -678,7 +675,6 @@ base class _FunctionCallingConfigTypeFactory
             ),
             'allowedFunctionNames': $Schema.list(items: $Schema.string()),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -736,7 +732,6 @@ base class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
           properties: {
             'fileSearchStoreNames': $Schema.list(items: $Schema.string()),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -1123,7 +1118,6 @@ base class _GeminiTtsOptionsTypeFactory
             'seed': $Schema.integer(),
             'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
           },
-          required: [],
         )
         .value,
     dependencies: [
@@ -1217,7 +1211,6 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
               '\$ref': r'#/$defs/MultiSpeakerVoiceConfig',
             }),
           },
-          required: [],
           description: 'Speech generation config',
         )
         .value,
@@ -1425,7 +1418,6 @@ base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
               '\$ref': r'#/$defs/PrebuiltVoiceConfig',
             }),
           },
-          required: [],
           description: 'Configuration for the voice to use',
         )
         .value,
@@ -1490,7 +1482,6 @@ base class _PrebuiltVoiceConfigTypeFactory
                   'Name of the preset voice to use. Known values: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat',
             ),
           },
-          required: [],
           description: 'Configuration for the prebuilt speaker to use',
         )
         .value,
@@ -1534,7 +1525,7 @@ base class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GoogleSearch',
-    definition: $Schema.object(properties: {}, required: []).value,
+    definition: $Schema.object(properties: {}).value,
     dependencies: [],
   );
 }
@@ -1644,7 +1635,6 @@ base class _TextEmbedderOptionsTypeFactory
             ),
             'title': $Schema.string(),
           },
-          required: [],
         )
         .value,
     dependencies: [],

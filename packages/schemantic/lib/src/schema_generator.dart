@@ -931,32 +931,30 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
           .peek('additionalProperties')
           ?.boolValue;
 
-      if (additionalProperties != null) {
-        final mapProps = <String, Expression>{
-          'type': literalString('object'),
-          'properties': literalMap(properties),
-        };
-        if (required.isNotEmpty) {
-          mapProps['required'] = literalList(required.map(literalString));
-        }
-        if (descriptionExpr != null) {
-          mapProps['description'] = descriptionExpr;
-        }
-        mapProps['additionalProperties'] = literalBool(additionalProperties);
+      final namedArgs = <String, Expression>{
+        'properties': literalMap(properties),
+      };
+      if (required.isNotEmpty) {
+        namedArgs['required'] = literalList(required.map(literalString));
+      }
+      if (descriptionExpr != null) {
+        namedArgs['description'] = descriptionExpr;
+      }
 
+      if (additionalProperties != null) {
         definitionExpression = refer(
           '\$Schema.fromMap',
-        ).call([literalMap(mapProps)]);
+        ).call([
+          literalMap({
+            'type': literalString('object'),
+            ...namedArgs,
+            'additionalProperties': literalBool(additionalProperties),
+          }),
+        ]);
       } else {
-        final namedArgs = <String, Expression>{
-          'properties': literalMap(properties),
-          'required': literalList(required.map(literalString)),
-        };
-        if (descriptionExpr != null) {
-          namedArgs['description'] = descriptionExpr;
-        }
         definitionExpression = refer('\$Schema.object').call([], namedArgs);
       }
+
     }
 
     return Method(
