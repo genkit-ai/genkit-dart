@@ -7,7 +7,7 @@ environment:
 
 workspace:
   # NOTE: This list is intentionally incomplete.
-  # Packages that depend on flutter are excluded! 
+  # Packages that depend on flutter are excluded!
   - packages/_schema_generator
   - packages/genkit
   - packages/genkit_mcp
@@ -41,12 +41,12 @@ dev_dependencies:
   pub_semver: ^2.2.0
   test: ^1.30.0
   yaml: ^3.1.2
-  
+
 melos:
   name: genkit_workspace
   packages:
     - packages/**
-  
+
   scripts:
     test:
       exec: dart test
@@ -61,23 +61,28 @@ melos:
         melos run build-gen-core
         melos run build-gen-plugins
         melos run build-gen-testapps
+        melos run apply_license
       description: Run build_runner in topological order (core -> plugins -> app) to avoid race conditions.
 
     build-gen-core:
-      run: melos exec --scope="schemantic,genkit" -o -- dart run build_runner build && dart run tools/apply_license.dart
+      run: melos exec --scope="schemantic,genkit" -o -- dart run build_runner build
       description: Run build_runner for genkit.
 
     build-gen-plugins:
-      run: |
-        melos exec --scope="genkit_google_genai,genkit_openai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
+      exec: dart run build_runner build
+      packageFilters:
+        scope: "{genkit_google_genai,genkit_openai,genkit_anthropic,genkit_vertexai,genkit_vertex_auth,genkit_mcp,genkit_shelf,genkit_middleware}"
       description: Run build_runner for plugins.
 
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{agentic_patterns,ai_features,basic_sample,openai_sample}"
+        scope: "{agentic_patterns,ai_features,basic_sample,openai_sample,middleware_sample}"
       description: Run build_runner for testapps (except the flutter one!)
 
     dartdoc-check:
       run: dart tools/check_dartdoc.dart
       description: Run dartdoc over all non-private packages and check for warnings.
+
+    apply_license:
+      run: dart run tools/apply_license.dart
