@@ -31,7 +31,10 @@ final class Schema {
   /// A description of the schema, to be included in the generated JSON Schema.
   final String? description;
 
-  const Schema({this.description});
+  /// Whether to allow additional properties on the schema object.
+  final bool? additionalProperties;
+
+  const Schema({this.description, this.additionalProperties});
 }
 
 final class AnyOf {
