@@ -942,9 +942,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       }
 
       if (additionalProperties != null) {
-        definitionExpression = refer(
-          '\$Schema.fromMap',
-        ).call([
+        definitionExpression = refer('\$Schema.fromMap').call([
           literalMap({
             'type': literalString('object'),
             ...namedArgs,
@@ -954,7 +952,6 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       } else {
         definitionExpression = refer('\$Schema.object').call([], namedArgs);
       }
-
     }
 
     return Method(
