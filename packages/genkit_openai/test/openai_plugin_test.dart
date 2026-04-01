@@ -197,7 +197,13 @@ void main() {
       });
 
       final result = GenkitConverter.toOpenAIContentPart(part, null);
-      expect(result, isA<ContentPart>());
+      expect(result.toJson(), {
+        'type': 'image_url',
+        'image_url': {
+          'url': 'https://example.com/document.pdf',
+          'detail': 'auto',
+        },
+      });
     });
   });
 
