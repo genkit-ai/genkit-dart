@@ -704,7 +704,6 @@ base class _PolyTypeFactory extends SchemanticType<Poly> {
               ],
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [User.$schema],
@@ -966,6 +965,58 @@ base class _OrderStatusTypeFactory extends SchemanticType<OrderStatus> {
           required: ['id', 'color'],
         )
         .value,
+    dependencies: [],
+  );
+}
+
+base class StrictUser {
+  factory StrictUser.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  StrictUser._(this._json);
+
+  StrictUser({required String name}) {
+    _json = {'name': name};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<StrictUser> $schema = _StrictUserTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _StrictUserTypeFactory extends SchemanticType<StrictUser> {
+  const _StrictUserTypeFactory();
+
+  @override
+  StrictUser parse(Object? json) {
+    return StrictUser._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'StrictUser',
+    definition: $Schema.fromMap({
+      'type': 'object',
+      'properties': {'name': $Schema.string()},
+      'required': ['name'],
+      'additionalProperties': false,
+    }).value,
     dependencies: [],
   );
 }

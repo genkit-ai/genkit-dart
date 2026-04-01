@@ -230,7 +230,6 @@ base class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
               enumValues: ['auto', 'low', 'high'],
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [],
