@@ -204,8 +204,10 @@ void main() {
       expect(message.toolCalls, isNull);
     });
 
-    test('throws StateError for empty chunks list', () {
-      expect(() => _aggregate([]), throwsStateError);
+    test('returns default ChatCompletion for empty chunks list', () {
+      final response = _aggregate([]);
+      expect(response.choices, hasLength(1));
+      expect(response.choices.first.message.content, isNull);
     });
 
     test('handles chunks with no choices', () {

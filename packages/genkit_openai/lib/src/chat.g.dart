@@ -231,7 +231,6 @@ base class _OpenAIChatOptionsTypeFactory
               enumValues: ['auto', 'low', 'high'],
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [],

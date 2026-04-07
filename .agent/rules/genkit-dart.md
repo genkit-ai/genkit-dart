@@ -58,7 +58,7 @@ abstract class $MySubObj {
 }
 ```
 
-in addition to beinable to generate object schemas from abstract classes schemantic has conveninent helpers for basic types: stringSchema, voidSchema, dynamicSchema, listSchema, mapSchema.
+in addition to being able to generate object schemas from abstract classes schemantic has convenient helpers for basic types: string, voidSchema, dynamicSchema, list, map.
 
 ## Generation
 
@@ -77,7 +77,7 @@ Use the generated `$schema` when defining flows, actions, or tools, etc.:
 ai.defineFlow(
   name: 'my-flow',
   inputSchema: MyObj.$schema,
-  outputSchema: stringSchema(),
+  outputSchema: .string(),
   fn: (input, _) async {
     print(input.name); // Typed access
     ...

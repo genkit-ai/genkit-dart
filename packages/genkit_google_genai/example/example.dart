@@ -90,21 +90,42 @@ void main(List<String> args) async {
     inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
-        return 'The weather in Boston is 72 and sunny.';
+        return 'The weather in Boston is 72F and sunny.';
       }
-      return 'The weather in ${input.location} is 75 and cloudy.';
+      return 'The weather in ${input.location} is 75F and cloudy.';
+    },
+  );
+  ai.defineTool(
+    name: 'temperatureConverter',
+    description:
+        'Converts temperatures between Celsius (C) and Fahrenheit (F).',
+    inputSchema: TemperatureConverterInput.$schema,
+    outputSchema: TemperatureConverterOutput.$schema,
+    fn: (input, context) async {
+      if (input.unit == TemperatureUnit.C) {
+        return TemperatureConverterOutput(
+          temperature: (input.temperature * 9 / 5) + 32,
+          unit: TemperatureUnit.F,
+        );
+      }
+      return TemperatureConverterOutput(
+        temperature: (input.temperature - 32) * 5 / 9,
+        unit: TemperatureUnit.C,
+      );
     },
   );
 
   ai.defineFlow(
     name: 'weatherFlow',
-    inputSchema: .string(defaultValue: 'What is the weather like in Boston?'),
+    inputSchema: .string(
+      defaultValue: 'What is the weather like in Boston in Celsius?',
+    ),
     outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-3-flash-preview'),
         prompt: prompt,
-        toolNames: ['getWeather'],
+        toolNames: ['getWeather', 'temperatureConverter'],
       );
       return response.text;
     },

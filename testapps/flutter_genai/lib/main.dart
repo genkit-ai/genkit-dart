@@ -14,18 +14,44 @@
 
 import 'package:flutter/material.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit/lite.dart' as lite;
 import 'package:genkit/client.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_anthropic/genkit_anthropic.dart';
 
 import 'types.dart';
 
 void main() {
-  runApp(const MyApp());
+  final ai = Genkit();
+
+  ai.defineTool(
+    name: 'checkPantry',
+    description: 'Checks if we have specific spices in the kitchen pantry',
+    inputSchema: CheckPantryInput.$schema,
+    fn: (CheckPantryInput input, _) async =>
+        input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+  );
+
+  ai.defineRemoteModel(
+    name: 'googleai/gemini-2.5-flash',
+    url: 'http://localhost:8080/googleai/gemini-2.5-flash',
+  );
+  ai.defineRemoteModel(
+    name: 'openai/gpt-4o',
+    url: 'http://localhost:8080/openai/gpt-4o',
+  );
+  ai.defineRemoteModel(
+    name: 'anthropic/claude-sonnet-4-5',
+    url: 'http://localhost:8080/anthropic/claude-sonnet-4-5',
+  );
+
+  runApp(MyApp(ai: ai));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Genkit ai;
+  const MyApp({super.key, required this.ai});
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +69,12 @@ class MyApp extends StatelessWidget {
               ],
             ),
           ),
-          body: const TabBarView(
-            children: [ClientSideTab(), RemoteModelTab(), ServerFlowTab()],
+          body: TabBarView(
+            children: [
+              ClientSideTab(),
+              RemoteModelTab(ai: ai),
+              ServerFlowTab(),
+            ],
           ),
         ),
       ),
@@ -52,7 +82,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-enum AiProvider { google, openai }
+enum AiProvider { google, openai, anthropic }
 
 class ClientSideTab extends StatefulWidget {
   const ClientSideTab({super.key});
@@ -63,7 +93,8 @@ class ClientSideTab extends StatefulWidget {
 
 class _ClientSideTabState extends State<ClientSideTab> {
   final _apiKeyController = TextEditingController();
-  final _promptController = TextEditingController(text: 'Say hello');
+  final _dietFriendlyController = TextEditingController(text: 'Vegan');
+  final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
   bool _isLoading = false;
   AiProvider _selectedProvider = AiProvider.google;
@@ -81,24 +112,38 @@ class _ClientSideTabState extends State<ClientSideTab> {
     });
 
     try {
-      final ai = Genkit(
-        plugins: [
-          _selectedProvider == AiProvider.google
-              ? googleAI(apiKey: apiKey)
-              : openAI(apiKey: apiKey),
-        ],
+      final tool = Tool(
+        name: 'checkPantry',
+        description: 'Checks if we have specific spices in the kitchen pantry',
+        inputSchema: CheckPantryInput.$schema,
+        fn: (CheckPantryInput input, _) async =>
+            input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
       );
 
-      final model = _selectedProvider == AiProvider.google
-          ? googleAI.gemini('gemini-2.5-flash')
-          : openAI.model('gpt-4o');
+      final model = switch (_selectedProvider) {
+        AiProvider.google => googleAI(apiKey: apiKey).model('gemini-2.5-flash'),
+        AiProvider.openai => openAI(apiKey: apiKey).model('gpt-4o'),
+        AiProvider.anthropic => anthropic(
+          apiKey: apiKey,
+          headers: {
+            // Required for direct browser access.
+            // DO NOT use this in production.
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+        ).model('claude-sonnet-4-5'),
+      };
 
-      final response = await ai.generate(
+      final stream = lite.generateStream(
         model: model,
-        prompt: _promptController.text,
+        prompt:
+            'Create a ${_dietFriendlyController.text} recipe using ${_mainIngredientController.text}. '
+            'Before suggesting spices, check the pantry to see if we have them.',
+        tools: [tool],
       );
 
-      setState(() => _output = response.text);
+      await for (final chunk in stream) {
+        setState(() => _output += chunk.text);
+      }
     } catch (e) {
       setState(() => _output = 'Error: $e');
     } finally {
@@ -109,7 +154,8 @@ class _ClientSideTabState extends State<ClientSideTab> {
   @override
   void dispose() {
     _apiKeyController.dispose();
-    _promptController.dispose();
+    _dietFriendlyController.dispose();
+    _mainIngredientController.dispose();
     super.dispose();
   }
 
@@ -129,6 +175,10 @@ class _ClientSideTabState extends State<ClientSideTab> {
                 child: Text('Google Gemini'),
               ),
               DropdownMenuItem(value: AiProvider.openai, child: Text('OpenAI')),
+              DropdownMenuItem(
+                value: AiProvider.anthropic,
+                child: Text('Anthropic'),
+              ),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedProvider = val);
@@ -138,21 +188,30 @@ class _ClientSideTabState extends State<ClientSideTab> {
           TextField(
             controller: _apiKeyController,
             decoration: InputDecoration(
-              labelText: _selectedProvider == AiProvider.google
-                  ? 'Gemini API Key'
-                  : 'OpenAI API Key',
+              labelText: switch (_selectedProvider) {
+                AiProvider.google => 'Gemini API Key',
+                AiProvider.openai => 'OpenAI API Key',
+                AiProvider.anthropic => 'Anthropic API Key',
+              },
               border: const OutlineInputBorder(),
             ),
             obscureText: true,
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _promptController,
+            controller: _dietFriendlyController,
             decoration: const InputDecoration(
-              labelText: 'Prompt',
+              labelText: 'Diet Friendly',
               border: OutlineInputBorder(),
             ),
-            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _mainIngredientController,
+            decoration: const InputDecoration(
+              labelText: 'Main Ingredient',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -172,14 +231,16 @@ class _ClientSideTabState extends State<ClientSideTab> {
 }
 
 class RemoteModelTab extends StatefulWidget {
-  const RemoteModelTab({super.key});
+  final Genkit ai;
+  const RemoteModelTab({super.key, required this.ai});
 
   @override
   State<RemoteModelTab> createState() => _RemoteModelTabState();
 }
 
 class _RemoteModelTabState extends State<RemoteModelTab> {
-  final _promptController = TextEditingController(text: 'Say hello');
+  final _dietFriendlyController = TextEditingController(text: 'Vegan');
+  final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
   bool _isLoading = false;
   AiProvider _selectedProvider = AiProvider.google;
@@ -191,20 +252,23 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
     });
 
     try {
-      final ai = Genkit();
+      final modelName = switch (_selectedProvider) {
+        AiProvider.google => 'googleai/gemini-2.5-flash',
+        AiProvider.openai => 'openai/gpt-4o',
+        AiProvider.anthropic => 'anthropic/claude-sonnet-4-5',
+      };
 
-      final url = _selectedProvider == AiProvider.google
-          ? 'http://localhost:8080/googleai/gemini-2.5-flash'
-          : 'http://localhost:8080/openai/gpt-4o';
-
-      final remoteModel = ai.defineRemoteModel(name: 'remoteModel', url: url);
-
-      final response = await ai.generate(
-        model: remoteModel,
-        prompt: _promptController.text,
+      final stream = widget.ai.generateStream(
+        model: modelRef(modelName),
+        prompt:
+            'Create a ${_dietFriendlyController.text} recipe using ${_mainIngredientController.text}. '
+            'Before suggesting spices, check the pantry to see if we have them.',
+        toolNames: ['checkPantry'],
       );
 
-      setState(() => _output = response.text);
+      await for (final chunk in stream) {
+        setState(() => _output += chunk.text);
+      }
     } catch (e) {
       setState(() => _output = 'Error: $e');
     } finally {
@@ -214,7 +278,8 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
 
   @override
   void dispose() {
-    _promptController.dispose();
+    _dietFriendlyController.dispose();
+    _mainIngredientController.dispose();
     super.dispose();
   }
 
@@ -237,6 +302,10 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
                 value: AiProvider.openai,
                 child: Text('OpenAI (via Server)'),
               ),
+              DropdownMenuItem(
+                value: AiProvider.anthropic,
+                child: Text('Anthropic (via Server)'),
+              ),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedProvider = val);
@@ -244,12 +313,19 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _promptController,
+            controller: _dietFriendlyController,
             decoration: const InputDecoration(
-              labelText: 'Prompt',
+              labelText: 'Diet Friendly',
               border: OutlineInputBorder(),
             ),
-            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _mainIngredientController,
+            decoration: const InputDecoration(
+              labelText: 'Main Ingredient',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -276,7 +352,8 @@ class ServerFlowTab extends StatefulWidget {
 }
 
 class _ServerFlowTabState extends State<ServerFlowTab> {
-  final _promptController = TextEditingController(text: 'Say hello');
+  final _dietFriendlyController = TextEditingController(text: 'Vegan');
+  final _mainIngredientController = TextEditingController(text: 'Tofu');
   String _output = '';
   bool _isLoading = false;
   AiProvider _selectedProvider = AiProvider.google;
@@ -288,22 +365,24 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
     });
 
     try {
-      final remoteFlow =
-          defineRemoteAction<ServerFlowInput, String, void, void>(
-            url: 'http://localhost:8080/serverFlow',
-            inputSchema: ServerFlowInput.$schema,
-            outputSchema: .string(),
-          );
+      final remoteFlow = defineRemoteAction(
+        url: 'http://localhost:8080/serverFlow',
+        inputSchema: RecipeRequest.$schema,
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
 
-      final response = await remoteFlow(
-        input: ServerFlowInput(
-          provider: _selectedProvider == AiProvider.google
-              ? 'google'
-              : 'openai',
-          prompt: _promptController.text,
+      final stream = remoteFlow.stream(
+        input: RecipeRequest(
+          provider: _selectedProvider.name,
+          dietFriendly: _dietFriendlyController.text,
+          mainIngredient: _mainIngredientController.text,
         ),
       );
-      setState(() => _output = response);
+
+      await for (final chunk in stream) {
+        setState(() => _output += chunk);
+      }
     } catch (e) {
       setState(() => _output = 'Error: $e');
     } finally {
@@ -313,7 +392,8 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
 
   @override
   void dispose() {
-    _promptController.dispose();
+    _dietFriendlyController.dispose();
+    _mainIngredientController.dispose();
     super.dispose();
   }
 
@@ -336,6 +416,10 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
                 value: AiProvider.openai,
                 child: Text('OpenAI (via ServerFlow)'),
               ),
+              DropdownMenuItem(
+                value: AiProvider.anthropic,
+                child: Text('Anthropic (via ServerFlow)'),
+              ),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedProvider = val);
@@ -348,12 +432,19 @@ class _ServerFlowTabState extends State<ServerFlowTab> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _promptController,
+            controller: _dietFriendlyController,
             decoration: const InputDecoration(
-              labelText: 'Prompt',
+              labelText: 'Diet Friendly',
               border: OutlineInputBorder(),
             ),
-            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _mainIngredientController,
+            decoration: const InputDecoration(
+              labelText: 'Main Ingredient',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(

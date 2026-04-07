@@ -6,7 +6,8 @@
 # https://dart.dev/guides/libraries/private-files#pubspeclock.
 pubspec.lock
 
-build
+# OS specific files
+.DS_Store
 
 node_modules
 .genkit

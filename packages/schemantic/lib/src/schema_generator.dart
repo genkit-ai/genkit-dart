@@ -320,6 +320,10 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
                   valueExpression = refer(
                     paramName!,
                   ).maybeNullSafeProperty(isNullable, repName!);
+                } else if (getter.returnType.element is EnumElement) {
+                  valueExpression = refer(
+                    paramName!,
+                  ).maybeNullSafeProperty(isNullable, 'name');
                 } else {
                   valueExpression = refer(paramName!);
                 }
@@ -566,6 +570,11 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : "
             "DateTime.parse(_json['$jsonFieldName'] as String);";
+      } else if (returnType.element is EnumElement) {
+        final enumName = returnType.getDisplayString().replaceAll('?', '');
+        getterBody =
+            "return _json['$jsonFieldName'] == null ? null : "
+            "$enumName.values.byName(_json['$jsonFieldName'] as String);";
       }
     } else if (returnType.element is EnumElement) {
       final enumName = returnType.getDisplayString().replaceAll('?', '');
@@ -676,6 +685,8 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         if (itemTypeName.isSchema) {
           valueExpression = 'value.toList()';
         }
+      } else if (paramType.element is EnumElement) {
+        valueExpression = 'value.name';
       }
       setterBody =
           "if (value == null) { _json.remove('$jsonFieldName'); } "
@@ -916,14 +927,31 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         ).call([literalList(subtypes)]);
       }
     } else {
+      final additionalProperties = annotation
+          .peek('additionalProperties')
+          ?.boolValue;
+
       final namedArgs = <String, Expression>{
         'properties': literalMap(properties),
-        'required': literalList(required.map(literalString)),
       };
+      if (required.isNotEmpty) {
+        namedArgs['required'] = literalList(required.map(literalString));
+      }
       if (descriptionExpr != null) {
         namedArgs['description'] = descriptionExpr;
       }
-      definitionExpression = refer('\$Schema.object').call([], namedArgs);
+
+      if (additionalProperties != null) {
+        definitionExpression = refer('\$Schema.fromMap').call([
+          literalMap({
+            'type': literalString('object'),
+            ...namedArgs,
+            'additionalProperties': literalBool(additionalProperties),
+          }),
+        ]);
+      } else {
+        definitionExpression = refer('\$Schema.object').call([], namedArgs);
+      }
     }
 
     return Method(

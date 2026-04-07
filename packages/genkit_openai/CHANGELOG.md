@@ -1,3 +1,22 @@
+## 0.2.4
+
+ - updated internal dependencies.
+
+## 0.2.3
+
+### Fixes
+
+ - Update openai_dart/anthropic_sdk_dart for robust third-party provider support (#215)
+
+
+## 0.2.2
+
+ - updated internal dependencies.
+
+## 0.2.1
+
+ - updated internal dependencies.
+
 ## 0.2.0
 
 ### Breaking Changes

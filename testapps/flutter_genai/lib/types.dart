@@ -17,7 +17,13 @@ import 'package:schemantic/schemantic.dart';
 part 'types.g.dart';
 
 @Schema()
-abstract class $ServerFlowInput {
+abstract class $RecipeRequest {
   String get provider;
-  String get prompt;
+  String get dietFriendly;
+  String get mainIngredient;
+}
+
+@Schema()
+abstract class $CheckPantryInput {
+  String get spice;
 }

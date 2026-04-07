@@ -1,3 +1,47 @@
+## 0.12.1
+
+### Features
+
+ - support middleware and defaultModel in listValues (#240)
+
+### Fixes
+
+ - updated reflection v2 implementation in line with latest spec changes (#231)
+
+
+## 0.12.0
+
+### Breaking Changes
+
+ - changed middleware tool hook return type to Part for greater flexibility (#218)
+
+### Features
+
+ - Cache plugin action lists using a new adapter to optimize discovery (#217)
+
+### Fixes
+
+ - correctly handle enums in the generated constructor (#220)
+
+### Other Changes
+
+ - minor refactor to avoid use of dynamic for tool status (#219)
+
+
+## 0.11.1
+
+### Features
+
+ - Allow asynchronous header generation for remote models (#212)
+
+
+## 0.11.0
+
+### Breaking Changes
+
+ - changed tool hook signature on middleware, pass toolRequest to tool (#211)
+
+
 ## 0.10.1
 
  - **FEAT**: Add support for a default model and make generate model param optional (#203).

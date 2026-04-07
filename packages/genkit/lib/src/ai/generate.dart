@@ -31,6 +31,8 @@ import 'tool.dart';
 
 const _defaultMaxTurns = 5;
 
+typedef _ToolStatus = ({Object? output, ToolInterruptException? interrupt});
+
 typedef GenerateAction =
     Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>;
 
@@ -468,7 +470,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
     int currentTurn,
   ) async {
     final resumeRestart = opts.resume?.restart ?? [];
-    final toolStatus = <String, dynamic>{};
+    final toolStatus = <String, _ToolStatus>{};
 
     if (resumeRestart.isNotEmpty) {
       final execution = await _executeTools(
@@ -498,7 +500,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
       // Map outputs back to respondents
       final respond = opts.resume?.respond?.toList() ?? [];
       for (final entry in toolStatus.entries) {
-        if (entry.value is! ToolInterruptException && entry.value != null) {
+        if (entry.value.interrupt == null && entry.value.output != null) {
           final reqPart = resumeRestart.firstWhere((p) {
             final t = p.toolRequest;
             return (t.ref ?? t.name) == entry.key;
@@ -508,7 +510,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
               toolResponse: ToolResponse(
                 ref: reqPart.toolRequest.ref,
                 name: reqPart.toolRequest.name,
-                output: entry.value,
+                output: entry.value.output,
               ),
             ),
           );
@@ -789,7 +791,7 @@ _resolveResume(
 
 ModelResponse _buildInterruptedResponse(
   Message lastMessage,
-  Map<String, dynamic> toolStatus, {
+  Map<String, _ToolStatus> toolStatus, {
   ModelResponse? originalResponse,
   String? finishMessage,
 }) {
@@ -801,10 +803,10 @@ ModelResponse _buildInterruptedResponse(
       final status = toolStatus[ref];
       final meta = Map<String, dynamic>.from(part.metadata ?? {});
 
-      if (status is ToolInterruptException) {
-        meta['interrupt'] = status.interrupt;
-      } else if (status != null) {
-        meta['pendingOutput'] = status;
+      if (status?.interrupt != null) {
+        meta['interrupt'] = status!.interrupt!.interrupt;
+      } else if (status?.output != null) {
+        meta['pendingOutput'] = status!.output;
       }
       newContent.add(
         ToolRequestPart(
@@ -842,7 +844,7 @@ Future<
   ({
     List<Part> toolResponses,
     bool interrupted,
-    Map<String, dynamic> toolStatus,
+    Map<String, _ToolStatus> toolStatus,
   })
 >
 _executeTools(
@@ -851,8 +853,8 @@ _executeTools(
   Map<String, dynamic>? context, {
   List<GenerateMiddleware>? middleware,
 }) async {
-  final toolResponses = <Part>[];
-  final toolStatus = <String, dynamic>{};
+  final toolResponses = <ToolResponsePart>[];
+  final toolStatus = <String, _ToolStatus>{};
   var interrupted = false;
 
   for (final toolRequest in toolRequests) {
@@ -866,12 +868,18 @@ _executeTools(
       );
     }
 
-    Future<ToolResponse> coreTool(
-      ToolRequest req,
+    Future<ToolResponsePart> coreTool(
+      ToolRequestPart req,
       ActionFnArg<void, dynamic, void> c,
     ) async {
-      final out = await tool.runRaw(req.input, context: c.context);
-      return ToolResponse(ref: req.ref, name: req.name, output: out.result);
+      final out = await tool.runRaw(req.toolRequest.input, context: c.context);
+      return ToolResponsePart(
+        toolResponse: ToolResponse(
+          ref: req.toolRequest.ref,
+          name: req.toolRequest.name,
+          output: out.result,
+        ),
+      );
     }
 
     final composedTool =
@@ -883,20 +891,23 @@ _executeTools(
         coreTool;
 
     try {
-      final toolResponse = await composedTool(toolRequest.toolRequest, (
-        streamingRequested: false,
-        sendChunk: (_) {},
-        context: context,
-        inputStream: null,
-        init: null,
-      ));
-      toolResponses.add(ToolResponsePart(toolResponse: toolResponse));
+      final toolResponsePart = await runZoned(
+        () => composedTool(toolRequest, (
+          streamingRequested: false,
+          sendChunk: (_) {},
+          context: context,
+          inputStream: null,
+          init: null,
+        )),
+        zoneValues: {ToolRequestPart: toolRequest},
+      );
+      toolResponses.add(toolResponsePart);
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          toolResponse.output;
+          (output: toolResponsePart.toolResponse.output, interrupt: null);
     } on ToolInterruptException catch (e) {
       interrupted = true;
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          e;
+          (output: null, interrupt: e);
     } catch (e) {
       toolResponses.add(
         ToolResponsePart(

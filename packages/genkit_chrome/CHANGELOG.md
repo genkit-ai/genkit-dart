@@ -1,3 +1,19 @@
+## 0.0.5
+
+ - updated internal dependencies.
+
+## 0.0.4
+
+ - updated internal dependencies.
+
+## 0.0.3
+
+ - updated internal dependencies.
+
+## 0.0.2
+
+ - updated internal dependencies.
+
 ## 0.0.1+1
 
  - Update a dependency to the latest release.

@@ -1,3 +1,28 @@
+## 0.3.1
+
+### Other Changes
+
+ - update mime dependency to ^2.0.0 (#235)
+
+
+## 0.3.0
+
+### Breaking Changes
+
+ - changed middleware tool hook return type to Part for greater flexibility (#218)
+
+
+## 0.2.1
+
+ - updated internal dependencies.
+
+## 0.2.0
+
+### Breaking Changes
+
+ - changed tool hook signature on middleware, pass toolRequest to tool (#211)
+
+
 ## 0.1.0+1
 
  - Update a dependency to the latest release.

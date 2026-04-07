@@ -90,6 +90,82 @@ void main() async {
 }
 ```
 
+### Authentication and ContextProvider
+
+You can secure your flows and models by providing a `contextProvider` to `shelfHandler`. This allows the server to verify headers (like `Authorization`) before executing the action, and pass that context down to the Genkit action.
+
+```dart
+// 1. Define a flow that requires authentication
+final secureFlow = ai.defineFlow(
+  name: 'secureFlow',
+  inputSchema: .string(),
+  outputSchema: .string(),
+  fn: (input, ctx) async {
+    final userId = ctx.context?['userId'];
+    if (userId == null) throw Exception('Unauthorized');
+    return 'Hello $input, your ID is $userId!';
+  },
+);
+
+// 2. Define a model you want to secure
+final geminiApi = googleAI();
+final secureModel = geminiApi.model('gemini-2.5-flash');
+
+final router = Router();
+
+// 3. Shared context provider for authentication
+Future<Map<String, dynamic>> authContextProvider(Request request) async {
+  final authHeader = request.headers['authorization'];
+  // checkUserToken is where you implement your custom auth logic
+  final user = await checkUserToken(authHeader);
+  if (user != null) {
+    return {'userId': user.id};
+  }
+  return {}; // Or throw an exception to reject early
+}
+
+// 4. Secure the endpoints
+router.post('/secureFlow', shelfHandler(
+  secureFlow,
+  contextProvider: authContextProvider,
+));
+
+router.post('/secureModel', shelfHandler(
+  secureModel,
+  contextProvider: authContextProvider,
+));
+```
+
+When consuming these remote endpoints from a client using `defineRemoteModel` or `defineRemoteAction`, you can pass the required headers:
+
+```dart
+import 'package:genkit/client.dart';
+
+// Consuming a secure flow
+final remoteFlow = defineRemoteAction(
+  url: 'http://localhost:8080/secureFlow',
+  inputSchema: .string(),
+  outputSchema: .string(),
+);
+
+final response = await remoteFlow(
+  input: 'World',
+  headers: {'Authorization': 'Bearer ${await getUserToken()}'},
+);
+
+// Consuming a secure model
+final remoteModel = ai.defineRemoteModel(
+  name: 'remoteModel', 
+  url: 'http://localhost:8080/secureModel',
+  headers: (context) async => {'Authorization': 'Bearer ${await getUserToken()}'},
+);
+
+final generateResponse = await ai.generate(
+  model: remoteModel,
+  prompt: 'Hello!',
+);
+```
+
 ## Consuming Remote Models
 
 When you serve a model using `genkit_shelf`, you can consume it from another Genkit application using `defineRemoteModel`:

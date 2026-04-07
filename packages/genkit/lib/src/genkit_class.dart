@@ -40,11 +40,7 @@ import 'o11y/instrumentation.dart';
 import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
 import 'schema.dart';
 import 'types.dart';
-import 'utils.dart';
-
-bool _isDevEnv() {
-  return getConfigVar('GENKIT_ENV') == 'dev';
-}
+import 'utils.dart' as utils;
 
 /// The main entry point for creating Genkit applications.
 ///
@@ -85,7 +81,7 @@ final class Genkit {
     // Register default formats
     configureFormats(registry);
 
-    if (isAllowReflection && (isDevEnv ?? _isDevEnv())) {
+    if (isDevEnv ?? utils.isDevEnv) {
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
@@ -278,7 +274,8 @@ final class Genkit {
   Model defineRemoteModel({
     required String name,
     required String url,
-    Map<String, String>? Function(Map<String, dynamic> context)? headers,
+    FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
+    headers,
     ModelInfo? modelInfo,
     http.Client? httpClient,
   }) {

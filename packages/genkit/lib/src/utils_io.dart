@@ -16,8 +16,8 @@ import 'dart:io' as io;
 
 String? getConfigVar(String name) => io.Platform.environment[name];
 
-String getPid() => '${io.pid}';
+int getPid() => io.pid;
 
 String getPlatformLanguageVersion() => io.Platform.version;
 
-const bool isAllowReflection = true;
+final bool isDevEnv = io.Platform.environment['GENKIT_ENV'] == 'dev';

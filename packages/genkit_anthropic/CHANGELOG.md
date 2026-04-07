@@ -1,3 +1,29 @@
+## 0.2.4
+
+ - updated internal dependencies.
+
+## 0.2.3
+
+### Fixes
+
+ - Update openai_dart/anthropic_sdk_dart for robust third-party provider support (#215)
+
+
+## 0.2.2
+
+ - updated internal dependencies.
+
+## 0.2.1
+
+ - updated internal dependencies.
+
+## 0.2.0
+
+### Breaking Changes
+
+ - removed vertex support to unblock using plugin with flutter (#209)
+
+
 ## 0.1.0+1
 
  - Update a dependency to the latest release.

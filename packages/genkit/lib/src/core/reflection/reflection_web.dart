@@ -12,19 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import '../../utils.dart';
 import '../reflection.dart';
 import '../registry.dart';
 import 'reflection_v2.dart';
 
+const _v2ServerEnvKey = 'GENKIT_REFLECTION_V2_SERVER';
+const _runtimeIdEnvKey = 'GENKIT_RUNTIME_ID';
+
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  final v2ServerUrl = getConfigVar('GENKIT_REFLECTION_V2_SERVER');
-  if (v2ServerUrl == null) {
+  const v2ServerUrl = String.fromEnvironment(_v2ServerEnvKey, defaultValue: '');
+  const runtimeId = String.fromEnvironment(_runtimeIdEnvKey, defaultValue: '');
+  if (v2ServerUrl == '') {
     throw UnimplementedError(
       'GENKIT_REFLECTION_V2_SERVER environment variable is not set',
     );
   }
-  final server = ReflectionServerV2(registry, url: v2ServerUrl);
+  final server = ReflectionServerV2(
+    registry,
+    url: v2ServerUrl,
+    runtimeId: runtimeId,
+  );
   server.start();
   return ReflectionServerHandle(server.stop);
 }

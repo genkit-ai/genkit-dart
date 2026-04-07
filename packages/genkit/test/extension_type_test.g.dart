@@ -259,7 +259,7 @@ base class MealPlan {
   MealPlan._(this._json);
 
   MealPlan({required String day, required MealType mealType}) {
-    _json = {'day': day, 'mealType': mealType};
+    _json = {'day': day, 'mealType': mealType.name};
   }
 
   late final Map<String, dynamic> _json;
@@ -426,7 +426,6 @@ base class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
               '\$ref': r'#/$defs/Ingredient',
             }),
           },
-          required: [],
         )
         .value,
     dependencies: [Ingredient.$schema],

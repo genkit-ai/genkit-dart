@@ -81,6 +81,144 @@ base class _WeatherToolInputTypeFactory
   );
 }
 
+base class TemperatureConverterInput {
+  factory TemperatureConverterInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  TemperatureConverterInput._(this._json);
+
+  TemperatureConverterInput({
+    required double temperature,
+    required TemperatureUnit unit,
+  }) {
+    _json = {'temperature': temperature, 'unit': unit.name};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<TemperatureConverterInput> $schema =
+      _TemperatureConverterInputTypeFactory();
+
+  double get temperature {
+    return (_json['temperature'] as num).toDouble();
+  }
+
+  set temperature(double value) {
+    _json['temperature'] = value;
+  }
+
+  TemperatureUnit get unit {
+    return TemperatureUnit.values.byName(_json['unit'] as String);
+  }
+
+  set unit(TemperatureUnit value) {
+    _json['unit'] = value.name;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _TemperatureConverterInputTypeFactory
+    extends SchemanticType<TemperatureConverterInput> {
+  const _TemperatureConverterInputTypeFactory();
+
+  @override
+  TemperatureConverterInput parse(Object? json) {
+    return TemperatureConverterInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TemperatureConverterInput',
+    definition: $Schema
+        .object(
+          properties: {
+            'temperature': $Schema.number(description: 'Input temperature'),
+            'unit': $Schema.string(enumValues: ['C', 'F']),
+          },
+          required: ['temperature', 'unit'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class TemperatureConverterOutput {
+  factory TemperatureConverterOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  TemperatureConverterOutput._(this._json);
+
+  TemperatureConverterOutput({
+    required double temperature,
+    required TemperatureUnit unit,
+  }) {
+    _json = {'temperature': temperature, 'unit': unit.name};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<TemperatureConverterOutput> $schema =
+      _TemperatureConverterOutputTypeFactory();
+
+  double get temperature {
+    return (_json['temperature'] as num).toDouble();
+  }
+
+  set temperature(double value) {
+    _json['temperature'] = value;
+  }
+
+  TemperatureUnit get unit {
+    return TemperatureUnit.values.byName(_json['unit'] as String);
+  }
+
+  set unit(TemperatureUnit value) {
+    _json['unit'] = value.name;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _TemperatureConverterOutputTypeFactory
+    extends SchemanticType<TemperatureConverterOutput> {
+  const _TemperatureConverterOutputTypeFactory();
+
+  @override
+  TemperatureConverterOutput parse(Object? json) {
+    return TemperatureConverterOutput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TemperatureConverterOutput',
+    definition: $Schema
+        .object(
+          properties: {
+            'temperature': $Schema.number(description: 'Output temperature'),
+            'unit': $Schema.string(enumValues: ['C', 'F']),
+          },
+          required: ['temperature', 'unit'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
 base class Category {
   factory Category.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 

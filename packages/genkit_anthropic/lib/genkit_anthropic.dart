@@ -15,10 +15,8 @@
 import 'package:genkit/plugin.dart';
 import 'src/model.dart';
 import 'src/plugin_impl.dart';
-import 'src/vertex_config.dart';
 
 export 'src/model.dart';
-export 'src/vertex_config.dart';
 
 /// An instance of [AnthropicPluginHandle] that provides entry points into the plugin.
 const AnthropicPluginHandle anthropic = AnthropicPluginHandle();
@@ -32,10 +30,16 @@ class AnthropicPluginHandle {
   ///
   /// You can optionally provide an [apiKey]. If omitted, it will be mapped
   /// to the standard `ANTHROPIC_API_KEY` environment variable.
-  ///
-  /// To use Claude models hosted on Vertex AI, provide [vertex].
-  GenkitPlugin call({String? apiKey, AnthropicVertexConfig? vertex}) {
-    return AnthropicPluginImpl(apiKey: apiKey, vertex: vertex);
+  GenkitPlugin call({
+    String? apiKey,
+    Map<String, String>? headers,
+    String? baseUrl,
+  }) {
+    return AnthropicPluginImpl(
+      apiKey: apiKey,
+      headers: headers,
+      baseUrl: baseUrl,
+    );
   }
 
   /// Returns a [ModelRef] for the specified Anthropic model [name].
