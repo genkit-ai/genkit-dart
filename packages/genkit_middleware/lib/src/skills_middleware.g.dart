@@ -64,16 +64,16 @@ base class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'UseSkillInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'skillName': $Schema.string(
-              description: 'The name of the skill to use.',
-            ),
-          },
-          required: ['skillName'],
-        )
-        .value,
+    definition: $Schema.fromMap({
+      'type': 'object',
+      'properties': {
+        'skillName': $Schema.string(
+          description: 'The name of the skill to use.',
+        ),
+      },
+      'required': ['skillName'],
+      'additionalProperties': false,
+    }).value,
     dependencies: [],
   );
 }

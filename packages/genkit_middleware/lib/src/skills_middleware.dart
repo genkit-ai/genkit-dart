@@ -20,7 +20,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'skills_middleware.g.dart';
 
-@Schema()
+@Schema(additionalProperties: false)
 abstract class $UseSkillInput {
   @Field(description: 'The name of the skill to use.')
   String get skillName;
