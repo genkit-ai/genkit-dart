@@ -150,6 +150,11 @@ abstract class $OrderStatus {
   Color? get nullableColor;
 }
 
+@Schema(additionalProperties: false)
+abstract class $StrictUser {
+  String get name;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -166,6 +171,22 @@ void main() {
       expect(parsed.name, 'Alice');
       expect(parsed.age, 30);
       expect(parsed.isAdmin, isTrue);
+    });
+
+    test('Strict user validation with unknown parameter', () async {
+      final json = {'name': 'Alice', 'extra': 'foo'};
+      final errors = await StrictUser.$schema.validate(json, useRefs: false);
+      expect(errors, isNotEmpty);
+      expect(
+        errors.any(
+          (e) => e.error == ValidationErrorType.additionalPropertyNotAllowed,
+        ),
+        isTrue,
+        reason: 'Should fail with additionalPropertyNotAllowed',
+      );
+
+      final schemaJson = StrictUser.$schema.jsonSchema(useRefs: false);
+      expect(schemaJson['additionalProperties'], isFalse);
     });
 
     test('User with null optional field', () {

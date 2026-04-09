@@ -205,7 +205,6 @@ base class _RetryOptionsTypeFactory extends SchemanticType<RetryOptions> {
             'retryModel': $Schema.boolean(),
             'retryTools': $Schema.boolean(),
           },
-          required: [],
         )
         .value,
     dependencies: [],
