@@ -16,7 +16,6 @@ import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/common.dart' as google;
-import 'package:genkit_google_genai/generated.dart' as google_types;
 
 List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
   required String pluginName,
@@ -151,9 +150,9 @@ Future<Embedding> _runEmbedContentRequest({
   required google.TextEmbedderOptions? options,
 }) async {
   final text = _documentText(doc);
-  final content = google_types.Content(parts: [google_types.Part(text: text)]);
+  final content = google.Content(parts: [google.Part(text: text)]);
   final res = await service.embedContent(
-    google_types.EmbedContentRequest(
+    google.EmbedContentRequest(
       content: content,
       outputDimensionality: options?.outputDimensionality,
       taskType: options?.taskType,
