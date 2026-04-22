@@ -130,7 +130,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     return createVertexEmbedder(
       pluginName: name,
       embedderName: embedderName,
-      getApiClient: () => getApiClient(),
+      getApiClient: getApiClient,
       handleException: handleException,
       closeService: authClient == null,
     );

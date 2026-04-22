@@ -20,6 +20,12 @@ import 'package:test/test.dart';
 
 import 'test_http_client.dart';
 
+typedef _EmbedderAction = Action<EmbedRequest, EmbedResponse, void, void>;
+
+_EmbedderAction _resolveEmbedder(VertexAiPluginImpl plugin, String name) {
+  return plugin.resolve('embedder', name)! as _EmbedderAction;
+}
+
 void main() {
   group('Vertex AI Embedders', () {
     test('lists embedders with schemas and custom options', () async {
@@ -39,8 +45,9 @@ void main() {
       expect(embedder.inputSchema, same(EmbedRequest.$schema));
       expect(embedder.outputSchema, same(EmbedResponse.$schema));
 
+      final modelMetadata = embedder.metadata['model'] as Map<String, dynamic>;
       final customOptions =
-          embedder.metadata['model']['customOptions'] as Map<String, dynamic>;
+          modelMetadata['customOptions'] as Map<String, dynamic>;
       expect(customOptions['properties'], contains('outputDimensionality'));
       expect(customOptions['properties'], contains('taskType'));
     });
@@ -53,8 +60,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final embedder =
-          plugin.resolve('embedder', 'gemini-embedding-2-preview') as Action;
+      final embedder = _resolveEmbedder(plugin, 'gemini-embedding-2-preview');
       final req = EmbedRequest(
         input: [
           DocumentData(content: [TextPart(text: 'hello')]),
@@ -80,8 +86,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final embedder =
-          plugin.resolve('embedder', 'gemini-embedding-001') as Action;
+      final embedder = _resolveEmbedder(plugin, 'gemini-embedding-001');
       final req = EmbedRequest(
         input: [
           DocumentData(content: [TextPart(text: 'hello')]),
@@ -109,8 +114,7 @@ void main() {
           authClient: mockClient,
         );
 
-        final embedder =
-            plugin.resolve('embedder', 'multimodalembedding') as Action;
+        final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
         final req = EmbedRequest(
           input: [
             DocumentData(content: [TextPart(text: 'hello')]),

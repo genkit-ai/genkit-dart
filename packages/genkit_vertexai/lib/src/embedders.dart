@@ -15,9 +15,8 @@
 import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
-import 'package:genkit_google_genai/common.dart';
-import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
-    as gcl;
+import 'package:genkit_google_genai/common.dart' as google;
+import 'package:genkit_google_genai/generated.dart' as google_types;
 
 List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
   required String pluginName,
@@ -34,7 +33,7 @@ List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
         final modelName = (modelMap['name'] as String).split('/').last;
         return embedderMetadata(
           '$pluginName/$modelName',
-          customOptions: TextEmbedderOptions.$schema,
+          customOptions: google.TextEmbedderOptions.$schema,
         );
       })
       .toList();
@@ -43,7 +42,7 @@ List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
 Embedder createVertexEmbedder({
   required String pluginName,
   required String embedderName,
-  required Future<GenerativeLanguageBaseClient> Function() getApiClient,
+  required Future<google.GenerativeLanguageBaseClient> Function() getApiClient,
   required GenkitException Function(Object, StackTrace) handleException,
   required bool closeService,
 }) {
@@ -57,7 +56,7 @@ Embedder createVertexEmbedder({
       final service = await getApiClient();
       try {
         final options = req.options != null
-            ? TextEmbedderOptions.fromJson(req.options!)
+            ? google.TextEmbedderOptions.fromJson(req.options!)
             : null;
 
         // Handle each input document separately, because Vertex embedders do
@@ -87,10 +86,10 @@ String _documentText(DocumentData doc) {
 }
 
 Future<Embedding> _runEmbedderRequest({
-  required GenerativeLanguageBaseClient service,
+  required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required DocumentData doc,
-  required TextEmbedderOptions? options,
+  required google.TextEmbedderOptions? options,
 }) async {
   // Choose the request style from the model family.
   return switch (_requestShapeFor(embedderName)) {
@@ -117,10 +116,10 @@ Future<Embedding> _runEmbedderRequest({
 }
 
 Future<Embedding> _runGeminiEmbeddingRequest({
-  required GenerativeLanguageBaseClient service,
+  required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required DocumentData doc,
-  required TextEmbedderOptions? options,
+  required google.TextEmbedderOptions? options,
 }) async {
   try {
     // Try the newer Gemini embedding API first.
@@ -146,15 +145,15 @@ Future<Embedding> _runGeminiEmbeddingRequest({
 }
 
 Future<Embedding> _runEmbedContentRequest({
-  required GenerativeLanguageBaseClient service,
+  required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required DocumentData doc,
-  required TextEmbedderOptions? options,
+  required google.TextEmbedderOptions? options,
 }) async {
   final text = _documentText(doc);
-  final content = gcl.Content(parts: [gcl.Part(text: text)]);
+  final content = google_types.Content(parts: [google_types.Part(text: text)]);
   final res = await service.embedContent(
-    gcl.EmbedContentRequest(
+    google_types.EmbedContentRequest(
       content: content,
       outputDimensionality: options?.outputDimensionality,
       taskType: options?.taskType,
@@ -166,10 +165,10 @@ Future<Embedding> _runEmbedContentRequest({
 }
 
 Future<Embedding> _runMultimodalPredictRequest({
-  required GenerativeLanguageBaseClient service,
+  required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required DocumentData doc,
-  required TextEmbedderOptions? options,
+  required google.TextEmbedderOptions? options,
 }) async {
   // Multimodal embedders use a different predict request and response shape.
   final instance = _toMultimodalInstance(doc);
@@ -194,10 +193,10 @@ Future<Embedding> _runMultimodalPredictRequest({
 }
 
 Future<Embedding> _runTextPredictRequest({
-  required GenerativeLanguageBaseClient service,
+  required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required DocumentData doc,
-  required TextEmbedderOptions? options,
+  required google.TextEmbedderOptions? options,
 }) async {
   // Older text embedders still use the predict payload shape.
   final instance = <String, dynamic>{'content': _documentText(doc)};
