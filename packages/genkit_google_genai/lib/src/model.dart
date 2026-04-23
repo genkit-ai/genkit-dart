@@ -164,6 +164,34 @@ abstract class $GeminiTtsOptions {
   $SpeechConfig? get speechConfig;
 }
 
+@Schema()
+abstract class $VeoOptions {
+  String? get apiKey;
+
+  @StringField(enumValues: ['16:9', '9:16'])
+  String? get aspectRatio;
+
+  @IntegerField(minimum: 1, maximum: 2)
+  int? get numberOfVideos;
+
+  @IntegerField(minimum: 4, maximum: 8)
+  int? get durationSeconds;
+
+  @StringField(enumValues: ['allow_all', 'allow_adult', 'dont_allow'])
+  String? get personGeneration;
+
+  @StringField(enumValues: ['720p', '1080p', '4k'])
+  String? get resolution;
+
+  int? get seed;
+
+  @IntegerField(minimum: 100)
+  int? get pollingIntervalMs;
+
+  @IntegerField(minimum: 1000)
+  int? get timeoutMs;
+}
+
 @Schema(description: 'Speech generation config')
 abstract class $SpeechConfig {
   $VoiceConfig? get voiceConfig;

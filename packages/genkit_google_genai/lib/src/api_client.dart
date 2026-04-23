@@ -18,7 +18,7 @@ import 'dart:convert';
 import 'package:genkit/genkit.dart';
 import 'package:http/http.dart' as http;
 
-import 'generated/generativelanguage.dart';
+import 'generated/generativelanguage.dart' as gcl;
 
 class GenerativeLanguageBaseClient {
   final String baseUrl;
@@ -31,25 +31,25 @@ class GenerativeLanguageBaseClient {
     this.apiUrlPrefix = 'v1beta/',
   });
 
-  Future<EmbedContentResponse> embedContent(
-    EmbedContentRequest request, {
+  Future<gcl.EmbedContentResponse> embedContent(
+    gcl.EmbedContentRequest request, {
     required String model,
   }) async {
     final url = '$apiUrlPrefix$model:embedContent';
     final res = await _call('POST', url, request.toJson());
-    return EmbedContentResponse.fromJson(res);
+    return gcl.EmbedContentResponse.fromJson(res);
   }
 
-  Future<GenerateContentResponse> generateContent(
-    GenerateContentRequest request, {
+  Future<gcl.GenerateContentResponse> generateContent(
+    gcl.GenerateContentRequest request, {
     required String model,
   }) async {
     final url = '$apiUrlPrefix$model:generateContent';
     final res = await _call('POST', url, request.toJson());
-    return GenerateContentResponse.fromJson(res);
+    return gcl.GenerateContentResponse.fromJson(res);
   }
 
-  Future<ListModelsResponse> listModels({
+  Future<gcl.ListModelsResponse> listModels({
     int? pageSize,
     String? pageToken,
   }) async {
@@ -57,17 +57,18 @@ class GenerativeLanguageBaseClient {
     if (pageSize != null) url += 'pageSize=$pageSize&';
     if (pageToken != null) url += 'pageToken=$pageToken&';
     final res = await _call('GET', url);
-    return ListModelsResponse.fromJson(res);
+    return gcl.ListModelsResponse.fromJson(res);
   }
 
   Future<Map<String, dynamic>> listPublisherModels({
     required String projectId,
+    String publisher = 'google',
   }) async {
-    // Vertex AI endpoint for publisher models uses v1beta1 and does not have the 'projects/...' in the path
-    // when using this specific endpoint, but it requires the google user project header (or just works with ADC).
-    // The base URL for this is https://{location}-aiplatform.googleapis.com
-    // And path is /v1beta1/publishers/google/models
-    final url = 'v1beta1/publishers/google/models';
+    // Vertex AI publisher-model catalog uses v1beta1 and does not include the
+    // `projects/...` segment in the path. It still requires the Google user
+    // project header (or a credential context that implies it).
+    final safePublisher = Uri.encodeComponent(publisher);
+    final url = 'v1beta1/publishers/$safePublisher/models';
     return await _call('GET', url, null, {'x-goog-user-project': projectId});
   }
 
@@ -79,8 +80,23 @@ class GenerativeLanguageBaseClient {
     return await _call('POST', url, request);
   }
 
-  Stream<GenerateContentResponse> streamGenerateContent(
-    GenerateContentRequest request, {
+  Future<gcl.Operation> predictLongRunning(
+    Map<String, dynamic> request, {
+    required String model,
+  }) async {
+    final url = '$apiUrlPrefix$model:predictLongRunning';
+    final res = await _call('POST', url, request);
+    return gcl.Operation.fromJson(res);
+  }
+
+  Future<gcl.Operation> getOperation(String name) async {
+    final url = name.startsWith(apiUrlPrefix) ? name : '$apiUrlPrefix$name';
+    final res = await _call('GET', url);
+    return gcl.Operation.fromJson(res);
+  }
+
+  Stream<gcl.GenerateContentResponse> streamGenerateContent(
+    gcl.GenerateContentRequest request, {
     required String model,
   }) async* {
     final url = '$apiUrlPrefix$model:streamGenerateContent?alt=sse';
@@ -88,7 +104,7 @@ class GenerativeLanguageBaseClient {
       'POST',
       url,
       request.toJson(),
-    ).map(GenerateContentResponse.fromJson);
+    ).map(gcl.GenerateContentResponse.fromJson);
   }
 
   Future<Map<String, dynamic>> _call(

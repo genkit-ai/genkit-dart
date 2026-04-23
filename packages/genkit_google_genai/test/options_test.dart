@@ -14,6 +14,7 @@
 
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/common_plugin.dart';
+import 'package:genkit_google_genai/src/veo.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -149,6 +150,30 @@ void main() {
 
       expect(settings.temperature, 0.5);
       expect(settings.responseMimeType, 'audio/mp3');
+    });
+  });
+
+  group('toVeoParameters', () {
+    test('maps Veo fields correctly', () {
+      final options = VeoOptions(
+        aspectRatio: '16:9',
+        numberOfVideos: 1,
+        durationSeconds: 8,
+        personGeneration: 'allow_adult',
+        resolution: '720p',
+        seed: 42,
+      );
+
+      final parameters = toVeoParameters(options);
+
+      expect(parameters, {
+        'aspectRatio': '16:9',
+        'numberOfVideos': 1,
+        'durationSeconds': 8,
+        'personGeneration': 'allow_adult',
+        'resolution': '720p',
+        'seed': 42,
+      });
     });
   });
 }

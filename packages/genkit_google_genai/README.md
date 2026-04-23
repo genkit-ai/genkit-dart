@@ -22,6 +22,28 @@ void main() async {
 }
 ```
 
+### Video Generation With Veo
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
+
+void main() async {
+  final ai = Genkit(plugins: [googleAI()]);
+
+  final response = await ai.generate(
+    model: googleAI.veo('veo-3.1-generate-preview'),
+    prompt: 'A cinematic drone shot of cliffs at golden hour.',
+    config: VeoOptions(
+      aspectRatio: '16:9',
+      durationSeconds: 8,
+      numberOfVideos: 1,
+    ),
+  );
+
+  print(response.media?.url);
+}
+```
 
 ### Tool Calling
 
@@ -53,7 +75,7 @@ void main() async {
     prompt: 'What is the weather in Boston?',
     toolNames: ['getWeather'],
   );
-  
+
   print(response.text);
 }
 ```
@@ -78,5 +100,3 @@ void main() async {
   print(embeddings[0].embedding);
 }
 ```
-
-
