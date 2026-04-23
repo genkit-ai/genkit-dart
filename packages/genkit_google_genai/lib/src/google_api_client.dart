@@ -70,11 +70,21 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       final models = (modelsResponse.models ?? [])
           .where((model) {
             return model.name != null &&
-                model.name!.startsWith('models/gemini-');
+                (model.name!.startsWith('models/gemini-') ||
+                    model.name!.startsWith('models/gemma-'));
           })
           .map((model) {
-            final bareName = model.name!.split('/').last;
+final bareName = model.name!.split('/').last;
             discoveredNames.add(bareName);
+            if (isGemmaModelName(bareName)) {
+              return modelMetadata(
+                '$name/$bareName',
+                customOptions: GemmaOptions.$schema,
+                modelInfo: isGemma3ModelName(bareName)
+                    ? gemma3ModelInfo
+                    : commonGemmaModelInfo,
+              );
+            }
             final isTts = bareName.contains('-tts');
             return modelMetadata(
               '$name/$bareName',
