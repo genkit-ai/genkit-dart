@@ -75,17 +75,29 @@ Embedder createVertexEmbedder({
             ? google.TextEmbedderOptions.fromJson(req.options!)
             : null;
 
-        // Handle each input document separately, because Vertex embedders do
-        // not all use the same request shape.
-        final futures = req.input.map(
-          (doc) => _runEmbedderRequest(
+        final embeddings = switch (_requestShapeFor(embedderName)) {
+          _VertexEmbedderRequestShape.geminiEmbedding =>
+            _runGeminiEmbeddingRequests(
+              service: service,
+              embedderName: embedderName,
+              docs: req.input,
+              options: options,
+            ),
+          _VertexEmbedderRequestShape.multimodalPredict =>
+            _runMultimodalPredictRequests(
+              service: service,
+              embedderName: embedderName,
+              docs: req.input,
+              options: options,
+            ),
+          _VertexEmbedderRequestShape.textPredict => _runTextPredictRequests(
             service: service,
             embedderName: embedderName,
-            doc: doc,
+            docs: req.input,
             options: options,
           ),
-        );
-        return EmbedResponse(embeddings: await Future.wait(futures));
+        };
+        return EmbedResponse(embeddings: await embeddings);
       } catch (e, stack) {
         throw handleException(e, stack);
       } finally {
@@ -101,63 +113,49 @@ String _documentText(DocumentData doc) {
   return doc.content.where((p) => p.isText).map((p) => p.text).join('\n');
 }
 
-Future<Embedding> _runEmbedderRequest({
-  required google.GenerativeLanguageBaseClient service,
-  required String embedderName,
-  required DocumentData doc,
-  required google.TextEmbedderOptions? options,
-}) async {
-  // Choose the request style from the model family.
-  return switch (_requestShapeFor(embedderName)) {
-    _VertexEmbedderRequestShape.geminiEmbedding => _runGeminiEmbeddingRequest(
-      service: service,
-      embedderName: embedderName,
-      doc: doc,
-      options: options,
-    ),
-    _VertexEmbedderRequestShape.multimodalPredict =>
-      _runMultimodalPredictRequest(
-        service: service,
-        embedderName: embedderName,
-        doc: doc,
-        options: options,
-      ),
-    _VertexEmbedderRequestShape.textPredict => _runTextPredictRequest(
-      service: service,
-      embedderName: embedderName,
-      doc: doc,
-      options: options,
-    ),
-  };
+google_types.EmbedContentRequest _embedContentRequest(
+  DocumentData doc,
+  google.TextEmbedderOptions? options,
+) {
+  final text = _documentText(doc);
+  return google_types.EmbedContentRequest(
+    content: google_types.Content(parts: [google_types.Part(text: text)]),
+    outputDimensionality: options?.outputDimensionality,
+    taskType: options?.taskType,
+    title: options?.title,
+  );
 }
 
-Future<Embedding> _runGeminiEmbeddingRequest({
+Future<List<Embedding>> _runGeminiEmbeddingRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
-  required DocumentData doc,
+  required List<DocumentData> docs,
   required google.TextEmbedderOptions? options,
 }) async {
-  try {
-    // Try the newer Gemini embedding API first.
-    return await _runEmbedContentRequest(
-      service: service,
-      embedderName: embedderName,
-      doc: doc,
-      options: options,
-    );
-  } on GenkitException catch (e) {
-    if (!_shouldFallbackToTextPredict(e)) {
-      rethrow;
-    }
+  if (docs.length == 1) {
+    return [
+      await _runEmbedContentRequest(
+        service: service,
+        embedderName: embedderName,
+        doc: docs.single,
+        options: options,
+      ),
+    ];
   }
 
-  // Some older Gemini embedding models still need the predict API.
-  return _runTextPredictRequest(
-    service: service,
-    embedderName: embedderName,
-    doc: doc,
-    options: options,
+  final res = await service.batchEmbedContents(
+    google_types.BatchEmbedContentsRequest(
+      requests: docs.map((doc) => _embedContentRequest(doc, options)).toList(),
+    ),
+    model: 'models/$embedderName',
   );
+  final embeddings = _requireBatchEmbeddings(
+    res.embeddings,
+    expectedCount: docs.length,
+  );
+  return embeddings
+      .map((embedding) => Embedding(embedding: embedding.values ?? const []))
+      .toList();
 }
 
 Future<Embedding> _runEmbedContentRequest({
@@ -166,59 +164,107 @@ Future<Embedding> _runEmbedContentRequest({
   required DocumentData doc,
   required google.TextEmbedderOptions? options,
 }) async {
-  final text = _documentText(doc);
-  final content = google_types.Content(parts: [google_types.Part(text: text)]);
   final res = await service.embedContent(
-    google_types.EmbedContentRequest(
-      content: content,
-      outputDimensionality: options?.outputDimensionality,
-      taskType: options?.taskType,
-      title: options?.title,
-    ),
+    _embedContentRequest(doc, options),
     model: 'models/$embedderName',
   );
   return Embedding(embedding: res.embedding?.values ?? []);
 }
 
-Future<Embedding> _runMultimodalPredictRequest({
+List<google_types.ContentEmbedding> _requireBatchEmbeddings(
+  List<google_types.ContentEmbedding>? embeddings, {
+  required int expectedCount,
+}) {
+  if (embeddings == null || embeddings.isEmpty) {
+    throw GenkitException(
+      'Vertex AI returned no embeddings.',
+      status: StatusCodes.INTERNAL,
+    );
+  }
+  if (embeddings.length != expectedCount) {
+    throw GenkitException(
+      'Vertex AI returned ${embeddings.length} embeddings for $expectedCount input documents.',
+      status: StatusCodes.INTERNAL,
+    );
+  }
+  return embeddings;
+}
+
+List<Map<String, dynamic>> _requirePredictions(
+  Object? rawPredictions, {
+  required int expectedCount,
+}) {
+  if (rawPredictions is! List || rawPredictions.isEmpty) {
+    throw GenkitException(
+      'Vertex AI returned no predictions.',
+      status: StatusCodes.INTERNAL,
+    );
+  }
+  if (rawPredictions.length != expectedCount) {
+    throw GenkitException(
+      'Vertex AI returned ${rawPredictions.length} predictions for $expectedCount input documents.',
+      status: StatusCodes.INTERNAL,
+    );
+  }
+
+  return rawPredictions.map((prediction) {
+    if (prediction is! Map<String, dynamic>) {
+      throw GenkitException(
+        'Vertex AI returned an invalid prediction payload.',
+        status: StatusCodes.INTERNAL,
+      );
+    }
+    return prediction;
+  }).toList();
+}
+
+Future<List<Embedding>> _runMultimodalPredictRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
-  required DocumentData doc,
+  required List<DocumentData> docs,
   required google.TextEmbedderOptions? options,
 }) async {
   // Multimodal embedders use a different predict request and response shape.
-  final instance = _toMultimodalInstance(doc);
+  final instances = docs.map(_toMultimodalInstance).toList();
   final parameters = <String, dynamic>{};
   if (options?.outputDimensionality != null) {
     parameters['dimension'] = options!.outputDimensionality;
   }
 
   final res = await service.predict({
-    'instances': [instance.instance],
+    'instances': instances.map((instance) => instance.instance).toList(),
     if (parameters.isNotEmpty) 'parameters': parameters,
   }, model: 'models/$embedderName');
 
-  final predictions = res['predictions'] as List;
-  final prediction = predictions.single as Map<String, dynamic>;
-  return Embedding(
-    embedding: _multimodalPredictionEmbedding(
-      prediction,
-      expectedOutput: instance.expectedOutput,
-    ),
+  final predictions = _requirePredictions(
+    res['predictions'],
+    expectedCount: instances.length,
   );
+  return [
+    for (var i = 0; i < predictions.length; i++)
+      Embedding(
+        embedding: _multimodalPredictionEmbedding(
+          predictions[i],
+          expectedOutput: instances[i].expectedOutput,
+        ),
+      ),
+  ];
 }
 
-Future<Embedding> _runTextPredictRequest({
+Future<List<Embedding>> _runTextPredictRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
-  required DocumentData doc,
+  required List<DocumentData> docs,
   required google.TextEmbedderOptions? options,
 }) async {
   // Older text embedders still use the predict payload shape.
-  final instance = <String, dynamic>{'content': _documentText(doc)};
-  if (options?.title != null) {
-    instance['title'] = options!.title;
-  }
+  final instances = docs.map((doc) {
+    final instance = <String, dynamic>{'content': _documentText(doc)};
+    if (options?.title != null) {
+      instance['title'] = options!.title;
+    }
+    return instance;
+  }).toList();
 
   final parameters = <String, dynamic>{};
   if (options?.outputDimensionality != null) {
@@ -229,12 +275,18 @@ Future<Embedding> _runTextPredictRequest({
   }
 
   final res = await service.predict({
-    'instances': [instance],
+    'instances': instances,
     if (parameters.isNotEmpty) 'parameters': parameters,
   }, model: 'models/$embedderName');
 
-  final predictions = res['predictions'] as List;
-  final prediction = predictions.single as Map<String, dynamic>;
+  final predictions = _requirePredictions(
+    res['predictions'],
+    expectedCount: docs.length,
+  );
+  return predictions.map(_textPredictionEmbedding).toList();
+}
+
+Embedding _textPredictionEmbedding(Map<String, dynamic> prediction) {
   final embeddingData = prediction['embeddings'] as Map<String, dynamic>;
   final values = embeddingData['values'] as List;
   return Embedding(
@@ -391,6 +443,9 @@ _VertexEmbedderRequestShape _requestShapeFor(String modelName) {
   if (_isMultimodalEmbeddingFamily(baseModelName)) {
     return _VertexEmbedderRequestShape.multimodalPredict;
   }
+  if (_usesLegacyGeminiPredictApi(baseModelName)) {
+    return _VertexEmbedderRequestShape.textPredict;
+  }
   if (_isGeminiEmbeddingFamily(baseModelName)) {
     return _VertexEmbedderRequestShape.geminiEmbedding;
   }
@@ -405,9 +460,8 @@ bool _isGeminiEmbeddingFamily(String modelName) {
   return modelName.startsWith('gemini-embedding-');
 }
 
-bool _shouldFallbackToTextPredict(GenkitException error) {
-  return error.status == StatusCodes.INVALID_ARGUMENT &&
-      error.message.contains('not supported in the embedContent API');
+bool _usesLegacyGeminiPredictApi(String modelName) {
+  return modelName == 'gemini-embedding-001';
 }
 
 class _MultimodalInstance {

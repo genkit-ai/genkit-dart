@@ -17,14 +17,26 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class MockHttpClient extends http.BaseClient {
+  MockHttpClient({
+    this.returnEmptyPredictions = false,
+    this.returnMissingMultimodalEmbedding = false,
+  });
+
+  final bool returnEmptyPredictions;
+  final bool returnMissingMultimodalEmbedding;
+  final List<Uri> requestUrls = [];
+  final List<String> requestBodies = [];
   Uri? lastUrl;
   String? lastBody;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requestUrls.add(request.url);
     lastUrl = request.url;
+    final requestBody = request is http.Request ? request.body : null;
     if (request is http.Request) {
-      lastBody = request.body;
+      lastBody = requestBody;
+      requestBodies.add(requestBody!);
     }
     if (request.url.host == 'metadata.google.internal' ||
         request.url.host == 'oauth2.googleapis.com') {
@@ -60,6 +72,21 @@ class MockHttpClient extends http.BaseClient {
         headers: {'content-type': 'application/json'},
       );
     }
+    if (request.url.path.endsWith(':batchEmbedContents')) {
+      final body = jsonDecode(requestBody!) as Map<String, dynamic>;
+      final requests = body['requests'] as List;
+      final embeddings = List.generate(
+        requests.length,
+        (index) => {
+          'values': [index + 0.1, index + 0.2, index + 0.3],
+        },
+      );
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(jsonEncode({'embeddings': embeddings}))),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     if (request.url.path.endsWith(':embedContent')) {
       return http.StreamedResponse(
         Stream.value(utf8.encode('{"embedding": {"values": [0.1, 0.2, 0.3]}}')),
@@ -69,21 +96,39 @@ class MockHttpClient extends http.BaseClient {
     }
     if (request.url.path.contains('multimodalembedding') &&
         request.url.path.endsWith(':predict')) {
+      final body = jsonDecode(requestBody!) as Map<String, dynamic>;
+      final instances = body['instances'] as List;
+      final predictions = returnEmptyPredictions
+          ? const []
+          : List.generate(
+              instances.length,
+              (index) => returnMissingMultimodalEmbedding
+                  ? <String, dynamic>{}
+                  : {
+                      'textEmbedding': [index + 0.7, index + 0.8, index + 0.9],
+                    },
+            );
       return http.StreamedResponse(
-        Stream.value(
-          utf8.encode('{"predictions": [{"textEmbedding": [0.7, 0.8, 0.9]}]}'),
-        ),
+        Stream.value(utf8.encode(jsonEncode({'predictions': predictions}))),
         200,
         headers: {'content-type': 'application/json'},
       );
     }
     if (request.url.path.endsWith(':predict')) {
+      final body = jsonDecode(requestBody!) as Map<String, dynamic>;
+      final instances = body['instances'] as List;
+      final predictions = returnEmptyPredictions
+          ? const []
+          : List.generate(
+              instances.length,
+              (index) => {
+                'embeddings': {
+                  'values': [index + 0.4, index + 0.5, index + 0.6],
+                },
+              },
+            );
       return http.StreamedResponse(
-        Stream.value(
-          utf8.encode(
-            '{"predictions": [{"embeddings": {"values": [0.4, 0.5, 0.6]}}]}',
-          ),
-        ),
+        Stream.value(utf8.encode(jsonEncode({'predictions': predictions}))),
         200,
         headers: {'content-type': 'application/json'},
       );

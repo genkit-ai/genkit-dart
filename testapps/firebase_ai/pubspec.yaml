@@ -35,6 +35,7 @@ dev_dependencies:
     sdk: flutter
 
 dependency_overrides:
+  firebase_app_check: 0.4.1+4
   genkit:
     path: ../../packages/genkit
   genkit_firebase_ai:

@@ -52,7 +52,7 @@ void main() {
       expect(customOptions['properties'], contains('taskType'));
     });
 
-    test('uses embedContent for embedders', () async {
+    test('uses embedContent for a single Gemini preview input', () async {
       final mockClient = MockHttpClient();
       final plugin = VertexAiPluginImpl(
         projectId: 'my-project',
@@ -78,7 +78,7 @@ void main() {
       expect(response.result.embeddings.first.embedding, [0.1, 0.2, 0.3]);
     });
 
-    test('uses predict for gemini-embedding-001', () async {
+    test('uses batchEmbedContents for multiple Gemini preview inputs', () async {
       final mockClient = MockHttpClient();
       final plugin = VertexAiPluginImpl(
         projectId: 'my-project',
@@ -86,10 +86,11 @@ void main() {
         authClient: mockClient,
       );
 
-      final embedder = _resolveEmbedder(plugin, 'gemini-embedding-001');
+      final embedder = _resolveEmbedder(plugin, 'gemini-embedding-2-preview');
       final req = EmbedRequest(
         input: [
           DocumentData(content: [TextPart(text: 'hello')]),
+          DocumentData(content: [TextPart(text: 'world')]),
         ],
       );
 
@@ -98,14 +99,60 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-001:predict',
+        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2-preview:batchEmbedContents',
       );
-      expect(response.result.embeddings, hasLength(1));
-      expect(response.result.embeddings.first.embedding, [0.4, 0.5, 0.6]);
+      final requestBody =
+          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      final requests = requestBody['requests'] as List;
+      expect(requests, hasLength(2));
+      expect(response.result.embeddings, hasLength(2));
+      expect(response.result.embeddings[0].embedding, [0.1, 0.2, 0.3]);
+      expect(response.result.embeddings[1].embedding, [1.1, 1.2, 1.3]);
     });
 
     test(
-      'uses multimodal predict schema for multimodalembedding text input',
+      'uses predict directly for legacy gemini-embedding-001 inputs',
+      () async {
+        final mockClient = MockHttpClient();
+        final plugin = VertexAiPluginImpl(
+          projectId: 'my-project',
+          location: 'us-central1',
+          authClient: mockClient,
+        );
+
+        final embedder = _resolveEmbedder(plugin, 'gemini-embedding-001');
+        final req = EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+            DocumentData(content: [TextPart(text: 'world')]),
+          ],
+        );
+
+        final response = await embedder.run(req);
+
+        expect(mockClient.lastUrl, isNotNull);
+        expect(
+          mockClient.lastUrl.toString(),
+          'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-001:predict',
+        );
+        expect(
+          mockClient.requestUrls.where(
+            (url) => url.path.endsWith('gemini-embedding-001:embedContent'),
+          ),
+          isEmpty,
+        );
+        final requestBody =
+            jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+        final instances = requestBody['instances'] as List;
+        expect(instances, hasLength(2));
+        expect(response.result.embeddings, hasLength(2));
+        expect(response.result.embeddings[0].embedding, [0.4, 0.5, 0.6]);
+        expect(response.result.embeddings[1].embedding, [1.4, 1.5, 1.6]);
+      },
+    );
+
+    test(
+      'uses multimodal predict schema for text-only multimodal inputs',
       () async {
         final mockClient = MockHttpClient();
         final plugin = VertexAiPluginImpl(
@@ -140,6 +187,70 @@ void main() {
         expect(requestBody['parameters'], {'dimension': 256});
         expect(response.result.embeddings, hasLength(1));
         expect(response.result.embeddings.first.embedding, [0.7, 0.8, 0.9]);
+      },
+    );
+
+    test(
+      'throws a descriptive error when Vertex returns no predictions',
+      () async {
+        final mockClient = MockHttpClient(returnEmptyPredictions: true);
+        final plugin = VertexAiPluginImpl(
+          projectId: 'my-project',
+          location: 'us-central1',
+          authClient: mockClient,
+        );
+
+        final embedder = _resolveEmbedder(plugin, 'gemini-embedding-001');
+
+        await expectLater(
+          () => embedder.run(
+            EmbedRequest(
+              input: [
+                DocumentData(content: [TextPart(text: 'hello')]),
+              ],
+            ),
+          ),
+          throwsA(
+            isA<GenkitException>().having(
+              (error) => error.message,
+              'message',
+              contains('Vertex AI returned no predictions.'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'throws when a multimodal response omits the expected embedding field',
+      () async {
+        final mockClient = MockHttpClient(
+          returnMissingMultimodalEmbedding: true,
+        );
+        final plugin = VertexAiPluginImpl(
+          projectId: 'my-project',
+          location: 'us-central1',
+          authClient: mockClient,
+        );
+
+        final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+        await expectLater(
+          () => embedder.run(
+            EmbedRequest(
+              input: [
+                DocumentData(content: [TextPart(text: 'hello')]),
+              ],
+            ),
+          ),
+          throwsA(
+            isA<GenkitException>().having(
+              (error) => error.message,
+              'message',
+              contains('did not return a text embedding'),
+            ),
+          ),
+        );
       },
     );
   });
