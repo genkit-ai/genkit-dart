@@ -54,12 +54,23 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       final models = (modelsResponse.models ?? [])
           .where((model) {
             return model.name != null &&
-                model.name!.startsWith('models/gemini-');
+                (model.name!.startsWith('models/gemini-') ||
+                    model.name!.startsWith('models/gemma-'));
           })
           .map((model) {
-            final isTts = model.name!.contains('-tts');
+            final short = model.name!.split('/').last;
+            if (isGemmaModelName(short)) {
+              return modelMetadata(
+                '$name/$short',
+                customOptions: GemmaOptions.$schema,
+                modelInfo: isGemma3ModelName(short)
+                    ? gemma3ModelInfo
+                    : commonGemmaModelInfo,
+              );
+            }
+            final isTts = short.contains('-tts');
             return modelMetadata(
-              '$name/${model.name!.split('/').last}',
+              '$name/$short',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
