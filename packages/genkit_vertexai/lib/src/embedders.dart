@@ -16,6 +16,9 @@ import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/common.dart' as google;
+// ignore: implementation_imports
+import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
+    as google_types;
 
 List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
   required String pluginName,
@@ -30,12 +33,26 @@ List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
       .map((m) {
         final modelMap = m as Map<String, dynamic>;
         final modelName = (modelMap['name'] as String).split('/').last;
-        return embedderMetadata(
-          '$pluginName/$modelName',
-          customOptions: google.TextEmbedderOptions.$schema,
-        );
+        return _vertexEmbedderMetadata('$pluginName/$modelName');
       })
       .toList();
+}
+
+ActionMetadata<dynamic, dynamic, dynamic, dynamic> _vertexEmbedderMetadata(
+  String name,
+) {
+  final metadata = embedderMetadata(
+    name,
+    customOptions: google.TextEmbedderOptions.$schema,
+  );
+  return ActionMetadata(
+    name: metadata.name,
+    description: metadata.description,
+    actionType: metadata.actionType,
+    inputSchema: EmbedRequest.$schema,
+    outputSchema: EmbedResponse.$schema,
+    metadata: metadata.metadata,
+  );
 }
 
 Embedder createVertexEmbedder({
@@ -150,9 +167,9 @@ Future<Embedding> _runEmbedContentRequest({
   required google.TextEmbedderOptions? options,
 }) async {
   final text = _documentText(doc);
-  final content = google.Content(parts: [google.Part(text: text)]);
+  final content = google_types.Content(parts: [google_types.Part(text: text)]);
   final res = await service.embedContent(
-    google.EmbedContentRequest(
+    google_types.EmbedContentRequest(
       content: content,
       outputDimensionality: options?.outputDimensionality,
       taskType: options?.taskType,

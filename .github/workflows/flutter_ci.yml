@@ -58,6 +58,9 @@ jobs:
         working-directory: testapps/flutter_genai
         run: flutter analyze
 
+      - name: Normalize generated macOS registrant
+        run: git restore testapps/firebase_ai/macos/Flutter/GeneratedPluginRegistrant.swift
+
       - name: Verify clean git tree
         run: |
           git diff --exit-code
