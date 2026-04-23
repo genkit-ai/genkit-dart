@@ -82,6 +82,8 @@ ActionMetadata embedderMetadata(
     name: name,
     description: name,
     actionType: 'embedder',
+    inputSchema: EmbedRequest.$schema,
+    outputSchema: EmbedResponse.$schema,
     metadata: {
       'label': name,
       'description': name,
