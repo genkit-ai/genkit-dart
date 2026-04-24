@@ -57,6 +57,42 @@ abstract class $GeminiOptions {
 }
 
 @Schema()
+abstract class $GemmaOptions {
+  String? get apiKey;
+
+  List<$SafetySettings>? get safetySettings;
+
+  bool? get codeExecution;
+  $FunctionCallingConfig? get functionCallingConfig;
+  $ThinkingConfig? get thinkingConfig;
+  List<String>? get responseModalities;
+
+  // Retrieval
+  $GoogleSearch? get googleSearch;
+  $FileSearch? get fileSearch;
+
+  @DoubleField(minimum: 0.0, maximum: 1.0)
+  double? get temperature;
+
+  @DoubleField(minimum: 0.0, maximum: 1.0)
+  double? get topP;
+
+  int? get topK;
+  int? get candidateCount;
+  List<String>? get stopSequences;
+  int? get maxOutputTokens;
+
+  String? get responseMimeType;
+  bool? get responseLogprobs;
+  int? get logprobs;
+  double? get presencePenalty;
+  double? get frequencyPenalty;
+  int? get seed;
+
+  $SpeechConfig? get speechConfig;
+}
+
+@Schema()
 abstract class $SafetySettings {
   @StringField(
     enumValues: [

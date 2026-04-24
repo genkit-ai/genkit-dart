@@ -413,6 +413,398 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   );
 }
 
+base class GemmaOptions {
+  factory GemmaOptions.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GemmaOptions._(this._json);
+
+  GemmaOptions({
+    String? apiKey,
+    List<SafetySettings>? safetySettings,
+    bool? codeExecution,
+    FunctionCallingConfig? functionCallingConfig,
+    ThinkingConfig? thinkingConfig,
+    List<String>? responseModalities,
+    GoogleSearch? googleSearch,
+    FileSearch? fileSearch,
+    double? temperature,
+    double? topP,
+    int? topK,
+    int? candidateCount,
+    List<String>? stopSequences,
+    int? maxOutputTokens,
+    String? responseMimeType,
+    bool? responseLogprobs,
+    int? logprobs,
+    double? presencePenalty,
+    double? frequencyPenalty,
+    int? seed,
+    SpeechConfig? speechConfig,
+  }) {
+    _json = {
+      'apiKey': ?apiKey,
+      'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
+      'codeExecution': ?codeExecution,
+      'functionCallingConfig': ?functionCallingConfig?.toJson(),
+      'thinkingConfig': ?thinkingConfig?.toJson(),
+      'responseModalities': ?responseModalities,
+      'googleSearch': ?googleSearch?.toJson(),
+      'fileSearch': ?fileSearch?.toJson(),
+      'temperature': ?temperature,
+      'topP': ?topP,
+      'topK': ?topK,
+      'candidateCount': ?candidateCount,
+      'stopSequences': ?stopSequences,
+      'maxOutputTokens': ?maxOutputTokens,
+      'responseMimeType': ?responseMimeType,
+      'responseLogprobs': ?responseLogprobs,
+      'logprobs': ?logprobs,
+      'presencePenalty': ?presencePenalty,
+      'frequencyPenalty': ?frequencyPenalty,
+      'seed': ?seed,
+      'speechConfig': ?speechConfig?.toJson(),
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  static const SchemanticType<GemmaOptions> $schema =
+      _GemmaOptionsTypeFactory();
+
+  String? get apiKey {
+    return _json['apiKey'] as String?;
+  }
+
+  set apiKey(String? value) {
+    if (value == null) {
+      _json.remove('apiKey');
+    } else {
+      _json['apiKey'] = value;
+    }
+  }
+
+  List<SafetySettings>? get safetySettings {
+    return (_json['safetySettings'] as List?)
+        ?.map((e) => SafetySettings.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set safetySettings(List<SafetySettings>? value) {
+    if (value == null) {
+      _json.remove('safetySettings');
+    } else {
+      _json['safetySettings'] = value.toList();
+    }
+  }
+
+  bool? get codeExecution {
+    return _json['codeExecution'] as bool?;
+  }
+
+  set codeExecution(bool? value) {
+    if (value == null) {
+      _json.remove('codeExecution');
+    } else {
+      _json['codeExecution'] = value;
+    }
+  }
+
+  FunctionCallingConfig? get functionCallingConfig {
+    return _json['functionCallingConfig'] == null
+        ? null
+        : FunctionCallingConfig.fromJson(
+            _json['functionCallingConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set functionCallingConfig(FunctionCallingConfig? value) {
+    if (value == null) {
+      _json.remove('functionCallingConfig');
+    } else {
+      _json['functionCallingConfig'] = value;
+    }
+  }
+
+  ThinkingConfig? get thinkingConfig {
+    return _json['thinkingConfig'] == null
+        ? null
+        : ThinkingConfig.fromJson(
+            _json['thinkingConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set thinkingConfig(ThinkingConfig? value) {
+    if (value == null) {
+      _json.remove('thinkingConfig');
+    } else {
+      _json['thinkingConfig'] = value;
+    }
+  }
+
+  List<String>? get responseModalities {
+    return (_json['responseModalities'] as List?)?.cast<String>();
+  }
+
+  set responseModalities(List<String>? value) {
+    if (value == null) {
+      _json.remove('responseModalities');
+    } else {
+      _json['responseModalities'] = value;
+    }
+  }
+
+  GoogleSearch? get googleSearch {
+    return _json['googleSearch'] == null
+        ? null
+        : GoogleSearch.fromJson(_json['googleSearch'] as Map<String, dynamic>);
+  }
+
+  set googleSearch(GoogleSearch? value) {
+    if (value == null) {
+      _json.remove('googleSearch');
+    } else {
+      _json['googleSearch'] = value;
+    }
+  }
+
+  FileSearch? get fileSearch {
+    return _json['fileSearch'] == null
+        ? null
+        : FileSearch.fromJson(_json['fileSearch'] as Map<String, dynamic>);
+  }
+
+  set fileSearch(FileSearch? value) {
+    if (value == null) {
+      _json.remove('fileSearch');
+    } else {
+      _json['fileSearch'] = value;
+    }
+  }
+
+  double? get temperature {
+    return (_json['temperature'] as num?)?.toDouble();
+  }
+
+  set temperature(double? value) {
+    if (value == null) {
+      _json.remove('temperature');
+    } else {
+      _json['temperature'] = value;
+    }
+  }
+
+  double? get topP {
+    return (_json['topP'] as num?)?.toDouble();
+  }
+
+  set topP(double? value) {
+    if (value == null) {
+      _json.remove('topP');
+    } else {
+      _json['topP'] = value;
+    }
+  }
+
+  int? get topK {
+    return _json['topK'] as int?;
+  }
+
+  set topK(int? value) {
+    if (value == null) {
+      _json.remove('topK');
+    } else {
+      _json['topK'] = value;
+    }
+  }
+
+  int? get candidateCount {
+    return _json['candidateCount'] as int?;
+  }
+
+  set candidateCount(int? value) {
+    if (value == null) {
+      _json.remove('candidateCount');
+    } else {
+      _json['candidateCount'] = value;
+    }
+  }
+
+  List<String>? get stopSequences {
+    return (_json['stopSequences'] as List?)?.cast<String>();
+  }
+
+  set stopSequences(List<String>? value) {
+    if (value == null) {
+      _json.remove('stopSequences');
+    } else {
+      _json['stopSequences'] = value;
+    }
+  }
+
+  int? get maxOutputTokens {
+    return _json['maxOutputTokens'] as int?;
+  }
+
+  set maxOutputTokens(int? value) {
+    if (value == null) {
+      _json.remove('maxOutputTokens');
+    } else {
+      _json['maxOutputTokens'] = value;
+    }
+  }
+
+  String? get responseMimeType {
+    return _json['responseMimeType'] as String?;
+  }
+
+  set responseMimeType(String? value) {
+    if (value == null) {
+      _json.remove('responseMimeType');
+    } else {
+      _json['responseMimeType'] = value;
+    }
+  }
+
+  bool? get responseLogprobs {
+    return _json['responseLogprobs'] as bool?;
+  }
+
+  set responseLogprobs(bool? value) {
+    if (value == null) {
+      _json.remove('responseLogprobs');
+    } else {
+      _json['responseLogprobs'] = value;
+    }
+  }
+
+  int? get logprobs {
+    return _json['logprobs'] as int?;
+  }
+
+  set logprobs(int? value) {
+    if (value == null) {
+      _json.remove('logprobs');
+    } else {
+      _json['logprobs'] = value;
+    }
+  }
+
+  double? get presencePenalty {
+    return (_json['presencePenalty'] as num?)?.toDouble();
+  }
+
+  set presencePenalty(double? value) {
+    if (value == null) {
+      _json.remove('presencePenalty');
+    } else {
+      _json['presencePenalty'] = value;
+    }
+  }
+
+  double? get frequencyPenalty {
+    return (_json['frequencyPenalty'] as num?)?.toDouble();
+  }
+
+  set frequencyPenalty(double? value) {
+    if (value == null) {
+      _json.remove('frequencyPenalty');
+    } else {
+      _json['frequencyPenalty'] = value;
+    }
+  }
+
+  int? get seed {
+    return _json['seed'] as int?;
+  }
+
+  set seed(int? value) {
+    if (value == null) {
+      _json.remove('seed');
+    } else {
+      _json['seed'] = value;
+    }
+  }
+
+  SpeechConfig? get speechConfig {
+    return _json['speechConfig'] == null
+        ? null
+        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
+  }
+
+  set speechConfig(SpeechConfig? value) {
+    if (value == null) {
+      _json.remove('speechConfig');
+    } else {
+      _json['speechConfig'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GemmaOptionsTypeFactory extends SchemanticType<GemmaOptions> {
+  const _GemmaOptionsTypeFactory();
+
+  @override
+  GemmaOptions parse(Object? json) {
+    return GemmaOptions._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GemmaOptions',
+    definition: $Schema
+        .object(
+          properties: {
+            'apiKey': $Schema.string(),
+            'safetySettings': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/SafetySettings'}),
+            ),
+            'codeExecution': $Schema.boolean(),
+            'functionCallingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/FunctionCallingConfig',
+            }),
+            'thinkingConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/ThinkingConfig',
+            }),
+            'responseModalities': $Schema.list(items: $Schema.string()),
+            'googleSearch': $Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
+            'fileSearch': $Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
+            'temperature': $Schema.number(minimum: 0.0, maximum: 1.0),
+            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
+            'topK': $Schema.integer(),
+            'candidateCount': $Schema.integer(),
+            'stopSequences': $Schema.list(items: $Schema.string()),
+            'maxOutputTokens': $Schema.integer(),
+            'responseMimeType': $Schema.string(),
+            'responseLogprobs': $Schema.boolean(),
+            'logprobs': $Schema.integer(),
+            'presencePenalty': $Schema.number(),
+            'frequencyPenalty': $Schema.number(),
+            'seed': $Schema.integer(),
+            'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
+          },
+        )
+        .value,
+    dependencies: [
+      SafetySettings.$schema,
+      FunctionCallingConfig.$schema,
+      ThinkingConfig.$schema,
+      GoogleSearch.$schema,
+      FileSearch.$schema,
+      SpeechConfig.$schema,
+    ],
+  );
+}
+
 base class SafetySettings {
   factory SafetySettings.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);

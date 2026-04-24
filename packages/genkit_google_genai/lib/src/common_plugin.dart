@@ -37,14 +37,39 @@ final commonModelInfo = ModelInfo(
   },
 );
 
+final commonGemmaModelInfo = ModelInfo(
+  supports: {
+    'multiturn': true,
+    'media': true,
+    'tools': true,
+    'toolChoice': true,
+    'systemRole': true,
+    'constrained': 'no-tools',
+  },
+);
+
+final gemma3ModelInfo = ModelInfo(
+  supports: {...?commonGemmaModelInfo.supports, 'systemRole': false},
+);
+
+bool isGemmaModelName(String name) => name.startsWith('gemma-');
+
+bool isGemma3ModelName(String name) =>
+    name.startsWith('gemma-3-') || name.startsWith('gemma-3n-');
+
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
-  Model createModel(String modelName, SchemanticType customOptions) {
+  Model createModel(
+    String modelName,
+    SchemanticType customOptions, {
+    ModelInfo? modelInfo,
+  }) {
+    final isGemma = isGemmaModelName(modelName);
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
-      metadata: {'model': commonModelInfo.toJson()},
+      metadata: {'model': (modelInfo ?? commonModelInfo).toJson()},
       fn: (req, ctx) async {
         gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
@@ -74,9 +99,17 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
-          final options = req.config == null
-              ? GeminiOptions()
-              : GeminiOptions.$schema.parse(req.config!);
+          final GeminiOptions options;
+          if (isGemma) {
+            final gemmaOptions = req.config == null
+                ? GemmaOptions()
+                : GemmaOptions.$schema.parse(req.config!);
+            options = _gemmaToGeminiOptions(gemmaOptions);
+          } else {
+            options = req.config == null
+                ? GeminiOptions()
+                : GeminiOptions.$schema.parse(req.config!);
+          }
           apiKey = options.apiKey;
           generationConfig = toGeminiSettings(
             options,
@@ -98,9 +131,12 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
-          final messages = req.messages
+          final nonSystemMessages = req.messages
               .where((m) => m.role != Role.system)
               .toList();
+          final messages = isGemma
+              ? stripReasoningParts(nonSystemMessages)
+              : nonSystemMessages;
 
           final generateRequest = gcl.GenerateContentRequest(
             contents: toGeminiContent(messages),
@@ -189,6 +225,15 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return createEmbedder(name);
     }
     if (actionType == 'model') {
+      if (isGemmaModelName(name)) {
+        return createModel(
+          name,
+          GemmaOptions.$schema,
+          modelInfo: isGemma3ModelName(name)
+              ? gemma3ModelInfo
+              : commonGemmaModelInfo,
+        );
+      }
       if (name.contains('-tts')) {
         return createModel(name, GeminiTtsOptions.$schema);
       }
@@ -425,6 +470,51 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
         ),
       )
       .toList();
+}
+
+@visibleForTesting
+List<Message> stripReasoningParts(List<Message> messages) {
+  return messages
+      .map(
+        (m) => Message(
+          role: m.role,
+          content: m.content
+              .where(
+                (p) =>
+                    !p.isReasoning && p.metadata?['thoughtSignature'] == null,
+              )
+              .toList(),
+          metadata: m.metadata,
+        ),
+      )
+      .where((m) => m.content.isNotEmpty)
+      .toList();
+}
+
+GeminiOptions _gemmaToGeminiOptions(GemmaOptions o) {
+  return GeminiOptions(
+    apiKey: o.apiKey,
+    safetySettings: o.safetySettings,
+    codeExecution: o.codeExecution,
+    functionCallingConfig: o.functionCallingConfig,
+    thinkingConfig: o.thinkingConfig,
+    responseModalities: o.responseModalities,
+    googleSearch: o.googleSearch,
+    fileSearch: o.fileSearch,
+    temperature: o.temperature,
+    topP: o.topP,
+    topK: o.topK,
+    candidateCount: o.candidateCount,
+    stopSequences: o.stopSequences,
+    maxOutputTokens: o.maxOutputTokens,
+    responseMimeType: o.responseMimeType,
+    responseLogprobs: o.responseLogprobs,
+    logprobs: o.logprobs,
+    presencePenalty: o.presencePenalty,
+    frequencyPenalty: o.frequencyPenalty,
+    seed: o.seed,
+    speechConfig: o.speechConfig,
+  );
 }
 
 @visibleForTesting
