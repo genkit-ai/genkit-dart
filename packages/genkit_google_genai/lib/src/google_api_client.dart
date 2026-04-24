@@ -119,12 +119,12 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       customOptions: ImagenOptions.$schema,
       metadata: {'model': imagenModelInfo.toJson()},
       fn: (req, ctx) async {
-        final options = req?.config == null
+        final options = req!.config == null
             ? ImagenOptions()
-            : ImagenOptions.$schema.parse(req!.config!);
+            : ImagenOptions.$schema.parse(req.config!);
         final service = await getApiClient(options.apiKey);
         try {
-          final prompt = extractPrompt(req!.messages);
+          final prompt = extractPrompt(req.messages);
           final image = extractImagenImage(req.messages);
           final body = <String, dynamic>{
             'instances': [
