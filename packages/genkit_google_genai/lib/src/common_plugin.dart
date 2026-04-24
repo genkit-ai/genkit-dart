@@ -81,7 +81,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     SchemanticType customOptions, {
     ModelInfo? modelInfo,
   }) {
-    final isGemma = customOptions == GemmaOptions.$schema;
+    final isGemma = isGemmaModelName(modelName);
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
