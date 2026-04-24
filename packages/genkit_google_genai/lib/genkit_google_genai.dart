@@ -32,6 +32,10 @@ class GoogleGenAiPluginHandle {
     return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
   }
 
+  ModelRef<ImagenOptions> imagen(String name) {
+    return modelRef('googleai/$name', customOptions: ImagenOptions.$schema);
+  }
+
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
       'googleai/$name',
