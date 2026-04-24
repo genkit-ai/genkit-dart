@@ -93,7 +93,10 @@ void main() {
           role: Role.model,
           content: [ReasoningPart(reasoning: 'only thought')],
         ),
-        Message(role: Role.user, content: [TextPart(text: 'hi')]),
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'hi')],
+        ),
       ];
       final stripped = stripReasoningParts(messages);
       expect(stripped, hasLength(1));
@@ -102,7 +105,10 @@ void main() {
 
     test('leaves non-gemma-affected parts alone', () {
       final messages = [
-        Message(role: Role.user, content: [TextPart(text: 'hello')]),
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'hello')],
+        ),
       ];
       final stripped = stripReasoningParts(messages);
       expect(stripped, hasLength(1));
