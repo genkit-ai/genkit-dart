@@ -49,10 +49,7 @@ final commonGemmaModelInfo = ModelInfo(
 );
 
 final gemma3ModelInfo = ModelInfo(
-  supports: {
-    ...?commonGemmaModelInfo.supports,
-    'systemRole': false,
-  },
+  supports: {...?commonGemmaModelInfo.supports, 'systemRole': false},
 );
 
 bool isGemmaModelName(String name) => name.startsWith('gemma-');
