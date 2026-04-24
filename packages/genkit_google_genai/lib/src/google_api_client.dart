@@ -18,6 +18,7 @@ import 'package:meta/meta.dart';
 import 'api_client.dart';
 import 'common_plugin.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'imagen.dart';
 import 'model.dart';
 
 @visibleForTesting
@@ -51,15 +52,31 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         logger.warning('Failed to list models: $e', e, stack);
         throw handleException(e, stack);
       }
+      const predictMethods = ['predict', 'predictLongRunning'];
       final models = (modelsResponse.models ?? [])
           .where((model) {
-            return model.name != null &&
-                model.name!.startsWith('models/gemini-');
+            final n = model.name;
+            if (n == null) return false;
+            if (n.startsWith('models/gemini-')) return true;
+            if (n.startsWith('models/imagen-')) {
+              return (model.supportedGenerationMethods ?? const []).any(
+                predictMethods.contains,
+              );
+            }
+            return false;
           })
           .map((model) {
-            final isTts = model.name!.contains('-tts');
+            final short = model.name!.split('/').last;
+            if (isImagenModelName(short)) {
+              return modelMetadata(
+                '$name/$short',
+                customOptions: ImagenOptions.$schema,
+                modelInfo: imagenModelInfo,
+              );
+            }
+            final isTts = short.contains('-tts');
             return modelMetadata(
-              '$name/${model.name!.split('/').last}',
+              '$name/$short',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
@@ -86,6 +103,63 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
     } finally {
       service.client.close();
     }
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && isImagenModelName(name)) {
+      return createImagenModel(name);
+    }
+    return super.resolve(actionType, name);
+  }
+
+  Model createImagenModel(String modelName) {
+    return Model(
+      name: '$name/$modelName',
+      customOptions: ImagenOptions.$schema,
+      metadata: {'model': imagenModelInfo.toJson()},
+      fn: (req, ctx) async {
+        final options = req?.config == null
+            ? ImagenOptions()
+            : ImagenOptions.$schema.parse(req!.config!);
+        final service = await getApiClient(options.apiKey);
+        try {
+          final prompt = extractPrompt(req!.messages);
+          final image = extractImagenImage(req.messages);
+          final body = <String, dynamic>{
+            'instances': [
+              {'prompt': prompt, 'image': ?image},
+            ],
+            'parameters': toImagenParameters(options),
+          };
+          final raw = await service.predict(body, model: 'models/$modelName');
+          final predictions =
+              (raw['predictions'] as List?)
+                  ?.whereType<Map<String, dynamic>>()
+                  .toList() ??
+              const [];
+          final parts = predictions
+              .map(fromImagenPrediction)
+              .whereType<MediaPart>()
+              .toList();
+          if (parts.isEmpty) {
+            throw GenkitException(
+              'Model returned no predictions. Possibly due to content filters.',
+              status: StatusCodes.FAILED_PRECONDITION,
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason('stop'),
+            message: Message(role: Role.model, content: parts),
+            raw: raw,
+          );
+        } catch (e, stack) {
+          throw handleException(e, stack);
+        } finally {
+          service.client.close();
+        }
+      },
+    );
   }
 
   @override

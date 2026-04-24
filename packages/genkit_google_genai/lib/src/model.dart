@@ -57,6 +57,26 @@ abstract class $GeminiOptions {
 }
 
 @Schema()
+abstract class $ImagenOptions {
+  String? get apiKey;
+
+  @IntegerField(minimum: 1, maximum: 4)
+  int? get numberOfImages;
+
+  @StringField(
+    enumValues: ['1:1', '9:16', '16:9', '3:4', '4:3'],
+    description: 'Aspect ratio of the generated image.',
+  )
+  String? get aspectRatio;
+
+  @StringField(
+    enumValues: ['dont_allow', 'allow_adult', 'allow_all'],
+    description: 'Controls generation of people.',
+  )
+  String? get personGeneration;
+}
+
+@Schema()
 abstract class $SafetySettings {
   @StringField(
     enumValues: [
