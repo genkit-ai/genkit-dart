@@ -62,12 +62,13 @@ class GenerativeLanguageBaseClient {
 
   Future<Map<String, dynamic>> listPublisherModels({
     required String projectId,
+    String publisher = 'google',
   }) async {
     // Vertex AI endpoint for publisher models uses v1beta1 and does not have the 'projects/...' in the path
     // when using this specific endpoint, but it requires the google user project header (or just works with ADC).
     // The base URL for this is https://{location}-aiplatform.googleapis.com
-    // And path is /v1beta1/publishers/google/models
-    final url = 'v1beta1/publishers/google/models';
+    // And path is /v1beta1/publishers/{publisher}/models
+    final url = 'v1beta1/publishers/$publisher/models';
     return await _call('GET', url, null, {'x-goog-user-project': projectId});
   }
 

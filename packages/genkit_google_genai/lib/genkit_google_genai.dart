@@ -15,8 +15,10 @@
 import 'package:genkit/plugin.dart';
 
 import 'src/google_api_client.dart';
+import 'src/imagen.dart';
 import 'src/model.dart';
 
+export 'src/imagen.dart';
 export 'src/model.dart';
 
 const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
@@ -30,6 +32,10 @@ class GoogleGenAiPluginHandle {
 
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
+  }
+
+  ModelRef<ImagenOptions> imagen(String name) {
+    return modelRef('googleai/$name', customOptions: ImagenOptions.$schema);
   }
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {

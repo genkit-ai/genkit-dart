@@ -17,4 +17,5 @@ library;
 
 export 'src/api_client.dart';
 export 'src/common_plugin.dart';
+export 'src/imagen.dart';
 export 'src/model.dart';

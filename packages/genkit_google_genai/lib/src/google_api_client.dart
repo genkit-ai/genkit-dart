@@ -18,6 +18,7 @@ import 'package:meta/meta.dart';
 import 'api_client.dart';
 import 'common_plugin.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'imagen.dart';
 import 'model.dart';
 
 @visibleForTesting
@@ -53,17 +54,23 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       }
       final models = (modelsResponse.models ?? [])
           .where((model) {
-            return model.name != null &&
-                model.name!.startsWith('models/gemini-');
+            final modelName = model.name;
+            return modelName != null &&
+                (modelName.startsWith('models/gemini-') ||
+                    modelName.startsWith('models/imagen-'));
           })
           .map((model) {
-            final isTts = model.name!.contains('-tts');
+            final modelName = model.name!.split('/').last;
+            final isImagen = isImagenModelName(modelName);
+            final isTts = modelName.contains('-tts');
             return modelMetadata(
-              '$name/${model.name!.split('/').last}',
-              customOptions: isTts
+              '$name/$modelName',
+              customOptions: isImagen
+                  ? ImagenOptions.$schema
+                  : isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
-              modelInfo: commonModelInfo,
+              modelInfo: isImagen ? imagenModelInfo : commonModelInfo,
             );
           })
           .toList();
@@ -149,5 +156,13 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         }
       },
     );
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && isImagenModelName(name)) {
+      return createImagenModel(this, name);
+    }
+    return super.resolve(actionType, name);
   }
 }
