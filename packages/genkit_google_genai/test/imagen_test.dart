@@ -28,10 +28,22 @@ void main() {
       expect(action!.name, 'googleai/imagen-4.0-generate-001');
     });
 
+    test('exposes image size in custom options metadata', () {
+      final plugin = GoogleGenAiPluginImpl();
+      final action = plugin.resolve('model', 'imagen-4.0-generate-001');
+      final model = action!.metadata['model'] as Map<String, dynamic>;
+      final customOptions = model['customOptions'] as Map<String, dynamic>;
+      final properties = customOptions['properties'] as Map<String, dynamic>;
+
+      expect(properties, contains('imageSize'));
+      expect(properties['imageSize'], containsPair('enum', ['1K', '2K']));
+    });
+
     test('maps options to predict parameters', () {
       final options = ImagenOptions.fromJson({
         'apiKey': 'secret',
         'numberOfImages': 2,
+        'imageSize': '2K',
         'aspectRatio': '16:9',
         'personGeneration': 'allow_adult',
         'negativePrompt': 'blurry',
@@ -41,6 +53,7 @@ void main() {
 
       expect(params, {
         'sampleCount': 2,
+        'imageSize': '2K',
         'aspectRatio': '16:9',
         'personGeneration': 'allow_adult',
         'negativePrompt': 'blurry',
@@ -88,25 +101,11 @@ void main() {
       expect(extractImagenPrompt(request), 'hello world');
     });
 
-    test('extracts base64 image inputs', () {
-      final request = ModelRequest(
-        messages: [
-          Message(
-            role: Role.user,
-            content: [
-              TextPart(text: 'edit this'),
-              MediaPart(
-                media: Media(
-                  url: 'data:image/png;base64,abc123',
-                  contentType: 'image/png',
-                ),
-              ),
-            ],
-          ),
-        ],
+    test('throws clear error for invalid prediction shape', () {
+      expect(
+        () => fromImagenPrediction('not-a-map'),
+        throwsA(isA<GenkitException>()),
       );
-
-      expect(extractImagenImage(request), {'bytesBase64Encoded': 'abc123'});
     });
   });
 }

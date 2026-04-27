@@ -30,12 +30,14 @@ base class ImagenOptions {
   ImagenOptions({
     String? apiKey,
     int? numberOfImages,
+    String? imageSize,
     String? aspectRatio,
     String? personGeneration,
   }) {
     _json = {
       'apiKey': ?apiKey,
       'numberOfImages': ?numberOfImages,
+      'imageSize': ?imageSize,
       'aspectRatio': ?aspectRatio,
       'personGeneration': ?personGeneration,
     };
@@ -67,6 +69,18 @@ base class ImagenOptions {
       _json.remove('numberOfImages');
     } else {
       _json['numberOfImages'] = value;
+    }
+  }
+
+  String? get imageSize {
+    return _json['imageSize'] as String?;
+  }
+
+  set imageSize(String? value) {
+    if (value == null) {
+      _json.remove('imageSize');
+    } else {
+      _json['imageSize'] = value;
     }
   }
 
@@ -124,6 +138,11 @@ base class _ImagenOptionsTypeFactory extends SchemanticType<ImagenOptions> {
               'The number of images to generate, from 1 to 4 inclusive. Defaults to 1.',
           minimum: 1,
           maximum: 4,
+        ),
+        'imageSize': $Schema.string(
+          description:
+              'The size of the generated image. Supported by Standard and Ultra models.',
+          enumValues: ['1K', '2K'],
         ),
         'aspectRatio': $Schema.string(
           description: 'Desired aspect ratio of the output image.',

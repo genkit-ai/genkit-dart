@@ -34,6 +34,14 @@ abstract class $ImagenOptions {
   int? get numberOfImages;
 
   @StringField(
+    enumValues: ['1K', '2K'],
+    description:
+        'The size of the generated image. Supported by Standard and Ultra '
+        'models.',
+  )
+  String? get imageSize;
+
+  @StringField(
     enumValues: ['1:1', '9:16', '16:9', '3:4', '4:3'],
     description: 'Desired aspect ratio of the output image.',
   )
@@ -98,11 +106,10 @@ Model<ImagenOptions> createImagenModel(
             status: StatusCodes.INVALID_ARGUMENT,
           );
         }
-        final image = extractImagenImage(req);
 
         final response = await service.predict({
           'instances': [
-            {'prompt': prompt, if (image != null) 'image': image},
+            {'prompt': prompt},
           ],
           'parameters': toImagenParameters(options),
         }, model: 'models/$modelName');
@@ -138,32 +145,12 @@ String extractImagenPrompt(ModelRequest request) {
     if (message.role != Role.user) continue;
     for (final part in message.content) {
       if (part.isText) {
+        if (buffer.isNotEmpty) buffer.write(' ');
         buffer.write(part.text);
       }
     }
   }
   return buffer.toString();
-}
-
-@visibleForTesting
-Map<String, dynamic>? extractImagenImage(ModelRequest request) {
-  for (final message in request.messages.reversed) {
-    for (final part in message.content) {
-      final media = part.media;
-      if (media == null) continue;
-      final isImage =
-          media.contentType?.startsWith('image/') ??
-          media.url.startsWith('data:image/');
-      if (!isImage) continue;
-
-      final dataUrlParts = media.url.split(',');
-      if (dataUrlParts.length < 2 || dataUrlParts.last.isEmpty) {
-        return null;
-      }
-      return {'bytesBase64Encoded': dataUrlParts.last};
-    }
-  }
-  return null;
 }
 
 @visibleForTesting
@@ -180,7 +167,13 @@ Map<String, dynamic> toImagenParameters(ImagenOptions options) {
 
 @visibleForTesting
 MediaPart fromImagenPrediction(Object? prediction) {
-  final predictionMap = prediction as Map<String, dynamic>;
+  if (prediction is! Map<String, dynamic>) {
+    throw GenkitException(
+      'Imagen prediction did not include a valid image map.',
+      status: StatusCodes.INTERNAL,
+    );
+  }
+  final predictionMap = prediction;
   final b64Data = predictionMap['bytesBase64Encoded'] as String?;
   final mimeType = predictionMap['mimeType'] as String? ?? 'image/png';
   if (b64Data == null || b64Data.isEmpty) {
