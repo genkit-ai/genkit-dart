@@ -64,6 +64,7 @@ Model createMistralModel({
   required String pluginName,
   required String modelName,
   required Future<GenerativeLanguageBaseClient> Function() getApiClient,
+  bool closeClient = true,
 }) {
   final modelInfo = _mistralModelInfoFor(modelName);
 
@@ -102,7 +103,9 @@ Model createMistralModel({
           stackTrace: stack,
         );
       } finally {
-        service.client.close();
+        if (closeClient) {
+          service.client.close();
+        }
       }
     },
   );
@@ -347,7 +350,10 @@ Map<String, dynamic> _toMistralContentPart(Part part) {
       'image_url': {'url': media.url},
     };
   }
-  throw UnimplementedError('Unsupported Mistral content part: $part');
+  throw GenkitException(
+    'Unsupported Mistral content part: $part',
+    status: StatusCodes.INVALID_ARGUMENT,
+  );
 }
 
 bool _isDocumentMedia(Media media) {

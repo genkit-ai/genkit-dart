@@ -22,6 +22,7 @@ import 'package:test/test.dart';
 class MockHttpClient extends http.BaseClient {
   Uri? lastUrl;
   String? lastBody;
+  bool isClosed = false;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -81,6 +82,11 @@ class MockHttpClient extends http.BaseClient {
 
     return http.StreamedResponse(Stream.value(utf8.encode('{}')), 404);
   }
+
+  @override
+  void close() {
+    isClosed = true;
+  }
 }
 
 void main() {
@@ -114,6 +120,7 @@ void main() {
         jsonDecode(mockClient.lastBody!) as Map<String, dynamic>,
         containsPair('model', 'mistral-small-2503'),
       );
+      expect(mockClient.isClosed, isFalse);
     });
 
     test('lists Mistral models dynamically', () async {

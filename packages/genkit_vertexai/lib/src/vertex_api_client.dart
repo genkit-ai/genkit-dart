@@ -236,6 +236,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         pluginName: this.name,
         modelName: name,
         getApiClient: getMistralApiClient,
+        closeClient: authClient == null,
       );
     }
     return super.resolve(actionType, name);
