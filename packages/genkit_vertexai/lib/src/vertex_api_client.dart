@@ -19,6 +19,8 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'auth.dart';
+import 'common.dart';
+import 'mistral.dart';
 
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
@@ -44,6 +46,25 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
   ]) async {
+    return _getPublisherApiClient(publisher: 'google', apiVersion: 'v1beta1');
+  }
+
+  Future<GenerativeLanguageBaseClient> getMistralApiClient() async {
+    final resolvedLocation = location ?? 'global';
+    if (resolvedLocation == 'global') {
+      throw GenkitException(
+        'Mistral models on Vertex AI require a regional location, such as '
+        'us-central1 or europe-west4.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    return _getPublisherApiClient(publisher: 'mistralai', apiVersion: 'v1');
+  }
+
+  Future<GenerativeLanguageBaseClient> _getPublisherApiClient({
+    required String publisher,
+    required String apiVersion,
+  }) async {
     final validFormat = RegExp(r'^[a-z0-9-]+$');
     final resolvedProjectId = _getResolvedProjectId;
     final resolvedLocation = location ?? 'global';
@@ -61,7 +82,8 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         ? 'https://aiplatform.googleapis.com/'
         : 'https://$safeLocation-aiplatform.googleapis.com/';
     final apiUrlPrefix =
-        'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
+        '$apiVersion/projects/$safeProjectId/locations/$safeLocation/'
+        'publishers/$publisher/';
 
     final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
     final customClient = CustomClient(
@@ -86,16 +108,15 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         projectId: _getResolvedProjectId,
       );
       final publisherModels = (res['publisherModels'] as List?) ?? [];
+      final mistralPublisherModels = await _listMistralPublisherModels(service);
 
       final models = publisherModels
           .where((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final name = modelMap['name'] as String?;
-            return name != null && name.contains('gemini-');
+            final modelName = publisherModelName(m);
+            return modelName != null && modelName.contains('gemini-');
           })
           .map((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final modelName = (modelMap['name'] as String).split('/').last;
+            final modelName = publisherModelName(m)!;
             final isTts = modelName.contains('-tts');
             return modelMetadata(
               '$name/$modelName',
@@ -109,20 +130,22 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
       final embedders = publisherModels
           .where((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final name = modelMap['name'] as String?;
-            return name != null &&
-                (name.contains('text-embedding-') ||
-                    name.contains('embedding-'));
+            final modelName = publisherModelName(m);
+            return modelName != null &&
+                (modelName.contains('text-embedding-') ||
+                    modelName.contains('embedding-'));
           })
           .map((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final modelName = (modelMap['name'] as String).split('/').last;
+            final modelName = publisherModelName(m)!;
             return embedderMetadata('$name/$modelName');
           })
           .toList();
 
-      return [...models, ...embedders];
+      return [
+        ...models,
+        ...embedders,
+        ...mistralMetadata(name, mistralPublisherModels),
+      ];
     } catch (e, stack) {
       if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
@@ -131,6 +154,21 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       if (authClient == null) {
         service.client.close();
       }
+    }
+  }
+
+  Future<List<dynamic>> _listMistralPublisherModels(
+    GenerativeLanguageBaseClient service,
+  ) async {
+    try {
+      final res = await service.listPublisherModels(
+        projectId: _getResolvedProjectId,
+        publisher: 'mistralai',
+      );
+      return (res['publisherModels'] as List?) ?? [];
+    } catch (e, stack) {
+      logger.warning('Failed to list Mistral models: $e', e, stack);
+      return [];
     }
   }
 
@@ -189,5 +227,17 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         }
       },
     );
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && isMistralModelName(name)) {
+      return createMistralModel(
+        pluginName: this.name,
+        modelName: name,
+        getApiClient: getMistralApiClient,
+      );
+    }
+    return super.resolve(actionType, name);
   }
 }
