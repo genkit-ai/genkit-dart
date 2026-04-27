@@ -23,6 +23,7 @@ import 'package:schemantic/schemantic.dart';
 
 const _vertexAnthropicVersion = 'vertex-2023-10-16';
 const _defaultClaudeMaxTokens = 4096;
+const _structuredOutputToolName = '__genkit_output__';
 
 final claudeModelInfo = ModelInfo(
   supports: {
@@ -157,17 +158,16 @@ class VertexClaudeModelFactory {
       if (!schema.containsKey('type')) {
         schema['type'] = 'object';
       }
-      const toolName = 'return_output';
       tools.add(
         sdk.ToolDefinition.custom(
           sdk.Tool(
-            name: toolName,
+            name: _structuredOutputToolName,
             description: 'Return the structured output.',
             inputSchema: sdk.InputSchema.fromJson(schema),
           ),
         ),
       );
-      toolChoice = sdk.ToolChoice.tool(toolName);
+      toolChoice = sdk.ToolChoice.tool(_structuredOutputToolName);
     }
 
     if (req.toolChoice != null) {
@@ -307,7 +307,9 @@ sdk.InputMessage _toMessage(Message message) {
       return [
         sdk.InputContentBlock.toolResult(
           toolUseId: response.ref ?? '',
-          content: [sdk.ToolResultContent.text(jsonEncode(response.output))],
+          content: [
+            sdk.ToolResultContent.text(_toolOutputText(response.output)),
+          ],
         ),
       ];
     }
@@ -338,7 +340,15 @@ List<sdk.InputContentBlock> _convertMedia(String url, String? contentType) {
     ];
   }
 
-  return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
+  throw GenkitException(
+    'Vertex AI Claude models require media URLs to be data URLs with base64 '
+    'image data.',
+    status: StatusCodes.INVALID_ARGUMENT,
+  );
+}
+
+String _toolOutputText(dynamic output) {
+  return output is String ? output : jsonEncode(output);
 }
 
 sdk.ImageMediaType _mapImageMediaType(String mimeType) {
@@ -372,7 +382,7 @@ Message _fromMessage(sdk.Message message) {
         (block) => switch (block) {
           sdk.TextBlock(:final text) => TextPart(text: text),
           sdk.ToolUseBlock(:final id, :final name, :final input) =>
-            name == 'return_output'
+            name == _structuredOutputToolName
                 ? TextPart(text: jsonEncode(_extractOutput(input)))
                 : ToolRequestPart(
                         toolRequest: ToolRequest(
