@@ -15,7 +15,7 @@
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/schema.dart' show toJsonSchema;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_google_genai/src/common_plugin.dart';
+import 'package:genkit_google_genai/src/gemma.dart';
 import 'package:genkit_google_genai/src/google_api_client.dart';
 import 'package:test/test.dart';
 

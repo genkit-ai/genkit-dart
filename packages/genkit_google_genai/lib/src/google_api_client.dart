@@ -17,6 +17,7 @@ import 'package:meta/meta.dart';
 
 import 'api_client.dart';
 import 'common_plugin.dart';
+import 'gemma.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
 
