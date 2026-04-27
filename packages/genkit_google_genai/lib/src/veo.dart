@@ -15,6 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'api_client.dart';
@@ -40,6 +41,7 @@ Model createVeoModel({
   required String modelName,
   required GoogleGenAiClientFactory getApiClient,
   required GenkitException Function(Object e, StackTrace stack) handleException,
+  http.Client? downloadClient,
 }) {
   return Model(
     name: '$pluginName/$modelName',
@@ -92,7 +94,11 @@ Model createVeoModel({
           operation,
           options,
         );
-        final mediaPart = await toEmbeddableVeoMediaPart(service, completed);
+        final mediaPart = await toEmbeddableVeoMediaPart(
+          service,
+          completed,
+          downloadClient: downloadClient,
+        );
 
         if (ctx.streamingRequested) {
           ctx.sendChunk(ModelResponseChunk(index: 0, content: [mediaPart]));
@@ -146,7 +152,20 @@ List<Map<String, dynamic>> _extractVeoGeneratedSamples(
 
 Map<String, dynamic>? _toDynamicMap(Object? value) {
   if (value == null) return null;
-  return jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) {
+    return {
+      for (final entry in value.entries)
+        if (entry.key is String) (entry.key as String): entry.value,
+    };
+  }
+
+  try {
+    final json = (value as dynamic).toJson();
+    return _toDynamicMap(json);
+  } catch (_) {
+    return null;
+  }
 }
 
 StatusCodes _statusFromRpcCode(int? code) {
@@ -344,8 +363,9 @@ MediaPart veoOperationToMediaPart(gcl.Operation operation) {
 @visibleForTesting
 Future<MediaPart> toEmbeddableVeoMediaPart(
   GenerativeLanguageBaseClient service,
-  gcl.Operation operation,
-) async {
+  gcl.Operation operation, {
+  http.Client? downloadClient,
+}) async {
   final mediaPart = veoOperationToMediaPart(operation);
   final mediaUrl = mediaPart.media.url;
   final uri = Uri.tryParse(mediaUrl);
@@ -353,8 +373,12 @@ Future<MediaPart> toEmbeddableVeoMediaPart(
     return mediaPart;
   }
 
+  final useAuthenticatedClient = _isTrustedGenAiDownloadUri(uri, service);
+  final client = useAuthenticatedClient
+      ? service.client
+      : downloadClient ?? http.Client();
   try {
-    final response = await service.client.get(uri);
+    final response = await client.get(uri);
     if (response.statusCode < 200 ||
         response.statusCode >= 300 ||
         response.bodyBytes.isEmpty) {
@@ -377,5 +401,16 @@ Future<MediaPart> toEmbeddableVeoMediaPart(
     );
   } catch (_) {
     return mediaPart;
+  } finally {
+    if (!useAuthenticatedClient && downloadClient == null) {
+      client.close();
+    }
   }
+}
+
+bool _isTrustedGenAiDownloadUri(Uri uri, GenerativeLanguageBaseClient service) {
+  final baseUri = Uri.tryParse(service.baseUrl);
+  if (baseUri == null || uri.host != baseUri.host) return false;
+
+  return uri.pathSegments.any((segment) => segment.endsWith(':download'));
 }

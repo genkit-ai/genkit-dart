@@ -20,6 +20,7 @@ import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
     as gcl;
 import 'package:genkit_google_genai/src/veo.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -29,29 +30,21 @@ void main() {
       () async {
         final bytes = utf8.encode('fake video bytes');
         final client = _FakeVeoClient(
-          gcl.Operation(
-            name: 'operations/123',
-            done: true,
-            response: {
-              'generateVideoResponse': {
-                'generatedSamples': [
-                  {
-                    'video': {
-                      'uri': 'https://example.com/video.mp4',
-                      'mimeType': 'video/mp4',
-                    },
-                  },
-                ],
-              },
-            },
-          ),
-          videoBytes: bytes,
+          _videoOperation('https://example.com/video.mp4'),
         );
 
         final model = createVeoModel(
           pluginName: 'googleai',
           modelName: 'veo-3.0-generate-001',
           getApiClient: ([String? _]) async => client,
+          downloadClient: MockClient((request) async {
+            expect(request.headers, isNot(contains('x-goog-api-key')));
+            return http.Response.bytes(
+              bytes,
+              200,
+              headers: {'content-type': 'video/mp4'},
+            );
+          }),
           handleException: (e, stack) {
             if (e is GenkitException) return e;
             return GenkitException(
@@ -87,16 +80,95 @@ void main() {
       },
     );
   });
+
+  group('toEmbeddableVeoMediaPart', () {
+    test('downloads media without GenAI API key headers', () async {
+      final bytes = utf8.encode('fake video bytes');
+      final service = _FakeVeoClient(
+        _videoOperation('https://example.com/video.mp4'),
+        client: _RejectingAuthenticatedClient(),
+      );
+
+      final mediaPart = await toEmbeddableVeoMediaPart(
+        service,
+        service.operation,
+        downloadClient: MockClient((request) async {
+          expect(request.headers, isNot(contains('x-goog-api-key')));
+          return http.Response.bytes(
+            bytes,
+            200,
+            headers: {'content-type': 'video/mp4'},
+          );
+        }),
+      );
+
+      expect(
+        mediaPart.media.url,
+        'data:video/mp4;base64,${base64Encode(bytes)}',
+      );
+      expect(mediaPart.media.contentType, 'video/mp4');
+      expect(mediaPart.metadata?['sourceUrl'], 'https://example.com/video.mp4');
+    });
+
+    test('uses GenAI client for Google API download URLs', () async {
+      final bytes = utf8.encode('fake video bytes');
+      final service = _FakeVeoClient(
+        _videoOperation(
+          'https://generativelanguage.googleapis.com/v1beta/files/abc:download',
+        ),
+        client: _HeaderAddingClient(
+          MockClient((request) async {
+            expect(request.headers, containsPair('x-goog-api-key', 'test-key'));
+            return http.Response.bytes(
+              bytes,
+              200,
+              headers: {'content-type': 'video/mp4'},
+            );
+          }),
+        ),
+      );
+
+      final mediaPart = await toEmbeddableVeoMediaPart(
+        service,
+        service.operation,
+      );
+
+      expect(
+        mediaPart.media.url,
+        'data:video/mp4;base64,${base64Encode(bytes)}',
+      );
+      expect(mediaPart.media.contentType, 'video/mp4');
+      expect(
+        mediaPart.metadata?['sourceUrl'],
+        'https://generativelanguage.googleapis.com/v1beta/files/abc:download',
+      );
+    });
+  });
+}
+
+gcl.Operation _videoOperation(String uri) {
+  return gcl.Operation(
+    name: 'operations/123',
+    done: true,
+    response: {
+      'generateVideoResponse': {
+        'generatedSamples': [
+          {
+            'video': {'uri': uri, 'mimeType': 'video/mp4'},
+          },
+        ],
+      },
+    },
+  );
 }
 
 class _FakeVeoClient extends GenerativeLanguageBaseClient {
   final gcl.Operation operation;
-  final List<int> videoBytes;
 
-  _FakeVeoClient(this.operation, {required this.videoBytes})
+  _FakeVeoClient(this.operation, {http.Client? client})
     : super(
-        baseUrl: 'https://example.com/',
-        client: _FakeDownloadClient(videoBytes),
+        baseUrl: 'https://generativelanguage.googleapis.com/',
+        client: client ?? http.Client(),
       );
 
   @override
@@ -113,21 +185,26 @@ class _FakeVeoClient extends GenerativeLanguageBaseClient {
   }
 }
 
-class _FakeDownloadClient extends http.BaseClient {
-  final List<int> videoBytes;
+class _HeaderAddingClient extends http.BaseClient {
+  final http.Client _inner;
 
-  _FakeDownloadClient(this.videoBytes);
+  _HeaderAddingClient(this._inner);
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    if (request.url.toString() == 'https://example.com/video.mp4') {
-      return http.StreamedResponse(
-        Stream.value(videoBytes),
-        200,
-        headers: {'content-type': 'video/mp4'},
-      );
-    }
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers['x-goog-api-key'] = 'test-key';
+    return _inner.send(request);
+  }
 
-    return http.StreamedResponse(Stream<List<int>>.empty(), 404);
+  @override
+  void close() {
+    _inner.close();
+  }
+}
+
+class _RejectingAuthenticatedClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    fail('Authenticated GenAI client should not fetch external media URLs.');
   }
 }
