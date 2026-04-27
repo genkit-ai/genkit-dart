@@ -140,17 +140,19 @@ Model<ImagenOptions> createImagenModel(
 
 @visibleForTesting
 String extractImagenPrompt(ModelRequest request) {
-  final buffer = StringBuffer();
+  final segments = <String>[];
   for (final message in request.messages) {
     if (message.role != Role.user) continue;
     for (final part in message.content) {
       if (part.isText) {
-        if (buffer.isNotEmpty) buffer.write(' ');
-        buffer.write(part.text);
+        final text = part.text?.trim();
+        if (text?.isNotEmpty ?? false) {
+          segments.add(text!);
+        }
       }
     }
   }
-  return buffer.toString();
+  return segments.join(' ');
 }
 
 @visibleForTesting
