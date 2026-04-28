@@ -86,8 +86,8 @@ extension type LanguageModelOptions._(JSObject _) implements JSObject {
         void progressFn(JSAny? eventObj) {
           if (eventObj == null) return;
           final e = eventObj as JSObject;
-          final loaded = (e['loaded'] as JSNumber).toDartDouble.toInt();
-          final total = (e['total'] as JSNumber).toDartDouble.toInt();
+          final loaded = (e['loaded'] as JSNumber?)?.toDartDouble.toInt() ?? 0;
+          final total = (e['total'] as JSNumber?)?.toDartDouble.toInt() ?? 0;
           cb(loaded, total);
         }
         m['ondownloadprogress'] = progressFn.toJS;
