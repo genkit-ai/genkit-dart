@@ -214,7 +214,7 @@ if (usage != null) {
 
 ### 11. Model Parameters (with separateOrigin Trial)
 
-`ChromeModel.getParams()` returns default and maximum values for `temperature` and `topK`. This is only available in an separate
+ChromeModel.getParams() returns default and maximum values for temperature and topK (both must be set if either is used). This is only available in a separate
 [Prompt API Sampling Parameters origin trial](https://developer.chrome.com/origintrials/#/view_trial/4469259680211795969) — it
 returns `null` on the open web:
 
