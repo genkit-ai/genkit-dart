@@ -136,13 +136,14 @@ class ChromeModel extends Model<LanguageModelOptions> {
           role: Role.model,
           content: [TextPart(text: lastResponseText ?? '')],
         ),
-        // inputTokens = tokens consumed so far (contextUsage).
-        // totalTokens = maximum context window size (contextWindow).
         usage: contextUsage != null
             ? GenerationUsage(
                 inputTokens: contextUsage,
                 outputTokens: 0,
-                totalTokens: contextWindow ?? contextUsage,
+                totalTokens: contextUsage,
+                custom: contextWindow != null
+                    ? {'contextWindow': contextWindow}
+                    : null,
               )
             : null,
       );

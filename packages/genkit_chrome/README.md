@@ -198,7 +198,7 @@ When `total` is `0`, the total size is unknown — show an indeterminate progres
 
 ### 10. Token Usage
 
-The response includes context usage information. `inputTokens` is the number of tokens consumed by the current context, and `totalTokens` is the maximum context window size:
+The response includes context usage information. `inputTokens` is the number of tokens consumed by the current context. The model's maximum context window size is available in `usage.custom['contextWindow']`:
 
 ```dart
 final response = await ai.generate(
@@ -208,7 +208,9 @@ final response = await ai.generate(
 
 final usage = response.usage;
 if (usage != null) {
-  print('Tokens used: ${usage.inputTokens} / ${usage.totalTokens}');
+  final used = usage.inputTokens;
+  final max = usage.custom?['contextWindow'];
+  print('Tokens used: $used / $max');
 }
 ```
 
