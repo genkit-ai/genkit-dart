@@ -194,10 +194,8 @@ final _promptInput =
     web.document.querySelector('#prompt') as web.HTMLTextAreaElement;
 final _generateBtn =
     web.document.querySelector('#generate') as web.HTMLButtonElement;
-final _stopBtn =
-    web.document.querySelector('#stop') as web.HTMLButtonElement;
-final _resetBtn =
-    web.document.querySelector('#reset') as web.HTMLButtonElement;
+final _stopBtn = web.document.querySelector('#stop') as web.HTMLButtonElement;
+final _resetBtn = web.document.querySelector('#reset') as web.HTMLButtonElement;
 final _resetSettingsBtn =
     web.document.querySelector('#reset-settings') as web.HTMLButtonElement;
 final _sessionHint =
@@ -335,8 +333,8 @@ void _updateTokenStats(GenerationUsage? usage) {
     _tokenFill.className = pct >= 90
         ? 'danger'
         : pct >= 75
-            ? 'warn'
-            : '';
+        ? 'warn'
+        : '';
   }
 }
 
@@ -466,9 +464,7 @@ Future<void> _submit(Genkit ai) async {
       final constraintTypeValue = _constraintType.value;
       final constraintText = _constraintInput.value.trim();
       if (constraint != null) {
-        settingsList.add(
-          'Constraint ($constraintTypeValue): $constraintText',
-        );
+        settingsList.add('Constraint ($constraintTypeValue): $constraintText');
       }
 
       final contentDiv = _appendMessage(
@@ -501,7 +497,7 @@ Future<void> _submit(Genkit ai) async {
                 {'type': 'text', 'languages': outputLangs},
               ],
             'signal': _currentController!.signal,
-            if (constraint != null) 'responseConstraint': constraint,
+            'responseConstraint': ?constraint,
             'onDownloadProgress': _showDownloadProgress,
           },
           onChunk: (chunk) {

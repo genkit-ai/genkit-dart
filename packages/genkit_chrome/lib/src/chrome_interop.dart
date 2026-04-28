@@ -62,7 +62,9 @@ extension type LanguageModelOptions._(JSObject _) implements JSObject {
     // Build the final initialPrompts list: system prompt must be first.
     final allPrompts = <LanguageModelInitialPrompt>[];
     if (systemPrompt != null && systemPrompt.isNotEmpty) {
-      allPrompts.add(LanguageModelInitialPrompt(role: 'system', content: systemPrompt));
+      allPrompts.add(
+        LanguageModelInitialPrompt(role: 'system', content: systemPrompt),
+      );
     }
     if (initialPrompts != null && initialPrompts.isNotEmpty) {
       allPrompts.addAll(initialPrompts);
@@ -90,8 +92,10 @@ extension type LanguageModelOptions._(JSObject _) implements JSObject {
           final total = (e['total'] as JSNumber?)?.toDartDouble.toInt() ?? 0;
           cb(loaded, total);
         }
+
         m['ondownloadprogress'] = progressFn.toJS;
       }
+
       options['monitor'] = monitorFn.toJS;
     }
 
@@ -128,10 +132,15 @@ extension type LanguageModelInitialPrompt._(JSObject _) implements JSObject {
 
 @JS()
 extension type LanguageModelPromptOptions._(JSObject _) implements JSObject {
-  factory LanguageModelPromptOptions({JSObject? signal, JSAny? responseConstraint}) {
+  factory LanguageModelPromptOptions({
+    JSObject? signal,
+    JSAny? responseConstraint,
+  }) {
     final options = JSObject();
     if (signal != null) options['signal'] = signal;
-    if (responseConstraint != null) options['responseConstraint'] = responseConstraint;
+    if (responseConstraint != null) {
+      options['responseConstraint'] = responseConstraint;
+    }
     return options as LanguageModelPromptOptions;
   }
 }

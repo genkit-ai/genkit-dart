@@ -54,8 +54,7 @@ class ChromeModel extends Model<LanguageModelOptions> {
     }
 
     final config = req.config ?? const {};
-    final systemPrompt =
-        config['systemPrompt'] as String?;
+    final systemPrompt = config['systemPrompt'] as String?;
 
     final historyPrompts = <LanguageModelInitialPrompt>[];
 
@@ -100,7 +99,9 @@ class ChromeModel extends Model<LanguageModelOptions> {
     final promptOptions = (signalObj != null || constraintObj != null)
         ? LanguageModelPromptOptions(
             signal: signalObj != null ? signalObj as JSObject : null,
-            responseConstraint: constraintObj != null ? constraintObj as JSAny : null,
+            responseConstraint: constraintObj != null
+                ? constraintObj as JSAny
+                : null,
           )
         : null;
 
