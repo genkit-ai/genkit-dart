@@ -31,7 +31,8 @@ extension type _JSRegExp._(JSObject _) implements JSObject {
 final _validationError =
     web.document.querySelector('#validation-error') as web.HTMLDivElement;
 
-// Model params — null when params() is unavailable (non-extension context).
+// Model params — null when params() is unavailable (requires an extension
+// context or the Prompt API Sampling Parameters origin trial).
 int? _defaultTopK;
 int? _maxTopK;
 double? _defaultTemperature;
@@ -40,8 +41,9 @@ double? _maxTemperature;
 void main() async {
   final ai = Genkit(plugins: [genkit_chrome.ChromeAIPlugin()]);
 
-  // params() is only available in Chrome extension contexts; it resolves to
-  // null on the open web. Be defensive: treat null as "params unavailable".
+  // params() is only available in extension contexts or with the Prompt API
+  // Sampling Parameters origin trial enabled; resolves to null otherwise.
+  // Be defensive: treat null as "params unavailable".
   try {
     final params = await genkit_chrome.ChromeModel.getParams();
     if (params != null) {
@@ -72,8 +74,8 @@ void main() async {
                 'Valid range: 0-$_maxTemperature. Default: $_defaultTemperature.',
           );
     } else {
-      // params() is unavailable (non-extension context) — disable the fields
-      // so users can't set values the browser would reject.
+      // params() is unavailable (no extension context or origin trial) —
+      // disable the fields so users can't set values the browser would reject.
       _topKInput.disabled = true;
       _topKInput.placeholder = 'unavailable';
       _temperatureInput.disabled = true;

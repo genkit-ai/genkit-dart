@@ -31,8 +31,8 @@ extension type LanguageModelFactory._(JSObject _) implements JSObject {
 
   /// Returns the limits of the language model.
   ///
-  /// Deprecated: only available in extension contexts; resolves to null on the
-  /// open web.
+  /// Deprecated: only available in extension contexts or with the Prompt API
+  /// Sampling Parameters origin trial enabled; resolves to null otherwise.
   external JSPromise<LanguageModelParams?> params();
 }
 
