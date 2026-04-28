@@ -16,6 +16,7 @@ import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:http/http.dart' as http;
 
+import 'src/lyria.dart';
 import 'src/vertex_api_client.dart';
 
 export 'package:genkit_google_genai/genkit_google_genai.dart'
@@ -31,6 +32,7 @@ export 'package:genkit_google_genai/genkit_google_genai.dart'
         TextEmbedderOptions,
         ThinkingConfig,
         VoiceConfig;
+export 'src/lyria.dart' show LyriaOptions;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
@@ -51,6 +53,10 @@ class VertexAiPluginHandle {
 
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
+  }
+
+  ModelRef<LyriaOptions> lyria([String name = 'lyria-002']) {
+    return modelRef('vertexai/$name', customOptions: LyriaOptions.$schema);
   }
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {

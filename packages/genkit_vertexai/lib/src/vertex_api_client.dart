@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'auth.dart';
+import 'lyria.dart';
 
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
@@ -77,6 +78,65 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     );
   }
 
+  Future<GenerativeLanguageBaseClient> getLyriaApiClient() async {
+    final validFormat = RegExp(r'^[a-z0-9-]+$');
+    final resolvedProjectId = _getResolvedProjectId;
+    final resolvedLocation = location ?? 'global';
+
+    if (!validFormat.hasMatch(resolvedLocation) ||
+        !validFormat.hasMatch(resolvedProjectId)) {
+      throw ArgumentError('Invalid projectId or location format.');
+    }
+    final safeLocation = Uri.encodeComponent(resolvedLocation);
+    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
+
+    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
+
+    final baseUrl = safeLocation == 'global'
+        ? 'https://aiplatform.googleapis.com/'
+        : 'https://$safeLocation-aiplatform.googleapis.com/';
+    final apiUrlPrefix =
+        'v1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
+
+    final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
+    final customClient = CustomClient(
+      defaultHeaders: headers,
+      inner: authClient,
+    );
+    final client = VertexAuthClient(tokenProvider, inner: customClient);
+
+    return GenerativeLanguageBaseClient(
+      baseUrl: baseUrl,
+      client: client,
+      apiUrlPrefix: apiUrlPrefix,
+    );
+  }
+
+  Future<GenerativeLanguageBaseClient> getLyriaInteractionsApiClient() async {
+    final validFormat = RegExp(r'^[a-z0-9-]+$');
+    final resolvedProjectId = _getResolvedProjectId;
+
+    if (!validFormat.hasMatch(resolvedProjectId)) {
+      throw ArgumentError('Invalid projectId format.');
+    }
+    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
+
+    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
+
+    final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
+    final customClient = CustomClient(
+      defaultHeaders: headers,
+      inner: authClient,
+    );
+    final client = VertexAuthClient(tokenProvider, inner: customClient);
+
+    return GenerativeLanguageBaseClient(
+      baseUrl: 'https://aiplatform.googleapis.com/',
+      client: client,
+      apiUrlPrefix: 'v1beta1/projects/$safeProjectId/locations/global/',
+    );
+  }
+
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
@@ -91,18 +151,22 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           .where((m) {
             final modelMap = m as Map<String, dynamic>;
             final name = modelMap['name'] as String?;
-            return name != null && name.contains('gemini-');
+            return name != null &&
+                (name.contains('gemini-') || name.contains('lyria-'));
           })
           .map((m) {
             final modelMap = m as Map<String, dynamic>;
             final modelName = (modelMap['name'] as String).split('/').last;
             final isTts = modelName.contains('-tts');
+            final isLyria = modelName.startsWith('lyria-');
             return modelMetadata(
               '$name/$modelName',
-              customOptions: isTts
+              customOptions: isLyria
+                  ? LyriaOptions.$schema
+                  : isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
-              modelInfo: commonModelInfo,
+              modelInfo: isLyria ? lyriaModelInfo : commonModelInfo,
             );
           })
           .toList();
@@ -189,5 +253,24 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         }
       },
     );
+  }
+
+  Model createLyria(String modelName) {
+    return createLyriaModel(
+      pluginName: name,
+      modelName: modelName,
+      getApiClient: getLyriaApiClient,
+      getInteractionsApiClient: getLyriaInteractionsApiClient,
+      handleException: handleException,
+      closeClient: authClient == null,
+    );
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && name.startsWith('lyria-')) {
+      return createLyria(name);
+    }
+    return super.resolve(actionType, name);
   }
 }
