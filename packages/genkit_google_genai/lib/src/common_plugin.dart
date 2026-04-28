@@ -40,9 +40,16 @@ final commonModelInfo = ModelInfo(
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
-  Model createModel(String modelName, SchemanticType customOptions) {
+  Model createModel(
+    String modelName,
+    SchemanticType customOptions, {
+    String? actionName,
+    String? apiModelName,
+    Future<GenerativeLanguageBaseClient> Function(String? apiKey)?
+    getApiClientOverride,
+  }) {
     return Model(
-      name: '$name/$modelName',
+      name: '$name/${actionName ?? modelName}',
       customOptions: customOptions,
       metadata: {'model': commonModelInfo.toJson()},
       fn: (req, ctx) async {
@@ -92,7 +99,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
 
-        final service = await getApiClient(apiKey);
+        final service =
+            await (getApiClientOverride?.call(apiKey) ?? getApiClient(apiKey));
+        final resolvedApiModelName = apiModelName ?? 'models/$modelName';
 
         try {
           final systemMessage = req.messages
@@ -121,7 +130,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           if (ctx.streamingRequested) {
             final stream = service.streamGenerateContent(
               generateRequest,
-              model: 'models/$modelName',
+              model: resolvedApiModelName,
             );
             final chunks = <gcl.GenerateContentResponse>[];
             await for (final chunk in stream) {
@@ -154,7 +163,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           } else {
             final response = await service.generateContent(
               generateRequest,
-              model: 'models/$modelName',
+              model: resolvedApiModelName,
             );
             if (response.candidates?.isEmpty ?? true) {
               final blockReason = response.promptFeedback?.blockReason;

@@ -40,6 +40,39 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   String get name => 'vertexai';
 
+  Future<GenerativeLanguageBaseClient> _createVertexApiClient({
+    required String apiUrlPrefix,
+  }) async {
+    final validFormat = RegExp(r'^[a-z0-9-]+$');
+    final resolvedProjectId = _getResolvedProjectId;
+    final resolvedLocation = location ?? 'global';
+
+    if (!validFormat.hasMatch(resolvedLocation) ||
+        !validFormat.hasMatch(resolvedProjectId)) {
+      throw ArgumentError('Invalid projectId or location format.');
+    }
+    final safeLocation = Uri.encodeComponent(resolvedLocation);
+
+    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
+
+    final baseUrl = safeLocation == 'global'
+        ? 'https://aiplatform.googleapis.com/'
+        : 'https://$safeLocation-aiplatform.googleapis.com/';
+
+    final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
+    final customClient = CustomClient(
+      defaultHeaders: headers,
+      inner: authClient,
+    );
+    final client = VertexAuthClient(tokenProvider, inner: customClient);
+
+    return GenerativeLanguageBaseClient(
+      baseUrl: baseUrl,
+      client: client,
+      apiUrlPrefix: apiUrlPrefix,
+    );
+  }
+
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
@@ -55,25 +88,26 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     final safeLocation = Uri.encodeComponent(resolvedLocation);
     final safeProjectId = Uri.encodeComponent(resolvedProjectId);
 
-    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
-
-    final baseUrl = safeLocation == 'global'
-        ? 'https://aiplatform.googleapis.com/'
-        : 'https://$safeLocation-aiplatform.googleapis.com/';
-    final apiUrlPrefix =
-        'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
-
-    final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
-    final customClient = CustomClient(
-      defaultHeaders: headers,
-      inner: authClient,
+    return _createVertexApiClient(
+      apiUrlPrefix:
+          'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/',
     );
-    final client = VertexAuthClient(tokenProvider, inner: customClient);
+  }
 
-    return GenerativeLanguageBaseClient(
-      baseUrl: baseUrl,
-      client: client,
-      apiUrlPrefix: apiUrlPrefix,
+  Future<GenerativeLanguageBaseClient> getEndpointApiClient() async {
+    final validFormat = RegExp(r'^[a-z0-9-]+$');
+    final resolvedProjectId = _getResolvedProjectId;
+    final resolvedLocation = location ?? 'global';
+
+    if (!validFormat.hasMatch(resolvedLocation) ||
+        !validFormat.hasMatch(resolvedProjectId)) {
+      throw ArgumentError('Invalid projectId or location format.');
+    }
+    final safeLocation = Uri.encodeComponent(resolvedLocation);
+    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
+
+    return _createVertexApiClient(
+      apiUrlPrefix: 'v1/projects/$safeProjectId/locations/$safeLocation/',
     );
   }
 
@@ -189,5 +223,27 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         }
       },
     );
+  }
+
+  Model createTunedModel(String endpointName) {
+    final endpointId = endpointName.startsWith('endpoints/')
+        ? endpointName.substring('endpoints/'.length)
+        : endpointName;
+    final safeEndpointId = Uri.encodeComponent(endpointId);
+    return createModel(
+      endpointId,
+      GeminiOptions.$schema,
+      actionName: 'endpoints/$endpointId',
+      apiModelName: 'endpoints/$safeEndpointId',
+      getApiClientOverride: (_) => getEndpointApiClient(),
+    );
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && name.startsWith('endpoints/')) {
+      return createTunedModel(name);
+    }
+    return super.resolve(actionType, name);
   }
 }

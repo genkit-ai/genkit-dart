@@ -53,6 +53,13 @@ class VertexAiPluginHandle {
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
   }
 
+  ModelRef<GeminiOptions> tunedModel(String endpointId) {
+    final name = endpointId.startsWith('endpoints/')
+        ? endpointId
+        : 'endpoints/$endpointId';
+    return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
+  }
+
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
       'vertexai/$name',
