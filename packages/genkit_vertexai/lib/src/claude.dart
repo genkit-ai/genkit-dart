@@ -508,17 +508,6 @@ GenkitException _parseVertexError(int statusCode, String body) {
           details: body,
         );
       }
-
-      if (decoded['type'] == 'error' &&
-          decoded['error'] is Map<String, dynamic>) {
-        final error = decoded['error'] as Map<String, dynamic>;
-        final message = error['message'] as String? ?? 'Unknown error';
-        return GenkitException(
-          'Vertex AI error: $message',
-          status: StatusCodes.fromHttpStatus(statusCode),
-          details: body,
-        );
-      }
     }
   } catch (_) {}
 
