@@ -34,7 +34,9 @@ class ChromeModel extends Model<LanguageModelOptions> {
          fn: (req, ctx) => _processRequest(req, ctx, options),
        );
 
-  static Future<LanguageModelParams> getParams() {
+  /// Returns model params. Only available in Chrome extension contexts;
+  /// returns null on the open web.
+  static Future<LanguageModelParams?> getParams() {
     return _languageModel.params().toDart;
   }
 
@@ -52,20 +54,14 @@ class ChromeModel extends Model<LanguageModelOptions> {
 
     final config = req.config ?? const {};
     final systemPrompt =
-        config['systemPrompt'] as String? ?? defaultOptions?.systemPrompt;
+        config['systemPrompt'] as String?;
 
-    final initialPrompts = <LanguageModelInitialPrompt>[];
+    final historyPrompts = <LanguageModelInitialPrompt>[];
 
-    if (systemPrompt != null && systemPrompt.isNotEmpty) {
-      initialPrompts.add(
-        LanguageModelInitialPrompt(role: 'system', content: systemPrompt),
-      );
-    }
-
-    // Add all messages except the last one to initialPrompts
+    // Add all messages except the last one as conversation history.
     if (req.messages.isNotEmpty) {
       for (final m in req.messages.take(req.messages.length - 1)) {
-        initialPrompts.add(
+        historyPrompts.add(
           LanguageModelInitialPrompt(
             role: m.role == Role.model ? 'assistant' : m.role.value,
             content: m.content.map((p) => p.text).join(' '),
@@ -74,22 +70,38 @@ class ChromeModel extends Model<LanguageModelOptions> {
       }
     }
 
+    final onDownloadProgress =
+        config['onDownloadProgress'] as void Function(int, int)?;
+
+    // LanguageModelOptions factory places systemPrompt first in initialPrompts.
     final options = LanguageModelOptions(
       temperature: config['temperature'] as num? ?? defaultOptions?.temperature,
       topK: config['topK'] as num? ?? defaultOptions?.topK,
-      initialPrompts: initialPrompts,
+      systemPrompt: systemPrompt,
+      initialPrompts: historyPrompts,
       expectedInputs:
           _parseExpectedInputs(config) ??
           defaultOptions?.expectedInputs?.toDart,
       expectedOutputs:
           _parseExpectedOutputs(config) ??
           defaultOptions?.expectedOutputs?.toDart,
+      onDownloadProgress: onDownloadProgress,
     );
 
-    // Availability check
+    // Availability check — use the same options we pass to create().
     await _ensureAvailability(options);
 
     final session = await _languageModel.create(options).toDart;
+
+    // AbortSignal and responseConstraint are passed through config.
+    final signalObj = config['signal'];
+    final constraintObj = config['responseConstraint'];
+    final promptOptions = (signalObj != null || constraintObj != null)
+        ? LanguageModelPromptOptions(
+            signal: signalObj != null ? signalObj as JSObject : null,
+            responseConstraint: constraintObj != null ? constraintObj as JSAny : null,
+          )
+        : null;
 
     try {
       final prompt = req.messages.isEmpty
@@ -98,7 +110,7 @@ class ChromeModel extends Model<LanguageModelOptions> {
 
       String? lastResponseText;
       if (ctx.streamingRequested) {
-        final stream = session.promptStreaming(prompt);
+        final stream = session.promptStreaming(prompt, promptOptions);
         final reader = stream.getReader();
         while (true) {
           final result = await reader.read().toDart;
@@ -110,16 +122,12 @@ class ChromeModel extends Model<LanguageModelOptions> {
           lastResponseText = (lastResponseText ?? '') + chunkText;
         }
       } else {
-        lastResponseText = (await session.prompt(prompt).toDart).toDart;
+        lastResponseText =
+            (await session.prompt(prompt, promptOptions).toDart).toDart;
       }
 
-      // Collect usage stats
-      // tokensSoFar and inputUsage are likely the same (renamed)
-      final inputTokens = (session.inputUsage ?? session.tokensSoFar)
-          ?.toDouble();
-      // We don't have output tokens from the session directly usually
-      // Quota is maxTokens or inputQuota
-      // final totalTokens = session.maxTokens ?? session.inputQuota;
+      final contextUsage = session.contextUsage;
+      final contextWindow = session.contextWindow;
 
       return ModelResponse(
         finishReason: FinishReason.stop,
@@ -127,11 +135,13 @@ class ChromeModel extends Model<LanguageModelOptions> {
           role: Role.model,
           content: [TextPart(text: lastResponseText ?? '')],
         ),
-        usage: inputTokens != null
+        // inputTokens = tokens consumed so far (contextUsage).
+        // totalTokens = maximum context window size (contextWindow).
+        usage: contextUsage != null
             ? GenerationUsage(
-                inputTokens: inputTokens,
-                outputTokens: 0, // Not available directly
-                totalTokens: inputTokens,
+                inputTokens: contextUsage,
+                outputTokens: 0,
+                totalTokens: contextWindow ?? contextUsage,
               )
             : null,
       );
@@ -144,7 +154,7 @@ class ChromeModel extends Model<LanguageModelOptions> {
 Future<void> _ensureAvailability([LanguageModelOptions? options]) async {
   final availability =
       (await _languageModel.availability(options).toDart).toDart;
-  if (availability == 'no') {
+  if (availability == 'unavailable') {
     throw GenkitException(
       'Chrome AI is not available.',
       status: StatusCodes.UNAVAILABLE,

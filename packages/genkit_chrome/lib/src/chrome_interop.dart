@@ -22,7 +22,8 @@ external LanguageModelFactory? get languageModelImpl;
 extension type LanguageModelFactory._(JSObject _) implements JSObject {
   /// Returns the availability of the language model.
   ///
-  /// Returns a promise that resolves to "readily", "after-download", or "no".
+  /// Returns a promise that resolves to "available", "downloadable",
+  /// "downloading", or "unavailable".
   external JSPromise<JSString> availability([LanguageModelOptions? options]);
 
   /// Creates a new session with the language model.
@@ -30,8 +31,9 @@ extension type LanguageModelFactory._(JSObject _) implements JSObject {
 
   /// Returns the limits of the language model.
   ///
-  /// Returns a promise that resolves to the limits of the language model.
-  external JSPromise<LanguageModelParams> params();
+  /// Deprecated: only available in extension contexts; resolves to null on the
+  /// open web.
+  external JSPromise<LanguageModelParams?> params();
 }
 
 @JS()
@@ -47,30 +49,57 @@ extension type LanguageModelOptions._(JSObject _) implements JSObject {
   factory LanguageModelOptions({
     num? temperature,
     num? topK,
-    String? systemPrompt,
     List<LanguageModelInitialPrompt>? initialPrompts,
+    String? systemPrompt,
     List<LanguageModelExpectedInput>? expectedInputs,
     List<LanguageModelExpectedOutput>? expectedOutputs,
+    void Function(int loaded, int total)? onDownloadProgress,
   }) {
     final options = JSObject();
     if (temperature != null) options['temperature'] = temperature.toJS;
     if (topK != null) options['topK'] = topK.toJS;
-    if (systemPrompt != null) options['systemPrompt'] = systemPrompt.toJS;
-    if (initialPrompts != null && initialPrompts.isNotEmpty) {
-      options['initialPrompts'] = initialPrompts.toJS;
+
+    // Build the final initialPrompts list: system prompt must be first.
+    final allPrompts = <LanguageModelInitialPrompt>[];
+    if (systemPrompt != null && systemPrompt.isNotEmpty) {
+      allPrompts.add(LanguageModelInitialPrompt(role: 'system', content: systemPrompt));
     }
+    if (initialPrompts != null && initialPrompts.isNotEmpty) {
+      allPrompts.addAll(initialPrompts);
+    }
+    if (allPrompts.isNotEmpty) {
+      options['initialPrompts'] = allPrompts.toJS;
+    }
+
     if (expectedInputs != null && expectedInputs.isNotEmpty) {
       options['expectedInputs'] = expectedInputs.toJS;
     }
     if (expectedOutputs != null && expectedOutputs.isNotEmpty) {
       options['expectedOutputs'] = expectedOutputs.toJS;
     }
+
+    if (onDownloadProgress != null) {
+      final cb = onDownloadProgress;
+      void monitorFn(JSAny? monitorObj) {
+        if (monitorObj == null) return;
+        final m = monitorObj as JSObject;
+        void progressFn(JSAny? eventObj) {
+          if (eventObj == null) return;
+          final e = eventObj as JSObject;
+          final loaded = (e['loaded'] as JSNumber).toDartDouble.toInt();
+          final total = (e['total'] as JSNumber).toDartDouble.toInt();
+          cb(loaded, total);
+        }
+        m['ondownloadprogress'] = progressFn.toJS;
+      }
+      options['monitor'] = monitorFn.toJS;
+    }
+
     return options as LanguageModelOptions;
   }
 
   external num? get temperature;
   external num? get topK;
-  external String? get systemPrompt;
   external JSArray<LanguageModelInitialPrompt>? get initialPrompts;
   external JSArray<LanguageModelExpectedInput>? get expectedInputs;
   external JSArray<LanguageModelExpectedOutput>? get expectedOutputs;
@@ -98,30 +127,39 @@ extension type LanguageModelInitialPrompt._(JSObject _) implements JSObject {
 }
 
 @JS()
+extension type LanguageModelPromptOptions._(JSObject _) implements JSObject {
+  factory LanguageModelPromptOptions({JSObject? signal, JSAny? responseConstraint}) {
+    final options = JSObject();
+    if (signal != null) options['signal'] = signal;
+    if (responseConstraint != null) options['responseConstraint'] = responseConstraint;
+    return options as LanguageModelPromptOptions;
+  }
+}
+
+@JS()
 extension type LanguageModel._(JSObject _) implements JSObject {
   /// Prompts the model with the given input.
-  external JSPromise<JSString> prompt(String input);
+  external JSPromise<JSString> prompt(
+    String input, [
+    LanguageModelPromptOptions? options,
+  ]);
 
   /// Prompts the model with the given input and returns a streaming response.
-  external ReadableStream promptStreaming(String input);
+  external ReadableStream promptStreaming(
+    String input, [
+    LanguageModelPromptOptions? options,
+  ]);
 
   /// Destroys the session.
   external void destroy();
 
-  // Clone is also available but we might not use it yet
   external JSPromise<LanguageModel> clone();
 
-  /// Returns the number of tokens in the given input.
-  external JSPromise<JSNumber> countPromptTokens(String input);
+  /// Tokens consumed by the current context.
+  external double? get contextUsage;
 
-  /// Returns the number of tokens in the given input.
-  external JSPromise<JSNumber> measureInputUsage(String input);
-
-  external int? get maxTokens;
-  external int? get inputQuota;
-
-  external int? get tokensSoFar;
-  external int? get inputUsage;
+  /// Maximum context window size.
+  external double? get contextWindow;
 }
 
 @JS()
