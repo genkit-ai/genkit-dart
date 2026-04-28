@@ -443,29 +443,19 @@ Future<void> _submit(Genkit ai) async {
     }
 
     try {
-      final settingsList = <String>[];
-      if (systemPrompt.isNotEmpty) {
-        settingsList.add('System Prompt: $systemPrompt');
-      }
-      if (temperature != null) {
-        settingsList.add('Temperature: $temperature');
-      }
-      if (topK != null) {
-        settingsList.add('Top K: $topK');
-      }
-      if (inputLangs.isNotEmpty) {
-        settingsList.add('Input Langs: ${inputLangs.join(", ")}');
-      }
-      if (outputLangs.isNotEmpty) {
-        settingsList.add('Output Langs: ${outputLangs.join(", ")}');
-      }
-
       final constraint = _buildConstraint();
       final constraintTypeValue = _constraintType.value;
       final constraintText = _constraintInput.value.trim();
-      if (constraint != null) {
-        settingsList.add('Constraint ($constraintTypeValue): $constraintText');
-      }
+
+      final settingsList = <String>[
+        if (systemPrompt.isNotEmpty) 'System Prompt: $systemPrompt',
+        if (temperature != null) 'Temperature: $temperature',
+        if (topK != null) 'Top K: $topK',
+        if (inputLangs.isNotEmpty) 'Input Langs: ${inputLangs.join(", ")}',
+        if (outputLangs.isNotEmpty) 'Output Langs: ${outputLangs.join(", ")}',
+        if (constraint != null)
+          'Constraint ($constraintTypeValue): $constraintText',
+      ];
 
       final contentDiv = _appendMessage(
         'Model',

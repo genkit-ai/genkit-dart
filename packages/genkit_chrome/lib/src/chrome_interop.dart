@@ -83,17 +83,19 @@ extension type LanguageModelOptions._(JSObject _) implements JSObject {
     if (onDownloadProgress != null) {
       final cb = onDownloadProgress;
       void monitorFn(JSAny? monitorObj) {
-        if (monitorObj == null) return;
-        final m = monitorObj as JSObject;
-        void progressFn(JSAny? eventObj) {
-          if (eventObj == null) return;
-          final e = eventObj as JSObject;
-          final loaded = (e['loaded'] as JSNumber?)?.toDartDouble.toInt() ?? 0;
-          final total = (e['total'] as JSNumber?)?.toDartDouble.toInt() ?? 0;
-          cb(loaded, total);
-        }
+        if (monitorObj case JSObject m) {
+          void progressFn(JSAny? eventObj) {
+            if (eventObj case JSObject e) {
+              final loaded =
+                  (e['loaded'] as JSNumber?)?.toDartDouble.toInt() ?? 0;
+              final total =
+                  (e['total'] as JSNumber?)?.toDartDouble.toInt() ?? 0;
+              cb(loaded, total);
+            }
+          }
 
-        m['ondownloadprogress'] = progressFn.toJS;
+          m['ondownloadprogress'] = progressFn.toJS;
+        }
       }
 
       options['monitor'] = monitorFn.toJS;
