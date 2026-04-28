@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'auth.dart';
+import 'meta_model.dart';
 
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
@@ -77,15 +78,51 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     );
   }
 
+  Future<GenerativeLanguageBaseClient> getOpenModelApiClient() async {
+    final validFormat = RegExp(r'^[a-z0-9-]+$');
+    final resolvedProjectId = _getResolvedProjectId;
+    final resolvedLocation = location ?? 'global';
+
+    if (!validFormat.hasMatch(resolvedLocation) ||
+        !validFormat.hasMatch(resolvedProjectId)) {
+      throw ArgumentError('Invalid projectId or location format.');
+    }
+    final safeLocation = Uri.encodeComponent(resolvedLocation);
+    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
+
+    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
+
+    final baseUrl = safeLocation == 'global'
+        ? 'https://aiplatform.googleapis.com/'
+        : 'https://$safeLocation-aiplatform.googleapis.com/';
+    final apiUrlPrefix =
+        'v1beta1/projects/$safeProjectId/locations/$safeLocation/endpoints/openapi/';
+
+    final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
+    final customClient = CustomClient(
+      defaultHeaders: headers,
+      inner: authClient,
+    );
+    final client = VertexAuthClient(tokenProvider, inner: customClient);
+
+    return GenerativeLanguageBaseClient(
+      baseUrl: baseUrl,
+      client: client,
+      apiUrlPrefix: apiUrlPrefix,
+    );
+  }
+
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     final service = await getApiClient();
     try {
-      final res = await service.listPublisherModels(
-        projectId: _getResolvedProjectId,
+      final publisherModels = await _listPublisherModels(service, 'google');
+      final metaPublisherModels = await _listPublisherModels(
+        service,
+        'meta',
+        warnOnFailure: true,
       );
-      final publisherModels = (res['publisherModels'] as List?) ?? [];
 
       final models = publisherModels
           .where((m) {
@@ -107,6 +144,23 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           })
           .toList();
 
+      final metaModels = metaPublisherModels
+          .where((m) {
+            final modelMap = m as Map<String, dynamic>;
+            final name = modelMap['name'] as String?;
+            return name != null && name.contains('llama-');
+          })
+          .map((m) {
+            final modelMap = m as Map<String, dynamic>;
+            final modelName = (modelMap['name'] as String).split('/').last;
+            return modelMetadata(
+              '$name/$modelName',
+              customOptions: VertexAiMetaOptions.$schema,
+              modelInfo: metaModelInfo,
+            );
+          })
+          .toList();
+
       final embedders = publisherModels
           .where((m) {
             final modelMap = m as Map<String, dynamic>;
@@ -122,7 +176,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           })
           .toList();
 
-      return [...models, ...embedders];
+      return [...models, ...metaModels, ...embedders];
     } catch (e, stack) {
       if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
@@ -189,5 +243,87 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         }
       },
     );
+  }
+
+  Model createMetaModel(String modelName) {
+    final actionModelName = modelName.startsWith('meta/')
+        ? modelName.substring(5)
+        : modelName;
+    final resolvedModelName = 'meta/$actionModelName';
+
+    return Model(
+      name: '$name/$actionModelName',
+      customOptions: VertexAiMetaOptions.$schema,
+      metadata: {'model': metaModelInfo.toJson()},
+      fn: (req, ctx) async {
+        final modelRequest = req!;
+        final options = modelRequest.config == null
+            ? VertexAiMetaOptions()
+            : VertexAiMetaOptions.$schema.parse(modelRequest.config!);
+        final service = await getOpenModelApiClient();
+
+        try {
+          final request = toMetaChatCompletionRequest(
+            modelRequest,
+            resolvedModelName,
+            options,
+            stream: ctx.streamingRequested,
+          );
+          if (ctx.streamingRequested) {
+            final chunks = <Map<String, dynamic>>[];
+            await for (final chunk in service.streamChatCompletions(request)) {
+              chunks.add(chunk);
+              final choices = chunk['choices'] as List?;
+              if (choices == null || choices.isEmpty) continue;
+              final choice = choices.first as Map<String, dynamic>;
+              final delta = choice['delta'] as Map<String, dynamic>?;
+              final text = delta?['content'] as String?;
+              if (text != null && text.isNotEmpty) {
+                ctx.sendChunk(
+                  ModelResponseChunk(index: 0, content: [TextPart(text: text)]),
+                );
+              }
+            }
+            return fromMetaChatCompletionChunks(chunks);
+          }
+
+          final response = await service.chatCompletions(request);
+          return fromMetaChatCompletionResponse(response);
+        } catch (e, stack) {
+          throw handleException(e, stack);
+        } finally {
+          if (authClient == null) {
+            service.client.close();
+          }
+        }
+      },
+    );
+  }
+
+  Future<List<dynamic>> _listPublisherModels(
+    GenerativeLanguageBaseClient service,
+    String publisher, {
+    bool warnOnFailure = false,
+  }) async {
+    try {
+      final res = await service.listPublisherModels(
+        projectId: _getResolvedProjectId,
+        publisher: publisher,
+      );
+      return (res['publisherModels'] as List?) ?? [];
+    } catch (e, stack) {
+      if (!warnOnFailure) rethrow;
+      logger.fine('Failed to list $publisher models: $e', e, stack);
+      return [];
+    }
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' &&
+        (name.startsWith('meta/') || name.startsWith('llama-'))) {
+      return createMetaModel(name);
+    }
+    return super.resolve(actionType, name);
   }
 }

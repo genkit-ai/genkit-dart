@@ -62,13 +62,22 @@ class GenerativeLanguageBaseClient {
 
   Future<Map<String, dynamic>> listPublisherModels({
     required String projectId,
+    String publisher = 'google',
   }) async {
     // Vertex AI endpoint for publisher models uses v1beta1 and does not have the 'projects/...' in the path
     // when using this specific endpoint, but it requires the google user project header (or just works with ADC).
     // The base URL for this is https://{location}-aiplatform.googleapis.com
-    // And path is /v1beta1/publishers/google/models
-    final url = 'v1beta1/publishers/google/models';
+    // And path is /v1beta1/publishers/{publisher}/models
+    final safePublisher = Uri.encodeComponent(publisher);
+    final url = 'v1beta1/publishers/$safePublisher/models';
     return await _call('GET', url, null, {'x-goog-user-project': projectId});
+  }
+
+  Future<Map<String, dynamic>> chatCompletions(
+    Map<String, dynamic> request,
+  ) async {
+    final url = '${apiUrlPrefix}chat/completions';
+    return await _call('POST', url, request);
   }
 
   Future<Map<String, dynamic>> predict(
@@ -196,5 +205,12 @@ class GenerativeLanguageBaseClient {
       'API Error $statusCode: $body',
       status: StatusCodes.INTERNAL,
     );
+  }
+
+  Stream<Map<String, dynamic>> streamChatCompletions(
+    Map<String, dynamic> request,
+  ) async* {
+    final url = '${apiUrlPrefix}chat/completions';
+    yield* _callStream('POST', url, request);
   }
 }
