@@ -321,10 +321,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     streamingRequested: ctx.streamingRequested,
     sendChunk: (chunk) {
       final currentRole = chunk.role ?? Role.model;
-      if (currentRole != currentChunkRole &&
-          (messageIndex > 0 || modelHasSentChunks)) {
-        messageIndex++;
-      }
+      if (currentRole != currentChunkRole && modelHasSentChunks) messageIndex++;
       currentChunkRole = currentRole;
       modelHasSentChunks = true;
 
