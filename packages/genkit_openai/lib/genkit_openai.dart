@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 
 import 'src/chat.dart' as chat;
 import 'src/openai_plugin.dart';
@@ -55,6 +56,7 @@ class OpenAICompatPluginHandle {
     String? baseUrl,
     List<CustomModelDefinition>? models,
     Map<String, String>? headers,
+    http.Client? httpClient,
   }) {
     return OpenAIPlugin(
       apiKey: apiKey,
@@ -62,6 +64,7 @@ class OpenAICompatPluginHandle {
       baseUrl: baseUrl,
       customModels: models ?? const [],
       headers: headers,
+      httpClient: httpClient,
     );
   }
 

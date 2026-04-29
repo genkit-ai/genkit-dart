@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
@@ -28,6 +29,7 @@ class OpenAIPlugin extends GenkitPlugin {
   final String? baseUrl;
   final List<CustomModelDefinition> customModels;
   final Map<String, String>? headers;
+  final http.Client? httpClient;
 
   OpenAIPlugin({
     this.apiKey,
@@ -35,6 +37,7 @@ class OpenAIPlugin extends GenkitPlugin {
     this.baseUrl,
     this.customModels = const [],
     this.headers,
+    this.httpClient,
   }) {
     if (apiKey != null && apiKeyProvider != null) {
       throw GenkitException(
@@ -87,6 +90,7 @@ class OpenAIPlugin extends GenkitPlugin {
       resolvedConfig.apiKey,
       baseUrl: resolvedConfig.baseUrl,
       defaultHeaders: resolvedConfig.headers,
+      httpClient: httpClient,
     );
 
     try {
@@ -100,7 +104,9 @@ class OpenAIPlugin extends GenkitPlugin {
 
       return modelIds;
     } finally {
-      client.close();
+      if (httpClient == null) {
+        client.close();
+      }
     }
   }
 
@@ -185,6 +191,7 @@ class OpenAIPlugin extends GenkitPlugin {
           resolvedConfig.apiKey,
           baseUrl: resolvedConfig.baseUrl,
           defaultHeaders: resolvedConfig.headers,
+          httpClient: httpClient,
         );
 
         try {
@@ -243,7 +250,9 @@ class OpenAIPlugin extends GenkitPlugin {
             stackTrace: stackTrace,
           );
         } finally {
-          client.close();
+          if (httpClient == null) {
+            client.close();
+          }
         }
       },
     );
