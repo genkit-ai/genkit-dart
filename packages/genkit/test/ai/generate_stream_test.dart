@@ -38,13 +38,11 @@ void main() {
           if (request.messages.length == 1) {
             context.sendChunk(
               ModelResponseChunk(
-                index: 0,
                 content: [TextPart(text: 'Calling tool...')],
               ),
             );
             context.sendChunk(
               ModelResponseChunk(
-                index: 0,
                 content: [
                   ToolRequestPart(
                     toolRequest: ToolRequest(
@@ -74,7 +72,7 @@ void main() {
           } else {
             // Second turn (after tool)
             context.sendChunk(
-              ModelResponseChunk(index: 0, content: [TextPart(text: 'Done')]),
+              ModelResponseChunk(content: [TextPart(text: 'Done')]),
             );
 
             return ModelResponse(
@@ -117,7 +115,7 @@ void main() {
         0,
         reason: 'Second chunk of first turn should be 0',
       );
-      expect(chunks[2].index, 1, reason: 'Chunk of second turn should be 1');
+      expect(chunks[2].index, 2, reason: 'Chunk of second turn should be 2');
     });
 
     test('generateStream() without model uses defaultModel', () async {

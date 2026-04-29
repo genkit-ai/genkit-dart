@@ -218,12 +218,10 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   required List<GenerateMiddleware> resolvedMiddleware,
-  required Future<GenerateResponseHelper> Function(
-    GenerateActionOptions opts,
-    int currentTurn,
-  )
+  required Future<GenerateResponseHelper> Function(GenerateTurnState envelope)
   composedGenerate,
   int currentTurn = 0,
+  int messageIndex = 0,
 }) async {
   if (options.model == null) {
     throw GenkitException(
@@ -315,15 +313,26 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     currentRequest = resumed.request!;
   }
 
+  var currentChunkRole = Role.model;
+  var modelHasSentChunks = false;
+
   // Execute model with middleware
   var response = await composedModel(currentRequest, (
     streamingRequested: ctx.streamingRequested,
     sendChunk: (chunk) {
+      final currentRole = chunk.role ?? Role.model;
+      if (currentRole != currentChunkRole &&
+          (messageIndex > 0 || modelHasSentChunks)) {
+        messageIndex++;
+      }
+      currentChunkRole = currentRole;
+      modelHasSentChunks = true;
+
       ctx.sendChunk(
         ModelResponseChunk(
-          index: currentTurn, // Use currentTurn to indicate the loop iteration
+          index: chunk.index ?? messageIndex,
           content: chunk.content,
-          role: chunk.role,
+          role: currentChunkRole,
           custom: chunk.custom,
           aggregated: chunk.aggregated,
         ),
@@ -402,7 +411,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   );
 
   // Recursively call composedGenerate for the next turn
-  return composedGenerate(nextOptions, currentTurn + 1);
+  return composedGenerate((
+    request: nextOptions,
+    currentTurn: currentTurn + 1,
+    messageIndex: messageIndex + 2,
+  ));
 }
 
 Future<GenerateResponseHelper> runGenerateAction(
@@ -458,17 +471,17 @@ Future<GenerateResponseHelper> _runGenerateAction(
   final resolvedMiddleware = resolved.middleware;
 
   late Future<GenerateResponseHelper> Function(
-    GenerateActionOptions opts,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
-    int currentTurn,
   )
   composedGenerate;
 
   Future<GenerateResponseHelper> coreGenerate(
-    GenerateActionOptions opts,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
-    int currentTurn,
   ) async {
+    var opts = envelope.request;
+    final currentTurn = envelope.currentTurn;
     final resumeRestart = opts.resume?.restart ?? [];
     final toolStatus = <String, _ToolStatus>{};
 
@@ -532,7 +545,11 @@ Future<GenerateResponseHelper> _runGenerateAction(
         ),
       );
 
-      return composedGenerate(opts, c, currentTurn);
+      return composedGenerate((
+        request: opts,
+        currentTurn: currentTurn,
+        messageIndex: envelope.messageIndex,
+      ), c);
     }
 
     return _runGenerateLoop(
@@ -540,19 +557,23 @@ Future<GenerateResponseHelper> _runGenerateAction(
       opts,
       c,
       resolvedMiddleware: resolvedMiddleware,
-      composedGenerate: (opt, ct) => composedGenerate(opt, c, ct),
+      composedGenerate: (env) => composedGenerate(env, c),
       currentTurn: currentTurn,
+      messageIndex: envelope.messageIndex,
     );
   }
 
   composedGenerate = resolvedMiddleware.reversed.fold(
     coreGenerate,
-    // Add currentTurn here since GenerateMiddleware.generate doesn't take it!
     (next, mw) =>
-        (o, c, ct) => mw.generate(o, c, (no, nctx) => next(no, nctx, ct)),
+        (env, c) => mw.generate(env, c, (nenv, nctx) => next(nenv, nctx)),
   );
 
-  return composedGenerate(options, ctx, 0);
+  return composedGenerate((
+    request: options,
+    currentTurn: 0,
+    messageIndex: 0,
+  ), ctx);
 }
 
 typedef GenerateMiddlewareOneof = ({

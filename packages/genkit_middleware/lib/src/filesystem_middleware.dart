@@ -188,6 +188,10 @@ class FilesystemMiddleware extends GenerateMiddleware {
             TextPart(
               text:
                   '<read_file path="${input.filePath}">\n$content\n</read_file>',
+              metadata: {
+                'filePath': input.filePath,
+                'filesystemMiddlewareTool': 'read_file',
+              },
             ),
           );
         }
@@ -199,9 +203,21 @@ class FilesystemMiddleware extends GenerateMiddleware {
           // Modifying content of existing message is tricky with immutable structures
           // But we are managing _messageQueue ourselves
           final newContent = [...lastMsg.content, ...parts];
-          _messageQueue.add(Message(role: Role.user, content: newContent));
+          _messageQueue.add(
+            Message(
+              role: Role.user,
+              content: newContent,
+              metadata: {'filesystemMiddlewareTool': 'read_file'},
+            ),
+          );
         } else {
-          _messageQueue.add(Message(role: Role.user, content: parts));
+          _messageQueue.add(
+            Message(
+              role: Role.user,
+              content: parts,
+              metadata: {'filesystemMiddlewareTool': 'read_file'},
+            ),
+          );
         }
 
         return 'File ${input.filePath} read successfully, see contents below';
@@ -302,16 +318,32 @@ class FilesystemMiddleware extends GenerateMiddleware {
 
   @override
   Future<GenerateResponseHelper> generate(
-    GenerateActionOptions options,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResponseHelper> Function(
-      GenerateActionOptions options,
+      GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
     next,
   ) async {
+    final options = envelope.request;
+    var messageIndex = envelope.messageIndex;
+
     if (_messageQueue.isNotEmpty) {
       final messages = List<Message>.from(options.messages);
+
+      if (ctx.streamingRequested) {
+        for (final msg in _messageQueue) {
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: messageIndex++,
+              content: msg.content,
+              role: msg.role,
+            ),
+          );
+        }
+      }
+
       messages.addAll(_messageQueue);
       _messageQueue.clear();
 
@@ -328,9 +360,13 @@ class FilesystemMiddleware extends GenerateMiddleware {
         maxTurns: options.maxTurns,
         stepName: options.stepName,
       );
-      return next(newOptions, ctx);
+      return next((
+        request: newOptions,
+        currentTurn: envelope.currentTurn,
+        messageIndex: messageIndex,
+      ), ctx);
     }
-    return next(options, ctx);
+    return next(envelope, ctx);
   }
 
   @override
