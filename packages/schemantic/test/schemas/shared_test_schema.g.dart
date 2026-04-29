@@ -108,7 +108,7 @@ base class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: $Schema.object(properties: {}, required: []).value,
+    definition: $Schema.object(properties: {}).value,
     dependencies: [],
   );
 }

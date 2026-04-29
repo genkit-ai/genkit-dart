@@ -28,16 +28,18 @@ void main() {
         '-r',
         '-o',
         'build',
+        '--verbose',
       ]);
+
+      printOnFailure('''
+stdout: ${result.stdout}
+stderr: ${result.stderr}''');
 
       // Verify the build succeeded
       expect(
         result.exitCode,
         0,
-        reason:
-            'build_runner failed with exit code ${result.exitCode}\n'
-            'stdout: ${result.stdout}\n'
-            'stderr: ${result.stderr}',
+        reason: 'build_runner failed with exit code ${result.exitCode}',
       );
 
       // Verify that the generated Wasm and JS files exist

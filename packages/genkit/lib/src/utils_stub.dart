@@ -15,11 +15,11 @@
 String? getConfigVar(String name) =>
     throw UnimplementedError('getConfigVar not implemented on this platform');
 
-String getPid() =>
+int getPid() =>
     throw UnimplementedError('getPid not implemented on this platform');
 
 String getPlatformLanguageVersion() => throw UnimplementedError(
   'getPlatformLanguageVersion not implemented on this platform',
 );
 
-const bool isAllowReflection = true;
+const bool isDevEnv = false;

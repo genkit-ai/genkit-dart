@@ -36,17 +36,51 @@
         }
         
         #header {
-            padding: 20px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--border-color);
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
             z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        
+
         h1 {
             margin: 0;
             font-size: 1.2rem;
             font-weight: 600;
+        }
+
+        #reset, #reset-settings {
+            height: 34px;
+            padding: 0 14px;
+            background: #f0f2f5;
+            color: #333;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+        }
+
+        #reset:hover:not(:disabled),
+        #reset-settings:hover:not(:disabled) {
+            background: #e4e6eb;
+        }
+
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .session-hint {
+            display: none;
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            color: #7a5c00;
         }
 
         #chat-container {
@@ -167,9 +201,14 @@
             cursor: not-allowed;
             background-color: #ccc;
         }
-        
+
         button:hover:not(:disabled) {
             opacity: 0.9;
+        }
+
+        #stop {
+            background-color: #ff3b30;
+            display: none;
         }
 
         #settings-panel {
@@ -255,11 +294,89 @@
         input.invalid {
             border-color: red;
         }
+
+        #constraintInput {
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.82rem;
+            margin-top: 4px;
+        }
+
+        #token-stats {
+            padding: 5px 20px 6px;
+            background: white;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.75rem;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #token-text {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        #token-track {
+            flex: 1;
+            height: 4px;
+            background: #e4e6eb;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        #token-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary-color);
+            border-radius: 2px;
+            transition: width 0.4s ease, background-color 0.4s ease;
+        }
+
+        #token-fill.warn  { background: #f59e0b; }
+        #token-fill.danger { background: #ef4444; }
+
+        #download-progress {
+            display: none;
+            padding: 8px 20px 10px;
+            background: #eff6ff;
+            border-bottom: 1px solid #bfdbfe;
+            font-size: 0.8rem;
+            color: #1e40af;
+        }
+
+        #download-bar-track {
+            margin-top: 6px;
+            height: 5px;
+            background: #bfdbfe;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #download-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: #3b82f6;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        @keyframes indeterminate {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
+        #download-bar-fill.indeterminate {
+            width: 25% !important;
+            animation: indeterminate 1.5s infinite ease-in-out;
+            transition: none;
+        }
     </style>
 </head>
 <body>
     <div id="header">
         <h1>Genkit Chrome Sample</h1>
+        <button id="reset">Reset session</button>
     </div>
     
     <div id="settings-panel">
@@ -308,16 +425,47 @@
                         <option value="ja">Japanese (ja)</option>
                     </select>
                 </div>
+                <div class="setting-group">
+                    <label for="constraintType">
+                        Response Constraint
+                        <span class="help-icon" title="Constrain the model output to a JSON Schema or a regular expression.">?</span>
+                    </label>
+                    <select id="constraintType">
+                        <option value="none">None</option>
+                        <option value="json">JSON Schema</option>
+                        <option value="regexp">Regular Expression</option>
+                    </select>
+                    <textarea id="constraintInput" rows="3" style="display:none"
+                        placeholder='{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"]}'></textarea>
+                    <div id="constraint-error" class="validation-error"></div>
+                </div>
+                <div id="session-hint" class="session-hint">
+                    System prompt and language settings take effect in a new session — press <strong>Reset session</strong> to apply.
+                </div>
                 <div id="validation-error" class="validation-error"></div>
+                <div class="settings-actions">
+                    <button id="reset-settings">Reset settings</button>
+                </div>
             </div>
         </details>
     </div>
     
+    <div id="download-progress">
+        <span id="download-text">Downloading model...</span>
+        <div id="download-bar-track"><div id="download-bar-fill"></div></div>
+    </div>
+
     <div id="chat-container"></div>
-    
+
+    <div id="token-stats">
+        <span id="token-text">Context: — tokens</span>
+        <div id="token-track"><div id="token-fill"></div></div>
+    </div>
+
     <div id="input-container">
         <textarea id="prompt" placeholder="waiting to load..." disabled></textarea>
         <button id="generate" disabled>Send</button>
+        <button id="stop">Stop</button>
     </div>
 </body>
 </html>
