@@ -37,9 +37,7 @@ void main() {
           // If first turn, return tool request
           if (request.messages.length == 1) {
             context.sendChunk(
-              ModelResponseChunk(
-                content: [TextPart(text: 'Calling tool...')],
-              ),
+              ModelResponseChunk(content: [TextPart(text: 'Calling tool...')]),
             );
             context.sendChunk(
               ModelResponseChunk(
