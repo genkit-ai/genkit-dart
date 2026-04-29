@@ -1,3 +1,10 @@
+## 0.0.6
+
+### Features
+
+ - Update implementation and add a few things (#259)
+
+
 ## 0.0.5
 
  - updated internal dependencies.

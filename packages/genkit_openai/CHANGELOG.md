@@ -1,3 +1,19 @@
+## 0.3.0
+
+### Breaking Changes
+
+ - reorganize code, renamed OpenAIOptions to OpenAIChatOptions (#200)
+
+### Features
+
+ - Allow passing a custom HTTP client to the OpenAI plugin (#225)
+ - add additionalProperties support to @Schema and implement strict object validation (#251)
+
+### Fixes
+
+ - remove hardcast for MediaPart in toOpenAIContentPart (#245)
+
+
 ## 0.2.4
 
  - updated internal dependencies.
