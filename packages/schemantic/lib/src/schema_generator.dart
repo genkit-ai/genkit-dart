@@ -927,14 +927,31 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         ).call([literalList(subtypes)]);
       }
     } else {
+      final additionalProperties = annotation
+          .peek('additionalProperties')
+          ?.boolValue;
+
       final namedArgs = <String, Expression>{
         'properties': literalMap(properties),
-        'required': literalList(required.map(literalString)),
       };
+      if (required.isNotEmpty) {
+        namedArgs['required'] = literalList(required.map(literalString));
+      }
       if (descriptionExpr != null) {
         namedArgs['description'] = descriptionExpr;
       }
-      definitionExpression = refer('\$Schema.object').call([], namedArgs);
+
+      if (additionalProperties != null) {
+        definitionExpression = refer('\$Schema.fromMap').call([
+          literalMap({
+            'type': literalString('object'),
+            ...namedArgs,
+            'additionalProperties': literalBool(additionalProperties),
+          }),
+        ]);
+      } else {
+        definitionExpression = refer('\$Schema.object').call([], namedArgs);
+      }
     }
 
     return Method(

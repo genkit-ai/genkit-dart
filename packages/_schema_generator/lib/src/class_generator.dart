@@ -22,6 +22,8 @@ const typeOverrides = {
     'resume': '\$GenerateResumeOptions',
   },
   'ModelResponseChunk': {'index': 'int'},
+  'ReflectionRegisterParams': {'pid': 'int'},
+  'ReflectionStreamChunkParams': {'chunk': 'dynamic'},
 };
 
 class ClassGenerator {

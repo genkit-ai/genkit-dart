@@ -334,7 +334,6 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
             'responseLogprobs': $Schema.boolean(),
             'logprobs': $Schema.integer(),
           },
-          required: [],
         )
         .value,
     dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
@@ -410,7 +409,6 @@ base class _FunctionCallingConfigTypeFactory
             ),
             'allowedFunctionNames': $Schema.list(items: $Schema.string()),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -486,7 +484,6 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
             'thinkingBudget': $Schema.integer(),
             'includeThoughts': $Schema.boolean(),
           },
-          required: [],
         )
         .value,
     dependencies: [],
@@ -543,7 +540,7 @@ base class _PrebuiltVoiceConfigTypeFactory
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PrebuiltVoiceConfig',
     definition: $Schema
-        .object(properties: {'voiceName': $Schema.string()}, required: [])
+        .object(properties: {'voiceName': $Schema.string()})
         .value,
     dependencies: [],
   );
@@ -607,7 +604,6 @@ base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
               '\$ref': r'#/$defs/PrebuiltVoiceConfig',
             }),
           },
-          required: [],
         )
         .value,
     dependencies: [PrebuiltVoiceConfig.$schema],
@@ -669,7 +665,6 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
           properties: {
             'voiceConfig': $Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
           },
-          required: [],
         )
         .value,
     dependencies: [VoiceConfig.$schema],
@@ -856,7 +851,6 @@ base class _LiveGenerationConfigTypeFactory
             'presencePenalty': $Schema.number(),
             'frequencyPenalty': $Schema.number(),
           },
-          required: [],
         )
         .value,
     dependencies: [SpeechConfig.$schema],

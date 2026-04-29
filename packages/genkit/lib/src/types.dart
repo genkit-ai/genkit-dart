@@ -356,3 +356,77 @@ abstract class $Embedding {
   List<double> get embedding;
   Map<String, dynamic>? get metadata;
 }
+
+@Schema()
+abstract class $ReflectionCancelActionParams {
+  String get traceId;
+}
+
+@Schema()
+abstract class $ReflectionCancelActionResponse {
+  String get message;
+}
+
+@Schema()
+abstract class $ReflectionConfigureParams {
+  String? get telemetryServerUrl;
+}
+
+@Schema()
+abstract class $ReflectionEndInputStreamParams {
+  String get requestId;
+}
+
+@Schema()
+abstract class $ReflectionListActionsResponse {
+  Map<String, dynamic> get actions;
+}
+
+@Schema()
+abstract class $ReflectionListValuesParams {
+  String get type;
+}
+
+@Schema()
+abstract class $ReflectionListValuesResponse {
+  Map<String, dynamic> get values;
+}
+
+@Schema()
+abstract class $ReflectionRegisterParams {
+  String get id;
+  int? get pid;
+  String? get name;
+  String? get genkitVersion;
+  double? get reflectionApiSpecVersion;
+  List<String>? get envs;
+}
+
+@Schema()
+abstract class $ReflectionRunActionParams {
+  String? get runtimeId;
+  String get key;
+  dynamic get input;
+  dynamic get context;
+  Map<String, dynamic>? get telemetryLabels;
+  bool? get stream;
+  bool? get streamInput;
+}
+
+@Schema()
+abstract class $ReflectionRunActionStateParams {
+  String get requestId;
+  Map<String, dynamic>? get state;
+}
+
+@Schema()
+abstract class $ReflectionSendInputStreamChunkParams {
+  String get requestId;
+  Map<String, dynamic>? get chunk;
+}
+
+@Schema()
+abstract class $ReflectionStreamChunkParams {
+  String get requestId;
+  dynamic get chunk;
+}

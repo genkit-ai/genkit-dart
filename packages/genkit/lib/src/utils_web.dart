@@ -16,11 +16,8 @@ String? getConfigVar(String name) {
   return String.fromEnvironment(name);
 }
 
-String getPid() => 'web';
+int getPid() => 0;
 
 String getPlatformLanguageVersion() => 'web';
 
-const bool isAllowReflection = bool.fromEnvironment(
-  'GENKIT_DEV',
-  defaultValue: false,
-);
+const bool isDevEnv = String.fromEnvironment('GENKIT_ENV') == 'dev';
