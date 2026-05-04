@@ -69,7 +69,7 @@ melos:
 
     build-gen-plugins:
       run: |
-        melos exec --scope="genkit_google_genai,genkit_openai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
+        melos exec --scope="genkit_anthropic,genkit_google_genai,genkit_openai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
       description: Run build_runner for plugins.
 
     build-gen-testapps:

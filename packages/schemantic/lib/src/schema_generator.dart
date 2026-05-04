@@ -140,6 +140,15 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
     return classes;
   }
 
+  /// Extracts dartdoc comment lines from an [Element], returning them as
+  /// a list of `///`-prefixed strings suitable for the `docs` field.
+  List<String> _extractDocs(Element element) {
+    final raw = element.documentationComment;
+    if (raw == null || raw.isEmpty) return const [];
+    // documentationComment returns lines like "/// foo" already.
+    return raw.split('\n');
+  }
+
   Class _generateClass(String baseName, ClassElement element) {
     // If `element` is a type annotated with `@Schema`, then it should
     // inherit the `json` field.
@@ -147,6 +156,12 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
     return Class((b) {
       b.name = baseName;
       b.modifier = .base;
+
+      // Carry forward dartdoc from the abstract $ClassName.
+      final classDocs = _extractDocs(element);
+      if (classDocs.isNotEmpty) {
+        b.docs.addAll(classDocs);
+      }
       b.fields.add(
         Field((f) {
           f
@@ -164,6 +179,9 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       b.fields.add(
         Field((f) {
           f
+            ..docs.addAll([
+              '/// The JSON schema and type descriptor for [$baseName].',
+            ])
             ..static = true
             ..modifier = FieldModifier.constant
             ..name = r'$schema'
@@ -177,6 +195,9 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       b.constructors.add(
         Constructor(
           (c) => c
+            ..docs.addAll([
+              '/// Creates a [$baseName] from a JSON map.',
+            ])
             ..name = 'fromJson'
             ..factory = true
             ..requiredParameters.add(
@@ -389,6 +410,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       b.methods.add(
         Method((m) {
           m
+            ..docs.addAll(['/// Serializes this [$baseName] to a JSON map.'])
             ..name = 'toJson'
             ..returns = refer('Map<String, dynamic>')
             ..body = Code('return _json;');
@@ -652,8 +674,12 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
           "_json['$jsonFieldName'] as Map<String, dynamic>);";
     }
 
+    // Carry forward dartdoc from the abstract getter.
+    final getterDocs = _extractDocs(getter);
+
     return Method(
       (b) => b
+        ..docs.addAll(getterDocs)
         ..type = MethodType.getter
         ..name = fieldName
         ..returns = refer(convertedTypeName)
@@ -662,6 +688,8 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
   }
 
   Method _generateSetter(PropertyAccessorElement getter) {
+    // Carry forward dartdoc from the abstract getter to its setter.
+    final setterDocs = _extractDocs(getter);
     final fieldName = getter.name;
     final jsonFieldName = _getJsonKey(getter);
     final paramType = getter.returnType;
@@ -711,6 +739,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
 
     return Method(
       (b) => b
+        ..docs.addAll(setterDocs)
         ..type = MethodType.setter
         ..name = fieldName
         ..requiredParameters.add(
