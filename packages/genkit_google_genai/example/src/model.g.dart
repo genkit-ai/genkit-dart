@@ -22,6 +22,7 @@ part of 'model.dart';
 // **************************************************************************
 
 base class WeatherToolInput {
+  /// Creates a [WeatherToolInput] from a JSON map.
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class WeatherToolInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [WeatherToolInput].
   static const SchemanticType<WeatherToolInput> $schema =
       _WeatherToolInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class WeatherToolInput {
     return _json.toString();
   }
 
+  /// Serializes this [WeatherToolInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -82,6 +85,7 @@ base class _WeatherToolInputTypeFactory
 }
 
 base class TemperatureConverterInput {
+  /// Creates a [TemperatureConverterInput] from a JSON map.
   factory TemperatureConverterInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -96,6 +100,7 @@ base class TemperatureConverterInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TemperatureConverterInput].
   static const SchemanticType<TemperatureConverterInput> $schema =
       _TemperatureConverterInputTypeFactory();
 
@@ -120,6 +125,7 @@ base class TemperatureConverterInput {
     return _json.toString();
   }
 
+  /// Serializes this [TemperatureConverterInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -151,6 +157,7 @@ base class _TemperatureConverterInputTypeFactory
 }
 
 base class TemperatureConverterOutput {
+  /// Creates a [TemperatureConverterOutput] from a JSON map.
   factory TemperatureConverterOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -165,6 +172,7 @@ base class TemperatureConverterOutput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TemperatureConverterOutput].
   static const SchemanticType<TemperatureConverterOutput> $schema =
       _TemperatureConverterOutputTypeFactory();
 
@@ -189,6 +197,7 @@ base class TemperatureConverterOutput {
     return _json.toString();
   }
 
+  /// Serializes this [TemperatureConverterOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -220,6 +229,7 @@ base class _TemperatureConverterOutputTypeFactory
 }
 
 base class Category {
+  /// Creates a [Category] from a JSON map.
   factory Category.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Category._(this._json);
@@ -233,6 +243,7 @@ base class Category {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Category].
   static const SchemanticType<Category> $schema = _CategoryTypeFactory();
 
   String get name {
@@ -262,6 +273,7 @@ base class Category {
     return _json.toString();
   }
 
+  /// Serializes this [Category] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -294,6 +306,7 @@ base class _CategoryTypeFactory extends SchemanticType<Category> {
 }
 
 base class Weapon {
+  /// Creates a [Weapon] from a JSON map.
   factory Weapon.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Weapon._(this._json);
@@ -308,6 +321,7 @@ base class Weapon {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Weapon].
   static const SchemanticType<Weapon> $schema = _WeaponTypeFactory();
 
   String get name {
@@ -339,6 +353,7 @@ base class Weapon {
     return _json.toString();
   }
 
+  /// Serializes this [Weapon] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -370,6 +385,7 @@ base class _WeaponTypeFactory extends SchemanticType<Weapon> {
 }
 
 base class RpgCharacter {
+  /// Creates a [RpgCharacter] from a JSON map.
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -393,6 +409,7 @@ base class RpgCharacter {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [RpgCharacter].
   static const SchemanticType<RpgCharacter> $schema =
       _RpgCharacterTypeFactory();
 
@@ -447,6 +464,7 @@ base class RpgCharacter {
     return _json.toString();
   }
 
+  /// Serializes this [RpgCharacter] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -484,6 +502,7 @@ base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
 }
 
 base class CharacterProfile {
+  /// Creates a [CharacterProfile] from a JSON map.
   factory CharacterProfile.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -499,6 +518,7 @@ base class CharacterProfile {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [CharacterProfile].
   static const SchemanticType<CharacterProfile> $schema =
       _CharacterProfileTypeFactory();
 
@@ -531,6 +551,7 @@ base class CharacterProfile {
     return _json.toString();
   }
 
+  /// Serializes this [CharacterProfile] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

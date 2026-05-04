@@ -21,6 +21,7 @@ part of 'model.dart';
 // **************************************************************************
 
 base class Person {
+  /// Creates a [Person] from a JSON map.
   factory Person.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Person._(this._json);
@@ -35,6 +36,7 @@ base class Person {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Person].
   static const SchemanticType<Person> $schema = _PersonTypeFactory();
 
   String get name {
@@ -66,6 +68,7 @@ base class Person {
     return _json.toString();
   }
 
+  /// Serializes this [Person] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -97,6 +100,7 @@ base class _PersonTypeFactory extends SchemanticType<Person> {
 }
 
 base class CalculatorInput {
+  /// Creates a [CalculatorInput] from a JSON map.
   factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -108,6 +112,7 @@ base class CalculatorInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [CalculatorInput].
   static const SchemanticType<CalculatorInput> $schema =
       _CalculatorInputTypeFactory();
 
@@ -132,6 +137,7 @@ base class CalculatorInput {
     return _json.toString();
   }
 
+  /// Serializes this [CalculatorInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
