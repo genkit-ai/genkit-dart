@@ -195,9 +195,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       b.constructors.add(
         Constructor(
           (c) => c
-            ..docs.addAll([
-              '/// Creates a [$baseName] from a JSON map.',
-            ])
+            ..docs.addAll(['/// Creates a [$baseName] from a JSON map.'])
             ..name = 'fromJson'
             ..factory = true
             ..requiredParameters.add(
