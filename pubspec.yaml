@@ -65,19 +65,23 @@ melos:
       description: Run build_runner in topological order (core -> plugins -> app) to avoid race conditions.
 
     build-gen-core:
-      run: melos exec --scope="schemantic,genkit" -o -- dart run build_runner build
+      exec: dart run build_runner build
+      packageFilters:
+        scope: "{schemantic,genkit}"
+        orderDependents: true
       description: Run build_runner for genkit.
 
     build-gen-plugins:
-      run: |
-        melos exec --scope="genkit_anthropic,genkit_google_genai,genkit_openai,genkit_shelf,genkit_firebase_ai" --depends-on="build_runner" -- dart run build_runner build
+      exec: dart run build_runner build
+      packageFilters:
+        scope: "{genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_openai}"
       description: Run build_runner for plugins.
 
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{agentic_patterns,ai_features,basic_sample,openai_sample}"
-      description: Run build_runner for testapps (except the flutter one!)
+        scope: "{agentic_patterns,ai_features,basic_sample,gemini_testapp,mcp_server_sample,openai_sample,schemantic_sample}"
+      description: Run build_runner for testapps (except Flutter ones).
 
     dartdoc-check:
       run: dart tools/check_dartdoc.dart
