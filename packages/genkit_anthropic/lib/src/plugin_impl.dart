@@ -20,6 +20,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'model.dart';
 
+/// Default model capabilities shared by all Anthropic Claude models.
 final commonModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
@@ -32,12 +33,23 @@ final commonModelInfo = ModelInfo(
   },
 );
 
+/// Core Genkit plugin implementation for Anthropic Claude models.
+///
+/// Automatically discovers available models from the Anthropic API and
+/// registers them in the Genkit action registry.
 class AnthropicPluginImpl extends GenkitPlugin {
+  /// The static API key used to authenticate requests.
   final String? apiKey;
+
+  /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
+
+  /// Custom base URL for the Anthropic API.
   final String? baseUrl;
+
   sdk.AnthropicClient? _client;
 
+  /// Creates an [AnthropicPluginImpl].
   AnthropicPluginImpl({this.apiKey, this.headers, this.baseUrl});
 
   @override
@@ -227,6 +239,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
   }
 }
 
+/// Converts a Genkit system [Message] to an Anthropic [sdk.SystemPrompt].
 sdk.SystemPrompt? convertSystemMessage(Message m) {
   final parts = <String>[];
   for (final p in m.content) {
@@ -239,6 +252,7 @@ sdk.SystemPrompt? convertSystemMessage(Message m) {
   return sdk.SystemPrompt.text(text);
 }
 
+/// Converts a Genkit [Message] to an Anthropic [sdk.InputMessage].
 sdk.InputMessage toAnthropicMessage(Message m) {
   final isUser = m.role == Role.user || m.role == Role.tool;
 
@@ -304,6 +318,7 @@ sdk.ImageMediaType _mapImageMediaType(String mimeType) {
   };
 }
 
+/// Converts a Genkit [ToolDefinition] to an Anthropic [sdk.ToolDefinition].
 sdk.ToolDefinition toAnthropicTool(ToolDefinition t) {
   final schema = Map<String, dynamic>.from(t.inputSchema?.flatten() ?? {});
   if (!schema.containsKey('type')) {
@@ -318,6 +333,7 @@ sdk.ToolDefinition toAnthropicTool(ToolDefinition t) {
   );
 }
 
+/// Converts an Anthropic [sdk.Message] to a Genkit [Message].
 Message fromAnthropicMessage(sdk.Message m) {
   final content = m.content
       .map(
@@ -394,6 +410,7 @@ void _handleStreamEvent(
         case sdk.SignatureDelta():
         case sdk.CitationsDelta():
         case sdk.CompactionDelta():
+        case sdk.UnknownContentBlockDelta():
           break;
       }
     case sdk.ErrorEvent(:final message):
@@ -406,6 +423,7 @@ void _handleStreamEvent(
   }
 }
 
+/// Maps an Anthropic [sdk.StopReason] to a Genkit [FinishReason].
 FinishReason mapFinishReason(sdk.StopReason? reason) {
   return switch (reason) {
     sdk.StopReason.endTurn => FinishReason.stop,
@@ -420,6 +438,7 @@ FinishReason mapFinishReason(sdk.StopReason? reason) {
   };
 }
 
+/// Maps Anthropic [sdk.Usage] to Genkit [GenerationUsage].
 GenerationUsage mapUsage(sdk.Usage? usage) {
   if (usage == null) {
     return GenerationUsage(inputTokens: 0, outputTokens: 0, totalTokens: 0);
