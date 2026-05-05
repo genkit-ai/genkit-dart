@@ -49,8 +49,14 @@ const OpenAICompatPluginHandle openAI = OpenAICompatPluginHandle();
 class OpenAICompatPluginHandle {
   const OpenAICompatPluginHandle();
 
-  /// Create the plugin instance
+  /// Create the plugin instance.
+  ///
+  /// The [name] parameter allows uniquely identifying each plugin instance
+  /// (e.g. `'openrouter'`, `'nanogpt'`). It defaults to `'openai'` and is
+  /// used as the namespace prefix for all models registered by this instance
+  /// (e.g. `openrouter/gpt-4o`).
   GenkitPlugin call({
+    String name = 'openai',
     String? apiKey,
     OpenAIApiKeyProvider? apiKeyProvider,
     String? baseUrl,
@@ -59,6 +65,7 @@ class OpenAICompatPluginHandle {
     http.Client? httpClient,
   }) {
     return OpenAIPlugin(
+      name: name,
       apiKey: apiKey,
       apiKeyProvider: apiKeyProvider,
       baseUrl: baseUrl,
@@ -68,10 +75,17 @@ class OpenAICompatPluginHandle {
     );
   }
 
-  /// Reference to a model
-  ModelRef<chat.OpenAIChatOptions> model(String name) {
+  /// Reference to a model.
+  ///
+  /// The optional [namespace] defaults to `'openai'` and is the prefix used
+  /// when looking up the model (e.g. `openai/gpt-4o`). Pass a custom value
+  /// when the plugin was created with a custom [name].
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = 'openai',
+  }) {
     return modelRef(
-      'openai/$name',
+      '$namespace/$name',
       customOptions: chat.chatModelOptionsSchema(),
     );
   }

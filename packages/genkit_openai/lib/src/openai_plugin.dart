@@ -22,8 +22,9 @@ import 'chat.dart' as chat;
 /// Core plugin implementation
 class OpenAIPlugin extends GenkitPlugin {
   @override
-  String get name => 'openai';
+  String get name => _pluginName;
 
+  final String _pluginName;
   final String? apiKey;
   final OpenAIApiKeyProvider? apiKeyProvider;
   final String? baseUrl;
@@ -32,13 +33,14 @@ class OpenAIPlugin extends GenkitPlugin {
   final http.Client? httpClient;
 
   OpenAIPlugin({
+    String name = 'openai',
     this.apiKey,
     this.apiKeyProvider,
     this.baseUrl,
     this.customModels = const [],
     this.headers,
     this.httpClient,
-  }) {
+  }) : _pluginName = name {
     if (apiKey != null && apiKeyProvider != null) {
       throw GenkitException(
         'Provide either apiKey or apiKeyProvider, not both.',
@@ -150,7 +152,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
         modelMetadataList.add(
           modelMetadata(
-            'openai/$modelId',
+            '$_pluginName/$modelId',
             modelInfo: modelInfoFor(modelId),
             customOptions: chat.chatModelOptionsSchema(),
           ),
@@ -179,7 +181,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final modelInfo = info ?? modelInfoFor(modelName);
 
     return Model(
-      name: 'openai/$modelName',
+      name: '$_pluginName/$modelName',
       customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
