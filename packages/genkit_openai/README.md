@@ -139,13 +139,16 @@ final response = await ai.generate(
 
 ## OpenAI-Compatible APIs
 
-The plugin supports any OpenAI-compatible API by specifying a custom `baseUrl`:
+The plugin supports any OpenAI-compatible API by specifying a custom `baseUrl`.
+Use the `name` parameter to give each backend a unique identity — this is
+required when registering multiple backends in the same `Genkit` instance.
 
 ### Groq
 
 ```dart
 final ai = Genkit(plugins: [
   openAI(
+    name: 'groq',
     apiKey: Platform.environment['GROQ_API_KEY'],
     baseUrl: 'https://api.groq.com/openai/v1',
     models: [
@@ -165,8 +168,37 @@ final ai = Genkit(plugins: [
 ]);
 
 final response = await ai.generate(
-  model: openAI.model('llama-3.3-70b-versatile'),
+  model: openAI.model('llama-3.3-70b-versatile', namespace: 'groq'),
   prompt: 'Hello!',
+);
+```
+
+### Multiple Backends
+
+You can use several OpenAI-compatible providers side by side by giving each a
+unique `name`:
+
+```dart
+final ai = Genkit(plugins: [
+  openAI(apiKey: Platform.environment['OPENAI_API_KEY']),
+  openAI(
+    name: 'openrouter',
+    apiKey: Platform.environment['OPENROUTER_API_KEY'],
+    baseUrl: 'https://openrouter.ai/api/v1',
+    models: [CustomModelDefinition(name: 'gpt-4o')],
+  ),
+]);
+
+// Uses the default OpenAI backend
+final a = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Hello from OpenAI!',
+);
+
+// Uses the OpenRouter backend
+final b = await ai.generate(
+  model: openAI.model('gpt-4o', namespace: 'openrouter'),
+  prompt: 'Hello from OpenRouter!',
 );
 ```
 
