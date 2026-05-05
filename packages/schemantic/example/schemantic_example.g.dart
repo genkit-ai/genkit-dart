@@ -22,6 +22,7 @@ part of 'schemantic_example.dart';
 // **************************************************************************
 
 base class Address {
+  /// Creates a [Address] from a JSON map.
   factory Address.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Address._(this._json);
@@ -36,6 +37,7 @@ base class Address {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Address].
   static const SchemanticType<Address> $schema = _AddressTypeFactory();
 
   String get street {
@@ -68,6 +70,7 @@ base class Address {
     return _json.toString();
   }
 
+  /// Serializes this [Address] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -108,7 +111,10 @@ base class _AddressTypeFactory extends SchemanticType<Address> {
   );
 }
 
+/// Define a schema using the @Schema annotation.
+/// This will generate a concrete [User] class with a static $schema field.
 base class User {
+  /// Creates a [User] from a JSON map.
   factory User.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   User._(this._json);
@@ -129,6 +135,7 @@ base class User {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [User].
   static const SchemanticType<User> $schema = _UserTypeFactory();
 
   String get name {
@@ -178,6 +185,7 @@ base class User {
     return _json.toString();
   }
 
+  /// Serializes this [User] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -217,7 +225,9 @@ base class _UserTypeFactory extends SchemanticType<User> {
   );
 }
 
+/// Define another schema for Products.
 base class Product {
+  /// Creates a [Product] from a JSON map.
   factory Product.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Product._(this._json);
@@ -233,6 +243,7 @@ base class Product {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Product].
   static const SchemanticType<Product> $schema = _ProductTypeFactory();
 
   String get id {
@@ -276,6 +287,7 @@ base class Product {
     return _json.toString();
   }
 
+  /// Serializes this [Product] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
