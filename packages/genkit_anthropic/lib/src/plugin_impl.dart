@@ -411,7 +411,6 @@ void _handleStreamEvent(
         case sdk.CitationsDelta():
         case sdk.CompactionDelta():
         case sdk.UnknownContentBlockDelta():
-          break;
       }
     case sdk.ErrorEvent(:final message):
       throw GenkitException(
@@ -419,7 +418,6 @@ void _handleStreamEvent(
         status: StatusCodes.INTERNAL,
       );
     default:
-      break;
   }
 }
 
