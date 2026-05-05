@@ -31,6 +31,9 @@ export 'src/utils.dart'
         supportsTools,
         supportsVision;
 
+/// Default plugin / namespace name used when no custom name is provided.
+const String defaultOpenAINamespace = 'openai';
+
 /// Custom model definition for registering models from compatible providers
 class CustomModelDefinition {
   final String name;
@@ -49,8 +52,14 @@ const OpenAICompatPluginHandle openAI = OpenAICompatPluginHandle();
 class OpenAICompatPluginHandle {
   const OpenAICompatPluginHandle();
 
-  /// Create the plugin instance
+  /// Create the plugin instance.
+  ///
+  /// The [name] parameter allows uniquely identifying each plugin instance
+  /// (e.g. `'openrouter'`, `'nanogpt'`). It defaults to
+  /// [defaultOpenAINamespace] and is used as the namespace prefix for all
+  /// models registered by this instance (e.g. `openrouter/gpt-4o`).
   GenkitPlugin call({
+    String name = defaultOpenAINamespace,
     String? apiKey,
     OpenAIApiKeyProvider? apiKeyProvider,
     String? baseUrl,
@@ -59,6 +68,7 @@ class OpenAICompatPluginHandle {
     http.Client? httpClient,
   }) {
     return OpenAIPlugin(
+      name: name,
       apiKey: apiKey,
       apiKeyProvider: apiKeyProvider,
       baseUrl: baseUrl,
@@ -68,10 +78,17 @@ class OpenAICompatPluginHandle {
     );
   }
 
-  /// Reference to a model
-  ModelRef<chat.OpenAIChatOptions> model(String name) {
+  /// Reference to a model.
+  ///
+  /// The optional [namespace] defaults to [defaultOpenAINamespace] and is the
+  /// prefix used when looking up the model (e.g. `openai/gpt-4o`). Pass a
+  /// custom value when the plugin was created with a custom name.
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = defaultOpenAINamespace,
+  }) {
     return modelRef(
-      'openai/$name',
+      '$namespace/$name',
       customOptions: chat.chatModelOptionsSchema(),
     );
   }

@@ -22,8 +22,9 @@ import 'chat.dart' as chat;
 /// Core plugin implementation
 class OpenAIPlugin extends GenkitPlugin {
   @override
-  String get name => 'openai';
+  String get name => _pluginName;
 
+  final String _pluginName;
   final String? apiKey;
   final OpenAIApiKeyProvider? apiKeyProvider;
   final String? baseUrl;
@@ -32,13 +33,20 @@ class OpenAIPlugin extends GenkitPlugin {
   final http.Client? httpClient;
 
   OpenAIPlugin({
+    String name = defaultOpenAINamespace,
     this.apiKey,
     this.apiKeyProvider,
     this.baseUrl,
     this.customModels = const [],
     this.headers,
     this.httpClient,
-  }) {
+  }) : _pluginName = name {
+    if (name.isEmpty || name.contains('/')) {
+      throw GenkitException(
+        'Plugin name must be non-empty and must not contain "/". Got: "$name"',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
     if (apiKey != null && apiKeyProvider != null) {
       throw GenkitException(
         'Provide either apiKey or apiKeyProvider, not both.',
@@ -68,7 +76,7 @@ class OpenAIPlugin extends GenkitPlugin {
         }
       } catch (e) {
         throw GenkitException(
-          'Error fetching available models from OpenAI: $e',
+          'Error fetching available models from $_pluginName: $e',
           underlyingException: e,
         );
       }
@@ -114,7 +122,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final configuredApiKey = await _resolveApiKey();
     if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
       throw GenkitException(
-        'API key is required. Provide it via apiKey or apiKeyProvider in the plugin constructor.',
+        '[$_pluginName] API key is required. Provide it via apiKey or apiKeyProvider in the plugin constructor.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -150,7 +158,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
         modelMetadataList.add(
           modelMetadata(
-            'openai/$modelId',
+            '$_pluginName/$modelId',
             modelInfo: modelInfoFor(modelId),
             customOptions: chat.chatModelOptionsSchema(),
           ),
@@ -160,7 +168,7 @@ class OpenAIPlugin extends GenkitPlugin {
       return modelMetadataList;
     } catch (e, stackTrace) {
       throw GenkitException(
-        'Error listing models from OpenAI: $e',
+        'Error listing models from $_pluginName: $e',
         underlyingException: e,
         stackTrace: stackTrace,
       );
@@ -179,7 +187,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final modelInfo = info ?? modelInfoFor(modelName);
 
     return Model(
-      name: 'openai/$modelName',
+      name: '$_pluginName/$modelName',
       customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
