@@ -22,6 +22,7 @@ part of 'generate_bidi_test.dart';
 // **************************************************************************
 
 base class MyToolInput {
+  /// Creates a [MyToolInput] from a JSON map.
   factory MyToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class MyToolInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MyToolInput].
   static const SchemanticType<MyToolInput> $schema = _MyToolInputTypeFactory();
 
   String get location {
@@ -48,6 +50,7 @@ base class MyToolInput {
     return _json.toString();
   }
 
+  /// Serializes this [MyToolInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

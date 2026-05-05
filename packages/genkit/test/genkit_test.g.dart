@@ -22,6 +22,7 @@ part of 'genkit_test.dart';
 // **************************************************************************
 
 base class TestCustomOptions {
+  /// Creates a [TestCustomOptions] from a JSON map.
   factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class TestCustomOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestCustomOptions].
   static const SchemanticType<TestCustomOptions> $schema =
       _TestCustomOptionsTypeFactory();
 
@@ -49,6 +51,7 @@ base class TestCustomOptions {
     return _json.toString();
   }
 
+  /// Serializes this [TestCustomOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -77,6 +80,7 @@ base class _TestCustomOptionsTypeFactory
 }
 
 base class TestToolInput {
+  /// Creates a [TestToolInput] from a JSON map.
   factory TestToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -88,6 +92,7 @@ base class TestToolInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestToolInput].
   static const SchemanticType<TestToolInput> $schema =
       _TestToolInputTypeFactory();
 
@@ -104,6 +109,7 @@ base class TestToolInput {
     return _json.toString();
   }
 
+  /// Serializes this [TestToolInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -128,6 +134,7 @@ base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
 }
 
 base class TestOutputSchema {
+  /// Creates a [TestOutputSchema] from a JSON map.
   factory TestOutputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -139,6 +146,7 @@ base class TestOutputSchema {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestOutputSchema].
   static const SchemanticType<TestOutputSchema> $schema =
       _TestOutputSchemaTypeFactory();
 
@@ -163,6 +171,7 @@ base class TestOutputSchema {
     return _json.toString();
   }
 
+  /// Serializes this [TestOutputSchema] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
