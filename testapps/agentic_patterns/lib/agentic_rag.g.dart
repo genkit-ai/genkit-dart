@@ -22,6 +22,7 @@ part of 'agentic_rag.dart';
 // **************************************************************************
 
 base class AgenticRagInput {
+  /// Creates a [AgenticRagInput] from a JSON map.
   factory AgenticRagInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class AgenticRagInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [AgenticRagInput].
   static const SchemanticType<AgenticRagInput> $schema =
       _AgenticRagInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class AgenticRagInput {
     return _json.toString();
   }
 
+  /// Serializes this [AgenticRagInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -76,6 +79,7 @@ base class _AgenticRagInputTypeFactory extends SchemanticType<AgenticRagInput> {
 }
 
 base class MenuRagToolInput {
+  /// Creates a [MenuRagToolInput] from a JSON map.
   factory MenuRagToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -87,6 +91,7 @@ base class MenuRagToolInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MenuRagToolInput].
   static const SchemanticType<MenuRagToolInput> $schema =
       _MenuRagToolInputTypeFactory();
 
@@ -103,6 +108,7 @@ base class MenuRagToolInput {
     return _json.toString();
   }
 
+  /// Serializes this [MenuRagToolInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
