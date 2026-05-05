@@ -33,7 +33,7 @@ class OpenAIPlugin extends GenkitPlugin {
   final http.Client? httpClient;
 
   OpenAIPlugin({
-    String name = 'openai',
+    String name = defaultOpenAINamespace,
     this.apiKey,
     this.apiKeyProvider,
     this.baseUrl,
