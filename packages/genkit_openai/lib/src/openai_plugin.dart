@@ -19,19 +19,38 @@ import 'package:openai_dart/openai_dart.dart' as sdk;
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
 
-/// Core plugin implementation
+/// Core Genkit plugin implementation for OpenAI-compatible APIs.
+///
+/// Automatically discovers models from the OpenAI API (when no custom
+/// [baseUrl] is set) and registers them in the Genkit action registry.
+/// Additional models can be provided via [customModels].
 class OpenAIPlugin extends GenkitPlugin {
+  final String _pluginName;
+
   @override
   String get name => _pluginName;
 
-  final String _pluginName;
+  /// The static API key used to authenticate requests.
   final String? apiKey;
+
+  /// An asynchronous callback that returns the API key on each request.
   final OpenAIApiKeyProvider? apiKeyProvider;
+
+  /// Custom base URL for OpenAI-compatible APIs (e.g. Groq, DeepSeek).
   final String? baseUrl;
+
+  /// Additional models to register beyond those discovered from the API.
   final List<CustomModelDefinition> customModels;
+
+  /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
+
+  /// Optional HTTP client for dependency injection and testing.
   final http.Client? httpClient;
 
+  /// Creates an [OpenAIPlugin].
+  ///
+  /// Provide either [apiKey] or [apiKeyProvider], but not both.
   OpenAIPlugin({
     String name = defaultOpenAINamespace,
     this.apiKey,

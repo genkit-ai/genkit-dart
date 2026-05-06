@@ -8,8 +8,8 @@ Add `genkit_openai` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  genkit: ^0.10.0
-  genkit_openai: ^0.0.1-dev.1
+  genkit: ^0.13.0
+  genkit_openai: ^0.3.0
 ```
 
 ## Usage
