@@ -15,7 +15,6 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
-
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';

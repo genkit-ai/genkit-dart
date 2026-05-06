@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'auth.dart';
+import 'virtual_try_on.dart';
 
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
@@ -91,11 +92,16 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           .where((m) {
             final modelMap = m as Map<String, dynamic>;
             final name = modelMap['name'] as String?;
-            return name != null && name.contains('gemini-');
+            return name != null &&
+                (name.contains('gemini-') ||
+                    name.contains(virtualTryOnModelPrefix));
           })
           .map((m) {
             final modelMap = m as Map<String, dynamic>;
             final modelName = (modelMap['name'] as String).split('/').last;
+            if (isVirtualTryOnModelName(modelName)) {
+              return virtualTryOnModelMetadata(name, modelName);
+            }
             final isTts = modelName.contains('-tts');
             return modelMetadata(
               '$name/$modelName',
@@ -132,6 +138,20 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         service.client.close();
       }
     }
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && isVirtualTryOnModelName(name)) {
+      return createVirtualTryOnModel(
+        pluginName: this.name,
+        modelName: name,
+        getApiClient: getApiClient,
+        handleException: handleException,
+        shouldCloseClient: authClient == null,
+      );
+    }
+    return super.resolve(actionType, name);
   }
 
   @override

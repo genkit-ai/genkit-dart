@@ -17,6 +17,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:http/http.dart' as http;
 
 import 'src/vertex_api_client.dart';
+import 'src/virtual_try_on.dart';
 
 export 'package:genkit_google_genai/genkit_google_genai.dart'
     show
@@ -31,6 +32,7 @@ export 'package:genkit_google_genai/genkit_google_genai.dart'
         TextEmbedderOptions,
         ThinkingConfig,
         VoiceConfig;
+export 'src/virtual_try_on.dart';
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
@@ -58,5 +60,12 @@ class VertexAiPluginHandle {
       'vertexai/$name',
       customOptions: TextEmbedderOptions.$schema,
     );
+  }
+
+  ModelRef<VirtualTryOnOptions> virtualTryOn([
+    String name = 'virtual-try-on-001',
+    VirtualTryOnOptions? config,
+  ]) {
+    return modelRef('vertexai/$name', config: config);
   }
 }
