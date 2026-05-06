@@ -1,3 +1,10 @@
+## 0.2.6
+
+### Features
+
+ - generate docs for generated schemantic types (#274)
+
+
 ## 0.2.5
 
 ### Features

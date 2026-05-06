@@ -1,3 +1,7 @@
+## 0.0.7
+
+ - updated internal dependencies.
+
 ## 0.0.6
 
 ### Features

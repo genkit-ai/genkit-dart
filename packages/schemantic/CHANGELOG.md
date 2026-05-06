@@ -1,3 +1,11 @@
+## 0.1.3
+
+### Features
+
+ - widen analyzer dependency range to include v13 (#277)
+ - generate docs for generated schemantic types (#274)
+
+
 ## 0.1.2
 
 ### Features

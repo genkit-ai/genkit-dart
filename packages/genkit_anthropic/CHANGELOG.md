@@ -1,3 +1,11 @@
+## 0.2.6
+
+### Features
+
+ - upgrade anthropic_sdk_dart to v2.0.0 and add docs (#273)
+ - generate docs for generated schemantic types (#274)
+
+
 ## 0.2.5
 
  - updated internal dependencies.

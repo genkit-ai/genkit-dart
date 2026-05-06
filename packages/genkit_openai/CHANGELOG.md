@@ -1,3 +1,15 @@
+## 0.3.1
+
+### Features
+
+ - add dartdoc comments and update versions in genkit_openai (#272)
+ - generate docs for generated schemantic types (#274)
+
+### Fixes
+
+ - make plugin name configurable for multiple OpenAI-compatible backends (#276)
+
+
 ## 0.3.0
 
 ### Breaking Changes

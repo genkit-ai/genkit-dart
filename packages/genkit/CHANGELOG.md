@@ -1,3 +1,10 @@
+## 0.13.1
+
+### Features
+
+ - generate docs for generated schemantic types (#274)
+
+
 ## 0.13.0
 
 ### Breaking Changes
