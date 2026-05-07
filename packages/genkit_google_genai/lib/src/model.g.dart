@@ -417,6 +417,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 }
 
 base class GemmaOptions {
+  /// Creates a [GemmaOptions] from a JSON map.
   factory GemmaOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -472,6 +473,7 @@ base class GemmaOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GemmaOptions].
   static const SchemanticType<GemmaOptions> $schema =
       _GemmaOptionsTypeFactory();
 
@@ -748,6 +750,7 @@ base class GemmaOptions {
     return _json.toString();
   }
 
+  /// Serializes this [GemmaOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
