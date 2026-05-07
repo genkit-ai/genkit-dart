@@ -22,6 +22,7 @@ part of 'resource.dart';
 // **************************************************************************
 
 base class ResourceInput {
+  /// Creates a [ResourceInput] from a JSON map.
   factory ResourceInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class ResourceInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ResourceInput].
   static const SchemanticType<ResourceInput> $schema =
       _ResourceInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class ResourceInput {
     return _json.toString();
   }
 
+  /// Serializes this [ResourceInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -73,6 +76,7 @@ base class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
 }
 
 base class ResourceOutput {
+  /// Creates a [ResourceOutput] from a JSON map.
   factory ResourceOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -84,6 +88,7 @@ base class ResourceOutput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ResourceOutput].
   static const SchemanticType<ResourceOutput> $schema =
       _ResourceOutputTypeFactory();
 
@@ -102,6 +107,7 @@ base class ResourceOutput {
     return _json.toString();
   }
 
+  /// Serializes this [ResourceOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

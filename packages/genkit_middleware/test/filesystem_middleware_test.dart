@@ -123,6 +123,85 @@ void main() {
       expect(result.text, 'Content read');
     });
 
+    test('should stream file contents when reading a file', () async {
+      final file = File(p.join(tempDir.path, 'file1.txt'));
+      await file.writeAsString('hello world');
+
+      final mw = filesystem(rootDirectory: tempDir.path);
+
+      var turn = 0;
+      genkit.defineModel(
+        name: 'stream-read-model',
+        fn: (req, ctx) async {
+          turn++;
+          if (turn == 1) {
+            final content = [
+              ToolRequestPart(
+                toolRequest: ToolRequest(
+                  name: 'read_file',
+                  input: {'filePath': 'file1.txt'},
+                ),
+              ),
+            ];
+            if (ctx.streamingRequested) {
+              ctx.sendChunk(ModelResponseChunk(content: content));
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(role: Role.model, content: content),
+            );
+          }
+          final content = [TextPart(text: 'done')];
+          if (ctx.streamingRequested) {
+            ctx.sendChunk(ModelResponseChunk(content: content));
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(role: Role.model, content: content),
+          );
+        },
+      );
+
+      final result = genkit.generateStream(
+        model: modelRef('stream-read-model'),
+        prompt: 'test',
+        use: [mw],
+      );
+
+      final chunks = <GenerateResponseChunk>[];
+      await for (final chunk in result) {
+        chunks.add(chunk);
+      }
+
+      await result.onResult;
+
+      final indices = chunks.map((c) => c.index).toSet().toList();
+      // Expect indices 0, 2, 3
+      // 0: Model tool request
+      // 1: Tool response string (Not streamed in Dart)
+      // 2: Injected file content
+      // 3: Final model response
+      expect(indices, [
+        0,
+        2,
+        3,
+      ], reason: 'Should have expected message indices');
+
+      final fileContentChunk = chunks
+          .where((c) => c.text.contains('hello world'))
+          .firstOrNull;
+      expect(
+        fileContentChunk,
+        isNotNull,
+        reason: 'Stream should contain file content',
+      );
+      expect(
+        fileContentChunk!.index,
+        2,
+        reason: 'File content should have index 2',
+      );
+    });
+
     test('should NOT allow access outside root', () async {
       final mw = FilesystemMiddleware(tempDir.path);
       final readTool = mw.tools.firstWhere((t) => t.name == 'read_file');

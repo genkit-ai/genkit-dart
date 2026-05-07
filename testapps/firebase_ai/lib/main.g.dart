@@ -22,6 +22,7 @@ part of 'main.dart';
 // **************************************************************************
 
 base class WeatherToolInput {
+  /// Creates a [WeatherToolInput] from a JSON map.
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class WeatherToolInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [WeatherToolInput].
   static const SchemanticType<WeatherToolInput> $schema =
       _WeatherToolInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class WeatherToolInput {
     return _json.toString();
   }
 
+  /// Serializes this [WeatherToolInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -81,6 +84,7 @@ base class _WeatherToolInputTypeFactory
 }
 
 base class RpgCharacter {
+  /// Creates a [RpgCharacter] from a JSON map.
   factory RpgCharacter.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -104,6 +108,7 @@ base class RpgCharacter {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [RpgCharacter].
   static const SchemanticType<RpgCharacter> $schema =
       _RpgCharacterTypeFactory();
 
@@ -152,6 +157,7 @@ base class RpgCharacter {
     return _json.toString();
   }
 
+  /// Serializes this [RpgCharacter] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

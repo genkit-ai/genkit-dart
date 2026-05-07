@@ -59,7 +59,12 @@ abstract class $OpenAIChatOptions {
   String? get visualDetailLevel;
 }
 
+/// Alias for [OpenAIChatOptions].
+///
+/// Provided for convenience; prefer [OpenAIChatOptions] in new code.
 typedef OpenAIOptions = OpenAIChatOptions;
+
+/// Internal alias for [OpenAIChatOptions] used within the plugin.
 typedef ChatModelOptions = OpenAIChatOptions;
 
 /// Returns true when the output config indicates JSON-structured output

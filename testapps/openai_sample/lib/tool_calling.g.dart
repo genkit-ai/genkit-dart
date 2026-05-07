@@ -22,6 +22,7 @@ part of 'tool_calling.dart';
 // **************************************************************************
 
 base class WeatherFlowInput {
+  /// Creates a [WeatherFlowInput] from a JSON map.
   factory WeatherFlowInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,13 +34,16 @@ base class WeatherFlowInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [WeatherFlowInput].
   static const SchemanticType<WeatherFlowInput> $schema =
       _WeatherFlowInputTypeFactory();
 
+  /// Natural language weather query, e.g. "What's the weather in Boston?"
   String get prompt {
     return _json['prompt'] as String;
   }
 
+  /// Natural language weather query, e.g. "What's the weather in Boston?"
   set prompt(String value) {
     _json['prompt'] = value;
   }
@@ -49,6 +53,7 @@ base class WeatherFlowInput {
     return _json.toString();
   }
 
+  /// Serializes this [WeatherFlowInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -74,6 +79,7 @@ base class _WeatherFlowInputTypeFactory
 }
 
 base class WeatherToolInput {
+  /// Creates a [WeatherToolInput] from a JSON map.
   factory WeatherToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -85,21 +91,26 @@ base class WeatherToolInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [WeatherToolInput].
   static const SchemanticType<WeatherToolInput> $schema =
       _WeatherToolInputTypeFactory();
 
+  /// City name or coordinates to look up
   String get location {
     return _json['location'] as String;
   }
 
+  /// City name or coordinates to look up
   set location(String value) {
     _json['location'] = value;
   }
 
+  /// Temperature unit — 'celsius' or 'fahrenheit'
   String? get unit {
     return _json['unit'] as String?;
   }
 
+  /// Temperature unit — 'celsius' or 'fahrenheit'
   set unit(String? value) {
     if (value == null) {
       _json.remove('unit');
@@ -113,6 +124,7 @@ base class WeatherToolInput {
     return _json.toString();
   }
 
+  /// Serializes this [WeatherToolInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -144,6 +156,7 @@ base class _WeatherToolInputTypeFactory
 }
 
 base class WeatherToolOutput {
+  /// Creates a [WeatherToolOutput] from a JSON map.
   factory WeatherToolOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -165,6 +178,7 @@ base class WeatherToolOutput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [WeatherToolOutput].
   static const SchemanticType<WeatherToolOutput> $schema =
       _WeatherToolOutputTypeFactory();
 
@@ -209,6 +223,7 @@ base class WeatherToolOutput {
     return _json.toString();
   }
 
+  /// Serializes this [WeatherToolOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

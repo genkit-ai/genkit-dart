@@ -19,6 +19,13 @@ import '../types.dart';
 import 'generate_types.dart';
 import 'tool.dart';
 
+/// Envelope for the processing of a Generation request in middleware.
+typedef GenerateTurnState = ({
+  GenerateActionOptions request,
+  int currentTurn,
+  int messageIndex,
+});
+
 /// Middleware for the processing of a Generation request.
 abstract class GenerateMiddleware {
   /// Middleware can act as a "kit" by providing tools directly.
@@ -31,15 +38,15 @@ abstract class GenerateMiddleware {
   ///
   /// [next] is the function to call to proceed with the generation.
   Future<GenerateResponseHelper> generate(
-    GenerateActionOptions options,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResponseHelper> Function(
-      GenerateActionOptions options,
+      GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
     next,
   ) {
-    return next(options, ctx);
+    return next(envelope, ctx);
   }
 
   /// Middleware for the raw model call.

@@ -22,6 +22,7 @@ part of 'generate_test.dart';
 // **************************************************************************
 
 base class TestToolInput {
+  /// Creates a [TestToolInput] from a JSON map.
   factory TestToolInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class TestToolInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestToolInput].
   static const SchemanticType<TestToolInput> $schema =
       _TestToolInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class TestToolInput {
     return _json.toString();
   }
 
+  /// Serializes this [TestToolInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

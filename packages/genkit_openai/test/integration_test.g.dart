@@ -22,6 +22,7 @@ part of 'integration_test.dart';
 // **************************************************************************
 
 base class WeatherInputSchema {
+  /// Creates a [WeatherInputSchema] from a JSON map.
   factory WeatherInputSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class WeatherInputSchema {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [WeatherInputSchema].
   static const SchemanticType<WeatherInputSchema> $schema =
       _WeatherInputSchemaTypeFactory();
 
@@ -49,6 +51,7 @@ base class WeatherInputSchema {
     return _json.toString();
   }
 
+  /// Serializes this [WeatherInputSchema] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -77,6 +80,7 @@ base class _WeatherInputSchemaTypeFactory
 }
 
 base class PersonSchema {
+  /// Creates a [PersonSchema] from a JSON map.
   factory PersonSchema.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -88,6 +92,7 @@ base class PersonSchema {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [PersonSchema].
   static const SchemanticType<PersonSchema> $schema =
       _PersonSchemaTypeFactory();
 
@@ -112,6 +117,7 @@ base class PersonSchema {
     return _json.toString();
   }
 
+  /// Serializes this [PersonSchema] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
