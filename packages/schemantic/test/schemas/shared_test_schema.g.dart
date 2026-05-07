@@ -22,6 +22,7 @@ part of 'shared_test_schema.dart';
 // **************************************************************************
 
 base class SharedChild {
+  /// Creates a [SharedChild] from a JSON map.
   factory SharedChild.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class SharedChild {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [SharedChild].
   static const SchemanticType<SharedChild> $schema = _SharedChildTypeFactory();
 
   String get childId {
@@ -48,6 +50,7 @@ base class SharedChild {
     return _json.toString();
   }
 
+  /// Serializes this [SharedChild] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -75,6 +78,7 @@ base class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
 }
 
 base class Part {
+  /// Creates a [Part] from a JSON map.
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Part._(this._json);
@@ -85,6 +89,7 @@ base class Part {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Part].
   static const SchemanticType<Part> $schema = _PartTypeFactory();
 
   @override
@@ -92,6 +97,7 @@ base class Part {
     return _json.toString();
   }
 
+  /// Serializes this [Part] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -114,6 +120,7 @@ base class _PartTypeFactory extends SchemanticType<Part> {
 }
 
 base class TextPart implements Part {
+  /// Creates a [TextPart] from a JSON map.
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TextPart._(this._json);
@@ -135,6 +142,7 @@ base class TextPart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TextPart].
   static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
   String get text {
@@ -186,6 +194,7 @@ base class TextPart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [TextPart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;

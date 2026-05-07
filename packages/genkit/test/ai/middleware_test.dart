@@ -32,16 +32,16 @@ class TestMiddleware extends GenerateMiddleware {
 
   @override
   Future<GenerateResponseHelper> generate(
-    GenerateActionOptions options,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResponseHelper> Function(
-      GenerateActionOptions options,
+      GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
     next,
   ) async {
     log.add('$name:generate:start');
-    final result = await next(options, ctx);
+    final result = await next(envelope, ctx);
     log.add('$name:generate:end');
     return result;
   }
@@ -492,7 +492,108 @@ void main() {
         ]),
       );
     });
+
+    test(
+      'should pass and respect envelope updates in generate middleware',
+      () async {
+        var receivedIndex = -1;
+        var receivedTurn = -1;
+
+        final envChecker = defineMiddleware(
+          name: 'env-checker',
+          create: ([_]) => FunctionMiddleware(
+            generateFn: (envelope, ctx, next) async {
+              receivedIndex = envelope.messageIndex;
+              receivedTurn = envelope.currentTurn;
+              return next((
+                request: envelope.request,
+                currentTurn: envelope.currentTurn + 2,
+                messageIndex: envelope.messageIndex + 5,
+              ), ctx);
+            },
+          ),
+        );
+
+        var checkIndex = -1;
+        var checkTurn = -1;
+        final envValidator = defineMiddleware(
+          name: 'env-validator',
+          create: ([_]) => FunctionMiddleware(
+            generateFn: (envelope, ctx, next) async {
+              checkIndex = envelope.messageIndex;
+              checkTurn = envelope.currentTurn;
+              return next(envelope, ctx);
+            },
+          ),
+        );
+
+        genkit = Genkit(
+          isDevEnv: false,
+          plugins: [
+            MiddlewarePlugin([envChecker, envValidator]),
+          ],
+        );
+
+        genkit.defineModel(
+          name: 'test-model',
+          fn: (req, ctx) async {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'done')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef('test-model'),
+          prompt: 'hi',
+          use: [
+            middlewareRef(name: 'env-checker'),
+            middlewareRef(name: 'env-validator'),
+          ],
+        );
+
+        expect(receivedIndex, 0);
+        expect(receivedTurn, 0);
+        expect(checkIndex, 5);
+        expect(checkTurn, 2);
+      },
+    );
   });
+}
+
+class FunctionMiddleware extends GenerateMiddleware {
+  final Future<GenerateResponseHelper> Function(
+    GenerateTurnState envelope,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResponseHelper> Function(
+      GenerateTurnState envelope,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  )?
+  generateFn;
+
+  FunctionMiddleware({this.generateFn});
+
+  @override
+  Future<GenerateResponseHelper> generate(
+    GenerateTurnState envelope,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResponseHelper> Function(
+      GenerateTurnState envelope,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  ) {
+    if (generateFn != null) {
+      return generateFn!(envelope, ctx, next);
+    }
+    return super.generate(envelope, ctx, next);
+  }
 }
 
 class ToolInjectingMiddleware extends GenerateMiddleware {

@@ -22,6 +22,7 @@ part of 'autonomous_operation.dart';
 // **************************************************************************
 
 base class ResearchAgentInput {
+  /// Creates a [ResearchAgentInput] from a JSON map.
   factory ResearchAgentInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class ResearchAgentInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ResearchAgentInput].
   static const SchemanticType<ResearchAgentInput> $schema =
       _ResearchAgentInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class ResearchAgentInput {
     return _json.toString();
   }
 
+  /// Serializes this [ResearchAgentInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -74,6 +77,7 @@ base class _ResearchAgentInputTypeFactory
 }
 
 base class AgentSearchInput {
+  /// Creates a [AgentSearchInput] from a JSON map.
   factory AgentSearchInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -85,6 +89,7 @@ base class AgentSearchInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [AgentSearchInput].
   static const SchemanticType<AgentSearchInput> $schema =
       _AgentSearchInputTypeFactory();
 
@@ -101,6 +106,7 @@ base class AgentSearchInput {
     return _json.toString();
   }
 
+  /// Serializes this [AgentSearchInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -126,6 +132,7 @@ base class _AgentSearchInputTypeFactory
 }
 
 base class AgentAskUserInput {
+  /// Creates a [AgentAskUserInput] from a JSON map.
   factory AgentAskUserInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -137,6 +144,7 @@ base class AgentAskUserInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [AgentAskUserInput].
   static const SchemanticType<AgentAskUserInput> $schema =
       _AgentAskUserInputTypeFactory();
 
@@ -153,6 +161,7 @@ base class AgentAskUserInput {
     return _json.toString();
   }
 
+  /// Serializes this [AgentAskUserInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
