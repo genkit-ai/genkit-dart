@@ -22,6 +22,7 @@ part of 'imagen.dart';
 // **************************************************************************
 
 base class ImagenOptions {
+  /// Creates a [ImagenOptions] from a JSON map.
   factory ImagenOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -45,6 +46,7 @@ base class ImagenOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ImagenOptions].
   static const SchemanticType<ImagenOptions> $schema =
       _ImagenOptionsTypeFactory();
 
@@ -113,6 +115,7 @@ base class ImagenOptions {
     return _json.toString();
   }
 
+  /// Serializes this [ImagenOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
