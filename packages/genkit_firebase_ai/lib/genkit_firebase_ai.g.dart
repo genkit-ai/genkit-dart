@@ -22,6 +22,7 @@ part of 'genkit_firebase_ai.dart';
 // **************************************************************************
 
 base class GeminiOptions {
+  /// Creates a [GeminiOptions] from a JSON map.
   factory GeminiOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -69,6 +70,7 @@ base class GeminiOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GeminiOptions].
   static const SchemanticType<GeminiOptions> $schema =
       _GeminiOptionsTypeFactory();
 
@@ -289,6 +291,7 @@ base class GeminiOptions {
     return _json.toString();
   }
 
+  /// Serializes this [GeminiOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -341,6 +344,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
 }
 
 base class FunctionCallingConfig {
+  /// Creates a [FunctionCallingConfig] from a JSON map.
   factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -352,6 +356,7 @@ base class FunctionCallingConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [FunctionCallingConfig].
   static const SchemanticType<FunctionCallingConfig> $schema =
       _FunctionCallingConfigTypeFactory();
 
@@ -384,6 +389,7 @@ base class FunctionCallingConfig {
     return _json.toString();
   }
 
+  /// Serializes this [FunctionCallingConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -416,6 +422,7 @@ base class _FunctionCallingConfigTypeFactory
 }
 
 base class ThinkingConfig {
+  /// Creates a [ThinkingConfig] from a JSON map.
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -430,6 +437,7 @@ base class ThinkingConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ThinkingConfig].
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
 
@@ -462,6 +470,7 @@ base class ThinkingConfig {
     return _json.toString();
   }
 
+  /// Serializes this [ThinkingConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -491,6 +500,7 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
 }
 
 base class PrebuiltVoiceConfig {
+  /// Creates a [PrebuiltVoiceConfig] from a JSON map.
   factory PrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -502,6 +512,7 @@ base class PrebuiltVoiceConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [PrebuiltVoiceConfig].
   static const SchemanticType<PrebuiltVoiceConfig> $schema =
       _PrebuiltVoiceConfigTypeFactory();
 
@@ -522,6 +533,7 @@ base class PrebuiltVoiceConfig {
     return _json.toString();
   }
 
+  /// Serializes this [PrebuiltVoiceConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -547,6 +559,7 @@ base class _PrebuiltVoiceConfigTypeFactory
 }
 
 base class VoiceConfig {
+  /// Creates a [VoiceConfig] from a JSON map.
   factory VoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -558,6 +571,7 @@ base class VoiceConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [VoiceConfig].
   static const SchemanticType<VoiceConfig> $schema = _VoiceConfigTypeFactory();
 
   PrebuiltVoiceConfig? get prebuiltVoiceConfig {
@@ -581,6 +595,7 @@ base class VoiceConfig {
     return _json.toString();
   }
 
+  /// Serializes this [VoiceConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -611,6 +626,7 @@ base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
 }
 
 base class SpeechConfig {
+  /// Creates a [SpeechConfig] from a JSON map.
   factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -622,6 +638,7 @@ base class SpeechConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [SpeechConfig].
   static const SchemanticType<SpeechConfig> $schema =
       _SpeechConfigTypeFactory();
 
@@ -644,6 +661,7 @@ base class SpeechConfig {
     return _json.toString();
   }
 
+  /// Serializes this [SpeechConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -672,6 +690,7 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
 }
 
 base class LiveGenerationConfig {
+  /// Creates a [LiveGenerationConfig] from a JSON map.
   factory LiveGenerationConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -703,6 +722,7 @@ base class LiveGenerationConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [LiveGenerationConfig].
   static const SchemanticType<LiveGenerationConfig> $schema =
       _LiveGenerationConfigTypeFactory();
 
@@ -821,6 +841,7 @@ base class LiveGenerationConfig {
     return _json.toString();
   }
 
+  /// Serializes this [LiveGenerationConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

@@ -22,6 +22,7 @@ part of 'sequential_processing.dart';
 // **************************************************************************
 
 base class StoryInput {
+  /// Creates a [StoryInput] from a JSON map.
   factory StoryInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   StoryInput._(this._json);
@@ -32,6 +33,7 @@ base class StoryInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [StoryInput].
   static const SchemanticType<StoryInput> $schema = _StoryInputTypeFactory();
 
   String get topic {
@@ -47,6 +49,7 @@ base class StoryInput {
     return _json.toString();
   }
 
+  /// Serializes this [StoryInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -71,6 +74,7 @@ base class _StoryInputTypeFactory extends SchemanticType<StoryInput> {
 }
 
 base class StoryIdea {
+  /// Creates a [StoryIdea] from a JSON map.
   factory StoryIdea.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   StoryIdea._(this._json);
@@ -81,12 +85,15 @@ base class StoryIdea {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [StoryIdea].
   static const SchemanticType<StoryIdea> $schema = _StoryIdeaTypeFactory();
 
+  /// A short, compelling story concept
   String get idea {
     return _json['idea'] as String;
   }
 
+  /// A short, compelling story concept
   set idea(String value) {
     _json['idea'] = value;
   }
@@ -96,6 +103,7 @@ base class StoryIdea {
     return _json.toString();
   }
 
+  /// Serializes this [StoryIdea] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -120,6 +128,7 @@ base class _StoryIdeaTypeFactory extends SchemanticType<StoryIdea> {
 }
 
 base class ImageGeneratorInput {
+  /// Creates a [ImageGeneratorInput] from a JSON map.
   factory ImageGeneratorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -131,6 +140,7 @@ base class ImageGeneratorInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ImageGeneratorInput].
   static const SchemanticType<ImageGeneratorInput> $schema =
       _ImageGeneratorInputTypeFactory();
 
@@ -147,6 +157,7 @@ base class ImageGeneratorInput {
     return _json.toString();
   }
 
+  /// Serializes this [ImageGeneratorInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

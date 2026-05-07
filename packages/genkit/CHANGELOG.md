@@ -1,3 +1,21 @@
+## 0.13.1
+
+### Features
+
+ - generate docs for generated schemantic types (#274)
+
+
+## 0.13.0
+
+### Breaking Changes
+
+ - introduce GenerateTurnState to middleware generate hook and improve chunk indexing (#269)
+
+### Features
+
+ - add additionalProperties support to @Schema and implement strict object validation (#251)
+
+
 ## 0.12.1
 
 ### Features
