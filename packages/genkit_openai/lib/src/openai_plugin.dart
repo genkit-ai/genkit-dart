@@ -13,29 +13,59 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
 
-/// Core plugin implementation
+/// Core Genkit plugin implementation for OpenAI-compatible APIs.
+///
+/// Automatically discovers models from the OpenAI API (when no custom
+/// [baseUrl] is set) and registers them in the Genkit action registry.
+/// Additional models can be provided via [customModels].
 class OpenAIPlugin extends GenkitPlugin {
-  @override
-  String get name => 'openai';
+  final String _pluginName;
 
+  @override
+  String get name => _pluginName;
+
+  /// The static API key used to authenticate requests.
   final String? apiKey;
+
+  /// An asynchronous callback that returns the API key on each request.
   final OpenAIApiKeyProvider? apiKeyProvider;
+
+  /// Custom base URL for OpenAI-compatible APIs (e.g. Groq, DeepSeek).
   final String? baseUrl;
+
+  /// Additional models to register beyond those discovered from the API.
   final List<CustomModelDefinition> customModels;
+
+  /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
 
+  /// Optional HTTP client for dependency injection and testing.
+  final http.Client? httpClient;
+
+  /// Creates an [OpenAIPlugin].
+  ///
+  /// Provide either [apiKey] or [apiKeyProvider], but not both.
   OpenAIPlugin({
+    String name = defaultOpenAINamespace,
     this.apiKey,
     this.apiKeyProvider,
     this.baseUrl,
     this.customModels = const [],
     this.headers,
-  }) {
+    this.httpClient,
+  }) : _pluginName = name {
+    if (name.isEmpty || name.contains('/')) {
+      throw GenkitException(
+        'Plugin name must be non-empty and must not contain "/". Got: "$name"',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
     if (apiKey != null && apiKeyProvider != null) {
       throw GenkitException(
         'Provide either apiKey or apiKeyProvider, not both.',
@@ -65,7 +95,7 @@ class OpenAIPlugin extends GenkitPlugin {
         }
       } catch (e) {
         throw GenkitException(
-          'Error fetching available models from OpenAI: $e',
+          'Error fetching available models from $_pluginName: $e',
           underlyingException: e,
         );
       }
@@ -87,6 +117,7 @@ class OpenAIPlugin extends GenkitPlugin {
       resolvedConfig.apiKey,
       baseUrl: resolvedConfig.baseUrl,
       defaultHeaders: resolvedConfig.headers,
+      httpClient: httpClient,
     );
 
     try {
@@ -100,7 +131,9 @@ class OpenAIPlugin extends GenkitPlugin {
 
       return modelIds;
     } finally {
-      client.close();
+      if (httpClient == null) {
+        client.close();
+      }
     }
   }
 
@@ -108,7 +141,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final configuredApiKey = await _resolveApiKey();
     if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
       throw GenkitException(
-        'API key is required. Provide it via apiKey or apiKeyProvider in the plugin constructor.',
+        '[$_pluginName] API key is required. Provide it via apiKey or apiKeyProvider in the plugin constructor.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -144,7 +177,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
         modelMetadataList.add(
           modelMetadata(
-            'openai/$modelId',
+            '$_pluginName/$modelId',
             modelInfo: modelInfoFor(modelId),
             customOptions: chat.chatModelOptionsSchema(),
           ),
@@ -154,7 +187,7 @@ class OpenAIPlugin extends GenkitPlugin {
       return modelMetadataList;
     } catch (e, stackTrace) {
       throw GenkitException(
-        'Error listing models from OpenAI: $e',
+        'Error listing models from $_pluginName: $e',
         underlyingException: e,
         stackTrace: stackTrace,
       );
@@ -173,7 +206,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final modelInfo = info ?? modelInfoFor(modelName);
 
     return Model(
-      name: 'openai/$modelName',
+      name: '$_pluginName/$modelName',
       customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
       fn: (req, ctx) async {
@@ -185,6 +218,7 @@ class OpenAIPlugin extends GenkitPlugin {
           resolvedConfig.apiKey,
           baseUrl: resolvedConfig.baseUrl,
           defaultHeaders: resolvedConfig.headers,
+          httpClient: httpClient,
         );
 
         try {
@@ -243,7 +277,9 @@ class OpenAIPlugin extends GenkitPlugin {
             stackTrace: stackTrace,
           );
         } finally {
-          client.close();
+          if (httpClient == null) {
+            client.close();
+          }
         }
       },
     );

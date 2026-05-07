@@ -21,6 +21,7 @@ part of 'types.dart';
 // **************************************************************************
 
 base class RecipeRequest {
+  /// Creates a [RecipeRequest] from a JSON map.
   factory RecipeRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -40,6 +41,7 @@ base class RecipeRequest {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [RecipeRequest].
   static const SchemanticType<RecipeRequest> $schema =
       _RecipeRequestTypeFactory();
 
@@ -72,6 +74,7 @@ base class RecipeRequest {
     return _json.toString();
   }
 
+  /// Serializes this [RecipeRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -103,6 +106,7 @@ base class _RecipeRequestTypeFactory extends SchemanticType<RecipeRequest> {
 }
 
 base class CheckPantryInput {
+  /// Creates a [CheckPantryInput] from a JSON map.
   factory CheckPantryInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -114,6 +118,7 @@ base class CheckPantryInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [CheckPantryInput].
   static const SchemanticType<CheckPantryInput> $schema =
       _CheckPantryInputTypeFactory();
 
@@ -130,6 +135,7 @@ base class CheckPantryInput {
     return _json.toString();
   }
 
+  /// Serializes this [CheckPantryInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

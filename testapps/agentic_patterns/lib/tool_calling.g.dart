@@ -22,6 +22,7 @@ part of 'tool_calling.dart';
 // **************************************************************************
 
 base class ToolCallingInput {
+  /// Creates a [ToolCallingInput] from a JSON map.
   factory ToolCallingInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class ToolCallingInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolCallingInput].
   static const SchemanticType<ToolCallingInput> $schema =
       _ToolCallingInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class ToolCallingInput {
     return _json.toString();
   }
 
+  /// Serializes this [ToolCallingInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -74,6 +77,7 @@ base class _ToolCallingInputTypeFactory
 }
 
 base class ToolCallingWeatherInput {
+  /// Creates a [ToolCallingWeatherInput] from a JSON map.
   factory ToolCallingWeatherInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -85,6 +89,7 @@ base class ToolCallingWeatherInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolCallingWeatherInput].
   static const SchemanticType<ToolCallingWeatherInput> $schema =
       _ToolCallingWeatherInputTypeFactory();
 
@@ -101,6 +106,7 @@ base class ToolCallingWeatherInput {
     return _json.toString();
   }
 
+  /// Serializes this [ToolCallingWeatherInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

@@ -20,7 +20,9 @@ part of 'model.dart';
 // SchemaGenerator
 // **************************************************************************
 
+/// Generation options specific to Anthropic models.
 base class AnthropicOptions {
+  /// Creates a [AnthropicOptions] from a JSON map.
   factory AnthropicOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -48,13 +50,16 @@ base class AnthropicOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [AnthropicOptions].
   static const SchemanticType<AnthropicOptions> $schema =
       _AnthropicOptionsTypeFactory();
 
+  /// Custom API key to use for this specific request. Overrides plugin config.
   String? get apiKey {
     return _json['apiKey'] as String?;
   }
 
+  /// Custom API key to use for this specific request. Overrides plugin config.
   set apiKey(String? value) {
     if (value == null) {
       _json.remove('apiKey');
@@ -111,10 +116,12 @@ base class AnthropicOptions {
     }
   }
 
+  /// Stop sequences to use for this generation.
   List<String>? get stopSequences {
     return (_json['stopSequences'] as List?)?.cast<String>();
   }
 
+  /// Stop sequences to use for this generation.
   set stopSequences(List<String>? value) {
     if (value == null) {
       _json.remove('stopSequences');
@@ -123,12 +130,14 @@ base class AnthropicOptions {
     }
   }
 
+  /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
   ThinkingConfig? get thinking {
     return _json['thinking'] == null
         ? null
         : ThinkingConfig.fromJson(_json['thinking'] as Map<String, dynamic>);
   }
 
+  /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
   set thinking(ThinkingConfig? value) {
     if (value == null) {
       _json.remove('thinking');
@@ -142,6 +151,7 @@ base class AnthropicOptions {
     return _json.toString();
   }
 
+  /// Serializes this [AnthropicOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -188,14 +198,15 @@ base class _AnthropicOptionsTypeFactory
             'stopSequences': $Schema.list(items: $Schema.string()),
             'thinking': $Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
           },
-          required: [],
         )
         .value,
     dependencies: [ThinkingConfig.$schema],
   );
 }
 
+/// Configuration for Anthropic's extended thinking mode.
 base class ThinkingConfig {
+  /// Creates a [ThinkingConfig] from a JSON map.
   factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -207,6 +218,7 @@ base class ThinkingConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ThinkingConfig].
   static const SchemanticType<ThinkingConfig> $schema =
       _ThinkingConfigTypeFactory();
 
@@ -239,6 +251,7 @@ base class ThinkingConfig {
     return _json.toString();
   }
 
+  /// Serializes this [ThinkingConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -269,7 +282,6 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
               minimum: 1024,
             ),
           },
-          required: [],
         )
         .value,
     dependencies: [],

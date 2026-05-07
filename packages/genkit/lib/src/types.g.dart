@@ -22,6 +22,7 @@ part of 'types.dart';
 // **************************************************************************
 
 base class Candidate {
+  /// Creates a [Candidate] from a JSON map.
   factory Candidate.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Candidate._(this._json);
@@ -46,6 +47,7 @@ base class Candidate {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Candidate].
   static const SchemanticType<Candidate> $schema = _CandidateTypeFactory();
 
   double get index {
@@ -116,6 +118,7 @@ base class Candidate {
     return _json.toString();
   }
 
+  /// Serializes this [Candidate] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -150,6 +153,7 @@ base class _CandidateTypeFactory extends SchemanticType<Candidate> {
 }
 
 base class Message {
+  /// Creates a [Message] from a JSON map.
   factory Message.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Message._(this._json);
@@ -168,6 +172,7 @@ base class Message {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Message].
   static const SchemanticType<Message> $schema = _MessageTypeFactory();
 
   Role get role {
@@ -206,6 +211,7 @@ base class Message {
     return _json.toString();
   }
 
+  /// Serializes this [Message] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -239,6 +245,7 @@ base class _MessageTypeFactory extends SchemanticType<Message> {
 }
 
 base class ToolDefinition {
+  /// Creates a [ToolDefinition] from a JSON map.
   factory ToolDefinition.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -262,6 +269,7 @@ base class ToolDefinition {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolDefinition].
   static const SchemanticType<ToolDefinition> $schema =
       _ToolDefinitionTypeFactory();
 
@@ -322,6 +330,7 @@ base class ToolDefinition {
     return _json.toString();
   }
 
+  /// Serializes this [ToolDefinition] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -355,6 +364,7 @@ base class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
 }
 
 base class Part {
+  /// Creates a [Part] from a JSON map.
   factory Part.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Part._(this._json);
@@ -365,6 +375,7 @@ base class Part {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Part].
   static const SchemanticType<Part> $schema = _PartTypeFactory();
 
   @override
@@ -372,6 +383,7 @@ base class Part {
     return _json.toString();
   }
 
+  /// Serializes this [Part] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -394,6 +406,7 @@ base class _PartTypeFactory extends SchemanticType<Part> {
 }
 
 base class TextPart implements Part {
+  /// Creates a [TextPart] from a JSON map.
   factory TextPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TextPart._(this._json);
@@ -415,6 +428,7 @@ base class TextPart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TextPart].
   static const SchemanticType<TextPart> $schema = _TextPartTypeFactory();
 
   String get text {
@@ -466,6 +480,7 @@ base class TextPart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [TextPart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -499,6 +514,7 @@ base class _TextPartTypeFactory extends SchemanticType<TextPart> {
 }
 
 base class MediaPart implements Part {
+  /// Creates a [MediaPart] from a JSON map.
   factory MediaPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MediaPart._(this._json);
@@ -520,6 +536,7 @@ base class MediaPart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MediaPart].
   static const SchemanticType<MediaPart> $schema = _MediaPartTypeFactory();
 
   Media get media {
@@ -571,6 +588,7 @@ base class MediaPart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [MediaPart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -604,6 +622,7 @@ base class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
 }
 
 base class ToolRequestPart implements Part {
+  /// Creates a [ToolRequestPart] from a JSON map.
   factory ToolRequestPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -626,6 +645,7 @@ base class ToolRequestPart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolRequestPart].
   static const SchemanticType<ToolRequestPart> $schema =
       _ToolRequestPartTypeFactory();
 
@@ -678,6 +698,7 @@ base class ToolRequestPart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [ToolRequestPart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -711,6 +732,7 @@ base class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
 }
 
 base class ToolResponsePart implements Part {
+  /// Creates a [ToolResponsePart] from a JSON map.
   factory ToolResponsePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -733,6 +755,7 @@ base class ToolResponsePart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolResponsePart].
   static const SchemanticType<ToolResponsePart> $schema =
       _ToolResponsePartTypeFactory();
 
@@ -785,6 +808,7 @@ base class ToolResponsePart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [ToolResponsePart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -819,6 +843,7 @@ base class _ToolResponsePartTypeFactory
 }
 
 base class DataPart implements Part {
+  /// Creates a [DataPart] from a JSON map.
   factory DataPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   DataPart._(this._json);
@@ -834,6 +859,7 @@ base class DataPart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [DataPart].
   static const SchemanticType<DataPart> $schema = _DataPartTypeFactory();
 
   Map<String, dynamic>? get data {
@@ -877,6 +903,7 @@ base class DataPart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [DataPart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -908,6 +935,7 @@ base class _DataPartTypeFactory extends SchemanticType<DataPart> {
 }
 
 base class CustomPart implements Part {
+  /// Creates a [CustomPart] from a JSON map.
   factory CustomPart.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   CustomPart._(this._json);
@@ -923,6 +951,7 @@ base class CustomPart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [CustomPart].
   static const SchemanticType<CustomPart> $schema = _CustomPartTypeFactory();
 
   Map<String, dynamic>? get data {
@@ -962,6 +991,7 @@ base class CustomPart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [CustomPart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -994,6 +1024,7 @@ base class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
 }
 
 base class ReasoningPart implements Part {
+  /// Creates a [ReasoningPart] from a JSON map.
   factory ReasoningPart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1016,6 +1047,7 @@ base class ReasoningPart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReasoningPart].
   static const SchemanticType<ReasoningPart> $schema =
       _ReasoningPartTypeFactory();
 
@@ -1068,6 +1100,7 @@ base class ReasoningPart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [ReasoningPart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -1101,6 +1134,7 @@ base class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
 }
 
 base class ResourcePart implements Part {
+  /// Creates a [ResourcePart] from a JSON map.
   factory ResourcePart.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1123,6 +1157,7 @@ base class ResourcePart implements Part {
   @override
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ResourcePart].
   static const SchemanticType<ResourcePart> $schema =
       _ResourcePartTypeFactory();
 
@@ -1175,6 +1210,7 @@ base class ResourcePart implements Part {
     return _json.toString();
   }
 
+  /// Serializes this [ResourcePart] to a JSON map.
   @override
   Map<String, dynamic> toJson() {
     return _json;
@@ -1208,6 +1244,7 @@ base class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
 }
 
 base class BaseDataPoint {
+  /// Creates a [BaseDataPoint] from a JSON map.
   factory BaseDataPoint.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1233,6 +1270,7 @@ base class BaseDataPoint {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [BaseDataPoint].
   static const SchemanticType<BaseDataPoint> $schema =
       _BaseDataPointTypeFactory();
 
@@ -1313,6 +1351,7 @@ base class BaseDataPoint {
     return _json.toString();
   }
 
+  /// Serializes this [BaseDataPoint] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1348,6 +1387,7 @@ base class _BaseDataPointTypeFactory extends SchemanticType<BaseDataPoint> {
 }
 
 base class EvalRequest {
+  /// Creates a [EvalRequest] from a JSON map.
   factory EvalRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1367,6 +1407,7 @@ base class EvalRequest {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [EvalRequest].
   static const SchemanticType<EvalRequest> $schema = _EvalRequestTypeFactory();
 
   List<BaseDataPoint> get dataset {
@@ -1404,6 +1445,7 @@ base class EvalRequest {
     return _json.toString();
   }
 
+  /// Serializes this [EvalRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1437,6 +1479,7 @@ base class _EvalRequestTypeFactory extends SchemanticType<EvalRequest> {
 }
 
 base class EvalFnResponse {
+  /// Creates a [EvalFnResponse] from a JSON map.
   factory EvalFnResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1460,6 +1503,7 @@ base class EvalFnResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [EvalFnResponse].
   static const SchemanticType<EvalFnResponse> $schema =
       _EvalFnResponseTypeFactory();
 
@@ -1521,6 +1565,7 @@ base class EvalFnResponse {
     return _json.toString();
   }
 
+  /// Serializes this [EvalFnResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1569,6 +1614,7 @@ base class _EvalFnResponseTypeFactory extends SchemanticType<EvalFnResponse> {
 }
 
 base class Score {
+  /// Creates a [Score] from a JSON map.
   factory Score.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Score._(this._json);
@@ -1591,6 +1637,7 @@ base class Score {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Score].
   static const SchemanticType<Score> $schema = _ScoreTypeFactory();
 
   String? get id {
@@ -1655,6 +1702,7 @@ base class Score {
     return _json.toString();
   }
 
+  /// Serializes this [Score] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1699,6 +1747,7 @@ base class _ScoreTypeFactory extends SchemanticType<Score> {
 }
 
 base class Media {
+  /// Creates a [Media] from a JSON map.
   factory Media.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Media._(this._json);
@@ -1709,6 +1758,7 @@ base class Media {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Media].
   static const SchemanticType<Media> $schema = _MediaTypeFactory();
 
   String? get contentType {
@@ -1736,6 +1786,7 @@ base class Media {
     return _json.toString();
   }
 
+  /// Serializes this [Media] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1766,6 +1817,7 @@ base class _MediaTypeFactory extends SchemanticType<Media> {
 }
 
 base class ToolRequest {
+  /// Creates a [ToolRequest] from a JSON map.
   factory ToolRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1782,6 +1834,7 @@ base class ToolRequest {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolRequest].
   static const SchemanticType<ToolRequest> $schema = _ToolRequestTypeFactory();
 
   String? get ref {
@@ -1833,6 +1886,7 @@ base class ToolRequest {
     return _json.toString();
   }
 
+  /// Serializes this [ToolRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1865,6 +1919,7 @@ base class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
 }
 
 base class ToolResponse {
+  /// Creates a [ToolResponse] from a JSON map.
   factory ToolResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -1881,6 +1936,7 @@ base class ToolResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolResponse].
   static const SchemanticType<ToolResponse> $schema =
       _ToolResponseTypeFactory();
 
@@ -1929,6 +1985,7 @@ base class ToolResponse {
     return _json.toString();
   }
 
+  /// Serializes this [ToolResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1961,6 +2018,7 @@ base class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
 }
 
 base class ModelInfo {
+  /// Creates a [ModelInfo] from a JSON map.
   factory ModelInfo.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   ModelInfo._(this._json);
@@ -1983,6 +2041,7 @@ base class ModelInfo {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ModelInfo].
   static const SchemanticType<ModelInfo> $schema = _ModelInfoTypeFactory();
 
   List<String>? get versions {
@@ -2050,6 +2109,7 @@ base class ModelInfo {
     return _json.toString();
   }
 
+  /// Serializes this [ModelInfo] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -2082,6 +2142,7 @@ base class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
 }
 
 base class ModelRequest {
+  /// Creates a [ModelRequest] from a JSON map.
   factory ModelRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2107,6 +2168,7 @@ base class ModelRequest {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ModelRequest].
   static const SchemanticType<ModelRequest> $schema =
       _ModelRequestTypeFactory();
 
@@ -2191,6 +2253,7 @@ base class ModelRequest {
     return _json.toString();
   }
 
+  /// Serializes this [ModelRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -2236,6 +2299,7 @@ base class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
 }
 
 base class ModelResponse {
+  /// Creates a [ModelResponse] from a JSON map.
   factory ModelResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2267,6 +2331,7 @@ base class ModelResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ModelResponse].
   static const SchemanticType<ModelResponse> $schema =
       _ModelResponseTypeFactory();
 
@@ -2388,6 +2453,7 @@ base class ModelResponse {
     return _json.toString();
   }
 
+  /// Serializes this [ModelResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -2430,6 +2496,7 @@ base class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
 }
 
 base class ModelResponseChunk {
+  /// Creates a [ModelResponseChunk] from a JSON map.
   factory ModelResponseChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2453,6 +2520,7 @@ base class ModelResponseChunk {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ModelResponseChunk].
   static const SchemanticType<ModelResponseChunk> $schema =
       _ModelResponseChunkTypeFactory();
 
@@ -2519,6 +2587,7 @@ base class ModelResponseChunk {
     return _json.toString();
   }
 
+  /// Serializes this [ModelResponseChunk] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -2555,6 +2624,7 @@ base class _ModelResponseChunkTypeFactory
 }
 
 base class MiddlewareRef {
+  /// Creates a [MiddlewareRef] from a JSON map.
   factory MiddlewareRef.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2566,6 +2636,7 @@ base class MiddlewareRef {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MiddlewareRef].
   static const SchemanticType<MiddlewareRef> $schema =
       _MiddlewareRefTypeFactory();
 
@@ -2594,6 +2665,7 @@ base class MiddlewareRef {
     return _json.toString();
   }
 
+  /// Serializes this [MiddlewareRef] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -2624,6 +2696,7 @@ base class _MiddlewareRefTypeFactory extends SchemanticType<MiddlewareRef> {
 }
 
 base class GenerateResponse {
+  /// Creates a [GenerateResponse] from a JSON map.
   factory GenerateResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2657,6 +2730,7 @@ base class GenerateResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GenerateResponse].
   static const SchemanticType<GenerateResponse> $schema =
       _GenerateResponseTypeFactory();
 
@@ -2795,6 +2869,7 @@ base class GenerateResponse {
     return _json.toString();
   }
 
+  /// Serializes this [GenerateResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -2841,6 +2916,7 @@ base class _GenerateResponseTypeFactory
 }
 
 base class GenerateRequest {
+  /// Creates a [GenerateRequest] from a JSON map.
   factory GenerateRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -2868,6 +2944,7 @@ base class GenerateRequest {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GenerateRequest].
   static const SchemanticType<GenerateRequest> $schema =
       _GenerateRequestTypeFactory();
 
@@ -2964,6 +3041,7 @@ base class GenerateRequest {
     return _json.toString();
   }
 
+  /// Serializes this [GenerateRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -3010,6 +3088,7 @@ base class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
 }
 
 base class GenerationUsage {
+  /// Creates a [GenerationUsage] from a JSON map.
   factory GenerationUsage.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3051,6 +3130,7 @@ base class GenerationUsage {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GenerationUsage].
   static const SchemanticType<GenerationUsage> $schema =
       _GenerationUsageTypeFactory();
 
@@ -3227,6 +3307,7 @@ base class GenerationUsage {
     return _json.toString();
   }
 
+  /// Serializes this [GenerationUsage] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -3268,6 +3349,7 @@ base class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
 }
 
 base class Operation {
+  /// Creates a [Operation] from a JSON map.
   factory Operation.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Operation._(this._json);
@@ -3292,6 +3374,7 @@ base class Operation {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Operation].
   static const SchemanticType<Operation> $schema = _OperationTypeFactory();
 
   String? get action {
@@ -3367,6 +3450,7 @@ base class Operation {
     return _json.toString();
   }
 
+  /// Serializes this [Operation] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -3401,6 +3485,7 @@ base class _OperationTypeFactory extends SchemanticType<Operation> {
 }
 
 base class OutputConfig {
+  /// Creates a [OutputConfig] from a JSON map.
   factory OutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3422,6 +3507,7 @@ base class OutputConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [OutputConfig].
   static const SchemanticType<OutputConfig> $schema =
       _OutputConfigTypeFactory();
 
@@ -3478,6 +3564,7 @@ base class OutputConfig {
     return _json.toString();
   }
 
+  /// Serializes this [OutputConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -3509,6 +3596,7 @@ base class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
 }
 
 base class DocumentData {
+  /// Creates a [DocumentData] from a JSON map.
   factory DocumentData.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3523,6 +3611,7 @@ base class DocumentData {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [DocumentData].
   static const SchemanticType<DocumentData> $schema =
       _DocumentDataTypeFactory();
 
@@ -3553,6 +3642,7 @@ base class DocumentData {
     return _json.toString();
   }
 
+  /// Serializes this [DocumentData] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -3585,6 +3675,7 @@ base class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
 }
 
 base class GenerateActionOptions {
+  /// Creates a [GenerateActionOptions] from a JSON map.
   factory GenerateActionOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3624,6 +3715,7 @@ base class GenerateActionOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GenerateActionOptions].
   static const SchemanticType<GenerateActionOptions> $schema =
       _GenerateActionOptionsTypeFactory();
 
@@ -3798,6 +3890,7 @@ base class GenerateActionOptions {
     return _json.toString();
   }
 
+  /// Serializes this [GenerateActionOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -3856,6 +3949,7 @@ base class _GenerateActionOptionsTypeFactory
 }
 
 base class GenerateResumeOptions {
+  /// Creates a [GenerateResumeOptions] from a JSON map.
   factory GenerateResumeOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3875,6 +3969,7 @@ base class GenerateResumeOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GenerateResumeOptions].
   static const SchemanticType<GenerateResumeOptions> $schema =
       _GenerateResumeOptionsTypeFactory();
 
@@ -3923,6 +4018,7 @@ base class GenerateResumeOptions {
     return _json.toString();
   }
 
+  /// Serializes this [GenerateResumeOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -3958,6 +4054,7 @@ base class _GenerateResumeOptionsTypeFactory
 }
 
 base class GenerateActionOutputConfig {
+  /// Creates a [GenerateActionOutputConfig] from a JSON map.
   factory GenerateActionOutputConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -3983,6 +4080,7 @@ base class GenerateActionOutputConfig {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GenerateActionOutputConfig].
   static const SchemanticType<GenerateActionOutputConfig> $schema =
       _GenerateActionOutputConfigTypeFactory();
 
@@ -4060,6 +4158,7 @@ base class GenerateActionOutputConfig {
     return _json.toString();
   }
 
+  /// Serializes this [GenerateActionOutputConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4104,6 +4203,7 @@ base class _GenerateActionOutputConfigTypeFactory
 }
 
 base class EmbedRequest {
+  /// Creates a [EmbedRequest] from a JSON map.
   factory EmbedRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4121,6 +4221,7 @@ base class EmbedRequest {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [EmbedRequest].
   static const SchemanticType<EmbedRequest> $schema =
       _EmbedRequestTypeFactory();
 
@@ -4151,6 +4252,7 @@ base class EmbedRequest {
     return _json.toString();
   }
 
+  /// Serializes this [EmbedRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4183,6 +4285,7 @@ base class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
 }
 
 base class EmbedResponse {
+  /// Creates a [EmbedResponse] from a JSON map.
   factory EmbedResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4194,6 +4297,7 @@ base class EmbedResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [EmbedResponse].
   static const SchemanticType<EmbedResponse> $schema =
       _EmbedResponseTypeFactory();
 
@@ -4212,6 +4316,7 @@ base class EmbedResponse {
     return _json.toString();
   }
 
+  /// Serializes this [EmbedResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4243,6 +4348,7 @@ base class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
 }
 
 base class Embedding {
+  /// Creates a [Embedding] from a JSON map.
   factory Embedding.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Embedding._(this._json);
@@ -4253,6 +4359,7 @@ base class Embedding {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Embedding].
   static const SchemanticType<Embedding> $schema = _EmbeddingTypeFactory();
 
   List<double> get embedding {
@@ -4280,6 +4387,7 @@ base class Embedding {
     return _json.toString();
   }
 
+  /// Serializes this [Embedding] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4310,6 +4418,7 @@ base class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
 }
 
 base class ReflectionCancelActionParams {
+  /// Creates a [ReflectionCancelActionParams] from a JSON map.
   factory ReflectionCancelActionParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4321,6 +4430,7 @@ base class ReflectionCancelActionParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionCancelActionParams].
   static const SchemanticType<ReflectionCancelActionParams> $schema =
       _ReflectionCancelActionParamsTypeFactory();
 
@@ -4337,6 +4447,7 @@ base class ReflectionCancelActionParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionCancelActionParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4365,6 +4476,7 @@ base class _ReflectionCancelActionParamsTypeFactory
 }
 
 base class ReflectionCancelActionResponse {
+  /// Creates a [ReflectionCancelActionResponse] from a JSON map.
   factory ReflectionCancelActionResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4376,6 +4488,7 @@ base class ReflectionCancelActionResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionCancelActionResponse].
   static const SchemanticType<ReflectionCancelActionResponse> $schema =
       _ReflectionCancelActionResponseTypeFactory();
 
@@ -4392,6 +4505,7 @@ base class ReflectionCancelActionResponse {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionCancelActionResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4420,6 +4534,7 @@ base class _ReflectionCancelActionResponseTypeFactory
 }
 
 base class ReflectionConfigureParams {
+  /// Creates a [ReflectionConfigureParams] from a JSON map.
   factory ReflectionConfigureParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4431,6 +4546,7 @@ base class ReflectionConfigureParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionConfigureParams].
   static const SchemanticType<ReflectionConfigureParams> $schema =
       _ReflectionConfigureParamsTypeFactory();
 
@@ -4451,6 +4567,7 @@ base class ReflectionConfigureParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionConfigureParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4476,6 +4593,7 @@ base class _ReflectionConfigureParamsTypeFactory
 }
 
 base class ReflectionEndInputStreamParams {
+  /// Creates a [ReflectionEndInputStreamParams] from a JSON map.
   factory ReflectionEndInputStreamParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4487,6 +4605,7 @@ base class ReflectionEndInputStreamParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionEndInputStreamParams].
   static const SchemanticType<ReflectionEndInputStreamParams> $schema =
       _ReflectionEndInputStreamParamsTypeFactory();
 
@@ -4503,6 +4622,7 @@ base class ReflectionEndInputStreamParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionEndInputStreamParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4531,6 +4651,7 @@ base class _ReflectionEndInputStreamParamsTypeFactory
 }
 
 base class ReflectionListActionsResponse {
+  /// Creates a [ReflectionListActionsResponse] from a JSON map.
   factory ReflectionListActionsResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4542,6 +4663,7 @@ base class ReflectionListActionsResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionListActionsResponse].
   static const SchemanticType<ReflectionListActionsResponse> $schema =
       _ReflectionListActionsResponseTypeFactory();
 
@@ -4558,6 +4680,7 @@ base class ReflectionListActionsResponse {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionListActionsResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4588,6 +4711,7 @@ base class _ReflectionListActionsResponseTypeFactory
 }
 
 base class ReflectionListValuesParams {
+  /// Creates a [ReflectionListValuesParams] from a JSON map.
   factory ReflectionListValuesParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4599,6 +4723,7 @@ base class ReflectionListValuesParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionListValuesParams].
   static const SchemanticType<ReflectionListValuesParams> $schema =
       _ReflectionListValuesParamsTypeFactory();
 
@@ -4615,6 +4740,7 @@ base class ReflectionListValuesParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionListValuesParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4640,6 +4766,7 @@ base class _ReflectionListValuesParamsTypeFactory
 }
 
 base class ReflectionListValuesResponse {
+  /// Creates a [ReflectionListValuesResponse] from a JSON map.
   factory ReflectionListValuesResponse.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4651,6 +4778,7 @@ base class ReflectionListValuesResponse {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionListValuesResponse].
   static const SchemanticType<ReflectionListValuesResponse> $schema =
       _ReflectionListValuesResponseTypeFactory();
 
@@ -4667,6 +4795,7 @@ base class ReflectionListValuesResponse {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionListValuesResponse] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4697,6 +4826,7 @@ base class _ReflectionListValuesResponseTypeFactory
 }
 
 base class ReflectionRegisterParams {
+  /// Creates a [ReflectionRegisterParams] from a JSON map.
   factory ReflectionRegisterParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4722,6 +4852,7 @@ base class ReflectionRegisterParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionRegisterParams].
   static const SchemanticType<ReflectionRegisterParams> $schema =
       _ReflectionRegisterParamsTypeFactory();
 
@@ -4798,6 +4929,7 @@ base class ReflectionRegisterParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionRegisterParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4833,6 +4965,7 @@ base class _ReflectionRegisterParamsTypeFactory
 }
 
 base class ReflectionRunActionParams {
+  /// Creates a [ReflectionRunActionParams] from a JSON map.
   factory ReflectionRunActionParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4860,6 +4993,7 @@ base class ReflectionRunActionParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionRunActionParams].
   static const SchemanticType<ReflectionRunActionParams> $schema =
       _ReflectionRunActionParamsTypeFactory();
 
@@ -4940,6 +5074,7 @@ base class ReflectionRunActionParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionRunActionParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -4978,6 +5113,7 @@ base class _ReflectionRunActionParamsTypeFactory
 }
 
 base class ReflectionRunActionStateParams {
+  /// Creates a [ReflectionRunActionStateParams] from a JSON map.
   factory ReflectionRunActionStateParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -4992,6 +5128,7 @@ base class ReflectionRunActionStateParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionRunActionStateParams].
   static const SchemanticType<ReflectionRunActionStateParams> $schema =
       _ReflectionRunActionStateParamsTypeFactory();
 
@@ -5020,6 +5157,7 @@ base class ReflectionRunActionStateParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionRunActionStateParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -5051,6 +5189,7 @@ base class _ReflectionRunActionStateParamsTypeFactory
 }
 
 base class ReflectionSendInputStreamChunkParams {
+  /// Creates a [ReflectionSendInputStreamChunkParams] from a JSON map.
   factory ReflectionSendInputStreamChunkParams.fromJson(
     Map<String, dynamic> json,
   ) => $schema.parse(json);
@@ -5066,6 +5205,7 @@ base class ReflectionSendInputStreamChunkParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionSendInputStreamChunkParams].
   static const SchemanticType<ReflectionSendInputStreamChunkParams> $schema =
       _ReflectionSendInputStreamChunkParamsTypeFactory();
 
@@ -5094,6 +5234,7 @@ base class ReflectionSendInputStreamChunkParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionSendInputStreamChunkParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -5125,6 +5266,7 @@ base class _ReflectionSendInputStreamChunkParamsTypeFactory
 }
 
 base class ReflectionStreamChunkParams {
+  /// Creates a [ReflectionStreamChunkParams] from a JSON map.
   factory ReflectionStreamChunkParams.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -5136,6 +5278,7 @@ base class ReflectionStreamChunkParams {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReflectionStreamChunkParams].
   static const SchemanticType<ReflectionStreamChunkParams> $schema =
       _ReflectionStreamChunkParamsTypeFactory();
 
@@ -5160,6 +5303,7 @@ base class ReflectionStreamChunkParams {
     return _json.toString();
   }
 
+  /// Serializes this [ReflectionStreamChunkParams] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

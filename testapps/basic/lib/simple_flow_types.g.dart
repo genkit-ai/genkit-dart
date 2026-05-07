@@ -22,6 +22,7 @@ part of 'simple_flow_types.dart';
 // **************************************************************************
 
 base class Ingredient {
+  /// Creates a [Ingredient] from a JSON map.
   factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Ingredient._(this._json);
@@ -32,6 +33,7 @@ base class Ingredient {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Ingredient].
   static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
 
   String get name {
@@ -55,6 +57,7 @@ base class Ingredient {
     return _json.toString();
   }
 
+  /// Serializes this [Ingredient] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -82,6 +85,7 @@ base class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 }
 
 base class Recipe {
+  /// Creates a [Recipe] from a JSON map.
   factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Recipe._(this._json);
@@ -100,6 +104,7 @@ base class Recipe {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Recipe].
   static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
 
   String get title {
@@ -133,6 +138,7 @@ base class Recipe {
     return _json.toString();
   }
 
+  /// Serializes this [Recipe] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
