@@ -22,6 +22,7 @@ part of 'types.dart';
 // **************************************************************************
 
 base class ProcessObjectInput {
+  /// Creates a [ProcessObjectInput] from a JSON map.
   factory ProcessObjectInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class ProcessObjectInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ProcessObjectInput].
   static const SchemanticType<ProcessObjectInput> $schema =
       _ProcessObjectInputTypeFactory();
 
@@ -57,6 +59,7 @@ base class ProcessObjectInput {
     return _json.toString();
   }
 
+  /// Serializes this [ProcessObjectInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -85,6 +88,7 @@ base class _ProcessObjectInputTypeFactory
 }
 
 base class ProcessObjectOutput {
+  /// Creates a [ProcessObjectOutput] from a JSON map.
   factory ProcessObjectOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -96,6 +100,7 @@ base class ProcessObjectOutput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ProcessObjectOutput].
   static const SchemanticType<ProcessObjectOutput> $schema =
       _ProcessObjectOutputTypeFactory();
 
@@ -120,6 +125,7 @@ base class ProcessObjectOutput {
     return _json.toString();
   }
 
+  /// Serializes this [ProcessObjectOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -151,6 +157,7 @@ base class _ProcessObjectOutputTypeFactory
 }
 
 base class StreamObjectsInput {
+  /// Creates a [StreamObjectsInput] from a JSON map.
   factory StreamObjectsInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -162,6 +169,7 @@ base class StreamObjectsInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [StreamObjectsInput].
   static const SchemanticType<StreamObjectsInput> $schema =
       _StreamObjectsInputTypeFactory();
 
@@ -178,6 +186,7 @@ base class StreamObjectsInput {
     return _json.toString();
   }
 
+  /// Serializes this [StreamObjectsInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -203,6 +212,7 @@ base class _StreamObjectsInputTypeFactory
 }
 
 base class StreamObjectsOutput {
+  /// Creates a [StreamObjectsOutput] from a JSON map.
   factory StreamObjectsOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -214,6 +224,7 @@ base class StreamObjectsOutput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [StreamObjectsOutput].
   static const SchemanticType<StreamObjectsOutput> $schema =
       _StreamObjectsOutputTypeFactory();
 
@@ -238,6 +249,7 @@ base class StreamObjectsOutput {
     return _json.toString();
   }
 
+  /// Serializes this [StreamObjectsOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -266,6 +278,7 @@ base class _StreamObjectsOutputTypeFactory
 }
 
 base class StreamyThrowyChunk {
+  /// Creates a [StreamyThrowyChunk] from a JSON map.
   factory StreamyThrowyChunk.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -277,6 +290,7 @@ base class StreamyThrowyChunk {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [StreamyThrowyChunk].
   static const SchemanticType<StreamyThrowyChunk> $schema =
       _StreamyThrowyChunkTypeFactory();
 
@@ -293,6 +307,7 @@ base class StreamyThrowyChunk {
     return _json.toString();
   }
 
+  /// Serializes this [StreamyThrowyChunk] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

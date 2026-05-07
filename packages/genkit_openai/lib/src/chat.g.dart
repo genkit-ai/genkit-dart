@@ -15,19 +15,21 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'genkit_openai.dart';
+part of 'chat.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-base class OpenAIOptions {
-  factory OpenAIOptions.fromJson(Map<String, dynamic> json) =>
+/// Chat-specific options for OpenAI chat models.
+base class OpenAIChatOptions {
+  /// Creates a [OpenAIChatOptions] from a JSON map.
+  factory OpenAIChatOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  OpenAIOptions._(this._json);
+  OpenAIChatOptions._(this._json);
 
-  OpenAIOptions({
+  OpenAIChatOptions({
     String? version,
     double? temperature,
     double? topP,
@@ -57,13 +59,16 @@ base class OpenAIOptions {
 
   late final Map<String, dynamic> _json;
 
-  static const SchemanticType<OpenAIOptions> $schema =
-      _OpenAIOptionsTypeFactory();
+  /// The JSON schema and type descriptor for [OpenAIChatOptions].
+  static const SchemanticType<OpenAIChatOptions> $schema =
+      _OpenAIChatOptionsTypeFactory();
 
+  /// Model version override (e.g., 'gpt-4o-2024-08-06')
   String? get version {
     return _json['version'] as String?;
   }
 
+  /// Model version override (e.g., 'gpt-4o-2024-08-06')
   set version(String? value) {
     if (value == null) {
       _json.remove('version');
@@ -72,10 +77,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Sampling temperature (0.0 - 2.0)
   double? get temperature {
     return (_json['temperature'] as num?)?.toDouble();
   }
 
+  /// Sampling temperature (0.0 - 2.0)
   set temperature(double? value) {
     if (value == null) {
       _json.remove('temperature');
@@ -84,10 +91,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Nucleus sampling (0.0 - 1.0)
   double? get topP {
     return (_json['topP'] as num?)?.toDouble();
   }
 
+  /// Nucleus sampling (0.0 - 1.0)
   set topP(double? value) {
     if (value == null) {
       _json.remove('topP');
@@ -96,10 +105,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Maximum tokens to generate
   int? get maxTokens {
     return _json['maxTokens'] as int?;
   }
 
+  /// Maximum tokens to generate
   set maxTokens(int? value) {
     if (value == null) {
       _json.remove('maxTokens');
@@ -108,10 +119,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Stop sequences
   List<String>? get stop {
     return (_json['stop'] as List?)?.cast<String>();
   }
 
+  /// Stop sequences
   set stop(List<String>? value) {
     if (value == null) {
       _json.remove('stop');
@@ -120,10 +133,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Presence penalty (-2.0 - 2.0)
   double? get presencePenalty {
     return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
+  /// Presence penalty (-2.0 - 2.0)
   set presencePenalty(double? value) {
     if (value == null) {
       _json.remove('presencePenalty');
@@ -132,10 +147,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Frequency penalty (-2.0 - 2.0)
   double? get frequencyPenalty {
     return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
+  /// Frequency penalty (-2.0 - 2.0)
   set frequencyPenalty(double? value) {
     if (value == null) {
       _json.remove('frequencyPenalty');
@@ -144,10 +161,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Seed for deterministic sampling
   int? get seed {
     return _json['seed'] as int?;
   }
 
+  /// Seed for deterministic sampling
   set seed(int? value) {
     if (value == null) {
       _json.remove('seed');
@@ -156,10 +175,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// User identifier for abuse detection
   String? get user {
     return _json['user'] as String?;
   }
 
+  /// User identifier for abuse detection
   set user(String? value) {
     if (value == null) {
       _json.remove('user');
@@ -168,10 +189,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// JSON mode
   bool? get jsonMode {
     return _json['jsonMode'] as bool?;
   }
 
+  /// JSON mode
   set jsonMode(bool? value) {
     if (value == null) {
       _json.remove('jsonMode');
@@ -180,10 +203,12 @@ base class OpenAIOptions {
     }
   }
 
+  /// Visual detail level for images ('auto', 'low', 'high')
   String? get visualDetailLevel {
     return _json['visualDetailLevel'] as String?;
   }
 
+  /// Visual detail level for images ('auto', 'low', 'high')
   set visualDetailLevel(String? value) {
     if (value == null) {
       _json.remove('visualDetailLevel');
@@ -197,22 +222,24 @@ base class OpenAIOptions {
     return _json.toString();
   }
 
+  /// Serializes this [OpenAIChatOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _OpenAIOptionsTypeFactory extends SchemanticType<OpenAIOptions> {
-  const _OpenAIOptionsTypeFactory();
+base class _OpenAIChatOptionsTypeFactory
+    extends SchemanticType<OpenAIChatOptions> {
+  const _OpenAIChatOptionsTypeFactory();
 
   @override
-  OpenAIOptions parse(Object? json) {
-    return OpenAIOptions._(json as Map<String, dynamic>);
+  OpenAIChatOptions parse(Object? json) {
+    return OpenAIChatOptions._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'OpenAIOptions',
+    name: 'OpenAIChatOptions',
     definition: $Schema
         .object(
           properties: {

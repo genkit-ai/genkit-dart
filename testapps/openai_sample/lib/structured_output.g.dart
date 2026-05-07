@@ -22,6 +22,7 @@ part of 'structured_output.dart';
 // **************************************************************************
 
 base class MovieReviewInput {
+  /// Creates a [MovieReviewInput] from a JSON map.
   factory MovieReviewInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,21 +34,26 @@ base class MovieReviewInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MovieReviewInput].
   static const SchemanticType<MovieReviewInput> $schema =
       _MovieReviewInputTypeFactory();
 
+  /// Title of the movie to review
   String get title {
     return _json['title'] as String;
   }
 
+  /// Title of the movie to review
   set title(String value) {
     _json['title'] = value;
   }
 
+  /// Optional release year to disambiguate
   int? get year {
     return _json['year'] as int?;
   }
 
+  /// Optional release year to disambiguate
   set year(int? value) {
     if (value == null) {
       _json.remove('year');
@@ -61,6 +67,7 @@ base class MovieReviewInput {
     return _json.toString();
   }
 
+  /// Serializes this [MovieReviewInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -89,6 +96,7 @@ base class _MovieReviewInputTypeFactory
 }
 
 base class MovieReview {
+  /// Creates a [MovieReview] from a JSON map.
   factory MovieReview.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -114,52 +122,65 @@ base class MovieReview {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MovieReview].
   static const SchemanticType<MovieReview> $schema = _MovieReviewTypeFactory();
 
+  /// Official movie title
   String get title {
     return _json['title'] as String;
   }
 
+  /// Official movie title
   set title(String value) {
     _json['title'] = value;
   }
 
+  /// Rating from 1.0 to 10.0
   double get rating {
     return (_json['rating'] as num).toDouble();
   }
 
+  /// Rating from 1.0 to 10.0
   set rating(double value) {
     _json['rating'] = value;
   }
 
+  /// One-paragraph summary of the film
   String get summary {
     return _json['summary'] as String;
   }
 
+  /// One-paragraph summary of the film
   set summary(String value) {
     _json['summary'] = value;
   }
 
+  /// List of standout positives
   List<String> get pros {
     return (_json['pros'] as List).cast<String>();
   }
 
+  /// List of standout positives
   set pros(List<String> value) {
     _json['pros'] = value;
   }
 
+  /// List of notable negatives
   List<String> get cons {
     return (_json['cons'] as List).cast<String>();
   }
 
+  /// List of notable negatives
   set cons(List<String> value) {
     _json['cons'] = value;
   }
 
+  /// Recommended audience, e.g. "sci-fi fans", "families"
   String get recommendedFor {
     return _json['recommendedFor'] as String;
   }
 
+  /// Recommended audience, e.g. "sci-fi fans", "families"
   set recommendedFor(String value) {
     _json['recommendedFor'] = value;
   }
@@ -169,6 +190,7 @@ base class MovieReview {
     return _json.toString();
   }
 
+  /// Serializes this [MovieReview] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

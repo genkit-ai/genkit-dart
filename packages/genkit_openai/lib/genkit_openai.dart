@@ -12,90 +12,125 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/plugin.dart';
-import 'package:schemantic/schemantic.dart';
+import 'dart:async';
 
+import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
+
+import 'src/chat.dart' as chat;
 import 'src/openai_plugin.dart';
 
+export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
-export 'src/models.dart'
-    show defaultModelInfo, oSeriesModelInfo, supportsTools, supportsVision;
+export 'src/utils.dart'
+    show
+        defaultModelInfo,
+        getModelType,
+        modelInfoFor,
+        oSeriesModelInfo,
+        supportsTools,
+        supportsVision;
 
-part 'genkit_openai.g.dart';
+/// Default plugin / namespace name used when no custom name is provided.
+const String defaultOpenAINamespace = 'openai';
 
-@Schema()
-abstract class $OpenAIOptions {
-  /// Model version override (e.g., 'gpt-4o-2024-08-06')
-  String? get version;
-
-  /// Sampling temperature (0.0 - 2.0)
-  @DoubleField(minimum: 0.0, maximum: 2.0)
-  double? get temperature;
-
-  /// Nucleus sampling (0.0 - 1.0)
-  @DoubleField(minimum: 0.0, maximum: 1.0)
-  double? get topP;
-
-  /// Maximum tokens to generate
-  int? get maxTokens;
-
-  /// Stop sequences
-  List<String>? get stop;
-
-  /// Presence penalty (-2.0 - 2.0)
-  @DoubleField(minimum: -2.0, maximum: 2.0)
-  double? get presencePenalty;
-
-  /// Frequency penalty (-2.0 - 2.0)
-  @DoubleField(minimum: -2.0, maximum: 2.0)
-  double? get frequencyPenalty;
-
-  /// Seed for deterministic sampling
-  int? get seed;
-
-  /// User identifier for abuse detection
-  String? get user;
-
-  /// JSON mode
-  bool? get jsonMode;
-
-  /// Visual detail level for images ('auto', 'low', 'high')
-  @StringField(enumValues: ['auto', 'low', 'high'])
-  String? get visualDetailLevel;
-}
-
-/// Custom model definition for registering models from compatible providers
+/// Custom model definition for registering models from compatible providers.
+///
+/// Use this to register models from OpenAI-compatible APIs (such as xAI/Grok,
+/// DeepSeek, Together AI, Groq, etc.) that are not automatically discovered.
+///
+/// ```dart
+/// openAI(
+///   baseUrl: 'https://api.groq.com/openai/v1',
+///   models: [
+///     CustomModelDefinition(
+///       name: 'llama-3.3-70b-versatile',
+///       info: ModelInfo(label: 'Llama 3.3 70B'),
+///     ),
+///   ],
+/// )
+/// ```
 class CustomModelDefinition {
+  /// The model identifier, e.g. `'llama-3.3-70b-versatile'`.
   final String name;
+
+  /// Optional metadata describing the model's capabilities.
+  ///
+  /// When `null`, default capability detection heuristics are used.
   final ModelInfo? info;
 
+  /// Creates a custom model definition with the given [name] and optional
+  /// [info].
   const CustomModelDefinition({required this.name, this.info});
 }
 
-/// Public constant handle for OpenAI-compatible plugin
+/// Signature used to provide an API key (or bearer token) for requests.
+typedef OpenAIApiKeyProvider = FutureOr<String> Function();
+
+/// Public constant handle for the OpenAI-compatible plugin.
+///
+/// Use this to create the plugin and to reference models:
+///
+/// ```dart
+/// // Create the plugin
+/// final ai = Genkit(plugins: [
+///   openAI(apiKey: Platform.environment['OPENAI_API_KEY']),
+/// ]);
+///
+/// // Reference a model
+/// final response = await ai.generate(
+///   model: openAI.model('gpt-4o'),
+///   prompt: 'Hello!',
+/// );
+/// ```
 const OpenAICompatPluginHandle openAI = OpenAICompatPluginHandle();
 
-/// Handle class for OpenAI-compatible plugin
+/// Handle class for configuring and referencing OpenAI-compatible models.
+///
+/// Typically accessed via the top-level [openAI] constant rather than
+/// instantiated directly.
 class OpenAICompatPluginHandle {
+  /// Creates a new [OpenAICompatPluginHandle].
   const OpenAICompatPluginHandle();
 
-  /// Create the plugin instance
+  /// Create the plugin instance.
+  ///
+  /// The [name] parameter allows uniquely identifying each plugin instance
+  /// (e.g. `'openrouter'`, `'nanogpt'`). It defaults to
+  /// [defaultOpenAINamespace] and is used as the namespace prefix for all
+  /// models registered by this instance (e.g. `openrouter/gpt-4o`).
   GenkitPlugin call({
+    String name = defaultOpenAINamespace,
     String? apiKey,
+    OpenAIApiKeyProvider? apiKeyProvider,
     String? baseUrl,
     List<CustomModelDefinition>? models,
     Map<String, String>? headers,
+    http.Client? httpClient,
   }) {
     return OpenAIPlugin(
+      name: name,
       apiKey: apiKey,
+      apiKeyProvider: apiKeyProvider,
       baseUrl: baseUrl,
       customModels: models ?? const [],
       headers: headers,
+      httpClient: httpClient,
     );
   }
 
-  /// Reference to a model
-  ModelRef<OpenAIOptions> model(String name) {
-    return modelRef('openai/$name', customOptions: OpenAIOptions.$schema);
+  /// Reference to a model.
+  ///
+  /// The optional [namespace] defaults to [defaultOpenAINamespace] and is the
+  /// prefix used when looking up the model (e.g. `openai/gpt-4o`). Pass a
+  /// custom value when the plugin was created with a custom name.
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = defaultOpenAINamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: chat.chatModelOptionsSchema(),
+    );
   }
 }

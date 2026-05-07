@@ -1,3 +1,17 @@
+## 0.2.6
+
+### Features
+
+ - generate docs for generated schemantic types (#274)
+
+
+## 0.2.5
+
+### Features
+
+ - add additionalProperties support to @Schema and implement strict object validation (#251)
+
+
 ## 0.2.4
 
  - updated internal dependencies.
