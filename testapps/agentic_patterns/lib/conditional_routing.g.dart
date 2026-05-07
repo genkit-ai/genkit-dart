@@ -22,6 +22,7 @@ part of 'conditional_routing.dart';
 // **************************************************************************
 
 base class RouterInput {
+  /// Creates a [RouterInput] from a JSON map.
   factory RouterInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class RouterInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [RouterInput].
   static const SchemanticType<RouterInput> $schema = _RouterInputTypeFactory();
 
   String get query {
@@ -48,6 +50,7 @@ base class RouterInput {
     return _json.toString();
   }
 
+  /// Serializes this [RouterInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -72,6 +75,7 @@ base class _RouterInputTypeFactory extends SchemanticType<RouterInput> {
 }
 
 base class IntentClassification {
+  /// Creates a [IntentClassification] from a JSON map.
   factory IntentClassification.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -83,6 +87,7 @@ base class IntentClassification {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [IntentClassification].
   static const SchemanticType<IntentClassification> $schema =
       _IntentClassificationTypeFactory();
 
@@ -99,6 +104,7 @@ base class IntentClassification {
     return _json.toString();
   }
 
+  /// Serializes this [IntentClassification] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

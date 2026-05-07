@@ -22,6 +22,7 @@ part of 'extension_type_test.dart';
 // **************************************************************************
 
 base class Ingredient {
+  /// Creates a [Ingredient] from a JSON map.
   factory Ingredient.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Ingredient._(this._json);
@@ -32,6 +33,7 @@ base class Ingredient {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Ingredient].
   static const SchemanticType<Ingredient> $schema = _IngredientTypeFactory();
 
   String get name {
@@ -55,6 +57,7 @@ base class Ingredient {
     return _json.toString();
   }
 
+  /// Serializes this [Ingredient] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -82,6 +85,7 @@ base class _IngredientTypeFactory extends SchemanticType<Ingredient> {
 }
 
 base class Recipe {
+  /// Creates a [Recipe] from a JSON map.
   factory Recipe.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Recipe._(this._json);
@@ -100,6 +104,7 @@ base class Recipe {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Recipe].
   static const SchemanticType<Recipe> $schema = _RecipeTypeFactory();
 
   String get title {
@@ -133,6 +138,7 @@ base class Recipe {
     return _json.toString();
   }
 
+  /// Serializes this [Recipe] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -166,6 +172,7 @@ base class _RecipeTypeFactory extends SchemanticType<Recipe> {
 }
 
 base class AnnotatedRecipe {
+  /// Creates a [AnnotatedRecipe] from a JSON map.
   factory AnnotatedRecipe.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -185,6 +192,7 @@ base class AnnotatedRecipe {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [AnnotatedRecipe].
   static const SchemanticType<AnnotatedRecipe> $schema =
       _AnnotatedRecipeTypeFactory();
 
@@ -219,6 +227,7 @@ base class AnnotatedRecipe {
     return _json.toString();
   }
 
+  /// Serializes this [AnnotatedRecipe] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -254,6 +263,7 @@ base class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
 }
 
 base class MealPlan {
+  /// Creates a [MealPlan] from a JSON map.
   factory MealPlan.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   MealPlan._(this._json);
@@ -264,6 +274,7 @@ base class MealPlan {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MealPlan].
   static const SchemanticType<MealPlan> $schema = _MealPlanTypeFactory();
 
   String get day {
@@ -287,6 +298,7 @@ base class MealPlan {
     return _json.toString();
   }
 
+  /// Serializes this [MealPlan] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -319,6 +331,7 @@ base class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
 }
 
 base class NullableFields {
+  /// Creates a [NullableFields] from a JSON map.
   factory NullableFields.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -340,6 +353,7 @@ base class NullableFields {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [NullableFields].
   static const SchemanticType<NullableFields> $schema =
       _NullableFieldsTypeFactory();
 
@@ -400,6 +414,7 @@ base class NullableFields {
     return _json.toString();
   }
 
+  /// Serializes this [NullableFields] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -433,6 +448,7 @@ base class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
 }
 
 base class ComplexObject {
+  /// Creates a [ComplexObject] from a JSON map.
   factory ComplexObject.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -458,6 +474,7 @@ base class ComplexObject {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ComplexObject].
   static const SchemanticType<ComplexObject> $schema =
       _ComplexObjectTypeFactory();
 
@@ -522,6 +539,7 @@ base class ComplexObject {
     return _json.toString();
   }
 
+  /// Serializes this [ComplexObject] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -558,6 +576,7 @@ base class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
 }
 
 base class Menu {
+  /// Creates a [Menu] from a JSON map.
   factory Menu.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Menu._(this._json);
@@ -573,6 +592,7 @@ base class Menu {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Menu].
   static const SchemanticType<Menu> $schema = _MenuTypeFactory();
 
   List<Recipe> get recipes {
@@ -604,6 +624,7 @@ base class Menu {
     return _json.toString();
   }
 
+  /// Serializes this [Menu] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
