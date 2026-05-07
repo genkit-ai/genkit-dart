@@ -79,6 +79,49 @@ void main() {
         );
       },
     );
+
+    test('can return the source media URL without embedding bytes', () async {
+      final client = _FakeVeoClient(
+        _videoOperation('https://example.com/video.mp4'),
+      );
+
+      final model = createVeoModel(
+        pluginName: 'googleai',
+        modelName: 'veo-3.0-generate-001',
+        getApiClient: ([String? _]) async => client,
+        downloadClient: MockClient((request) async {
+          fail('Veo media should not be downloaded when embedMedia is false.');
+        }),
+        handleException: (e, stack) {
+          if (e is GenkitException) return e;
+          return GenkitException(
+            'Google AI Error: $e',
+            status: StatusCodes.INTERNAL,
+            underlyingException: e,
+            stackTrace: stack,
+          );
+        },
+      );
+
+      final response = await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'Create a short test video.')],
+            ),
+          ],
+          config: {'embedMedia': false},
+        ),
+      );
+
+      expect(response.result.media?.url, 'https://example.com/video.mp4');
+      expect(response.result.media?.contentType, 'video/mp4');
+      expect(
+        response.result.message?.content.first.metadata?['sourceUrl'],
+        isNull,
+      );
+    });
   });
 
   group('toEmbeddableVeoMediaPart', () {

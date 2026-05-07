@@ -190,6 +190,8 @@ abstract class $VeoOptions {
 
   @IntegerField(minimum: 1000)
   int? get timeoutMs;
+
+  bool? get embedMedia;
 }
 
 @Schema(description: 'Speech generation config')

@@ -25,6 +25,8 @@ import 'model.dart';
 typedef GoogleGenAiClientFactory =
     Future<GenerativeLanguageBaseClient> Function([String? requestApiKey]);
 
+const _veoMediaDownloadTimeout = Duration(minutes: 2);
+
 final veoModelInfo = ModelInfo(
   supports: {
     'multiturn': false,
@@ -97,6 +99,7 @@ Model createVeoModel({
         final mediaPart = await toEmbeddableVeoMediaPart(
           service,
           completed,
+          embedMedia: options.embedMedia ?? true,
           downloadClient: downloadClient,
         );
 
@@ -364,9 +367,12 @@ MediaPart veoOperationToMediaPart(gcl.Operation operation) {
 Future<MediaPart> toEmbeddableVeoMediaPart(
   GenerativeLanguageBaseClient service,
   gcl.Operation operation, {
+  bool embedMedia = true,
   http.Client? downloadClient,
 }) async {
   final mediaPart = veoOperationToMediaPart(operation);
+  if (!embedMedia) return mediaPart;
+
   final mediaUrl = mediaPart.media.url;
   final uri = Uri.tryParse(mediaUrl);
   if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
@@ -378,7 +384,7 @@ Future<MediaPart> toEmbeddableVeoMediaPart(
       ? service.client
       : downloadClient ?? http.Client();
   try {
-    final response = await client.get(uri);
+    final response = await client.get(uri).timeout(_veoMediaDownloadTimeout);
     if (response.statusCode < 200 ||
         response.statusCode >= 300 ||
         response.bodyBytes.isEmpty) {

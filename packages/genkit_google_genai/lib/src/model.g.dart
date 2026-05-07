@@ -1150,6 +1150,7 @@ base class _GeminiTtsOptionsTypeFactory
 }
 
 base class VeoOptions {
+  /// Creates a [VeoOptions] from a JSON map.
   factory VeoOptions.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   VeoOptions._(this._json);
@@ -1164,6 +1165,7 @@ base class VeoOptions {
     int? seed,
     int? pollingIntervalMs,
     int? timeoutMs,
+    bool? embedMedia,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -1175,11 +1177,13 @@ base class VeoOptions {
       'seed': ?seed,
       'pollingIntervalMs': ?pollingIntervalMs,
       'timeoutMs': ?timeoutMs,
+      'embedMedia': ?embedMedia,
     };
   }
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [VeoOptions].
   static const SchemanticType<VeoOptions> $schema = _VeoOptionsTypeFactory();
 
   String? get apiKey {
@@ -1290,11 +1294,24 @@ base class VeoOptions {
     }
   }
 
+  bool? get embedMedia {
+    return _json['embedMedia'] as bool?;
+  }
+
+  set embedMedia(bool? value) {
+    if (value == null) {
+      _json.remove('embedMedia');
+    } else {
+      _json['embedMedia'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
   }
 
+  /// Serializes this [VeoOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -1325,6 +1342,7 @@ base class _VeoOptionsTypeFactory extends SchemanticType<VeoOptions> {
             'seed': $Schema.integer(),
             'pollingIntervalMs': $Schema.integer(minimum: 100),
             'timeoutMs': $Schema.integer(minimum: 1000),
+            'embedMedia': $Schema.boolean(),
           },
         )
         .value,
