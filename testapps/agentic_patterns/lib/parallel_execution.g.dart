@@ -22,6 +22,7 @@ part of 'parallel_execution.dart';
 // **************************************************************************
 
 base class ProductInput {
+  /// Creates a [ProductInput] from a JSON map.
   factory ProductInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class ProductInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ProductInput].
   static const SchemanticType<ProductInput> $schema =
       _ProductInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class ProductInput {
     return _json.toString();
   }
 
+  /// Serializes this [ProductInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -76,6 +79,7 @@ base class _ProductInputTypeFactory extends SchemanticType<ProductInput> {
 }
 
 base class MarketingCopy {
+  /// Creates a [MarketingCopy] from a JSON map.
   factory MarketingCopy.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -87,6 +91,7 @@ base class MarketingCopy {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [MarketingCopy].
   static const SchemanticType<MarketingCopy> $schema =
       _MarketingCopyTypeFactory();
 
@@ -111,6 +116,7 @@ base class MarketingCopy {
     return _json.toString();
   }
 
+  /// Serializes this [MarketingCopy] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

@@ -27,6 +27,7 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         GenerateMiddleware,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
+        GenerateTurnState,
         defineMiddleware,
         middlewareRef;
 export 'package:genkit/src/ai/generate_types.dart'

@@ -1,3 +1,26 @@
+## 0.1.3
+
+### Features
+
+ - widen analyzer dependency range to include v13 (#277)
+ - generate docs for generated schemantic types (#274)
+
+
+## 0.1.2
+
+### Features
+
+ - add additionalProperties support to @Schema and implement strict object validation (#251)
+
+### Fixes
+
+ - support the latest pkg:analyzer in pkg:schemantic (#236)
+
+### Other Changes
+
+ - Add tests for SchemanticType.from's ad-hoc schema parsing and custom type integration. (#224)
+
+
 ## 0.1.1
 
 ### Features
