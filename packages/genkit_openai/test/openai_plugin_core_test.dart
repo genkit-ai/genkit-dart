@@ -50,6 +50,52 @@ void main() {
       final ref = openAI.model('gpt-4o');
       expect(ref.name, 'openai/gpt-4o');
     });
+
+    test('creates plugin instance with custom name', () {
+      final plugin = openAI(name: 'openrouter', apiKey: 'test-key');
+      expect(plugin, isNotNull);
+      expect(plugin.name, 'openrouter');
+    });
+
+    test('default plugin name is openai', () {
+      final plugin = openAI(apiKey: 'test-key');
+      expect(plugin.name, 'openai');
+    });
+
+    test('creates model reference with custom namespace', () {
+      final ref = openAI.model('gpt-4o', namespace: 'openrouter');
+      expect(ref.name, 'openrouter/gpt-4o');
+    });
+
+    test('rejects empty plugin name', () {
+      expect(
+        () => openAI(name: '', apiKey: 'test-key'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('must not contain'),
+              ),
+        ),
+      );
+    });
+
+    test('rejects plugin name with slash', () {
+      expect(
+        () => openAI(name: 'my/provider', apiKey: 'test-key'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('must not contain "/"'),
+              ),
+        ),
+      );
+    });
   });
 
   group('CustomModelDefinition', () {

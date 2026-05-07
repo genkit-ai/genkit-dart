@@ -22,6 +22,7 @@ part of 'retry.dart';
 // **************************************************************************
 
 base class RetryOptions {
+  /// Creates a [RetryOptions] from a JSON map.
   factory RetryOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -51,6 +52,7 @@ base class RetryOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [RetryOptions].
   static const SchemanticType<RetryOptions> $schema =
       _RetryOptionsTypeFactory();
 
@@ -155,6 +157,7 @@ base class RetryOptions {
     return _json.toString();
   }
 
+  /// Serializes this [RetryOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

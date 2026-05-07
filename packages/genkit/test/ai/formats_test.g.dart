@@ -22,6 +22,7 @@ part of 'formats_test.dart';
 // **************************************************************************
 
 base class TestObject {
+  /// Creates a [TestObject] from a JSON map.
   factory TestObject.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TestObject._(this._json);
@@ -32,6 +33,7 @@ base class TestObject {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestObject].
   static const SchemanticType<TestObject> $schema = _TestObjectTypeFactory();
 
   String get foo {
@@ -55,6 +57,7 @@ base class TestObject {
     return _json.toString();
   }
 
+  /// Serializes this [TestObject] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

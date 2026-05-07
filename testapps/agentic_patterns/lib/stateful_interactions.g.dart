@@ -22,6 +22,7 @@ part of 'stateful_interactions.dart';
 // **************************************************************************
 
 base class StatefulChatInput {
+  /// Creates a [StatefulChatInput] from a JSON map.
   factory StatefulChatInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class StatefulChatInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [StatefulChatInput].
   static const SchemanticType<StatefulChatInput> $schema =
       _StatefulChatInputTypeFactory();
 
@@ -57,6 +59,7 @@ base class StatefulChatInput {
     return _json.toString();
   }
 
+  /// Serializes this [StatefulChatInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

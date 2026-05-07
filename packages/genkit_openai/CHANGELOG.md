@@ -1,3 +1,31 @@
+## 0.3.1
+
+### Features
+
+ - add dartdoc comments and update versions in genkit_openai (#272)
+ - generate docs for generated schemantic types (#274)
+
+### Fixes
+
+ - make plugin name configurable for multiple OpenAI-compatible backends (#276)
+
+
+## 0.3.0
+
+### Breaking Changes
+
+ - reorganize code, renamed OpenAIOptions to OpenAIChatOptions (#200)
+
+### Features
+
+ - Allow passing a custom HTTP client to the OpenAI plugin (#225)
+ - add additionalProperties support to @Schema and implement strict object validation (#251)
+
+### Fixes
+
+ - remove hardcast for MediaPart in toOpenAIContentPart (#245)
+
+
 ## 0.2.4
 
  - updated internal dependencies.

@@ -22,6 +22,7 @@ part of 'tool_interrupt_sample.dart';
 // **************************************************************************
 
 base class TriviaQuestions {
+  /// Creates a [TriviaQuestions] from a JSON map.
   factory TriviaQuestions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class TriviaQuestions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TriviaQuestions].
   static const SchemanticType<TriviaQuestions> $schema =
       _TriviaQuestionsTypeFactory();
 
@@ -57,6 +59,7 @@ base class TriviaQuestions {
     return _json.toString();
   }
 
+  /// Serializes this [TriviaQuestions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

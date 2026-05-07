@@ -22,6 +22,7 @@ part of 'tool_restart_sample.dart';
 // **************************************************************************
 
 base class ApprovalRequest {
+  /// Creates a [ApprovalRequest] from a JSON map.
   factory ApprovalRequest.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class ApprovalRequest {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ApprovalRequest].
   static const SchemanticType<ApprovalRequest> $schema =
       _ApprovalRequestTypeFactory();
 
@@ -57,6 +59,7 @@ base class ApprovalRequest {
     return _json.toString();
   }
 
+  /// Serializes this [ApprovalRequest] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

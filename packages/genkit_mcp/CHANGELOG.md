@@ -1,3 +1,14 @@
+## 0.1.6
+
+### Features
+
+ - generate docs for generated schemantic types (#274)
+
+
+## 0.1.5
+
+ - updated internal dependencies.
+
 ## 0.1.4
 
  - updated internal dependencies.
