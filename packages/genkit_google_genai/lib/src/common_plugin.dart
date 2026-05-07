@@ -80,17 +80,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
-          final GeminiOptions options;
-          if (isGemma) {
-            final gemmaOptions = req.config == null
-                ? GemmaOptions()
-                : GemmaOptions.$schema.parse(req.config!);
-            options = gemmaToGeminiOptions(gemmaOptions);
-          } else {
-            options = req.config == null
-                ? GeminiOptions()
-                : GeminiOptions.$schema.parse(req.config!);
-          }
+          final options = isGemma
+              ? gemmaToGeminiOptions(GemmaOptions.fromJson(req.config ?? {}))
+              : GeminiOptions.fromJson(req.config ?? {});
           apiKey = options.apiKey;
           generationConfig = toGeminiSettings(
             options,
@@ -118,6 +110,13 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           final messages = isGemma
               ? stripReasoningParts(nonSystemMessages)
               : nonSystemMessages;
+
+          if (isGemma && messages.isEmpty) {
+            throw GenkitException(
+              'No valid messages found for the model request.',
+              status: StatusCodes.INVALID_ARGUMENT,
+            );
+          }
 
           final generateRequest = gcl.GenerateContentRequest(
             contents: toGeminiContent(messages),
