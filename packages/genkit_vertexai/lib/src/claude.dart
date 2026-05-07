@@ -455,6 +455,7 @@ void _handleStreamEvent(
         case sdk.SignatureDelta():
         case sdk.CitationsDelta():
         case sdk.CompactionDelta():
+        case sdk.UnknownContentBlockDelta():
           break;
       }
     case sdk.ErrorEvent(:final message):

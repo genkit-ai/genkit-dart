@@ -51,7 +51,7 @@ void main() async {
     plugins: [
       vertexAI(
         projectId: Platform.environment['GCLOUD_PROJECT'],
-        location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
+        location: Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1',
       )
     ],
   );

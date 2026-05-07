@@ -9,7 +9,7 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  anthropic_sdk_dart: ^1.5.0
+  anthropic_sdk_dart: ^2.0.0
   genkit: ^0.13.1
   genkit_anthropic: ^0.2.4
   genkit_google_genai: ^0.2.6
