@@ -21,6 +21,7 @@ part of 'types.dart';
 // **************************************************************************
 
 base class GreetInput {
+  /// Creates a [GreetInput] from a JSON map.
   factory GreetInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   GreetInput._(this._json);
@@ -31,6 +32,7 @@ base class GreetInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [GreetInput].
   static const SchemanticType<GreetInput> $schema = _GreetInputTypeFactory();
 
   String get name {
@@ -46,6 +48,7 @@ base class GreetInput {
     return _json.toString();
   }
 
+  /// Serializes this [GreetInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -70,6 +73,7 @@ base class _GreetInputTypeFactory extends SchemanticType<GreetInput> {
 }
 
 base class PromptInput {
+  /// Creates a [PromptInput] from a JSON map.
   factory PromptInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -81,6 +85,7 @@ base class PromptInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [PromptInput].
   static const SchemanticType<PromptInput> $schema = _PromptInputTypeFactory();
 
   String get input {
@@ -96,6 +101,7 @@ base class PromptInput {
     return _json.toString();
   }
 
+  /// Serializes this [PromptInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

@@ -1,3 +1,18 @@
+## 0.4.1
+
+ - updated internal dependencies.
+
+## 0.4.0
+
+### Breaking Changes
+
+ - introduce GenerateTurnState to middleware generate hook and improve chunk indexing (#269)
+
+### Features
+
+ - enforce strict schema properties on the skills middleware (#252)
+
+
 ## 0.3.1
 
 ### Other Changes

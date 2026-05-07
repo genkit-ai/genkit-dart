@@ -22,6 +22,7 @@ part of 'model_test.dart';
 // **************************************************************************
 
 base class TestCustomOptions {
+  /// Creates a [TestCustomOptions] from a JSON map.
   factory TestCustomOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class TestCustomOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestCustomOptions].
   static const SchemanticType<TestCustomOptions> $schema =
       _TestCustomOptionsTypeFactory();
 
@@ -49,6 +51,7 @@ base class TestCustomOptions {
     return _json.toString();
   }
 
+  /// Serializes this [TestCustomOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

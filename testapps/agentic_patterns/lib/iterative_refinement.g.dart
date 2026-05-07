@@ -22,6 +22,7 @@ part of 'iterative_refinement.dart';
 // **************************************************************************
 
 base class IterativeRefinementInput {
+  /// Creates a [IterativeRefinementInput] from a JSON map.
   factory IterativeRefinementInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class IterativeRefinementInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [IterativeRefinementInput].
   static const SchemanticType<IterativeRefinementInput> $schema =
       _IterativeRefinementInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class IterativeRefinementInput {
     return _json.toString();
   }
 
+  /// Serializes this [IterativeRefinementInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -74,6 +77,7 @@ base class _IterativeRefinementInputTypeFactory
 }
 
 base class Evaluation {
+  /// Creates a [Evaluation] from a JSON map.
   factory Evaluation.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Evaluation._(this._json);
@@ -84,6 +88,7 @@ base class Evaluation {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Evaluation].
   static const SchemanticType<Evaluation> $schema = _EvaluationTypeFactory();
 
   String get critique {
@@ -107,6 +112,7 @@ base class Evaluation {
     return _json.toString();
   }
 
+  /// Serializes this [Evaluation] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }

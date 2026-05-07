@@ -20,7 +20,7 @@ import 'package:schemantic/schemantic.dart';
 
 part 'skills_middleware.g.dart';
 
-@Schema()
+@Schema(additionalProperties: false)
 abstract class $UseSkillInput {
   @Field(description: 'The name of the skill to use.')
   String get skillName;
@@ -168,14 +168,15 @@ class SkillsMiddleware extends GenerateMiddleware {
 
   @override
   Future<GenerateResponseHelper> generate(
-    GenerateActionOptions options,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResponseHelper> Function(
-      GenerateActionOptions options,
+      GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
     next,
   ) async {
+    final options = envelope.request;
     await _ensureSkillsScanned();
     // TS impl: if (skillsList.length > 0)
     // Here we check _skillCache which corresponds to skillsList
@@ -293,9 +294,13 @@ class SkillsMiddleware extends GenerateMiddleware {
         stepName: options.stepName,
       );
 
-      return next(newOptions, ctx);
+      return next((
+        request: newOptions,
+        currentTurn: envelope.currentTurn,
+        messageIndex: envelope.messageIndex,
+      ), ctx);
     }
 
-    return next(options, ctx);
+    return next(envelope, ctx);
   }
 }

@@ -22,6 +22,7 @@ part of 'action_test.dart';
 // **************************************************************************
 
 base class TestInput {
+  /// Creates a [TestInput] from a JSON map.
   factory TestInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TestInput._(this._json);
@@ -32,6 +33,7 @@ base class TestInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestInput].
   static const SchemanticType<TestInput> $schema = _TestInputTypeFactory();
 
   String get name {
@@ -47,6 +49,7 @@ base class TestInput {
     return _json.toString();
   }
 
+  /// Serializes this [TestInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -71,6 +74,7 @@ base class _TestInputTypeFactory extends SchemanticType<TestInput> {
 }
 
 base class TestOutput {
+  /// Creates a [TestOutput] from a JSON map.
   factory TestOutput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   TestOutput._(this._json);
@@ -81,6 +85,7 @@ base class TestOutput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [TestOutput].
   static const SchemanticType<TestOutput> $schema = _TestOutputTypeFactory();
 
   String get greeting {
@@ -96,6 +101,7 @@ base class TestOutput {
     return _json.toString();
   }
 
+  /// Serializes this [TestOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
