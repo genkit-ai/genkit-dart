@@ -72,7 +72,9 @@ void main() {
 
       final model = plugin.resolve('model', 'virtual-try-on-001') as Model;
       expect(model.customOptions, VirtualTryOnOptions.$schema);
-      expect(model.metadata['model']['supports']['systemRole'], isFalse);
+      final modelInfo = model.metadata['model'] as Map<String, dynamic>;
+      final supports = modelInfo['supports'] as Map<String, dynamic>;
+      expect(supports['systemRole'], isFalse);
 
       final req = ModelRequest(
         messages: [
