@@ -41,7 +41,8 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String get name => 'vertexai';
 
   Future<GenerativeLanguageBaseClient> _createVertexApiClient({
-    required String apiUrlPrefix,
+    required String apiVersion,
+    String pathSuffix = '',
   }) async {
     final validFormat = RegExp(r'^[a-z0-9-]+$');
     final resolvedProjectId = _getResolvedProjectId;
@@ -52,12 +53,15 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       throw ArgumentError('Invalid projectId or location format.');
     }
     final safeLocation = Uri.encodeComponent(resolvedLocation);
+    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
 
     final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
 
     final baseUrl = safeLocation == 'global'
         ? 'https://aiplatform.googleapis.com/'
         : 'https://$safeLocation-aiplatform.googleapis.com/';
+    final apiUrlPrefix =
+        '$apiVersion/projects/$safeProjectId/locations/$safeLocation/$pathSuffix';
 
     final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
     final customClient = CustomClient(
@@ -77,38 +81,14 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
   ]) async {
-    final validFormat = RegExp(r'^[a-z0-9-]+$');
-    final resolvedProjectId = _getResolvedProjectId;
-    final resolvedLocation = location ?? 'global';
-
-    if (!validFormat.hasMatch(resolvedLocation) ||
-        !validFormat.hasMatch(resolvedProjectId)) {
-      throw ArgumentError('Invalid projectId or location format.');
-    }
-    final safeLocation = Uri.encodeComponent(resolvedLocation);
-    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
-
     return _createVertexApiClient(
-      apiUrlPrefix:
-          'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/',
+      apiVersion: 'v1beta1',
+      pathSuffix: 'publishers/google/',
     );
   }
 
   Future<GenerativeLanguageBaseClient> getEndpointApiClient() async {
-    final validFormat = RegExp(r'^[a-z0-9-]+$');
-    final resolvedProjectId = _getResolvedProjectId;
-    final resolvedLocation = location ?? 'global';
-
-    if (!validFormat.hasMatch(resolvedLocation) ||
-        !validFormat.hasMatch(resolvedProjectId)) {
-      throw ArgumentError('Invalid projectId or location format.');
-    }
-    final safeLocation = Uri.encodeComponent(resolvedLocation);
-    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
-
-    return _createVertexApiClient(
-      apiUrlPrefix: 'v1/projects/$safeProjectId/locations/$safeLocation/',
-    );
+    return _createVertexApiClient(apiVersion: 'v1');
   }
 
   @override
