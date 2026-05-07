@@ -59,6 +59,7 @@ void main() {
 
       expect(modelRef.name, 'vertexai/virtual-try-on-001');
       expect(modelRef.config, isNull);
+      expect(modelRef.customOptions, VirtualTryOnOptions.$schema);
     });
 
     test('uses predict endpoint', () async {
@@ -69,7 +70,10 @@ void main() {
         authClient: mockClient,
       );
 
-      final model = plugin.resolve('model', 'virtual-try-on-001') as Action;
+      final model = plugin.resolve('model', 'virtual-try-on-001') as Model;
+      expect(model.customOptions, VirtualTryOnOptions.$schema);
+      expect(model.metadata['model']['supports']['systemRole'], isFalse);
+
       final req = ModelRequest(
         messages: [
           Message(
@@ -100,7 +104,7 @@ void main() {
       );
 
       final result = await model.run(req);
-      final response = result.result as ModelResponse;
+      final response = result.result;
 
       expect(mockClient.lastUrl, isNotNull);
       expect(

@@ -16,6 +16,9 @@ import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/common.dart';
+import 'package:schemantic/schemantic.dart';
+
+part 'virtual_try_on.g.dart';
 
 const virtualTryOnModelPrefix = 'virtual-try-on-';
 
@@ -25,47 +28,28 @@ final virtualTryOnModelInfo = ModelInfo(
     'multiturn': false,
     'tools': false,
     'toolChoice': false,
-    'systemRole': true,
+    'systemRole': false,
     'output': ['media'],
   },
 );
 
-class VirtualTryOnOptions {
-  VirtualTryOnOptions({
-    this.outputOptions,
-    this.sampleCount,
-    this.storageUri,
-    this.seed,
-    this.baseSteps,
-    this.safetySetting,
-    this.personGeneration,
-    this.addWatermark,
-    this.enhancePrompt,
-  });
+@Schema()
+abstract class $VirtualTryOnOptions {
+  $VirtualTryOnOutputOptions? get outputOptions;
+  int? get sampleCount;
+  String? get storageUri;
+  int? get seed;
+  int? get baseSteps;
+  String? get safetySetting;
+  String? get personGeneration;
+  bool? get addWatermark;
+  bool? get enhancePrompt;
+}
 
-  final Map<String, dynamic>? outputOptions;
-  final int? sampleCount;
-  final String? storageUri;
-  final int? seed;
-  final int? baseSteps;
-  final String? safetySetting;
-  final String? personGeneration;
-  final bool? addWatermark;
-  final bool? enhancePrompt;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'outputOptions': ?outputOptions,
-      'sampleCount': ?sampleCount,
-      'storageUri': ?storageUri,
-      'seed': ?seed,
-      'baseSteps': ?baseSteps,
-      'safetySetting': ?safetySetting,
-      'personGeneration': ?personGeneration,
-      'addWatermark': ?addWatermark,
-      'enhancePrompt': ?enhancePrompt,
-    };
-  }
+@Schema()
+abstract class $VirtualTryOnOutputOptions {
+  String? get mimeType;
+  int? get compressionQuality;
 }
 
 bool isVirtualTryOnModelName(String modelName) {
@@ -76,6 +60,7 @@ ActionMetadata virtualTryOnModelMetadata(String pluginName, String modelName) {
   return modelMetadata(
     '$pluginName/$modelName',
     modelInfo: virtualTryOnModelInfo,
+    customOptions: VirtualTryOnOptions.$schema,
   );
 }
 
@@ -89,6 +74,7 @@ Model createVirtualTryOnModel({
 }) {
   return Model(
     name: '$pluginName/$modelName',
+    customOptions: VirtualTryOnOptions.$schema,
     metadata: {'model': virtualTryOnModelInfo.toJson()},
     fn: (req, ctx) async {
       if (ctx.streamingRequested) {

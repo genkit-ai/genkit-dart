@@ -32,7 +32,7 @@ export 'package:genkit_google_genai/genkit_google_genai.dart'
         TextEmbedderOptions,
         ThinkingConfig,
         VoiceConfig;
-export 'src/virtual_try_on.dart';
+export 'src/virtual_try_on.dart' show VirtualTryOnOptions;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
@@ -66,6 +66,10 @@ class VertexAiPluginHandle {
     String name = 'virtual-try-on-001',
     VirtualTryOnOptions? config,
   ]) {
-    return modelRef('vertexai/$name', config: config);
+    return modelRef(
+      'vertexai/$name',
+      config: config,
+      customOptions: VirtualTryOnOptions.$schema,
+    );
   }
 }
