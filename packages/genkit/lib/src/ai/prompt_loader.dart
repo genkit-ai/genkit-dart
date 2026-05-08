@@ -152,11 +152,10 @@ void _loadPrompt(
     'type': 'prompt',
     'prompt': {
       'name': name,
-      if (variant != null)
-        'variant': variant, // ignore: use_null_aware_elements
-      if (model != null) 'model': model, // ignore: use_null_aware_elements
-      if (config != null) 'config': config, // ignore: use_null_aware_elements
-      if (tools != null) 'tools': tools, // ignore: use_null_aware_elements
+      'variant': ?variant,
+      'model': ?model,
+      'config': ?config,
+      'tools': ?tools,
       'template': parsedPrompt.template,
     },
   };
