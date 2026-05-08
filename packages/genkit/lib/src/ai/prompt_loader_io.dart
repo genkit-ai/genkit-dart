@@ -17,8 +17,6 @@ import 'dart:io';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:schemantic/schemantic.dart';
-
 import '../core/registry.dart';
 import '../types.dart' show GenerateActionOutputConfig;
 import 'dotprompt_registry.dart';
@@ -80,13 +78,12 @@ void _loadPromptFolderRecursively(
         );
       } else {
         // Regular prompt: load and register
-        final prefix = subDir.isNotEmpty ? '$subDir/' : '';
         _loadPrompt(
           registry,
           dotpromptRegistry,
           basePath,
           fileName,
-          prefix,
+          subDir,
           ns,
         );
       }
@@ -109,10 +106,11 @@ void _loadPrompt(
   DotpromptRegistry dotpromptRegistry,
   String basePath,
   String filename,
-  String prefix,
+  String subDir,
   String ns,
 ) {
   // Parse name and variant from filename
+  final prefix = subDir.isNotEmpty ? '$subDir/' : '';
   var name = '$prefix${p.basenameWithoutExtension(filename)}';
   String? variant;
 
@@ -122,7 +120,7 @@ void _loadPrompt(
     variant = parts[1];
   }
 
-  final filePath = p.join(basePath, prefix, filename);
+  final filePath = p.join(basePath, subDir, filename);
   final source = File(filePath).readAsStringSync();
   final parsedPrompt = dotpromptRegistry.parse(source);
 
@@ -164,7 +162,7 @@ void _loadPrompt(
   final promptConfig = PromptConfig<Map<String, dynamic>, Map<String, dynamic>>(
     name: registryName,
     variant: null, // variant is already baked into the name
-    model: model != null ? _SimpleModelRefImpl(model) : null,
+    model: model != null ? modelRef(model) : null,
     config: config,
     toolNames: tools,
     messagesTemplate: parsedPrompt.template,
@@ -186,16 +184,4 @@ String _registryDefinitionKey(String name, String? variant, String? ns) {
   final prefix = ns != null && ns.isNotEmpty ? '$ns/' : '';
   final suffix = variant != null ? '.$variant' : '';
   return '$prefix$name$suffix';
-}
-
-/// Simple ModelRef implementation used when loading prompts from files.
-class _SimpleModelRefImpl implements ModelRef<Map<String, dynamic>> {
-  @override
-  final String name;
-  @override
-  final Map<String, dynamic>? config = null;
-  @override
-  final SchemanticType<Map<String, dynamic>>? customOptions = null;
-
-  _SimpleModelRefImpl(this.name);
 }

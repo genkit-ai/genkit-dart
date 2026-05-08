@@ -88,10 +88,13 @@ dp.Role genkitRoleToDpRole(genkit.Role role) {
   if (role == genkit.Role.model) return dp.Role.model;
   if (role == genkit.Role.system) return dp.Role.system;
   if (role == genkit.Role.tool) return dp.Role.tool;
-  return dp.Role.user; // fallback
+  throw ArgumentError('Unknown Genkit role: $role');
 }
 
 /// Converts a Genkit [genkit.Part] to a dotprompt [dp.Part].
+///
+/// Uses JSON-based dispatch because Genkit Part types are JSON-backed
+/// and may not preserve subtype identity when accessed from a Message.
 dp.Part genkitPartToDpPart(genkit.Part part) {
   final json = part.toJson();
   if (json.containsKey('text')) {
@@ -126,6 +129,9 @@ dp.Part genkitPartToDpPart(genkit.Part part) {
       ),
     );
   }
-  // Fallback: text part
+  if (json.containsKey('data')) {
+    return dp.DataPart(data: json['data'] as Map<String, dynamic>? ?? {});
+  }
+  // Fallback
   return dp.TextPart(text: json.toString());
 }

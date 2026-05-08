@@ -18,15 +18,14 @@ import 'dotprompt_registry.dart';
 /// Stub implementation of [loadPromptFolder].
 ///
 /// This is the default fallback used when neither `dart:io` nor
-/// `dart:js_interop` is available. It throws [UnimplementedError] because
-/// prompt loading from the filesystem is not supported on this platform.
+/// `dart:js_interop` is available. Filesystem-based prompt loading is not
+/// supported on this platform, so this is a silent no-op. Prompts can
+/// still be defined programmatically using `Genkit.definePrompt`.
 void loadPromptFolder(
   Registry registry,
   DotpromptRegistry dotpromptRegistry, {
   String dir = './prompts',
   String ns = '',
 }) {
-  throw UnimplementedError(
-    'loadPromptFolder is not supported on this platform.',
-  );
+  // No-op: filesystem-based prompt loading is not available on this platform.
 }

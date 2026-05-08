@@ -162,10 +162,10 @@ class ExecutablePrompt<Input> {
   final DotpromptRegistry _dotpromptRegistry;
   final PromptConfig<dynamic, Input> _config;
 
-  // Memoized compiled templates
-  dp.PromptFunction? _compiledSystem;
-  dp.PromptFunction? _compiledPrompt;
-  dp.PromptFunction? _compiledMessages;
+  // Memoized compiled template futures (Future-based for concurrency safety).
+  Future<dp.PromptFunction>? _compiledSystem;
+  Future<dp.PromptFunction>? _compiledPrompt;
+  Future<dp.PromptFunction>? _compiledMessages;
 
   ExecutablePrompt._({
     required Registry registry,
@@ -239,7 +239,52 @@ class ExecutablePrompt<Input> {
   Future<GenerateResponseHelper> call(
     Input? input, [
     PromptGenerateOptions? opts,
-  ]) async {
+  ]) => _generate(input, opts);
+
+  /// Streams a response by rendering the prompt and calling the model.
+  ActionStream<GenerateResponseChunk, GenerateResponseHelper> stream(
+    Input? input, [
+    PromptGenerateOptions? opts,
+  ]) {
+    final streamController = StreamController<GenerateResponseChunk>();
+    final actionStream =
+        ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
+          streamController.stream,
+        );
+
+    _generate(
+      input,
+      opts,
+      onChunk: (chunk) {
+        if (!streamController.isClosed) {
+          streamController.add(chunk);
+        }
+      },
+    ).then(
+      (result) {
+        actionStream.setResult(result);
+        if (!streamController.isClosed) {
+          streamController.close();
+        }
+      },
+      onError: (Object e, StackTrace s) {
+        actionStream.setError(e, s);
+        if (!streamController.isClosed) {
+          streamController.addError(e, s);
+          streamController.close();
+        }
+      },
+    );
+
+    return actionStream;
+  }
+
+  /// Internal generate implementation shared by [call] and [stream].
+  Future<GenerateResponseHelper> _generate(
+    Input? input,
+    PromptGenerateOptions? opts, {
+    StreamingCallback<GenerateResponseChunk>? onChunk,
+  }) async {
     final options = await render(input, opts);
 
     // Resolve tools from both config and opts into a child registry
@@ -263,7 +308,7 @@ class ExecutablePrompt<Input> {
     return generateHelper(
       registry,
       messages: options.messages,
-      model: options.model != null ? _SimpleModelRef(options.model!) : null,
+      model: options.model != null ? modelRef(options.model!) : null,
       config: options.config,
       tools: options.tools,
       toolChoice: options.toolChoice,
@@ -272,46 +317,18 @@ class ExecutablePrompt<Input> {
       output: options.output,
       context: opts?.context,
       middleware: middleware.isNotEmpty ? middleware : null,
+      onChunk: onChunk,
     );
-  }
-
-  /// Streams a response by rendering the prompt and calling the model.
-  ActionStream<GenerateResponseChunk, GenerateResponseHelper> stream(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) {
-    final streamController = StreamController<GenerateResponseChunk>();
-    final actionStream =
-        ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-          streamController.stream,
-        );
-
-    call(input, opts).then(
-      (result) {
-        actionStream.setResult(result);
-        if (!streamController.isClosed) {
-          streamController.close();
-        }
-      },
-      onError: (Object e, StackTrace s) {
-        actionStream.setError(e, s);
-        if (!streamController.isClosed) {
-          streamController.addError(e, s);
-          streamController.close();
-        }
-      },
-    );
-
-    return actionStream;
   }
 
   // --- Internal rendering methods ---
 
   Future<void> _renderSystem(Input? input, List<Message> messages) async {
     if (_config.system != null) {
-      // Handlebars template
-      _compiledSystem ??= await _dotpromptRegistry.compile(_config.system!);
-      final rendered = await _compiledSystem!.render(
+      // Handlebars template (Future-based memoization for concurrency safety)
+      _compiledSystem ??= _dotpromptRegistry.compile(_config.system!);
+      final compiled = await _compiledSystem!;
+      final rendered = await compiled.render(
         dp.DataArgument(input: _inputToMap(input)),
       );
       messages.addAll(rendered.messages.map(dpMessageToGenkitMessage));
@@ -332,10 +349,11 @@ class ExecutablePrompt<Input> {
   ) async {
     if (_config.messagesTemplate != null) {
       // Handlebars template for messages
-      _compiledMessages ??= await _dotpromptRegistry.compile(
+      _compiledMessages ??= _dotpromptRegistry.compile(
         _config.messagesTemplate!,
       );
-      final rendered = await _compiledMessages!.render(
+      final compiled = await _compiledMessages!;
+      final rendered = await compiled.render(
         dp.DataArgument(
           input: _inputToMap(input),
           messages: opts?.messages?.map(genkitMessageToDpMessage).toList(),
@@ -354,9 +372,10 @@ class ExecutablePrompt<Input> {
 
   Future<void> _renderUserPrompt(Input? input, List<Message> messages) async {
     if (_config.prompt != null) {
-      // Handlebars template
-      _compiledPrompt ??= await _dotpromptRegistry.compile(_config.prompt!);
-      final rendered = await _compiledPrompt!.render(
+      // Handlebars template (Future-based memoization for concurrency safety)
+      _compiledPrompt ??= _dotpromptRegistry.compile(_config.prompt!);
+      final compiled = await _compiledPrompt!;
+      final rendered = await compiled.render(
         dp.DataArgument(input: _inputToMap(input)),
       );
       // The dotprompt render may produce multiple messages; add all as user
@@ -388,21 +407,8 @@ class ExecutablePrompt<Input> {
 /// Converts a config value to a Map. Follows the same pattern as generate.dart.
 Map<String, dynamic>? _configToMap(dynamic config) {
   if (config == null) return null;
-  return config is Map
-      ? config as Map<String, dynamic>
-      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
-}
-
-/// Private ModelRef implementation for internal use.
-class _SimpleModelRef implements ModelRef<dynamic> {
-  @override
-  final String name;
-  @override
-  final dynamic config = null;
-  @override
-  final SchemanticType<dynamic>? customOptions = null;
-
-  _SimpleModelRef(this.name);
+  if (config is Map) return config as Map<String, dynamic>;
+  return (config as dynamic).toJson() as Map<String, dynamic>;
 }
 
 /// Defines an executable prompt and registers it in the registry.
