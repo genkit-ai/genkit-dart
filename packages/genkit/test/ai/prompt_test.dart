@@ -565,6 +565,189 @@ void main() {
       expect(sysText, contains('Template system helpful'));
     });
 
+    test(
+      'renders system + messages + prompt in correct order',
+      () async {
+        final ep = definePromptAction(
+          registry,
+          dpRegistry,
+          PromptConfig(
+            name: 'test',
+            system: 'system {{name}}',
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hi')],
+              ),
+              Message(
+                role: Role.model,
+                content: [TextPart(text: 'bye')],
+              ),
+            ],
+            prompt: 'user prompt {{name}}',
+          ),
+        );
+
+        final options = await ep.render({'name': 'foo'});
+
+        // Order should be: system, messages history, user prompt
+        expect(options.messages!.length, equals(4));
+        expect(options.messages![0].role, equals(Role.system));
+        expect(
+          options.messages![0].content[0].toJson()['text'],
+          contains('system foo'),
+        );
+        expect(options.messages![1].role, equals(Role.user));
+        expect(
+          options.messages![1].content[0].toJson()['text'],
+          equals('hi'),
+        );
+        expect(options.messages![2].role, equals(Role.model));
+        expect(
+          options.messages![2].content[0].toJson()['text'],
+          equals('bye'),
+        );
+        expect(options.messages![3].role, equals(Role.user));
+        expect(
+          options.messages![3].content[0].toJson()['text'],
+          contains('user prompt foo'),
+        );
+      },
+    );
+
+    test(
+      'renders multi-role messagesTemplate with {{role}} helper',
+      () async {
+        final ep = definePromptAction(
+          registry,
+          dpRegistry,
+          PromptConfig(
+            name: 'test',
+            messagesTemplate:
+                '{{role "system"}}\nsystem {{name}}\n{{role "user"}}\nuser {{name}}',
+          ),
+        );
+
+        final options = await ep.render({'name': 'foo'});
+
+        expect(options.messages!.length, equals(2));
+        expect(options.messages![0].role, equals(Role.system));
+        expect(
+          options.messages![0].content[0].toJson()['text'],
+          contains('system foo'),
+        );
+        expect(options.messages![1].role, equals(Role.user));
+        expect(
+          options.messages![1].content[0].toJson()['text'],
+          contains('user foo'),
+        );
+      },
+    );
+
+    test(
+      'messagesTemplate with opts.messages prepends history',
+      () async {
+        final ep = definePromptAction(
+          registry,
+          dpRegistry,
+          PromptConfig(
+            name: 'test',
+            messagesTemplate: 'hello {{name}}',
+          ),
+        );
+
+        final history = [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'previous question')],
+          ),
+          Message(
+            role: Role.model,
+            content: [TextPart(text: 'previous answer')],
+          ),
+        ];
+
+        final options = await ep.render(
+          {'name': 'World'},
+          PromptGenerateOptions(messages: history),
+        );
+
+        // History should be inserted + template message
+        expect(options.messages!.length, greaterThanOrEqualTo(3));
+        // The template message should contain rendered content
+        final allText = options.messages!
+            .map((m) => m.content[0].toJson()['text'])
+            .join(', ');
+        expect(allText, contains('hello World'));
+        expect(allText, contains('previous question'));
+      },
+    );
+
+    test(
+      'messagesTemplate with {{history}} controls history placement',
+      () async {
+        final ep = definePromptAction(
+          registry,
+          dpRegistry,
+          PromptConfig(
+            name: 'test',
+            messagesTemplate: 'hello {{name}}{{history}}',
+          ),
+        );
+
+        final history = [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'prev Q')],
+          ),
+          Message(
+            role: Role.model,
+            content: [TextPart(text: 'prev A')],
+          ),
+        ];
+
+        final options = await ep.render(
+          {'name': 'World'},
+          PromptGenerateOptions(messages: history),
+        );
+
+        // Template message first, then history
+        expect(options.messages!.length, greaterThanOrEqualTo(3));
+        // First message should be from the template
+        expect(
+          options.messages![0].content[0].toJson()['text'],
+          contains('hello World'),
+        );
+      },
+    );
+
+    test('preserves output config through render', () async {
+      final outputConfig = GenerateActionOutputConfig.fromJson({
+        'format': 'json',
+        'jsonSchema': {
+          'type': 'object',
+          'properties': {
+            'name': {'type': 'string'},
+          },
+        },
+      });
+
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          prompt: 'Generate a name',
+          output: outputConfig,
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.output, isNotNull);
+      expect(options.output!.toJson()['format'], equals('json'));
+    });
+
     test('renders with null input', () async {
       final ep = definePromptAction(
         registry,
