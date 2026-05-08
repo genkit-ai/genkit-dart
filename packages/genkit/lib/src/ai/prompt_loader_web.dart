@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'prompt_loader_stub.dart'
-    if (dart.library.io) 'prompt_loader_io.dart'
-    if (dart.library.js_interop) 'prompt_loader_web.dart';
+import '../core/registry.dart';
+import 'dotprompt_registry.dart';
+
+/// Web implementation of [loadPromptFolder].
+///
+/// Loading `.prompt` files from the filesystem is not supported in browser
+/// environments, so this is a silent no-op. Prompts can still be defined
+/// programmatically using `Genkit.definePrompt`.
+void loadPromptFolder(
+  Registry registry,
+  DotpromptRegistry dotpromptRegistry, {
+  String dir = './prompts',
+  String ns = '',
+}) {
+  // No-op: filesystem-based prompt loading is not available on the web.
+}

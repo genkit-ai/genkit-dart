@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'prompt_loader_stub.dart'
-    if (dart.library.io) 'prompt_loader_io.dart'
-    if (dart.library.js_interop) 'prompt_loader_web.dart';
+import '../core/registry.dart';
+import 'dotprompt_registry.dart';
+
+/// Stub implementation of [loadPromptFolder].
+///
+/// This is the default fallback used when neither `dart:io` nor
+/// `dart:js_interop` is available. It throws [UnimplementedError] because
+/// prompt loading from the filesystem is not supported on this platform.
+void loadPromptFolder(
+  Registry registry,
+  DotpromptRegistry dotpromptRegistry, {
+  String dir = './prompts',
+  String ns = '',
+}) {
+  throw UnimplementedError(
+    'loadPromptFolder is not supported on this platform.',
+  );
+}
