@@ -296,10 +296,7 @@ final class Genkit {
   /// final hi = await ai.prompt('hi');
   /// final response = await hi({'name': 'Sparky'});
   /// ```
-  Future<ExecutablePrompt> prompt(
-    String name, {
-    String? variant,
-  }) {
+  Future<ExecutablePrompt> prompt(String name, {String? variant}) {
     return lookupPrompt(registry, name, variant: variant);
   }
 

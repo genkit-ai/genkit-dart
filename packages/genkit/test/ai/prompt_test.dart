@@ -33,10 +33,7 @@ void main() {
     });
 
     test('fullName includes variant', () {
-      final config = PromptConfig(
-        name: 'test',
-        variant: 'v2',
-      );
+      final config = PromptConfig(name: 'test', variant: 'v2');
       expect(config.fullName, equals('test.v2'));
     });
 
@@ -106,26 +103,16 @@ void main() {
     });
 
     test('returns an ExecutablePrompt', () {
-      final config = PromptConfig(
-        name: 'greet',
-        prompt: 'Hello {{name}}',
-      );
+      final config = PromptConfig(name: 'greet', prompt: 'Hello {{name}}');
 
-      final ep = definePromptAction(
-        registry,
-        dpRegistry,
-        config,
-      );
+      final ep = definePromptAction(registry, dpRegistry, config);
 
       expect(ep, isA<ExecutablePrompt>());
       expect(ep.ref.name, equals('greet'));
     });
 
     test('registers a PromptAction in the registry', () async {
-      final config = PromptConfig(
-        name: 'greet',
-        prompt: 'Hello {{name}}',
-      );
+      final config = PromptConfig(name: 'greet', prompt: 'Hello {{name}}');
 
       definePromptAction(registry, dpRegistry, config);
 
@@ -141,11 +128,7 @@ void main() {
         prompt: 'Good day, {{name}}',
       );
 
-      final ep = definePromptAction(
-        registry,
-        dpRegistry,
-        config,
-      );
+      final ep = definePromptAction(registry, dpRegistry, config);
 
       expect(ep.ref.name, equals('greet.formal'));
 
@@ -262,11 +245,7 @@ void main() {
       final ep = definePromptAction(
         registry,
         dpRegistry,
-        PromptConfig(
-          name: 'test',
-          messages: history,
-          prompt: 'New question',
-        ),
+        PromptConfig(name: 'test', messages: history, prompt: 'New question'),
       );
 
       final options = await ep.render({});
@@ -355,11 +334,7 @@ void main() {
       final ep = definePromptAction(
         registry,
         dpRegistry,
-        PromptConfig(
-          name: 'test',
-          toolChoice: 'required',
-          prompt: 'Hello',
-        ),
+        PromptConfig(name: 'test', toolChoice: 'required', prompt: 'Hello'),
       );
 
       final options = await ep.render({});
@@ -371,11 +346,7 @@ void main() {
       final ep = definePromptAction(
         registry,
         dpRegistry,
-        PromptConfig(
-          name: 'test',
-          toolChoice: 'auto',
-          prompt: 'Hello',
-        ),
+        PromptConfig(name: 'test', toolChoice: 'auto', prompt: 'Hello'),
       );
 
       final options = await ep.render(
@@ -593,131 +564,113 @@ void main() {
       expect(sysText, contains('Template system helpful'));
     });
 
-    test(
-      'renders system + messages + prompt in correct order',
-      () async {
-        final ep = definePromptAction(
-          registry,
-          dpRegistry,
-          PromptConfig(
-            name: 'test',
-            system: 'system {{name}}',
-            messages: [
-              Message(
-                role: Role.user,
-                content: [TextPart(text: 'hi')],
-              ),
-              Message(
-                role: Role.model,
-                content: [TextPart(text: 'bye')],
-              ),
-            ],
-            prompt: 'user prompt {{name}}',
-          ),
-        );
+    test('renders system + messages + prompt in correct order', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          system: 'system {{name}}',
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hi')],
+            ),
+            Message(
+              role: Role.model,
+              content: [TextPart(text: 'bye')],
+            ),
+          ],
+          prompt: 'user prompt {{name}}',
+        ),
+      );
 
-        final options = await ep.render({'name': 'foo'});
+      final options = await ep.render({'name': 'foo'});
 
-        // Order should be: system, messages history, user prompt
-        expect(options.messages.length, equals(4));
-        expect(options.messages[0].role, equals(Role.system));
-        expect(
-          options.messages[0].content[0].toJson()['text'],
-          contains('system foo'),
-        );
-        expect(options.messages[1].role, equals(Role.user));
-        expect(
-          options.messages[1].content[0].toJson()['text'],
-          equals('hi'),
-        );
-        expect(options.messages[2].role, equals(Role.model));
-        expect(
-          options.messages[2].content[0].toJson()['text'],
-          equals('bye'),
-        );
-        expect(options.messages[3].role, equals(Role.user));
-        expect(
-          options.messages[3].content[0].toJson()['text'],
-          contains('user prompt foo'),
-        );
-      },
-    );
+      // Order should be: system, messages history, user prompt
+      expect(options.messages.length, equals(4));
+      expect(options.messages[0].role, equals(Role.system));
+      expect(
+        options.messages[0].content[0].toJson()['text'],
+        contains('system foo'),
+      );
+      expect(options.messages[1].role, equals(Role.user));
+      expect(options.messages[1].content[0].toJson()['text'], equals('hi'));
+      expect(options.messages[2].role, equals(Role.model));
+      expect(options.messages[2].content[0].toJson()['text'], equals('bye'));
+      expect(options.messages[3].role, equals(Role.user));
+      expect(
+        options.messages[3].content[0].toJson()['text'],
+        contains('user prompt foo'),
+      );
+    });
 
-    test(
-      'renders multi-role messagesTemplate with {{role}} helper',
-      () async {
-        final ep = definePromptAction(
-          registry,
-          dpRegistry,
-          PromptConfig(
-            name: 'test',
-            messagesTemplate:
-                '{{role "system"}}\nsystem {{name}}\n{{role "user"}}\nuser {{name}}',
-          ),
-        );
+    test('renders multi-role messagesTemplate with {{role}} helper', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          messagesTemplate:
+              '{{role "system"}}\nsystem {{name}}\n{{role "user"}}\nuser {{name}}',
+        ),
+      );
 
-        final options = await ep.render({'name': 'foo'});
+      final options = await ep.render({'name': 'foo'});
 
-        expect(options.messages.length, equals(2));
-        expect(options.messages[0].role, equals(Role.system));
-        expect(
-          options.messages[0].content[0].toJson()['text'],
-          contains('system foo'),
-        );
-        expect(options.messages[1].role, equals(Role.user));
-        expect(
-          options.messages[1].content[0].toJson()['text'],
-          contains('user foo'),
-        );
-      },
-    );
+      expect(options.messages.length, equals(2));
+      expect(options.messages[0].role, equals(Role.system));
+      expect(
+        options.messages[0].content[0].toJson()['text'],
+        contains('system foo'),
+      );
+      expect(options.messages[1].role, equals(Role.user));
+      expect(
+        options.messages[1].content[0].toJson()['text'],
+        contains('user foo'),
+      );
+    });
 
-    test(
-      'messagesTemplate with opts.messages prepends history',
-      () async {
-        final ep = definePromptAction(
-          registry,
-          dpRegistry,
-          PromptConfig(
-            name: 'test',
-            messagesTemplate: 'hello {{name}}',
-          ),
-        );
+    test('messagesTemplate with opts.messages prepends history', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(name: 'test', messagesTemplate: 'hello {{name}}'),
+      );
 
-        final history = [
-          Message(
-            role: Role.user,
-            content: [TextPart(text: 'hi')],
-          ),
-          Message(
-            role: Role.model,
-            content: [TextPart(text: 'bye')],
-          ),
-        ];
+      final history = [
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'hi')],
+        ),
+        Message(
+          role: Role.model,
+          content: [TextPart(text: 'bye')],
+        ),
+      ];
 
-        final options = await ep.render(
-          {'name': 'World'},
-          PromptGenerateOptions(messages: history),
-        );
+      final options = await ep.render({
+        'name': 'World',
+      }, PromptGenerateOptions(messages: history));
 
-        // JS: messages: [template, history user, history model] — 3 messages
-        // History is inserted after the template content
-        expect(options.messages.length, equals(3));
-        // Verify all messages are present with correct content
-        final texts = options.messages
-            .map((m) => m.content[0].toJson()['text'] as String)
-            .toList();
-        expect(texts.any((t) => t.contains('hello World')), isTrue);
-        expect(texts.any((t) => t.contains('hi')), isTrue);
-        expect(texts.any((t) => t.contains('bye')), isTrue);
-        // History messages should have purpose metadata
-        final historyMsgs = options.messages
-            .where((m) =>
-                (m.toJson()['metadata'] as Map?)?['purpose'] == 'history')
-            .toList();
-        expect(historyMsgs.length, equals(2));
-      },
-    );
+      // JS: messages: [template, history user, history model] — 3 messages
+      // History is inserted after the template content
+      expect(options.messages.length, equals(3));
+      // Verify all messages are present with correct content
+      final texts = options.messages
+          .map((m) => m.content[0].toJson()['text'] as String)
+          .toList();
+      expect(texts.any((t) => t.contains('hello World')), isTrue);
+      expect(texts.any((t) => t.contains('hi')), isTrue);
+      expect(texts.any((t) => t.contains('bye')), isTrue);
+      // History messages should have purpose metadata
+      final historyMsgs = options.messages
+          .where(
+            (m) => (m.toJson()['metadata'] as Map?)?['purpose'] == 'history',
+          )
+          .toList();
+      expect(historyMsgs.length, equals(2));
+    });
 
     test(
       'messagesTemplate with {{history}} controls history placement',
@@ -742,10 +695,9 @@ void main() {
           ),
         ];
 
-        final options = await ep.render(
-          {'name': 'World'},
-          PromptGenerateOptions(messages: history),
-        );
+        final options = await ep.render({
+          'name': 'World',
+        }, PromptGenerateOptions(messages: history));
 
         // JS: messages: [template user, history user (purpose:history),
         //                history model (purpose:history)]
@@ -758,18 +710,13 @@ void main() {
         );
         // History messages should have purpose metadata
         final historyMsgs = options.messages
-            .where((m) =>
-                (m.toJson()['metadata'] as Map?)?['purpose'] == 'history')
+            .where(
+              (m) => (m.toJson()['metadata'] as Map?)?['purpose'] == 'history',
+            )
             .toList();
         expect(historyMsgs.length, equals(2));
-        expect(
-          historyMsgs[0].content[0].toJson()['text'],
-          equals('prev Q'),
-        );
-        expect(
-          historyMsgs[1].content[0].toJson()['text'],
-          equals('prev A'),
-        );
+        expect(historyMsgs[0].content[0].toJson()['text'], equals('prev Q'));
+        expect(historyMsgs[1].content[0].toJson()['text'], equals('prev A'));
       },
     );
 
@@ -916,10 +863,7 @@ void main() {
     });
 
     test('definePrompt returns ExecutablePrompt', () {
-      final ep = genkit.definePrompt(
-        name: 'hi',
-        prompt: 'Say hi to {{name}}',
-      );
+      final ep = genkit.definePrompt(name: 'hi', prompt: 'Say hi to {{name}}');
 
       expect(ep, isA<ExecutablePrompt>());
       expect(ep.ref.name, equals('hi'));
@@ -937,10 +881,7 @@ void main() {
     });
 
     test('prompt() looks up defined prompts', () async {
-      genkit.definePrompt(
-        name: 'greeting',
-        prompt: 'Hello {{name}}',
-      );
+      genkit.definePrompt(name: 'greeting', prompt: 'Hello {{name}}');
 
       final ep = await genkit.prompt('greeting');
       expect(ep, isA<ExecutablePrompt>());
@@ -972,10 +913,7 @@ void main() {
         prompt: 'Help me with {{task}}',
       );
 
-      final options = await ep.render({
-        'kind': 'coding',
-        'task': 'Dart',
-      });
+      final options = await ep.render({'kind': 'coding', 'task': 'Dart'});
 
       expect(options.messages.length, equals(2));
       expect(options.messages[0].role, equals(Role.system));
@@ -1049,6 +987,69 @@ void main() {
     });
   });
 
+  group('Genkit promptDir integration', () {
+    late Directory tempDir;
+    late Genkit genkit;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('genkit_promptdir_test_');
+    });
+
+    tearDown(() async {
+      await genkit.shutdown();
+      tempDir.deleteSync(recursive: true);
+    });
+
+    test('loads .prompt files from promptDir on construction', () async {
+      File(
+        p.join(tempDir.path, 'hello.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
+
+      genkit = Genkit(isDevEnv: false, promptDir: tempDir.path);
+
+      final ep = await genkit.prompt('hello');
+      expect(ep, isA<ExecutablePrompt>());
+
+      final options = await ep.render({'name': 'World'});
+      expect(options.messages.length, equals(1));
+      expect(options.messages[0].role, equals(Role.user));
+      expect(
+        options.messages[0].content[0].toJson()['text'],
+        equals('Hello World!'),
+      );
+    });
+
+    test('loads prompt with frontmatter from promptDir', () async {
+      File(p.join(tempDir.path, 'greeting.prompt')).writeAsStringSync('''
+---
+model: test-model
+config:
+  temperature: 0.7
+---
+Hello {{name}}!
+''');
+
+      genkit = Genkit(isDevEnv: false, promptDir: tempDir.path);
+
+      final ep = await genkit.prompt('greeting');
+      expect(ep, isA<ExecutablePrompt>());
+
+      final options = await ep.render({'name': 'Dart'});
+      expect(options.model, equals('test-model'));
+      expect(options.config!['temperature'], equals(0.7));
+      expect(
+        options.messages[0].content[0].toJson()['text'],
+        equals('Hello Dart!'),
+      );
+    });
+
+    test('does not load prompts when promptDir is null', () async {
+      genkit = Genkit(isDevEnv: false, promptDir: null);
+
+      expect(() => genkit.prompt('anything'), throwsA(isA<GenkitException>()));
+    });
+  });
+
   group('loadPromptFolder', () {
     late Registry registry;
     late DotpromptRegistry dpRegistry;
@@ -1065,8 +1066,9 @@ void main() {
     });
 
     test('loads a simple .prompt file', () async {
-      File(p.join(tempDir.path, 'hello.prompt'))
-          .writeAsStringSync('Hello {{name}}!');
+      File(
+        p.join(tempDir.path, 'hello.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
@@ -1097,17 +1099,20 @@ Hello {{name}}!
     });
 
     test('loads variant prompts', () async {
-      File(p.join(tempDir.path, 'greeting.prompt'))
-          .writeAsStringSync('Hi {{name}}!');
-      File(p.join(tempDir.path, 'greeting.formal.prompt'))
-          .writeAsStringSync('Good day, {{name}}.');
+      File(
+        p.join(tempDir.path, 'greeting.prompt'),
+      ).writeAsStringSync('Hi {{name}}!');
+      File(
+        p.join(tempDir.path, 'greeting.formal.prompt'),
+      ).writeAsStringSync('Good day, {{name}}.');
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final defaultAction =
-          await registry.lookupAction('prompt', 'greeting');
-      final formalAction =
-          await registry.lookupAction('prompt', 'greeting.formal');
+      final defaultAction = await registry.lookupAction('prompt', 'greeting');
+      final formalAction = await registry.lookupAction(
+        'prompt',
+        'greeting.formal',
+      );
 
       expect(defaultAction, isNotNull);
       expect(formalAction, isNotNull);
@@ -1115,11 +1120,13 @@ Hello {{name}}!
 
     test('registers underscore-prefixed files as partials', () async {
       // Create a partial
-      File(p.join(tempDir.path, '_header.prompt'))
-          .writeAsStringSync('Welcome, {{name}}!');
+      File(
+        p.join(tempDir.path, '_header.prompt'),
+      ).writeAsStringSync('Welcome, {{name}}!');
       // Create a prompt that uses the partial
-      File(p.join(tempDir.path, 'page.prompt'))
-          .writeAsStringSync('{{> header}} How can I help?');
+      File(
+        p.join(tempDir.path, 'page.prompt'),
+      ).writeAsStringSync('{{> header}} How can I help?');
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
@@ -1135,8 +1142,9 @@ Hello {{name}}!
     test('loads prompts from subdirectories', () async {
       final subDir = Directory(p.join(tempDir.path, 'sub'));
       subDir.createSync();
-      File(p.join(subDir.path, 'nested.prompt'))
-          .writeAsStringSync('Nested prompt');
+      File(
+        p.join(subDir.path, 'nested.prompt'),
+      ).writeAsStringSync('Nested prompt');
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
@@ -1154,15 +1162,11 @@ Hello {{name}}!
     });
 
     test('loads with namespace', () async {
-      File(p.join(tempDir.path, 'hello.prompt'))
-          .writeAsStringSync('Hello {{name}}!');
+      File(
+        p.join(tempDir.path, 'hello.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
 
-      loadPromptFolder(
-        registry,
-        dpRegistry,
-        dir: tempDir.path,
-        ns: 'myapp',
-      );
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path, ns: 'myapp');
 
       final action = await registry.lookupAction('prompt', 'myapp/hello');
       expect(action, isNotNull);
@@ -1181,12 +1185,15 @@ Hello {{name}}!
     });
 
     test('ignores non-prompt files', () async {
-      File(p.join(tempDir.path, 'hello.prompt'))
-          .writeAsStringSync('Hello {{name}}!');
-      File(p.join(tempDir.path, 'readme.md'))
-          .writeAsStringSync('# Not a prompt');
-      File(p.join(tempDir.path, 'config.json'))
-          .writeAsStringSync('{"key": "value"}');
+      File(
+        p.join(tempDir.path, 'hello.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
+      File(
+        p.join(tempDir.path, 'readme.md'),
+      ).writeAsStringSync('# Not a prompt');
+      File(
+        p.join(tempDir.path, 'config.json'),
+      ).writeAsStringSync('{"key": "value"}');
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
@@ -1253,4 +1260,3 @@ Hello {{name}}!
     });
   });
 }
-

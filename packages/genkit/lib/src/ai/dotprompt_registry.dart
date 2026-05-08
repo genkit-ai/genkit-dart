@@ -25,7 +25,7 @@ class DotpromptRegistry {
   final dp.Dotprompt _dotprompt;
 
   DotpromptRegistry([dp.DotpromptOptions? options])
-      : _dotprompt = dp.Dotprompt(options);
+    : _dotprompt = dp.Dotprompt(options);
 
   /// The underlying [dp.Dotprompt] instance.
   dp.Dotprompt get dotprompt => _dotprompt;
@@ -42,8 +42,7 @@ class DotpromptRegistry {
     String source,
     dp.DataArgument data, [
     Map<String, dynamic>? options,
-  ]) =>
-      _dotprompt.render(source, data, options);
+  ]) => _dotprompt.render(source, data, options);
 
   /// Renders metadata for a template without rendering the full template.
   Future<dp.PromptMetadata> renderMetadata(String source) =>

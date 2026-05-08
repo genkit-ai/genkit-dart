@@ -47,25 +47,25 @@ genkit.Part dpPartToGenkitPart(dp.Part part) {
   return switch (part) {
     dp.TextPart(:final text) => genkit.TextPart(text: text),
     dp.MediaPart(:final media) => genkit.MediaPart(
-        media: genkit.Media(
-          contentType: media.contentType,
-          url: media.url ?? media.data ?? '',
-        ),
+      media: genkit.Media(
+        contentType: media.contentType,
+        url: media.url ?? media.data ?? '',
       ),
+    ),
     dp.ToolRequestPart(:final toolRequest) => genkit.ToolRequestPart(
-        toolRequest: genkit.ToolRequest(
-          ref: toolRequest.ref,
-          name: toolRequest.name,
-          input: toolRequest.input,
-        ),
+      toolRequest: genkit.ToolRequest(
+        ref: toolRequest.ref,
+        name: toolRequest.name,
+        input: toolRequest.input,
       ),
+    ),
     dp.ToolResponsePart(:final toolResponse) => genkit.ToolResponsePart(
-        toolResponse: genkit.ToolResponse(
-          ref: toolResponse.ref,
-          name: toolResponse.name,
-          output: toolResponse.output,
-        ),
+      toolResponse: genkit.ToolResponse(
+        ref: toolResponse.ref,
+        name: toolResponse.name,
+        output: toolResponse.output,
       ),
+    ),
     dp.DataPart(:final data) => genkit.DataPart(data: data),
     // For PendingPart and MetadataPart, convert to DataPart with metadata
     dp.PendingPart() => genkit.DataPart(data: part.toJson()),

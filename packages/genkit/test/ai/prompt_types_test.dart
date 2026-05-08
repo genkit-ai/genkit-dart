@@ -118,10 +118,7 @@ void main() {
         final genkitPart = dpPartToGenkitPart(dpPart);
 
         expect(genkitPart, isA<DataPart>());
-        expect(
-          (genkitPart as DataPart).data,
-          equals({'custom': 'data'}),
-        );
+        expect((genkitPart as DataPart).data, equals({'custom': 'data'}));
       });
     });
 
@@ -247,9 +244,7 @@ void main() {
       test('message roundtrip preserves data', () {
         final original = Message(
           role: Role.user,
-          content: [
-            TextPart(text: 'Hello world'),
-          ],
+          content: [TextPart(text: 'Hello world')],
         );
 
         final dpMsg = genkitMessageToDpMessage(original);

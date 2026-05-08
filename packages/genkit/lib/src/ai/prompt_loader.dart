@@ -92,8 +92,7 @@ void _loadPromptFolderRecursively(
       }
     } else if (entity is Directory) {
       // Recurse into subdirectories
-      final childSubDir =
-          subDir.isEmpty ? fileName : p.join(subDir, fileName);
+      final childSubDir = subDir.isEmpty ? fileName : p.join(subDir, fileName);
       _loadPromptFolderRecursively(
         registry,
         dotpromptRegistry,
@@ -142,8 +141,7 @@ void _loadPrompt(
   GenerateActionOutputConfig? outputConfig;
   if (metadata.output != null) {
     outputConfig = GenerateActionOutputConfig.fromJson({
-      if (metadata.output!.format != null)
-        'format': metadata.output!.format,
+      if (metadata.output!.format != null) 'format': metadata.output!.format,
       if (metadata.output!.schema != null)
         'jsonSchema': metadata.output!.schema,
     });
@@ -154,7 +152,8 @@ void _loadPrompt(
     'type': 'prompt',
     'prompt': {
       'name': name,
-      if (variant != null) 'variant': variant, // ignore: use_null_aware_elements
+      if (variant != null)
+        'variant': variant, // ignore: use_null_aware_elements
       if (model != null) 'model': model, // ignore: use_null_aware_elements
       if (config != null) 'config': config, // ignore: use_null_aware_elements
       if (tools != null) 'tools': tools, // ignore: use_null_aware_elements
@@ -181,9 +180,7 @@ void _loadPrompt(
     metadata: promptMeta,
   );
 
-  _logger.fine(
-    'Registered prompt "$registryName" from "$filePath"',
-  );
+  _logger.fine('Registered prompt "$registryName" from "$filePath"');
 }
 
 String _registryDefinitionKey(String name, String? variant, String? ns) {

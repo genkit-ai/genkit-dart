@@ -172,10 +172,10 @@ class ExecutablePrompt<Input> {
     required DotpromptRegistry dotpromptRegistry,
     required PromptConfig<dynamic, Input> config,
     Map<String, dynamic>? metadata,
-  })  : _registry = registry,
-        _dotpromptRegistry = dotpromptRegistry,
-        _config = config,
-        ref = (name: config.fullName, metadata: metadata);
+  }) : _registry = registry,
+       _dotpromptRegistry = dotpromptRegistry,
+       _config = config,
+       ref = (name: config.fullName, metadata: metadata);
 
   /// Renders the prompt template with the given input, producing
   /// [GenerateActionOptions] suitable for the `generate` action.
@@ -200,10 +200,7 @@ class ExecutablePrompt<Input> {
     // Resolve config — merge config maps
     final configMap = _configToMap(_config.config);
     final optsConfigMap = _configToMap(opts?.config);
-    final resolvedConfig = <String, dynamic>{
-      ...?configMap,
-      ...?optsConfigMap,
-    };
+    final resolvedConfig = <String, dynamic>{...?configMap, ...?optsConfigMap};
 
     // Resolve tools
     final resolvedToolNames = <String>[
@@ -246,18 +243,13 @@ class ExecutablePrompt<Input> {
     final options = await render(input, opts);
 
     // Resolve tools from both config and opts into a child registry
-    final allTools = <Tool>[
-      ...?_config.tools,
-      ...?opts?.tools,
-    ];
+    final allTools = <Tool>[...?_config.tools, ...?opts?.tools];
 
     final middleware = <GenerateMiddlewareOneof>[
       ...?_config.use?.map(
         (mw) => (middlewareRef: mw, middlewareInstance: null),
       ),
-      ...?opts?.use?.map(
-        (mw) => (middlewareRef: mw, middlewareInstance: null),
-      ),
+      ...?opts?.use?.map((mw) => (middlewareRef: mw, middlewareInstance: null)),
     ];
 
     var registry = _registry;
@@ -291,8 +283,8 @@ class ExecutablePrompt<Input> {
     final streamController = StreamController<GenerateResponseChunk>();
     final actionStream =
         ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-      streamController.stream,
-    );
+          streamController.stream,
+        );
 
     call(input, opts).then(
       (result) {
@@ -315,10 +307,7 @@ class ExecutablePrompt<Input> {
 
   // --- Internal rendering methods ---
 
-  Future<void> _renderSystem(
-    Input? input,
-    List<Message> messages,
-  ) async {
+  Future<void> _renderSystem(Input? input, List<Message> messages) async {
     if (_config.system != null) {
       // Handlebars template
       _compiledSystem ??= await _dotpromptRegistry.compile(_config.system!);
@@ -343,8 +332,9 @@ class ExecutablePrompt<Input> {
   ) async {
     if (_config.messagesTemplate != null) {
       // Handlebars template for messages
-      _compiledMessages ??=
-          await _dotpromptRegistry.compile(_config.messagesTemplate!);
+      _compiledMessages ??= await _dotpromptRegistry.compile(
+        _config.messagesTemplate!,
+      );
       final rendered = await _compiledMessages!.render(
         dp.DataArgument(
           input: _inputToMap(input),
@@ -362,10 +352,7 @@ class ExecutablePrompt<Input> {
     }
   }
 
-  Future<void> _renderUserPrompt(
-    Input? input,
-    List<Message> messages,
-  ) async {
+  Future<void> _renderUserPrompt(Input? input, List<Message> messages) async {
     if (_config.prompt != null) {
       // Handlebars template
       _compiledPrompt ??= await _dotpromptRegistry.compile(_config.prompt!);
@@ -485,25 +472,24 @@ class PromptAction<Input>
     super.inputSchema,
     super.description,
     Map<String, dynamic>? metadata,
-  })  : _executablePrompt = executablePrompt,
-        super(
-          actionType: 'prompt',
-          outputSchema: GenerateActionOptions.$schema,
-          metadata: _promptActionMetadata(description, metadata),
-          fn: (input, ctx) async {
-            if (executablePrompt != null) {
-              return executablePrompt.render(input);
-            }
-            if (fn != null) {
-              if (input == null && inputSchema != null && null is! Input) {
-                throw ArgumentError(
-                    'Prompt "$name" requires a non-null input.');
-              }
-              return fn(input as Input, ctx);
-            }
-            throw StateError('PromptAction has no executable prompt or fn');
-          },
-        );
+  }) : _executablePrompt = executablePrompt,
+       super(
+         actionType: 'prompt',
+         outputSchema: GenerateActionOptions.$schema,
+         metadata: _promptActionMetadata(description, metadata),
+         fn: (input, ctx) async {
+           if (executablePrompt != null) {
+             return executablePrompt.render(input);
+           }
+           if (fn != null) {
+             if (input == null && inputSchema != null && null is! Input) {
+               throw ArgumentError('Prompt "$name" requires a non-null input.');
+             }
+             return fn(input as Input, ctx);
+           }
+           throw StateError('PromptAction has no executable prompt or fn');
+         },
+       );
 
   /// The executable prompt instance, if this action was created via
   /// [definePromptAction].
@@ -511,10 +497,11 @@ class PromptAction<Input>
 }
 
 /// Legacy prompt function type for backwards compatibility.
-typedef PromptFn<Input> = Future<GenerateActionOptions> Function(
-  Input input,
-  ActionFnArg<void, Input, void> ctx,
-);
+typedef PromptFn<Input> =
+    Future<GenerateActionOptions> Function(
+      Input input,
+      ActionFnArg<void, Input, void> ctx,
+    );
 
 Map<String, dynamic> _promptActionMetadata(
   String? description,
