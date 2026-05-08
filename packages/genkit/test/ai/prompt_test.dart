@@ -159,6 +159,7 @@ void main() {
         model: modelRef('test-model'),
         prompt: 'Hello {{name}}',
         toolNames: ['tool1'],
+        toolChoice: 'auto',
       );
 
       definePromptAction(registry, dpRegistry, config);
@@ -169,6 +170,7 @@ void main() {
       expect(pa.metadata['type'], equals('prompt'));
       expect(pa.metadata['prompt']['model'], equals('test-model'));
       expect(pa.metadata['prompt']['tools'], equals(['tool1']));
+      expect(pa.metadata['prompt']['toolChoice'], equals('auto'));
     });
   });
 
@@ -190,11 +192,13 @@ void main() {
 
       final options = await ep.render({'name': 'World'});
 
-      expect(options.messages, isNotEmpty);
-      final lastMsg = options.messages!.last;
-      expect(lastMsg.role, equals(Role.user));
-      final text = lastMsg.content[0].toJson()['text'];
-      expect(text, contains('Hello World'));
+      // JS: messages: [{ content: [{ text: 'hello foo' }], role: 'user' }]
+      expect(options.messages!.length, equals(1));
+      expect(options.messages![0].role, equals(Role.user));
+      expect(
+        options.messages![0].content[0].toJson()['text'],
+        equals('Hello World'),
+      );
     });
 
     test('renders system template', () async {
@@ -210,10 +214,18 @@ void main() {
 
       final options = await ep.render({'kind': 'helpful'});
 
-      // System message should be first
-      expect(options.messages!.first.role, equals(Role.system));
-      final sysText = options.messages!.first.content[0].toJson()['text'];
-      expect(sysText, contains('helpful'));
+      // JS: messages: [system, user] — 2 messages
+      expect(options.messages!.length, equals(2));
+      expect(options.messages![0].role, equals(Role.system));
+      expect(
+        options.messages![0].content[0].toJson()['text'],
+        equals('You are a helpful assistant'),
+      );
+      expect(options.messages![1].role, equals(Role.user));
+      expect(
+        options.messages![1].content[0].toJson()['text'],
+        equals('Help me'),
+      );
     });
 
     test('renders with literal Part system', () async {
@@ -408,8 +420,23 @@ void main() {
         PromptGenerateOptions(messages: history),
       );
 
-      // History + new prompt
+      // JS: messages: [history user, history model, prompt user]
       expect(options.messages!.length, equals(3));
+      expect(options.messages![0].role, equals(Role.user));
+      expect(
+        options.messages![0].content[0].toJson()['text'],
+        equals('Old question'),
+      );
+      expect(options.messages![1].role, equals(Role.model));
+      expect(
+        options.messages![1].content[0].toJson()['text'],
+        equals('Old answer'),
+      );
+      expect(options.messages![2].role, equals(Role.user));
+      expect(
+        options.messages![2].content[0].toJson()['text'],
+        equals('New question'),
+      );
     });
 
     test('renders with literal promptParts', () async {
@@ -659,11 +686,11 @@ void main() {
         final history = [
           Message(
             role: Role.user,
-            content: [TextPart(text: 'previous question')],
+            content: [TextPart(text: 'hi')],
           ),
           Message(
             role: Role.model,
-            content: [TextPart(text: 'previous answer')],
+            content: [TextPart(text: 'bye')],
           ),
         ];
 
@@ -672,14 +699,21 @@ void main() {
           PromptGenerateOptions(messages: history),
         );
 
-        // History should be inserted + template message
-        expect(options.messages!.length, greaterThanOrEqualTo(3));
-        // The template message should contain rendered content
-        final allText = options.messages!
-            .map((m) => m.content[0].toJson()['text'])
-            .join(', ');
-        expect(allText, contains('hello World'));
-        expect(allText, contains('previous question'));
+        // JS: messages: [template, history user, history model] — 3 messages
+        // History is inserted after the template content
+        expect(options.messages!.length, equals(3));
+        // Verify all messages are present with correct content
+        final texts = options.messages!
+            .map((m) => m.content[0].toJson()['text'] as String)
+            .toList();
+        expect(texts.any((t) => t.contains('hello World')), isTrue);
+        expect(texts.any((t) => t.contains('hi')), isTrue);
+        expect(texts.any((t) => t.contains('bye')), isTrue);
+        // History messages should have purpose metadata
+        final historyMsgs = options.messages!
+            .where((m) => m.toJson()['metadata']?['purpose'] == 'history')
+            .toList();
+        expect(historyMsgs.length, equals(2));
       },
     );
 
@@ -691,7 +725,7 @@ void main() {
           dpRegistry,
           PromptConfig(
             name: 'test',
-            messagesTemplate: 'hello {{name}}{{history}}',
+            messagesTemplate: 'hello {{name}}\n{{history}}',
           ),
         );
 
@@ -711,12 +745,27 @@ void main() {
           PromptGenerateOptions(messages: history),
         );
 
-        // Template message first, then history
-        expect(options.messages!.length, greaterThanOrEqualTo(3));
+        // JS: messages: [template user, history user (purpose:history),
+        //                history model (purpose:history)]
+        expect(options.messages!.length, equals(3));
         // First message should be from the template
+        expect(options.messages![0].role, equals(Role.user));
         expect(
           options.messages![0].content[0].toJson()['text'],
           contains('hello World'),
+        );
+        // History messages should have purpose metadata
+        final historyMsgs = options.messages!
+            .where((m) => m.toJson()['metadata']?['purpose'] == 'history')
+            .toList();
+        expect(historyMsgs.length, equals(2));
+        expect(
+          historyMsgs[0].content[0].toJson()['text'],
+          equals('prev Q'),
+        );
+        expect(
+          historyMsgs[1].content[0].toJson()['text'],
+          equals('prev A'),
         );
       },
     );
