@@ -35,19 +35,19 @@ class DotpromptRegistry {
     dp.DotpromptOptions? options,
     SchemaResolver? schemaResolver,
   }) : _dotprompt = dp.Dotprompt(
-          dp.DotpromptOptions(
-            defaultModel: options?.defaultModel,
-            modelConfigs: options?.modelConfigs,
-            helpers: options?.helpers,
-            partials: options?.partials,
-            tools: options?.tools,
-            schemas: options?.schemas,
-            partialResolver: options?.partialResolver,
-            toolResolver: options?.toolResolver,
-            schemaResolver: schemaResolver ?? options?.schemaResolver,
-            store: options?.store,
-          ),
-        );
+         dp.DotpromptOptions(
+           defaultModel: options?.defaultModel,
+           modelConfigs: options?.modelConfigs,
+           helpers: options?.helpers,
+           partials: options?.partials,
+           tools: options?.tools,
+           schemas: options?.schemas,
+           partialResolver: options?.partialResolver,
+           toolResolver: options?.toolResolver,
+           schemaResolver: schemaResolver ?? options?.schemaResolver,
+           store: options?.store,
+         ),
+       );
 
   /// The underlying [dp.Dotprompt] instance.
   dp.Dotprompt get dotprompt => _dotprompt;

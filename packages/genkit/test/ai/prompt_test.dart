@@ -1007,31 +1007,31 @@ void main() {
       expect(schema['properties'], contains('street'));
     });
 
-    test('defineSchema makes schema available for picoschema in prompts',
-        () async {
-      genkit.defineSchema('Person', {
-        'type': 'object',
-        'properties': {
-          'name': {'type': 'string'},
-          'age': {'type': 'integer'},
-        },
-        'required': ['name', 'age'],
-      });
+    test(
+      'defineSchema makes schema available for picoschema in prompts',
+      () async {
+        genkit.defineSchema('Person', {
+          'type': 'object',
+          'properties': {
+            'name': {'type': 'string'},
+            'age': {'type': 'integer'},
+          },
+          'required': ['name', 'age'],
+        });
 
-      // Define a prompt with picoschema output that references named schema
-      final ep = genkit.definePrompt(
-        name: 'person-prompt',
-        prompt: 'Generate a person',
-        output: GenerateActionOutputConfig.fromJson({
-          'format': 'json',
-        }),
-      );
+        // Define a prompt with picoschema output that references named schema
+        final ep = genkit.definePrompt(
+          name: 'person-prompt',
+          prompt: 'Generate a person',
+          output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+        );
 
-      // Verify the prompt was created successfully
-      expect(ep, isA<ExecutablePrompt>());
-      final options = await ep.render({});
-      expect(options.messages, isNotEmpty);
-    });
+        // Verify the prompt was created successfully
+        expect(ep, isA<ExecutablePrompt>());
+        final options = await ep.render({});
+        expect(options.messages, isNotEmpty);
+      },
+    );
 
     test('defineSchema allows multiple schemas', () {
       genkit.defineSchema('Schema1', {
@@ -1303,21 +1303,22 @@ Hello {{name}}!
       // We verify it works by using it in a picoschema prompt below
     });
 
-    test('defineSchema makes schema available in picoschema resolution',
-        () async {
-      dpRegistry.defineSchema('MyAddress', {
-        'type': 'object',
-        'properties': {
-          'street': {'type': 'string'},
-          'city': {'type': 'string'},
-        },
-        'required': ['street', 'city'],
-      });
+    test(
+      'defineSchema makes schema available in picoschema resolution',
+      () async {
+        dpRegistry.defineSchema('MyAddress', {
+          'type': 'object',
+          'properties': {
+            'street': {'type': 'string'},
+            'city': {'type': 'string'},
+          },
+          'required': ['street', 'city'],
+        });
 
-      // Create a prompt with picoschema output referencing the named schema.
-      // A primitive field (name: string) is needed so isPicoschema() detects
-      // this as Picoschema and triggers conversion.
-      final metadata = await dpRegistry.renderMetadata('''
+        // Create a prompt with picoschema output referencing the named schema.
+        // A primitive field (name: string) is needed so isPicoschema() detects
+        // this as Picoschema and triggers conversion.
+        final metadata = await dpRegistry.renderMetadata('''
 ---
 output:
   schema:
@@ -1327,23 +1328,24 @@ output:
 Tell me an address
 ''');
 
-      // The output schema should have resolved MyAddress to its JSON Schema
-      expect(metadata.output, isNotNull);
-      expect(metadata.output!.schema, isNotNull);
-      final props =
-          metadata.output!.schema!['properties'] as Map<String, dynamic>;
-      // The primitive field should be present
-      expect(props, contains('name'));
-      // The named schema reference should be resolved
-      expect(props, containsPair('address', isA<Map>()));
-      final addressSchema = props['address'] as Map<String, dynamic>;
-      expect(addressSchema['type'], equals('object'));
-      expect(addressSchema['properties'], isNotNull);
-      final addressProps =
-          addressSchema['properties'] as Map<String, dynamic>;
-      expect(addressProps, contains('street'));
-      expect(addressProps, contains('city'));
-    });
+        // The output schema should have resolved MyAddress to its JSON Schema
+        expect(metadata.output, isNotNull);
+        expect(metadata.output!.schema, isNotNull);
+        final props =
+            metadata.output!.schema!['properties'] as Map<String, dynamic>;
+        // The primitive field should be present
+        expect(props, contains('name'));
+        // The named schema reference should be resolved
+        expect(props, containsPair('address', isA<Map>()));
+        final addressSchema = props['address'] as Map<String, dynamic>;
+        expect(addressSchema['type'], equals('object'));
+        expect(addressSchema['properties'], isNotNull);
+        final addressProps =
+            addressSchema['properties'] as Map<String, dynamic>;
+        expect(addressProps, contains('street'));
+        expect(addressProps, contains('city'));
+      },
+    );
 
     test('schema resolver callback is used for schema lookup', () async {
       final resolvedSchemas = <String, Map<String, dynamic>>{
