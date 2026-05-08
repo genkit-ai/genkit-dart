@@ -14,9 +14,11 @@
 
 import 'dart:async';
 
+import 'package:handlebars_dart/handlebars_dart.dart' show HelperFunction;
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
+import 'ai/dotprompt_registry.dart';
 import 'ai/embedder.dart';
 import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
@@ -26,6 +28,7 @@ import 'ai/generate_middleware.dart';
 import 'ai/generate_types.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
+import 'ai/prompt_loader.dart';
 import 'ai/remote_model.dart';
 import 'ai/resource.dart';
 import 'ai/tool.dart';
@@ -57,14 +60,24 @@ final class Genkit {
   ReflectionServerHandle? _reflectionServer;
 
   late final GenerateAction _generateAction;
+  late final DotpromptRegistry _dotpromptRegistry;
 
   Genkit({
     List<GenkitPlugin> plugins = const [],
     ModelRef? model,
     bool? isDevEnv,
     int? reflectionPort,
+
+    /// Directory to load `.prompt` files from.
+    ///
+    /// Defaults to `'./prompts'`. Set to `null` to disable automatic
+    /// prompt loading.
+    String? promptDir = './prompts',
   }) {
     configureCollectorExporter();
+
+    // Initialize dotprompt registry
+    _dotpromptRegistry = DotpromptRegistry();
 
     // Register plugins
     for (final plugin in plugins) {
@@ -88,6 +101,11 @@ final class Genkit {
     _generateAction = defineGenerateAction(registry);
 
     registry.register(_generateAction);
+
+    // Load .prompt files from the prompt directory
+    if (promptDir != null) {
+      loadPromptFolder(registry, _dotpromptRegistry, dir: promptDir);
+    }
   }
 
   /// Shuts down the Genkit instance, stopping the reflection server if it is running.
@@ -178,23 +196,125 @@ final class Genkit {
     return tool;
   }
 
-  /// Defines an executable prompt.
-  PromptAction<Input> definePrompt<Input>({
+  /// Defines an executable prompt with Handlebars template support.
+  ///
+  /// The prompt is registered in the registry and can be looked up by name.
+  /// Returns an [ExecutablePrompt] that can be called directly, rendered,
+  /// or streamed.
+  ///
+  /// Example:
+  /// ```dart
+  /// final hi = ai.definePrompt(
+  ///   name: 'hi',
+  ///   model: modelRef('googleai/gemini-2.0-flash'),
+  ///   prompt: 'Say hi to {{name}}',
+  /// );
+  ///
+  /// final response = await hi({'name': 'Sparky'});
+  /// ```
+  ExecutablePrompt<Input> definePrompt<CustomOptions, Input>({
+    required String name,
+    String? variant,
+    ModelRef<CustomOptions>? model,
+    CustomOptions? config,
+    String? description,
+    SchemanticType<Input>? inputSchema,
+    String? system,
+    List<Part>? systemParts,
+    String? prompt,
+    List<Part>? promptParts,
+    List<Message>? messages,
+    String? messagesTemplate,
+    GenerateActionOutputConfig? output,
+    int? maxTurns,
+    bool? returnToolRequests,
+    Map<String, dynamic>? metadata,
+    List<Tool>? tools,
+    List<String>? toolNames,
+    String? toolChoice,
+    List<GenerateMiddlewareRef>? use,
+  }) {
+    final promptConfig = PromptConfig<CustomOptions, Input>(
+      name: name,
+      variant: variant,
+      model: model,
+      config: config,
+      description: description,
+      inputSchema: inputSchema,
+      system: system,
+      systemParts: systemParts,
+      prompt: prompt,
+      promptParts: promptParts,
+      messages: messages,
+      messagesTemplate: messagesTemplate,
+      output: output,
+      maxTurns: maxTurns,
+      returnToolRequests: returnToolRequests,
+      metadata: metadata,
+      tools: tools,
+      toolNames: toolNames,
+      toolChoice: toolChoice,
+      use: use,
+    );
+    return definePromptAction<CustomOptions, Input>(
+      registry,
+      _dotpromptRegistry,
+      promptConfig,
+      metadata: metadata,
+    );
+  }
+
+  /// Defines a prompt using the legacy function-based API.
+  ///
+  /// This is provided for backwards compatibility. Prefer [definePrompt]
+  /// with named parameters for new code.
+  PromptAction<Input> defineLegacyPrompt<Input>({
     required String name,
     String? description,
     SchemanticType<Input>? inputSchema,
     required PromptFn<Input> fn,
     Map<String, dynamic>? metadata,
   }) {
-    final prompt = PromptAction<Input>(
+    final promptAction = PromptAction<Input>(
       name: name,
       description: description,
       inputSchema: inputSchema,
       fn: fn,
       metadata: metadata,
     );
-    registry.register(prompt);
-    return prompt;
+    registry.register(promptAction);
+    return promptAction;
+  }
+
+  /// Looks up a previously defined prompt by name.
+  ///
+  /// Returns the [ExecutablePrompt] registered under the given name
+  /// and optional variant.
+  ///
+  /// Example:
+  /// ```dart
+  /// final hi = await ai.prompt('hi');
+  /// final response = await hi({'name': 'Sparky'});
+  /// ```
+  Future<ExecutablePrompt> prompt(
+    String name, {
+    String? variant,
+  }) {
+    return lookupPrompt(registry, name, variant: variant);
+  }
+
+  /// Registers a Handlebars partial template for use in prompts.
+  ///
+  /// Partials can be referenced in prompt templates using `{{> name}}`.
+  void definePartial(String name, String source) {
+    _dotpromptRegistry.definePartial(name, source);
+  }
+
+  /// Registers a custom Handlebars helper function for use in prompts.
+  ///
+  /// Helpers can be referenced in prompt templates using `{{helperName arg}}`.
+  void defineHelper(String name, HelperFunction helper) {
+    _dotpromptRegistry.defineHelper(name, helper);
   }
 
   /// Defines a Genkit resource.

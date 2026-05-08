@@ -40,7 +40,13 @@ export 'src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 export 'src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
-export 'src/ai/prompt.dart' show PromptAction, PromptFn;
+export 'src/ai/prompt.dart'
+    show
+        ExecutablePrompt,
+        PromptAction,
+        PromptConfig,
+        PromptFn,
+        PromptGenerateOptions;
 export 'src/ai/resource.dart'
     show
         ResourceAction,
