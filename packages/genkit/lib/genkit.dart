@@ -54,6 +54,8 @@ export 'src/ai/resource.dart'
         ResourceInput,
         ResourceOutput,
         createResourceMatcher;
+export 'src/ai/template_helper.dart'
+    show TemplateHelperFn, TemplateHelperOptions;
 export 'src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
 export 'src/core/action.dart' show Action, ActionFnArg, ActionMetadata;
 export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;

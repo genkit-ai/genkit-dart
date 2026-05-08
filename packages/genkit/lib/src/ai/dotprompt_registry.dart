@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import 'package:dotprompt/dotprompt.dart' as dp;
-import 'package:handlebars_dart/handlebars_dart.dart' show HelperFunction;
+
+import 'template_helper.dart';
 
 /// A wrapper around the dotprompt [dp.Dotprompt] instance for integration
 /// with the Genkit registry.
@@ -54,7 +55,7 @@ class DotpromptRegistry {
   }
 
   /// Defines a custom helper function.
-  void defineHelper(String name, HelperFunction helper) {
-    _dotprompt.defineHelper(name, helper);
+  void defineHelper(String name, TemplateHelperFn helper) {
+    _dotprompt.defineHelper(name, wrapTemplateHelper(helper));
   }
 }

@@ -14,7 +14,6 @@
 
 import 'dart:async';
 
-import 'package:handlebars_dart/handlebars_dart.dart' show HelperFunction;
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
@@ -31,6 +30,7 @@ import 'ai/prompt.dart';
 import 'ai/prompt_loader.dart';
 import 'ai/remote_model.dart';
 import 'ai/resource.dart';
+import 'ai/template_helper.dart';
 import 'ai/tool.dart';
 import 'core/action.dart';
 import 'core/dynamic_action_provider.dart';
@@ -310,7 +310,7 @@ final class Genkit {
   /// Registers a custom Handlebars helper function for use in prompts.
   ///
   /// Helpers can be referenced in prompt templates using `{{helperName arg}}`.
-  void defineHelper(String name, HelperFunction helper) {
+  void defineHelper(String name, TemplateHelperFn helper) {
     _dotpromptRegistry.defineHelper(name, helper);
   }
 
