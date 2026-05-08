@@ -16,17 +16,38 @@ import 'package:dotprompt/dotprompt.dart' as dp;
 
 import 'template_helper.dart';
 
+/// Callback type for resolving named schemas.
+///
+/// Given a schema [name], returns the JSON Schema map if found,
+/// or `null` if the schema is not registered.
+typedef SchemaResolver = Future<Map<String, dynamic>?> Function(String name);
+
 /// A wrapper around the dotprompt [dp.Dotprompt] instance for integration
 /// with the Genkit registry.
 ///
 /// This class manages the lifecycle of the Dotprompt instance, providing
 /// methods for parsing, compiling, and rendering prompt templates, as well
-/// as registering partials and helpers.
+/// as registering partials, helpers, and schemas.
 class DotpromptRegistry {
   final dp.Dotprompt _dotprompt;
 
-  DotpromptRegistry([dp.DotpromptOptions? options])
-    : _dotprompt = dp.Dotprompt(options);
+  DotpromptRegistry({
+    dp.DotpromptOptions? options,
+    SchemaResolver? schemaResolver,
+  }) : _dotprompt = dp.Dotprompt(
+          dp.DotpromptOptions(
+            defaultModel: options?.defaultModel,
+            modelConfigs: options?.modelConfigs,
+            helpers: options?.helpers,
+            partials: options?.partials,
+            tools: options?.tools,
+            schemas: options?.schemas,
+            partialResolver: options?.partialResolver,
+            toolResolver: options?.toolResolver,
+            schemaResolver: schemaResolver ?? options?.schemaResolver,
+            store: options?.store,
+          ),
+        );
 
   /// The underlying [dp.Dotprompt] instance.
   dp.Dotprompt get dotprompt => _dotprompt;
@@ -57,5 +78,14 @@ class DotpromptRegistry {
   /// Defines a custom helper function.
   void defineHelper(String name, TemplateHelperFn helper) {
     _dotprompt.defineHelper(name, wrapTemplateHelper(helper));
+  }
+
+  /// Registers a named schema for use in prompt templates.
+  ///
+  /// Named schemas can be referenced by name in Picoschema definitions
+  /// within prompt templates (e.g., in `input.schema` or `output.schema`
+  /// frontmatter fields).
+  void defineSchema(String name, Map<String, dynamic> schema) {
+    _dotprompt.defineSchema(name, schema);
   }
 }

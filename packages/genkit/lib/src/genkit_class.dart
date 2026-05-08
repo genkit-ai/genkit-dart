@@ -76,8 +76,12 @@ final class Genkit {
   }) {
     configureCollectorExporter();
 
-    // Initialize dotprompt registry
-    _dotpromptRegistry = DotpromptRegistry();
+    // Initialize dotprompt registry with schema resolver wired to the registry
+    _dotpromptRegistry = DotpromptRegistry(
+      schemaResolver: (name) async {
+        return registry.lookupValue<Map<String, dynamic>>('schema', name);
+      },
+    );
 
     // Register plugins
     for (final plugin in plugins) {
@@ -312,6 +316,29 @@ final class Genkit {
   /// Helpers can be referenced in prompt templates using `{{helperName arg}}`.
   void defineHelper(String name, TemplateHelperFn helper) {
     _dotpromptRegistry.defineHelper(name, helper);
+  }
+
+  /// Registers a named JSON Schema for use in prompt templates.
+  ///
+  /// Named schemas can be referenced by name in Picoschema definitions
+  /// within `.prompt` files or inline prompt templates. This is useful for
+  /// sharing common data structures across multiple prompts.
+  ///
+  /// Example:
+  /// ```dart
+  /// ai.defineSchema('MyAddress', {
+  ///   'type': 'object',
+  ///   'properties': {
+  ///     'street': {'type': 'string'},
+  ///     'city': {'type': 'string'},
+  ///     'zip': {'type': 'string'},
+  ///   },
+  ///   'required': ['street', 'city', 'zip'],
+  /// });
+  /// ```
+  void defineSchema(String name, Map<String, dynamic> jsonSchema) {
+    registry.registerValue('schema', name, jsonSchema);
+    _dotpromptRegistry.defineSchema(name, jsonSchema);
   }
 
   /// Defines a Genkit resource.
