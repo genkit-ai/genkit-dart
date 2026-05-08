@@ -45,7 +45,7 @@ Future<void> main() async {
     },
   );
 
-  serverAi.definePrompt<PromptInput>(
+  serverAi.defineCustomPrompt<PromptInput>(
     name: 'echoPrompt',
     description: 'Returns a simple prompt with one user message.',
     inputSchema: PromptInput.$schema,

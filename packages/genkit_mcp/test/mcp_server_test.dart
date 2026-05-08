@@ -130,7 +130,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async => 'yep ${jsonEncode(input)}',
     );
-    ai.definePrompt<Map<String, dynamic>>(
+    ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'testPrompt',
       description: 'test prompt',
       inputSchema: const _PromptInputSchema(),
@@ -251,7 +251,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async => 'done',
     );
-    ai.definePrompt<Map<String, dynamic>>(
+    ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'enumPrompt',
       inputSchema: const _EnumPromptSchema(),
       fn: (_, _) async => GenerateActionOptions(messages: []),
@@ -659,7 +659,7 @@ void main() {
 
   test('MCP server includes _meta in prompt/resource listings', () async {
     final ai = Genkit();
-    ai.definePrompt<Map<String, dynamic>>(
+    ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'metaPrompt',
       description: 'meta prompt',
       inputSchema: const _PromptInputSchema(),
@@ -764,7 +764,7 @@ void main() {
         );
       },
     );
-    ai.definePrompt<Map<String, dynamic>>(
+    ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'badPrompt',
       description: 'bad prompt',
       inputSchema: const _PromptInputSchema(),

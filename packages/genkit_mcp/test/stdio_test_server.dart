@@ -49,7 +49,7 @@ Future<void> main() async {
     inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async => 'yep ${input['foo'] as Object?}',
   );
-  ai.definePrompt<Map<String, dynamic>>(
+  ai.defineCustomPrompt<Map<String, dynamic>>(
     name: 'testPrompt',
     description: 'test prompt',
     inputSchema: const _PromptInputSchema(),

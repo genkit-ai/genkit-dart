@@ -168,9 +168,10 @@ void main() {
       expect(action, isNotNull);
       final pa = action as PromptAction;
       expect(pa.metadata['type'], equals('prompt'));
-      expect(pa.metadata['prompt']['model'], equals('test-model'));
-      expect(pa.metadata['prompt']['tools'], equals(['tool1']));
-      expect(pa.metadata['prompt']['toolChoice'], equals('auto'));
+      final promptMeta = pa.metadata['prompt'] as Map<String, dynamic>;
+      expect(promptMeta['model'], equals('test-model'));
+      expect(promptMeta['tools'], equals(['tool1']));
+      expect(promptMeta['toolChoice'], equals('auto'));
     });
   });
 
@@ -193,10 +194,10 @@ void main() {
       final options = await ep.render({'name': 'World'});
 
       // JS: messages: [{ content: [{ text: 'hello foo' }], role: 'user' }]
-      expect(options.messages!.length, equals(1));
-      expect(options.messages![0].role, equals(Role.user));
+      expect(options.messages.length, equals(1));
+      expect(options.messages[0].role, equals(Role.user));
       expect(
-        options.messages![0].content[0].toJson()['text'],
+        options.messages[0].content[0].toJson()['text'],
         equals('Hello World'),
       );
     });
@@ -215,15 +216,15 @@ void main() {
       final options = await ep.render({'kind': 'helpful'});
 
       // JS: messages: [system, user] — 2 messages
-      expect(options.messages!.length, equals(2));
-      expect(options.messages![0].role, equals(Role.system));
+      expect(options.messages.length, equals(2));
+      expect(options.messages[0].role, equals(Role.system));
       expect(
-        options.messages![0].content[0].toJson()['text'],
+        options.messages[0].content[0].toJson()['text'],
         equals('You are a helpful assistant'),
       );
-      expect(options.messages![1].role, equals(Role.user));
+      expect(options.messages[1].role, equals(Role.user));
       expect(
-        options.messages![1].content[0].toJson()['text'],
+        options.messages[1].content[0].toJson()['text'],
         equals('Help me'),
       );
     });
@@ -241,8 +242,8 @@ void main() {
 
       final options = await ep.render({});
 
-      expect(options.messages!.first.role, equals(Role.system));
-      final sysText = options.messages!.first.content[0].toJson()['text'];
+      expect(options.messages.first.role, equals(Role.system));
+      final sysText = options.messages.first.content[0].toJson()['text'];
       expect(sysText, equals('Be helpful'));
     });
 
@@ -271,10 +272,10 @@ void main() {
       final options = await ep.render({});
 
       // Should have history + new prompt
-      expect(options.messages!.length, equals(3));
-      expect(options.messages![0].role, equals(Role.user));
-      expect(options.messages![1].role, equals(Role.model));
-      expect(options.messages![2].role, equals(Role.user));
+      expect(options.messages.length, equals(3));
+      expect(options.messages[0].role, equals(Role.user));
+      expect(options.messages[1].role, equals(Role.model));
+      expect(options.messages[2].role, equals(Role.user));
     });
 
     test('resolves model from config', () async {
@@ -421,20 +422,20 @@ void main() {
       );
 
       // JS: messages: [history user, history model, prompt user]
-      expect(options.messages!.length, equals(3));
-      expect(options.messages![0].role, equals(Role.user));
+      expect(options.messages.length, equals(3));
+      expect(options.messages[0].role, equals(Role.user));
       expect(
-        options.messages![0].content[0].toJson()['text'],
+        options.messages[0].content[0].toJson()['text'],
         equals('Old question'),
       );
-      expect(options.messages![1].role, equals(Role.model));
+      expect(options.messages[1].role, equals(Role.model));
       expect(
-        options.messages![1].content[0].toJson()['text'],
+        options.messages[1].content[0].toJson()['text'],
         equals('Old answer'),
       );
-      expect(options.messages![2].role, equals(Role.user));
+      expect(options.messages[2].role, equals(Role.user));
       expect(
-        options.messages![2].content[0].toJson()['text'],
+        options.messages[2].content[0].toJson()['text'],
         equals('New question'),
       );
     });
@@ -452,7 +453,7 @@ void main() {
       final options = await ep.render({});
 
       expect(options.messages, isNotEmpty);
-      final lastMsg = options.messages!.last;
+      final lastMsg = options.messages.last;
       expect(lastMsg.role, equals(Role.user));
       final text = lastMsg.content[0].toJson()['text'];
       expect(text, equals('Literal user prompt'));
@@ -471,15 +472,15 @@ void main() {
 
       final options = await ep.render({});
 
-      expect(options.messages!.length, equals(2));
-      expect(options.messages![0].role, equals(Role.system));
+      expect(options.messages.length, equals(2));
+      expect(options.messages[0].role, equals(Role.system));
       expect(
-        options.messages![0].content[0].toJson()['text'],
+        options.messages[0].content[0].toJson()['text'],
         equals('System instruction'),
       );
-      expect(options.messages![1].role, equals(Role.user));
+      expect(options.messages[1].role, equals(Role.user));
       expect(
-        options.messages![1].content[0].toJson()['text'],
+        options.messages[1].content[0].toJson()['text'],
         equals('User question'),
       );
     });
@@ -497,7 +498,7 @@ void main() {
       final options = await ep.render({'name': 'World'});
 
       expect(options.messages, isNotEmpty);
-      final text = options.messages!.last.content[0].toJson()['text'];
+      final text = options.messages.last.content[0].toJson()['text'];
       expect(text, contains('Hello World, welcome!'));
     });
 
@@ -520,7 +521,7 @@ void main() {
       final options = await ep.render({});
 
       // messagesTemplate should be used, not literal messages
-      final text = options.messages!.last.content[0].toJson()['text'];
+      final text = options.messages.last.content[0].toJson()['text'];
       expect(text, contains('Template message'));
     });
 
@@ -552,8 +553,8 @@ void main() {
       );
 
       // Config messages should be used, not opts messages
-      expect(options.messages!.length, equals(1));
-      final text = options.messages![0].content[0].toJson()['text'];
+      expect(options.messages.length, equals(1));
+      final text = options.messages[0].content[0].toJson()['text'];
       expect(text, equals('Config message'));
     });
 
@@ -570,7 +571,7 @@ void main() {
 
       final options = await ep.render({'name': 'World'});
 
-      final text = options.messages!.last.content[0].toJson()['text'];
+      final text = options.messages.last.content[0].toJson()['text'];
       expect(text, contains('Template prompt World'));
     });
 
@@ -588,7 +589,7 @@ void main() {
 
       final options = await ep.render({'kind': 'helpful'});
 
-      final sysText = options.messages!.first.content[0].toJson()['text'];
+      final sysText = options.messages.first.content[0].toJson()['text'];
       expect(sysText, contains('Template system helpful'));
     });
 
@@ -618,25 +619,25 @@ void main() {
         final options = await ep.render({'name': 'foo'});
 
         // Order should be: system, messages history, user prompt
-        expect(options.messages!.length, equals(4));
-        expect(options.messages![0].role, equals(Role.system));
+        expect(options.messages.length, equals(4));
+        expect(options.messages[0].role, equals(Role.system));
         expect(
-          options.messages![0].content[0].toJson()['text'],
+          options.messages[0].content[0].toJson()['text'],
           contains('system foo'),
         );
-        expect(options.messages![1].role, equals(Role.user));
+        expect(options.messages[1].role, equals(Role.user));
         expect(
-          options.messages![1].content[0].toJson()['text'],
+          options.messages[1].content[0].toJson()['text'],
           equals('hi'),
         );
-        expect(options.messages![2].role, equals(Role.model));
+        expect(options.messages[2].role, equals(Role.model));
         expect(
-          options.messages![2].content[0].toJson()['text'],
+          options.messages[2].content[0].toJson()['text'],
           equals('bye'),
         );
-        expect(options.messages![3].role, equals(Role.user));
+        expect(options.messages[3].role, equals(Role.user));
         expect(
-          options.messages![3].content[0].toJson()['text'],
+          options.messages[3].content[0].toJson()['text'],
           contains('user prompt foo'),
         );
       },
@@ -657,15 +658,15 @@ void main() {
 
         final options = await ep.render({'name': 'foo'});
 
-        expect(options.messages!.length, equals(2));
-        expect(options.messages![0].role, equals(Role.system));
+        expect(options.messages.length, equals(2));
+        expect(options.messages[0].role, equals(Role.system));
         expect(
-          options.messages![0].content[0].toJson()['text'],
+          options.messages[0].content[0].toJson()['text'],
           contains('system foo'),
         );
-        expect(options.messages![1].role, equals(Role.user));
+        expect(options.messages[1].role, equals(Role.user));
         expect(
-          options.messages![1].content[0].toJson()['text'],
+          options.messages[1].content[0].toJson()['text'],
           contains('user foo'),
         );
       },
@@ -701,17 +702,18 @@ void main() {
 
         // JS: messages: [template, history user, history model] — 3 messages
         // History is inserted after the template content
-        expect(options.messages!.length, equals(3));
+        expect(options.messages.length, equals(3));
         // Verify all messages are present with correct content
-        final texts = options.messages!
+        final texts = options.messages
             .map((m) => m.content[0].toJson()['text'] as String)
             .toList();
         expect(texts.any((t) => t.contains('hello World')), isTrue);
         expect(texts.any((t) => t.contains('hi')), isTrue);
         expect(texts.any((t) => t.contains('bye')), isTrue);
         // History messages should have purpose metadata
-        final historyMsgs = options.messages!
-            .where((m) => m.toJson()['metadata']?['purpose'] == 'history')
+        final historyMsgs = options.messages
+            .where((m) =>
+                (m.toJson()['metadata'] as Map?)?['purpose'] == 'history')
             .toList();
         expect(historyMsgs.length, equals(2));
       },
@@ -747,16 +749,17 @@ void main() {
 
         // JS: messages: [template user, history user (purpose:history),
         //                history model (purpose:history)]
-        expect(options.messages!.length, equals(3));
+        expect(options.messages.length, equals(3));
         // First message should be from the template
-        expect(options.messages![0].role, equals(Role.user));
+        expect(options.messages[0].role, equals(Role.user));
         expect(
-          options.messages![0].content[0].toJson()['text'],
+          options.messages[0].content[0].toJson()['text'],
           contains('hello World'),
         );
         // History messages should have purpose metadata
-        final historyMsgs = options.messages!
-            .where((m) => m.toJson()['metadata']?['purpose'] == 'history')
+        final historyMsgs = options.messages
+            .where((m) =>
+                (m.toJson()['metadata'] as Map?)?['purpose'] == 'history')
             .toList();
         expect(historyMsgs.length, equals(2));
         expect(
@@ -807,7 +810,7 @@ void main() {
       final options = await ep.render(null);
 
       expect(options.messages, isNotEmpty);
-      final text = options.messages!.last.content[0].toJson()['text'];
+      final text = options.messages.last.content[0].toJson()['text'];
       expect(text, contains('Hello static prompt'));
     });
   });
@@ -862,7 +865,7 @@ void main() {
       final registry = Registry();
       final dpRegistry = DotpromptRegistry();
 
-      final ep = definePromptAction(
+      definePromptAction(
         registry,
         dpRegistry,
         PromptConfig(name: 'test', prompt: 'Hello {{name}}'),
@@ -896,7 +899,7 @@ void main() {
 
       final result = await action('World');
       expect(result, isA<GenerateActionOptions>());
-      final opts = result as GenerateActionOptions;
+      final opts = result;
       expect(opts.model, equals('test-model'));
     });
   });
@@ -974,9 +977,9 @@ void main() {
         'task': 'Dart',
       });
 
-      expect(options.messages!.length, equals(2));
-      expect(options.messages![0].role, equals(Role.system));
-      expect(options.messages![1].role, equals(Role.user));
+      expect(options.messages.length, equals(2));
+      expect(options.messages[0].role, equals(Role.system));
+      expect(options.messages[1].role, equals(Role.user));
     });
 
     test('definePrompt with config options', () async {
@@ -996,8 +999,8 @@ void main() {
       expect(options.toolChoice, equals('auto'));
     });
 
-    test('defineLegacyPrompt works for backwards compatibility', () async {
-      final pa = genkit.defineLegacyPrompt<String>(
+    test('defineCustomPrompt works for programmatic prompt building', () async {
+      final pa = genkit.defineCustomPrompt<String>(
         name: 'old-style',
         fn: (input, ctx) async {
           return GenerateActionOptions(
@@ -1027,7 +1030,7 @@ void main() {
       );
 
       final options = await ep.render({'name': 'World'});
-      final text = options.messages!.last.content[0].toJson()['text'];
+      final text = options.messages.last.content[0].toJson()['text'];
       expect(text, contains('Hello World!'));
     });
 
@@ -1087,7 +1090,10 @@ Hello {{name}}!
       final action = await registry.lookupAction('prompt', 'greeting');
       expect(action, isNotNull);
       final pa = action as PromptAction;
-      expect(pa.metadata['prompt']['model'], equals('test-model'));
+      expect(
+        (pa.metadata['prompt'] as Map<String, dynamic>)['model'],
+        equals('test-model'),
+      );
     });
 
     test('loads variant prompts', () async {

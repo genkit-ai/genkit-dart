@@ -264,11 +264,11 @@ final class Genkit {
     );
   }
 
-  /// Defines a prompt using the legacy function-based API.
+  /// Defines a prompt with a custom function for programmatic message building.
   ///
-  /// This is provided for backwards compatibility. Prefer [definePrompt]
-  /// with named parameters for new code.
-  PromptAction<Input> defineLegacyPrompt<Input>({
+  /// Use this when you need full control over how the prompt messages are
+  /// constructed at runtime. For template-based prompts, use [definePrompt].
+  PromptAction<Input> defineCustomPrompt<Input>({
     required String name,
     String? description,
     SchemanticType<Input>? inputSchema,
