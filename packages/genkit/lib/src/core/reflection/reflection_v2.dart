@@ -247,7 +247,7 @@ class ReflectionServerV2 {
     final values = registry.listValues<dynamic>(type);
     final sanitizedValues = <String, dynamic>{};
 
-    values.forEach((key, value) {
+    for (final MapEntry(:key, :value) in values.entries) {
       if (type == 'middleware' && value is GenerateMiddlewareDef) {
         sanitizedValues[key] = {
           'name': value.name,
@@ -260,7 +260,7 @@ class ReflectionServerV2 {
           if (value.config != null) 'config': value.config,
         };
       }
-    });
+    }
 
     final response = ReflectionListValuesResponse(values: sanitizedValues);
     _sendResponse(id, response.toJson());
