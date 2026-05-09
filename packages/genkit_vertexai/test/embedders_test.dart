@@ -151,6 +151,39 @@ void main() {
       },
     );
 
+    test('uses text predict REST option schema', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'text-embedding-005');
+      final req = EmbedRequest(
+        input: [
+          DocumentData(content: [TextPart(text: 'hello')]),
+        ],
+        options: {
+          'outputDimensionality': 256,
+          'taskType': 'RETRIEVAL_DOCUMENT',
+          'title': 'document title',
+        },
+      );
+
+      await embedder.run(req);
+
+      final requestBody =
+          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      final instances = requestBody['instances'] as List;
+      expect(instances.single, {
+        'content': 'hello',
+        'task_type': 'RETRIEVAL_DOCUMENT',
+        'title': 'document title',
+      });
+      expect(requestBody['parameters'], {'outputDimensionality': 256});
+    });
+
     test(
       'uses multimodal predict schema for text-only multimodal inputs',
       () async {

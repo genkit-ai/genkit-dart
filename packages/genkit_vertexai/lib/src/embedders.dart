@@ -263,15 +263,15 @@ Future<List<Embedding>> _runTextPredictRequests({
     if (options?.title != null) {
       instance['title'] = options!.title;
     }
+    if (options?.taskType != null) {
+      instance['task_type'] = options!.taskType;
+    }
     return instance;
   }).toList();
 
   final parameters = <String, dynamic>{};
   if (options?.outputDimensionality != null) {
     parameters['outputDimensionality'] = options!.outputDimensionality;
-  }
-  if (options?.taskType != null) {
-    parameters['taskType'] = options!.taskType;
   }
 
   final res = await service.predict({
