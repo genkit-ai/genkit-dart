@@ -295,14 +295,27 @@ List<Map<String, dynamic>> _inputFromMessages(List<Message> messages) {
 }
 
 Map<String, dynamic> _mediaInput(Media media) {
-  final mimeType = media.contentType ?? 'image/png';
+  final data = media.url.startsWith('data:') ? Uri.parse(media.url).data : null;
+  final mimeType = media.contentType ?? data?.mimeType;
+
+  if (mimeType == null || mimeType.isEmpty) {
+    throw GenkitException(
+      'Lyria image inputs require an image content type.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  if (!mimeType.startsWith('image/')) {
+    throw GenkitException(
+      'Lyria supports only image media inputs. Received $mimeType.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
   if (media.url.startsWith('data:')) {
-    final uri = Uri.parse(media.url);
-    final data = uri.data;
     if (data != null) {
       return {
         'type': 'image',
-        'mime_type': media.contentType ?? data.mimeType,
+        'mime_type': mimeType,
         'data': base64Encode(data.contentAsBytes()),
       };
     }

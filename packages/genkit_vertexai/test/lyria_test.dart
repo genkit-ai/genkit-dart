@@ -151,6 +151,53 @@ void main() {
       expect(part.media!.url, 'data:audio/mpeg;base64,SUQz');
     });
 
+    test('sends image media inputs to Lyria 3 interactions', () {
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              TextPart(text: 'short electronic theme'),
+              MediaPart(media: Media(url: 'data:image/png;base64,AQID')),
+            ],
+          ),
+        ],
+      );
+
+      expect(toLyriaInteractionsRequest(req, 'lyria-3-clip-preview'), {
+        'model': 'lyria-3-clip-preview',
+        'input': [
+          {'type': 'text', 'text': 'short electronic theme'},
+          {'type': 'image', 'mime_type': 'image/png', 'data': 'AQID'},
+        ],
+      });
+    });
+
+    test('rejects audio media inputs for Lyria 3 interactions', () {
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              TextPart(text: 'short electronic theme'),
+              MediaPart(media: Media(url: 'data:audio/mpeg;base64,SUQz')),
+            ],
+          ),
+        ],
+      );
+
+      expect(
+        () => toLyriaInteractionsRequest(req, 'lyria-3-clip-preview'),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            'Lyria supports only image media inputs. Received audio/mpeg.',
+          ),
+        ),
+      );
+    });
+
     test('accepts nested bytesBase64Encoded audio content', () {
       final response = fromLyriaPredictResponse({
         'predictions': [
