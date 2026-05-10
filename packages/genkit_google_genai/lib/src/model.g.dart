@@ -1296,10 +1296,16 @@ base class VeoOptions {
     }
   }
 
+  /// Downloads generated videos and returns data URIs instead of source URLs.
+  ///
+  /// Disabled by default to avoid loading large video files into memory.
   bool? get embedMedia {
     return _json['embedMedia'] as bool?;
   }
 
+  /// Downloads generated videos and returns data URIs instead of source URLs.
+  ///
+  /// Disabled by default to avoid loading large video files into memory.
   set embedMedia(bool? value) {
     if (value == null) {
       _json.remove('embedMedia');

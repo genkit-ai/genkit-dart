@@ -25,8 +25,6 @@ import 'model.dart';
 typedef GoogleGenAiClientFactory =
     Future<GenerativeLanguageBaseClient> Function([String? requestApiKey]);
 
-const _veoMediaDownloadTimeout = Duration(minutes: 2);
-
 final veoModelInfo = ModelInfo(
   supports: {
     'multiturn': false,
