@@ -98,7 +98,13 @@ Model createLyriaModel({
     customOptions: LyriaOptions.$schema,
     metadata: {'model': lyriaModelInfo.toJson()},
     fn: (req, ctx) async {
-      final modelRequest = req!;
+      if (req == null) {
+        throw GenkitException(
+          'Lyria request cannot be null.',
+          status: StatusCodes.INVALID_ARGUMENT,
+        );
+      }
+      final modelRequest = req;
       final options = modelRequest.config == null
           ? LyriaOptions()
           : LyriaOptions.$schema.parse(modelRequest.config!);

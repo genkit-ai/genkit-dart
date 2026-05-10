@@ -67,6 +67,24 @@ class MockHttpClient extends http.BaseClient {
 
 void main() {
   group('Vertex AI Lyria models', () {
+    test('rejects null model requests', () async {
+      final plugin = VertexAiPluginImpl(projectId: 'my-project');
+      final model = plugin.resolve('model', 'lyria-002') as Action;
+
+      await expectLater(
+        model.run(null),
+        throwsA(
+          isA<GenkitException>()
+              .having(
+                (e) => e.message,
+                'message',
+                'Lyria request cannot be null.',
+              )
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT),
+        ),
+      );
+    });
+
     test('uses predict endpoint and returns audio media', () async {
       final mockClient = MockHttpClient();
       final plugin = VertexAiPluginImpl(
