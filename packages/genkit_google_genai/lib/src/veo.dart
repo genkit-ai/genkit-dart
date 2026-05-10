@@ -99,7 +99,7 @@ Model createVeoModel({
         final mediaPart = await toEmbeddableVeoMediaPart(
           service,
           completed,
-          embedMedia: options.embedMedia ?? true,
+          options,
           downloadClient: downloadClient,
         );
 
@@ -194,6 +194,7 @@ StatusCodes _statusFromRpcCode(int? code) {
 
 const _defaultVeoPollingIntervalMs = 5000;
 const _defaultVeoTimeoutMs = 600000;
+const _defaultVeoDownloadTimeoutMs = 30000;
 
 @visibleForTesting
 Map<String, dynamic> toVeoParameters(VeoOptions options) {
@@ -366,12 +367,14 @@ MediaPart veoOperationToMediaPart(gcl.Operation operation) {
 @visibleForTesting
 Future<MediaPart> toEmbeddableVeoMediaPart(
   GenerativeLanguageBaseClient service,
-  gcl.Operation operation, {
-  bool embedMedia = true,
+  gcl.Operation operation,
+  VeoOptions options, {
   http.Client? downloadClient,
 }) async {
   final mediaPart = veoOperationToMediaPart(operation);
-  if (!embedMedia) return mediaPart;
+  if (options.embedMedia != true) {
+    return mediaPart;
+  }
 
   final mediaUrl = mediaPart.media.url;
   final uri = Uri.tryParse(mediaUrl);
@@ -384,7 +387,10 @@ Future<MediaPart> toEmbeddableVeoMediaPart(
       ? service.client
       : downloadClient ?? http.Client();
   try {
-    final response = await client.get(uri).timeout(_veoMediaDownloadTimeout);
+    final downloadTimeout = Duration(
+      milliseconds: options.downloadTimeoutMs ?? _defaultVeoDownloadTimeoutMs,
+    );
+    final response = await client.get(uri).timeout(downloadTimeout);
     if (response.statusCode < 200 ||
         response.statusCode >= 300 ||
         response.bodyBytes.isEmpty) {

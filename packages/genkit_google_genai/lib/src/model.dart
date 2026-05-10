@@ -191,7 +191,13 @@ abstract class $VeoOptions {
   @IntegerField(minimum: 1000)
   int? get timeoutMs;
 
+  /// Downloads generated videos and returns data URIs instead of source URLs.
+  ///
+  /// Disabled by default to avoid loading large video files into memory.
   bool? get embedMedia;
+
+  @IntegerField(minimum: 1000)
+  int? get downloadTimeoutMs;
 }
 
 @Schema(description: 'Speech generation config')

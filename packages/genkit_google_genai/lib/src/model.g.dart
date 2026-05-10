@@ -1166,6 +1166,7 @@ base class VeoOptions {
     int? pollingIntervalMs,
     int? timeoutMs,
     bool? embedMedia,
+    int? downloadTimeoutMs,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -1178,6 +1179,7 @@ base class VeoOptions {
       'pollingIntervalMs': ?pollingIntervalMs,
       'timeoutMs': ?timeoutMs,
       'embedMedia': ?embedMedia,
+      'downloadTimeoutMs': ?downloadTimeoutMs,
     };
   }
 
@@ -1306,6 +1308,18 @@ base class VeoOptions {
     }
   }
 
+  int? get downloadTimeoutMs {
+    return _json['downloadTimeoutMs'] as int?;
+  }
+
+  set downloadTimeoutMs(int? value) {
+    if (value == null) {
+      _json.remove('downloadTimeoutMs');
+    } else {
+      _json['downloadTimeoutMs'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -1343,6 +1357,7 @@ base class _VeoOptionsTypeFactory extends SchemanticType<VeoOptions> {
             'pollingIntervalMs': $Schema.integer(minimum: 100),
             'timeoutMs': $Schema.integer(minimum: 1000),
             'embedMedia': $Schema.boolean(),
+            'downloadTimeoutMs': $Schema.integer(minimum: 1000),
           },
         )
         .value,

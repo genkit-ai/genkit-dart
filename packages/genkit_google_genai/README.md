@@ -38,6 +38,8 @@ void main() async {
       aspectRatio: '16:9',
       durationSeconds: 8,
       numberOfVideos: 1,
+      // Set embedMedia: true to download the video and return a data URI.
+      // By default, Veo returns the generated video's source URL.
     ),
   );
 
