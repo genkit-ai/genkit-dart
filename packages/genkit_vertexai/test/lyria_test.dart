@@ -46,7 +46,7 @@ class MockHttpClient extends http.BaseClient {
       return http.StreamedResponse(
         Stream.value(
           utf8.encode(
-            '{"status": "completed", "outputs": [{"type": "text", "text": "description"}, {"type": "audio", "mime_type": "audio/mpeg", "data": "SUQz"}]}',
+            '{"status": "completed", "outputs": [{"type": "text", "text": "lyrics"}, {"type": "text", "text": "description"}, {"type": "audio", "mime_type": "audio/mpeg", "data": "SUQz"}]}',
           ),
         ),
         200,
@@ -144,7 +144,13 @@ void main() {
         ],
       });
       final message = response.message!;
-      expect(message.content.first.text, 'description');
+      expect(response.text, 'lyrics');
+      expect(response.custom, {
+        'additionalTextOutputs': [
+          {'type': 'text', 'text': 'description'},
+        ],
+      });
+      expect(message.content.first.text, 'lyrics');
       final part = message.content.last;
       expect(part.isMedia, true);
       expect(part.media!.contentType, 'audio/mpeg');
@@ -194,6 +200,33 @@ void main() {
             'message',
             'Lyria supports only image media inputs. Received audio/mpeg.',
           ),
+        ),
+      );
+    });
+
+    test('reports filtered Lyria 3 interactions clearly', () {
+      final response = {
+        'status': 'completed',
+        'outputs': <Map<String, dynamic>>[],
+        'promptFeedback': {'blockReason': 'PROHIBITED_CONTENT'},
+      };
+
+      expect(
+        () => fromLyriaInteractionsResponse(response),
+        throwsA(
+          isA<GenkitException>()
+              .having(
+                (e) => e.message,
+                'message',
+                'Lyria request was filtered and returned no outputs. '
+                    'Reason: PROHIBITED_CONTENT.',
+              )
+              .having(
+                (e) => e.status,
+                'status',
+                StatusCodes.FAILED_PRECONDITION,
+              )
+              .having((e) => e.details, 'details', jsonEncode(response)),
         ),
       );
     });

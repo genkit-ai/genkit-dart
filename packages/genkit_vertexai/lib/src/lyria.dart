@@ -212,34 +212,49 @@ ModelResponse fromLyriaPredictResponse(Map<String, dynamic> response) {
 ModelResponse fromLyriaInteractionsResponse(Map<String, dynamic> response) {
   final outputs = response['outputs'] as List?;
   if (outputs == null || outputs.isEmpty) {
-    throw GenkitException('Lyria returned no outputs.');
+    throw _filteredLyriaResponseException(response);
   }
 
-  final parts = outputs
-      .map((output) => _partFromLyriaOutput(output as Map<String, dynamic>))
+  final outputMaps = outputs
+      .map((output) => (output as Map).cast<String, dynamic>())
+      .toList();
+  final audioParts = outputMaps
+      .map(_audioPartFromLyriaOutput)
       .nonNulls
       .toList();
+  final textOutputs = _lyriaTextOutputs(outputMaps);
+  final lyricsText = _lyriaLyricsText(textOutputs);
 
-  if (parts.isEmpty) {
+  if (audioParts.isEmpty) {
+    final filteredReason = _filteredReason(response);
+    if (filteredReason != null) {
+      throw _filteredLyriaResponseException(response);
+    }
     throw GenkitException(
       'Lyria returned no supported outputs. '
       'Output types: ${outputs.map((o) => (o as Map)['type']).join(', ')}.',
+      details: jsonEncode(response),
     );
   }
 
+  final content = [
+    if (lyricsText != null) TextPart(text: lyricsText),
+    ...audioParts,
+  ];
+  final additionalTextOutputs = _additionalTextOutputs(textOutputs);
+
   return ModelResponse(
     finishReason: FinishReason.stop,
-    message: Message(role: Role.model, content: parts),
+    message: Message(role: Role.model, content: content),
+    custom: additionalTextOutputs.isEmpty
+        ? null
+        : {'additionalTextOutputs': additionalTextOutputs},
     raw: response,
   );
 }
 
-Part? _partFromLyriaOutput(Map<String, dynamic> output) {
+Part? _audioPartFromLyriaOutput(Map<String, dynamic> output) {
   final type = output['type'] as String?;
-  if (type == 'text') {
-    final text = output['text'] as String?;
-    return text == null || text.isEmpty ? null : TextPart(text: text);
-  }
   if (type == 'audio') {
     final audioContent = _extractAudioContent(output);
     if (audioContent == null || audioContent.isEmpty) return null;
@@ -257,6 +272,48 @@ Part? _partFromLyriaOutput(Map<String, dynamic> output) {
   return null;
 }
 
+List<Map<String, dynamic>> _lyriaTextOutputs(
+  List<Map<String, dynamic>> outputs,
+) {
+  return outputs.where((output) => output['type'] == 'text').where((output) {
+    final text = output['text'] as String?;
+    return text != null && text.isNotEmpty;
+  }).toList();
+}
+
+String? _lyriaLyricsText(List<Map<String, dynamic>> textOutputs) {
+  if (textOutputs.isEmpty) return null;
+  return textOutputs.first['text'] as String?;
+}
+
+List<Map<String, dynamic>> _additionalTextOutputs(
+  List<Map<String, dynamic>> textOutputs,
+) {
+  return textOutputs.skip(1).toList();
+}
+
+GenkitException _filteredLyriaResponseException(Map<String, dynamic> response) {
+  final reason = _filteredReason(response);
+  final reasonText = reason == null ? '' : ' Reason: $reason.';
+  return GenkitException(
+    'Lyria request was filtered and returned no outputs.$reasonText',
+    status: StatusCodes.FAILED_PRECONDITION,
+    details: jsonEncode(response),
+  );
+}
+
+String? _filteredReason(Map<String, dynamic> response) {
+  return _stringValue(response['blockReason']) ??
+      _stringValue(response['blockedReason']) ??
+      _stringValue(response['finishReason']) ??
+      _stringValue(response['finishMessage']) ??
+      _stringValue(response['statusMessage']) ??
+      _stringValue(response['error']) ??
+      _stringValue(response['promptFeedback']) ??
+      _stringValue(response['safetyFeedback']) ??
+      _stringValue(response['safetyRatings']);
+}
+
 String? _extractAudioContent(Map<String, dynamic> prediction) {
   return _stringValue(prediction['audioContent']) ??
       _stringValue(prediction['bytesBase64Encoded']) ??
@@ -269,7 +326,13 @@ String? _stringValue(Object? value) {
   if (value is String) return value;
   if (value is Map) {
     final map = value.cast<String, dynamic>();
-    return _stringValue(map['bytesBase64Encoded']) ??
+    return _stringValue(map['message']) ??
+        _stringValue(map['reason']) ??
+        _stringValue(map['blockReason']) ??
+        _stringValue(map['blockedReason']) ??
+        _stringValue(map['finishReason']) ??
+        _stringValue(map['finishMessage']) ??
+        _stringValue(map['bytesBase64Encoded']) ??
         _stringValue(map['data']) ??
         _stringValue(map['audioContent']);
   }
