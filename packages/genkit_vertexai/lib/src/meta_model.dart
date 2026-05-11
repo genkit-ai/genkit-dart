@@ -239,24 +239,23 @@ Map<String, dynamic> _toMetaMessage(Message message) {
 }
 
 List<Map<String, dynamic>> _toMetaToolMessages(Message message) {
-  final toolResponses = message.content
-      .where((p) => p.isToolResponse)
-      .map((p) => p.toolResponse!)
-      .toList();
-  if (toolResponses.isEmpty) {
-    throw ArgumentError('Tool message must contain a ToolResponsePart.');
-  }
-  return toolResponses.map((response) {
-    final ref = response.ref;
+  final result = message.content.where((p) => p.isToolResponse).map((part) {
+    final toolResponse = part.toolResponse!;
+    final ref = toolResponse.ref;
     if (ref == null || ref.isEmpty) {
       throw ArgumentError('ToolResponse.ref must be set for Meta models.');
     }
     return {
       'role': 'tool',
       'tool_call_id': ref,
-      'content': jsonEncode(response.output),
+      'content': jsonEncode(toolResponse.output),
     };
   }).toList();
+
+  if (result.isEmpty) {
+    throw ArgumentError('Tool message must contain a ToolResponsePart.');
+  }
+  return result;
 }
 
 Object _toMetaContent(List<Part> parts) {
