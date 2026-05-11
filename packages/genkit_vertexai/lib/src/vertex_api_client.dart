@@ -45,40 +45,16 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
   ]) async {
-    final validFormat = RegExp(r'^[a-z0-9-]+$');
-    final resolvedProjectId = _getResolvedProjectId;
-    final resolvedLocation = location ?? 'global';
-
-    if (!validFormat.hasMatch(resolvedLocation) ||
-        !validFormat.hasMatch(resolvedProjectId)) {
-      throw ArgumentError('Invalid projectId or location format.');
-    }
-    final safeLocation = Uri.encodeComponent(resolvedLocation);
-    final safeProjectId = Uri.encodeComponent(resolvedProjectId);
-
-    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
-
-    final baseUrl = safeLocation == 'global'
-        ? 'https://aiplatform.googleapis.com/'
-        : 'https://$safeLocation-aiplatform.googleapis.com/';
-    final apiUrlPrefix =
-        'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
-
-    final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
-    final customClient = CustomClient(
-      defaultHeaders: headers,
-      inner: authClient,
-    );
-    final client = VertexAuthClient(tokenProvider, inner: customClient);
-
-    return GenerativeLanguageBaseClient(
-      baseUrl: baseUrl,
-      client: client,
-      apiUrlPrefix: apiUrlPrefix,
-    );
+    return _createApiClient(apiUrlPrefix: 'publishers/google/');
   }
 
   Future<GenerativeLanguageBaseClient> getOpenModelApiClient() async {
+    return _createApiClient(apiUrlPrefix: 'endpoints/openapi/');
+  }
+
+  Future<GenerativeLanguageBaseClient> _createApiClient({
+    required String apiUrlPrefix,
+  }) async {
     final validFormat = RegExp(r'^[a-z0-9-]+$');
     final resolvedProjectId = _getResolvedProjectId;
     final resolvedLocation = location ?? 'global';
@@ -95,8 +71,8 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     final baseUrl = safeLocation == 'global'
         ? 'https://aiplatform.googleapis.com/'
         : 'https://$safeLocation-aiplatform.googleapis.com/';
-    final apiUrlPrefix =
-        'v1beta1/projects/$safeProjectId/locations/$safeLocation/endpoints/openapi/';
+    final resolvedApiUrlPrefix =
+        'v1beta1/projects/$safeProjectId/locations/$safeLocation/$apiUrlPrefix';
 
     final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
     final customClient = CustomClient(
@@ -108,7 +84,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     return GenerativeLanguageBaseClient(
       baseUrl: baseUrl,
       client: client,
-      apiUrlPrefix: apiUrlPrefix,
+      apiUrlPrefix: resolvedApiUrlPrefix,
     );
   }
 
