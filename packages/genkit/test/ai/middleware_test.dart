@@ -562,7 +562,268 @@ void main() {
         expect(checkTurn, 2);
       },
     );
+
+    group('options preservation', () {
+      setUp(() {
+        genkit = Genkit(isDevEnv: false);
+      });
+
+      test('multi-turn generation should preserve middleware', () async {
+        genkit.defineModel(
+          name: 'multiTurnModel',
+          fn: (req, ctx) async {
+            return ModelResponse(
+              finishReason: req.messages.length < 3
+                  ? FinishReason.other
+                  : FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: req.messages.length < 3
+                    ? [
+                        ToolRequestPart(
+                          toolRequest: ToolRequest(
+                            name: 'myTool',
+                            input: {'foo': 'bar'},
+                            ref: '123',
+                          ),
+                        ),
+                      ]
+                    : [TextPart(text: 'done')],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: 'myTool',
+          description: 'a tool',
+          fn: (input, ctx) async => 'tool output',
+        );
+
+        final capturedOptions = <GenerateActionOptions>[];
+        final middleware = defineMiddleware(
+          name: 'captureOptions',
+          create: ([config]) => _CaptureMiddleware(capturedOptions),
+        );
+        genkit.registry.registerValue(
+          'middleware',
+          middleware.name,
+          middleware,
+        );
+
+        await genkit.generate(
+          model: modelRef('multiTurnModel'),
+          prompt: 'hi',
+          use: [middlewareRef(name: 'captureOptions')],
+          toolNames: ['myTool'],
+        );
+
+        expect(capturedOptions.length, greaterThan(1));
+        for (var i = 0; i < capturedOptions.length; i++) {
+          expect(
+            capturedOptions[i].use,
+            isNotEmpty,
+            reason: 'Turn $i missing middleware',
+          );
+          expect(capturedOptions[i].use!.first.name, 'captureOptions');
+        }
+      });
+
+      test('resume flow should preserve middleware', () async {
+        final capturedOptions = <GenerateActionOptions>[];
+        final middleware = defineMiddleware(
+          name: 'captureOptionsResume',
+          create: ([config]) => _CaptureMiddleware(capturedOptions),
+        );
+        genkit.registry.registerValue(
+          'middleware',
+          middleware.name,
+          middleware,
+        );
+
+        genkit.defineModel(
+          name: 'resumeModel',
+          fn: (req, ctx) async {
+            if (req.messages.any(
+              (m) => m.content.any((p) => p.isToolResponse),
+            )) {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'resumed')],
+                ),
+              );
+            }
+
+            return ModelResponse(
+              finishReason: FinishReason.other,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'interruptTool',
+                      input: {'foo': 'bar'},
+                      ref: '123',
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: 'interruptTool',
+          description: 'interrupts',
+          fn: (input, ctx) async {
+            throw ToolInterruptException('interrupt');
+          },
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('resumeModel'),
+          prompt: 'hi',
+          use: [middlewareRef(name: 'captureOptionsResume')],
+          toolNames: ['interruptTool'],
+        );
+
+        expect(response1.interrupts, isNotEmpty);
+
+        capturedOptions.clear();
+
+        await genkit.generate(
+          model: modelRef('resumeModel'),
+          prompt: 'hi',
+          interruptRespond: [
+            InterruptResponse(response1.interrupts.first, 'resumed output'),
+          ],
+          use: [middlewareRef(name: 'captureOptionsResume')],
+          toolNames: ['interruptTool'],
+        );
+
+        expect(
+          capturedOptions.any((o) => o.resume?.respond?.isNotEmpty ?? false),
+          isTrue,
+        );
+        final resumedOption = capturedOptions.firstWhere(
+          (o) => o.resume?.respond?.isNotEmpty ?? false,
+        );
+
+        expect(
+          resumedOption.use,
+          isNotEmpty,
+          reason: 'Middleware lost on resume',
+        );
+        expect(resumedOption.use!.first.name, 'captureOptionsResume');
+      });
+
+      test('generate should preserve middleware (use) in options', () async {
+        final capturedOptions = <GenerateActionOptions>[];
+        final middleware = defineMiddleware(
+          name: 'captureOptionsMiddleware',
+          create: ([config]) => _CaptureMiddleware(capturedOptions),
+        );
+        genkit.registry.registerValue(
+          'middleware',
+          middleware.name,
+          middleware,
+        );
+
+        genkit.defineModel(
+          name: 'simpleModel',
+          fn: (req, ctx) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok')],
+            ),
+          ),
+        );
+
+        await genkit.generate(
+          model: modelRef('simpleModel'),
+          prompt: 'hi',
+          use: [middlewareRef(name: 'captureOptionsMiddleware')],
+        );
+
+        expect(capturedOptions.last.use, isNotEmpty);
+        expect(
+          capturedOptions.last.use!.first.name,
+          'captureOptionsMiddleware',
+        );
+      });
+
+      test(
+        'generate action should resolve middleware from options.use',
+        () async {
+          final capturedOptions = <GenerateActionOptions>[];
+          final middleware = defineMiddleware(
+            name: 'captureOptionsAction',
+            create: ([config]) => _CaptureMiddleware(capturedOptions),
+          );
+          genkit.registry.registerValue(
+            'middleware',
+            middleware.name,
+            middleware,
+          );
+
+          genkit.defineModel(
+            name: 'simpleModelAction',
+            fn: (req, ctx) async => ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ),
+          );
+
+          final generateAction = (await genkit.registry.lookupAction(
+            'util',
+            'generate',
+          ))!;
+
+          await generateAction(
+            GenerateActionOptions(
+              model: 'simpleModelAction',
+              messages: [
+                Message(
+                  role: Role.user,
+                  content: [TextPart(text: 'hi')],
+                ),
+              ],
+              use: [MiddlewareRef(name: 'captureOptionsAction')],
+            ),
+          );
+
+          expect(capturedOptions, isNotEmpty);
+          expect(capturedOptions.first.use, isNotEmpty);
+          expect(capturedOptions.first.use!.first.name, 'captureOptionsAction');
+        },
+      );
+    });
   });
+}
+
+class _CaptureMiddleware extends GenerateMiddleware {
+  final List<GenerateActionOptions> capturedOptions;
+  _CaptureMiddleware(this.capturedOptions);
+
+  @override
+  Future<GenerateResponseHelper> generate(
+    GenerateTurnState envelope,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResponseHelper> Function(
+      GenerateTurnState envelope,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  ) async {
+    capturedOptions.add(envelope.request);
+    return next(envelope, ctx);
+  }
 }
 
 class FunctionMiddleware extends GenerateMiddleware {

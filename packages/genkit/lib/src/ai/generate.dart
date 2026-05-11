@@ -51,7 +51,6 @@ GenerateAction defineGenerateAction(Registry registry) {
           status: StatusCodes.INVALID_ARGUMENT,
         );
       }
-      // TODO: resolve middleware from `options.use`.
       final response = await runGenerateAction(
         registry,
         options,
@@ -102,7 +101,14 @@ abstract class GenerateConfig {}
             status: StatusCodes.NOT_FOUND,
           );
         }
-        resolvedMiddleware.add(def.create(mw.middlewareRef!.config));
+
+        final config = mw.middlewareRef!.config;
+        final parsedConfig =
+            (config is Map<String, dynamic> && def.configSchema != null)
+            ? def.configSchema!.parse(config)
+            : config;
+
+        resolvedMiddleware.add(def.create(parsedConfig));
       } else {
         throw GenkitException(
           'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',
@@ -405,6 +411,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     returnToolRequests: options.returnToolRequests,
     maxTurns: options.maxTurns,
     stepName: options.stepName,
+    use: options.use,
   );
 
   // Recursively call composedGenerate for the next turn
@@ -463,7 +470,19 @@ Future<GenerateResponseHelper> _runGenerateAction(
     'config': resolvedConfigMap,
   });
 
-  final resolved = _resolveMiddleware(registry, middleware);
+  final resolved = _resolveMiddleware(
+    registry,
+    middleware ??
+        options.use
+            ?.whereType<MiddlewareRef>()
+            .map(
+              (m) => (
+                middlewareRef: middlewareRef(name: m.name, config: m.config),
+                middlewareInstance: null,
+              ),
+            )
+            .toList(),
+  );
   final generateRegistry = resolved.registry;
   final resolvedMiddleware = resolved.middleware;
 
@@ -535,6 +554,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
         returnToolRequests: opts.returnToolRequests,
         maxTurns: opts.maxTurns,
         output: opts.output,
+        use: opts.use,
         resume: GenerateResumeOptions(
           respond: respond,
           restart: [],
@@ -662,6 +682,19 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
       maxTurns: maxTurns,
       output: output,
       resume: resolvedResume,
+      use: middleware
+          ?.map((m) {
+            final ref = m.middlewareRef;
+            if (ref != null) {
+              return MiddlewareRef(
+                name: ref.name,
+                config: _configToMap(ref.config),
+              );
+            }
+            return null;
+          })
+          .whereType<MiddlewareRef>()
+          .toList(),
     ),
     (
       streamingRequested: onChunk != null,
@@ -947,7 +980,12 @@ _executeTools(
 
 Map<String, dynamic>? _configToMap(dynamic config) {
   if (config == null) return null;
-  return config is Map
-      ? config as Map<String, dynamic>
-      : (config as dynamic)?.toJson() as Map<String, dynamic>?;
+  if (config is Map) return config.cast<String, dynamic>();
+  if (config is String || config is num || config is bool) return null;
+
+  try {
+    return (config as dynamic).toJson() as Map<String, dynamic>?;
+  } catch (_) {
+    return null;
+  }
 }

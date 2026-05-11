@@ -377,6 +377,23 @@ void main() {
       expect(instructionParts!.first.text, 'Manual instructions');
     });
 
+    test('applyFormat should preserve middleware', () {
+      final request = GenerateActionOptions(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+        ],
+        use: [MiddlewareRef(name: 'res1')],
+      );
+
+      final result = applyFormat(request, null);
+
+      expect(result.use, isNotEmpty);
+      expect(result.use!.first.name, 'res1');
+    });
+
     test('parses partial json chunks', () async {
       genkit.defineModel(
         name: 'streamingJsonModel',
