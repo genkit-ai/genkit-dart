@@ -16,6 +16,7 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 
+import 'package:genkit_vertexai/src/meta_model.dart';
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
@@ -87,6 +88,40 @@ void main() {
       expect(mockClient.lastBody?['messages'], [
         {'role': 'user', 'content': 'hello'},
       ]);
+    });
+
+    test('rejects gs:// media URLs', () {
+      final request = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              MediaPart(
+                media: Media(
+                  url: 'gs://my-bucket/image.png',
+                  contentType: 'image/png',
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      expect(
+        () => toMetaChatCompletionRequest(
+          request,
+          'meta/llama-4-maverick-17b-128e-instruct-maas',
+          VertexAiMetaOptions(),
+          stream: false,
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('gs:// media URLs'),
+          ),
+        ),
+      );
     });
   });
 }

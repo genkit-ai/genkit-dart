@@ -17,6 +17,9 @@ import 'dart:convert';
 import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 
+const _unsupportedGoogleCloudStorageMediaUrlMessage =
+    'Meta models on Vertex AI do not support gs:// media URLs. Use a publicly accessible HTTPS URL or a data URI instead.';
+
 final metaModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
@@ -265,9 +268,13 @@ Map<String, dynamic> _toMetaContentPart(Part part) {
     return {'type': 'text', 'text': part.text};
   }
   if (part.isMedia) {
+    final mediaUrl = part.media!.url;
+    if (mediaUrl.startsWith('gs://')) {
+      throw ArgumentError(_unsupportedGoogleCloudStorageMediaUrlMessage);
+    }
     return {
       'type': 'image_url',
-      'image_url': {'url': part.media!.url},
+      'image_url': {'url': mediaUrl},
     };
   }
   throw UnimplementedError('Unsupported part type for Meta model: $part');
