@@ -182,6 +182,7 @@ ModelResponse fromMetaChatCompletionResponse(Map<String, dynamic> response) {
 
 ModelResponse fromMetaChatCompletionChunks(List<Map<String, dynamic>> chunks) {
   final content = StringBuffer();
+  final toolCallDeltas = <int, Map<String, dynamic>>{};
   var finishReason = FinishReason.unknown;
   GenerationUsage? usage;
 
@@ -192,21 +193,92 @@ ModelResponse fromMetaChatCompletionChunks(List<Map<String, dynamic>> chunks) {
     final delta = choice['delta'] as Map<String, dynamic>?;
     final text = delta?['content'] as String?;
     if (text != null) content.write(text);
+    _accumulateMetaToolCalls(toolCallDeltas, delta?['tool_calls'] as List?);
     if (choice['finish_reason'] != null) {
       finishReason = _mapMetaFinishReason(choice['finish_reason'] as String?);
     }
     usage = _fromMetaUsage(chunk['usage'] as Map<String, dynamic>?) ?? usage;
   }
 
+  final toolCalls = _toMetaAccumulatedToolCalls(toolCallDeltas);
+  final message = _fromMetaMessage({
+    'content': '$content',
+    if (toolCalls.isNotEmpty) 'tool_calls': toolCalls,
+  });
+
   return ModelResponse(
     finishReason: finishReason,
-    message: Message(
-      role: Role.model,
-      content: [TextPart(text: '$content')],
-    ),
+    message: message.content.isEmpty
+        ? Message(
+            role: Role.model,
+            content: [TextPart(text: '$content')],
+          )
+        : message,
     raw: {'chunks': chunks},
     usage: usage,
   );
+}
+
+void _accumulateMetaToolCalls(
+  Map<int, Map<String, dynamic>> accumulated,
+  List? toolCalls,
+) {
+  if (toolCalls == null) return;
+  for (final toolCall in toolCalls) {
+    if (toolCall is! Map) continue;
+    final delta = toolCall.cast<String, dynamic>();
+    final index = (delta['index'] as num?)?.toInt() ?? accumulated.length;
+    final target = accumulated.putIfAbsent(
+      index,
+      () => {
+        'type': 'function',
+        'function': <String, dynamic>{'arguments': ''},
+      },
+    );
+
+    final id = delta['id'] as String?;
+    if (id != null && id.isNotEmpty) target['id'] = id;
+
+    final type = delta['type'] as String?;
+    if (type != null && type.isNotEmpty) target['type'] = type;
+
+    final function = delta['function'];
+    if (function is! Map) continue;
+    final targetFunction = (target['function'] as Map).cast<String, dynamic>();
+    final functionDelta = function.cast<String, dynamic>();
+
+    final name = functionDelta['name'] as String?;
+    if (name != null && name.isNotEmpty) targetFunction['name'] = name;
+
+    final arguments = functionDelta['arguments'] as String?;
+    if (arguments != null) {
+      targetFunction['arguments'] = '${targetFunction['arguments']}$arguments';
+    }
+  }
+}
+
+List<Map<String, dynamic>> _toMetaAccumulatedToolCalls(
+  Map<int, Map<String, dynamic>> accumulated,
+) {
+  final entries = accumulated.entries.toList()
+    ..sort((a, b) => a.key.compareTo(b.key));
+
+  return entries
+      .map((entry) {
+        final toolCall = entry.value;
+        final function = (toolCall['function'] as Map).cast<String, dynamic>();
+        if ((function['arguments'] as String).isEmpty) {
+          function['arguments'] = '{}';
+        }
+        return toolCall;
+      })
+      .where((toolCall) {
+        final id = toolCall['id'] as String?;
+        final function = (toolCall['function'] as Map).cast<String, dynamic>();
+        final name = function['name'] as String?;
+        return id != null && id.isNotEmpty && name != null && name.isNotEmpty;
+      })
+      .toList();
 }
 
 List<Map<String, dynamic>> _toMetaMessages(List<Message> messages) {

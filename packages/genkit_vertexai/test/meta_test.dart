@@ -123,5 +123,57 @@ void main() {
         ),
       );
     });
+
+    test('aggregates streamed tool call chunks', () {
+      final response = fromMetaChatCompletionChunks([
+        {
+          'choices': [
+            {
+              'delta': {
+                'tool_calls': [
+                  {
+                    'index': 0,
+                    'id': 'call_weather',
+                    'type': 'function',
+                    'function': {'name': 'getWeather', 'arguments': '{"loc'},
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          'choices': [
+            {
+              'delta': {
+                'tool_calls': [
+                  {
+                    'index': 0,
+                    'function': {'arguments': 'ation":"Boston"}'},
+                  },
+                ],
+              },
+              'finish_reason': 'tool_calls',
+            },
+          ],
+          'usage': {
+            'prompt_tokens': 3,
+            'completion_tokens': 2,
+            'total_tokens': 5,
+          },
+        },
+      ]);
+
+      final content = response.message!.content;
+      expect(response.finishReason, FinishReason.stop);
+      expect(content, hasLength(1));
+      expect(content.first.isToolRequest, true);
+
+      final toolRequest = content.first.toolRequest!;
+      expect(toolRequest.ref, 'call_weather');
+      expect(toolRequest.name, 'getWeather');
+      expect(toolRequest.input, {'location': 'Boston'});
+      expect(response.usage?.totalTokens, 5);
+    });
   });
 }
