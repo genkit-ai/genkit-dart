@@ -313,7 +313,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       return (res['publisherModels'] as List?) ?? [];
     } catch (e, stack) {
       if (!warnOnFailure) rethrow;
-      logger.fine('Failed to list $publisher models: $e', e, stack);
+      logger.warning('Failed to list $publisher models: $e', e, stack);
       return [];
     }
   }
