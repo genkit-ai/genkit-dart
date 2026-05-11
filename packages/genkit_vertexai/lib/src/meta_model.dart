@@ -139,7 +139,7 @@ Map<String, dynamic> toMetaChatCompletionRequest(
     'frequency_penalty': ?options.frequencyPenalty,
     'seed': ?options.seed,
     'user': ?options.user,
-    if (responseFormat != null) 'response_format': responseFormat,
+    'response_format': ?responseFormat,
     if (options.llamaGuard != null)
       'extra_body': {
         'google': {
