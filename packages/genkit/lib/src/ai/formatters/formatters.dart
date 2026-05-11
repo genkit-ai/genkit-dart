@@ -112,20 +112,11 @@ GenerateActionOptions applyFormat(
     });
   }
 
-  return GenerateActionOptions(
-    messages: messages,
-    model: request.model,
-    config: request.config,
-    tools: request.tools,
-    toolChoice: request.toolChoice,
-    output: outputConfig,
-    docs: request.docs,
-    resume: request.resume,
-    returnToolRequests: request.returnToolRequests,
-    maxTurns: request.maxTurns,
-    stepName: request.stepName,
-    use: request.use,
-  );
+  return GenerateActionOptions.fromJson({
+    ...request.toJson(),
+    'messages': messages.map((e) => e.toJson()).toList(),
+    if (outputConfig != null) 'output': outputConfig.toJson(),
+  });
 }
 
 String? resolveInstructions(

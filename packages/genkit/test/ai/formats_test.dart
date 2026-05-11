@@ -87,6 +87,22 @@ void main() {
       expect(response.output, equals({'foo': 'baz', 'bar': 123}));
     });
 
+    test('applyFormat should preserve resources', () {
+      final request = GenerateActionOptions(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+        ],
+        resources: ['res1'],
+      );
+
+      final result = applyFormat(request, null);
+
+      expect(result.resources, contains('res1'));
+    });
+
     test(
       'does not inject instructions for schema by default for json',
       () async {

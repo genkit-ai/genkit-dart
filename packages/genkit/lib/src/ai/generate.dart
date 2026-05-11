@@ -399,20 +399,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     ..add(response.message!)
     ..add(Message(role: Role.tool, content: toolResponses));
 
-  final nextOptions = GenerateActionOptions(
-    model: options.model,
-    docs: options.docs,
-    messages: newMessages,
-    tools: options.tools,
-    toolChoice: options.toolChoice,
-    config: options.config,
-    output: options.output,
-    resume: null, // Clear resume as we handled it
-    returnToolRequests: options.returnToolRequests,
-    maxTurns: options.maxTurns,
-    stepName: options.stepName,
-    use: options.use,
-  );
+  final nextOptions = GenerateActionOptions.fromJson({
+    ...options.toJson(),
+    'messages': newMessages.map((e) => e.toJson()).toList(),
+    'resume': null,
+  });
 
   // Recursively call composedGenerate for the next turn
   return composedGenerate((
@@ -545,22 +536,14 @@ Future<GenerateResponseHelper> _runGenerateAction(
           );
         }
       }
-      opts = GenerateActionOptions(
-        model: opts.model,
-        messages: opts.messages,
-        config: opts.config,
-        tools: opts.tools,
-        toolChoice: opts.toolChoice,
-        returnToolRequests: opts.returnToolRequests,
-        maxTurns: opts.maxTurns,
-        output: opts.output,
-        use: opts.use,
-        resume: GenerateResumeOptions(
+      opts = GenerateActionOptions.fromJson({
+        ...opts.toJson(),
+        'resume': GenerateResumeOptions(
           respond: respond,
           restart: [],
           metadata: opts.resume?.metadata,
-        ),
-      );
+        ).toJson(),
+      });
 
       return composedGenerate((
         request: opts,
@@ -604,12 +587,15 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
   String? prompt,
   List<Message>? messages,
+  List<DocumentData>? docs,
+  List<String>? resources,
   ModelRef<CustomOptions>? model,
   CustomOptions? config,
   List<String>? tools,
   String? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
+  String? stepName,
   GenerateActionOutputConfig? output,
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
@@ -675,11 +661,14 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
     GenerateActionOptions(
       model: resolvedModelName,
       messages: resolvedMessages,
+      docs: docs,
+      resources: resources,
       config: resolvedConfigMap,
       tools: tools,
       toolChoice: toolChoice,
       returnToolRequests: returnToolRequests,
       maxTurns: maxTurns,
+      stepName: stepName,
       output: output,
       resume: resolvedResume,
       use: middleware

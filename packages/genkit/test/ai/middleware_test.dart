@@ -17,6 +17,8 @@ import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
+import 'ai_test_util.dart';
+
 part 'middleware_test.g.dart';
 
 @Schema()
@@ -603,7 +605,7 @@ void main() {
         final capturedOptions = <GenerateActionOptions>[];
         final middleware = defineMiddleware(
           name: 'captureOptions',
-          create: ([config]) => _CaptureMiddleware(capturedOptions),
+          create: ([config]) => CaptureMiddleware(capturedOptions),
         );
         genkit.registry.registerValue(
           'middleware',
@@ -633,7 +635,7 @@ void main() {
         final capturedOptions = <GenerateActionOptions>[];
         final middleware = defineMiddleware(
           name: 'captureOptionsResume',
-          create: ([config]) => _CaptureMiddleware(capturedOptions),
+          create: ([config]) => CaptureMiddleware(capturedOptions),
         );
         genkit.registry.registerValue(
           'middleware',
@@ -723,7 +725,7 @@ void main() {
         final capturedOptions = <GenerateActionOptions>[];
         final middleware = defineMiddleware(
           name: 'captureOptionsMiddleware',
-          create: ([config]) => _CaptureMiddleware(capturedOptions),
+          create: ([config]) => CaptureMiddleware(capturedOptions),
         );
         genkit.registry.registerValue(
           'middleware',
@@ -761,7 +763,7 @@ void main() {
           final capturedOptions = <GenerateActionOptions>[];
           final middleware = defineMiddleware(
             name: 'captureOptionsAction',
-            create: ([config]) => _CaptureMiddleware(capturedOptions),
+            create: ([config]) => CaptureMiddleware(capturedOptions),
           );
           genkit.registry.registerValue(
             'middleware',
@@ -805,25 +807,6 @@ void main() {
       );
     });
   });
-}
-
-class _CaptureMiddleware extends GenerateMiddleware {
-  final List<GenerateActionOptions> capturedOptions;
-  _CaptureMiddleware(this.capturedOptions);
-
-  @override
-  Future<GenerateResponseHelper> generate(
-    GenerateTurnState envelope,
-    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
-      GenerateTurnState envelope,
-      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    )
-    next,
-  ) async {
-    capturedOptions.add(envelope.request);
-    return next(envelope, ctx);
-  }
 }
 
 class FunctionMiddleware extends GenerateMiddleware {

@@ -16,6 +16,8 @@ import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
+import 'ai_test_util.dart';
+
 part 'generate_test.g.dart';
 
 @Schema()
@@ -850,5 +852,216 @@ void main() {
         expect(customModelCalled, isTrue);
       },
     );
+
+    group('options preservation', () {
+      test('multi-turn generation should preserve resources', () async {
+        genkit.defineModel(
+          name: 'multiTurnModelResources',
+          fn: (req, ctx) async {
+            return ModelResponse(
+              finishReason: req.messages.length < 3
+                  ? FinishReason.other
+                  : FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: req.messages.length < 3
+                    ? [
+                        ToolRequestPart(
+                          toolRequest: ToolRequest(
+                            name: 'myTool',
+                            input: {'foo': 'bar'},
+                            ref: '123',
+                          ),
+                        ),
+                      ]
+                    : [TextPart(text: 'done')],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: 'myTool',
+          description: 'a tool',
+          fn: (input, ctx) async => 'tool output',
+        );
+
+        final capturedOptions = <GenerateActionOptions>[];
+        final middleware = defineMiddleware(
+          name: 'captureOptionsResources',
+          create: ([config]) => CaptureMiddleware(capturedOptions),
+        );
+        genkit.registry.registerValue(
+          'middleware',
+          middleware.name,
+          middleware,
+        );
+
+        await genkit.generate(
+          model: modelRef('multiTurnModelResources'),
+          prompt: 'hi',
+          resources: ['res1'],
+          use: [middlewareRef(name: 'captureOptionsResources')],
+          toolNames: ['myTool'],
+        );
+
+        expect(capturedOptions.length, greaterThan(1));
+        for (var i = 0; i < capturedOptions.length; i++) {
+          expect(
+            capturedOptions[i].resources,
+            contains('res1'),
+            reason: 'Turn $i missing resource',
+          );
+        }
+      });
+
+      test('resume flow should preserve all relevant options', () async {
+        final capturedOptions = <GenerateActionOptions>[];
+        final middleware = defineMiddleware(
+          name: 'captureOptionsResumeAll',
+          create: ([config]) => CaptureMiddleware(capturedOptions),
+        );
+        genkit.registry.registerValue(
+          'middleware',
+          middleware.name,
+          middleware,
+        );
+
+        genkit.defineModel(
+          name: 'resumeModelAll',
+          fn: (req, ctx) async {
+            if (req.messages.any(
+              (m) => m.content.any((p) => p.isToolResponse),
+            )) {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'resumed')],
+                ),
+              );
+            }
+
+            return ModelResponse(
+              finishReason: FinishReason.other,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'interruptTool',
+                      input: {'foo': 'bar'},
+                      ref: '123',
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: 'interruptTool',
+          description: 'interrupts',
+          fn: (input, ctx) async {
+            throw ToolInterruptException('interrupt');
+          },
+        );
+
+        final testDocs = [
+          DocumentData(content: [TextPart(text: 'doc1')]),
+        ];
+        final testResources = ['res1'];
+        final testConfig = {'temp': 0.5};
+        final testTools = ['interruptTool'];
+        const testStepName = 'myStep';
+        const testMaxTurns = 7;
+
+        final response1 = await genkit.generate(
+          model: modelRef('resumeModelAll'),
+          prompt: 'hi',
+          docs: testDocs,
+          resources: testResources,
+          config: testConfig,
+          toolNames: testTools,
+          stepName: testStepName,
+          maxTurns: testMaxTurns,
+          outputFormat: 'json',
+          outputNoInstructions: true,
+          use: [middlewareRef(name: 'captureOptionsResumeAll')],
+        );
+
+        expect(response1.interrupts, isNotEmpty);
+
+        void verifyOptions(GenerateActionOptions options, String label) {
+          expect(
+            options.docs?.first.content.first.text,
+            'doc1',
+            reason: '$label: docs lost',
+          );
+          expect(
+            options.resources,
+            contains('res1'),
+            reason: '$label: resources lost',
+          );
+          expect(options.config?['temp'], 0.5, reason: '$label: config lost');
+          expect(
+            options.tools,
+            contains('interruptTool'),
+            reason: '$label: toolNames lost',
+          );
+          expect(
+            options.stepName,
+            testStepName,
+            reason: '$label: stepName lost',
+          );
+          expect(
+            options.maxTurns,
+            testMaxTurns,
+            reason: '$label: maxTurns lost',
+          );
+          expect(
+            options.output?.format,
+            'json',
+            reason: '$label: outputFormat lost',
+          );
+          expect(
+            options.output?.instructions,
+            false,
+            reason: '$label: outputNoInstructions lost',
+          );
+        }
+
+        verifyOptions(capturedOptions.last, 'Initial call');
+        capturedOptions.clear();
+
+        await genkit.generate(
+          model: modelRef('resumeModelAll'),
+          prompt: 'hi',
+          interruptRespond: [
+            InterruptResponse(response1.interrupts.first, 'resumed output'),
+          ],
+          docs: testDocs,
+          resources: testResources,
+          config: testConfig,
+          toolNames: testTools,
+          stepName: testStepName,
+          maxTurns: testMaxTurns,
+          outputFormat: 'json',
+          outputNoInstructions: true,
+          use: [middlewareRef(name: 'captureOptionsResumeAll')],
+        );
+
+        expect(
+          capturedOptions.any((o) => o.resume?.respond?.isNotEmpty ?? false),
+          isTrue,
+        );
+        final resumedOption = capturedOptions.firstWhere(
+          (o) => o.resume?.respond?.isNotEmpty ?? false,
+        );
+
+        verifyOptions(resumedOption, 'Resume call');
+      });
+    });
   });
 }

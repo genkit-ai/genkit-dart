@@ -31,6 +31,7 @@ export 'src/ai/generate_middleware.dart'
         GenerateMiddleware,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
+        GenerateTurnState,
         defineMiddleware,
         middlewareRef;
 export 'src/ai/generate_types.dart'
