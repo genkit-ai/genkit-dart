@@ -124,6 +124,27 @@ void main() {
       );
     });
 
+    test('uses JSON object response format without schema', () {
+      final request = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'return json')],
+          ),
+        ],
+        output: OutputConfig(format: 'json'),
+      );
+
+      final body = toMetaChatCompletionRequest(
+        request,
+        'meta/llama-4-maverick-17b-128e-instruct-maas',
+        VertexAiMetaOptions(),
+        stream: false,
+      );
+
+      expect(body['response_format'], {'type': 'json_object'});
+    });
+
     test('aggregates streamed tool call chunks', () {
       final response = fromMetaChatCompletionChunks([
         {

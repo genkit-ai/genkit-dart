@@ -124,9 +124,7 @@ Map<String, dynamic> toMetaChatCompletionRequest(
   VertexAiMetaOptions options, {
   required bool stream,
 }) {
-  final isJsonMode =
-      req.output?.format == 'json' ||
-      req.output?.contentType == 'application/json';
+  final responseFormat = _toMetaResponseFormat(req.output);
   return {
     'model': options.version ?? modelName,
     'messages': _toMetaMessages(req.messages),
@@ -141,15 +139,7 @@ Map<String, dynamic> toMetaChatCompletionRequest(
     'frequency_penalty': ?options.frequencyPenalty,
     'seed': ?options.seed,
     'user': ?options.user,
-    if (isJsonMode && req.output?.schema != null)
-      'response_format': {
-        'type': 'json_schema',
-        'json_schema': {
-          'name': 'output',
-          'schema': {...req.output!.schema!, 'additionalProperties': false},
-          'strict': true,
-        },
-      },
+    if (responseFormat != null) 'response_format': responseFormat,
     if (options.llamaGuard != null)
       'extra_body': {
         'google': {
@@ -159,6 +149,26 @@ Map<String, dynamic> toMetaChatCompletionRequest(
           },
         },
       },
+  };
+}
+
+Map<String, dynamic>? _toMetaResponseFormat(OutputConfig? output) {
+  final isJsonMode =
+      output?.format == 'json' || output?.contentType == 'application/json';
+  if (!isJsonMode) return null;
+
+  final schema = output?.schema;
+  if (schema == null) {
+    return {'type': 'json_object'};
+  }
+
+  return {
+    'type': 'json_schema',
+    'json_schema': {
+      'name': 'output',
+      'schema': {...schema, 'additionalProperties': false},
+      'strict': true,
+    },
   };
 }
 
