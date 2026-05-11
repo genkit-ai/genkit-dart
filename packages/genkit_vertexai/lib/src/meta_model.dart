@@ -231,7 +231,10 @@ Map<String, dynamic> _toMetaMessage(Message message) {
       if (_toMetaToolCalls(message.content).isNotEmpty)
         'tool_calls': _toMetaToolCalls(message.content),
     },
-    _ => throw UnimplementedError('Unsupported role: ${message.role}'),
+    _ => throw GenkitException(
+      'Unsupported role: ${message.role}',
+      status: StatusCodes.INVALID_ARGUMENT,
+    ),
   };
 }
 
@@ -277,7 +280,10 @@ Map<String, dynamic> _toMetaContentPart(Part part) {
       'image_url': {'url': mediaUrl},
     };
   }
-  throw UnimplementedError('Unsupported part type for Meta model: $part');
+  throw GenkitException(
+    'Unsupported part type for Meta model: $part',
+    status: StatusCodes.INVALID_ARGUMENT,
+  );
 }
 
 List<Map<String, dynamic>> _toMetaToolCalls(List<Part> parts) {
