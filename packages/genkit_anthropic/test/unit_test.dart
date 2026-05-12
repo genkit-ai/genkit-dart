@@ -16,7 +16,7 @@ import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/genkit.dart';
-import 'package:genkit_anthropic/src/plugin_impl.dart';
+import 'package:genkit_anthropic/common.dart';
 import 'package:test/test.dart';
 
 void main() {

@@ -16,13 +16,11 @@ import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
-import 'package:genkit_anthropic/genkit_anthropic.dart' as anthropic;
+import 'package:genkit_anthropic/common.dart' as anthropic;
 import 'package:genkit_google_genai/common.dart';
 import 'package:http/http.dart' as http;
-import 'package:schemantic/schemantic.dart';
 
 const _vertexAnthropicVersion = 'vertex-2023-10-16';
-const _defaultClaudeMaxTokens = 4096;
 const _structuredOutputToolName = '__genkit_output__';
 
 final claudeModelInfo = ModelInfo(
@@ -98,13 +96,16 @@ class VertexClaudeModelFactory {
             final accumulator = sdk.MessageStreamAccumulator();
             await for (final event in stream) {
               accumulator.add(event);
-              _handleStreamEvent(event, ctx.sendChunk);
+              anthropic.handleAnthropicStreamEvent(event, ctx.sendChunk);
             }
             final message = accumulator.toMessage();
             return ModelResponse(
-              finishReason: _mapFinishReason(message.stopReason),
-              message: _fromMessage(message),
-              usage: _mapUsage(message.usage),
+              finishReason: anthropic.mapFinishReason(message.stopReason),
+              message: anthropic.fromAnthropicMessage(
+                message,
+                structuredOutputToolName: _structuredOutputToolName,
+              ),
+              usage: anthropic.mapUsage(message.usage),
             );
           }
 
@@ -114,9 +115,12 @@ class VertexClaudeModelFactory {
             createRequest,
           );
           return ModelResponse(
-            finishReason: _mapFinishReason(response.stopReason),
-            message: _fromMessage(response),
-            usage: _mapUsage(response.usage),
+            finishReason: anthropic.mapFinishReason(response.stopReason),
+            message: anthropic.fromAnthropicMessage(
+              response,
+              structuredOutputToolName: _structuredOutputToolName,
+            ),
+            usage: anthropic.mapUsage(response.usage),
             raw: response.toJson(),
           );
         } catch (e, stack) {
@@ -129,68 +133,20 @@ class VertexClaudeModelFactory {
         }
       },
     );
-  }
+  } 
 
   sdk.MessageCreateRequest _buildCreateRequest(
     ModelRequest req,
     String modelName,
     anthropic.AnthropicOptions options,
   ) {
-    final systemMessage = req.messages
-        .where((m) => m.role == Role.system)
-        .firstOrNull;
-
-    final system = systemMessage != null
-        ? _convertSystemMessage(systemMessage)
-        : null;
-
-    final messages = req.messages
-        .where((m) => m.role != Role.system)
-        .map(_toMessage)
-        .toList();
-
-    final tools = req.tools?.map(_toTool).toList() ?? <sdk.ToolDefinition>[];
-
-    sdk.ToolChoice? toolChoice;
-
-    if (req.output?.schema != null) {
-      final schema = Map<String, dynamic>.from(req.output!.schema!);
-      if (!schema.containsKey('type')) {
-        schema['type'] = 'object';
-      }
-      tools.add(
-        sdk.ToolDefinition.custom(
-          sdk.Tool(
-            name: _structuredOutputToolName,
-            description: 'Return the structured output.',
-            inputSchema: sdk.InputSchema.fromJson(schema),
-          ),
-        ),
-      );
-      toolChoice = sdk.ToolChoice.tool(_structuredOutputToolName);
-    }
-
-    if (req.toolChoice != null) {
-      toolChoice = switch (req.toolChoice) {
-        'auto' => sdk.ToolChoice.auto(),
-        'any' => sdk.ToolChoice.any(),
-        'none' => sdk.ToolChoice.none(),
-        final name => sdk.ToolChoice.tool(name!),
-      };
-    }
-
-    return sdk.MessageCreateRequest(
-      model: modelName,
-      messages: messages,
-      system: system,
-      maxTokens: options.maxTokens ?? _defaultClaudeMaxTokens,
-      temperature: options.temperature,
-      topP: options.topP,
-      topK: options.topK,
-      stopSequences: options.stopSequences,
-      tools: tools.isNotEmpty ? tools : null,
-      toolChoice: toolChoice,
-      thinking: _mapThinkingConfig(options.thinking),
+    return anthropic.toAnthropicCreateRequest(
+      req,
+      modelName,
+      options,
+      structuredOutputToolName: _structuredOutputToolName,
+      mediaConverter: _convertVertexMedia,
+      toolOutputFormatter: _toolOutputText,
     );
   }
 
@@ -270,62 +226,10 @@ class VertexClaudeModelFactory {
   }
 }
 
-sdk.SystemPrompt? _convertSystemMessage(Message message) {
-  final parts = <String>[];
-  for (final part in message.content) {
-    if (part.isText) {
-      parts.add(part.text!);
-    }
-  }
-
-  final text = parts.join('\n');
-  if (text.isEmpty) {
-    return null;
-  }
-  return sdk.SystemPrompt.text(text);
-}
-
-sdk.InputMessage _toMessage(Message message) {
-  final isUser = message.role == Role.user || message.role == Role.tool;
-
-  final blocks = message.content.expand<sdk.InputContentBlock>((part) {
-    if (part.isText) {
-      return [sdk.InputContentBlock.text(part.text!)];
-    }
-    if (part.isToolRequest) {
-      final request = part.toolRequest!;
-      return [
-        sdk.InputContentBlock.toolUse(
-          id: request.ref ?? '',
-          name: request.name,
-          input: request.input ?? {},
-        ),
-      ];
-    }
-    if (part.isToolResponse) {
-      final response = part.toolResponse!;
-      return [
-        sdk.InputContentBlock.toolResult(
-          toolUseId: response.ref ?? '',
-          content: [
-            sdk.ToolResultContent.text(_toolOutputText(response.output)),
-          ],
-        ),
-      ];
-    }
-    if (part.isMedia) {
-      final media = part.media!;
-      return _convertMedia(media.url, media.contentType);
-    }
-    return <sdk.InputContentBlock>[];
-  }).toList();
-
-  return isUser
-      ? sdk.InputMessage.userBlocks(blocks)
-      : sdk.InputMessage.assistantBlocks(blocks);
-}
-
-List<sdk.InputContentBlock> _convertMedia(String url, String? contentType) {
+List<sdk.InputContentBlock> _convertVertexMedia(
+  String url,
+  String? contentType,
+) {
   if (url.startsWith('data:')) {
     final commaIndex = url.indexOf(',');
     final base64Data = url.substring(commaIndex + 1);
@@ -334,7 +238,7 @@ List<sdk.InputContentBlock> _convertMedia(String url, String? contentType) {
       sdk.InputContentBlock.image(
         sdk.ImageSource.base64(
           data: base64Data,
-          mediaType: _mapImageMediaType(mimeType),
+          mediaType: anthropic.mapImageMediaType(mimeType),
         ),
       ),
     ];
@@ -349,149 +253,6 @@ List<sdk.InputContentBlock> _convertMedia(String url, String? contentType) {
 
 String _toolOutputText(dynamic output) {
   return output is String ? output : jsonEncode(output);
-}
-
-sdk.ImageMediaType _mapImageMediaType(String mimeType) {
-  return switch (mimeType) {
-    'image/jpeg' || 'image/jpg' => sdk.ImageMediaType.jpeg,
-    'image/gif' => sdk.ImageMediaType.gif,
-    'image/webp' => sdk.ImageMediaType.webp,
-    _ => sdk.ImageMediaType.png,
-  };
-}
-
-sdk.ToolDefinition _toTool(ToolDefinition tool) {
-  final rawSchema = Map<String, Object?>.from(tool.inputSchema ?? const {});
-  final schema = Map<String, dynamic>.from(rawSchema.flatten());
-  if (!schema.containsKey('type')) {
-    schema['type'] = 'object';
-  }
-
-  return sdk.ToolDefinition.custom(
-    sdk.Tool(
-      name: tool.name,
-      description: tool.description,
-      inputSchema: sdk.InputSchema.fromJson(schema),
-    ),
-  );
-}
-
-Message _fromMessage(sdk.Message message) {
-  final content = message.content
-      .map(
-        (block) => switch (block) {
-          sdk.TextBlock(:final text) => TextPart(text: text),
-          sdk.ToolUseBlock(:final id, :final name, :final input) =>
-            name == _structuredOutputToolName
-                ? TextPart(text: jsonEncode(_extractOutput(input)))
-                : ToolRequestPart(
-                        toolRequest: ToolRequest(
-                          ref: id,
-                          name: name,
-                          input: input,
-                        ),
-                      )
-                      as Part,
-          sdk.ThinkingBlock(:final thinking, :final signature) => ReasoningPart(
-            reasoning: thinking,
-            metadata: {'signature': signature},
-          ),
-          _ => TextPart(text: ''),
-        },
-      )
-      .where((part) => part is! TextPart || part.text.isNotEmpty)
-      .toList();
-
-  return Message(role: Role.model, content: content);
-}
-
-Map<String, dynamic> _extractOutput(Map<String, dynamic> input) {
-  if (input.keys.length == 1) {
-    if (input.containsKey('output') && input['output'] is Map) {
-      return input['output'] as Map<String, dynamic>;
-    }
-    if (input.containsKey('\$output') && input['\$output'] is Map) {
-      return input['\$output'] as Map<String, dynamic>;
-    }
-  }
-
-  return input;
-}
-
-sdk.ThinkingConfig? _mapThinkingConfig(anthropic.ThinkingConfig? config) {
-  if (config == null) {
-    return null;
-  }
-
-  return switch (config.type ?? 'enabled') {
-    'disabled' => sdk.ThinkingConfig.disabled(),
-    'adaptive' => sdk.ThinkingConfig.adaptive(),
-    _ => sdk.ThinkingConfig.enabled(budgetTokens: config.budgetTokens ?? 1024),
-  };
-}
-
-void _handleStreamEvent(
-  sdk.MessageStreamEvent event,
-  void Function(ModelResponseChunk chunk) sendChunk,
-) {
-  switch (event) {
-    case sdk.ContentBlockDeltaEvent(:final index, :final delta):
-      switch (delta) {
-        case sdk.TextDelta(:final text):
-          sendChunk(
-            ModelResponseChunk(
-              index: index,
-              content: [TextPart(text: text)],
-            ),
-          );
-        case sdk.ThinkingDelta(:final thinking):
-          sendChunk(
-            ModelResponseChunk(
-              index: index,
-              content: [ReasoningPart(reasoning: thinking)],
-            ),
-          );
-        case sdk.InputJsonDelta():
-        case sdk.SignatureDelta():
-        case sdk.CitationsDelta():
-        case sdk.CompactionDelta():
-        case sdk.UnknownContentBlockDelta():
-          break;
-      }
-    case sdk.ErrorEvent(:final message):
-      throw GenkitException(
-        'Anthropic stream error: $message',
-        status: StatusCodes.INTERNAL,
-      );
-    default:
-      break;
-  }
-}
-
-FinishReason _mapFinishReason(sdk.StopReason? reason) {
-  return switch (reason) {
-    sdk.StopReason.endTurn => FinishReason.stop,
-    sdk.StopReason.maxTokens => FinishReason.length,
-    sdk.StopReason.stopSequence => FinishReason.stop,
-    sdk.StopReason.toolUse => FinishReason.stop,
-    sdk.StopReason.pauseTurn => FinishReason.stop,
-    sdk.StopReason.compaction => FinishReason.stop,
-    sdk.StopReason.modelContextWindowExceeded => FinishReason.length,
-    sdk.StopReason.refusal => FinishReason.blocked,
-    null => FinishReason.unknown,
-  };
-}
-
-GenerationUsage _mapUsage(sdk.Usage? usage) {
-  if (usage == null) {
-    return GenerationUsage(inputTokens: 0, outputTokens: 0, totalTokens: 0);
-  }
-
-  return GenerationUsage(
-    inputTokens: usage.inputTokens.toDouble(),
-    outputTokens: usage.outputTokens.toDouble(),
-    totalTokens: (usage.inputTokens + usage.outputTokens).toDouble(),
-  );
 }
 
 bool _isSuccessStatus(int statusCode) => statusCode >= 200 && statusCode < 300;
