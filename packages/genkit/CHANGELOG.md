@@ -1,3 +1,14 @@
+## 0.13.2
+
+### Features
+
+ - add listValues (#281)
+
+### Fixes
+
+ - preserve middleware in generation (#282)
+
+
 ## 0.13.1
 
 ### Features
