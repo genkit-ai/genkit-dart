@@ -16,9 +16,6 @@ import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/common.dart' as google;
-// ignore: implementation_imports
-import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
-    as google_types;
 
 List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
   required String pluginName,
@@ -113,13 +110,13 @@ String _documentText(DocumentData doc) {
   return doc.content.where((p) => p.isText).map((p) => p.text).join('\n');
 }
 
-google_types.EmbedContentRequest _embedContentRequest(
+google.EmbedContentRequest _embedContentRequest(
   DocumentData doc,
   google.TextEmbedderOptions? options,
 ) {
   final text = _documentText(doc);
-  return google_types.EmbedContentRequest(
-    content: google_types.Content(parts: [google_types.Part(text: text)]),
+  return google.EmbedContentRequest(
+    content: google.Content(parts: [google.Part(text: text)]),
     outputDimensionality: options?.outputDimensionality,
     taskType: options?.taskType,
     title: options?.title,
@@ -144,7 +141,7 @@ Future<List<Embedding>> _runGeminiEmbeddingRequests({
   }
 
   final res = await service.batchEmbedContents(
-    google_types.BatchEmbedContentsRequest(
+    google.BatchEmbedContentsRequest(
       requests: docs.map((doc) => _embedContentRequest(doc, options)).toList(),
     ),
     model: 'models/$embedderName',
@@ -171,8 +168,8 @@ Future<Embedding> _runEmbedContentRequest({
   return Embedding(embedding: res.embedding?.values ?? []);
 }
 
-List<google_types.ContentEmbedding> _requireBatchEmbeddings(
-  List<google_types.ContentEmbedding>? embeddings, {
+List<google.ContentEmbedding> _requireBatchEmbeddings(
+  List<google.ContentEmbedding>? embeddings, {
   required int expectedCount,
 }) {
   if (embeddings == null || embeddings.isEmpty) {
