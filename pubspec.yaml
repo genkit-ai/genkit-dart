@@ -29,6 +29,7 @@ workspace:
   - testapps/middleware
   - testapps/remote_models
   - testapps/gemini
+  - testapps/prompts
   - testapps/evals
   - testapps/schemantic_sample
 

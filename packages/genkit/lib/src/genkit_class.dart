@@ -210,7 +210,7 @@ final class Genkit {
   /// ```dart
   /// final hi = ai.definePrompt(
   ///   name: 'hi',
-  ///   model: modelRef('googleai/gemini-2.0-flash'),
+  ///   model: modelRef('googleai/gemini-flash-latest'),
   ///   prompt: 'Say hi to {{name}}',
   /// );
   ///

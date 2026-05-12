@@ -116,7 +116,7 @@ void main() {
 
       definePromptAction(registry, dpRegistry, config);
 
-      final action = await registry.lookupAction('prompt', 'greet');
+      final action = await registry.lookupAction('executable-prompt', 'greet');
       expect(action, isNotNull);
       expect(action, isA<PromptAction>());
     });
@@ -132,7 +132,10 @@ void main() {
 
       expect(ep.ref.name, equals('greet.formal'));
 
-      final action = await registry.lookupAction('prompt', 'greet.formal');
+      final action = await registry.lookupAction(
+        'executable-prompt',
+        'greet.formal',
+      );
       expect(action, isNotNull);
     });
 
@@ -147,7 +150,7 @@ void main() {
 
       definePromptAction(registry, dpRegistry, config);
 
-      final action = await registry.lookupAction('prompt', 'greet');
+      final action = await registry.lookupAction('executable-prompt', 'greet');
       expect(action, isNotNull);
       final pa = action as PromptAction;
       expect(pa.metadata['type'], equals('prompt'));
@@ -818,7 +821,7 @@ void main() {
         PromptConfig(name: 'test', prompt: 'Hello {{name}}'),
       );
 
-      final action = await registry.lookupAction('prompt', 'test');
+      final action = await registry.lookupAction('executable-prompt', 'test');
       expect(action, isNotNull);
 
       // Invoke via the action
@@ -1148,7 +1151,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final action = await registry.lookupAction('prompt', 'hello');
+      final action = await registry.lookupAction('executable-prompt', 'hello');
       expect(action, isNotNull);
       expect(action, isA<PromptAction>());
     });
@@ -1165,7 +1168,10 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final action = await registry.lookupAction('prompt', 'greeting');
+      final action = await registry.lookupAction(
+        'executable-prompt',
+        'greeting',
+      );
       expect(action, isNotNull);
       final pa = action as PromptAction;
       expect(
@@ -1184,9 +1190,12 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final defaultAction = await registry.lookupAction('prompt', 'greeting');
+      final defaultAction = await registry.lookupAction(
+        'executable-prompt',
+        'greeting',
+      );
       final formalAction = await registry.lookupAction(
-        'prompt',
+        'executable-prompt',
         'greeting.formal',
       );
 
@@ -1207,11 +1216,17 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       // The partial should not be registered as a prompt action
-      final partialAction = await registry.lookupAction('prompt', 'header');
+      final partialAction = await registry.lookupAction(
+        'executable-prompt',
+        'header',
+      );
       expect(partialAction, isNull);
 
       // But the main prompt should be registered
-      final pageAction = await registry.lookupAction('prompt', 'page');
+      final pageAction = await registry.lookupAction(
+        'executable-prompt',
+        'page',
+      );
       expect(pageAction, isNotNull);
     });
 
@@ -1224,7 +1239,10 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final action = await registry.lookupAction('prompt', 'sub/nested');
+      final action = await registry.lookupAction(
+        'executable-prompt',
+        'sub/nested',
+      );
       expect(action, isNotNull);
     });
 
@@ -1244,7 +1262,10 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path, ns: 'myapp');
 
-      final action = await registry.lookupAction('prompt', 'myapp/hello');
+      final action = await registry.lookupAction(
+        'executable-prompt',
+        'myapp/hello',
+      );
       expect(action, isNotNull);
     });
 
@@ -1255,9 +1276,9 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      expect(await registry.lookupAction('prompt', 'a'), isNotNull);
-      expect(await registry.lookupAction('prompt', 'b'), isNotNull);
-      expect(await registry.lookupAction('prompt', 'c'), isNotNull);
+      expect(await registry.lookupAction('executable-prompt', 'a'), isNotNull);
+      expect(await registry.lookupAction('executable-prompt', 'b'), isNotNull);
+      expect(await registry.lookupAction('executable-prompt', 'c'), isNotNull);
     });
 
     test('ignores non-prompt files', () async {
@@ -1274,10 +1295,13 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       // Only the .prompt file should be loaded
-      final action = await registry.lookupAction('prompt', 'hello');
+      final action = await registry.lookupAction('executable-prompt', 'hello');
       expect(action, isNotNull);
 
-      final mdAction = await registry.lookupAction('prompt', 'readme');
+      final mdAction = await registry.lookupAction(
+        'executable-prompt',
+        'readme',
+      );
       expect(mdAction, isNull);
     });
   });

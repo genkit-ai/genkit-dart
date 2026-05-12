@@ -30,11 +30,11 @@ genkit.Message dpMessageToGenkitMessage(dp.Message msg) {
 
 /// Converts a dotprompt [dp.Role] to a Genkit [genkit.Role].
 genkit.Role dpRoleToGenkitRole(dp.Role role) => switch (role) {
-      dp.Role.user => genkit.Role.user,
-      dp.Role.model => genkit.Role.model,
-      dp.Role.system => genkit.Role.system,
-      dp.Role.tool => genkit.Role.tool,
-    };
+  dp.Role.user => genkit.Role.user,
+  dp.Role.model => genkit.Role.model,
+  dp.Role.system => genkit.Role.system,
+  dp.Role.tool => genkit.Role.tool,
+};
 
 /// Converts a dotprompt [dp.Part] to a Genkit [genkit.Part].
 genkit.Part dpPartToGenkitPart(dp.Part part) {

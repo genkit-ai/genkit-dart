@@ -401,8 +401,9 @@ Map<String, dynamic>? _configToMap(dynamic config) {
 
 /// Defines an executable prompt and registers it in the registry.
 ///
-/// This creates both a `PromptAction` (registered as actionType 'prompt')
-/// and returns an [ExecutablePrompt] that can be called directly.
+/// This creates both a `PromptAction` (registered as actionType
+/// 'executable-prompt') and returns an [ExecutablePrompt] that can be called
+/// directly.
 ExecutablePrompt<Input> definePromptAction<CustomOptions, Input>(
   Registry registry,
   DotpromptRegistry dotpromptRegistry,
@@ -468,7 +469,7 @@ class PromptAction<Input>
     Map<String, dynamic>? metadata,
   }) : _executablePrompt = executablePrompt,
        super(
-         actionType: 'prompt',
+         actionType: 'executable-prompt',
          outputSchema: GenerateActionOptions.$schema,
          metadata: _promptActionMetadata(description, metadata),
          fn: (input, ctx) async {
@@ -517,7 +518,7 @@ Future<ExecutablePrompt> lookupPrompt(
   String? variant,
 }) async {
   final lookupName = variant != null ? '$name.$variant' : name;
-  final action = await registry.lookupAction('prompt', lookupName);
+  final action = await registry.lookupAction('executable-prompt', lookupName);
   if (action != null && action is PromptAction) {
     final ep = action.executablePrompt;
     if (ep != null) return ep;
