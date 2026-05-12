@@ -220,8 +220,79 @@ void main() {
         expect(requestBody['parameters'], {'dimension': 256});
         expect(response.result.embeddings, hasLength(1));
         expect(response.result.embeddings.first.embedding, [0.7, 0.8, 0.9]);
+        expect(response.result.embeddings.first.metadata, {
+          'documentIndex': 0,
+          'modality': 'text',
+          'partIndices': [0],
+        });
       },
     );
+
+    test('flattens mixed multimodal outputs with source metadata', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+      final req = EmbedRequest(
+        input: [
+          DocumentData(
+            content: [
+              TextPart(text: 'hello'),
+              MediaPart(media: Media(url: 'data:image/png;base64,AA==')),
+              MediaPart(media: Media(url: 'data:video/mp4;base64,AA==')),
+            ],
+          ),
+          DocumentData(content: [TextPart(text: 'world')]),
+        ],
+      );
+
+      final response = await embedder.run(req);
+
+      final requestBody =
+          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      final instances = requestBody['instances'] as List;
+      expect(instances, hasLength(2));
+      expect(instances.first, {
+        'text': 'hello',
+        'image': {'bytesBase64Encoded': 'AA==', 'mimeType': 'image/png'},
+        'video': {'bytesBase64Encoded': 'AA==', 'mimeType': 'video/mp4'},
+      });
+      expect(instances[1], {'text': 'world'});
+
+      final embeddings = response.result.embeddings;
+      expect(embeddings, hasLength(4));
+      expect(embeddings[0].embedding, [0.7, 0.8, 0.9]);
+      expect(embeddings[0].metadata, {
+        'documentIndex': 0,
+        'modality': 'text',
+        'partIndices': [0],
+      });
+      expect(embeddings[1].embedding, [1.7, 1.8, 1.9]);
+      expect(embeddings[1].metadata, {
+        'documentIndex': 0,
+        'modality': 'image',
+        'partIndex': 1,
+      });
+      expect(embeddings[2].embedding, [2.7, 2.8, 2.9]);
+      expect(embeddings[2].metadata, {
+        'documentIndex': 0,
+        'modality': 'video',
+        'partIndex': 2,
+        'segmentIndex': 0,
+        'startOffsetSec': 0,
+        'endOffsetSec': 16,
+      });
+      expect(embeddings[3].embedding, [1.7, 1.8, 1.9]);
+      expect(embeddings[3].metadata, {
+        'documentIndex': 1,
+        'modality': 'text',
+        'partIndices': [0],
+      });
+    });
 
     test(
       'throws a descriptive error when Vertex returns no predictions',

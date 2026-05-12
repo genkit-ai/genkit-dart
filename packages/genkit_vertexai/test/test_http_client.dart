@@ -100,14 +100,27 @@ class MockHttpClient extends http.BaseClient {
       final instances = body['instances'] as List;
       final predictions = returnEmptyPredictions
           ? const []
-          : List.generate(
-              instances.length,
-              (index) => returnMissingMultimodalEmbedding
-                  ? <String, dynamic>{}
-                  : {
-                      'textEmbedding': [index + 0.7, index + 0.8, index + 0.9],
+          : List.generate(instances.length, (index) {
+              if (returnMissingMultimodalEmbedding) {
+                return <String, dynamic>{};
+              }
+
+              final instance = instances[index] as Map<String, dynamic>;
+              return {
+                if (instance.containsKey('text'))
+                  'textEmbedding': [index + 0.7, index + 0.8, index + 0.9],
+                if (instance.containsKey('image'))
+                  'imageEmbedding': [index + 1.7, index + 1.8, index + 1.9],
+                if (instance.containsKey('video'))
+                  'videoEmbeddings': [
+                    {
+                      'embedding': [index + 2.7, index + 2.8, index + 2.9],
+                      'startOffsetSec': 0,
+                      'endOffsetSec': 16,
                     },
-            );
+                  ],
+              };
+            });
       return http.StreamedResponse(
         Stream.value(utf8.encode(jsonEncode({'predictions': predictions}))),
         200,

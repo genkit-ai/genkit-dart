@@ -225,7 +225,10 @@ Future<List<Embedding>> _runMultimodalPredictRequests({
   required google.TextEmbedderOptions? options,
 }) async {
   // Multimodal embedders use a different predict request and response shape.
-  final instances = docs.map(_toMultimodalInstance).toList();
+  final instances = [
+    for (var i = 0; i < docs.length; i++)
+      _toMultimodalInstance(docs[i], documentIndex: i),
+  ];
   final parameters = <String, dynamic>{};
   if (options?.outputDimensionality != null) {
     parameters['dimension'] = options!.outputDimensionality;
@@ -242,11 +245,9 @@ Future<List<Embedding>> _runMultimodalPredictRequests({
   );
   return [
     for (var i = 0; i < predictions.length; i++)
-      Embedding(
-        embedding: _multimodalPredictionEmbedding(
-          predictions[i],
-          expectedOutput: instances[i].expectedOutput,
-        ),
+      ..._multimodalPredictionEmbeddings(
+        predictions[i],
+        expectedOutputs: instances[i].expectedOutputs,
       ),
   ];
 }
@@ -294,50 +295,70 @@ Embedding _textPredictionEmbedding(Map<String, dynamic> prediction) {
   );
 }
 
-_MultimodalInstance _toMultimodalInstance(DocumentData doc) {
+_MultimodalInstance _toMultimodalInstance(
+  DocumentData doc, {
+  required int documentIndex,
+}) {
   final text = _documentText(doc).trim();
-  final mediaParts = doc.content
-      .where((part) => part.isMedia)
-      .map((part) => part.media!)
-      .toList();
-
-  // A document can only contain one input type here.
-  // Text, image, and video use different embedding fields in the Vertex
-  // response, and this code needs one clear field to read for each document.
-  if (text.isNotEmpty && mediaParts.isNotEmpty) {
-    throw GenkitException(
-      'Vertex multimodalembedding supports exactly one modality per input document in the embedder API. Provide text, one image, or one video.',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-
-  if (mediaParts.length > 1) {
-    throw GenkitException(
-      'Vertex multimodalembedding supports at most one media part per input document in the embedder API.',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
+  final instance = <String, dynamic>{};
+  final expectedOutputs = <_MultimodalExpectedOutput>[];
 
   if (text.isNotEmpty) {
-    return _MultimodalInstance(
-      instance: {'text': text},
-      expectedOutput: _MultimodalOutput.text,
+    instance['text'] = text;
+    expectedOutputs.add(
+      _MultimodalExpectedOutput(
+        output: _MultimodalOutput.text,
+        metadata: {
+          'documentIndex': documentIndex,
+          'modality': 'text',
+          'partIndices': [
+            for (var i = 0; i < doc.content.length; i++)
+              if (doc.content[i].isText &&
+                  (doc.content[i].text?.trim().isNotEmpty ?? false))
+                i,
+          ],
+        },
+      ),
     );
   }
 
-  if (mediaParts.isEmpty) {
+  for (var i = 0; i < doc.content.length; i++) {
+    final part = doc.content[i];
+    if (!part.isMedia) continue;
+
+    final mediaField = _toMultimodalMediaField(part.media!);
+    if (instance.containsKey(mediaField.key)) {
+      throw GenkitException(
+        'Vertex multimodalembedding supports at most one ${mediaField.key} part per input document.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    instance[mediaField.key] = mediaField.value;
+    expectedOutputs.add(
+      _MultimodalExpectedOutput(
+        output: mediaField.key == 'image'
+            ? _MultimodalOutput.image
+            : _MultimodalOutput.video,
+        metadata: {
+          'documentIndex': documentIndex,
+          'modality': mediaField.key,
+          'partIndex': i,
+        },
+      ),
+    );
+  }
+
+  if (instance.isEmpty) {
     throw GenkitException(
       'Vertex multimodalembedding requires text, image, or video input.',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
 
-  final mediaField = _toMultimodalMediaField(mediaParts.single);
   return _MultimodalInstance(
-    instance: {mediaField.key: mediaField.value},
-    expectedOutput: mediaField.key == 'image'
-        ? _MultimodalOutput.image
-        : _MultimodalOutput.video,
+    instance: instance,
+    expectedOutputs: expectedOutputs,
   );
 }
 
@@ -407,28 +428,74 @@ String _multimodalFieldName(String? mimeType) {
   );
 }
 
-List<double> _multimodalPredictionEmbedding(
+List<Embedding> _multimodalPredictionEmbeddings(
   Map<String, dynamic> prediction, {
-  required _MultimodalOutput expectedOutput,
+  required List<_MultimodalExpectedOutput> expectedOutputs,
 }) {
-  // Read the embedding field that matches the input type.
-  final values = switch (expectedOutput) {
-    _MultimodalOutput.text => prediction['textEmbedding'] as List?,
-    _MultimodalOutput.image => prediction['imageEmbedding'] as List?,
-    _MultimodalOutput.video =>
-      ((prediction['videoEmbeddings'] as List?)?.firstOrNull
-              as Map<String, dynamic>?)?['embedding']
-          as List?,
-  };
+  final embeddings = <Embedding>[];
+  for (final expectedOutput in expectedOutputs) {
+    switch (expectedOutput.output) {
+      case _MultimodalOutput.text:
+        embeddings.add(
+          _embeddingFromMultimodalValues(
+            prediction['textEmbedding'] as List?,
+            expectedOutput: expectedOutput,
+          ),
+        );
+      case _MultimodalOutput.image:
+        embeddings.add(
+          _embeddingFromMultimodalValues(
+            prediction['imageEmbedding'] as List?,
+            expectedOutput: expectedOutput,
+          ),
+        );
+      case _MultimodalOutput.video:
+        final videoEmbeddings = prediction['videoEmbeddings'] as List?;
+        if (videoEmbeddings == null || videoEmbeddings.isEmpty) {
+          throw GenkitException(
+            'Vertex multimodalembedding did not return a video embedding.',
+            status: StatusCodes.INTERNAL,
+          );
+        }
 
+        for (var i = 0; i < videoEmbeddings.length; i++) {
+          final videoEmbedding = videoEmbeddings[i] as Map<String, dynamic>;
+          embeddings.add(
+            _embeddingFromMultimodalValues(
+              videoEmbedding['embedding'] as List?,
+              expectedOutput: expectedOutput,
+              metadata: {
+                ...expectedOutput.metadata,
+                'segmentIndex': i,
+                if (videoEmbedding['startOffsetSec'] != null)
+                  'startOffsetSec': videoEmbedding['startOffsetSec'],
+                if (videoEmbedding['endOffsetSec'] != null)
+                  'endOffsetSec': videoEmbedding['endOffsetSec'],
+              },
+            ),
+          );
+        }
+    }
+  }
+  return embeddings;
+}
+
+Embedding _embeddingFromMultimodalValues(
+  List? values, {
+  required _MultimodalExpectedOutput expectedOutput,
+  Map<String, dynamic>? metadata,
+}) {
   if (values == null) {
     throw GenkitException(
-      'Vertex multimodalembedding did not return a ${expectedOutput.name} embedding.',
+      'Vertex multimodalembedding did not return a ${expectedOutput.output.name} embedding.',
       status: StatusCodes.INTERNAL,
     );
   }
 
-  return values.map((value) => (value as num).toDouble()).toList();
+  return Embedding(
+    embedding: values.map((value) => (value as num).toDouble()).toList(),
+    metadata: metadata ?? expectedOutput.metadata,
+  );
 }
 
 String _baseModelName(String modelName) {
@@ -466,9 +533,16 @@ bool _usesLegacyGeminiPredictApi(String modelName) {
 
 class _MultimodalInstance {
   final Map<String, dynamic> instance;
-  final _MultimodalOutput expectedOutput;
+  final List<_MultimodalExpectedOutput> expectedOutputs;
 
-  _MultimodalInstance({required this.instance, required this.expectedOutput});
+  _MultimodalInstance({required this.instance, required this.expectedOutputs});
+}
+
+class _MultimodalExpectedOutput {
+  final _MultimodalOutput output;
+  final Map<String, dynamic> metadata;
+
+  _MultimodalExpectedOutput({required this.output, required this.metadata});
 }
 
 enum _MultimodalOutput { text, image, video }
