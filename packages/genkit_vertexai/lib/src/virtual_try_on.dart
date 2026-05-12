@@ -179,6 +179,14 @@ Map<String, dynamic> _toVirtualTryOnImage(Media media) {
     );
   }
 
+  final uri = Uri.tryParse(media.url);
+  if (uri != null && uri.hasScheme) {
+    throw GenkitException(
+      'Unsupported URI scheme "${uri.scheme}" for virtual try-on image. Use a data URL or a Cloud Storage URI.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
   image['bytesBase64Encoded'] = media.url;
   return image;
 }

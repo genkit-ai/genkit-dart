@@ -137,5 +137,52 @@ void main() {
       expect(response.media?.url, 'data:image/png;base64,b3V0cHV0');
       expect(response.usage?.outputImages, 1);
     });
+
+    test('rejects unsupported image URI schemes', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final model = plugin.resolve('model', 'virtual-try-on-001') as Model;
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              MediaPart(
+                media: Media(
+                  contentType: 'image/png',
+                  url: 'file:///tmp/person.png',
+                ),
+                metadata: {'type': 'personImage'},
+              ),
+              MediaPart(
+                media: Media(
+                  contentType: 'image/jpeg',
+                  url: 'data:image/jpeg;base64,cHJvZHVjdA==',
+                ),
+                metadata: {'type': 'productImage'},
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await expectLater(
+        model.run(req),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                'Unsupported URI scheme "file" for virtual try-on image. Use a data URL or a Cloud Storage URI.',
+              ),
+        ),
+      );
+    });
   });
 }
