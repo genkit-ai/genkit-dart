@@ -376,7 +376,7 @@ MapEntry<String, Map<String, dynamic>> _toMultimodalMediaField(Media media) {
 
   // Convert the media input into the format Vertex expects.
   if (media.url.startsWith('data:')) {
-    final data = Uri.parse(media.url).data;
+    final data = Uri.tryParse(media.url)?.data;
     if (data == null) {
       throw GenkitException(
         'Vertex multimodalembedding media inputs require a valid data URI.',
@@ -409,7 +409,7 @@ String? _mediaMimeType(Media media) {
   }
 
   if (media.url.startsWith('data:')) {
-    return Uri.parse(media.url).data?.mimeType;
+    return Uri.tryParse(media.url)?.data?.mimeType;
   }
 
   return null;

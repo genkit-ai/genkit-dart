@@ -322,6 +322,79 @@ void main() {
       });
     });
 
+    test('throws when a multimodal data URI is malformed', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+      await expectLater(
+        () => embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(
+                content: [
+                  MediaPart(
+                    media: Media(
+                      url: 'data:image/png;base64,%',
+                      contentType: 'image/png',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'Vertex multimodalembedding media inputs require a valid data URI.',
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when a multimodal data URI MIME cannot be parsed', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+      await expectLater(
+        () => embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(
+                content: [
+                  MediaPart(media: Media(url: 'data:image/png;base64,%')),
+                ],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'Vertex multimodalembedding media inputs require a MIME type.',
+            ),
+          ),
+        ),
+      );
+    });
+
     test(
       'throws a descriptive error when Vertex returns no predictions',
       () async {
