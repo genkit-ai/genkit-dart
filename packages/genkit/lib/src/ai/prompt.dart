@@ -203,24 +203,12 @@ class ExecutablePrompt<Input> {
     final resolvedConfig = <String, dynamic>{...?configMap, ...?optsConfigMap};
 
     // Resolve tools
-    final resolvedToolNames = <String>[
+    final resolvedToolNames = <String>{
       ...?_config.toolNames,
       ...?opts?.toolNames,
-    ];
-    if (_config.tools != null) {
-      for (final tool in _config.tools!) {
-        if (!resolvedToolNames.contains(tool.name)) {
-          resolvedToolNames.add(tool.name);
-        }
-      }
-    }
-    if (opts?.tools != null) {
-      for (final tool in opts!.tools!) {
-        if (!resolvedToolNames.contains(tool.name)) {
-          resolvedToolNames.add(tool.name);
-        }
-      }
-    }
+      ...?_config.tools?.map((t) => t.name),
+      ...?opts?.tools?.map((t) => t.name),
+    }.toList();
 
     return GenerateActionOptions(
       model: resolvedModel?.name,

@@ -29,18 +29,12 @@ genkit.Message dpMessageToGenkitMessage(dp.Message msg) {
 }
 
 /// Converts a dotprompt [dp.Role] to a Genkit [genkit.Role].
-genkit.Role dpRoleToGenkitRole(dp.Role role) {
-  switch (role) {
-    case dp.Role.user:
-      return genkit.Role.user;
-    case dp.Role.model:
-      return genkit.Role.model;
-    case dp.Role.system:
-      return genkit.Role.system;
-    case dp.Role.tool:
-      return genkit.Role.tool;
-  }
-}
+genkit.Role dpRoleToGenkitRole(dp.Role role) => switch (role) {
+      dp.Role.user => genkit.Role.user,
+      dp.Role.model => genkit.Role.model,
+      dp.Role.system => genkit.Role.system,
+      dp.Role.tool => genkit.Role.tool,
+    };
 
 /// Converts a dotprompt [dp.Part] to a Genkit [genkit.Part].
 genkit.Part dpPartToGenkitPart(dp.Part part) {
