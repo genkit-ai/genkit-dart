@@ -287,8 +287,17 @@ Future<List<Embedding>> _runTextPredictRequests({
 }
 
 Embedding _textPredictionEmbedding(Map<String, dynamic> prediction) {
-  final embeddingData = prediction['embeddings'] as Map<String, dynamic>;
-  final values = embeddingData['values'] as List;
+  final embeddingData = prediction['embeddings'];
+  final values = embeddingData is Map<String, dynamic>
+      ? embeddingData['values']
+      : null;
+  if (values is! List) {
+    throw GenkitException(
+      'Vertex AI returned an invalid prediction payload.',
+      status: StatusCodes.INTERNAL,
+    );
+  }
+
   return Embedding(
     embedding: values.map((value) => (value as num).toDouble()).toList(),
   );

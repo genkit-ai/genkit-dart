@@ -19,10 +19,12 @@ import 'package:http/http.dart' as http;
 class MockHttpClient extends http.BaseClient {
   MockHttpClient({
     this.returnEmptyPredictions = false,
+    this.returnInvalidTextPrediction = false,
     this.returnMissingMultimodalEmbedding = false,
   });
 
   final bool returnEmptyPredictions;
+  final bool returnInvalidTextPrediction;
   final bool returnMissingMultimodalEmbedding;
   final List<Uri> requestUrls = [];
   final List<String> requestBodies = [];
@@ -134,11 +136,13 @@ class MockHttpClient extends http.BaseClient {
           ? const []
           : List.generate(
               instances.length,
-              (index) => {
-                'embeddings': {
-                  'values': [index + 0.4, index + 0.5, index + 0.6],
-                },
-              },
+              (index) => returnInvalidTextPrediction
+                  ? <String, dynamic>{'embeddings': <String, dynamic>{}}
+                  : {
+                      'embeddings': {
+                        'values': [index + 0.4, index + 0.5, index + 0.6],
+                      },
+                    },
             );
       return http.StreamedResponse(
         Stream.value(utf8.encode(jsonEncode({'predictions': predictions}))),

@@ -184,6 +184,34 @@ void main() {
       expect(requestBody['parameters'], {'outputDimensionality': 256});
     });
 
+    test('throws when a text prediction omits embedding values', () async {
+      final mockClient = MockHttpClient(returnInvalidTextPrediction: true);
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'text-embedding-005');
+
+      await expectLater(
+        () => embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(content: [TextPart(text: 'hello')]),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (error) => error.message,
+            'message',
+            contains('Vertex AI returned an invalid prediction payload.'),
+          ),
+        ),
+      );
+    });
+
     test(
       'uses multimodal predict schema for text-only multimodal inputs',
       () async {
