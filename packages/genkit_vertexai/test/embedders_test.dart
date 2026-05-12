@@ -322,6 +322,74 @@ void main() {
       });
     });
 
+    test('uses data URI image inputs in multimodal predict requests', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+      await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(
+              content: [
+                MediaPart(media: Media(url: 'data:image/png;base64,AA==')),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      final requestBody =
+          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      final instances = requestBody['instances'] as List;
+      expect(instances.single, {
+        'image': {'bytesBase64Encoded': 'AA==', 'mimeType': 'image/png'},
+      });
+    });
+
+    test('uses gs image inputs in multimodal predict requests', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+      await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(
+              content: [
+                MediaPart(
+                  media: Media(
+                    url: 'gs://my-bucket/image.png',
+                    contentType: 'image/png',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      final requestBody =
+          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      final instances = requestBody['instances'] as List;
+      expect(instances.single, {
+        'image': {
+          'gcsUri': 'gs://my-bucket/image.png',
+          'mimeType': 'image/png',
+        },
+      });
+    });
+
     test('throws when a multimodal data URI is malformed', () async {
       final mockClient = MockHttpClient();
       final plugin = VertexAiPluginImpl(
@@ -378,6 +446,109 @@ void main() {
               DocumentData(
                 content: [
                   MediaPart(media: Media(url: 'data:image/png;base64,%')),
+                ],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'Vertex multimodalembedding media inputs require a MIME type.',
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when a multimodal document has multiple images', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+      await expectLater(
+        () => embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(
+                content: [
+                  MediaPart(media: Media(url: 'data:image/png;base64,AA==')),
+                  MediaPart(media: Media(url: 'data:image/jpeg;base64,AA==')),
+                ],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'Vertex multimodalembedding supports at most one image part per input document.',
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when multimodal media has an unsupported MIME type', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+      await expectLater(
+        () => embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(
+                content: [
+                  MediaPart(media: Media(url: 'data:audio/wav;base64,AA==')),
+                ],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'Unsupported Vertex multimodalembedding media MIME type: audio/wav',
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when multimodal media is missing a MIME type', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'multimodalembedding');
+
+      await expectLater(
+        () => embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(
+                content: [
+                  MediaPart(media: Media(url: 'gs://my-bucket/image.png')),
                 ],
               ),
             ],
