@@ -228,6 +228,8 @@ Future<List<Embedding>> _runMultimodalPredictRequests({
   ];
   final parameters = <String, dynamic>{};
   if (options?.outputDimensionality != null) {
+    // Multimodal predict expects `parameters.dimension`, not
+    // `outputDimensionality`.
     parameters['dimension'] = options!.outputDimensionality;
   }
 
