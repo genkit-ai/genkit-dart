@@ -133,7 +133,7 @@ class VertexClaudeModelFactory {
         }
       },
     );
-  } 
+  }
 
   sdk.MessageCreateRequest _buildCreateRequest(
     ModelRequest req,
