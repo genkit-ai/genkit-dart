@@ -503,12 +503,11 @@ String _baseModelName(String modelName) {
 
 _VertexEmbedderRequestShape _requestShapeFor(String modelName) {
   final baseModelName = _baseModelName(modelName);
-  // Check the broad model families in order.
+  final exactShape = _requestShapeByExactModel[baseModelName];
+  if (exactShape != null) return exactShape;
+
   if (_isMultimodalEmbeddingFamily(baseModelName)) {
     return _VertexEmbedderRequestShape.multimodalPredict;
-  }
-  if (_usesLegacyGeminiPredictApi(baseModelName)) {
-    return _VertexEmbedderRequestShape.textPredict;
   }
   if (_isGeminiEmbeddingFamily(baseModelName)) {
     return _VertexEmbedderRequestShape.geminiEmbedding;
@@ -524,9 +523,9 @@ bool _isGeminiEmbeddingFamily(String modelName) {
   return modelName.startsWith('gemini-embedding-');
 }
 
-bool _usesLegacyGeminiPredictApi(String modelName) {
-  return modelName == 'gemini-embedding-001';
-}
+const _requestShapeByExactModel = {
+  'gemini-embedding-001': _VertexEmbedderRequestShape.textPredict,
+};
 
 class _MultimodalInstance {
   final Map<String, dynamic> instance;
