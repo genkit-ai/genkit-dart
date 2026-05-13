@@ -88,7 +88,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   }
 
   Future<GenerativeLanguageBaseClient> getEndpointApiClient() async {
-    return _createVertexApiClient(apiVersion: 'v1');
+    return _createVertexApiClient(apiVersion: 'v1beta1');
   }
 
   @override
