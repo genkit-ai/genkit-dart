@@ -144,5 +144,23 @@ void main() {
         'vertexai/endpoints/123456789',
       );
     });
+
+    test('lists configured tuned model endpoint refs', () async {
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: MockHttpClient(),
+        tunedModelEndpoints: ['123456789', 'endpoints/987654321'],
+      );
+
+      final actions = await plugin.list();
+      final modelNames = actions
+          .where((action) => action.actionType == 'model')
+          .map((action) => action.name)
+          .toList();
+
+      expect(modelNames, contains('vertexai/endpoints/123456789'));
+      expect(modelNames, contains('vertexai/endpoints/987654321'));
+    });
   });
 }

@@ -41,11 +41,13 @@ class VertexAiPluginHandle {
     String? projectId,
     String? location,
     http.Client? authClient,
+    List<String> tunedModelEndpoints = const [],
   }) {
     return VertexAiPluginImpl(
       projectId: projectId,
       location: location,
       authClient: authClient,
+      tunedModelEndpoints: tunedModelEndpoints,
     );
   }
 
