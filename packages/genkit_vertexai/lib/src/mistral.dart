@@ -38,7 +38,8 @@ final mistralModelInfo = ModelInfo(
 
 bool isMistralModelName(String name) {
   final normalized = name.toLowerCase();
-  return normalized.startsWith('mistral-') ||
+  return (normalized.startsWith('mistral-') &&
+          !normalized.startsWith('mistral-ocr-')) ||
       normalized.startsWith('codestral-');
 }
 
@@ -122,12 +123,19 @@ base class MistralOptions {
     double? temperature,
     double? topP,
     int? maxTokens,
-    List<String>? stop,
+    Object? stop,
     double? presencePenalty,
     double? frequencyPenalty,
     int? randomSeed,
     bool? safePrompt,
-    String? toolChoice,
+    Object? toolChoice,
+    bool? parallelToolCalls,
+    Map<String, dynamic>? prediction,
+    String? promptCacheKey,
+    Map<String, dynamic>? metadata,
+    List<Object?>? guardrails,
+    String? promptMode,
+    String? reasoningEffort,
     Map<String, dynamic>? responseFormat,
   }) {
     _json = {
@@ -141,6 +149,13 @@ base class MistralOptions {
       'randomSeed': ?randomSeed,
       'safePrompt': ?safePrompt,
       'toolChoice': ?toolChoice,
+      'parallelToolCalls': ?parallelToolCalls,
+      'prediction': ?prediction,
+      'promptCacheKey': ?promptCacheKey,
+      'metadata': ?metadata,
+      'guardrails': ?guardrails,
+      'promptMode': ?promptMode,
+      'reasoningEffort': ?reasoningEffort,
       'responseFormat': ?responseFormat,
     };
   }
@@ -156,16 +171,39 @@ base class MistralOptions {
         'topP': {'type': 'number', 'minimum': 0, 'maximum': 1},
         'maxTokens': {'type': 'integer'},
         'stop': {
-          'type': 'array',
-          'items': {'type': 'string'},
+          'oneOf': [
+            {'type': 'string'},
+            {
+              'type': 'array',
+              'items': {'type': 'string'},
+            },
+          ],
         },
         'presencePenalty': {'type': 'number', 'minimum': -2, 'maximum': 2},
         'frequencyPenalty': {'type': 'number', 'minimum': -2, 'maximum': 2},
         'randomSeed': {'type': 'integer'},
         'safePrompt': {'type': 'boolean'},
         'toolChoice': {
+          'oneOf': [
+            {
+              'type': 'string',
+              'enum': ['auto', 'none', 'any', 'required'],
+            },
+            {'type': 'object'},
+          ],
+        },
+        'parallelToolCalls': {'type': 'boolean'},
+        'prediction': {'type': 'object'},
+        'promptCacheKey': {'type': 'string'},
+        'metadata': {'type': 'object'},
+        'guardrails': {'type': 'array'},
+        'promptMode': {
           'type': 'string',
-          'enum': ['auto', 'none', 'any', 'required'],
+          'enum': ['reasoning'],
+        },
+        'reasoningEffort': {
+          'type': 'string',
+          'enum': ['high', 'none'],
         },
         'responseFormat': {'type': 'object'},
       },
@@ -181,7 +219,7 @@ base class MistralOptions {
 
   int? get maxTokens => _json['maxTokens'] as int?;
 
-  List<String>? get stop => (_json['stop'] as List?)?.cast<String>();
+  Object? get stop => _json['stop'];
 
   double? get presencePenalty => (_json['presencePenalty'] as num?)?.toDouble();
 
@@ -192,7 +230,24 @@ base class MistralOptions {
 
   bool? get safePrompt => _json['safePrompt'] as bool?;
 
-  String? get toolChoice => _json['toolChoice'] as String?;
+  Object? get toolChoice => _json['toolChoice'];
+
+  bool? get parallelToolCalls => _json['parallelToolCalls'] as bool?;
+
+  Map<String, dynamic>? get prediction =>
+      (_json['prediction'] as Map?)?.cast<String, dynamic>();
+
+  String? get promptCacheKey => _json['promptCacheKey'] as String?;
+
+  Map<String, dynamic>? get metadata =>
+      (_json['metadata'] as Map?)?.cast<String, dynamic>();
+
+  List<Object?>? get guardrails =>
+      (_json['guardrails'] as List?)?.cast<Object?>();
+
+  String? get promptMode => _json['promptMode'] as String?;
+
+  String? get reasoningEffort => _json['reasoningEffort'] as String?;
 
   Map<String, dynamic>? get responseFormat =>
       (_json['responseFormat'] as Map?)?.cast<String, dynamic>();
@@ -263,6 +318,16 @@ Map<String, dynamic> _toMistralRequest(
     if (options.randomSeed != null) 'random_seed': options.randomSeed,
     if (options.safePrompt != null) 'safe_prompt': options.safePrompt,
     if (options.toolChoice != null) 'tool_choice': options.toolChoice,
+    if (options.parallelToolCalls != null)
+      'parallel_tool_calls': options.parallelToolCalls,
+    if (options.prediction != null) 'prediction': options.prediction,
+    if (options.promptCacheKey != null)
+      'prompt_cache_key': options.promptCacheKey,
+    if (options.metadata != null) 'metadata': options.metadata,
+    if (options.guardrails != null) 'guardrails': options.guardrails,
+    if (options.promptMode != null) 'prompt_mode': options.promptMode,
+    if (options.reasoningEffort != null)
+      'reasoning_effort': options.reasoningEffort,
     if (request.tools?.isNotEmpty == true)
       'tools': request.tools!.map(_toMistralTool).toList(),
     if (options.responseFormat != null)

@@ -123,6 +123,82 @@ void main() {
       expect(mockClient.isClosed, isFalse);
     });
 
+    test('passes through supported Mistral chat parameters', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final model = plugin.resolve('model', 'mistral-medium-3') as Action;
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+        config: {
+          'temperature': 0.2,
+          'topP': 0.9,
+          'maxTokens': 256,
+          'stop': 'END',
+          'n': 2,
+          'presencePenalty': 0.1,
+          'frequencyPenalty': 0.2,
+          'randomSeed': 7,
+          'safePrompt': true,
+          'toolChoice': {
+            'type': 'function',
+            'function': {'name': 'lookup'},
+          },
+          'parallelToolCalls': false,
+          'prediction': {'type': 'content', 'content': 'expected completion'},
+          'promptCacheKey': 'shared-prefix',
+          'metadata': {'traceId': 'abc'},
+          'guardrails': ['default'],
+          'promptMode': 'reasoning',
+          'reasoningEffort': 'high',
+          'responseFormat': {'type': 'json_schema'},
+        },
+      );
+
+      await model.run(req);
+
+      final body = jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      expect(body, containsPair('temperature', 0.2));
+      expect(body, containsPair('top_p', 0.9));
+      expect(body, containsPair('max_tokens', 256));
+      expect(body, containsPair('stop', 'END'));
+      expect(body, containsPair('n', 2));
+      expect(body, containsPair('presence_penalty', 0.1));
+      expect(body, containsPair('frequency_penalty', 0.2));
+      expect(body, containsPair('random_seed', 7));
+      expect(body, containsPair('safe_prompt', true));
+      expect(
+        body,
+        containsPair('tool_choice', {
+          'type': 'function',
+          'function': {'name': 'lookup'},
+        }),
+      );
+      expect(body, containsPair('parallel_tool_calls', false));
+      expect(
+        body,
+        containsPair('prediction', {
+          'type': 'content',
+          'content': 'expected completion',
+        }),
+      );
+      expect(body, containsPair('prompt_cache_key', 'shared-prefix'));
+      expect(body, containsPair('metadata', {'traceId': 'abc'}));
+      expect(body, containsPair('guardrails', ['default']));
+      expect(body, containsPair('prompt_mode', 'reasoning'));
+      expect(body, containsPair('reasoning_effort', 'high'));
+      expect(body, containsPair('response_format', {'type': 'json_schema'}));
+    });
+
     test('lists Mistral models dynamically', () async {
       final mockClient = MockHttpClient();
       final plugin = VertexAiPluginImpl(
@@ -135,7 +211,7 @@ void main() {
       final actionNames = actions.map((action) => action.name);
 
       expect(actionNames, contains('vertexai/mistral-small-2503'));
-      expect(actionNames, contains('vertexai/mistral-ocr-2505'));
+      expect(actionNames, isNot(contains('vertexai/mistral-ocr-2505')));
       expect(actionNames, isNot(contains('vertexai/mistral-medium-3')));
     });
   });
