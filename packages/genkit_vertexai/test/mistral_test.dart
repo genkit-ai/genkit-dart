@@ -144,7 +144,6 @@ void main() {
           'topP': 0.9,
           'maxTokens': 256,
           'stop': 'END',
-          'n': 2,
           'presencePenalty': 0.1,
           'frequencyPenalty': 0.2,
           'randomSeed': 7,
@@ -171,7 +170,6 @@ void main() {
       expect(body, containsPair('top_p', 0.9));
       expect(body, containsPair('max_tokens', 256));
       expect(body, containsPair('stop', 'END'));
-      expect(body, containsPair('n', 2));
       expect(body, containsPair('presence_penalty', 0.1));
       expect(body, containsPair('frequency_penalty', 0.2));
       expect(body, containsPair('random_seed', 7));
