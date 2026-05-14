@@ -145,6 +145,71 @@ void main() {
       expect(body['response_format'], {'type': 'json_object'});
     });
 
+    test('passes supported OpenAI-compatible options', () {
+      final request = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+        tools: [
+          ToolDefinition(
+            name: 'getWeather',
+            description: 'Get weather for a location',
+            inputSchema: {
+              'type': 'object',
+              'properties': {
+                'location': {'type': 'string'},
+              },
+              'required': ['location'],
+            },
+          ),
+        ],
+        toolChoice: 'any',
+      );
+
+      final body = toMetaChatCompletionRequest(
+        request,
+        'meta/llama-4-maverick-17b-128e-instruct-maas',
+        VertexAiMetaOptions(
+          temperature: 0.2,
+          topP: 0.9,
+          maxTokens: 128,
+          stop: ['done'],
+          presencePenalty: 0.1,
+          frequencyPenalty: 0.2,
+          logprobs: true,
+          topLogprobs: 3,
+          seed: 7,
+          user: 'user-1',
+          llamaGuard: true,
+        ),
+        stream: false,
+      );
+
+      expect(body['temperature'], 0.2);
+      expect(body['top_p'], 0.9);
+      expect(body['max_tokens'], 128);
+      expect(body['stop'], ['done']);
+      expect(body['presence_penalty'], 0.1);
+      expect(body['frequency_penalty'], 0.2);
+      expect(body['logprobs'], true);
+      expect(body['top_logprobs'], 3);
+      expect(body['seed'], 7);
+      expect(body['user'], 'user-1');
+      expect(body['tool_choice'], 'required');
+      expect(body['tools'], hasLength(1));
+      expect(body['extra_body'], {
+        'google': {
+          'model_safety_settings': {
+            'enabled': true,
+            'llama_guard_settings': <String, dynamic>{},
+          },
+        },
+      });
+    });
+
     test('aggregates streamed tool call chunks', () {
       final response = fromMetaChatCompletionChunks([
         {

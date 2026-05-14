@@ -24,6 +24,7 @@ final metaModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
     'tools': true,
+    'toolChoice': true,
     'systemRole': true,
     'constrained': true,
   },
@@ -43,6 +44,8 @@ base class VertexAiMetaOptions {
     List<String>? stop,
     double? presencePenalty,
     double? frequencyPenalty,
+    bool? logprobs,
+    int? topLogprobs,
     int? seed,
     String? user,
     bool? llamaGuard,
@@ -55,6 +58,8 @@ base class VertexAiMetaOptions {
       'stop': ?stop,
       'presencePenalty': ?presencePenalty,
       'frequencyPenalty': ?frequencyPenalty,
+      'logprobs': ?logprobs,
+      'topLogprobs': ?topLogprobs,
       'seed': ?seed,
       'user': ?user,
       'llamaGuard': ?llamaGuard,
@@ -74,6 +79,8 @@ base class VertexAiMetaOptions {
   double? get presencePenalty => (_json['presencePenalty'] as num?)?.toDouble();
   double? get frequencyPenalty =>
       (_json['frequencyPenalty'] as num?)?.toDouble();
+  bool? get logprobs => _json['logprobs'] as bool?;
+  int? get topLogprobs => _json['topLogprobs'] as int?;
   int? get seed => _json['seed'] as int?;
   String? get user => _json['user'] as String?;
   bool? get llamaGuard => _json['llamaGuard'] as bool?;
@@ -106,6 +113,8 @@ base class _VertexAiMetaOptionsTypeFactory
         },
         'presencePenalty': {'type': 'number', 'minimum': -2.0, 'maximum': 2.0},
         'frequencyPenalty': {'type': 'number', 'minimum': -2.0, 'maximum': 2.0},
+        'logprobs': {'type': 'boolean'},
+        'topLogprobs': {'type': 'integer', 'minimum': 0, 'maximum': 20},
         'seed': {'type': 'integer'},
         'user': {'type': 'string'},
         'llamaGuard': {
@@ -131,12 +140,15 @@ Map<String, dynamic> toMetaChatCompletionRequest(
     'stream': stream,
     if (req.tools?.isNotEmpty == true)
       'tools': req.tools!.map(_toMetaTool).toList(),
+    'tool_choice': ?_toMetaToolChoice(req.toolChoice),
     'temperature': ?options.temperature,
     'top_p': ?options.topP,
     'max_tokens': ?options.maxTokens,
     'stop': ?options.stop,
     'presence_penalty': ?options.presencePenalty,
     'frequency_penalty': ?options.frequencyPenalty,
+    'logprobs': ?options.logprobs,
+    'top_logprobs': ?options.topLogprobs,
     'seed': ?options.seed,
     'user': ?options.user,
     'response_format': ?responseFormat,
@@ -149,6 +161,18 @@ Map<String, dynamic> toMetaChatCompletionRequest(
           },
         },
       },
+  };
+}
+
+Object? _toMetaToolChoice(String? toolChoice) {
+  return switch (toolChoice) {
+    null => null,
+    'any' => 'required',
+    'auto' || 'none' || 'required' || 'validated' => toolChoice,
+    final name => {
+      'type': 'function',
+      'function': {'name': name},
+    },
   };
 }
 
