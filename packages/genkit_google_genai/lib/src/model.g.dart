@@ -1156,26 +1156,28 @@ base class VeoOptions {
   VeoOptions._(this._json);
 
   VeoOptions({
-    String? apiKey,
     String? aspectRatio,
     int? numberOfVideos,
     int? durationSeconds,
     String? personGeneration,
     String? resolution,
     int? seed,
+    String? negativePrompt,
+    bool? enhancePrompt,
     int? pollingIntervalMs,
     int? timeoutMs,
     bool? embedMedia,
     int? downloadTimeoutMs,
   }) {
     _json = {
-      'apiKey': ?apiKey,
       'aspectRatio': ?aspectRatio,
       'numberOfVideos': ?numberOfVideos,
       'durationSeconds': ?durationSeconds,
       'personGeneration': ?personGeneration,
       'resolution': ?resolution,
       'seed': ?seed,
+      'negativePrompt': ?negativePrompt,
+      'enhancePrompt': ?enhancePrompt,
       'pollingIntervalMs': ?pollingIntervalMs,
       'timeoutMs': ?timeoutMs,
       'embedMedia': ?embedMedia,
@@ -1187,18 +1189,6 @@ base class VeoOptions {
 
   /// The JSON schema and type descriptor for [VeoOptions].
   static const SchemanticType<VeoOptions> $schema = _VeoOptionsTypeFactory();
-
-  String? get apiKey {
-    return _json['apiKey'] as String?;
-  }
-
-  set apiKey(String? value) {
-    if (value == null) {
-      _json.remove('apiKey');
-    } else {
-      _json['apiKey'] = value;
-    }
-  }
 
   String? get aspectRatio {
     return _json['aspectRatio'] as String?;
@@ -1269,6 +1259,30 @@ base class VeoOptions {
       _json.remove('seed');
     } else {
       _json['seed'] = value;
+    }
+  }
+
+  String? get negativePrompt {
+    return _json['negativePrompt'] as String?;
+  }
+
+  set negativePrompt(String? value) {
+    if (value == null) {
+      _json.remove('negativePrompt');
+    } else {
+      _json['negativePrompt'] = value;
+    }
+  }
+
+  bool? get enhancePrompt {
+    return _json['enhancePrompt'] as bool?;
+  }
+
+  set enhancePrompt(bool? value) {
+    if (value == null) {
+      _json.remove('enhancePrompt');
+    } else {
+      _json['enhancePrompt'] = value;
     }
   }
 
@@ -1351,7 +1365,6 @@ base class _VeoOptionsTypeFactory extends SchemanticType<VeoOptions> {
     definition: $Schema
         .object(
           properties: {
-            'apiKey': $Schema.string(),
             'aspectRatio': $Schema.string(enumValues: ['16:9', '9:16']),
             'numberOfVideos': $Schema.integer(minimum: 1, maximum: 2),
             'durationSeconds': $Schema.integer(minimum: 4, maximum: 8),
@@ -1360,6 +1373,8 @@ base class _VeoOptionsTypeFactory extends SchemanticType<VeoOptions> {
             ),
             'resolution': $Schema.string(enumValues: ['720p', '1080p', '4k']),
             'seed': $Schema.integer(),
+            'negativePrompt': $Schema.string(),
+            'enhancePrompt': $Schema.boolean(),
             'pollingIntervalMs': $Schema.integer(minimum: 100),
             'timeoutMs': $Schema.integer(minimum: 1000),
             'embedMedia': $Schema.boolean(),

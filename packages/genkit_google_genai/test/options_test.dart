@@ -162,6 +162,8 @@ void main() {
         personGeneration: 'allow_adult',
         resolution: '720p',
         seed: 42,
+        negativePrompt: 'blurry',
+        enhancePrompt: false,
       );
 
       final parameters = toVeoParameters(options);
@@ -173,7 +175,23 @@ void main() {
         'personGeneration': 'allow_adult',
         'resolution': '720p',
         'seed': 42,
+        'negativePrompt': 'blurry',
+        'enhancePrompt': false,
       });
+    });
+
+    test('strips local Veo fields and preserves raw request parameters', () {
+      final options = VeoOptions.fromJson({
+        'pollingIntervalMs': 100,
+        'timeoutMs': 1000,
+        'embedMedia': true,
+        'downloadTimeoutMs': 1000,
+        'futureSupportedParameter': 'value',
+      });
+
+      final parameters = toVeoParameters(options);
+
+      expect(parameters, {'futureSupportedParameter': 'value'});
     });
   });
 }

@@ -82,7 +82,7 @@ Model createVeoModel({
         instance[mediaField.key] = mediaField.value;
       }
 
-      final service = await getApiClient(options.apiKey);
+      final service = await getApiClient();
 
       try {
         final operation = await service.predictLongRunning({
@@ -193,20 +193,21 @@ StatusCodes _statusFromRpcCode(int? code) {
 const _defaultVeoPollingIntervalMs = 5000;
 const _defaultVeoTimeoutMs = 600000;
 const _defaultVeoDownloadTimeoutMs = 30000;
+const _localVeoOptionKeys = {
+  'pollingIntervalMs',
+  'timeoutMs',
+  'embedMedia',
+  'downloadTimeoutMs',
+};
 
 @visibleForTesting
 Map<String, dynamic> toVeoParameters(VeoOptions options) {
-  return {
-    if (options.aspectRatio != null) 'aspectRatio': options.aspectRatio,
-    if (options.numberOfVideos != null)
-      'numberOfVideos': options.numberOfVideos,
-    if (options.durationSeconds != null)
-      'durationSeconds': options.durationSeconds,
-    if (options.personGeneration != null)
-      'personGeneration': options.personGeneration,
-    if (options.resolution != null) 'resolution': options.resolution,
-    if (options.seed != null) 'seed': options.seed,
-  };
+  final parameters = Map<String, dynamic>.from(options.toJson());
+  for (final key in _localVeoOptionKeys) {
+    parameters.remove(key);
+  }
+  parameters.removeWhere((_, value) => value == null);
+  return parameters;
 }
 
 @visibleForTesting

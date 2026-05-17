@@ -166,8 +166,6 @@ abstract class $GeminiTtsOptions {
 
 @Schema()
 abstract class $VeoOptions {
-  String? get apiKey;
-
   @StringField(enumValues: ['16:9', '9:16'])
   String? get aspectRatio;
 
@@ -184,6 +182,10 @@ abstract class $VeoOptions {
   String? get resolution;
 
   int? get seed;
+
+  String? get negativePrompt;
+
+  bool? get enhancePrompt;
 
   @IntegerField(minimum: 100)
   int? get pollingIntervalMs;
