@@ -22,7 +22,15 @@ part 'imagen.g.dart';
 
 @Schema(additionalProperties: true)
 abstract class $ImagenOptions {
-  String? get apiKey;
+  @StringField(
+    description: 'Cloud Storage URI used to store the generated images.',
+  )
+  String? get outputGcsUri;
+
+  @StringField(
+    description: 'Description of what to discourage in the generated images.',
+  )
+  String? get negativePrompt;
 
   @IntegerField(
     minimum: 1,
@@ -47,11 +55,77 @@ abstract class $ImagenOptions {
   )
   String? get aspectRatio;
 
+  @DoubleField(
+    description:
+        'Controls how much the model adheres to the text prompt. Large values '
+        'increase output and prompt alignment, but may compromise image '
+        'quality.',
+  )
+  double? get guidanceScale;
+
+  @IntegerField(
+    description:
+        'Random seed for image generation. This is not available when '
+        'addWatermark is set to true.',
+  )
+  int? get seed;
+
+  @StringField(
+    enumValues: [
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+    ],
+    description: 'Filter level for safety filtering.',
+  )
+  String? get safetyFilterLevel;
+
   @StringField(
     enumValues: ['dont_allow', 'allow_adult', 'allow_all'],
     description: 'Control if and how images of people are generated.',
   )
   String? get personGeneration;
+
+  @Field(
+    description:
+        'Whether to report safety scores of each generated image and the '
+        'positive prompt in the response.',
+  )
+  bool? get includeSafetyAttributes;
+
+  @Field(
+    description:
+        'Whether to include the Responsible AI filter reason if the image is '
+        'filtered out of the response.',
+  )
+  bool? get includeRaiReason;
+
+  @StringField(
+    enumValues: ['auto', 'en', 'ja', 'ko', 'hi', 'zh', 'pt', 'es'],
+    description: 'Language of the text in the prompt.',
+  )
+  String? get language;
+
+  @StringField(description: 'MIME type of the generated image.')
+  String? get outputMimeType;
+
+  @IntegerField(
+    minimum: 0,
+    maximum: 100,
+    description:
+        'Compression quality of the generated image, for image/jpeg only.',
+  )
+  int? get outputCompressionQuality;
+
+  @Field(description: 'Whether to add a watermark to the generated images.')
+  bool? get addWatermark;
+
+  @Field(description: 'User specified labels to track billing usage.')
+  Map<String, String>? get labels;
+
+  @Field(description: 'Whether to use prompt rewriting logic.')
+  bool? get enhancePrompt;
 }
 
 final imagenModelInfo = ModelInfo(
@@ -96,7 +170,7 @@ Model<ImagenOptions> createImagenModel(
       final options = req.config == null
           ? ImagenOptions()
           : ImagenOptions.$schema.parse(req.config!);
-      final service = await plugin.getApiClient(options.apiKey);
+      final service = await plugin.getApiClient();
 
       try {
         final prompt = extractImagenPrompt(req);
@@ -161,7 +235,6 @@ Map<String, dynamic> toImagenParameters(ImagenOptions options) {
     'sampleCount': options.numberOfImages ?? 1,
     ...options.toJson(),
   };
-  params.remove('apiKey');
   params.remove('numberOfImages');
   params.removeWhere((_, value) => value == null);
   return params;

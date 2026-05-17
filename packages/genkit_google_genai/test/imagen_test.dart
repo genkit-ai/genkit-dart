@@ -41,11 +41,22 @@ void main() {
 
     test('maps options to predict parameters', () {
       final options = ImagenOptions.fromJson({
-        'apiKey': 'secret',
+        'outputGcsUri': 'gs://bucket/images',
         'numberOfImages': 2,
         'imageSize': '2K',
         'aspectRatio': '16:9',
+        'guidanceScale': 7.5,
+        'seed': 123,
+        'safetyFilterLevel': 'BLOCK_ONLY_HIGH',
         'personGeneration': 'allow_adult',
+        'includeSafetyAttributes': true,
+        'includeRaiReason': true,
+        'language': 'en',
+        'outputMimeType': 'image/jpeg',
+        'outputCompressionQuality': 90,
+        'addWatermark': true,
+        'labels': {'app': 'genkit'},
+        'enhancePrompt': true,
         'negativePrompt': 'blurry',
       });
 
@@ -53,9 +64,21 @@ void main() {
 
       expect(params, {
         'sampleCount': 2,
+        'outputGcsUri': 'gs://bucket/images',
         'imageSize': '2K',
         'aspectRatio': '16:9',
+        'guidanceScale': 7.5,
+        'seed': 123,
+        'safetyFilterLevel': 'BLOCK_ONLY_HIGH',
         'personGeneration': 'allow_adult',
+        'includeSafetyAttributes': true,
+        'includeRaiReason': true,
+        'language': 'en',
+        'outputMimeType': 'image/jpeg',
+        'outputCompressionQuality': 90,
+        'addWatermark': true,
+        'labels': {'app': 'genkit'},
+        'enhancePrompt': true,
         'negativePrompt': 'blurry',
       });
     });

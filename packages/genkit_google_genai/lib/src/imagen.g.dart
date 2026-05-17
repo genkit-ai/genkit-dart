@@ -29,18 +29,42 @@ base class ImagenOptions {
   ImagenOptions._(this._json);
 
   ImagenOptions({
-    String? apiKey,
+    String? outputGcsUri,
+    String? negativePrompt,
     int? numberOfImages,
     String? imageSize,
     String? aspectRatio,
+    double? guidanceScale,
+    int? seed,
+    String? safetyFilterLevel,
     String? personGeneration,
+    bool? includeSafetyAttributes,
+    bool? includeRaiReason,
+    String? language,
+    String? outputMimeType,
+    int? outputCompressionQuality,
+    bool? addWatermark,
+    Map<String, String>? labels,
+    bool? enhancePrompt,
   }) {
     _json = {
-      'apiKey': ?apiKey,
+      'outputGcsUri': ?outputGcsUri,
+      'negativePrompt': ?negativePrompt,
       'numberOfImages': ?numberOfImages,
       'imageSize': ?imageSize,
       'aspectRatio': ?aspectRatio,
+      'guidanceScale': ?guidanceScale,
+      'seed': ?seed,
+      'safetyFilterLevel': ?safetyFilterLevel,
       'personGeneration': ?personGeneration,
+      'includeSafetyAttributes': ?includeSafetyAttributes,
+      'includeRaiReason': ?includeRaiReason,
+      'language': ?language,
+      'outputMimeType': ?outputMimeType,
+      'outputCompressionQuality': ?outputCompressionQuality,
+      'addWatermark': ?addWatermark,
+      'labels': ?labels,
+      'enhancePrompt': ?enhancePrompt,
     };
   }
 
@@ -50,15 +74,27 @@ base class ImagenOptions {
   static const SchemanticType<ImagenOptions> $schema =
       _ImagenOptionsTypeFactory();
 
-  String? get apiKey {
-    return _json['apiKey'] as String?;
+  String? get outputGcsUri {
+    return _json['outputGcsUri'] as String?;
   }
 
-  set apiKey(String? value) {
+  set outputGcsUri(String? value) {
     if (value == null) {
-      _json.remove('apiKey');
+      _json.remove('outputGcsUri');
     } else {
-      _json['apiKey'] = value;
+      _json['outputGcsUri'] = value;
+    }
+  }
+
+  String? get negativePrompt {
+    return _json['negativePrompt'] as String?;
+  }
+
+  set negativePrompt(String? value) {
+    if (value == null) {
+      _json.remove('negativePrompt');
+    } else {
+      _json['negativePrompt'] = value;
     }
   }
 
@@ -98,6 +134,42 @@ base class ImagenOptions {
     }
   }
 
+  double? get guidanceScale {
+    return (_json['guidanceScale'] as num?)?.toDouble();
+  }
+
+  set guidanceScale(double? value) {
+    if (value == null) {
+      _json.remove('guidanceScale');
+    } else {
+      _json['guidanceScale'] = value;
+    }
+  }
+
+  int? get seed {
+    return _json['seed'] as int?;
+  }
+
+  set seed(int? value) {
+    if (value == null) {
+      _json.remove('seed');
+    } else {
+      _json['seed'] = value;
+    }
+  }
+
+  String? get safetyFilterLevel {
+    return _json['safetyFilterLevel'] as String?;
+  }
+
+  set safetyFilterLevel(String? value) {
+    if (value == null) {
+      _json.remove('safetyFilterLevel');
+    } else {
+      _json['safetyFilterLevel'] = value;
+    }
+  }
+
   String? get personGeneration {
     return _json['personGeneration'] as String?;
   }
@@ -107,6 +179,102 @@ base class ImagenOptions {
       _json.remove('personGeneration');
     } else {
       _json['personGeneration'] = value;
+    }
+  }
+
+  bool? get includeSafetyAttributes {
+    return _json['includeSafetyAttributes'] as bool?;
+  }
+
+  set includeSafetyAttributes(bool? value) {
+    if (value == null) {
+      _json.remove('includeSafetyAttributes');
+    } else {
+      _json['includeSafetyAttributes'] = value;
+    }
+  }
+
+  bool? get includeRaiReason {
+    return _json['includeRaiReason'] as bool?;
+  }
+
+  set includeRaiReason(bool? value) {
+    if (value == null) {
+      _json.remove('includeRaiReason');
+    } else {
+      _json['includeRaiReason'] = value;
+    }
+  }
+
+  String? get language {
+    return _json['language'] as String?;
+  }
+
+  set language(String? value) {
+    if (value == null) {
+      _json.remove('language');
+    } else {
+      _json['language'] = value;
+    }
+  }
+
+  String? get outputMimeType {
+    return _json['outputMimeType'] as String?;
+  }
+
+  set outputMimeType(String? value) {
+    if (value == null) {
+      _json.remove('outputMimeType');
+    } else {
+      _json['outputMimeType'] = value;
+    }
+  }
+
+  int? get outputCompressionQuality {
+    return _json['outputCompressionQuality'] as int?;
+  }
+
+  set outputCompressionQuality(int? value) {
+    if (value == null) {
+      _json.remove('outputCompressionQuality');
+    } else {
+      _json['outputCompressionQuality'] = value;
+    }
+  }
+
+  bool? get addWatermark {
+    return _json['addWatermark'] as bool?;
+  }
+
+  set addWatermark(bool? value) {
+    if (value == null) {
+      _json.remove('addWatermark');
+    } else {
+      _json['addWatermark'] = value;
+    }
+  }
+
+  Map<String, String>? get labels {
+    return (_json['labels'] as Map?)?.cast<String, String>();
+  }
+
+  set labels(Map<String, String>? value) {
+    if (value == null) {
+      _json.remove('labels');
+    } else {
+      _json['labels'] = value;
+    }
+  }
+
+  bool? get enhancePrompt {
+    return _json['enhancePrompt'] as bool?;
+  }
+
+  set enhancePrompt(bool? value) {
+    if (value == null) {
+      _json.remove('enhancePrompt');
+    } else {
+      _json['enhancePrompt'] = value;
     }
   }
 
@@ -135,7 +303,13 @@ base class _ImagenOptionsTypeFactory extends SchemanticType<ImagenOptions> {
     definition: $Schema.fromMap({
       'type': 'object',
       'properties': {
-        'apiKey': $Schema.string(),
+        'outputGcsUri': $Schema.string(
+          description: 'Cloud Storage URI used to store the generated images.',
+        ),
+        'negativePrompt': $Schema.string(
+          description:
+              'Description of what to discourage in the generated images.',
+        ),
         'numberOfImages': $Schema.integer(
           description:
               'The number of images to generate, from 1 to 4 inclusive. Defaults to 1.',
@@ -151,9 +325,57 @@ base class _ImagenOptionsTypeFactory extends SchemanticType<ImagenOptions> {
           description: 'Desired aspect ratio of the output image.',
           enumValues: ['1:1', '9:16', '16:9', '3:4', '4:3'],
         ),
+        'guidanceScale': $Schema.number(
+          description:
+              'Controls how much the model adheres to the text prompt. Large values increase output and prompt alignment, but may compromise image quality.',
+        ),
+        'seed': $Schema.integer(
+          description:
+              'Random seed for image generation. This is not available when addWatermark is set to true.',
+        ),
+        'safetyFilterLevel': $Schema.string(
+          description: 'Filter level for safety filtering.',
+          enumValues: [
+            'BLOCK_LOW_AND_ABOVE',
+            'BLOCK_MEDIUM_AND_ABOVE',
+            'BLOCK_ONLY_HIGH',
+            'BLOCK_NONE',
+          ],
+        ),
         'personGeneration': $Schema.string(
           description: 'Control if and how images of people are generated.',
           enumValues: ['dont_allow', 'allow_adult', 'allow_all'],
+        ),
+        'includeSafetyAttributes': $Schema.boolean(
+          description:
+              'Whether to report safety scores of each generated image and the positive prompt in the response.',
+        ),
+        'includeRaiReason': $Schema.boolean(
+          description:
+              'Whether to include the Responsible AI filter reason if the image is filtered out of the response.',
+        ),
+        'language': $Schema.string(
+          description: 'Language of the text in the prompt.',
+          enumValues: ['auto', 'en', 'ja', 'ko', 'hi', 'zh', 'pt', 'es'],
+        ),
+        'outputMimeType': $Schema.string(
+          description: 'MIME type of the generated image.',
+        ),
+        'outputCompressionQuality': $Schema.integer(
+          description:
+              'Compression quality of the generated image, for image/jpeg only.',
+          minimum: 0,
+          maximum: 100,
+        ),
+        'addWatermark': $Schema.boolean(
+          description: 'Whether to add a watermark to the generated images.',
+        ),
+        'labels': $Schema.object(
+          description: 'User specified labels to track billing usage.',
+          additionalProperties: $Schema.string(),
+        ),
+        'enhancePrompt': $Schema.boolean(
+          description: 'Whether to use prompt rewriting logic.',
         ),
       },
       'additionalProperties': true,
