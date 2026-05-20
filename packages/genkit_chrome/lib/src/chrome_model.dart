@@ -37,8 +37,8 @@ class ChromeModel extends Model<LanguageModelOptions> {
   /// Returns model params. Only available in Chrome extension contexts or with
   /// the Prompt API Sampling Parameters origin trial enabled;
   /// returns null on the open web.
-  static Future<LanguageModelParams?> getParams() {
-    return _languageModel.params().toDart;
+  static Future<LanguageModelParams?> getParams() async {
+    return await _languageModel.params()?.toDart;
   }
 
   static Future<ModelResponse> _processRequest(
