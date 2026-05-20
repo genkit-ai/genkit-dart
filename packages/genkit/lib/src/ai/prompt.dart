@@ -20,6 +20,7 @@ import 'package:schemantic/schemantic.dart';
 import '../core/action.dart';
 import '../core/registry.dart';
 import '../exception.dart';
+import '../o11y/instrumentation.dart';
 import '../types.dart';
 import 'dotprompt_registry.dart';
 import 'generate.dart';
@@ -183,43 +184,53 @@ class ExecutablePrompt<Input> {
     Input? input, [
     PromptGenerateOptions? opts,
   ]) async {
-    final messages = <Message>[];
+    return runInNewSpan(
+      'render',
+      (telemetryContext) async {
+        final messages = <Message>[];
 
-    // 1. Render system prompt
-    await _renderSystem(input, messages);
+        // 1. Render system prompt
+        await _renderSystem(input, messages);
 
-    // 2. Render history / messages
-    await _renderMessages(input, messages, opts);
+        // 2. Render history / messages
+        await _renderMessages(input, messages, opts);
 
-    // 3. Render user prompt
-    await _renderUserPrompt(input, messages);
+        // 3. Render user prompt
+        await _renderUserPrompt(input, messages);
 
-    // Resolve model
-    final resolvedModel = opts?.model ?? _config.model;
+        // Resolve model
+        final resolvedModel = opts?.model ?? _config.model;
 
-    // Resolve config — merge config maps
-    final configMap = _configToMap(_config.config);
-    final optsConfigMap = _configToMap(opts?.config);
-    final resolvedConfig = <String, dynamic>{...?configMap, ...?optsConfigMap};
+        // Resolve config — merge config maps
+        final configMap = _configToMap(_config.config);
+        final optsConfigMap = _configToMap(opts?.config);
+        final resolvedConfig = <String, dynamic>{
+          ...?configMap,
+          ...?optsConfigMap,
+        };
 
-    // Resolve tools
-    final resolvedToolNames = <String>{
-      ...?_config.toolNames,
-      ...?opts?.toolNames,
-      ...?_config.tools?.map((t) => t.name),
-      ...?opts?.tools?.map((t) => t.name),
-    }.toList();
+        // Resolve tools
+        final resolvedToolNames = <String>{
+          ...?_config.toolNames,
+          ...?opts?.toolNames,
+          ...?_config.tools?.map((t) => t.name),
+          ...?opts?.tools?.map((t) => t.name),
+        }.toList();
 
-    return GenerateActionOptions(
-      model: resolvedModel?.name,
-      messages: messages,
-      config: resolvedConfig.isNotEmpty ? resolvedConfig : null,
-      tools: resolvedToolNames.isNotEmpty ? resolvedToolNames : null,
-      toolChoice: opts?.toolChoice ?? _config.toolChoice,
-      returnToolRequests:
-          opts?.returnToolRequests ?? _config.returnToolRequests,
-      maxTurns: opts?.maxTurns ?? _config.maxTurns,
-      output: opts?.output ?? _config.output,
+        return GenerateActionOptions(
+          model: resolvedModel?.name,
+          messages: messages,
+          config: resolvedConfig.isNotEmpty ? resolvedConfig : null,
+          tools: resolvedToolNames.isNotEmpty ? resolvedToolNames : null,
+          toolChoice: opts?.toolChoice ?? _config.toolChoice,
+          returnToolRequests:
+              opts?.returnToolRequests ?? _config.returnToolRequests,
+          maxTurns: opts?.maxTurns ?? _config.maxTurns,
+          output: opts?.output ?? _config.output,
+        );
+      },
+      input: input,
+      actionType: 'promptTemplate',
     );
   }
 
@@ -273,39 +284,48 @@ class ExecutablePrompt<Input> {
     PromptGenerateOptions? opts, {
     StreamingCallback<GenerateResponseChunk>? onChunk,
   }) async {
-    final options = await render(input, opts);
+    return runInNewSpan(
+      ref.name,
+      (telemetryContext) async {
+        final options = await render(input, opts);
 
-    // Resolve tools from both config and opts into a child registry
-    final allTools = <Tool>[...?_config.tools, ...?opts?.tools];
+        // Resolve tools from both config and opts into a child registry
+        final allTools = <Tool>[...?_config.tools, ...?opts?.tools];
 
-    final middleware = <GenerateMiddlewareOneof>[
-      ...?_config.use?.map(
-        (mw) => (middlewareRef: mw, middlewareInstance: null),
-      ),
-      ...?opts?.use?.map((mw) => (middlewareRef: mw, middlewareInstance: null)),
-    ];
+        final middleware = <GenerateMiddlewareOneof>[
+          ...?_config.use?.map(
+            (mw) => (middlewareRef: mw, middlewareInstance: null),
+          ),
+          ...?opts?.use?.map(
+            (mw) => (middlewareRef: mw, middlewareInstance: null),
+          ),
+        ];
 
-    var registry = _registry;
-    if (allTools.isNotEmpty) {
-      registry = Registry.childOf(_registry);
-      for (final tool in allTools) {
-        registry.register(tool);
-      }
-    }
+        var registry = _registry;
+        if (allTools.isNotEmpty) {
+          registry = Registry.childOf(_registry);
+          for (final tool in allTools) {
+            registry.register(tool);
+          }
+        }
 
-    return generateHelper(
-      registry,
-      messages: options.messages,
-      model: options.model != null ? modelRef(options.model!) : null,
-      config: options.config,
-      tools: options.tools,
-      toolChoice: options.toolChoice,
-      returnToolRequests: options.returnToolRequests,
-      maxTurns: options.maxTurns,
-      output: options.output,
-      context: opts?.context,
-      middleware: middleware.isNotEmpty ? middleware : null,
-      onChunk: onChunk,
+        return generateHelper(
+          registry,
+          messages: options.messages,
+          model: options.model != null ? modelRef(options.model!) : null,
+          config: options.config,
+          tools: options.tools,
+          toolChoice: options.toolChoice,
+          returnToolRequests: options.returnToolRequests,
+          maxTurns: options.maxTurns,
+          output: options.output,
+          context: opts?.context,
+          middleware: middleware.isNotEmpty ? middleware : null,
+          onChunk: onChunk,
+        );
+      },
+      input: input,
+      actionType: 'dotprompt',
     );
   }
 
@@ -448,6 +468,8 @@ Map<String, dynamic> _buildPromptMetadata<CustomOptions, Input>(
       if (config.config != null) 'config': _configToMap(config.config),
       if (config.toolNames != null) 'tools': config.toolNames,
       if (config.toolChoice != null) 'toolChoice': config.toolChoice,
+      if (config.messagesTemplate != null) 'template': config.messagesTemplate,
+      // TODO: Add middleware metadata when middleware support is added.
     },
   };
 }

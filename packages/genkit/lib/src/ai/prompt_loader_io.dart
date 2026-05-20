@@ -160,8 +160,8 @@ void _loadPrompt(
 
   // Create the prompt config
   final promptConfig = PromptConfig<Map<String, dynamic>, Map<String, dynamic>>(
-    name: registryName,
-    variant: null, // variant is already baked into the name
+    name: _registryDefinitionKey(name, null, ns),
+    variant: variant,
     model: model != null ? modelRef(model) : null,
     config: config,
     toolNames: tools,
