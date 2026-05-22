@@ -33,7 +33,15 @@ extension type LanguageModelFactory._(JSObject _) implements JSObject {
   ///
   /// Deprecated: only available in extension contexts or with the Prompt API
   /// Sampling Parameters origin trial enabled; resolves to null otherwise.
-  external JSPromise<LanguageModelParams?> params();
+  JSPromise<LanguageModelParams?>? params() {
+    if (has('params')) {
+      return _params();
+    }
+    return null;
+  }
+
+  @JS('params')
+  external JSPromise<LanguageModelParams?>? _params();
 }
 
 @JS()
