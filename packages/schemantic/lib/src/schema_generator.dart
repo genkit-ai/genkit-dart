@@ -1171,7 +1171,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             final allOfList = [
               refer('\$Schema.fromMap').call([
                 literalMap({
-                  r'$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
+                  r'\$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
                 }),
               ]),
             ];
