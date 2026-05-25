@@ -70,9 +70,7 @@ void main(List<String> args) async {
 
       // trigger an interrupt to confirm if amount > $100
       if (resumedStatus != 'APPROVED' && input.amount > 10000) {
-        ctx.interrupt({
-          'message': 'Please confirm sending an amount > \$100.',
-        });
+        ctx.interrupt({'message': 'Please confirm sending an amount > \$100.'});
       }
 
       // complete the transaction if not interrupted
@@ -95,14 +93,14 @@ void main(List<String> args) async {
       while (response.interrupts.isNotEmpty) {
         print('Interrupted, resuming with approval in 5 seconds...');
         await Future.delayed(Duration(seconds: 5));
-        
+
         final confirmations = <ToolRequestPart>[];
         for (final interrupt in response.interrupts) {
           // use the 'restart' method on our tool to provide `resumed` metadata
           // In Dart, we provide restarted parts with new metadata.
           confirmations.add(
             interrupt.toolRequestPart!.withMetadata({
-              'resumed': {'status': 'APPROVED'}
+              'resumed': {'status': 'APPROVED'},
             }),
           );
         }
@@ -125,9 +123,9 @@ void main(List<String> args) async {
     description: 'use this to ask the user a clarifying question',
     inputSchema: AskQuestionInput.$schema,
     fn: (input, ctx) async {
-       // Just interrupt immediately since it's an interactive question
-       ctx.interrupt(input);
-    }
+      // Just interrupt immediately since it's an interactive question
+      ctx.interrupt(input);
+    },
   );
 
   ai.defineFlow(
@@ -145,9 +143,7 @@ void main(List<String> args) async {
         await Future.delayed(Duration(seconds: 5));
         // multiple interrupts can be called at once, so we handle them all
         for (final question in response.interrupts) {
-          answers.add(
-            InterruptResponse(question, 'The answer is C'),
-          );
+          answers.add(InterruptResponse(question, 'The answer is C'));
         }
       }
 
@@ -163,7 +159,9 @@ void main(List<String> args) async {
   );
 
   if (args.isEmpty) {
-    print('Available flows for Dev UI. Run `genkit start -- dart run bin/server.dart`');
+    print(
+      'Available flows for Dev UI. Run `genkit start -- dart run bin/server.dart`',
+    );
     print('Listening... (Press Ctrl+C to exit)');
     // Keep process alive for Genkit Dev UI reflection server
     await ProcessSignal.sigint.watch().first;
@@ -172,7 +170,10 @@ void main(List<String> args) async {
 
   final command = args[0];
   if (command == 'transfer') {
-    final flow = await ai.registry.lookupAction('flow', 'transferFlowWithRestart');
+    final flow = await ai.registry.lookupAction(
+      'flow',
+      'transferFlowWithRestart',
+    );
     final response = await flow!.run('Transfer \$150 to account 123');
     print('Final response: $response');
   } else if (command == 'trivia') {

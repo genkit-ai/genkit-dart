@@ -25,12 +25,20 @@ typedef TelemetryContext = ({
   String spanId,
 });
 
-void setCustomMetadataAttributes(Map<String, String> attributes) {
+void setCustomMetadataAttributes(Map<String, dynamic> attributes) {
   final context = Zone.current[#api.context] as api.Context?;
   if (context != null) {
     final span = api.spanFromContext(context);
     attributes.forEach((key, value) {
-      span.setAttribute(api.Attribute.fromString('genkit:metadata:$key', value));
+      String valueString;
+      try {
+        valueString = value is String ? value : jsonEncode(value);
+      } catch (e) {
+        valueString = 'Error encoding metadata: $e';
+      }
+      span.setAttribute(
+        api.Attribute.fromString('genkit:metadata:$key', valueString),
+      );
     });
   }
 }

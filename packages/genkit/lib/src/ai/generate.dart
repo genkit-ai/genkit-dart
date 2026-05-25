@@ -893,12 +893,8 @@ ModelResponse _buildInterruptedResponse(
 }
 
 void _recordResumedMetadata(Map<String, dynamic>? runOptionsMetadata) {
-  if (runOptionsMetadata?.containsKey('resumed') ?? false) {
-    final resumed = runOptionsMetadata!['resumed'];
-    if (resumed != null) {
-      setCustomMetadataAttributes({'resumed': jsonEncode(resumed)});
-    }
-  }
+  final resumed = runOptionsMetadata?['resumed'];
+  if (resumed != null) setCustomMetadataAttributes({'resumed': resumed});
 }
 
 Future<

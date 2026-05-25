@@ -36,11 +36,7 @@ class ToolFnArgs<Input> {
 
   /// Interrupts the generation loop with optional [data].
   Never interrupt([dynamic data]) {
-    if (data != null) {
-      setCustomMetadataAttributes({
-        'interrupt': jsonEncode(data),
-      });
-    }
+    setCustomMetadataAttributes({'interrupt': data ?? true});
     throw ToolInterruptException(data ?? true);
   }
 }
