@@ -231,8 +231,7 @@ List<sdk.InputContentBlock> _convertVertexMedia(
   String? contentType,
 ) {
   if (url.startsWith('data:')) {
-    final commaIndex = url.indexOf(',');
-    final base64Data = url.substring(commaIndex + 1);
+    final base64Data = anthropic.extractBase64DataUrlData(url);
     final mimeType = contentType ?? 'image/png';
     return [
       sdk.InputContentBlock.image(

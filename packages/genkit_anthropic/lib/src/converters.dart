@@ -183,8 +183,7 @@ List<sdk.InputContentBlock> convertAnthropicMedia(
   String? contentType,
 ) {
   if (url.startsWith('data:')) {
-    final commaIndex = url.indexOf(',');
-    final base64Data = url.substring(commaIndex + 1);
+    final base64Data = extractBase64DataUrlData(url);
     final mimeType = contentType ?? 'image/png';
     return [
       sdk.InputContentBlock.image(
@@ -197,6 +196,18 @@ List<sdk.InputContentBlock> convertAnthropicMedia(
   }
 
   return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
+}
+
+/// Extracts the base64 payload from a `data:` URL.
+String extractBase64DataUrlData(String url) {
+  final commaIndex = url.indexOf(',');
+  if (commaIndex == -1) {
+    throw GenkitException(
+      'Media data URL must contain a comma before the base64 payload.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  return url.substring(commaIndex + 1);
 }
 
 /// Converts a Genkit tool response output to Anthropic text content.

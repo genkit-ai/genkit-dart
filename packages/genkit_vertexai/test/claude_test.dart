@@ -248,6 +248,42 @@ void main() {
       expect(source['data'], 'abc123');
     });
 
+    test('rejects malformed data URL images without comma', () async {
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: MockHttpClient(),
+      );
+
+      final model = plugin.resolve('model', 'claude-sonnet-4-6') as Action;
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              MediaPart(
+                media: Media(
+                  contentType: 'image/png',
+                  url: 'data:image/png;base64nocomma',
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await expectLater(
+        model.run(req),
+        throwsA(
+          isA<GenkitException>().having(
+            (error) => error.status,
+            'status',
+            StatusCodes.INVALID_ARGUMENT,
+          ),
+        ),
+      );
+    });
+
     test(
       'rejects image URLs because Vertex AI Claude requires base64',
       () async {

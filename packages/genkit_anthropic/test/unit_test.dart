@@ -229,6 +229,29 @@ void main() {
       expect(blocks.first, isA<sdk.ImageInputBlock>());
     });
 
+    test('should reject malformed base64 data URI without comma', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:image/png;base64nocomma',
+              contentType: 'image/png',
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('data URL')),
+        ),
+      );
+    });
+
     test('should filter ReasoningPart from input', () {
       final input = Message(
         role: Role.user,
