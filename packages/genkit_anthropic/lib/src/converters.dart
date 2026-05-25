@@ -58,6 +58,13 @@ sdk.MessageCreateRequest toAnthropicCreateRequest(
       )
       .toList();
 
+  if (messages.isEmpty) {
+    throw GenkitException(
+      'Anthropic requests must include at least one non-system message.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
   final tools =
       req.tools?.map(toAnthropicTool).toList() ?? <sdk.ToolDefinition>[];
 

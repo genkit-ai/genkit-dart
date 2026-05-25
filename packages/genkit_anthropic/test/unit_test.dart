@@ -265,6 +265,32 @@ void main() {
     });
   });
 
+  group('toAnthropicCreateRequest', () {
+    test('should reject system-only requests', () {
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'Be concise.')],
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicCreateRequest(
+          req,
+          'claude-sonnet-4-6',
+          AnthropicOptions(),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('non-system')),
+        ),
+      );
+    });
+  });
+
   group('fromAnthropicMessage', () {
     test('should map TextBlock to TextPart', () {
       final input = sdk.Message(
