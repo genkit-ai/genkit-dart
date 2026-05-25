@@ -14,8 +14,6 @@
 
 import 'dart:async';
 
-import 'dart:convert';
-
 import '../core/action.dart';
 import '../o11y/instrumentation.dart';
 import '../types.dart';
