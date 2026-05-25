@@ -8,8 +8,8 @@ environment:
 
 dependencies:
   args: ^2.7.0
-  genkit: ^0.13.1
-  genkit_google_genai: ^0.2.6
+  genkit: ^0.13.2
+  genkit_google_genai: ^0.2.7
   logging: ^1.3.0
   schemantic: ^0.1.3
 

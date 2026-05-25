@@ -1,3 +1,7 @@
+## 0.0.8
+
+ - updated internal dependencies.
+
 ## 0.0.7
 
  - updated internal dependencies.

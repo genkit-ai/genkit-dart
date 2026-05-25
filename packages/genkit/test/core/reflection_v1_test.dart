@@ -17,6 +17,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:genkit/src/ai/generate_middleware.dart';
+import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v1.dart';
 import 'package:genkit/src/core/registry.dart';
@@ -101,6 +103,57 @@ void main() {
       expect(body, contains('/test/testAction'));
       final action = body['/test/testAction'];
       expect(action['name'], 'testAction');
+    });
+
+    test('GET /api/values for middleware', () async {
+      final def = defineMiddleware<dynamic>(
+        name: 'retry',
+        create: ([config]) => throw UnimplementedError(),
+      );
+      registry.registerValue('middleware', def.name, def);
+
+      final response = await http.get(
+        Uri.parse('$url/api/values?type=middleware'),
+      );
+
+      expect(response.statusCode, 200);
+      final body = jsonDecode(response.body);
+      expect(body['/middleware/retry'], isNotNull);
+      expect(body['/middleware/retry']['name'], equals('retry'));
+    });
+
+    test('GET /api/values for defaultModel', () async {
+      final model = modelRef('test-model', config: {'temperature': 2});
+      registry.registerValue('defaultModel', 'defaultModel', model);
+
+      final response = await http.get(
+        Uri.parse('$url/api/values?type=defaultModel'),
+      );
+
+      expect(response.statusCode, 200);
+      final body = jsonDecode(response.body);
+      expect(body['/defaultModel/defaultModel'], isNotNull);
+      expect(body['/defaultModel/defaultModel']['name'], equals('test-model'));
+      expect(
+        body['/defaultModel/defaultModel']['config']['temperature'],
+        equals(2),
+      );
+    });
+
+    test('GET /api/values with unsupported type', () async {
+      final response = await http.get(
+        Uri.parse('$url/api/values?type=unsupported'),
+      );
+
+      expect(response.statusCode, 400);
+      expect(response.body, contains('Unsupported type parameter'));
+    });
+
+    test('GET /api/values with missing type', () async {
+      final response = await http.get(Uri.parse('$url/api/values'));
+
+      expect(response.statusCode, 400);
+      expect(response.body, contains('Missing type parameter'));
     });
 
     test('POST /api/runAction (non-streaming)', () async {

@@ -19,6 +19,8 @@ import 'dart:io';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
+import '../../ai/generate_middleware.dart';
+import '../../ai/model.dart';
 import '../../exception.dart';
 import '../../schema.dart';
 import '../../utils.dart';
@@ -125,6 +127,9 @@ class ReflectionServerV1 {
         } else if (request.method == 'POST' &&
             request.uri.path == '/api/runAction') {
           await _handleRunAction(request);
+        } else if (request.method == 'GET' &&
+            request.uri.path == '/api/values') {
+          await _handleListValues(request);
         } else {
           request.response
             ..statusCode = HttpStatus.notFound
@@ -162,6 +167,52 @@ class ReflectionServerV1 {
     request.response
       ..headers.contentType = ContentType.json
       ..write(jsonEncode(convertedActions))
+      ..close();
+  }
+
+  Future<void> _handleListValues(HttpRequest request) async {
+    final type = request.uri.queryParameters['type'];
+
+    if (type == null) {
+      request.response
+        ..statusCode = HttpStatus.badRequest
+        ..write('Missing type parameter for listValues')
+        ..close();
+      return;
+    }
+
+    if (type != 'middleware' && type != 'defaultModel') {
+      request.response
+        ..statusCode = HttpStatus.badRequest
+        ..write('Unsupported type parameter for listValues: $type')
+        ..close();
+      return;
+    }
+
+    final values = registry.listValues<dynamic>(type);
+    final sanitizedValues = <String, dynamic>{};
+
+    for (final MapEntry(:key, :value) in values.entries) {
+      if (type == 'middleware' && value is GenerateMiddlewareDef) {
+        sanitizedValues[key] = {
+          'name': value.name,
+          if (value.configJsonSchema != null)
+            'configSchema': value.configJsonSchema,
+        };
+      } else if (type == 'defaultModel' && value is ModelRef) {
+        sanitizedValues[key] = {
+          'name': value.name,
+          if (value.config != null)
+            'config': value.config is Map
+                ? value.config
+                : (value.config as dynamic)?.toJson(),
+        };
+      }
+    }
+
+    request.response
+      ..headers.contentType = ContentType.json
+      ..write(jsonEncode(sanitizedValues))
       ..close();
   }
 
