@@ -25,6 +25,16 @@ typedef TelemetryContext = ({
   String spanId,
 });
 
+void setCustomMetadataAttributes(Map<String, String> attributes) {
+  final context = Zone.current[#api.context] as api.Context?;
+  if (context != null) {
+    final span = api.spanFromContext(context);
+    attributes.forEach((key, value) {
+      span.setAttribute(api.Attribute.fromString('genkit:metadata:$key', value));
+    });
+  }
+}
+
 Future<Output> runInNewSpan<Input, Output>(
   String name,
   Future<Output> Function(TelemetryContext) fn, {

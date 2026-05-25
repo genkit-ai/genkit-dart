@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:convert';
 
 import '../core/action.dart';
 import '../core/dynamic_action_provider.dart';
@@ -891,6 +892,15 @@ ModelResponse _buildInterruptedResponse(
   );
 }
 
+void _recordResumedMetadata(Map<String, dynamic>? runOptionsMetadata) {
+  if (runOptionsMetadata?.containsKey('resumed') ?? false) {
+    final resumed = runOptionsMetadata!['resumed'];
+    if (resumed != null) {
+      setCustomMetadataAttributes({'resumed': jsonEncode(resumed)});
+    }
+  }
+}
+
 Future<
   ({
     List<Part> toolResponses,
@@ -923,6 +933,7 @@ _executeTools(
       ToolRequestPart req,
       ActionFnArg<void, dynamic, void> c,
     ) async {
+      _recordResumedMetadata(c.context);
       final out = await tool.runRaw(req.toolRequest.input, context: c.context);
       return ToolResponsePart(
         toolResponse: ToolResponse(

@@ -14,7 +14,10 @@
 
 import 'dart:async';
 
+import 'dart:convert';
+
 import '../core/action.dart';
+import '../o11y/instrumentation.dart';
 import '../types.dart';
 import 'interrupt.dart';
 
@@ -33,6 +36,11 @@ class ToolFnArgs<Input> {
 
   /// Interrupts the generation loop with optional [data].
   Never interrupt([dynamic data]) {
+    if (data != null) {
+      setCustomMetadataAttributes({
+        'interrupt': jsonEncode(data),
+      });
+    }
     throw ToolInterruptException(data ?? true);
   }
 }
