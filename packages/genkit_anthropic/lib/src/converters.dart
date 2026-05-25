@@ -137,7 +137,7 @@ sdk.InputMessage toAnthropicMessage(
       final request = part.toolRequest!;
       return [
         sdk.InputContentBlock.toolUse(
-          id: request.ref ?? '',
+          id: _requireToolRef(request.ref, 'ToolRequest.ref'),
           name: request.name,
           input: request.input ?? {},
         ),
@@ -147,7 +147,7 @@ sdk.InputMessage toAnthropicMessage(
       final response = part.toolResponse!;
       return [
         sdk.InputContentBlock.toolResult(
-          toolUseId: response.ref ?? '',
+          toolUseId: _requireToolRef(response.ref, 'ToolResponse.ref'),
           content: [
             sdk.ToolResultContent.text(toolOutputFormatter(response.output)),
           ],
@@ -164,6 +164,17 @@ sdk.InputMessage toAnthropicMessage(
   return isUser
       ? sdk.InputMessage.userBlocks(blocks)
       : sdk.InputMessage.assistantBlocks(blocks);
+}
+
+String _requireToolRef(String? ref, String fieldName) {
+  if (ref == null || ref.isEmpty) {
+    throw GenkitException(
+      '$fieldName must be a non-empty string when converting Anthropic tool '
+      'messages.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  return ref;
 }
 
 /// Converts Genkit media to Anthropic media blocks for the Anthropic API.

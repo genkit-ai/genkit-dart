@@ -69,6 +69,53 @@ void main() {
       expect(toolUse.name, 'getWeather');
     });
 
+    test('should reject tool request without ref', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ToolRequestPart(
+            toolRequest: ToolRequest(
+              name: 'getWeather',
+              input: {'location': 'Boston'},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('ToolRequest.ref')),
+        ),
+      );
+    });
+
+    test('should reject tool request with empty ref', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ToolRequestPart(
+            toolRequest: ToolRequest(
+              ref: '',
+              name: 'getWeather',
+              input: {'location': 'Boston'},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('ToolRequest.ref')),
+        ),
+      );
+    });
+
     test('should map tool response correctly', () {
       final input = Message(
         role: Role.tool,
@@ -89,6 +136,61 @@ void main() {
       expect(blocks.first, isA<sdk.ToolResultInputBlock>());
       final toolResult = blocks.first as sdk.ToolResultInputBlock;
       expect(toolResult.toolUseId, 'call_123');
+    });
+
+    test('should reject tool response without ref', () {
+      final input = Message(
+        role: Role.tool,
+        content: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              name: 'getWeather',
+              output: {'temperature': 72},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('ToolResponse.ref'),
+              ),
+        ),
+      );
+    });
+
+    test('should reject tool response with empty ref', () {
+      final input = Message(
+        role: Role.tool,
+        content: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: '',
+              name: 'getWeather',
+              output: {'temperature': 72},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('ToolResponse.ref'),
+              ),
+        ),
+      );
     });
 
     test('should map media part with URL', () {
