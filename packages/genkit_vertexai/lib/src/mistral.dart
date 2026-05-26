@@ -262,6 +262,7 @@ Future<ModelResponse> _handleMistralStream(
   ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
 ) async {
   final content = StringBuffer();
+  final toolCalls = <int, _MistralStreamToolCall>{};
   Map<String, dynamic>? lastChunk;
   String? finishReason;
 
@@ -271,8 +272,10 @@ Future<ModelResponse> _handleMistralStream(
     if (choices == null || choices.isEmpty) continue;
 
     final choice = choices.first as Map<String, dynamic>;
-    finishReason = choice['finish_reason'] as String?;
+    finishReason = choice['finish_reason'] as String? ?? finishReason;
     final delta = choice['delta'] as Map<String, dynamic>?;
+    _accumulateStreamToolCalls(delta?['tool_calls'], toolCalls);
+
     final deltaContent = delta?['content'];
     final text = _contentToText(deltaContent);
     if (text == null || text.isEmpty) continue;
@@ -283,14 +286,46 @@ Future<ModelResponse> _handleMistralStream(
     );
   }
 
+  final text = '$content';
+  final responseContent = <Part>[
+    if (text.isNotEmpty) TextPart(text: text),
+    ..._streamToolCallsToParts(toolCalls),
+  ];
+  if (responseContent.isEmpty) {
+    responseContent.add(TextPart(text: ''));
+  }
+
   return ModelResponse(
     finishReason: _mapFinishReason(finishReason),
-    message: Message(
-      role: Role.model,
-      content: [TextPart(text: '$content')],
-    ),
+    message: Message(role: Role.model, content: responseContent),
     raw: lastChunk,
   );
+}
+
+void _accumulateStreamToolCalls(
+  Object? toolCalls,
+  Map<int, _MistralStreamToolCall> accumulated,
+) {
+  if (toolCalls is! List) return;
+
+  for (var i = 0; i < toolCalls.length; i++) {
+    final toolCall = toolCalls[i];
+    if (toolCall is! Map) continue;
+    final index = (toolCall['index'] as num?)?.toInt() ?? i;
+    accumulated
+        .putIfAbsent(index, _MistralStreamToolCall.new)
+        .add(toolCall.cast<String, dynamic>());
+  }
+}
+
+List<ToolRequestPart> _streamToolCallsToParts(
+  Map<int, _MistralStreamToolCall> toolCalls,
+) {
+  final orderedIndexes = toolCalls.keys.toList()..sort();
+  return [
+    for (final index in orderedIndexes)
+      _fromMistralToolCall(toolCalls[index]!.toJson()),
+  ];
 }
 
 Map<String, dynamic> _toMistralRequest(
@@ -532,6 +567,53 @@ Map<String, dynamic>? _parseToolArguments(Object? arguments) {
     return jsonDecode(arguments) as Map<String, dynamic>;
   }
   return null;
+}
+
+class _MistralStreamToolCall {
+  String? id;
+  String? type;
+  String? name;
+  final arguments = StringBuffer();
+
+  void add(Map<String, dynamic> toolCall) {
+    final idDelta = toolCall['id'];
+    if (idDelta is String && idDelta.isNotEmpty) {
+      id = _mergeStreamScalar(id, idDelta);
+    }
+
+    final typeDelta = toolCall['type'];
+    if (typeDelta is String && typeDelta.isNotEmpty) {
+      type = _mergeStreamScalar(type, typeDelta);
+    }
+
+    final function = toolCall['function'];
+    if (function is! Map) return;
+
+    final nameDelta = function['name'];
+    if (nameDelta is String && nameDelta.isNotEmpty) {
+      name = _mergeStreamScalar(name, nameDelta);
+    }
+
+    final argumentsDelta = function['arguments'];
+    if (argumentsDelta is String) {
+      arguments.write(argumentsDelta);
+    } else if (argumentsDelta != null) {
+      arguments.write(jsonEncode(argumentsDelta));
+    }
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'type': type ?? 'function',
+    'function': {'name': name ?? '', 'arguments': '$arguments'},
+  };
+}
+
+String _mergeStreamScalar(String? current, String delta) {
+  if (current == null || current.isEmpty) return delta;
+  if (current == delta || current.endsWith(delta)) return current;
+  if (delta.startsWith(current)) return delta;
+  return '$current$delta';
 }
 
 FinishReason _mapFinishReason(String? reason) {

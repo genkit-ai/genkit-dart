@@ -15,6 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_vertexai/genkit_vertexai.dart';
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
@@ -22,6 +23,7 @@ import 'package:test/test.dart';
 class MockHttpClient extends http.BaseClient {
   Uri? lastUrl;
   String? lastBody;
+  final streamRawPredictBodies = <Map<String, dynamic>>[];
   bool isClosed = false;
 
   @override
@@ -68,6 +70,66 @@ class MockHttpClient extends http.BaseClient {
       );
     }
 
+    if (request.url.path.endsWith(':streamRawPredict')) {
+      final body =
+          jsonDecode((request as http.Request).body) as Map<String, dynamic>;
+      streamRawPredictBodies.add(body);
+
+      if (streamRawPredictBodies.length == 1) {
+        return _streamResponse([
+          {
+            'choices': [
+              {
+                'delta': {
+                  'tool_calls': [
+                    {
+                      'index': 0,
+                      'id': 'call_123',
+                      'type': 'function',
+                      'function': {'name': 'calculator', 'arguments': '{"a":'},
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          {
+            'choices': [
+              {
+                'delta': {
+                  'tool_calls': [
+                    {
+                      'index': 0,
+                      'function': {'arguments': '123,"b":456}'},
+                    },
+                  ],
+                },
+                'finish_reason': 'tool_calls',
+              },
+            ],
+          },
+        ]);
+      }
+
+      return _streamResponse([
+        {
+          'choices': [
+            {
+              'delta': {'content': '560'},
+            },
+          ],
+        },
+        {
+          'choices': [
+            {
+              'delta': {'content': '88'},
+              'finish_reason': 'stop',
+            },
+          ],
+        },
+      ]);
+    }
+
     if (request.url.path.endsWith(':rawPredict')) {
       return http.StreamedResponse(
         Stream.value(
@@ -81,6 +143,18 @@ class MockHttpClient extends http.BaseClient {
     }
 
     return http.StreamedResponse(Stream.value(utf8.encode('{}')), 404);
+  }
+
+  http.StreamedResponse _streamResponse(List<Map<String, dynamic>> chunks) {
+    return http.StreamedResponse(
+      Stream.fromIterable([
+        for (final chunk in chunks)
+          utf8.encode('data: ${jsonEncode(chunk)}\n\n'),
+        utf8.encode('data: [DONE]\n\n'),
+      ]),
+      200,
+      headers: {'content-type': 'text/event-stream'},
+    );
   }
 
   @override
@@ -211,6 +285,70 @@ void main() {
       expect(actionNames, contains('vertexai/mistral-small-2503'));
       expect(actionNames, isNot(contains('vertexai/mistral-ocr-2505')));
       expect(actionNames, isNot(contains('vertexai/mistral-medium-3')));
+    });
+
+    test('streams tool calls through the Genkit tool loop', () async {
+      final mockClient = MockHttpClient();
+      final ai = Genkit(
+        plugins: [
+          vertexAI(
+            projectId: 'my-project',
+            location: 'us-central1',
+            authClient: mockClient,
+          ),
+        ],
+      );
+
+      Map<String, dynamic>? toolInput;
+      final tool = ai.defineTool<Map<String, dynamic>, int>(
+        name: 'calculator',
+        description: 'Multiplies two numbers',
+        fn: (input, _) async {
+          toolInput = input;
+          return (input['a'] as int) * (input['b'] as int);
+        },
+      );
+
+      final stream = ai.generateStream(
+        model: vertexAI.mistral('mistral-small-2503'),
+        prompt: 'What is 123 * 456?',
+        tools: [tool],
+        config: MistralOptions(toolChoice: 'any'),
+        maxTurns: 3,
+      );
+
+      final chunks = await stream.toList();
+      final response = await stream.onResult;
+
+      expect(chunks.map((chunk) => chunk.text).join(), '56088');
+      expect(response.text, '56088');
+      expect(toolInput, {'a': 123, 'b': 456});
+      expect(mockClient.streamRawPredictBodies, hasLength(2));
+
+      final messages = mockClient.streamRawPredictBodies[1]['messages'] as List;
+      expect(messages.map((m) => (m as Map)['role']).toList(), [
+        'user',
+        'assistant',
+        'tool',
+      ]);
+
+      final assistantMessage = messages[1] as Map<String, dynamic>;
+      final toolCalls = assistantMessage['tool_calls'] as List;
+      final toolCall = toolCalls.single as Map<String, dynamic>;
+      expect(toolCall['id'], 'call_123');
+      expect(toolCall['type'], 'function');
+      expect((toolCall['function'] as Map)['name'], 'calculator');
+      expect(jsonDecode((toolCall['function'] as Map)['arguments'] as String), {
+        'a': 123,
+        'b': 456,
+      });
+
+      expect(messages[2], {
+        'role': 'tool',
+        'tool_call_id': 'call_123',
+        'name': 'calculator',
+        'content': '56088',
+      });
     });
   });
 }
