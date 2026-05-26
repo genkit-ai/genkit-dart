@@ -94,7 +94,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async => 'yep ${input['foo']}',
     );
-    ai.definePrompt<Map<String, dynamic>>(
+    ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'testPrompt',
       description: 'test prompt',
       inputSchema: const _PromptInputSchema(),

@@ -73,7 +73,7 @@ class GenkitMcpServer {
       if (resolved == null) continue;
       if (resolved.actionType == 'tool') {
         _toolActions.add(resolved as Tool);
-      } else if (resolved.actionType == 'prompt') {
+      } else if (resolved.actionType == 'executable-prompt') {
         _promptActions.add(resolved as PromptAction);
       } else if (resolved.actionType == 'resource') {
         _resourceActions.add(resolved as ResourceAction);

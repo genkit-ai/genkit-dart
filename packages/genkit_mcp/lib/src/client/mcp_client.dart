@@ -1023,7 +1023,7 @@ class GenkitMcpClient {
     switch (descriptor.actionType) {
       case 'tool':
         return _resolveToolAction(descriptor);
-      case 'prompt':
+      case 'executable-prompt':
         return _resolvePromptAction(descriptor);
       case 'resource':
         return _resolveResourceAction(descriptor);
@@ -1075,7 +1075,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'prompt',
+          actionType: 'executable-prompt',
           description: prompt['description']?.toString(),
           inputSchema: promptSchemaFromArgs(args),
           outputSchema: GenerateActionOptions.$schema,
@@ -1088,7 +1088,7 @@ class GenkitMcpClient {
       );
       index[fullName] = _McpClientActionDescriptor(
         actionName: promptName,
-        actionType: 'prompt',
+        actionType: 'executable-prompt',
         payload: prompt,
       );
     }

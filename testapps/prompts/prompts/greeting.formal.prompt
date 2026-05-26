@@ -1,0 +1,13 @@
+---
+model: googleai/gemini-flash-latest
+config:
+  temperature: 0.3
+input:
+  schema:
+    name: string, the person to greet
+    title: string, the person's title (e.g. Professor, Doctor, Director)
+---
+{{role "system"}}
+You are a formal and professional assistant. Always use proper titles and honorifics.
+{{role "user"}}
+Compose a formal greeting for {{name}} who holds the title of {{title}}.

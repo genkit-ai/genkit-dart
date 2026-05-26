@@ -9,6 +9,8 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
+  dotprompt: ^0.0.1
+  handlebars_dart: ^0.0.1
   http: ^1.6.0
   json_annotation: ^4.9.0
   json_schema_builder: ^0.1.3

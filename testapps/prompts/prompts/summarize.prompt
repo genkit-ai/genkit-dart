@@ -1,0 +1,15 @@
+---
+model: googleai/gemini-flash-latest
+config:
+  temperature: 0.2
+input:
+  schema:
+    text: string, the text to summarize
+    maxSentences: string, maximum number of sentences in the summary
+---
+{{role "system"}}
+You are a concise summarizer. Produce clear, brief summaries.
+{{role "user"}}
+Summarize the following text in {{maxSentences}} sentences or fewer:
+
+{{text}}

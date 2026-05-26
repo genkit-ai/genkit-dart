@@ -60,7 +60,7 @@ void main() async {
 
   // --- Prompts ---
 
-  ai.definePrompt<PromptInput>(
+  ai.defineCustomPrompt<PromptInput>(
     name: 'echoPrompt',
     description: 'Returns a simple prompt with one user message.',
     inputSchema: PromptInput.$schema,

@@ -1,0 +1,13 @@
+---
+model: googleai/gemini-flash-latest
+config:
+  temperature: 0.7
+input:
+  schema:
+    name: string, the person to greet
+    style: string, the greeting style (e.g. cheerful, casual, pirate)
+---
+{{role "system"}}
+You are a friendly greeter. Greet the user warmly.
+{{role "user"}}
+Say hello to {{name}} in a {{style}} way.
