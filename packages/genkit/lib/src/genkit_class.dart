@@ -576,6 +576,7 @@ final class Genkit {
 
   /// Generates a response using the specified model and context.
   Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
+    String? system,
     String? prompt,
     List<Message>? messages,
     ModelRef<CustomOptions>? model,
@@ -647,6 +648,7 @@ final class Genkit {
     );
     final rawResponse = await generateHelper(
       resolved.registry,
+      system: system,
       prompt: prompt,
       messages: messages,
       model: model,
@@ -705,6 +707,7 @@ final class Genkit {
   /// Streams a response from the specified model.
   ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
   generateStream<CustomOptions, Output>({
+    String? system,
     String? prompt,
     List<Message>? messages,
     ModelRef<CustomOptions>? model,
@@ -733,6 +736,7 @@ final class Genkit {
         >(streamController.stream);
 
     generate(
+          system: system,
           prompt: prompt,
           messages: messages,
           model: model,

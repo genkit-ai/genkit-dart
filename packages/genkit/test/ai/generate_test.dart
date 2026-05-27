@@ -850,5 +850,286 @@ void main() {
         expect(customModelCalled, isTrue);
       },
     );
+
+    group('system parameter', () {
+      test(
+        'prepends a system message when `system` is provided with `prompt`',
+        () async {
+          const modelName = 'systemPromptModel';
+          ModelRequest? captured;
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              captured = request;
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'ok')],
+                ),
+              );
+            },
+          );
+
+          await genkit.generate(
+            model: modelRef(modelName),
+            system: 'You are a helpful pirate.',
+            prompt: 'Tell me about Dart.',
+          );
+
+          expect(captured, isNotNull);
+          expect(captured!.messages.length, 2);
+          expect(captured!.messages[0].role, Role.system);
+          expect(
+            captured!.messages[0].content[0].toJson()['text'],
+            'You are a helpful pirate.',
+          );
+          expect(captured!.messages[1].role, Role.user);
+          expect(
+            captured!.messages[1].content[0].toJson()['text'],
+            'Tell me about Dart.',
+          );
+        },
+      );
+
+      test('prepends `system` before explicit `messages`', () async {
+        const modelName = 'systemMessagesModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          system: 'Be concise.',
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hi')],
+            ),
+            Message(
+              role: Role.model,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+        );
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 3);
+        expect(captured!.messages[0].role, Role.system);
+        expect(
+          captured!.messages[0].content[0].toJson()['text'],
+          'Be concise.',
+        );
+        expect(captured!.messages[1].role, Role.user);
+        expect(captured!.messages[2].role, Role.model);
+      });
+
+      test('orders as system -> messages -> prompt user message', () async {
+        const modelName = 'systemAllModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          system: 'sys',
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'past-u')],
+            ),
+            Message(
+              role: Role.model,
+              content: [TextPart(text: 'past-m')],
+            ),
+          ],
+          prompt: 'now',
+        );
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 4);
+        expect(captured!.messages[0].role, Role.system);
+        expect(captured!.messages[0].content[0].toJson()['text'], 'sys');
+        expect(captured!.messages[1].role, Role.user);
+        expect(captured!.messages[1].content[0].toJson()['text'], 'past-u');
+        expect(captured!.messages[2].role, Role.model);
+        expect(captured!.messages[2].content[0].toJson()['text'], 'past-m');
+        expect(captured!.messages[3].role, Role.user);
+        expect(captured!.messages[3].content[0].toJson()['text'], 'now');
+      });
+
+      test(
+        'preserves both system messages when `system` and a system role in `messages` are provided',
+        () async {
+          const modelName = 'systemDoubleModel';
+          ModelRequest? captured;
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              captured = request;
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'ok')],
+                ),
+              );
+            },
+          );
+
+          await genkit.generate(
+            model: modelRef(modelName),
+            system: 'param system',
+            messages: [
+              Message(
+                role: Role.system,
+                content: [TextPart(text: 'inline system')],
+              ),
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hi')],
+              ),
+            ],
+          );
+
+          expect(captured, isNotNull);
+          expect(captured!.messages.length, 3);
+          expect(captured!.messages[0].role, Role.system);
+          expect(
+            captured!.messages[0].content[0].toJson()['text'],
+            'param system',
+          );
+          expect(captured!.messages[1].role, Role.system);
+          expect(
+            captured!.messages[1].content[0].toJson()['text'],
+            'inline system',
+          );
+          expect(captured!.messages[2].role, Role.user);
+        },
+      );
+
+      test('treats empty `system` string as not provided', () async {
+        const modelName = 'systemEmptyModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          system: '',
+          prompt: 'hello',
+        );
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 1);
+        expect(captured!.messages[0].role, Role.user);
+      });
+
+      test('flows through generateStream', () async {
+        const modelName = 'systemStreamModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            context.sendChunk(
+              ModelResponseChunk(content: [TextPart(text: 'hi')]),
+            );
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'hi')],
+              ),
+            );
+          },
+        );
+
+        final stream = genkit.generateStream(
+          model: modelRef(modelName),
+          system: 'streamed system',
+          prompt: 'stream prompt',
+        );
+        await stream.toList();
+        await stream.onResult;
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 2);
+        expect(captured!.messages[0].role, Role.system);
+        expect(
+          captured!.messages[0].content[0].toJson()['text'],
+          'streamed system',
+        );
+        expect(captured!.messages[1].role, Role.user);
+        expect(
+          captured!.messages[1].content[0].toJson()['text'],
+          'stream prompt',
+        );
+      });
+
+      test('accepts `system` alone without `prompt` or `messages`', () async {
+        const modelName = 'systemOnlyModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          system: 'standalone system',
+        );
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 1);
+        expect(captured!.messages[0].role, Role.system);
+        expect(
+          captured!.messages[0].content[0].toJson()['text'],
+          'standalone system',
+        );
+      });
+    });
   });
 }
