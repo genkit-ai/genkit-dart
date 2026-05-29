@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import '../core/action.dart';
+import '../o11y/instrumentation.dart';
 import '../types.dart';
 import 'interrupt.dart';
 
@@ -33,6 +34,7 @@ class ToolFnArgs<Input> {
 
   /// Interrupts the generation loop with optional [data].
   Never interrupt([dynamic data]) {
+    setCustomMetadataAttributes({'interrupt': data ?? true});
     throw ToolInterruptException(data ?? true);
   }
 }
