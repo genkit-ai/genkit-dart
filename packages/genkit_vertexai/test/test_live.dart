@@ -43,8 +43,10 @@ void main() {
         name: 'Vertex AI',
         plugin: vertexAI(projectId: projectId, location: location),
         gemini: vertexAI.gemini,
+        mistral: vertexAI.mistral,
         textEmbedding: vertexAI.textEmbedding,
         modelName: 'gemini-2.5-flash',
+        mistralModelName: 'mistral-small-2503',
         embedderName: 'gemini-embedding-001',
       ),
   ];
@@ -83,6 +85,22 @@ void main() {
         final response = ai.generateStream(
           model: config.gemini(config.modelName),
           prompt: 'Count to 15',
+        );
+
+        final chunks = await response.toList();
+        expect(chunks.length, greaterThan(1));
+        final fullText = chunks.map((c) => c.text).join();
+        expect(fullText, contains('5'));
+
+        final finalResponse = await response.onResult;
+        expect(finalResponse.text, contains('5'));
+      });
+
+      test('should stream text with Mistral', () async {
+        final response = ai.generateStream(
+          model: config.mistral(config.mistralModelName),
+          prompt: 'Count to 15. Return only the numbers.',
+          config: MistralOptions(temperature: 0),
         );
 
         final chunks = await response.toList();
@@ -135,6 +153,33 @@ void main() {
         );
 
         expect(response.text, contains('56088')); // 123*456 = 56088
+      });
+
+      test('should use tools with Mistral', () async {
+        final tool = ai.defineTool(
+          name: 'calculator',
+          description: 'Multiplies two numbers',
+          inputSchema: CalculatorInput.$schema,
+          outputSchema: .integer(),
+          fn: (CalculatorInput input, _) async => input.a * input.b,
+        );
+
+        final response = await ai.generate(
+          model: config.mistral(config.mistralModelName),
+          prompt: 'Use the calculator tool to multiply 123 by 456.',
+          tools: [tool],
+          config: MistralOptions(temperature: 0, toolChoice: 'any'),
+          maxTurns: 3,
+        );
+
+        final digitsOnly = response.text.replaceAll(RegExp(r'[^0-9]'), '');
+        expect(digitsOnly, contains('56088')); // 123*456 = 56088
+        expect(response.messages.map((m) => m.role), [
+          'user',
+          'model',
+          'tool',
+          'model',
+        ]);
       });
 
       test('should embed text', () async {
