@@ -268,7 +268,7 @@ abstract class $Outer {
             allOf(
               contains('Schema.fromMap({'),
               contains("'allOf':"),
-              contains(r"Schema.fromMap({'$ref': r'#/$defs/Inner'})"),
+              contains(r"Schema.fromMap({'\$ref': r'#/$defs/Inner'})"),
               contains("'default': {'val': 'default'}"),
             ),
           ),
