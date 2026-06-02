@@ -40,13 +40,19 @@ final commonModelInfo = ModelInfo(
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
+  Future<GenerativeLanguageBaseClient> clientForModel(
+    String modelName,
+    String? apiKey, {
+    String? apiModelName,
+  }) {
+    return getApiClient(apiKey);
+  }
+
   Model createModel(
     String modelName,
     SchemanticType customOptions, {
     String? actionName,
     String? apiModelName,
-    Future<GenerativeLanguageBaseClient> Function(String? apiKey)?
-    getApiClientOverride,
   }) {
     return Model(
       name: '$name/${actionName ?? modelName}',
@@ -99,9 +105,12 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
 
-        final service =
-            await (getApiClientOverride?.call(apiKey) ?? getApiClient(apiKey));
         final resolvedApiModelName = apiModelName ?? 'models/$modelName';
+        final service = await clientForModel(
+          modelName,
+          apiKey,
+          apiModelName: resolvedApiModelName,
+        );
 
         try {
           final systemMessage = req.messages

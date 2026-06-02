@@ -100,6 +100,18 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   }
 
   @override
+  Future<GenerativeLanguageBaseClient> clientForModel(
+    String modelName,
+    String? apiKey, {
+    String? apiModelName,
+  }) {
+    if (apiModelName?.startsWith('endpoints/') == true) {
+      return getEndpointApiClient();
+    }
+    return getApiClient(apiKey);
+  }
+
+  @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     final service = await getApiClient();
@@ -231,7 +243,6 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       GeminiOptions.$schema,
       actionName: 'endpoints/$endpointId',
       apiModelName: 'endpoints/$safeEndpointId',
-      getApiClientOverride: (_) => getEndpointApiClient(),
     );
   }
 
