@@ -94,13 +94,13 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
             final name = modelMap['name'] as String?;
             return name != null &&
                 (name.contains('gemini-') ||
-                    name.contains(virtualTryOnModelPrefix));
+                    name.contains(VirtualTryOn.modelPrefix));
           })
           .map((m) {
             final modelMap = m as Map<String, dynamic>;
             final modelName = (modelMap['name'] as String).split('/').last;
-            if (isVirtualTryOnModelName(modelName)) {
-              return virtualTryOnModelMetadata(name, modelName);
+            if (VirtualTryOn.isModelName(modelName)) {
+              return VirtualTryOn.actionMetadata(name, modelName);
             }
             final isTts = modelName.contains('-tts');
             return modelMetadata(
@@ -142,16 +142,20 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
   @override
   Action? resolve(String actionType, String name) {
-    if (actionType == 'model' && isVirtualTryOnModelName(name)) {
-      return createVirtualTryOnModel(
-        pluginName: this.name,
-        modelName: name,
-        getApiClient: getApiClient,
-        handleException: handleException,
-        shouldCloseClient: authClient == null,
-      );
+    if (actionType == 'model' && VirtualTryOn.isModelName(name)) {
+      return createVirtualTryOnModel(name);
     }
     return super.resolve(actionType, name);
+  }
+
+  Model createVirtualTryOnModel(String modelName) {
+    return VirtualTryOn.createModel(
+      pluginName: name,
+      modelName: modelName,
+      getApiClient: getApiClient,
+      handleException: handleException,
+      shouldCloseClient: authClient == null,
+    );
   }
 
   @override
