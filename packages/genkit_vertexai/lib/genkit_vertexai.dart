@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:genkit_anthropic/genkit_anthropic.dart' as anthropic;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:http/http.dart' as http;
 
@@ -31,6 +32,12 @@ export 'package:genkit_google_genai/genkit_google_genai.dart'
         TextEmbedderOptions,
         ThinkingConfig,
         VoiceConfig;
+
+/// Claude generation options for Vertex AI Anthropic models.
+typedef ClaudeOptions = anthropic.AnthropicOptions;
+
+/// Extended thinking configuration for Vertex AI Anthropic models.
+typedef ClaudeThinkingConfig = anthropic.ThinkingConfig;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
@@ -51,6 +58,13 @@ class VertexAiPluginHandle {
 
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
+  }
+
+  ModelRef<ClaudeOptions> claude(String name) {
+    return modelRef(
+      'vertexai/$name',
+      customOptions: anthropic.AnthropicOptions.$schema,
+    );
   }
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {

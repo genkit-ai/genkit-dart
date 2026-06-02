@@ -4,7 +4,8 @@ Vertex AI plugin for Genkit Dart.
 
 ## Usage
 
-To use Google's Vertex AI models, simply import this package and pass `vertexAI` to the `Genkit` initialization. 
+To use Vertex AI publisher models, import this package and pass `vertexAI`
+to the `Genkit` initialization.
 
 Authentication is handled automatically via Application Default Credentials (e.g. `gcloud auth application-default login`), keeping the implementation clean and avoiding dependencies on `dart:io` in the core components.
 
@@ -33,9 +34,41 @@ void main() async {
     prompt: 'Tell me a joke about a developer.',
   );
 
+print(response.text);
+}
+```
+
+### Claude In Model Garden
+
+```dart
+import 'dart:io';
+
+import 'package:genkit/genkit.dart';
+import 'package:genkit_vertexai/genkit_vertexai.dart';
+
+void main() async {
+  final ai = Genkit(
+    plugins: [
+      vertexAI(
+        projectId: Platform.environment['GCLOUD_PROJECT'],
+        location: Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1',
+      )
+    ],
+  );
+
+  final response = await ai.generate(
+    model: vertexAI.claude('claude-sonnet-4-6'),
+    prompt: 'Summarize why Vertex AI Model Garden is useful.',
+    config: ClaudeOptions(maxTokens: 512),
+  );
+
   print(response.text);
 }
 ```
+
+Use the exact Claude model ID shown in Vertex AI Model Garden for your
+project and region. Vertex Claude models use Google Cloud authentication,
+so `apiKey` overrides are not supported in `ClaudeOptions`.
 
 ### Embeddings
 

@@ -19,6 +19,11 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'auth.dart';
+import 'claude.dart';
+
+const _anthropicPublisher = 'anthropic';
+const _googlePublisher = 'google';
+const _vertexMultiRegions = {'us', 'eu'};
 
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
@@ -40,13 +45,24 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   String get name => 'vertexai';
 
+  String get _resolvedLocation => location ?? 'global';
+
+  late final _claudeModels = VertexClaudeModelFactory(
+    pluginName: name,
+    getApiClient: getApiClient,
+    resolvedProjectId: () => _getResolvedProjectId,
+    resolvedLocation: () => _resolvedLocation,
+    shouldCloseClient: () => authClient == null,
+    handleException: handleException,
+  );
+
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
   ]) async {
     final validFormat = RegExp(r'^[a-z0-9-]+$');
     final resolvedProjectId = _getResolvedProjectId;
-    final resolvedLocation = location ?? 'global';
+    final resolvedLocation = _resolvedLocation;
 
     if (!validFormat.hasMatch(resolvedLocation) ||
         !validFormat.hasMatch(resolvedProjectId)) {
@@ -57,9 +73,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
     final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
 
-    final baseUrl = safeLocation == 'global'
-        ? 'https://aiplatform.googleapis.com/'
-        : 'https://$safeLocation-aiplatform.googleapis.com/';
+    final baseUrl = _resolveBaseUrl(safeLocation);
     final apiUrlPrefix =
         'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
@@ -78,46 +92,64 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   }
 
   @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && isClaudeModel(name)) {
+      return _claudeModels.createModel(name);
+    }
+    return super.resolve(actionType, name);
+  }
+
+  @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     final service = await getApiClient();
     try {
-      final res = await service.listPublisherModels(
-        projectId: _getResolvedProjectId,
-      );
-      final publisherModels = (res['publisherModels'] as List?) ?? [];
+      final publisherModels = <Map<String, dynamic>>[
+        ...await _listPublisherModels(service, _googlePublisher),
+        ...await _listPublisherModels(
+          service,
+          _anthropicPublisher,
+          ignoreErrors: true,
+        ),
+      ];
 
-      final models = publisherModels
-          .where((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final name = modelMap['name'] as String?;
-            return name != null && name.contains('gemini-');
-          })
-          .map((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final modelName = (modelMap['name'] as String).split('/').last;
-            final isTts = modelName.contains('-tts');
-            return modelMetadata(
-              '$name/$modelName',
-              customOptions: isTts
-                  ? GeminiTtsOptions.$schema
-                  : GeminiOptions.$schema,
-              modelInfo: commonModelInfo,
-            );
-          })
-          .toList();
+      final models = [
+        ...publisherModels
+            .where((m) {
+              final name = m['name'] as String?;
+              return name != null && name.contains('gemini-');
+            })
+            .map((m) {
+              final modelName = (m['name'] as String).split('/').last;
+              final isTts = modelName.contains('-tts');
+              return modelMetadata(
+                '$name/$modelName',
+                customOptions: isTts
+                    ? GeminiTtsOptions.$schema
+                    : GeminiOptions.$schema,
+                modelInfo: commonModelInfo,
+              );
+            }),
+        ...publisherModels
+            .where((m) {
+              final name = m['name'] as String?;
+              return name != null && name.contains('/models/claude-');
+            })
+            .map((m) {
+              final modelName = (m['name'] as String).split('/').last;
+              return claudeModelMetadata(name, modelName);
+            }),
+      ];
 
       final embedders = publisherModels
           .where((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final name = modelMap['name'] as String?;
+            final name = m['name'] as String?;
             return name != null &&
                 (name.contains('text-embedding-') ||
                     name.contains('embedding-'));
           })
           .map((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final modelName = (modelMap['name'] as String).split('/').last;
+            final modelName = (m['name'] as String).split('/').last;
             return embedderMetadata('$name/$modelName');
           })
           .toList();
@@ -131,6 +163,27 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       if (authClient == null) {
         service.client.close();
       }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _listPublisherModels(
+    GenerativeLanguageBaseClient service,
+    String publisher, {
+    bool ignoreErrors = false,
+  }) async {
+    try {
+      final res = await service.listPublisherModels(
+        projectId: _getResolvedProjectId,
+        publisher: publisher,
+      );
+      final models = (res['publisherModels'] as List?) ?? [];
+      return models.whereType<Map<String, dynamic>>().toList();
+    } catch (e, stack) {
+      if (!ignoreErrors) {
+        rethrow;
+      }
+      logger.fine('Failed to list $publisher publisher models: $e', e, stack);
+      return [];
     }
   }
 
@@ -189,5 +242,15 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         }
       },
     );
+  }
+
+  String _resolveBaseUrl(String safeLocation) {
+    if (safeLocation == 'global') {
+      return 'https://aiplatform.googleapis.com/';
+    }
+    if (_vertexMultiRegions.contains(safeLocation)) {
+      return 'https://aiplatform.$safeLocation.rep.googleapis.com/';
+    }
+    return 'https://$safeLocation-aiplatform.googleapis.com/';
   }
 }

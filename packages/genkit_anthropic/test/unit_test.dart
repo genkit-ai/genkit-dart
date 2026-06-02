@@ -16,7 +16,7 @@ import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/genkit.dart';
-import 'package:genkit_anthropic/src/plugin_impl.dart';
+import 'package:genkit_anthropic/common.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -69,6 +69,53 @@ void main() {
       expect(toolUse.name, 'getWeather');
     });
 
+    test('should reject tool request without ref', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ToolRequestPart(
+            toolRequest: ToolRequest(
+              name: 'getWeather',
+              input: {'location': 'Boston'},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('ToolRequest.ref')),
+        ),
+      );
+    });
+
+    test('should reject tool request with empty ref', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ToolRequestPart(
+            toolRequest: ToolRequest(
+              ref: '',
+              name: 'getWeather',
+              input: {'location': 'Boston'},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('ToolRequest.ref')),
+        ),
+      );
+    });
+
     test('should map tool response correctly', () {
       final input = Message(
         role: Role.tool,
@@ -89,6 +136,61 @@ void main() {
       expect(blocks.first, isA<sdk.ToolResultInputBlock>());
       final toolResult = blocks.first as sdk.ToolResultInputBlock;
       expect(toolResult.toolUseId, 'call_123');
+    });
+
+    test('should reject tool response without ref', () {
+      final input = Message(
+        role: Role.tool,
+        content: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              name: 'getWeather',
+              output: {'temperature': 72},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('ToolResponse.ref'),
+              ),
+        ),
+      );
+    });
+
+    test('should reject tool response with empty ref', () {
+      final input = Message(
+        role: Role.tool,
+        content: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: '',
+              name: 'getWeather',
+              output: {'temperature': 72},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('ToolResponse.ref'),
+              ),
+        ),
+      );
     });
 
     test('should map media part with URL', () {
@@ -127,6 +229,29 @@ void main() {
       expect(blocks.first, isA<sdk.ImageInputBlock>());
     });
 
+    test('should reject malformed base64 data URI without comma', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:image/png;base64nocomma',
+              contentType: 'image/png',
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('data URL')),
+        ),
+      );
+    });
+
     test('should filter ReasoningPart from input', () {
       final input = Message(
         role: Role.user,
@@ -137,6 +262,32 @@ void main() {
       );
       final result = toAnthropicMessage(input);
       expect(result.blocks.length, 1); // Should only have TextPart
+    });
+  });
+
+  group('toAnthropicCreateRequest', () {
+    test('should reject system-only requests', () {
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'Be concise.')],
+          ),
+        ],
+      );
+
+      expect(
+        () => toAnthropicCreateRequest(
+          req,
+          'claude-sonnet-4-6',
+          AnthropicOptions(),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('non-system')),
+        ),
+      );
     });
   });
 

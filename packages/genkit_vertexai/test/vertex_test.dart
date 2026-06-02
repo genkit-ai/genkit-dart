@@ -22,10 +22,18 @@ import 'package:test/test.dart';
 
 class MockHttpClient extends http.BaseClient {
   Uri? lastUrl;
+  String? lastBody;
+  Future<http.StreamedResponse> Function(http.BaseRequest request)? onSend;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     lastUrl = request.url;
+    if (request is http.Request) {
+      lastBody = request.body;
+    }
+    if (onSend != null) {
+      return onSend!(request);
+    }
     if (request.url.host == 'metadata.google.internal' ||
         request.url.host == 'oauth2.googleapis.com') {
       return http.StreamedResponse(

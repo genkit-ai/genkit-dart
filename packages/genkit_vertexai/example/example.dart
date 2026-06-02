@@ -41,6 +41,21 @@ void main(List<String> args) async {
     },
   );
 
+  // --- Claude Generate Flow ---
+  ai.defineFlow(
+    name: 'claudeGenerate',
+    inputSchema: .string(defaultValue: 'Explain Model Garden briefly.'),
+    outputSchema: .string(),
+    fn: (input, context) async {
+      final response = await ai.generate(
+        model: vertexAI.claude('claude-sonnet-4-6'),
+        prompt: input,
+        config: ClaudeOptions(maxTokens: 512),
+      );
+      return response.text;
+    },
+  );
+
   // --- Embedding Flow ---
   ai.defineFlow(
     name: 'embedding',
