@@ -20,6 +20,11 @@ import 'package:meta/meta.dart';
 
 import 'auth.dart';
 
+const _vertexApiVersion = 'v1beta1';
+
+@visibleForTesting
+const vertexApiVersion = _vertexApiVersion;
+
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? projectId;
@@ -47,7 +52,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String get name => 'vertexai';
 
   Future<GenerativeLanguageBaseClient> _createVertexApiClient({
-    required String apiVersion,
+    String apiVersion = _vertexApiVersion,
     String pathSuffix = '',
   }) async {
     final validFormat = RegExp(r'^[a-z0-9-]+$');
@@ -87,14 +92,11 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
   ]) async {
-    return _createVertexApiClient(
-      apiVersion: 'v1beta1',
-      pathSuffix: 'publishers/google/',
-    );
+    return _createVertexApiClient(pathSuffix: 'publishers/google/');
   }
 
   Future<GenerativeLanguageBaseClient> getEndpointApiClient() async {
-    return _createVertexApiClient(apiVersion: 'v1beta1');
+    return _createVertexApiClient();
   }
 
   @override

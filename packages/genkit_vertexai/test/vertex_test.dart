@@ -76,7 +76,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://us-central1-aiplatform.googleapis.com/$vertexApiVersion/projects/my-project/locations/us-central1/publishers/google/models/gemini-1.5-pro:generateContent',
       );
     });
 
@@ -103,7 +103,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://aiplatform.googleapis.com/$vertexApiVersion/projects/my-project/locations/global/publishers/google/models/gemini-1.5-pro:generateContent',
       );
     });
 
@@ -130,7 +130,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/endpoints/123456789:generateContent',
+        'https://us-central1-aiplatform.googleapis.com/$vertexApiVersion/projects/my-project/locations/us-central1/endpoints/123456789:generateContent',
       );
     });
 
