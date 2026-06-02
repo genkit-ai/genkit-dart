@@ -1059,3 +1059,119 @@ base class _StrictUserTypeFactory extends SchemanticType<StrictUser> {
     dependencies: [],
   );
 }
+
+base class Location {
+  /// Creates a [Location] from a JSON map.
+  factory Location.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Location._(this._json);
+
+  Location({String? address}) {
+    _json = {'address': ?address};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [Location].
+  static const SchemanticType<Location> $schema = _LocationTypeFactory();
+
+  String? get address {
+    return _json['address'] as String?;
+  }
+
+  set address(String? value) {
+    if (value == null) {
+      _json.remove('address');
+    } else {
+      _json['address'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [Location] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _LocationTypeFactory extends SchemanticType<Location> {
+  const _LocationTypeFactory();
+
+  @override
+  Location parse(Object? json) {
+    return Location._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Location',
+    definition: $Schema.object(properties: {'address': $Schema.string()}).value,
+    dependencies: [],
+  );
+}
+
+base class House {
+  /// Creates a [House] from a JSON map.
+  factory House.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  House._(this._json);
+
+  House({required Location location}) {
+    _json = {'location': location.toJson()};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [House].
+  static const SchemanticType<House> $schema = _HouseTypeFactory();
+
+  Location get location {
+    return Location.fromJson(_json['location'] as Map<String, dynamic>);
+  }
+
+  set location(Location value) {
+    _json['location'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [House] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _HouseTypeFactory extends SchemanticType<House> {
+  const _HouseTypeFactory();
+
+  @override
+  House parse(Object? json) {
+    return House._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'House',
+    definition: $Schema
+        .object(
+          properties: {
+            'location': $Schema.fromMap({
+              'allOf': [
+                $Schema.fromMap({'\$ref': r'#/$defs/Location'}),
+              ],
+              'description': 'The location of the house',
+            }),
+          },
+          required: ['location'],
+        )
+        .value,
+    dependencies: [Location.$schema],
+  );
+}
