@@ -496,9 +496,6 @@ class VersionApplier {
 
   String _buildChangelogEntry(Version version, List<String> commitMessages) {
     final filteredMessages = _filterReverts(commitMessages);
-    if (filteredMessages.isEmpty) {
-      return '## $version\n\n - updated internal dependencies.\n';
-    }
 
     final breaking = <String>[];
     final feats = <String>[];
@@ -518,6 +515,13 @@ class VersionApplier {
       } else {
         others.add(commit.message);
       }
+    }
+
+    // If there is nothing user-facing to report — either there were no commits
+    // at all (a pure dependency-propagation bump) or every commit was a chore —
+    // fall back to a generic dependency note rather than emitting a bare header.
+    if (breaking.isEmpty && feats.isEmpty && fixes.isEmpty && others.isEmpty) {
+      return '## $version\n\n - updated internal dependencies.\n';
     }
 
     final buf = StringBuffer();
