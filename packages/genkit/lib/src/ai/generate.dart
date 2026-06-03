@@ -622,8 +622,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   /// List of tool requests to restart during an interrupted generation session.
   List<ToolRequestPart>? restart,
 }) async {
-  final hasSystem = system != null && system.isNotEmpty;
-  if (messages == null && prompt == null && !hasSystem) {
+  if (messages == null && prompt == null && system == null) {
     throw ArgumentError('system, prompt, or messages must be provided');
   }
 
@@ -652,7 +651,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   }
 
   final resolvedMessages = <Message>[];
-  if (hasSystem) {
+  if (system != null) {
     resolvedMessages.add(
       Message(
         role: Role.system,
