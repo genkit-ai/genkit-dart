@@ -405,14 +405,63 @@ class VersionApplier {
           final depName = depBump.key;
           if (pkg.dependsOn(depName)) {
             final depNewVersion = depBump.value;
+            // Capture the existing constraint value so we can preserve its
+            // style. The whitespace around the value is restricted to spaces
+            // and tabs (not newlines) and an inline value is required, so
+            // multi-line path/git deps (where the line is just `name:` with
+            // the config on following lines) are intentionally not matched and
+            // left untouched.
             final depRegex = RegExp(
-              '^(\\s+)$depName:\\s*\\^?[\\d\\.]+.*?\$',
+              '^([ \\t]+)$depName:[ \\t]*(\\S.*?)[ \\t]*\$',
               multiLine: true,
             );
-            pubspecContent = pubspecContent.replaceAllMapped(
-              depRegex,
-              (m) => '${m[1]}$depName: ^$depNewVersion',
-            );
+            pubspecContent = pubspecContent.replaceAllMapped(depRegex, (m) {
+              final indent = m[1];
+              final existing = m[2]!;
+              // Detect a tight, patch-width range (e.g. ">=0.1.3 <0.1.4") by
+              // parsing the constraint rather than pattern-matching its surface
+              // syntax. This avoids misclassifying broader ranges (e.g.
+              // ">=1.0.0" or ">=1.0.0 <2.0.0", or a caret like ^1.0.0) as
+              // tight. Tightly-coupled codegen packages use this so a builder
+              // tracks its runtime's feature range, not its breaking range.
+              var isTightRange = false;
+              try {
+                final cleaned = existing
+                    .replaceAll('"', '')
+                    .replaceAll("'", '')
+                    .trim();
+                final constraint = VersionConstraint.parse(cleaned);
+                if (constraint is VersionRange) {
+                  final min = constraint.min;
+                  final max = constraint.max;
+                  if (min != null && max != null) {
+                    // pub_semver normalizes an exclusive upper bound like
+                    // `<0.1.4` to a phantom pre-release `0.1.4-0`, so compare
+                    // against the base (pre-release-stripped) version of max.
+                    final maxBase = Version(max.major, max.minor, max.patch);
+                    // Strip any pre-release from the lower bound before taking
+                    // nextPatch: for a pre-release min like `0.2.0-rc.0`,
+                    // `min.nextPatch` is `0.2.0` (the base release), but the
+                    // intended patch-width upper bound is `0.2.1`. So compute
+                    // the next patch of the base version of min instead.
+                    final minBase = Version(min.major, min.minor, min.patch);
+                    isTightRange = maxBase == minBase.nextPatch;
+                  }
+                }
+              } catch (_) {
+                // Unparseable constraint; fall back to caret.
+              }
+              if (isTightRange) {
+                final base = Version(
+                  depNewVersion.major,
+                  depNewVersion.minor,
+                  depNewVersion.patch,
+                );
+                final upper = base.nextPatch; // X.Y.(Z+1)
+                return '$indent$depName: ">=$depNewVersion <$upper"';
+              }
+              return '$indent$depName: ^$depNewVersion';
+            });
           }
         }
       }
@@ -447,9 +496,6 @@ class VersionApplier {
 
   String _buildChangelogEntry(Version version, List<String> commitMessages) {
     final filteredMessages = _filterReverts(commitMessages);
-    if (filteredMessages.isEmpty) {
-      return '## $version\n\n - updated internal dependencies.\n';
-    }
 
     final breaking = <String>[];
     final feats = <String>[];
@@ -469,6 +515,13 @@ class VersionApplier {
       } else {
         others.add(commit.message);
       }
+    }
+
+    // If there is nothing user-facing to report — either there were no commits
+    // at all (a pure dependency-propagation bump) or every commit was a chore —
+    // fall back to a generic dependency note rather than emitting a bare header.
+    if (breaking.isEmpty && feats.isEmpty && fixes.isEmpty && others.isEmpty) {
+      return '## $version\n\n - updated internal dependencies.\n';
     }
 
     final buf = StringBuffer();
