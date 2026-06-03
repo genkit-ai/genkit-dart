@@ -260,7 +260,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       });
 
       final newSession = await _ai.generateBidi(
-        model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
+        model: 'firebaseai/gemini-flash-latest-native-audio-preview-12-2025',
         config: LiveGenerationConfig(
           responseModalities: ['AUDIO'],
           speechConfig: SpeechConfig(
@@ -653,7 +653,7 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
       outputSchema: RpgCharacter.$schema,
       fn: (name, ctx) async {
         final stream = _ai.generateStream(
-          model: firebaseAI.gemini('gemini-2.5-flash'),
+          model: firebaseAI.gemini('gemini-flash-latest'),
           config: GeminiOptions(temperature: 1.0),
           outputSchema: RpgCharacter.$schema,
           prompt: 'Generate an RPG character called $name',

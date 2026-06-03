@@ -50,7 +50,7 @@ Future<void> main(List<String> args) async {
 
   print('Generating trivia question...');
   final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
+    model: googleAI.gemini('gemini-flash-latest'),
     prompt: '''
       Generate a trivia question and call present_questions tool to present it to the user.
       Answers are provided numbered starting from 1. When answer is provided, be dramatic about
@@ -87,7 +87,7 @@ Future<void> main(List<String> args) async {
     // Resume flow
     print('\nResuming flow with answer...');
     final response2 = await ai.generate(
-      model: googleAI.gemini('gemini-2.5-flash'),
+      model: googleAI.gemini('gemini-flash-latest'),
       messages: response.messages,
       toolNames: ['present_questions'],
       interruptRespond: [InterruptResponse(interruptPart, userSelection)],

@@ -38,7 +38,7 @@ Below is a list of the available samples and how to run them:
   ```
 
 - **Image Generator**
-  Generates a detailed image prompt from a concept and then generates an image using `gemini-2.5-flash-image` (Nano Banana).
+  Generates a detailed image prompt from a concept and then generates an image using `gemini-flash-latest-image` (Nano Banana).
   ```bash
   dart run bin/main.dart imageGenerator "Cyberpunk city"
   ```

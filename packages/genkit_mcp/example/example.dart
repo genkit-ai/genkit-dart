@@ -211,7 +211,7 @@ Future<void> main() async {
     // and injected into generate by Genkit.
     try {
       final response = await hostAi.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: googleAI.gemini('gemini-flash-latest'),
         prompt: 'Say hello to Dart using the local tool.',
         toolNames: ['example-host:tool/local/*'],
       );

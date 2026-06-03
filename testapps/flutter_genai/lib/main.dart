@@ -34,8 +34,8 @@ void main() {
   );
 
   ai.defineRemoteModel(
-    name: 'googleai/gemini-2.5-flash',
-    url: 'http://localhost:8080/googleai/gemini-2.5-flash',
+    name: 'googleai/gemini-flash-latest',
+    url: 'http://localhost:8080/googleai/gemini-flash-latest',
   );
   ai.defineRemoteModel(
     name: 'openai/gpt-4o',
@@ -121,7 +121,7 @@ class _ClientSideTabState extends State<ClientSideTab> {
       );
 
       final model = switch (_selectedProvider) {
-        AiProvider.google => googleAI(apiKey: apiKey).model('gemini-2.5-flash'),
+        AiProvider.google => googleAI(apiKey: apiKey).model('gemini-flash-latest'),
         AiProvider.openai => openAI(apiKey: apiKey).model('gpt-4o'),
         AiProvider.anthropic => anthropic(
           apiKey: apiKey,
@@ -253,7 +253,7 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
 
     try {
       final modelName = switch (_selectedProvider) {
-        AiProvider.google => 'googleai/gemini-2.5-flash',
+        AiProvider.google => 'googleai/gemini-flash-latest',
         AiProvider.openai => 'openai/gpt-4o',
         AiProvider.anthropic => 'anthropic/claude-sonnet-4-5',
       };

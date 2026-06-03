@@ -38,7 +38,7 @@ void main() async {
     name: 'inner',
     fn: (String subject, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: googleAI.gemini('gemini-flash-latest'),
         prompt: 'tell me joke about $subject',
       );
       return response.text;

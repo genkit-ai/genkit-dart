@@ -53,7 +53,7 @@ void main() async {
       final skillsRoot = '$currentDir/skills';
 
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-2.5-flash'),
+        model: googleAI.gemini('gemini-flash-latest'),
         prompt: input,
         use: [
           filesystem(rootDirectory: fsRoot),

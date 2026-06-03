@@ -29,7 +29,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 void main(List<String> arguments) async {
   // Initialize Genkit and Model
   final ai = Genkit(plugins: [googleAI()]);
-  final geminiFlash = googleAI.gemini('gemini-2.5-flash');
+  final geminiFlash = googleAI.gemini('gemini-flash-latest');
 
   // Initialize Flows
   final iterativeRefinementFlow = defineIterativeRefinementFlow(

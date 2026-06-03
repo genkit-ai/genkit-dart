@@ -29,7 +29,7 @@ void main() async {
 
   // Generate text
   final response = await ai.generate(
-    model: vertexAI.gemini('gemini-2.5-flash'),
+    model: vertexAI.gemini('gemini-flash-latest'),
     prompt: 'Tell me a joke about a developer.',
   );
 
