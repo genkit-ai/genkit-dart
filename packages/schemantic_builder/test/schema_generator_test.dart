@@ -15,7 +15,7 @@
 import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
 import 'package:logging/logging.dart';
-import 'package:schemantic/builder.dart';
+import 'package:schemantic_builder/builder.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -268,7 +268,7 @@ abstract class $Outer {
             allOf(
               contains('Schema.fromMap({'),
               contains("'allOf':"),
-              contains(r"Schema.fromMap({'$ref': r'#/$defs/Inner'})"),
+              contains(r"Schema.fromMap({'\$ref': r'#/$defs/Inner'})"),
               contains("'default': {'val': 'default'}"),
             ),
           ),

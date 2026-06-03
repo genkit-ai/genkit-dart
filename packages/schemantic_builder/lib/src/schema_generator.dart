@@ -18,9 +18,8 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
+import 'package:schemantic/schemantic.dart' hide Field;
 import 'package:source_gen/source_gen.dart';
-
-import '../schemantic.dart' hide Field;
 
 final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
   @override
@@ -1171,7 +1170,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             final allOfList = [
               refer('\$Schema.fromMap').call([
                 literalMap({
-                  r'$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
+                  r'\$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
                 }),
               ]),
             ];

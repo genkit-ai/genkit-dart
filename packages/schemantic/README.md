@@ -13,10 +13,13 @@ A general-purpose Dart library for generating type-safe data classes and runtime
 
 ## Installation
 
-Add `schemantic` and `build_runner` to your `pubspec.yaml`:
+`schemantic` is the lightweight runtime package. To generate code from
+`@Schema` annotations, also add the `schemantic_builder` and `build_runner`
+dev dependencies:
 
 ```sh
 dart pub add schemantic
+dart pub add dev:schemantic_builder
 dart pub add dev:build_runner
 ```
 

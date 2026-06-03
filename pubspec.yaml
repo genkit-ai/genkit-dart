@@ -19,6 +19,7 @@ workspace:
   - packages/genkit_shelf
   - packages/genkit_chrome
   - packages/schemantic
+  - packages/schemantic_builder
   - packages/genkit_middleware
   - testapps/agentic_patterns
   - testapps/ai_features
@@ -68,7 +69,7 @@ melos:
     build-gen-core:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{schemantic,genkit}"
+        scope: "{schemantic_builder,genkit}"
         orderDependents: true
       description: Run build_runner for genkit.
 

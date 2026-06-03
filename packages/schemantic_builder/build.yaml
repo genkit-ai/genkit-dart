@@ -1,3 +1,12 @@
+builders:
+  schemantic:
+    import: "package:schemantic_builder/builder.dart"
+    builder_factories: ["schemaBuilder"]
+    build_extensions: {".dart": [".schemantic.g.part"]}
+    auto_apply: dependents
+    build_to: cache
+    applies_builders: ["source_gen:combining_builder"]
+
 targets:
   $default:
     builders:

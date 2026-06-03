@@ -155,6 +155,17 @@ abstract class $StrictUser {
   String get name;
 }
 
+@Schema()
+abstract class $Location {
+  String? get address;
+}
+
+@Schema()
+abstract class $House {
+  @Field(description: 'The location of the house')
+  $Location get location;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -441,6 +452,31 @@ void main() {
       expect((props['port'] as Map)['default'], 8080);
       expect((props['ratio'] as Map)['default'], 1.5);
       expect((props['flag'] as Map)['default'], true);
+    });
+
+    // Regression for https://github.com/genkit-ai/genkit-dart/pull/286
+    test('Nested schema field with description wraps \$ref in allOf', () {
+      final house = House(location: Location(address: '123 Main St'));
+      expect(house.location.address, '123 Main St');
+
+      final json = house.toJson();
+      expect(json, {
+        'location': {'address': '123 Main St'},
+      });
+
+      final parsed = House.$schema.parse(json);
+      expect(parsed.location.address, '123 Main St');
+
+      // The nested $ref must be wrapped in an allOf so the description can sit
+      // alongside it, and the generated code must compile (it does, since this
+      // file parts in integration_test.g.dart).
+      final schema = House.$schema.jsonSchema(useRefs: true);
+      final defs = (schema[r'$defs'] ?? schema['definitions']) as Map;
+      final houseDef = defs['House'] as Map;
+      final locationProp = (houseDef['properties'] as Map)['location'] as Map;
+      expect(locationProp['description'], 'The location of the house');
+      final allOf = locationProp['allOf'] as List;
+      expect((allOf.first as Map)[r'$ref'], '#/\$defs/Location');
     });
   });
 
