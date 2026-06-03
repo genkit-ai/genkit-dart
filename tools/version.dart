@@ -418,14 +418,33 @@ class VersionApplier {
             pubspecContent = pubspecContent.replaceAllMapped(depRegex, (m) {
               final indent = m[1];
               final existing = m[2]!;
-              // If the dep was pinned to a tight range (quoted or starting
-              // with a range operator), keep it patch-width. This is used for
-              // tightly-coupled codegen packages (e.g. a builder depending on
-              // its runtime's feature range, not its breaking range).
-              final isTightRange =
-                  existing.startsWith('"') ||
-                  existing.startsWith("'") ||
-                  existing.startsWith('>');
+              // Detect a tight, patch-width range (e.g. ">=0.1.3 <0.1.4") by
+              // parsing the constraint rather than pattern-matching its surface
+              // syntax. This avoids misclassifying broader ranges (e.g.
+              // ">=1.0.0" or ">=1.0.0 <2.0.0", or a caret like ^1.0.0) as
+              // tight. Tightly-coupled codegen packages use this so a builder
+              // tracks its runtime's feature range, not its breaking range.
+              var isTightRange = false;
+              try {
+                final cleaned = existing
+                    .replaceAll('"', '')
+                    .replaceAll("'", '')
+                    .trim();
+                final constraint = VersionConstraint.parse(cleaned);
+                if (constraint is VersionRange) {
+                  final min = constraint.min;
+                  final max = constraint.max;
+                  if (min != null && max != null) {
+                    // pub_semver normalizes an exclusive upper bound like
+                    // `<0.1.4` to a phantom pre-release `0.1.4-0`, so compare
+                    // against the base (pre-release-stripped) version of max.
+                    final maxBase = Version(max.major, max.minor, max.patch);
+                    isTightRange = maxBase == min.nextPatch;
+                  }
+                }
+              } catch (_) {
+                // Unparseable constraint; fall back to caret.
+              }
               if (isTightRange) {
                 final base = Version(
                   depNewVersion.major,
