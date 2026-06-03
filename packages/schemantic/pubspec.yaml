@@ -3,7 +3,7 @@ description: A lightweight runtime API for type-safe data classes and JSON schem
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 resolution: workspace
-version: 0.1.3
+version: 0.2.0-rc.0
 environment:
   sdk: ^3.10.0
 
