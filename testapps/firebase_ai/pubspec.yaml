@@ -33,6 +33,7 @@ dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
   flutter_test:
     sdk: flutter
+  schemantic_builder: ^0.1.3
 
 dependency_overrides:
   genkit:
@@ -41,3 +42,5 @@ dependency_overrides:
     path: ../../packages/genkit_firebase_ai
   schemantic:
     path: ../../packages/schemantic
+  schemantic_builder:
+    path: ../../packages/schemantic_builder

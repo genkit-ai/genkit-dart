@@ -15,7 +15,7 @@
 import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
 import 'package:logging/logging.dart';
-import 'package:schemantic/builder.dart';
+import 'package:schemantic_builder/builder.dart';
 import 'package:test/test.dart';
 
 void main() {
