@@ -55,7 +55,7 @@ void main(List<String> args) async {
       final photoBase64 = base64Encode(photoBytes);
 
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest-image'),
+        model: vertexAI.gemini('gemini-3.1-flash-image'),
         prompt: input,
         messages: [
           Message(
