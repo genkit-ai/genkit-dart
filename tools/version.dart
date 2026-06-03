@@ -439,7 +439,13 @@ class VersionApplier {
                     // `<0.1.4` to a phantom pre-release `0.1.4-0`, so compare
                     // against the base (pre-release-stripped) version of max.
                     final maxBase = Version(max.major, max.minor, max.patch);
-                    isTightRange = maxBase == min.nextPatch;
+                    // Strip any pre-release from the lower bound before taking
+                    // nextPatch: for a pre-release min like `0.2.0-rc.0`,
+                    // `min.nextPatch` is `0.2.0` (the base release), but the
+                    // intended patch-width upper bound is `0.2.1`. So compute
+                    // the next patch of the base version of min instead.
+                    final minBase = Version(min.major, min.minor, min.patch);
+                    isTightRange = maxBase == minBase.nextPatch;
                   }
                 }
               } catch (_) {
