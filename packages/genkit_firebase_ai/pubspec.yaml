@@ -24,7 +24,7 @@ dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
   flutter_test:
     sdk: flutter
-  schemantic_builder: ^0.1.0
+  schemantic_builder: ^0.1.0-rc.0
 
 # Used to resolve local packages during development
 dependency_overrides:
