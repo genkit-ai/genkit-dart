@@ -325,7 +325,7 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-flash-latest-preview-tts'),
+        model: googleAI.gemini('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
@@ -355,7 +355,7 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-flash-latest-preview-tts'),
+        model: googleAI.gemini('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
