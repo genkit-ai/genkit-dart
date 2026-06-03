@@ -405,14 +405,38 @@ class VersionApplier {
           final depName = depBump.key;
           if (pkg.dependsOn(depName)) {
             final depNewVersion = depBump.value;
+            // Capture the existing constraint value so we can preserve its
+            // style. The whitespace around the value is restricted to spaces
+            // and tabs (not newlines) and an inline value is required, so
+            // multi-line path/git deps (where the line is just `name:` with
+            // the config on following lines) are intentionally not matched and
+            // left untouched.
             final depRegex = RegExp(
-              '^(\\s+)$depName:\\s*\\^?[\\d\\.]+.*?\$',
+              '^([ \\t]+)$depName:[ \\t]*(\\S.*?)[ \\t]*\$',
               multiLine: true,
             );
-            pubspecContent = pubspecContent.replaceAllMapped(
-              depRegex,
-              (m) => '${m[1]}$depName: ^$depNewVersion',
-            );
+            pubspecContent = pubspecContent.replaceAllMapped(depRegex, (m) {
+              final indent = m[1];
+              final existing = m[2]!;
+              // If the dep was pinned to a tight range (quoted or starting
+              // with a range operator), keep it patch-width. This is used for
+              // tightly-coupled codegen packages (e.g. a builder depending on
+              // its runtime's feature range, not its breaking range).
+              final isTightRange =
+                  existing.startsWith('"') ||
+                  existing.startsWith("'") ||
+                  existing.startsWith('>');
+              if (isTightRange) {
+                final base = Version(
+                  depNewVersion.major,
+                  depNewVersion.minor,
+                  depNewVersion.patch,
+                );
+                final upper = base.nextPatch; // X.Y.(Z+1)
+                return '$indent$depName: ">=$depNewVersion <$upper"';
+              }
+              return '$indent$depName: ^$depNewVersion';
+            });
           }
         }
       }
