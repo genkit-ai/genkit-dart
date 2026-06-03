@@ -1,5 +1,5 @@
 name: schemantic
-description: A lightweight runtime API for type-safe data classes and JSON schemas. Use schemantic_builder as a dev dependency to generate code.
+description: A lightweight library for type-safe data classes and runtime JSON Schemas, with built-in serialization and validation.
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 resolution: workspace
