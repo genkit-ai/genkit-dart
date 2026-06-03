@@ -602,6 +602,7 @@ typedef GenerateMiddlewareOneof = ({
 /// and runs the generate action.
 Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
+  String? system,
   String? prompt,
   List<Message>? messages,
   ModelRef<CustomOptions>? model,
@@ -621,8 +622,8 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   /// List of tool requests to restart during an interrupted generation session.
   List<ToolRequestPart>? restart,
 }) async {
-  if (messages == null && prompt == null) {
-    throw ArgumentError('prompt or messages must be provided');
+  if (messages == null && prompt == null && system == null) {
+    throw ArgumentError('system, prompt, or messages must be provided');
   }
 
   GenerateResumeOptions? resolvedResume;
@@ -649,7 +650,18 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
     );
   }
 
-  final resolvedMessages = messages ?? [];
+  final resolvedMessages = <Message>[];
+  if (system != null) {
+    resolvedMessages.add(
+      Message(
+        role: Role.system,
+        content: [TextPart(text: system)],
+      ),
+    );
+  }
+  if (messages != null) {
+    resolvedMessages.addAll(messages);
+  }
   if (prompt != null) {
     resolvedMessages.add(
       Message(

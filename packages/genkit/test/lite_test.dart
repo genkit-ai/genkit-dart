@@ -49,6 +49,39 @@ void main() {
     expect(response.text, '{"result": "success"}');
   });
 
+  test('lite generate prepends system message before prompt', () async {
+    ModelRequest? captured;
+    final model = Model<void>(
+      name: 'systemTestModel',
+      fn: (request, context) async {
+        captured = request;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: 'ok')],
+          ),
+        );
+      },
+    );
+
+    await lite.generate(
+      model: model,
+      system: 'You are a helpful pirate.',
+      prompt: 'Hello',
+    );
+
+    expect(captured, isNotNull);
+    expect(captured!.messages.length, 2);
+    expect(captured!.messages[0].role, Role.system);
+    expect(
+      captured!.messages[0].content[0].toJson()['text'],
+      'You are a helpful pirate.',
+    );
+    expect(captured!.messages[1].role, Role.user);
+    expect(captured!.messages[1].content[0].toJson()['text'], 'Hello');
+  });
+
   test('lite generateStream with outputSchema does not throw', () async {
     final model = Model<void>(
       name: 'testModelStream',

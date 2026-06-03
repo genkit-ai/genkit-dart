@@ -39,6 +39,7 @@ export 'src/schema_extensions.dart';
 export 'src/types.dart';
 
 Future<GenerateResponseHelper> generate<C>({
+  String? system,
   String? prompt,
   List<Message>? messages,
   required Model<C> model,
@@ -107,6 +108,7 @@ Future<GenerateResponseHelper> generate<C>({
   }
   return generateHelper(
     registry,
+    system: system,
     prompt: prompt,
     messages: messages,
     model: model,
@@ -128,6 +130,7 @@ Future<GenerateResponseHelper> generate<C>({
 
 ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   required Model<C> model,
+  String? system,
   String? prompt,
   List<Message>? messages,
   C? config,
@@ -154,6 +157,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
       );
 
   generate(
+        system: system,
         prompt: prompt,
         messages: messages,
         model: model,
