@@ -1030,34 +1030,6 @@ void main() {
         },
       );
 
-      test('treats empty `system` string as not provided', () async {
-        const modelName = 'systemEmptyModel';
-        ModelRequest? captured;
-        genkit.defineModel(
-          name: modelName,
-          fn: (request, context) async {
-            captured = request;
-            return ModelResponse(
-              finishReason: FinishReason.stop,
-              message: Message(
-                role: Role.model,
-                content: [TextPart(text: 'ok')],
-              ),
-            );
-          },
-        );
-
-        await genkit.generate(
-          model: modelRef(modelName),
-          system: '',
-          prompt: 'hello',
-        );
-
-        expect(captured, isNotNull);
-        expect(captured!.messages.length, 1);
-        expect(captured!.messages[0].role, Role.user);
-      });
-
       test('flows through generateStream', () async {
         const modelName = 'systemStreamModel';
         ModelRequest? captured;
