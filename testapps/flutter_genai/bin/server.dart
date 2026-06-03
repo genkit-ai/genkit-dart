@@ -74,7 +74,9 @@ void main() async {
     },
   );
 
-  final geminiModel = googleAI(apiKey: googleApiKey).model('gemini-flash-latest');
+  final geminiModel = googleAI(
+    apiKey: googleApiKey,
+  ).model('gemini-flash-latest');
   final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-4o');
   final anthropicModel = anthropic(
     apiKey: anthropicApiKey,

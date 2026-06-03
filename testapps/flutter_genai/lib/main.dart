@@ -121,7 +121,9 @@ class _ClientSideTabState extends State<ClientSideTab> {
       );
 
       final model = switch (_selectedProvider) {
-        AiProvider.google => googleAI(apiKey: apiKey).model('gemini-flash-latest'),
+        AiProvider.google => googleAI(
+          apiKey: apiKey,
+        ).model('gemini-flash-latest'),
         AiProvider.openai => openAI(apiKey: apiKey).model('gpt-4o'),
         AiProvider.anthropic => anthropic(
           apiKey: apiKey,
