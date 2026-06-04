@@ -19,6 +19,7 @@ import 'package:genkit/lite.dart' as lite;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 import 'src/model.dart';
+import 'src/wav.dart';
 
 void main(List<String> args) async {
   final ai = Genkit(plugins: [googleAI()]);
@@ -336,10 +337,13 @@ void main(List<String> args) async {
           ),
         ),
       );
-      if (response.media != null) {
-        return response.media!;
+      if (response.media == null) {
+        throw Exception('No audio generated');
       }
-      throw Exception('No audio generated');
+      // Gemini TTS returns raw PCM audio (16-bit, mono, 24kHz) which is not a
+      // playable file on its own. Wrap it in a WAV container so it can be
+      // played back. (This mirrors the `toWav` helper used in the JS samples.)
+      return pcmMediaToWav(response.media!);
     },
   );
 
@@ -379,10 +383,13 @@ void main(List<String> args) async {
           ),
         ),
       );
-      if (response.media != null) {
-        return response.media!;
+      if (response.media == null) {
+        throw Exception('No audio generated');
       }
-      throw Exception('No audio generated');
+      // Gemini TTS returns raw PCM audio (16-bit, mono, 24kHz) which is not a
+      // playable file on its own. Wrap it in a WAV container so it can be
+      // played back. (This mirrors the `toWav` helper used in the JS samples.)
+      return pcmMediaToWav(response.media!);
     },
   );
 
