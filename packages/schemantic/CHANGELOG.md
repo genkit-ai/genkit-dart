@@ -1,3 +1,15 @@
+## 0.2.0
+
+### Fixes
+
+ - correctly escape '$ref' in `allOf` case (#291)
+
+### Other Changes
+
+ - update model references to gemini-flash-latest (#293)
+ - split schemantic into runtime and schemantic_builder packages (#292)
+
+
 ## 0.1.3
 
 ### Features

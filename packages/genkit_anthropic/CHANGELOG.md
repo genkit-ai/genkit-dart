@@ -1,3 +1,10 @@
+## 0.2.8
+
+### Other Changes
+
+ - split schemantic into runtime and schemantic_builder packages (#292)
+
+
 ## 0.2.7
 
  - updated internal dependencies.

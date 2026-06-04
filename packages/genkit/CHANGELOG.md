@@ -1,3 +1,20 @@
+## 0.14.0
+
+### Breaking Changes
+
+ - add dotprompt integration with executable prompts and folder loading (#279)
+
+### Features
+
+ - add top-level `system` parameter to generate() (#289)
+ - Add interrupt releated span metadata (#287)
+
+### Other Changes
+
+ - update model references to gemini-flash-latest (#293)
+ - split schemantic into runtime and schemantic_builder packages (#292)
+
+
 ## 0.13.2
 
 ### Features

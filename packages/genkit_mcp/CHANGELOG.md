@@ -1,3 +1,15 @@
+## 0.2.0
+
+### Breaking Changes
+
+ - add dotprompt integration with executable prompts and folder loading (#279)
+
+### Other Changes
+
+ - update model references to gemini-flash-latest (#293)
+ - split schemantic into runtime and schemantic_builder packages (#292)
+
+
 ## 0.1.7
 
  - updated internal dependencies.
