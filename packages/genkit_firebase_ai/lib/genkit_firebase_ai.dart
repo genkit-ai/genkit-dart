@@ -144,7 +144,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     return [
       _createModel('gemini-flash-latest'),
       _createModel('gemini-2.5-pro'),
-      _createBidiModel('gemini-flash-latest-native-audio-preview-12-2025'),
+      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
     ];
   }
 
