@@ -66,7 +66,7 @@ void main() {
   print(matrix.parse([[1, 2], [3, 4]])); // [[1, 2], [3, 4]]
   
   // JSON Schema generation works as expected
-  print(scores.jsonSchema().toJson());
+  print(scores.jsonSchema());
   // {type: object, additionalProperties: {type: integer}}
 }
 ```
@@ -126,10 +126,10 @@ void main() async {
   print(parsed.name); // Bob
 
   // Access JSON Schema at runtime
-  final schema = User.$schema.jsonSchema;
-  print(schema.toJson()); 
+  final schema = User.$schema;
+  print(schema.jsonSchema());
   // Output: {type: object, properties: {name: {type: string}, ...}, required: [name, isAdmin]}
-  
+
   // Validate data
   final validation = await schema.validate({'name': 'Charlie'}); // Missing 'isAdmin'
   if (validation.isNotEmpty) {
@@ -174,7 +174,7 @@ class Person {
 
 ```dart
 final personSchema = Person.schema;
-print(personSchema.jsonSchema().toJson());
+print(personSchema.jsonSchema());
 // Output: {type: object, properties: {firstName: {type: string}, ...}, required: [firstName, lastName]}
 ```
 
@@ -195,9 +195,9 @@ abstract class $Node {
 ```dart
 void main() {
   // Must use useRefs: true for recursive schemas
-  final schema = Node.$schema.jsonSchema;
-  
-  print(schema.toJson());
+  final schema = Node.$schema.jsonSchema(useRefs: true);
+
+  print(schema);
   // Generates schema with "$ref": "#/$defs/Node"
 }
 ```
@@ -259,7 +259,7 @@ abstract class $User {
 
 ### Enhanced Collections
 
-You can use `listSchema` and `mapSchema` to create collections with metadata and validation:
+You can use `SchemanticType.list` and `SchemanticType.map` to create collections with metadata and validation:
 
 ```dart
 // A list of strings with description and size constraints.
@@ -274,7 +274,7 @@ final tags = SchemanticType.list(
 // A map with integer values.
 final scores = SchemanticType.map(
   .string(),
-  .int(),
+  .integer(),
   description: 'Player scores',
   minProperties: 1,
 );

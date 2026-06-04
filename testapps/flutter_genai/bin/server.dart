@@ -52,7 +52,7 @@ void main() async {
     streamSchema: .string(),
     fn: (RecipeRequest request, context) async {
       final model = switch (request.provider) {
-        'google' => googleAI.gemini('gemini-2.5-flash'),
+        'google' => googleAI.gemini('gemini-flash-latest'),
         'openai' => openAI.model('gpt-4o'),
         _ => anthropic.model('claude-sonnet-4-5'),
       };
@@ -74,7 +74,9 @@ void main() async {
     },
   );
 
-  final geminiModel = googleAI(apiKey: googleApiKey).model('gemini-2.5-flash');
+  final geminiModel = googleAI(
+    apiKey: googleApiKey,
+  ).model('gemini-flash-latest');
   final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-4o');
   final anthropicModel = anthropic(
     apiKey: anthropicApiKey,
@@ -82,7 +84,7 @@ void main() async {
 
   final router = Router();
 
-  router.post('/googleai/gemini-2.5-flash', shelfHandler(geminiModel));
+  router.post('/googleai/gemini-flash-latest', shelfHandler(geminiModel));
   router.post('/openai/gpt-4o', shelfHandler(openAiModel));
   router.post('/anthropic/claude-sonnet-4-5', shelfHandler(anthropicModel));
   router.post('/serverFlow', shelfHandler(serverFlow));

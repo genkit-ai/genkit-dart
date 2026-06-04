@@ -28,7 +28,7 @@ void main() async {
   final ai = Genkit(plugins: [googleAI()]);
 
   final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
+    model: googleAI.gemini('gemini-flash-latest'),
     prompt: 'Why is Dart a great language for AI applications?',
   );
 
@@ -53,7 +53,7 @@ Call any model with a simple, unified API:
 
 ```dart
 final response = await ai.generate(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: googleAI.gemini('gemini-flash-latest'),
   prompt: 'Explain quantum computing in simple terms.',
 );
 print(response.text);
@@ -65,7 +65,7 @@ Stream text as it's generated for responsive user experiences:
 
 ```dart
 final stream = ai.generateStream(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: googleAI.gemini('gemini-flash-latest'),
   prompt: 'Write a short story about a robot learning to paint.',
 );
 
@@ -113,7 +113,7 @@ final weatherTool = ai.defineTool(
 );
 
 final response = await ai.generate(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: googleAI.gemini('gemini-flash-latest'),
   prompt: 'What\'s the weather like in San Francisco?',
   toolNames: ['getWeather'],
 );
@@ -131,7 +131,7 @@ final jokeFlow = ai.defineFlow(
   outputSchema: .string(),
   fn: (topic, _) async {
     final response = await ai.generate(
-      model: googleAI.gemini('gemini-2.5-flash'),
+      model: googleAI.gemini('gemini-flash-latest'),
       prompt: 'Tell me a joke about $topic',
     );
     return response.text;
@@ -154,7 +154,7 @@ final streamStory = ai.defineFlow(
   streamSchema: .string(),
   fn: (topic, context) async {
     final stream = ai.generateStream(
-      model: googleAI.gemini('gemini-2.5-flash'),
+      model: googleAI.gemini('gemini-flash-latest'),
       prompt: 'Write a story about $topic',
     );
 
@@ -284,7 +284,7 @@ final ai = Genkit(
 );
 
 final response = await ai.generate(
-  model: googleAI.gemini('gemini-2.5-flash'),
+  model: googleAI.gemini('gemini-flash-latest'),
   prompt: 'Reliable request',
   use: [
     retry(
@@ -605,7 +605,7 @@ void main() async {
 
   // 2. Direct generation call without a Genkit instance
   final response = await lite.generate(
-    model: gemini.model('gemini-2.5-flash'),
+    model: gemini.model('gemini-flash-latest'),
     prompt: 'Hello from Lite API!',
     // Middleware objects are used directly in the Lite API
     use: [

@@ -70,7 +70,7 @@ Flow<ImageGeneratorInput, String, void, void> defineImageGeneratorFlow(
   Genkit ai,
   ModelRef geminiFlash,
 ) {
-  final geminiImage = modelRef('googleai/gemini-2.5-flash-image');
+  final geminiImage = modelRef('googleai/gemini-3.1-flash-image');
 
   return ai.defineFlow(
     name: 'imageGeneratorFlow',

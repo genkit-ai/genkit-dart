@@ -653,7 +653,7 @@ class _StructuredStreamingScreenState extends State<StructuredStreamingScreen> {
       outputSchema: RpgCharacter.$schema,
       fn: (name, ctx) async {
         final stream = _ai.generateStream(
-          model: firebaseAI.gemini('gemini-2.5-flash'),
+          model: firebaseAI.gemini('gemini-flash-latest'),
           config: GeminiOptions(temperature: 1.0),
           outputSchema: RpgCharacter.$schema,
           prompt: 'Generate an RPG character called $name',

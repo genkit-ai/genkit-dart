@@ -34,7 +34,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         prompt: input,
       );
       return response.text;

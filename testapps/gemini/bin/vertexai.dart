@@ -37,7 +37,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         prompt: input,
       );
       return response.text;
@@ -55,7 +55,7 @@ void main(List<String> args) async {
       final photoBase64 = base64Encode(photoBytes);
 
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash-image'),
+        model: vertexAI.gemini('gemini-3.1-flash-image'),
         prompt: input,
         messages: [
           Message(
@@ -86,7 +86,7 @@ void main(List<String> args) async {
         location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
       );
       final response = await lite.generate(
-        model: gemini.model('gemini-2.5-flash'),
+        model: gemini.model('gemini-flash-latest'),
         prompt: input,
       );
       return response.text;
@@ -128,7 +128,7 @@ void main(List<String> args) async {
     outputSchema: RpgCharacter.$schema,
     fn: (name, ctx) async {
       final stream = ai.generateStream(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         config: GeminiOptions(temperature: 2.0),
         outputSchema: RpgCharacter.$schema,
         prompt: 'Generate an RPC character called $name',
@@ -155,7 +155,7 @@ void main(List<String> args) async {
     streamSchema: CharacterProfile.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         outputSchema: CharacterProfile.$schema,
         prompt: prompt,
         onChunk: ctx.streamingRequested
@@ -175,7 +175,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         prompt: prompt,
         messages: [
           Message(
@@ -202,7 +202,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         prompt: prompt,
         messages: [
           Message(
@@ -258,7 +258,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
@@ -282,7 +282,7 @@ void main(List<String> args) async {
     outputSchema: .map(.string(), .dynamicSchema()),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash'),
+        model: vertexAI.gemini('gemini-flash-latest'),
         prompt: prompt,
         config: GeminiOptions(googleSearch: GoogleSearch()),
       );
@@ -297,7 +297,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-pro'),
+        model: vertexAI.gemini('gemini-pro-latest'),
         prompt: prompt,
         config: GeminiOptions(codeExecution: true),
       );
@@ -314,7 +314,7 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash-preview-tts'),
+        model: vertexAI.gemini('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
@@ -344,7 +344,7 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-2.5-flash-preview-tts'),
+        model: vertexAI.gemini('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],

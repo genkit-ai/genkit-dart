@@ -41,7 +41,7 @@ import 'package:genkit_shelf/genkit_shelf.dart';
 void main() async {
   // Just an example, can use Anthropic, OpenAI, etc. models
   final geminiApi = googleAI();
-  final geminiFlash = geminiApi.model('gemini-2.5-flash');
+  final geminiFlash = geminiApi.model('gemini-flash-latest');
 
   await startFlowServer(
     flows: [geminiFlash],
@@ -73,7 +73,7 @@ void main() async {
   );
 
   final geminiApi = googleAI();
-  final geminiFlash = geminiApi.model('gemini-2.5-flash');
+  final geminiFlash = geminiApi.model('gemini-flash-latest');
 
   // Create a Shelf Router
   final router = Router();
@@ -109,7 +109,7 @@ final secureFlow = ai.defineFlow(
 
 // 2. Define a model you want to secure
 final geminiApi = googleAI();
-final secureModel = geminiApi.model('gemini-2.5-flash');
+final secureModel = geminiApi.model('gemini-flash-latest');
 
 final router = Router();
 
@@ -175,7 +175,7 @@ final ai = Genkit();
 
 final remoteModel = ai.defineRemoteModel(
   name: 'myRemoteModel',
-  url: 'http://localhost:8080/googleai/gemini-2.5-flash',
+  url: 'http://localhost:8080/googleai/gemini-flash-latest',
 );
 
 final response = await ai.generate(

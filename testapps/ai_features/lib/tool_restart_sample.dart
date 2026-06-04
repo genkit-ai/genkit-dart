@@ -51,7 +51,7 @@ Future<void> main(List<String> args) async {
 
   print('Generating fund transfer request...');
   final response = await ai.generate(
-    model: googleAI.gemini('gemini-2.5-flash'),
+    model: googleAI.gemini('gemini-flash-latest'),
     prompt: '''
       Transfer \$500 to the account '12345-6789'.
     ''',
@@ -93,7 +93,7 @@ Future<void> main(List<String> args) async {
     isApproved = true;
 
     final response2 = await ai.generate(
-      model: googleAI.gemini('gemini-2.5-flash'),
+      model: googleAI.gemini('gemini-flash-latest'),
       messages: response.messages,
       toolNames: ['transfer_funds'],
       interruptRestart: [interruptPart], // Null output = Restart
