@@ -93,6 +93,24 @@ abstract class $LiveGenerationConfig {
   double? get frequencyPenalty;
 }
 
+sealed class FirebaseAiProvider {
+  const FirebaseAiProvider();
+
+  const factory FirebaseAiProvider.googleAI() = _GoogleAIProvider;
+  const factory FirebaseAiProvider.vertexAI({String? location}) =
+      _VertexAIProvider;
+}
+
+class _GoogleAIProvider extends FirebaseAiProvider {
+  const _GoogleAIProvider();
+}
+
+class _VertexAIProvider extends FirebaseAiProvider {
+  final String? location;
+
+  const _VertexAIProvider({this.location});
+}
+
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
 
 class FirebaseGenAiPluginHandle {
@@ -103,12 +121,14 @@ class FirebaseGenAiPluginHandle {
     fac.FirebaseAppCheck? appCheck,
     fauth.FirebaseAuth? auth,
     bool? useLimitedUseAppCheckTokens,
+    FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
   }) {
     return _FirebaseGenAiPlugin(
       app: app,
       appCheck: appCheck,
       auth: auth,
       useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
+      provider: provider,
     );
   }
 
@@ -125,6 +145,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   final fac.FirebaseAppCheck? _appCheck;
   final fauth.FirebaseAuth? _auth;
   final bool? _useLimitedUseAppCheckTokens;
+  final FirebaseAiProvider provider;
 
   @override
   String get name => 'firebaseai';
@@ -134,6 +155,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     fac.FirebaseAppCheck? appCheck,
     fauth.FirebaseAuth? auth,
     bool? useLimitedUseAppCheckTokens,
+    this.provider = const FirebaseAiProvider.googleAI(),
   }) : _app = app,
        _appCheck = appCheck,
        _auth = auth,
@@ -167,12 +189,21 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
-        final instance = fai.FirebaseAI.googleAI(
-          app: _app,
-          appCheck: _appCheck,
-          auth: _auth,
-          useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
-        );
+        final instance = switch (provider) {
+          _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
+            app: _app,
+            appCheck: _appCheck,
+            auth: _auth,
+            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+            location: location,
+          ),
+          _GoogleAIProvider() => fai.FirebaseAI.googleAI(
+            app: _app,
+            appCheck: _appCheck,
+            auth: _auth,
+            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+          ),
+        };
         final model = instance.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -301,12 +332,21 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               ?.toDouble(),
         );
 
-        final instance = fai.FirebaseAI.googleAI(
-          app: _app,
-          appCheck: _appCheck,
-          auth: _auth,
-          useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
-        );
+        final instance = switch (provider) {
+          _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
+            app: _app,
+            appCheck: _appCheck,
+            auth: _auth,
+            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+            location: location,
+          ),
+          _GoogleAIProvider() => fai.FirebaseAI.googleAI(
+            app: _app,
+            appCheck: _appCheck,
+            auth: _auth,
+            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+          ),
+        };
         final model = instance.liveGenerativeModel(
           model: modelName,
           liveGenerationConfig: liveConfig,
