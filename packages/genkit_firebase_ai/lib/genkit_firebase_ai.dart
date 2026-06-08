@@ -161,6 +161,24 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
        _auth = auth,
        _useLimitedUseAppCheckTokens = useLimitedUseAppCheckTokens;
 
+  fai.FirebaseAI _getFirebaseAI() {
+    return switch (provider) {
+      _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
+        app: _app,
+        appCheck: _appCheck,
+        auth: _auth,
+        useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+        location: location,
+      ),
+      _GoogleAIProvider() => fai.FirebaseAI.googleAI(
+        app: _app,
+        appCheck: _appCheck,
+        auth: _auth,
+        useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+      ),
+    };
+  }
+
   @override
   Future<List<Action>> init() async {
     return [
@@ -189,21 +207,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
-        final instance = switch (provider) {
-          _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
-            app: _app,
-            appCheck: _appCheck,
-            auth: _auth,
-            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
-            location: location,
-          ),
-          _GoogleAIProvider() => fai.FirebaseAI.googleAI(
-            app: _app,
-            appCheck: _appCheck,
-            auth: _auth,
-            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
-          ),
-        };
+        final instance = _getFirebaseAI();
         final model = instance.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -332,21 +336,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               ?.toDouble(),
         );
 
-        final instance = switch (provider) {
-          _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
-            app: _app,
-            appCheck: _appCheck,
-            auth: _auth,
-            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
-            location: location,
-          ),
-          _GoogleAIProvider() => fai.FirebaseAI.googleAI(
-            app: _app,
-            appCheck: _appCheck,
-            auth: _auth,
-            useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
-          ),
-        };
+        final instance = _getFirebaseAI();
         final model = instance.liveGenerativeModel(
           model: modelName,
           liveGenerationConfig: liveConfig,
