@@ -183,6 +183,46 @@ void main() {
         },
       });
     });
+
+    test('converts non-image data URI (PDF) to a file content part', () {
+      final part = MediaPart(
+        media: Media(
+          url: 'data:application/pdf;base64,JVBERi0xLjcK',
+          contentType: 'application/pdf',
+        ),
+      );
+
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+
+      // Non-image documents must be sent as a `file` part; image_url would be
+      // rejected with "Invalid MIME type. Only image types are supported."
+      expect(result.toJson(), {
+        'type': 'file',
+        'file': {
+          'file_data': 'data:application/pdf;base64,JVBERi0xLjcK',
+          'filename': 'document.pdf',
+        },
+      });
+    });
+
+    test('keeps image data URI as an image_url content part', () {
+      final part = MediaPart(
+        media: Media(
+          url: 'data:image/png;base64,iVBORw0KGgo=',
+          contentType: 'image/png',
+        ),
+      );
+
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+
+      expect(result.toJson(), {
+        'type': 'image_url',
+        'image_url': {
+          'url': 'data:image/png;base64,iVBORw0KGgo=',
+          'detail': 'auto',
+        },
+      });
+    });
   });
 
   group('GenkitConverter.toOpenAITool', () {
