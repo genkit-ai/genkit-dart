@@ -205,6 +205,28 @@ void main() {
       });
     });
 
+    test('strips MIME type parameters when deriving the filename', () {
+      final part = MediaPart(
+        media: Media(
+          url: 'data:application/pdf;charset=utf-8;base64,JVBERi0xLjcK',
+          contentType: 'application/pdf; charset=utf-8',
+        ),
+      );
+
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+
+      // The "; charset=utf-8" parameter must not leak into the extension or
+      // produce an invalid filename like "document.pdf; charset=utf-8". The
+      // base media type is also what gets sent to the API.
+      expect(result.toJson(), {
+        'type': 'file',
+        'file': {
+          'file_data': 'data:application/pdf;base64,JVBERi0xLjcK',
+          'filename': 'document.pdf',
+        },
+      });
+    });
+
     test('keeps image data URI as an image_url content part', () {
       final part = MediaPart(
         media: Media(
