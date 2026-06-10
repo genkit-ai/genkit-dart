@@ -5646,7 +5646,7 @@ base class AgentOutput {
     Message? message,
     List<Artifact>? artifacts,
     AgentFinishReason? finishReason,
-    AgentError? error,
+    AgentErrorInfo? error,
   }) {
     _json = {
       'snapshotId': ?snapshotId,
@@ -5729,13 +5729,13 @@ base class AgentOutput {
     }
   }
 
-  AgentError? get error {
+  AgentErrorInfo? get error {
     return _json['error'] == null
         ? null
-        : AgentError.fromJson(_json['error'] as Map<String, dynamic>);
+        : AgentErrorInfo.fromJson(_json['error'] as Map<String, dynamic>);
   }
 
-  set error(AgentError? value) {
+  set error(AgentErrorInfo? value) {
     if (value == null) {
       _json.remove('error');
     } else {
@@ -5775,7 +5775,7 @@ base class _AgentOutputTypeFactory extends SchemanticType<AgentOutput> {
               items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
             ),
             'finishReason': $Schema.any(),
-            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentError'}),
+            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
           },
         )
         .value,
@@ -5783,18 +5783,19 @@ base class _AgentOutputTypeFactory extends SchemanticType<AgentOutput> {
       SessionState.$schema,
       Message.$schema,
       Artifact.$schema,
-      AgentError.$schema,
+      AgentErrorInfo.$schema,
     ],
   );
 }
 
-base class AgentError {
-  /// Creates a [AgentError] from a JSON map.
-  factory AgentError.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+base class AgentErrorInfo {
+  /// Creates a [AgentErrorInfo] from a JSON map.
+  factory AgentErrorInfo.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  AgentError._(this._json);
+  AgentErrorInfo._(this._json);
 
-  AgentError({
+  AgentErrorInfo({
     required String status,
     required String message,
     dynamic details,
@@ -5804,8 +5805,9 @@ base class AgentError {
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [AgentError].
-  static const SchemanticType<AgentError> $schema = _AgentErrorTypeFactory();
+  /// The JSON schema and type descriptor for [AgentErrorInfo].
+  static const SchemanticType<AgentErrorInfo> $schema =
+      _AgentErrorInfoTypeFactory();
 
   String get status {
     return _json['status'] as String;
@@ -5836,23 +5838,23 @@ base class AgentError {
     return _json.toString();
   }
 
-  /// Serializes this [AgentError] to a JSON map.
+  /// Serializes this [AgentErrorInfo] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _AgentErrorTypeFactory extends SchemanticType<AgentError> {
-  const _AgentErrorTypeFactory();
+base class _AgentErrorInfoTypeFactory extends SchemanticType<AgentErrorInfo> {
+  const _AgentErrorInfoTypeFactory();
 
   @override
-  AgentError parse(Object? json) {
-    return AgentError._(json as Map<String, dynamic>);
+  AgentErrorInfo parse(Object? json) {
+    return AgentErrorInfo._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentError',
+    name: 'AgentErrorInfo',
     definition: $Schema
         .object(
           properties: {
@@ -6454,7 +6456,7 @@ base class SessionSnapshot {
     required SessionState state,
     String? status,
     AgentFinishReason? finishReason,
-    AgentError? error,
+    AgentErrorInfo? error,
   }) {
     _json = {
       'snapshotId': snapshotId,
@@ -6543,13 +6545,13 @@ base class SessionSnapshot {
     }
   }
 
-  AgentError? get error {
+  AgentErrorInfo? get error {
     return _json['error'] == null
         ? null
-        : AgentError.fromJson(_json['error'] as Map<String, dynamic>);
+        : AgentErrorInfo.fromJson(_json['error'] as Map<String, dynamic>);
   }
 
-  set error(AgentError? value) {
+  set error(AgentErrorInfo? value) {
     if (value == null) {
       _json.remove('error');
     } else {
@@ -6589,12 +6591,12 @@ base class _SessionSnapshotTypeFactory extends SchemanticType<SessionSnapshot> {
             'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
             'status': $Schema.string(),
             'finishReason': $Schema.any(),
-            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentError'}),
+            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
           },
           required: ['snapshotId', 'createdAt', 'event', 'state'],
         )
         .value,
-    dependencies: [SessionState.$schema, AgentError.$schema],
+    dependencies: [SessionState.$schema, AgentErrorInfo.$schema],
   );
 }
 

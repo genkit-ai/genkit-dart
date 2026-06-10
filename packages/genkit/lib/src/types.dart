@@ -473,11 +473,11 @@ abstract class $AgentOutput {
   $Message? get message;
   List<$Artifact>? get artifacts;
   AgentFinishReason? get finishReason;
-  $AgentError? get error;
+  $AgentErrorInfo? get error;
 }
 
 @Schema()
-abstract class $AgentError {
+abstract class $AgentErrorInfo {
   String get status;
   String get message;
   dynamic get details;
@@ -534,7 +534,7 @@ abstract class $SessionSnapshot {
   $SessionState get state;
   String? get status;
   AgentFinishReason? get finishReason;
-  $AgentError? get error;
+  $AgentErrorInfo? get error;
 }
 
 @Schema()

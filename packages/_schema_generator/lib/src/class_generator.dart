@@ -27,12 +27,12 @@ const typeOverrides = {
   // Agent types: inline objects promoted to named defs, the JsonPatch array
   // alias, and open `{}` schemas that should be `dynamic`.
   'AgentInput': {'resume': '\$AgentResume'},
-  'AgentOutput': {'error': '\$AgentError'},
-  'SessionSnapshot': {'error': '\$AgentError'},
+  'AgentOutput': {'error': '\$AgentErrorInfo'},
+  'SessionSnapshot': {'error': '\$AgentErrorInfo'},
   'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
   'SessionState': {'custom': 'dynamic'},
   'JsonPatchOperation': {'value': 'dynamic'},
-  'AgentError': {'details': 'dynamic'},
+  'AgentErrorInfo': {'details': 'dynamic'},
 };
 
 

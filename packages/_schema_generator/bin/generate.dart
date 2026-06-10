@@ -59,7 +59,9 @@ void main() async {
       final agentOutput = definitions['AgentOutput'] as Map<String, dynamic>;
       final props = agentOutput['properties'] as Map<String, dynamic>? ?? {};
       if (props.containsKey('error')) {
-        definitions['AgentError'] = props['error'];
+        // Named `AgentErrorInfo` (not `AgentError`) to avoid colliding with the
+        // hand-written `AgentError` exception class in agent_core.dart.
+        definitions['AgentErrorInfo'] = props['error'];
       }
     }
 
@@ -158,7 +160,7 @@ const _allowlist = {
   'AgentInput',
   'AgentResume',
   'AgentOutput',
-  'AgentError',
+  'AgentErrorInfo',
   'AgentResult',
   'AgentStreamChunk',
   'TurnEnd',
