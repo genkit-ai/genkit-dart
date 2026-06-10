@@ -140,8 +140,8 @@ void _loadPrompt(
   // Build the input schema from the frontmatter `input.schema`. The raw
   // metadata from `parse` is not schema-resolved, so Picoschema is converted
   // to JSON Schema here (mirroring what `renderMetadata` does internally).
-  // Without this the action has no input schema, so the Developer UI shows no
-  // input fields and input is never validated.
+  // Without this the action has no input schema, so the Developer UI cannot
+  // render an input form for the prompt.
   final inputSchema = _toInputSchema(metadata.input?.schema);
 
   // Build output config from parsed metadata. As with the input schema, the
