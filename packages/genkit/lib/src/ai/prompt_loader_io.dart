@@ -218,13 +218,24 @@ Map<String, dynamic>? _toJsonSchema(Map<String, dynamic>? schema) {
 
 /// Whether [schema] is already a JSON Schema (as opposed to Picoschema).
 ///
-/// JSON Schema carries a top-level `type` (one of the standard types) or a
-/// `$schema`/`$ref`/`$defs` key. Picoschema maps field names to type strings
-/// or nested maps and has none of these at the top level.
+/// JSON Schema carries a top-level `type` (one of the standard types), a
+/// `$schema`/`$ref`/`$defs` key, or a structural keyword such as `properties`,
+/// `items`, or a `*Of` combinator. (The top-level `type` is optional in JSON
+/// Schema, so the structural keywords are needed to catch schemas that omit
+/// it.) Picoschema maps field names to type strings or nested maps and has
+/// none of these at the top level.
 bool _isJsonSchema(Map<String, dynamic> schema) {
-  if (schema.containsKey(r'$schema') ||
-      schema.containsKey(r'$ref') ||
-      schema.containsKey(r'$defs')) {
+  const jsonSchemaKeywords = {
+    r'$schema',
+    r'$ref',
+    r'$defs',
+    'properties',
+    'items',
+    'anyOf',
+    'oneOf',
+    'allOf',
+  };
+  if (jsonSchemaKeywords.any(schema.containsKey)) {
     return true;
   }
   const jsonSchemaTypes = {
@@ -251,6 +262,9 @@ SchemanticType<Map<String, dynamic>>? _toInputSchema(
   if (jsonSchema == null) return null;
   return SchemanticType.from<Map<String, dynamic>>(
     jsonSchema: jsonSchema,
-    parse: (json) => (json as Map).cast<String, dynamic>(),
+    // `parse` is also called with `null` when a prompt is invoked with no
+    // input, so guard the cast instead of letting it throw.
+    parse: (json) =>
+        json is Map ? json.cast<String, dynamic>() : <String, dynamic>{},
   );
 }

@@ -1366,6 +1366,58 @@ Write about {{topic}}.
       expect(jsonSchema['properties'], contains('topic'));
     });
 
+    test('treats JSON Schema without a top-level type as JSON Schema', () async {
+      // A valid JSON Schema may omit the top-level `type` and rely on
+      // `properties` (or a combinator like anyOf). It must not be mistaken for
+      // Picoschema and re-converted.
+      File(p.join(tempDir.path, 'notype.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    properties:
+      topic:
+        type: string
+    required:
+      - topic
+---
+Write about {{topic}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'notype')
+              as PromptAction;
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['properties'], contains('topic'));
+      // Picoschema conversion would have wrapped `properties` as a field, so
+      // its value would no longer be a nested schema map.
+      expect(
+        (jsonSchema['properties'] as Map)['topic'],
+        containsPair('type', 'string'),
+      );
+    });
+
+    test('input schema parse tolerates null input', () async {
+      File(p.join(tempDir.path, 'opt.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    name: string, the name
+---
+Hello {{name}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'opt')
+              as PromptAction;
+      // A prompt may be invoked with no input; parsing null must not throw.
+      expect(() => action.inputSchema!.parse(null), returnsNormally);
+      expect(action.inputSchema!.parse(null), isEmpty);
+    });
+
     test('converts output.schema (picoschema) to JSON Schema', () async {
       File(p.join(tempDir.path, 'classify.prompt')).writeAsStringSync('''
 ---
