@@ -1304,6 +1304,97 @@ Hello {{name}}!
       );
       expect(mdAction, isNull);
     });
+
+    test('wires input.schema (picoschema) onto the prompt action', () async {
+      File(p.join(tempDir.path, 'greet.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    name: string, the person to greet
+    formal?: boolean, whether to be formal
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'greet')
+              as PromptAction;
+      expect(
+        action.inputSchema,
+        isNotNull,
+        reason: 'input.schema in the .prompt file should be surfaced so the '
+            'Developer UI can render a form and input can be validated',
+      );
+
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['type'], equals('object'));
+      expect(jsonSchema['properties'], contains('name'));
+      expect(
+        (jsonSchema['properties'] as Map)['name'],
+        containsPair('type', 'string'),
+      );
+      // Required and optional fields are honored.
+      expect(jsonSchema['required'], contains('name'));
+      expect(jsonSchema['required'], isNot(contains('formal')));
+    });
+
+    test('accepts plain JSON Schema for input.schema unchanged', () async {
+      File(p.join(tempDir.path, 'jsoninput.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    type: object
+    properties:
+      topic:
+        type: string
+    required:
+      - topic
+---
+Write about {{topic}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'jsoninput')
+              as PromptAction;
+      expect(action.inputSchema, isNotNull);
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['type'], equals('object'));
+      expect(jsonSchema['properties'], contains('topic'));
+    });
+
+    test('converts output.schema (picoschema) to JSON Schema', () async {
+      File(p.join(tempDir.path, 'classify.prompt')).writeAsStringSync('''
+---
+output:
+  format: json
+  schema:
+    category: string, the predicted category
+    confidence: number, a score from 0 to 1
+---
+Classify: {{text}}
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'classify');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'text': 'hello',
+      });
+
+      // The output schema reaching the model must be JSON Schema, not the raw
+      // Picoschema strings.
+      final outputSchema =
+          options.output!.jsonSchema as Map<String, dynamic>;
+      expect(outputSchema['type'], equals('object'));
+      final properties = outputSchema['properties'] as Map<String, dynamic>;
+      expect(properties['category'], containsPair('type', 'string'));
+      expect(properties['confidence'], containsPair('type', 'number'));
+      expect(options.output!.format, equals('json'));
+    });
   });
 
   group('DotpromptRegistry', () {

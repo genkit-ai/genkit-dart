@@ -14,8 +14,10 @@
 
 import 'dart:io';
 
+import 'package:dotprompt/dotprompt.dart' show Picoschema;
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
+import 'package:schemantic/schemantic.dart';
 
 import '../core/registry.dart';
 import '../types.dart' show GenerateActionOutputConfig;
@@ -135,13 +137,23 @@ void _loadPrompt(
   final config = metadata.config;
   final tools = metadata.tools;
 
-  // Build output config from parsed metadata
+  // Build the input schema from the frontmatter `input.schema`. The raw
+  // metadata from `parse` is not schema-resolved, so Picoschema is converted
+  // to JSON Schema here (mirroring what `renderMetadata` does internally).
+  // Without this the action has no input schema, so the Developer UI shows no
+  // input fields and input is never validated.
+  final inputSchema = _toInputSchema(metadata.input?.schema);
+
+  // Build output config from parsed metadata. As with the input schema, the
+  // output schema may be Picoschema and must be converted to JSON Schema
+  // before it reaches the model, otherwise the raw Picoschema is sent as the
+  // response schema and the request fails or is ignored.
   GenerateActionOutputConfig? outputConfig;
   if (metadata.output != null) {
+    final outputSchema = _toJsonSchema(metadata.output!.schema);
     outputConfig = GenerateActionOutputConfig.fromJson({
-      if (metadata.output!.format != null) 'format': metadata.output!.format,
-      if (metadata.output!.schema != null)
-        'jsonSchema': metadata.output!.schema,
+      'format': ?metadata.output!.format,
+      'jsonSchema': ?outputSchema,
     });
   }
 
@@ -164,6 +176,7 @@ void _loadPrompt(
     variant: variant,
     model: model != null ? modelRef(model) : null,
     config: config,
+    inputSchema: inputSchema,
     toolNames: tools,
     messagesTemplate: parsedPrompt.template,
     output: outputConfig,
@@ -184,4 +197,60 @@ String _registryDefinitionKey(String name, String? variant, String? ns) {
   final prefix = ns != null && ns.isNotEmpty ? '$ns/' : '';
   final suffix = variant != null ? '.$variant' : '';
   return '$prefix$name$suffix';
+}
+
+/// Converts a frontmatter schema map to a JSON Schema map.
+///
+/// A `.prompt` file may declare its schema as Picoschema (the compact form
+/// shown in the docs) or as plain JSON Schema. `parse` leaves Picoschema
+/// untouched, so it is converted here; values that are already JSON Schema are
+/// returned unchanged. Returns `null` when there is no schema.
+///
+/// This intentionally does not gate on [Picoschema.isPicoschema], which does
+/// not recognize the `type, description` form (e.g. `name: string, the person
+/// to greet`) that the docs and examples use. [_isJsonSchema] is used instead
+/// so that form is converted rather than passed through raw.
+Map<String, dynamic>? _toJsonSchema(Map<String, dynamic>? schema) {
+  if (schema == null) return null;
+  if (_isJsonSchema(schema)) return schema;
+  return Picoschema.toJsonSchema(schema);
+}
+
+/// Whether [schema] is already a JSON Schema (as opposed to Picoschema).
+///
+/// JSON Schema carries a top-level `type` (one of the standard types) or a
+/// `$schema`/`$ref`/`$defs` key. Picoschema maps field names to type strings
+/// or nested maps and has none of these at the top level.
+bool _isJsonSchema(Map<String, dynamic> schema) {
+  if (schema.containsKey(r'$schema') ||
+      schema.containsKey(r'$ref') ||
+      schema.containsKey(r'$defs')) {
+    return true;
+  }
+  const jsonSchemaTypes = {
+    'object',
+    'array',
+    'string',
+    'number',
+    'integer',
+    'boolean',
+    'null',
+  };
+  return jsonSchemaTypes.contains(schema['type']);
+}
+
+/// Builds a [SchemanticType] for a prompt's input from its frontmatter
+/// `input.schema`, converting Picoschema to JSON Schema as needed.
+///
+/// Returns `null` when no input schema is declared, in which case the prompt
+/// accepts free-form input as before.
+SchemanticType<Map<String, dynamic>>? _toInputSchema(
+  Map<String, dynamic>? schema,
+) {
+  final jsonSchema = _toJsonSchema(schema);
+  if (jsonSchema == null) return null;
+  return SchemanticType.from<Map<String, dynamic>>(
+    jsonSchema: jsonSchema,
+    parse: (json) => (json as Map).cast<String, dynamic>(),
+  );
 }
