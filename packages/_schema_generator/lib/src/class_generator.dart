@@ -24,7 +24,17 @@ const typeOverrides = {
   'ModelResponseChunk': {'index': 'int'},
   'ReflectionRegisterParams': {'pid': 'int'},
   'ReflectionStreamChunkParams': {'chunk': 'dynamic'},
+  // Agent types: inline objects promoted to named defs, the JsonPatch array
+  // alias, and open `{}` schemas that should be `dynamic`.
+  'AgentInput': {'resume': '\$AgentResume'},
+  'AgentOutput': {'error': '\$AgentError'},
+  'SessionSnapshot': {'error': '\$AgentError'},
+  'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
+  'SessionState': {'custom': 'dynamic'},
+  'JsonPatchOperation': {'value': 'dynamic'},
+  'AgentError': {'details': 'dynamic'},
 };
+
 
 class ClassGenerator {
   final Map<String, dynamic> definitions;

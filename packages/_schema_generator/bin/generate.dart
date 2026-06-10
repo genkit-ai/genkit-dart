@@ -21,7 +21,7 @@ import 'package:http/http.dart' as http;
 void main() async {
   final response = await http.get(
     Uri.parse(
-      'https://raw.githubusercontent.com/firebase/genkit/refs/heads/main/genkit-tools/genkit-schema.json',
+      'https://raw.githubusercontent.com/genkit-ai/genkit/pj/agent-git-sample/genkit-tools/genkit-schema.json',
     ),
   );
 
@@ -45,6 +45,24 @@ void main() async {
         props['defaultInstructions'] = {'type': 'boolean'};
       }
     }
+
+    // The agent schemas define a few inline (anonymous) objects. Promote them
+    // to named `$defs` so they get their own generated classes.
+    if (definitions.containsKey('AgentInput')) {
+      final agentInput = definitions['AgentInput'] as Map<String, dynamic>;
+      final props = agentInput['properties'] as Map<String, dynamic>? ?? {};
+      if (props.containsKey('resume')) {
+        definitions['AgentResume'] = props['resume'];
+      }
+    }
+    if (definitions.containsKey('AgentOutput')) {
+      final agentOutput = definitions['AgentOutput'] as Map<String, dynamic>;
+      final props = agentOutput['properties'] as Map<String, dynamic>? ?? {};
+      if (props.containsKey('error')) {
+        definitions['AgentError'] = props['error'];
+      }
+    }
+
 
     final classGenerator = ClassGenerator(definitions);
     final generatedContent = classGenerator.generate(_allowlist);
@@ -134,4 +152,21 @@ const _allowlist = {
   'ReflectionRunActionStateParams',
   'ReflectionSendInputStreamChunkParams',
   'ReflectionStreamChunkParams',
+  // Agent types.
+  'AgentFinishReason',
+  'AgentInit',
+  'AgentInput',
+  'AgentResume',
+  'AgentOutput',
+  'AgentError',
+  'AgentResult',
+  'AgentStreamChunk',
+  'TurnEnd',
+  'Artifact',
+  'GetSnapshotDataInput',
+  'JsonPatchOperation',
+  'SessionSnapshot',
+  'SessionState',
+  'SnapshotEvent',
 };
+

@@ -40,6 +40,7 @@ abstract class $Message {
 @Schema()
 abstract class $ToolDefinition {
   String get name;
+  String? get key;
   String get description;
   Map<String, dynamic>? get inputSchema;
   Map<String, dynamic>? get outputSchema;
@@ -292,6 +293,7 @@ extension type FinishReason(String value) {
   static FinishReason get other => FinishReason('other');
   static FinishReason get unknown => FinishReason('unknown');
 }
+
 extension type Role(String value) {
   static Role get system => Role('system');
   static Role get user => Role('user');
@@ -407,6 +409,7 @@ abstract class $ReflectionRunActionParams {
   String? get runtimeId;
   String get key;
   dynamic get input;
+  dynamic get init;
   dynamic get context;
   Map<String, dynamic>? get telemetryLabels;
   bool? get stream;
@@ -429,4 +432,120 @@ abstract class $ReflectionSendInputStreamChunkParams {
 abstract class $ReflectionStreamChunkParams {
   String get requestId;
   dynamic get chunk;
+}
+
+extension type AgentFinishReason(String value) {
+  static AgentFinishReason get stop => AgentFinishReason('stop');
+  static AgentFinishReason get length => AgentFinishReason('length');
+  static AgentFinishReason get blocked => AgentFinishReason('blocked');
+  static AgentFinishReason get aborted => AgentFinishReason('aborted');
+  static AgentFinishReason get interrupted => AgentFinishReason('interrupted');
+  static AgentFinishReason get other => AgentFinishReason('other');
+  static AgentFinishReason get unknown => AgentFinishReason('unknown');
+  static AgentFinishReason get detached => AgentFinishReason('detached');
+  static AgentFinishReason get failed => AgentFinishReason('failed');
+}
+
+@Schema()
+abstract class $AgentInit {
+  String? get snapshotId;
+  String? get sessionId;
+  $SessionState? get state;
+}
+
+@Schema()
+abstract class $AgentInput {
+  List<$Message>? get messages;
+  $AgentResume? get resume;
+  bool? get detach;
+}
+
+@Schema()
+abstract class $AgentResume {
+  List<$ToolResponsePart>? get respond;
+  List<$ToolRequestPart>? get restart;
+}
+
+@Schema()
+abstract class $AgentOutput {
+  String? get snapshotId;
+  $SessionState? get state;
+  $Message? get message;
+  List<$Artifact>? get artifacts;
+  AgentFinishReason? get finishReason;
+  $AgentError? get error;
+}
+
+@Schema()
+abstract class $AgentError {
+  String get status;
+  String get message;
+  dynamic get details;
+}
+
+@Schema()
+abstract class $AgentResult {
+  $Message? get message;
+  List<$Artifact>? get artifacts;
+  AgentFinishReason? get finishReason;
+}
+
+@Schema()
+abstract class $AgentStreamChunk {
+  $ModelResponseChunk? get modelChunk;
+  List<$JsonPatchOperation>? get customPatch;
+  $Artifact? get artifact;
+  $TurnEnd? get turnEnd;
+}
+
+@Schema()
+abstract class $TurnEnd {
+  String? get snapshotId;
+  AgentFinishReason? get finishReason;
+}
+
+@Schema()
+abstract class $Artifact {
+  String? get name;
+  List<$Part> get parts;
+  Map<String, dynamic>? get metadata;
+}
+
+@Schema()
+abstract class $GetSnapshotDataInput {
+  String? get snapshotId;
+  String? get sessionId;
+}
+
+@Schema()
+abstract class $JsonPatchOperation {
+  String get op;
+  String get path;
+  String? get from;
+  dynamic get value;
+}
+
+@Schema()
+abstract class $SessionSnapshot {
+  String get snapshotId;
+  String? get parentId;
+  String get createdAt;
+  SnapshotEvent get event;
+  $SessionState get state;
+  String? get status;
+  AgentFinishReason? get finishReason;
+  $AgentError? get error;
+}
+
+@Schema()
+abstract class $SessionState {
+  String? get sessionId;
+  List<$Message>? get messages;
+  dynamic get custom;
+  List<$Artifact>? get artifacts;
+}
+
+extension type SnapshotEvent(String value) {
+  static SnapshotEvent get turnEnd => SnapshotEvent('turnEnd');
+  static SnapshotEvent get invocationEnd => SnapshotEvent('invocationEnd');
 }
