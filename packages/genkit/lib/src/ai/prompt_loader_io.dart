@@ -137,12 +137,23 @@ void _loadPrompt(
   final config = metadata.config;
   final tools = metadata.tools;
 
+  // Named schemas registered via `defineSchema`. Picoschema may reference these
+  // by name (e.g. `schema: MyAddress`), so they are passed through to the
+  // converter to resolve, mirroring what `_resolveMetadata` does internally.
+  // `listValues` keys are registry paths (`/schema/<name>`); Picoschema looks
+  // schemas up by bare name, so strip the prefix.
+  final schemas = {
+    for (final entry
+        in registry.listValues<Map<String, dynamic>>('schema').entries)
+      entry.key.split('/').last: entry.value,
+  };
+
   // Build the input schema from the frontmatter `input.schema`. The raw
   // metadata from `parse` is not schema-resolved, so Picoschema is converted
   // to JSON Schema here (mirroring what `renderMetadata` does internally).
   // Without this the action has no input schema, so the Developer UI cannot
   // render an input form for the prompt.
-  final inputSchema = _toInputSchema(metadata.input?.schema);
+  final inputSchema = _toInputSchema(metadata.input?.schema, schemas);
 
   // Build output config from parsed metadata. As with the input schema, the
   // output schema may be Picoschema and must be converted to JSON Schema
@@ -150,7 +161,7 @@ void _loadPrompt(
   // response schema and the request fails or is ignored.
   GenerateActionOutputConfig? outputConfig;
   if (metadata.output != null) {
-    final outputSchema = _toJsonSchema(metadata.output!.schema);
+    final outputSchema = _toJsonSchema(metadata.output!.schema, schemas);
     outputConfig = GenerateActionOutputConfig.fromJson({
       'format': ?metadata.output!.format,
       'jsonSchema': ?outputSchema,
@@ -210,10 +221,16 @@ String _registryDefinitionKey(String name, String? variant, String? ns) {
 /// not recognize the `type, description` form (e.g. `name: string, the person
 /// to greet`) that the docs and examples use. [_isJsonSchema] is used instead
 /// so that form is converted rather than passed through raw.
-Map<String, dynamic>? _toJsonSchema(Map<String, dynamic>? schema) {
+///
+/// [schemas] holds named schemas registered via `defineSchema`, so Picoschema
+/// references to them by name can be resolved during conversion.
+Map<String, dynamic>? _toJsonSchema(
+  Map<String, dynamic>? schema,
+  Map<String, Map<String, dynamic>> schemas,
+) {
   if (schema == null) return null;
   if (_isJsonSchema(schema)) return schema;
-  return Picoschema.toJsonSchema(schema);
+  return Picoschema.toJsonSchema(schema, schemas: schemas);
 }
 
 /// Whether [schema] is already a JSON Schema (as opposed to Picoschema).
@@ -255,10 +272,14 @@ bool _isJsonSchema(Map<String, dynamic> schema) {
 ///
 /// Returns `null` when no input schema is declared, in which case the prompt
 /// accepts free-form input as before.
+///
+/// [schemas] holds named schemas registered via `defineSchema`, so Picoschema
+/// references to them by name can be resolved during conversion.
 SchemanticType<Map<String, dynamic>>? _toInputSchema(
   Map<String, dynamic>? schema,
+  Map<String, Map<String, dynamic>> schemas,
 ) {
-  final jsonSchema = _toJsonSchema(schema);
+  final jsonSchema = _toJsonSchema(schema, schemas);
   if (jsonSchema == null) return null;
   return SchemanticType.from<Map<String, dynamic>>(
     jsonSchema: jsonSchema,

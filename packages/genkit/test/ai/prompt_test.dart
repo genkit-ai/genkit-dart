@@ -1324,7 +1324,8 @@ Hello {{name}}!
       expect(
         action.inputSchema,
         isNotNull,
-        reason: 'input.schema in the .prompt file should be surfaced so the '
+        reason:
+            'input.schema in the .prompt file should be surfaced so the '
             'Developer UI can render a form and input can be validated',
       );
 
@@ -1439,13 +1440,48 @@ Classify: {{text}}
 
       // The output schema reaching the model must be JSON Schema, not the raw
       // Picoschema strings.
-      final outputSchema =
-          options.output!.jsonSchema as Map<String, dynamic>;
+      final outputSchema = options.output!.jsonSchema as Map<String, dynamic>;
       expect(outputSchema['type'], equals('object'));
       final properties = outputSchema['properties'] as Map<String, dynamic>;
       expect(properties['category'], containsPair('type', 'string'));
       expect(properties['confidence'], containsPair('type', 'number'));
       expect(options.output!.format, equals('json'));
+    });
+
+    test('resolves a named schema referenced in input.schema', () async {
+      // A schema registered via `defineSchema` is referenced by name in the
+      // .prompt frontmatter. The loader must pass registered schemas to the
+      // Picoschema converter so the reference resolves to the real schema.
+      registry.registerValue('schema', 'Address', {
+        'type': 'object',
+        'properties': {
+          'street': {'type': 'string'},
+          'city': {'type': 'string'},
+        },
+        'required': ['street', 'city'],
+      });
+
+      File(p.join(tempDir.path, 'shipto.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    address: Address
+---
+Ship to {{address.city}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'shipto')
+              as PromptAction;
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      final addressSchema = (jsonSchema['properties'] as Map)['address'] as Map;
+      // If the named reference were not resolved, `address` would not be an
+      // object schema with the registered properties.
+      expect(addressSchema['type'], equals('object'));
+      expect(addressSchema['properties'], contains('street'));
+      expect(addressSchema['properties'], contains('city'));
     });
   });
 
