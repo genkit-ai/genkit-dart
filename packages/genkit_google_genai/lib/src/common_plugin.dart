@@ -21,6 +21,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
 import 'api_client.dart';
+import 'gemma.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
 
@@ -40,11 +41,16 @@ final commonModelInfo = ModelInfo(
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
-  Model createModel(String modelName, SchemanticType customOptions) {
+  Model createModel(
+    String modelName,
+    SchemanticType customOptions, {
+    ModelInfo? modelInfo,
+  }) {
+    final isGemma = isGemmaModelName(modelName);
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
-      metadata: {'model': commonModelInfo.toJson()},
+      metadata: {'model': (modelInfo ?? commonModelInfo).toJson()},
       fn: (req, ctx) async {
         gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
@@ -74,9 +80,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
-          final options = req.config == null
-              ? GeminiOptions()
-              : GeminiOptions.$schema.parse(req.config!);
+          final options = isGemma
+              ? gemmaToGeminiOptions(GemmaOptions.fromJson(req.config ?? {}))
+              : GeminiOptions.fromJson(req.config ?? {});
           apiKey = options.apiKey;
           generationConfig = toGeminiSettings(
             options,
@@ -98,9 +104,19 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
-          final messages = req.messages
+          final nonSystemMessages = req.messages
               .where((m) => m.role != Role.system)
               .toList();
+          final messages = isGemma
+              ? stripReasoningParts(nonSystemMessages)
+              : nonSystemMessages;
+
+          if (isGemma && messages.isEmpty) {
+            throw GenkitException(
+              'No valid messages found for the model request.',
+              status: StatusCodes.INVALID_ARGUMENT,
+            );
+          }
 
           final generateRequest = gcl.GenerateContentRequest(
             contents: toGeminiContent(messages),
@@ -189,6 +205,15 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return createEmbedder(name);
     }
     if (actionType == 'model') {
+      if (isGemmaModelName(name)) {
+        return createModel(
+          name,
+          GemmaOptions.$schema,
+          modelInfo: isGemma3ModelName(name)
+              ? gemma3ModelInfo
+              : commonGemmaModelInfo,
+        );
+      }
       if (name.contains('-tts')) {
         return createModel(name, GeminiTtsOptions.$schema);
       }
