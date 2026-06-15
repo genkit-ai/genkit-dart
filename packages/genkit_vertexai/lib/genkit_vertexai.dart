@@ -16,6 +16,7 @@ import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:http/http.dart' as http;
 
+import 'src/meta_model.dart';
 import 'src/vertex_api_client.dart';
 
 export 'package:genkit_google_genai/genkit_google_genai.dart'
@@ -31,6 +32,7 @@ export 'package:genkit_google_genai/genkit_google_genai.dart'
         TextEmbedderOptions,
         ThinkingConfig,
         VoiceConfig;
+export 'src/meta_model.dart' show VertexAiMetaOptions;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
@@ -51,6 +53,14 @@ class VertexAiPluginHandle {
 
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
+  }
+
+  ModelRef<VertexAiMetaOptions> meta(String name) {
+    final modelName = name.startsWith('meta/') ? name.substring(5) : name;
+    return modelRef(
+      'vertexai/$modelName',
+      customOptions: VertexAiMetaOptions.$schema,
+    );
   }
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
