@@ -9,6 +9,12 @@ Today, Genkit's telemetry instrumentation is tightly coupled to OpenTelemetry
 - OpenTelemetry becomes **one of several pluggable telemetry providers**.
 - Different OTel packages (Dart has multiple, with no officially endorsed one
   yet) can be plugged in behind the same interface.
+- Different **OTel semantic conventions** are supported — e.g. the GenAI/AI
+  semantic conventions, plus custom variations and extensions where a provider
+  needs them — rather than hard-coding a single attribute scheme.
+- Beyond OTel, we want to **support third-party observability
+  providers** (e.g. Langfuse, LangSmith, etc.) without forcing everything through
+  an OTel-shaped pipeline.
 - The abstraction covers **traces, metrics, and logs**.
 - Genkit's own **Dev UI telemetry is built in** and uses this exact same
   mechanism (it is not special-cased).
