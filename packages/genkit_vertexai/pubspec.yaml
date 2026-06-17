@@ -17,4 +17,5 @@ dependencies:
   schemantic: ^0.2.0
 
 dev_dependencies:
+  build_runner: ^2.15.0
   test: ^1.29.0
