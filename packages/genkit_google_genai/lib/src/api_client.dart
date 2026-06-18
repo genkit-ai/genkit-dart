@@ -79,6 +79,13 @@ class GenerativeLanguageBaseClient {
     return await _call('POST', url, request);
   }
 
+  Future<Map<String, dynamic>> interactions(
+    Map<String, dynamic> request,
+  ) async {
+    final url = '${apiUrlPrefix}interactions';
+    return await _call('POST', url, request);
+  }
+
   Stream<GenerateContentResponse> streamGenerateContent(
     GenerateContentRequest request, {
     required String model,
