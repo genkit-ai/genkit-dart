@@ -17,7 +17,6 @@
 /// Ported from the JS `TripPlanner.tsx`.
 library;
 
-import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
 import 'streaming_chat_page.dart';

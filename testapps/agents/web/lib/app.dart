@@ -116,8 +116,8 @@ class _Shell extends StatelessComponent {
     final current = RouteState.of(context).location;
     return div(classes: 'app', [
       aside(classes: 'sidebar', [
-        h1(classes: 'sidebar-title', [text('🔥 Genkit Agents')]),
-        p(classes: 'sidebar-subtitle', [text('Genkit Agent Demos')]),
+        h1(classes: 'sidebar-title', [.text('🔥 Genkit Agents')]),
+        p(classes: 'sidebar-subtitle', [.text('Genkit Agent Demos')]),
         nav(classes: 'nav-list', [
           for (final item in _navItems)
             Link(
@@ -126,18 +126,18 @@ class _Shell extends StatelessComponent {
                   ? 'nav-item active'
                   : 'nav-item',
               children: [
-                span(classes: 'nav-icon', [text(item.icon)]),
-                span(classes: 'nav-label', [text(item.label)]),
+                span(classes: 'nav-icon', [.text(item.icon)]),
+                span(classes: 'nav-label', [.text(item.label)]),
               ],
             ),
         ]),
         div(classes: 'sidebar-footer', [
           span(classes: 'sidebar-hint', [
-            text(
+            .text(
               'Each page is a self-contained sample showing how to use the ',
             ),
-            code([text('remoteAgent')]),
-            text(' client.'),
+            code([.text('remoteAgent')]),
+            .text(' client.'),
           ]),
         ]),
       ]),

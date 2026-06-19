@@ -122,16 +122,16 @@ class _TaskTrackerPageState extends State<TaskTrackerPage> {
   Component _taskList() {
     final custom = _custom;
     if (custom is! Map) {
-      return p(classes: 'artifacts-empty', [text('No tasks yet.')]);
+      return p(classes: 'artifacts-empty', [.text('No tasks yet.')]);
     }
     final tasks = (custom['tasks'] as List?) ?? const [];
     if (tasks.isEmpty) {
-      return p(classes: 'artifacts-empty', [text('No tasks yet.')]);
+      return p(classes: 'artifacts-empty', [.text('No tasks yet.')]);
     }
     return ul([
       for (final t in tasks.cast<Map>())
         li([
-          text(
+          .text(
             '${(t['done'] == true) ? '✅' : '⬜'} '
             '#${t['id']} ${t['title']}',
           ),
@@ -160,7 +160,7 @@ class _TaskTrackerPageState extends State<TaskTrackerPage> {
         onSend: _handleSend,
       ),
       aside(classes: 'state-inspector', [
-        h3([text('✅ Tasks')]),
+        h3([.text('✅ Tasks')]),
         _taskList(),
       ]),
     ]);

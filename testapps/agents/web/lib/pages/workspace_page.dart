@@ -48,7 +48,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
 
   void _captureArtifact(Artifact a) {
     final name = a.name ?? 'artifact';
-    final content = a.parts.map((p) => p.text ?? '').join();
+    final content = a.parts.map((part) => part.text ?? '').join();
     setState(() => _artifacts[name] = content);
   }
 
@@ -138,14 +138,14 @@ class _WorkspacePageState extends State<WorkspacePage> {
         onSend: _handleSend,
       ),
       aside(classes: 'artifacts-sidebar', [
-        h3([text('📄 Artifacts')]),
+        h3([.text('📄 Artifacts')]),
         if (_artifacts.isEmpty)
-          p(classes: 'artifacts-empty', [text('No artifacts yet.')])
+          p(classes: 'artifacts-empty', [.text('No artifacts yet.')])
         else
           for (final entry in _artifacts.entries)
             div(classes: 'artifact', [
-              div(classes: 'artifact-name', [text(entry.key)]),
-              pre(classes: 'artifact-content', [text(entry.value)]),
+              div(classes: 'artifact-name', [.text(entry.key)]),
+              pre(classes: 'artifact-content', [.text(entry.value)]),
             ]),
       ]),
     ]);

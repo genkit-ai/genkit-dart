@@ -91,7 +91,7 @@ class _BankingPageState extends State<BankingPage> {
       }
       // Surface a pending approval interrupt, if any.
       final approval = res.interrupts
-          .where((i) => i.name == 'userApproval')
+          .where((interrupt) => interrupt.name == 'userApproval')
           .toList();
       _pendingApproval = approval.isNotEmpty ? approval.first : null;
     });
@@ -171,19 +171,19 @@ class _BankingPageState extends State<BankingPage> {
         extra: approval == null
             ? null
             : div(classes: 'interrupt-dialog', [
-                h3([text('Approval required')]),
+                h3([.text('Approval required')]),
                 p([
-                  text('The agent wants to: '),
-                  strong([text(jsonEncode(approval.input))]),
+                  .text('The agent wants to: '),
+                  strong([.text(jsonEncode(approval.input))]),
                 ]),
                 div(classes: 'interrupt-buttons', [
                   button(
-                    [text('Approve')],
+                    [.text('Approve')],
                     classes: 'btn btn-approve',
                     onClick: () => _resolveApproval(true),
                   ),
                   button(
-                    [text('Deny')],
+                    [.text('Deny')],
                     classes: 'btn btn-deny',
                     onClick: () => _resolveApproval(false),
                   ),

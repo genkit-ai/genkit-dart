@@ -132,8 +132,8 @@ class _ClientStatePageState extends State<ClientStatePage> {
         onSend: _handleSend,
       ),
       aside(classes: 'state-inspector', [
-        h3([text('🧠 Client-held state')]),
-        pre(classes: 'state-inspector-json', [text(_stateJson)]),
+        h3([.text('🧠 Client-held state')]),
+        pre(classes: 'state-inspector-json', [.text(_stateJson)]),
       ]),
     ]);
   }

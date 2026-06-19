@@ -87,10 +87,12 @@ class _ResearchPageState extends State<ResearchPage> {
       setState(() {
         _streamingText = '';
         _status = '';
-        _messages.add(ChatMessage(
-          role: 'model',
-          text: res.text.isNotEmpty ? res.text : accumulated,
-        ));
+        _messages.add(
+          ChatMessage(
+            role: 'model',
+            text: res.text.isNotEmpty ? res.text : accumulated,
+          ),
+        );
       });
     } catch (e) {
       setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
@@ -119,14 +121,16 @@ class _ResearchPageState extends State<ResearchPage> {
         onSend: _handleSend,
       ),
       aside(classes: 'state-inspector', [
-        h3([text('🔬 Progress')]),
+        h3([.text('🔬 Progress')]),
         if (_status.isNotEmpty)
-          p(classes: 'chat-desc', [text(_status)])
+          p(classes: 'chat-desc', [.text(_status)])
         else
-          p(classes: 'artifacts-empty', [text('Idle.')]),
+          p(classes: 'artifacts-empty', [.text('Idle.')]),
         if (_subQuestions.isNotEmpty) ...[
-          h3([text('Sub-questions')]),
-          ul([for (final q in _subQuestions) li([text(q)])]),
+          h3([.text('Sub-questions')]),
+          ul([
+            for (final q in _subQuestions) li([.text(q)]),
+          ]),
         ],
       ]),
     ]);

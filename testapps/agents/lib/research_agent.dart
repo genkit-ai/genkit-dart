@@ -48,7 +48,7 @@ final researchAgent = ai.defineCustomAgent(
     final session = ai.currentSession()!;
 
     await sess.run((input, ctx) async {
-      final userText = input.messages?.last.content.first.text ?? '';
+      final userText = input.message?.content.first.text ?? '';
 
       // Build conversation history context (available for ALL steps).
       final priorMessages = sess.getMessages();

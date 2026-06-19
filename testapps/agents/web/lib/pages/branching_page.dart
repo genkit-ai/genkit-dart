@@ -89,7 +89,7 @@ class _BranchingPageState extends State<BranchingPage> {
         for (final msg in messages) {
           final role = msg.role.value;
           if (role != 'user' && role != 'model') continue;
-          final t = msg.content.map((p) => p.text ?? '').join();
+          final t = msg.content.map((part) => part.text ?? '').join();
           if (t.isNotEmpty) restored.add(_ChatMessage(role, t));
         }
         setState(() {
@@ -157,14 +157,14 @@ class _BranchingPageState extends State<BranchingPage> {
       return div(classes: 'page-with-sidebar', [
         div(classes: 'chat-panel', [
           div(classes: 'chat-header', [
-            h2([text('🔀 Branching Chat')]),
-            span(classes: 'chat-desc', [text('Restoring session…')]),
+            h2([.text('🔀 Branching Chat')]),
+            span(classes: 'chat-desc', [.text('Restoring session…')]),
           ]),
           div(classes: 'chat-messages', [
             div(classes: 'message', [
-              div(classes: 'message-role', [text('system')]),
+              div(classes: 'message-role', [.text('system')]),
               div(classes: 'message-text loading', [
-                text(
+                .text(
                   'Restoring session from snapshot ${component.snapshotId}…',
                 ),
               ]),
@@ -184,16 +184,16 @@ class _BranchingPageState extends State<BranchingPage> {
   Component _header() {
     return div(classes: 'chat-header', [
       div(classes: 'chat-header-top', [
-        h2([text('🔀 Branching Chat')]),
+        h2([.text('🔀 Branching Chat')]),
         if (_snapshotId != null)
           Link(
             to: '/branching',
             classes: 'btn btn-new-session',
-            children: [text('✨ New Session')],
+            children: [.text('✨ New Session')],
           ),
       ]),
       span(classes: 'chat-desc', [
-        text(
+        .text(
           'Every response generates two variants from the same snapshot. '
           'Pick the one you prefer to continue the conversation.',
         ),
@@ -207,7 +207,7 @@ class _BranchingPageState extends State<BranchingPage> {
     if (_messages.isEmpty && !_loading && _variantA == null) {
       items.add(
         div(classes: 'chat-empty', [
-          text(
+          .text(
             'Send a message to start. Each response will show two variants — '
             'pick your favorite to choose which branch to follow.',
           ),
@@ -219,9 +219,9 @@ class _BranchingPageState extends State<BranchingPage> {
       items.add(
         div(classes: m.role == 'user' ? 'message message-user' : 'message', [
           div(classes: 'message-role', [
-            text(m.role == 'user' ? 'You' : 'Model'),
+            .text(m.role == 'user' ? 'You' : 'Model'),
           ]),
-          div(classes: 'message-text', [text(m.text)]),
+          div(classes: 'message-text', [.text(m.text)]),
         ]),
       );
     }
@@ -229,8 +229,8 @@ class _BranchingPageState extends State<BranchingPage> {
     if (_loading) {
       items.add(
         div(classes: 'variant-loading', [
-          div(classes: 'variant-loading-icon', [text('🔀')]),
-          text('Generating two variants…'),
+          div(classes: 'variant-loading-icon', [.text('🔀')]),
+          .text('Generating two variants…'),
         ]),
       );
     }
@@ -241,7 +241,7 @@ class _BranchingPageState extends State<BranchingPage> {
       items.add(
         div(classes: 'variant-picker', [
           div(classes: 'variant-picker-label', [
-            text('Pick a variant to continue:'),
+            .text('Pick a variant to continue:'),
           ]),
           div(classes: 'variant-cards', [
             _variantCard('A', a),
@@ -254,8 +254,8 @@ class _BranchingPageState extends State<BranchingPage> {
     if (_error != null) {
       items.add(
         div(classes: 'message message-system', [
-          div(classes: 'message-role', [text('system')]),
-          div(classes: 'message-text', [text('Error: $_error')]),
+          div(classes: 'message-role', [.text('system')]),
+          div(classes: 'message-text', [.text('Error: $_error')]),
         ]),
       );
     }
@@ -268,9 +268,9 @@ class _BranchingPageState extends State<BranchingPage> {
       classes: 'variant-card',
       onClick: () => _handlePick(variant),
       [
-        div(classes: 'variant-card-badge', [text(badge)]),
-        div(classes: 'variant-card-text', [text(variant.text)]),
-        div(classes: 'variant-card-action', [text('Use this ✓')]),
+        div(classes: 'variant-card-badge', [.text(badge)]),
+        div(classes: 'variant-card-text', [.text(variant.text)]),
+        div(classes: 'variant-card-action', [.text('Use this ✓')]),
       ],
     );
   }
@@ -288,51 +288,55 @@ class _BranchingPageState extends State<BranchingPage> {
 
   Component _infoSidebar() {
     return aside(classes: 'info-sidebar', [
-      h3([text('📋 How It Works')]),
+      h3([.text('📋 How It Works')]),
       ol([
         li([
-          text('User sends a message. The client fires '),
-          strong([text('two parallel')]),
-          text(' '),
-          code([text('chat.send()')]),
-          text(' turns, both branching from the same '),
-          code([text('snapshotId')]),
-          text('.'),
+          .text('User sends a message. The client fires '),
+          strong([.text('two parallel')]),
+          .text(' '),
+          code([.text('chat.send()')]),
+          .text(' turns, both branching from the same '),
+          code([.text('snapshotId')]),
+          .text('.'),
         ]),
         li([
-          text('Each call creates an '),
-          strong([text('independent branch')]),
-          text(
+          .text('Each call creates an '),
+          strong([.text('independent branch')]),
+          .text(
             " from the same conversation checkpoint. The LLM's "
             'non-determinism produces different responses.',
           ),
         ]),
         li([
-          text('Both variants are displayed side-by-side. The user picks one.'),
+          .text(
+            'Both variants are displayed side-by-side. The user picks one.',
+          ),
         ]),
         li([
-          text("The chosen variant's "),
-          code([text('snapshotId')]),
-          text(
+          .text("The chosen variant's "),
+          code([.text('snapshotId')]),
+          .text(
             ' becomes the new branch point for the next turn and is pushed '
             'into the URL for persistence.',
           ),
         ]),
         li([
-          text('On reload, the client reads the snapshot for the URL '),
-          code([text('snapshotId')]),
-          text(' to restore the conversation history.'),
+          .text(
+            'On reload, the client reads the snapshot for the URL ',
+          ),
+          code([.text('snapshotId')]),
+          .text(' to restore the conversation history.'),
         ]),
       ]),
-      h4([text('Key Concept')]),
+      h4([.text('Key Concept')]),
       p([
-        text('A '),
-        code([text('snapshotId')]),
-        text(' is an '),
-        strong([text('immutable checkpoint')]),
-        text(
+        .text('A '),
+        code([.text('snapshotId')]),
+        .text(' is an '),
+        strong([.text('immutable checkpoint')]),
+        .text(
           '. You can branch from it as many times as you want — each branch '
-          "creates a new, independent snapshot. This is like Git: the "
+          'creates a new, independent snapshot. This is like Git: the '
           "original commit doesn't change when you create branches from it.",
         ),
       ]),
@@ -341,7 +345,7 @@ class _BranchingPageState extends State<BranchingPage> {
 }
 
 /// A single-line input for the branching page (it has its own input chrome
-/// rather than the shared [ChatUI], to match the JS layout).
+/// rather than the shared `ChatUI`, to match the JS layout).
 class _BranchingInput extends StatefulComponent {
   const _BranchingInput({
     required this.disabled,
@@ -384,7 +388,7 @@ class _BranchingInputState extends State<_BranchingInput> {
         onInput: (value) => _draft = value,
       ),
       button(
-        [text('Send')],
+        [.text('Send')],
         classes: 'btn btn-send',
         disabled: component.disabled,
         onClick: _send,

@@ -71,7 +71,9 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
           _status = snap.status ?? 'pending';
           final messages = snap.state.messages;
           if (messages != null && messages.isNotEmpty) {
-            _report = messages.last.content.map((p) => p.text ?? '').join();
+            _report = messages.last.content
+                .map((part) => part.text ?? '')
+                .join();
           }
         });
       }
@@ -95,17 +97,19 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
       div(classes: 'chat-panel', [
         div(classes: 'chat-header', [
           div(classes: 'chat-header-top', [
-            h2([text('Background Agent')]),
+            h2([.text('Background Agent')]),
             if (_running)
               button(
-                [text('⏹ Abort')],
+                [.text('⏹ Abort')],
                 classes: 'btn btn-deny',
                 onClick: _abort,
               ),
           ]),
           span(classes: 'chat-desc', [
-            text('Submit a research topic; the server processes it in the '
-                'background and the page polls until done.'),
+            .text(
+              'Submit a research topic; the server processes it in the '
+              'background and the page polls until done.',
+            ),
           ]),
         ]),
         if (!_running && _report.isEmpty) _form() else _statusView(),
@@ -115,7 +119,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
 
   Component _form() {
     return div(classes: 'background-form', [
-      label(classes: 'background-label', [text('Research topic')]),
+      label(classes: 'background-label', [.text('Research topic')]),
       textarea(
         [],
         classes: 'chat-input',
@@ -124,7 +128,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
         onInput: (v) => _topic = v,
       ),
       button(
-        [text('🚀 Start background research')],
+        [.text('🚀 Start background research')],
         classes: 'btn btn-send',
         onClick: _start,
       ),
@@ -132,23 +136,33 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
   }
 
   Component _statusView() {
-    final terminal = _status == 'done' || _status.startsWith('failed') ||
+    final terminal =
+        _status == 'completed' ||
+        _status.startsWith('failed') ||
         _status == 'aborted';
     return div(classes: 'background-result', [
       div(classes: 'background-result-header', [
         span(
-          classes: 'background-status-badge '
-              '${_status == 'done' ? 'done' : _status == 'aborted' ? 'aborted' : _status.startsWith('failed') ? 'failed' : ''}',
-          [text(_status)],
+          classes:
+              'background-status-badge '
+              '${_status == 'completed'
+                  ? 'done'
+                  : _status == 'aborted'
+                  ? 'aborted'
+                  : _status.startsWith('failed')
+                  ? 'failed'
+                  : ''}',
+          [.text(_status)],
         ),
+
         if (_snapshotId != null)
-          span(classes: 'chat-desc', [text('snapshot: $_snapshotId')]),
-        if (!terminal) span(classes: 'chat-desc', [text('polls: $_polls')]),
+          span(classes: 'chat-desc', [.text('snapshot: $_snapshotId')]),
+        if (!terminal) span(classes: 'chat-desc', [.text('polls: $_polls')]),
       ]),
       if (!terminal)
         div(classes: 'background-status', [
-          span(classes: 'background-status-icon', [text('⏳')]),
-          h3([text('Working…')]),
+          span(classes: 'background-status-icon', [.text('⏳')]),
+          h3([.text('Working…')]),
         ]),
       if (_report.isNotEmpty)
         div(classes: 'background-report', [markdownBlock(_report)]),
