@@ -822,7 +822,7 @@ Future<void> _executeWaitUntilCompleted(
     throw _SpecError('waitUntilCompleted invocation requires snapshotId');
   }
 
-  const terminal = {'done', 'failed', 'aborted'};
+  const terminal = {'completed', 'failed', 'aborted'};
   final start = DateTime.now();
   SessionSnapshot? snapshot;
   while (DateTime.now().difference(start).inMilliseconds < timeoutMs) {
