@@ -5363,10 +5363,10 @@ base class AgentInit {
 
   AgentInit._(this._json);
 
-  AgentInit({String? snapshotId, String? sessionId, SessionState? state}) {
+  AgentInit({String? sessionId, String? snapshotId, SessionState? state}) {
     _json = {
-      'snapshotId': ?snapshotId,
       'sessionId': ?sessionId,
+      'snapshotId': ?snapshotId,
       'state': ?state?.toJson(),
     };
   }
@@ -5375,18 +5375,6 @@ base class AgentInit {
 
   /// The JSON schema and type descriptor for [AgentInit].
   static const SchemanticType<AgentInit> $schema = _AgentInitTypeFactory();
-
-  String? get snapshotId {
-    return _json['snapshotId'] as String?;
-  }
-
-  set snapshotId(String? value) {
-    if (value == null) {
-      _json.remove('snapshotId');
-    } else {
-      _json['snapshotId'] = value;
-    }
-  }
 
   String? get sessionId {
     return _json['sessionId'] as String?;
@@ -5397,6 +5385,18 @@ base class AgentInit {
       _json.remove('sessionId');
     } else {
       _json['sessionId'] = value;
+    }
+  }
+
+  String? get snapshotId {
+    return _json['snapshotId'] as String?;
+  }
+
+  set snapshotId(String? value) {
+    if (value == null) {
+      _json.remove('snapshotId');
+    } else {
+      _json['snapshotId'] = value;
     }
   }
 
@@ -5439,8 +5439,8 @@ base class _AgentInitTypeFactory extends SchemanticType<AgentInit> {
     definition: $Schema
         .object(
           properties: {
-            'snapshotId': $Schema.string(),
             'sessionId': $Schema.string(),
+            'snapshotId': $Schema.string(),
             'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
           },
         )
@@ -5455,11 +5455,11 @@ base class AgentInput {
 
   AgentInput._(this._json);
 
-  AgentInput({List<Message>? messages, AgentResume? resume, bool? detach}) {
+  AgentInput({bool? detach, Message? message, AgentResume? resume}) {
     _json = {
-      'messages': ?messages?.map((e) => e.toJson()).toList(),
-      'resume': ?resume?.toJson(),
       'detach': ?detach,
+      'message': ?message?.toJson(),
+      'resume': ?resume?.toJson(),
     };
   }
 
@@ -5468,17 +5468,29 @@ base class AgentInput {
   /// The JSON schema and type descriptor for [AgentInput].
   static const SchemanticType<AgentInput> $schema = _AgentInputTypeFactory();
 
-  List<Message>? get messages {
-    return (_json['messages'] as List?)
-        ?.map((e) => Message.fromJson(e as Map<String, dynamic>))
-        .toList();
+  bool? get detach {
+    return _json['detach'] as bool?;
   }
 
-  set messages(List<Message>? value) {
+  set detach(bool? value) {
     if (value == null) {
-      _json.remove('messages');
+      _json.remove('detach');
     } else {
-      _json['messages'] = value.toList();
+      _json['detach'] = value;
+    }
+  }
+
+  Message? get message {
+    return _json['message'] == null
+        ? null
+        : Message.fromJson(_json['message'] as Map<String, dynamic>);
+  }
+
+  set message(Message? value) {
+    if (value == null) {
+      _json.remove('message');
+    } else {
+      _json['message'] = value;
     }
   }
 
@@ -5493,18 +5505,6 @@ base class AgentInput {
       _json.remove('resume');
     } else {
       _json['resume'] = value;
-    }
-  }
-
-  bool? get detach {
-    return _json['detach'] as bool?;
-  }
-
-  set detach(bool? value) {
-    if (value == null) {
-      _json.remove('detach');
-    } else {
-      _json['detach'] = value;
     }
   }
 
@@ -5533,11 +5533,9 @@ base class _AgentInputTypeFactory extends SchemanticType<AgentInput> {
     definition: $Schema
         .object(
           properties: {
-            'messages': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            ),
-            'resume': $Schema.fromMap({'\$ref': r'#/$defs/AgentResume'}),
             'detach': $Schema.boolean(),
+            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
+            'resume': $Schema.fromMap({'\$ref': r'#/$defs/AgentResume'}),
           },
         )
         .value,
@@ -5641,6 +5639,7 @@ base class AgentOutput {
   AgentOutput._(this._json);
 
   AgentOutput({
+    String? sessionId,
     String? snapshotId,
     SessionState? state,
     Message? message,
@@ -5649,6 +5648,7 @@ base class AgentOutput {
     AgentErrorInfo? error,
   }) {
     _json = {
+      'sessionId': ?sessionId,
       'snapshotId': ?snapshotId,
       'state': ?state?.toJson(),
       'message': ?message?.toJson(),
@@ -5662,6 +5662,18 @@ base class AgentOutput {
 
   /// The JSON schema and type descriptor for [AgentOutput].
   static const SchemanticType<AgentOutput> $schema = _AgentOutputTypeFactory();
+
+  String? get sessionId {
+    return _json['sessionId'] as String?;
+  }
+
+  set sessionId(String? value) {
+    if (value == null) {
+      _json.remove('sessionId');
+    } else {
+      _json['sessionId'] = value;
+    }
+  }
 
   String? get snapshotId {
     return _json['snapshotId'] as String?;
@@ -5768,6 +5780,7 @@ base class _AgentOutputTypeFactory extends SchemanticType<AgentOutput> {
     definition: $Schema
         .object(
           properties: {
+            'sessionId': $Schema.string(),
             'snapshotId': $Schema.string(),
             'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
             'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
@@ -5795,12 +5808,8 @@ base class AgentErrorInfo {
 
   AgentErrorInfo._(this._json);
 
-  AgentErrorInfo({
-    required String status,
-    required String message,
-    dynamic details,
-  }) {
-    _json = {'status': status, 'message': message, 'details': ?details};
+  AgentErrorInfo({String? status, required String message, dynamic details}) {
+    _json = {'status': ?status, 'message': message, 'details': ?details};
   }
 
   late final Map<String, dynamic> _json;
@@ -5809,12 +5818,16 @@ base class AgentErrorInfo {
   static const SchemanticType<AgentErrorInfo> $schema =
       _AgentErrorInfoTypeFactory();
 
-  String get status {
-    return _json['status'] as String;
+  String? get status {
+    return _json['status'] as String?;
   }
 
-  set status(String value) {
-    _json['status'] = value;
+  set status(String? value) {
+    if (value == null) {
+      _json.remove('status');
+    } else {
+      _json['status'] = value;
+    }
   }
 
   String get message {
@@ -5862,7 +5875,7 @@ base class _AgentErrorInfoTypeFactory extends SchemanticType<AgentErrorInfo> {
             'message': $Schema.string(),
             'details': $Schema.any(),
           },
-          required: ['status', 'message', 'details'],
+          required: ['message', 'details'],
         )
         .value,
     dependencies: [],
@@ -6450,23 +6463,27 @@ base class SessionSnapshot {
 
   SessionSnapshot({
     required String snapshotId,
+    String? sessionId,
     String? parentId,
     required String createdAt,
-    required SnapshotEvent event,
-    required SessionState state,
+    String? updatedAt,
+    String? heartbeatAt,
     String? status,
     AgentFinishReason? finishReason,
     AgentErrorInfo? error,
+    required SessionState state,
   }) {
     _json = {
       'snapshotId': snapshotId,
+      'sessionId': ?sessionId,
       'parentId': ?parentId,
       'createdAt': createdAt,
-      'event': event.value,
-      'state': state.toJson(),
+      'updatedAt': ?updatedAt,
+      'heartbeatAt': ?heartbeatAt,
       'status': ?status,
       'finishReason': ?finishReason?.value,
       'error': ?error?.toJson(),
+      'state': state.toJson(),
     };
   }
 
@@ -6482,6 +6499,18 @@ base class SessionSnapshot {
 
   set snapshotId(String value) {
     _json['snapshotId'] = value;
+  }
+
+  String? get sessionId {
+    return _json['sessionId'] as String?;
+  }
+
+  set sessionId(String? value) {
+    if (value == null) {
+      _json.remove('sessionId');
+    } else {
+      _json['sessionId'] = value;
+    }
   }
 
   String? get parentId {
@@ -6504,21 +6533,28 @@ base class SessionSnapshot {
     _json['createdAt'] = value;
   }
 
-  SnapshotEvent get event {
-    final value = _json['event'] as String;
-    return SnapshotEvent(value);
+  String? get updatedAt {
+    return _json['updatedAt'] as String?;
   }
 
-  set event(SnapshotEvent value) {
-    _json['event'] = value.value;
+  set updatedAt(String? value) {
+    if (value == null) {
+      _json.remove('updatedAt');
+    } else {
+      _json['updatedAt'] = value;
+    }
   }
 
-  SessionState get state {
-    return SessionState.fromJson(_json['state'] as Map<String, dynamic>);
+  String? get heartbeatAt {
+    return _json['heartbeatAt'] as String?;
   }
 
-  set state(SessionState value) {
-    _json['state'] = value;
+  set heartbeatAt(String? value) {
+    if (value == null) {
+      _json.remove('heartbeatAt');
+    } else {
+      _json['heartbeatAt'] = value;
+    }
   }
 
   String? get status {
@@ -6559,6 +6595,14 @@ base class SessionSnapshot {
     }
   }
 
+  SessionState get state {
+    return SessionState.fromJson(_json['state'] as Map<String, dynamic>);
+  }
+
+  set state(SessionState value) {
+    _json['state'] = value;
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -6585,18 +6629,20 @@ base class _SessionSnapshotTypeFactory extends SchemanticType<SessionSnapshot> {
         .object(
           properties: {
             'snapshotId': $Schema.string(),
+            'sessionId': $Schema.string(),
             'parentId': $Schema.string(),
             'createdAt': $Schema.string(),
-            'event': $Schema.any(),
-            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
+            'updatedAt': $Schema.string(),
+            'heartbeatAt': $Schema.string(),
             'status': $Schema.string(),
             'finishReason': $Schema.any(),
             'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
+            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
           },
-          required: ['snapshotId', 'createdAt', 'event', 'state'],
+          required: ['snapshotId', 'createdAt', 'state'],
         )
         .value,
-    dependencies: [SessionState.$schema, AgentErrorInfo.$schema],
+    dependencies: [AgentErrorInfo.$schema, SessionState.$schema],
   );
 }
 

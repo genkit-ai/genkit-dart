@@ -47,10 +47,25 @@ SessionSnapshot _cloneSnapshot(SessionSnapshot snapshot) =>
       _deepClone(snapshot.toJson()) as Map<String, dynamic>,
     );
 
+/// The lifecycle event that triggered a snapshot.
+///
+/// Mirrors the JS `SnapshotEventSchema` (`'turnEnd'` | `'invocationEnd'`). It
+/// is surfaced to the [SnapshotCallback] via [SnapshotContext.event]; unlike
+/// older revisions of the wire protocol it is no longer persisted as a field on
+/// [SessionSnapshot].
+extension type SnapshotEvent(String value) {
+  /// A snapshot taken at the end of a single turn.
+  static SnapshotEvent get turnEnd => SnapshotEvent('turnEnd');
+
+  /// A snapshot taken at the end of the whole invocation.
+  static SnapshotEvent get invocationEnd => SnapshotEvent('invocationEnd');
+}
+
 /// The execution context provided to a snapshot callback.
 class SnapshotContext {
   SnapshotContext({
     required this.state,
+
     this.prevState,
     required this.turnIndex,
     required this.event,
@@ -77,8 +92,7 @@ typedef SnapshotCallback = bool Function(SnapshotContext ctx);
 ///
 /// The returned snapshot's `snapshotId` may be left empty (`''`) to let the
 /// store assign a new identifier.
-typedef SnapshotMutator =
-    SessionSnapshot? Function(SessionSnapshot? current);
+typedef SnapshotMutator = SessionSnapshot? Function(SessionSnapshot? current);
 
 /// Interface for persistent session snapshot storage.
 abstract interface class SessionStore {
@@ -151,9 +165,8 @@ class Session {
   }
 
   /// Returns a deep copy of the current session state.
-  SessionState getState() => SessionState.fromJson(
-    _deepClone(_json) as Map<String, dynamic>,
-  );
+  SessionState getState() =>
+      SessionState.fromJson(_deepClone(_json) as Map<String, dynamic>);
 
   /// Retrieves all messages associated with the session.
   List<Message> getMessages() =>
@@ -253,8 +266,7 @@ class SessionError implements Exception {
 }
 
 /// In-memory implementation of persistent session store.
-class InMemorySessionStore
-    implements SessionStore, SnapshotChangeNotifier {
+class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
   final Map<String, SessionSnapshot> _snapshots = {};
   final Map<String, List<void Function(SessionSnapshot)>> _listeners = {};
 
