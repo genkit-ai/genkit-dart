@@ -116,11 +116,7 @@ void main() {
         0,
         reason: 'Second chunk of first turn should be 0',
       );
-      expect(
-        chunks[2].index,
-        1,
-        reason: 'Tool-response chunk should be 1',
-      );
+      expect(chunks[2].index, 1, reason: 'Tool-response chunk should be 1');
       expect(chunks[3].index, 2, reason: 'Chunk of second turn should be 2');
     });
 
@@ -206,11 +202,7 @@ void main() {
 
         expect(chunks[0].index, 0, reason: 'Turn 1, Chunk 1 should be 0');
         // The tool-response message streamed between turns occupies slot 1.
-        expect(
-          chunks[1].index,
-          1,
-          reason: 'Tool-response chunk should be 1',
-        );
+        expect(chunks[1].index, 1, reason: 'Tool-response chunk should be 1');
         // Turn 2: messageIndex starts at 2
         expect(
           chunks[2].index,
