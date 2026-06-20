@@ -51,7 +51,9 @@ String _unescapeToken(String token) =>
 List<String> _parsePointer(String pointer) {
   if (pointer == '') return [];
   if (!pointer.startsWith('/')) {
-    throw ArgumentError('Invalid JSON Pointer: "$pointer" must start with "/".');
+    throw ArgumentError(
+      'Invalid JSON Pointer: "$pointer" must start with "/".',
+    );
   }
   return pointer.substring(1).split('/').map(_unescapeToken).toList();
 }
@@ -111,12 +113,7 @@ JsonPatch diff(Object? from, Object? to) {
   return patch;
 }
 
-void _diffRecursive(
-  Object? from,
-  Object? to,
-  String pointer,
-  JsonPatch patch,
-) {
+void _diffRecursive(Object? from, Object? to, String pointer, JsonPatch patch) {
   if (_deepEqual(from, to)) return;
 
   // Both plain objects - recurse member by member.

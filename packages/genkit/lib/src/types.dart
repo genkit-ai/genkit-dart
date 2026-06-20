@@ -448,16 +448,16 @@ extension type AgentFinishReason(String value) {
 
 @Schema()
 abstract class $AgentInit {
-  String? get snapshotId;
   String? get sessionId;
+  String? get snapshotId;
   $SessionState? get state;
 }
 
 @Schema()
 abstract class $AgentInput {
-  List<$Message>? get messages;
-  $AgentResume? get resume;
   bool? get detach;
+  $Message? get message;
+  $AgentResume? get resume;
 }
 
 @Schema()
@@ -468,6 +468,7 @@ abstract class $AgentResume {
 
 @Schema()
 abstract class $AgentOutput {
+  String? get sessionId;
   String? get snapshotId;
   $SessionState? get state;
   $Message? get message;
@@ -478,7 +479,7 @@ abstract class $AgentOutput {
 
 @Schema()
 abstract class $AgentErrorInfo {
-  String get status;
+  String? get status;
   String get message;
   dynamic get details;
 }
@@ -528,13 +529,15 @@ abstract class $JsonPatchOperation {
 @Schema()
 abstract class $SessionSnapshot {
   String get snapshotId;
+  String? get sessionId;
   String? get parentId;
   String get createdAt;
-  SnapshotEvent get event;
-  $SessionState get state;
+  String? get updatedAt;
+  String? get heartbeatAt;
   String? get status;
   AgentFinishReason? get finishReason;
   $AgentErrorInfo? get error;
+  $SessionState get state;
 }
 
 @Schema()
@@ -545,7 +548,10 @@ abstract class $SessionState {
   List<$Artifact>? get artifacts;
 }
 
-extension type SnapshotEvent(String value) {
-  static SnapshotEvent get turnEnd => SnapshotEvent('turnEnd');
-  static SnapshotEvent get invocationEnd => SnapshotEvent('invocationEnd');
+extension type SnapshotStatus(String value) {
+  static SnapshotStatus get pending => SnapshotStatus('pending');
+  static SnapshotStatus get completed => SnapshotStatus('completed');
+  static SnapshotStatus get aborted => SnapshotStatus('aborted');
+  static SnapshotStatus get failed => SnapshotStatus('failed');
+  static SnapshotStatus get expired => SnapshotStatus('expired');
 }

@@ -26,12 +26,13 @@ void _defineEchoModel(Genkit ai) {
       );
       final reply = 'echo: ${lastUser.text}';
       if (ctx.streamingRequested) {
-        ctx.sendChunk(
-          ModelResponseChunk(content: [TextPart(text: reply)]),
-        );
+        ctx.sendChunk(ModelResponseChunk(content: [TextPart(text: reply)]));
       }
       return ModelResponse(
-        message: Message(role: Role.model, content: [TextPart(text: reply)]),
+        message: Message(
+          role: Role.model,
+          content: [TextPart(text: reply)],
+        ),
         finishReason: FinishReason.stop,
       );
     },
@@ -59,7 +60,10 @@ void main() {
               return {'count': count + 1};
             });
             sess.addMessages([
-              Message(role: Role.model, content: [TextPart(text: 'ok')]),
+              Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
             ]);
             return TurnResult(finishReason: AgentFinishReason.stop);
           });
@@ -95,7 +99,10 @@ void main() {
               ),
             );
             sess.addMessages([
-              Message(role: Role.model, content: [TextPart(text: 'hello')]),
+              Message(
+                role: Role.model,
+                content: [TextPart(text: 'hello')],
+              ),
             ]);
             return TurnResult(finishReason: AgentFinishReason.stop);
           });
@@ -226,9 +233,58 @@ void main() {
       final chat = agent.chat(sessionId: sessionId);
       final res = await chat.send(agentInputFromText('hi'));
       final prior = await agent.abort(res.snapshotId!);
-      // Turn already completed ('done'), so abort reports the prior status.
-      expect(prior, 'done');
+      // Turn already completed, so abort reports the prior status.
+      expect(prior, 'completed');
     });
+
+    test(
+      'getSnapshotData reports a stale pending snapshot as expired',
+      () async {
+        final store = InMemorySessionStore();
+        final agent = ai.defineCustomAgent(
+          name: 'heartbeating',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async => null);
+            return AgentResult();
+          },
+        );
+
+        final sessionId = generateUuidV4();
+        // Seed a `pending` snapshot whose heartbeat is well past the timeout.
+        final stale = DateTime.now()
+            .toUtc()
+            .subtract(const Duration(minutes: 5))
+            .toIso8601String();
+        final id = await store.saveSnapshot(
+          null,
+          (_) => SessionSnapshot(
+            snapshotId: '',
+            createdAt: stale,
+            updatedAt: stale,
+            heartbeatAt: stale,
+            status: 'pending',
+            state: SessionState(
+              sessionId: sessionId,
+              messages: [],
+              artifacts: [],
+            ),
+          ),
+        );
+
+        // Stored status is still `pending`.
+        final raw = await store.getSnapshot(snapshotId: id);
+        expect(raw!.status, 'pending');
+
+        // ...but a read through the agent surfaces it as `expired`.
+        final snapshot = await agent.getSnapshotData(snapshotId: id);
+        expect(snapshot!.status, 'expired');
+
+        // The expiry is read-only: the stored snapshot stays `pending`.
+        final after = await store.getSnapshot(snapshotId: id);
+        expect(after!.status, 'pending');
+      },
+    );
 
     test('getSnapshotData requires a store', () async {
       final agent = ai.defineCustomAgent(
@@ -269,10 +325,7 @@ void main() {
     });
 
     test('accumulates history across turns', () async {
-      final agent = ai.defineAgent(
-        name: 'assistant2',
-        model: modelRef('echo'),
-      );
+      final agent = ai.defineAgent(name: 'assistant2', model: modelRef('echo'));
 
       final chat = agent.chat();
       await chat.send(agentInputFromText('first'));

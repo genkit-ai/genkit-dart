@@ -25,42 +25,27 @@ void main() {
   group('json-patch', () {
     group('diff', () {
       test('returns an empty patch for equal values', () {
-        expect(
-          diff({'a': 1}, {'a': 1}),
-          <Map<String, dynamic>>[],
-        );
-        expect(
-          diff([1, 2], [1, 2]),
-          <Map<String, dynamic>>[],
-        );
+        expect(diff({'a': 1}, {'a': 1}), <Map<String, dynamic>>[]);
+        expect(diff([1, 2], [1, 2]), <Map<String, dynamic>>[]);
         expect(diff('x', 'x'), <Map<String, dynamic>>[]);
       });
 
       test('replaces a changed primitive member', () {
-        expect(
-          diff({'a': 1}, {'a': 2}),
-          [
-            {'op': 'replace', 'path': '/a', 'value': 2},
-          ],
-        );
+        expect(diff({'a': 1}, {'a': 2}), [
+          {'op': 'replace', 'path': '/a', 'value': 2},
+        ]);
       });
 
       test('adds a new member', () {
-        expect(
-          diff({'a': 1}, {'a': 1, 'b': 2}),
-          [
-            {'op': 'add', 'path': '/b', 'value': 2},
-          ],
-        );
+        expect(diff({'a': 1}, {'a': 1, 'b': 2}), [
+          {'op': 'add', 'path': '/b', 'value': 2},
+        ]);
       });
 
       test('removes a deleted member', () {
-        expect(
-          diff({'a': 1, 'b': 2}, {'a': 1}),
-          [
-            {'op': 'remove', 'path': '/b'},
-          ],
-        );
+        expect(diff({'a': 1, 'b': 2}, {'a': 1}), [
+          {'op': 'remove', 'path': '/b'},
+        ]);
       });
 
       test('diffs nested objects', () {
@@ -118,32 +103,23 @@ void main() {
       });
 
       test('emits a whole-document replace when the root type changes', () {
-        expect(
-          diff({'a': 1}, [1, 2]),
-          [
-            {
-              'op': 'replace',
-              'path': '',
-              'value': [1, 2],
-            },
-          ],
-        );
-        expect(
-          diff('hello', 42),
-          [
-            {'op': 'replace', 'path': '', 'value': 42},
-          ],
-        );
+        expect(diff({'a': 1}, [1, 2]), [
+          {
+            'op': 'replace',
+            'path': '',
+            'value': [1, 2],
+          },
+        ]);
+        expect(diff('hello', 42), [
+          {'op': 'replace', 'path': '', 'value': 42},
+        ]);
       });
 
       test('escapes JSON Pointer tokens (~ and /)', () {
-        expect(
-          diff({}, {'a/b': 1, 'c~d': 2}),
-          [
-            {'op': 'add', 'path': '/a~1b', 'value': 1},
-            {'op': 'add', 'path': '/c~0d', 'value': 2},
-          ],
-        );
+        expect(diff({}, {'a/b': 1, 'c~d': 2}), [
+          {'op': 'add', 'path': '/a~1b', 'value': 1},
+          {'op': 'add', 'path': '/c~0d', 'value': 2},
+        ]);
       });
 
       test('round-trips a variety of mutations', () {
@@ -176,13 +152,16 @@ void main() {
 
       test('applies a whole-document replace at the root', () {
         expect(
-          applyPatch({'a': 1}, [
-            {
-              'op': 'replace',
-              'path': '',
-              'value': {'b': 2},
-            },
-          ]),
+          applyPatch(
+            {'a': 1},
+            [
+              {
+                'op': 'replace',
+                'path': '',
+                'value': {'b': 2},
+              },
+            ],
+          ),
           {'b': 2},
         );
       });
@@ -206,50 +185,68 @@ void main() {
 
       test('treats removing a missing member as a no-op', () {
         expect(
-          applyPatch({'a': 1}, [
-            {'op': 'remove', 'path': '/missing'},
-          ]),
+          applyPatch(
+            {'a': 1},
+            [
+              {'op': 'remove', 'path': '/missing'},
+            ],
+          ),
           {'a': 1},
         );
       });
 
       test('honors test operations', () {
         expect(
-          applyPatch({'a': 1}, [
-            {'op': 'test', 'path': '/a', 'value': 1},
-          ]),
+          applyPatch(
+            {'a': 1},
+            [
+              {'op': 'test', 'path': '/a', 'value': 1},
+            ],
+          ),
           {'a': 1},
         );
         expect(
-          () => applyPatch({'a': 1}, [
-            {'op': 'test', 'path': '/a', 'value': 2},
-          ]),
+          () => applyPatch(
+            {'a': 1},
+            [
+              {'op': 'test', 'path': '/a', 'value': 2},
+            ],
+          ),
           throwsA(isA<StateError>()),
         );
       });
 
       test('supports move and copy', () {
         expect(
-          applyPatch({'a': 1}, [
-            {'op': 'move', 'from': '/a', 'path': '/b'},
-          ]),
+          applyPatch(
+            {'a': 1},
+            [
+              {'op': 'move', 'from': '/a', 'path': '/b'},
+            ],
+          ),
           {'b': 1},
         );
         expect(
-          applyPatch({'a': 1}, [
-            {'op': 'copy', 'from': '/a', 'path': '/b'},
-          ]),
+          applyPatch(
+            {'a': 1},
+            [
+              {'op': 'copy', 'from': '/a', 'path': '/b'},
+            ],
+          ),
           {'a': 1, 'b': 1},
         );
       });
 
       test('appends to arrays via the "-" token', () {
         expect(
-          applyPatch({
-            'items': [1],
-          }, [
-            {'op': 'add', 'path': '/items/-', 'value': 2},
-          ]),
+          applyPatch(
+            {
+              'items': [1],
+            },
+            [
+              {'op': 'add', 'path': '/items/-', 'value': 2},
+            ],
+          ),
           {
             'items': [1, 2],
           },
