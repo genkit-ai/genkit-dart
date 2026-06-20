@@ -321,9 +321,7 @@ class _BranchingPageState extends State<BranchingPage> {
           ),
         ]),
         li([
-          .text(
-            'On reload, the client reads the snapshot for the URL ',
-          ),
+          .text('On reload, the client reads the snapshot for the URL '),
           code([.text('snapshotId')]),
           .text(' to restore the conversation history.'),
         ]),
