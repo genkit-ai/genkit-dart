@@ -65,7 +65,6 @@ void main() async {
       }
     }
 
-
     final classGenerator = ClassGenerator(definitions);
     final generatedContent = classGenerator.generate(_allowlist);
 
@@ -171,4 +170,3 @@ const _allowlist = {
   'SessionState',
   'SnapshotEvent',
 };
-

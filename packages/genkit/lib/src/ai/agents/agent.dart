@@ -123,8 +123,9 @@ AgentErrorInfo _toErrorInfo(AgentErrorDetails details) => AgentErrorInfo(
 
 /// Builds an abort-aware [SnapshotMutator]: it skips the write (returns `null`)
 /// when the current snapshot was concurrently aborted, otherwise writes
-/// [input]. This prevents a "done"/"failed" write from clobbering an "aborted"
-/// status set by a concurrent abort.
+/// [input]. This prevents a "completed"/"failed" write from clobbering an
+/// "aborted" status set by a concurrent abort.
+
 SnapshotMutator _abortAwareMutator(SessionSnapshot input) {
   return (current) => current?.status == 'aborted' ? null : input;
 }
@@ -152,15 +153,45 @@ Future<String?> _abortSnapshotInStore(
   await store.saveSnapshot(snapshotId, (current) {
     if (current == null) return null;
     previousStatus = current.status;
-    if (current.status == 'done' ||
+    if (current.status == 'completed' ||
         current.status == 'failed' ||
         current.status == 'aborted') {
       return null; // Already terminal - don't override.
     }
+
     current.status = 'aborted';
     return current;
   });
   return previousStatus;
+}
+
+// ---------------------------------------------------------------------------
+// Heartbeat (detached run liveness).
+// ---------------------------------------------------------------------------
+
+/// Default interval at which a detached (background) turn refreshes its pending
+/// snapshot's heartbeat. Each beat is a write to the session store.
+const Duration _defaultHeartbeatInterval = Duration(seconds: 30);
+
+/// Default staleness threshold after which a `pending` snapshot whose heartbeat
+/// has not advanced is reported as `expired` on read. Comfortably larger than
+/// [_defaultHeartbeatInterval] so a single missed beat does not trip expiry.
+const Duration _defaultHeartbeatTimeout = Duration(seconds: 60);
+
+/// Returns `true` when [snapshot] is a `pending` (detached, in-flight) snapshot
+/// whose heartbeat is older than [timeout] - i.e. its background worker is
+/// presumed dead. A pending snapshot that has not yet written a first heartbeat
+/// is not considered expired (the beat may simply not have fired yet).
+bool _isHeartbeatExpired(
+  SessionSnapshot snapshot, [
+  Duration timeout = _defaultHeartbeatTimeout,
+]) {
+  if (snapshot.status != 'pending' || snapshot.heartbeatAt == null) {
+    return false;
+  }
+  final last = DateTime.tryParse(snapshot.heartbeatAt!);
+  if (last == null) return false;
+  return DateTime.now().toUtc().difference(last.toUtc()) > timeout;
 }
 
 // ---------------------------------------------------------------------------
@@ -306,9 +337,9 @@ class SessionRunner {
     Future<TurnResult?> Function(AgentInput input, TurnContext ctx) fn,
   ) async {
     await for (final input in inputCh) {
-      final inputMessages = input.messages;
-      if (inputMessages != null) {
-        session.addMessages(inputMessages);
+      final inputMessage = input.message;
+      if (inputMessage != null) {
+        session.addMessages([inputMessage]);
       }
 
       firstCustomPatchInTurn = true;
@@ -340,7 +371,7 @@ class SessionRunner {
 
           final snapshotId = await maybeSnapshot(
             SnapshotEvent.turnEnd,
-            status: 'done',
+            status: 'completed',
             snapshotId: turnSnapshotId,
             finishReason: finishReason,
           );
@@ -388,13 +419,14 @@ class SessionRunner {
       return null;
     }
 
+    final now = DateTime.now().toUtc().toIso8601String();
     final snapshotInput = SessionSnapshot(
       snapshotId: '',
-      createdAt: DateTime.now().toUtc().toIso8601String(),
-      event: SnapshotEvent.turnEnd,
+      createdAt: now,
+      updatedAt: now,
       state: lastGoodState!,
       parentId: _lastSnapshot?.snapshotId,
-      status: 'done',
+      status: 'completed',
       finishReason: _lastGoodFinishReason,
     );
 
@@ -449,13 +481,20 @@ class SessionRunner {
 
     final effectiveId = snapshotId ?? newSnapshotId;
 
+    // The `invocationEnd` write (the only caller that omits a status) persists
+    // as `completed` so it stays a valid resume target.
+    final now = DateTime.now().toUtc().toIso8601String();
     final snapshotInput = SessionSnapshot(
       snapshotId: effectiveId ?? '',
-      createdAt: DateTime.now().toUtc().toIso8601String(),
-      event: event,
+      createdAt: _lastSnapshot?.createdAt ?? now,
+      updatedAt: now,
+      // Stamp an initial heartbeat on a `pending` (detached, in-flight)
+      // snapshot. A background heartbeat loop refreshes it; if it goes stale
+      // the snapshot is reported as `expired` on read (worker presumed dead).
+      heartbeatAt: status == 'pending' ? now : null,
       state: currentState,
       parentId: _lastSnapshot?.snapshotId,
-      status: status,
+      status: status ?? 'completed',
       finishReason: finishReason,
       error: error != null ? _toErrorInfo(error) : null,
     );
@@ -655,9 +694,10 @@ void _pipeInputWithDetach(
             runner.onDetach?.call(turnSnapshotId);
           }
           final hasPayload =
-              (input.messages?.isNotEmpty ?? false) ||
+              input.message != null ||
               (input.resume?.restart?.isNotEmpty ?? false) ||
               (input.resume?.respond?.isNotEmpty ?? false);
+
           if (hasPayload) {
             target.add(input);
           }
@@ -891,6 +931,14 @@ Agent defineCustomAgent(
           final detachCompleter = Completer<void>();
           final cancelToken = CancellationToken();
           void Function()? unsubscribe;
+          // Background heartbeat timer for the detached snapshot. Started in
+          // `onDetach`, cleared when the flow settles (or on abort).
+          Timer? heartbeatTimer;
+          void stopHeartbeat() {
+            heartbeatTimer?.cancel();
+            heartbeatTimer = null;
+          }
+
           late SessionRunner runner;
 
           void emitChunk(AgentStreamChunk chunk) {
@@ -927,16 +975,41 @@ Agent defineCustomAgent(
               detachedSnapshotId = snapshotId;
               if (!detachCompleter.isCompleted) detachCompleter.complete();
 
+              // Refresh the detached snapshot's heartbeat periodically. The
+              // mutator only touches a still-`pending` snapshot (returns null
+              // otherwise) so it never resurrects a terminal snapshot or
+              // clobbers a concurrent abort. If a read sees this heartbeat go
+              // stale, the snapshot is reported as `expired` (worker presumed
+              // dead).
+              heartbeatTimer = Timer.periodic(_defaultHeartbeatInterval, (_) {
+                unawaited(
+                  resolvedStore
+                      .saveSnapshot(snapshotId, (current) {
+                        if (current?.status != 'pending') return null;
+                        current!.heartbeatAt = DateTime.now()
+                            .toUtc()
+                            .toIso8601String();
+                        return current;
+                      })
+                      .catchError((_) {
+                        // Best-effort heartbeat; ignore transient store errors.
+                        return null;
+                      }),
+                );
+              });
+
               if (resolvedStore is SnapshotChangeNotifier) {
                 unsubscribe = (resolvedStore as SnapshotChangeNotifier)
                     .onSnapshotStateChange(snapshotId, (snap) {
                       if (snap.status == 'aborted') {
+                        stopHeartbeat();
                         cancelToken.cancel();
                         unsubscribe?.call();
                       }
                     });
               }
             },
+
             onEndTurn: (snapshotId, finishReason) {
               if (!runner.isDetached) {
                 emitChunk(
@@ -1013,6 +1086,9 @@ Agent defineCustomAgent(
               );
               return (result: result, finalSnapshotId: finalSnapshotId);
             } finally {
+              // The turn has settled (the snapshot reached a terminal status),
+              // so stop refreshing its heartbeat.
+              stopHeartbeat();
               unsubscribe?.call();
               offArtifactAdded();
               offArtifactUpdated();
@@ -1049,6 +1125,7 @@ Agent defineCustomAgent(
               ),
             );
             return AgentOutput(
+              sessionId: session.sessionId,
               snapshotId: detachedSnapshotId,
               finishReason: AgentFinishReason.detached,
               state: config.store == null
@@ -1067,6 +1144,7 @@ Agent defineCustomAgent(
             final lastGood = runner.lastGoodState ?? session.getState();
             final lastGoodMessages = lastGood.messages;
             return AgentOutput(
+              sessionId: session.sessionId,
               finishReason: AgentFinishReason.failed,
               error: _toErrorInfo(runner.lastTurnError!),
               artifacts:
@@ -1088,6 +1166,7 @@ Agent defineCustomAgent(
               agentResult.finishReason ?? runner.lastTurnFinishReason;
 
           return AgentOutput(
+            sessionId: session.sessionId,
             artifacts:
                 (agentResult.artifacts != null &&
                     agentResult.artifacts!.isNotEmpty)
@@ -1096,6 +1175,7 @@ Agent defineCustomAgent(
             message: agentResult.message,
             finishReason: finishReason,
             snapshotId: config.store != null ? finalSnapshotId : null,
+
             state: config.store == null
                 ? toClientState(session.getState())
                 : null,
@@ -1121,7 +1201,15 @@ Agent defineCustomAgent(
       snapshotId: snapshotId,
       sessionId: sessionId,
     );
-    return snapshot != null ? toClientSnapshot(snapshot) : null;
+    if (snapshot == null) return null;
+    // Compute `expired` on read: a `pending` snapshot whose heartbeat has gone
+    // stale is presumed orphaned (its background worker died), so surface it as
+    // `expired` rather than leaving it `pending` forever. This is read-only -
+    // the status is not written back to the store.
+    final effective = _isHeartbeatExpired(snapshot)
+        ? (SessionSnapshot.fromJson(snapshot.toJson())..status = 'expired')
+        : snapshot;
+    return toClientSnapshot(effective);
   }
 
   Future<String?> runAbort(String snapshotId) async {

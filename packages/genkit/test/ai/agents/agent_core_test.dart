@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/ai/agents/agent_core.dart';
 import 'package:test/test.dart';
 
 /// A scripted transport: each turn returns the queued [_TurnScript].
@@ -71,8 +70,10 @@ class _TurnScript {
   Future<AgentOutput> outputOf() async => output;
 }
 
-Message _modelMessage(String text) =>
-    Message(role: Role.model, content: [TextPart(text: text)]);
+Message _modelMessage(String text) => Message(
+  role: Role.model,
+  content: [TextPart(text: text)],
+);
 
 AgentStreamChunk _textChunk(String text) => AgentStreamChunk(
   modelChunk: ModelResponseChunk(content: [TextPart(text: text)]),
@@ -189,10 +190,7 @@ void main() {
           output: AgentOutput(
             finishReason: AgentFinishReason.failed,
             state: SessionState(custom: {'last': 'good'}),
-            error: AgentErrorInfo(
-              status: 'INTERNAL',
-              message: 'boom',
-            ),
+            error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
           ),
         ),
       ], supportsRun: true);
@@ -235,10 +233,7 @@ void main() {
     test('aborts the tracked snapshot', () async {
       final transport = _FakeTransport([
         _TurnScript(
-          output: AgentOutput(
-            snapshotId: 's_z',
-            message: _modelMessage('hi'),
-          ),
+          output: AgentOutput(snapshotId: 's_z', message: _modelMessage('hi')),
         ),
       ], supportsRun: true);
       final chat = AgentApi(transport).chat();

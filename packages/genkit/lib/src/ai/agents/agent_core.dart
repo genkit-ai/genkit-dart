@@ -95,7 +95,7 @@ abstract class AgentTransport {
   Future<String?> abort(String snapshotId);
 }
 
-const Set<String> _terminalStatuses = {'done', 'failed', 'aborted'};
+const Set<String> _terminalStatuses = {'completed', 'failed', 'aborted'};
 
 // ---------------------------------------------------------------------------
 // Part-derived accessor helpers (mirroring generate).
@@ -214,8 +214,7 @@ class AgentResponse {
 
   dynamic get state => _raw.state?.custom;
 
-  List<Artifact> get artifacts =>
-      _raw.artifacts ?? _raw.state?.artifacts ?? [];
+  List<Artifact> get artifacts => _raw.artifacts ?? _raw.state?.artifacts ?? [];
 
   void assertValid() {
     if (finishReason == AgentFinishReason.blocked) {
@@ -353,9 +352,7 @@ class DetachedTask {
       last = snap;
     }
     if (last == null) {
-      throw StateError(
-        'Detached task $snapshotId did not produce a snapshot.',
-      );
+      throw StateError('Detached task $snapshotId did not produce a snapshot.');
     }
     return last;
   }
@@ -388,6 +385,11 @@ class AgentChat {
   final AgentInit? _connectInit;
 
   String? snapshotId;
+
+  /// The server-assigned session id, populated from each turn's
+  /// [AgentOutput.sessionId]. Lets a server-managed chat be resumed by
+  /// `sessionId` later.
+  String? sessionId;
   List<Message> messages = [];
   List<Artifact> artifacts = [];
 
@@ -442,6 +444,13 @@ class AgentChat {
     } else if (raw.message != null) {
       messages.add(raw.message!);
     }
+    // Adopt the server-assigned sessionId so future turns of a server-managed
+    // chat resume the same conversation.
+    final outSessionId = raw.sessionId;
+    if (outSessionId != null) {
+      sessionId = outSessionId;
+    }
+
     final stateArtifacts = raw.state?.artifacts;
     if (stateArtifacts != null) {
       artifacts = [...stateArtifacts];
@@ -493,16 +502,13 @@ class AgentChat {
   }
 
   /// Runs a single turn and resolves with the completed [AgentResponse].
-  Future<AgentResponse> send(
-    AgentInput input, {
-    CancellationToken? cancel,
-  }) {
+  Future<AgentResponse> send(AgentInput input, {CancellationToken? cancel}) {
     final token = cancel ?? CancellationToken();
     final runFuture = _transport.run(input, _buildInit(), cancel: token);
     if (runFuture != null) {
-      final inputMessages = input.messages;
-      if (inputMessages != null && inputMessages.isNotEmpty) {
-        messages.addAll(inputMessages);
+      final inputMessage = input.message;
+      if (inputMessage != null) {
+        messages.add(inputMessage);
       }
       return _buildResponse(runFuture, token);
     }
@@ -511,14 +517,11 @@ class AgentChat {
 
   /// Runs a single turn and returns an [AgentTurn] exposing `.stream` and
   /// `.response`.
-  AgentTurn sendStream(
-    AgentInput input, {
-    CancellationToken? cancel,
-  }) {
+  AgentTurn sendStream(AgentInput input, {CancellationToken? cancel}) {
     final token = cancel ?? CancellationToken();
-    final inputMessages = input.messages;
-    if (inputMessages != null && inputMessages.isNotEmpty) {
-      messages.addAll(inputMessages);
+    final inputMessage = input.message;
+    if (inputMessage != null) {
+      messages.add(inputMessage);
     }
     final init = _buildInit();
 
@@ -569,19 +572,14 @@ class AgentChat {
   }) => send(AgentInput(resume: resume), cancel: cancel);
 
   /// Streaming resume. Sugar for `sendStream` with only the resume params.
-  AgentTurn resumeStream(
-    AgentResume resume, {
-    CancellationToken? cancel,
-  }) => sendStream(AgentInput(resume: resume), cancel: cancel);
+  AgentTurn resumeStream(AgentResume resume, {CancellationToken? cancel}) =>
+      sendStream(AgentInput(resume: resume), cancel: cancel);
 
   /// Applies a streamed RFC 6902 JSON Patch to the locally tracked custom
   /// state, keeping [state] live as the turn streams.
   void _applyCustomPatch(List<JsonPatchOperation> patch) {
     final current = _clientState?.custom;
-    final next = applyPatch(
-      current,
-      patch.map((op) => op.toJson()).toList(),
-    );
+    final next = applyPatch(current, patch.map((op) => op.toJson()).toList());
     if (_clientState != null) {
       final json = Map<String, dynamic>.from(_clientState!.toJson());
       json['custom'] = next;
@@ -594,15 +592,16 @@ class AgentChat {
   /// Submits a detached (background) turn. Requires a store.
   Future<DetachedTask> detach(AgentInput input) async {
     final agentInput = AgentInput(
-      messages: input.messages,
+      message: input.message,
       resume: input.resume,
       detach: true,
     );
-    final inputMessages = agentInput.messages;
-    if (inputMessages != null && inputMessages.isNotEmpty) {
-      messages.addAll(inputMessages);
+    final inputMessage = agentInput.message;
+    if (inputMessage != null) {
+      messages.add(inputMessage);
     }
     final init = _buildInit();
+
     final token = CancellationToken();
     final turn = _transport.runTurn(agentInput, init, cancel: token);
     final raw = await turn.output;
@@ -656,11 +655,7 @@ class AgentApi {
 
   /// Starts a new chat, optionally attaching via [snapshotId] / [sessionId] /
   /// [state] (provide at most one).
-  AgentChat chat({
-    String? snapshotId,
-    String? sessionId,
-    SessionState? state,
-  }) {
+  AgentChat chat({String? snapshotId, String? sessionId, SessionState? state}) {
     if (snapshotId == null && sessionId == null && state == null) {
       return AgentChat(_transport);
     }
@@ -702,7 +697,8 @@ AgentApi createAgentApi(AgentTransport transport) => AgentApi(transport);
 
 /// Wraps `input` text into an [AgentInput] with a single user message.
 AgentInput agentInputFromText(String text) => AgentInput(
-  messages: [
-    Message(role: Role.user, content: [TextPart(text: text)]),
-  ],
+  message: Message(
+    role: Role.user,
+    content: [TextPart(text: text)],
+  ),
 );

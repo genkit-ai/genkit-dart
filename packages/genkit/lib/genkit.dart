@@ -61,6 +61,7 @@ export 'src/ai/agents/session.dart'
         SnapshotCallback,
         SnapshotChangeNotifier,
         SnapshotContext,
+        SnapshotEvent,
         SnapshotMutator,
         generateUuidV4,
         getCurrentSession,
