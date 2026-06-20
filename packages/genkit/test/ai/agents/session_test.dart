@@ -16,8 +16,10 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/agents/session.dart';
 import 'package:test/test.dart';
 
-Message _user(String text) =>
-    Message(role: Role.user, content: [TextPart(text: text)]);
+Message _user(String text) => Message(
+  role: Role.user,
+  content: [TextPart(text: text)],
+);
 
 SessionSnapshot _snapshot({
   required String snapshotId,
@@ -27,7 +29,6 @@ SessionSnapshot _snapshot({
   snapshotId: snapshotId,
   parentId: parentId,
   createdAt: DateTime.now().toIso8601String(),
-  event: SnapshotEvent.turnEnd,
   state: SessionState(sessionId: sessionId, messages: [], artifacts: []),
 );
 
@@ -64,8 +65,10 @@ void main() {
 
     test('isSnapshotId distinguishes snapshot ids from session ids', () {
       expect(isSnapshotId(generateUuidV4()), isFalse);
-      expect(isSnapshotId(reserveSnapshotId(sessionId: generateUuidV4())),
-          isTrue);
+      expect(
+        isSnapshotId(reserveSnapshotId(sessionId: generateUuidV4())),
+        isTrue,
+      );
     });
 
     test('assertValidSessionId rejects non-UUIDs', () {
@@ -95,7 +98,7 @@ void main() {
       final session = Session(SessionState(custom: {'count': 0}));
       var emitted = false;
       session.on('customChanged', (_) => emitted = true);
-      session.updateCustom((c) => {'count': (c['count'] as int) + 1});
+      session.updateCustom((c) => {'count': ((c as Map)['count'] as int) + 1});
       expect(session.getCustom(), {'count': 1});
       expect(emitted, isTrue);
     });
@@ -103,11 +106,20 @@ void main() {
     test('addArtifacts dedupes by name (update vs add)', () {
       final session = Session(SessionState(artifacts: []));
       session.addArtifacts([
-        Artifact(name: 'a', parts: [TextPart(text: 'v1')]),
+        Artifact(
+          name: 'a',
+          parts: [TextPart(text: 'v1')],
+        ),
       ]);
       session.addArtifacts([
-        Artifact(name: 'a', parts: [TextPart(text: 'v2')]),
-        Artifact(name: 'b', parts: [TextPart(text: 'b1')]),
+        Artifact(
+          name: 'a',
+          parts: [TextPart(text: 'v2')],
+        ),
+        Artifact(
+          name: 'b',
+          parts: [TextPart(text: 'b1')],
+        ),
       ]);
       final artifacts = session.getArtifacts();
       expect(artifacts.length, 2);
@@ -155,11 +167,8 @@ void main() {
       );
       final secondId = await store.saveSnapshot(
         null,
-        (_) => _snapshot(
-          snapshotId: '',
-          parentId: firstId,
-          sessionId: sessionId,
-        ),
+        (_) =>
+            _snapshot(snapshotId: '', parentId: firstId, sessionId: sessionId),
       );
 
       final leaf = await store.getSnapshot(sessionId: sessionId);
@@ -193,10 +202,7 @@ void main() {
 
     test('getSnapshot requires exactly one of snapshotId/sessionId', () async {
       final store = InMemorySessionStore();
-      expect(
-        () => store.getSnapshot(),
-        throwsA(isA<GenkitException>()),
-      );
+      expect(store.getSnapshot, throwsA(isA<GenkitException>()));
       expect(
         () => store.getSnapshot(snapshotId: 'x', sessionId: generateUuidV4()),
         throwsA(isA<GenkitException>()),

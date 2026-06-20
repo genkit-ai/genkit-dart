@@ -28,13 +28,14 @@ const typeOverrides = {
   // alias, and open `{}` schemas that should be `dynamic`.
   'AgentInput': {'resume': '\$AgentResume'},
   'AgentOutput': {'error': '\$AgentErrorInfo'},
-  'SessionSnapshot': {'error': '\$AgentErrorInfo'},
+  // `status` is a string-union on the wire (pending/completed/failed/aborted);
+  // keep it a plain `String` so the runtime can compare against literals.
+  'SessionSnapshot': {'error': '\$AgentErrorInfo', 'status': 'String'},
   'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
   'SessionState': {'custom': 'dynamic'},
   'JsonPatchOperation': {'value': 'dynamic'},
   'AgentErrorInfo': {'details': 'dynamic'},
 };
-
 
 class ClassGenerator {
   final Map<String, dynamic> definitions;
