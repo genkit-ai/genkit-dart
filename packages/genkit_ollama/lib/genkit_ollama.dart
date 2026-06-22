@@ -14,6 +14,12 @@
 
 export 'src/chat.dart' show OllamaChatOptions;
 export 'src/converters.dart' show GenkitConverter;
+export 'src/utils.dart'
+    show
+        embeddingDimensionsFromShow,
+        genericModelInfo,
+        isEmbedderShow,
+        modelInfoFromShow;
 
 /// Default plugin / namespace name used when no custom name is provided.
 const String defaultOllamaNamespace = 'ollama';
