@@ -13,6 +13,7 @@
 // limitations under the License.
 
 export 'src/chat.dart' show OllamaChatOptions;
+export 'src/converters.dart' show GenkitConverter;
 
 /// Default plugin / namespace name used when no custom name is provided.
 const String defaultOllamaNamespace = 'ollama';
