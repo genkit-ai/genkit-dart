@@ -73,13 +73,6 @@ Embedder createVertexEmbedder({
             : null;
 
         final embeddings = switch (_requestShapeFor(embedderName)) {
-          _VertexEmbedderRequestShape.geminiEmbedding =>
-            _runGeminiEmbeddingRequests(
-              service: service,
-              embedderName: embedderName,
-              docs: req.input,
-              options: options,
-            ),
           _VertexEmbedderRequestShape.multimodalPredict =>
             _runMultimodalPredictRequests(
               service: service,
@@ -108,83 +101,6 @@ Embedder createVertexEmbedder({
 
 String _documentText(DocumentData doc) {
   return doc.content.where((p) => p.isText).map((p) => p.text).join('\n');
-}
-
-google.EmbedContentRequest _embedContentRequest(
-  DocumentData doc,
-  google.TextEmbedderOptions? options,
-) {
-  final text = _documentText(doc);
-  return google.EmbedContentRequest(
-    content: google.Content(parts: [google.Part(text: text)]),
-    outputDimensionality: options?.outputDimensionality,
-    taskType: options?.taskType,
-    title: options?.title,
-  );
-}
-
-Future<List<Embedding>> _runGeminiEmbeddingRequests({
-  required google.GenerativeLanguageBaseClient service,
-  required String embedderName,
-  required List<DocumentData> docs,
-  required google.TextEmbedderOptions? options,
-}) async {
-  if (docs.length == 1) {
-    return [
-      await _runEmbedContentRequest(
-        service: service,
-        embedderName: embedderName,
-        doc: docs.single,
-        options: options,
-      ),
-    ];
-  }
-
-  final res = await service.batchEmbedContents(
-    google.BatchEmbedContentsRequest(
-      requests: docs.map((doc) => _embedContentRequest(doc, options)).toList(),
-    ),
-    model: 'models/$embedderName',
-  );
-  final embeddings = _requireBatchEmbeddings(
-    res.embeddings,
-    expectedCount: docs.length,
-  );
-  return embeddings
-      .map((embedding) => Embedding(embedding: embedding.values ?? const []))
-      .toList();
-}
-
-Future<Embedding> _runEmbedContentRequest({
-  required google.GenerativeLanguageBaseClient service,
-  required String embedderName,
-  required DocumentData doc,
-  required google.TextEmbedderOptions? options,
-}) async {
-  final res = await service.embedContent(
-    _embedContentRequest(doc, options),
-    model: 'models/$embedderName',
-  );
-  return Embedding(embedding: res.embedding?.values ?? []);
-}
-
-List<google.ContentEmbedding> _requireBatchEmbeddings(
-  List<google.ContentEmbedding>? embeddings, {
-  required int expectedCount,
-}) {
-  if (embeddings == null || embeddings.isEmpty) {
-    throw GenkitException(
-      'Vertex AI returned no embeddings.',
-      status: StatusCodes.INTERNAL,
-    );
-  }
-  if (embeddings.length != expectedCount) {
-    throw GenkitException(
-      'Vertex AI returned ${embeddings.length} embeddings for $expectedCount input documents.',
-      status: StatusCodes.INTERNAL,
-    );
-  }
-  return embeddings;
 }
 
 List<Map<String, dynamic>> _requirePredictions(
@@ -506,22 +422,14 @@ Embedding _embeddingFromMultimodalValues(
   );
 }
 
-String _baseModelName(String modelName) {
-  final atIndex = modelName.indexOf('@');
-  if (atIndex == -1) return modelName;
-  return modelName.substring(0, atIndex);
-}
-
 _VertexEmbedderRequestShape _requestShapeFor(String modelName) {
-  final baseModelName = _baseModelName(modelName);
-  final exactShape = _requestShapeByExactModel[baseModelName];
-  if (exactShape != null) return exactShape;
-
-  if (_isMultimodalEmbeddingFamily(baseModelName)) {
+  // Vertex AI exposes a single online embedding method: `:predict`. Multimodal
+  // models take a distinct instance/response shape; every other text and Gemini
+  // embedding model uses the text predict shape. (Vertex has no
+  // `:batchEmbedContents` method, and `:embedContent` accepts only one input,
+  // so `:predict` is the universal online path.)
+  if (_isMultimodalEmbeddingFamily(modelName)) {
     return _VertexEmbedderRequestShape.multimodalPredict;
-  }
-  if (_isGeminiEmbeddingFamily(baseModelName)) {
-    return _VertexEmbedderRequestShape.geminiEmbedding;
   }
   return _VertexEmbedderRequestShape.textPredict;
 }
@@ -529,14 +437,6 @@ _VertexEmbedderRequestShape _requestShapeFor(String modelName) {
 bool _isMultimodalEmbeddingFamily(String modelName) {
   return modelName.contains('multimodal') && modelName.contains('embedding');
 }
-
-bool _isGeminiEmbeddingFamily(String modelName) {
-  return modelName.startsWith('gemini-embedding-');
-}
-
-const _requestShapeByExactModel = {
-  'gemini-embedding-001': _VertexEmbedderRequestShape.textPredict,
-};
 
 class _MultimodalInstance {
   final Map<String, dynamic> instance;
@@ -554,8 +454,4 @@ class _MultimodalExpectedOutput {
 
 enum _MultimodalOutput { text, image, video }
 
-enum _VertexEmbedderRequestShape {
-  geminiEmbedding,
-  multimodalPredict,
-  textPredict,
-}
+enum _VertexEmbedderRequestShape { multimodalPredict, textPredict }

@@ -63,39 +63,6 @@ class MockHttpClient extends http.BaseClient {
         headers: {'content-type': 'application/json'},
       );
     }
-    if (request.url.path.endsWith('gemini-embedding-001:embedContent')) {
-      return http.StreamedResponse(
-        Stream.value(
-          utf8.encode(
-            '{"error": {"code": 400, "message": "Publisher Model `projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-001` is not supported in the embedContent API.", "status": "INVALID_ARGUMENT"}}',
-          ),
-        ),
-        400,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    if (request.url.path.endsWith(':batchEmbedContents')) {
-      final body = jsonDecode(requestBody!) as Map<String, dynamic>;
-      final requests = body['requests'] as List;
-      final embeddings = List.generate(
-        requests.length,
-        (index) => {
-          'values': [index + 0.1, index + 0.2, index + 0.3],
-        },
-      );
-      return http.StreamedResponse(
-        Stream.value(utf8.encode(jsonEncode({'embeddings': embeddings}))),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    if (request.url.path.endsWith(':embedContent')) {
-      return http.StreamedResponse(
-        Stream.value(utf8.encode('{"embedding": {"values": [0.1, 0.2, 0.3]}}')),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
     if (request.url.path.contains('multimodalembedding') &&
         request.url.path.endsWith(':predict')) {
       final body = jsonDecode(requestBody!) as Map<String, dynamic>;

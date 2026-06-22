@@ -40,15 +40,6 @@ class GenerativeLanguageBaseClient {
     return EmbedContentResponse.fromJson(res);
   }
 
-  Future<BatchEmbedContentsResponse> batchEmbedContents(
-    BatchEmbedContentsRequest request, {
-    required String model,
-  }) async {
-    final url = '$apiUrlPrefix$model:batchEmbedContents';
-    final res = await _call('POST', url, request.toJson());
-    return BatchEmbedContentsResponse.fromJson(res);
-  }
-
   Future<GenerateContentResponse> generateContent(
     GenerateContentRequest request, {
     required String model,

@@ -52,7 +52,7 @@ void main() {
       expect(customOptions['properties'], contains('taskType'));
     });
 
-    test('uses embedContent for a single Gemini preview input', () async {
+    test('uses predict for a single Gemini embedding input', () async {
       final mockClient = MockHttpClient();
       final plugin = VertexAiPluginImpl(
         projectId: 'my-project',
@@ -72,13 +72,17 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2-preview:embedContent',
+        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2-preview:predict',
       );
+      final requestBody =
+          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      final instances = requestBody['instances'] as List;
+      expect(instances, hasLength(1));
       expect(response.result.embeddings, hasLength(1));
-      expect(response.result.embeddings.first.embedding, [0.1, 0.2, 0.3]);
+      expect(response.result.embeddings.first.embedding, [0.4, 0.5, 0.6]);
     });
 
-    test('uses batchEmbedContents for multiple Gemini preview inputs', () async {
+    test('uses predict for multiple Gemini embedding inputs', () async {
       final mockClient = MockHttpClient();
       final plugin = VertexAiPluginImpl(
         projectId: 'my-project',
@@ -99,15 +103,23 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2-preview:batchEmbedContents',
+        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2-preview:predict',
+      );
+      // Vertex AI has no `:batchEmbedContents`; multi-input embedding goes
+      // through a single `:predict` call with multiple instances.
+      expect(
+        mockClient.requestUrls.where(
+          (url) => url.path.endsWith(':batchEmbedContents'),
+        ),
+        isEmpty,
       );
       final requestBody =
           jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
-      final requests = requestBody['requests'] as List;
-      expect(requests, hasLength(2));
+      final instances = requestBody['instances'] as List;
+      expect(instances, hasLength(2));
       expect(response.result.embeddings, hasLength(2));
-      expect(response.result.embeddings[0].embedding, [0.1, 0.2, 0.3]);
-      expect(response.result.embeddings[1].embedding, [1.1, 1.2, 1.3]);
+      expect(response.result.embeddings[0].embedding, [0.4, 0.5, 0.6]);
+      expect(response.result.embeddings[1].embedding, [1.4, 1.5, 1.6]);
     });
 
     test(

@@ -17,11 +17,4 @@ library;
 
 export 'src/api_client.dart';
 export 'src/common_plugin.dart';
-export 'src/generated/generativelanguage.dart'
-    show
-        BatchEmbedContentsRequest,
-        Content,
-        ContentEmbedding,
-        EmbedContentRequest,
-        Part;
 export 'src/model.dart';
