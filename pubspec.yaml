@@ -16,6 +16,7 @@ workspace:
   - packages/genkit_vertex_auth
   - packages/genkit_openai
   - packages/genkit_anthropic
+  - packages/genkit_ollama
   - packages/genkit_shelf
   - packages/genkit_chrome
   - packages/schemantic
@@ -76,7 +77,7 @@ melos:
     build-gen-plugins:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_openai}"
+        scope: "{genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_ollama,genkit_openai}"
       description: Run build_runner for plugins.
 
     build-gen-testapps:
