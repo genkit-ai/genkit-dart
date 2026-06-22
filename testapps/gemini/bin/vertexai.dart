@@ -389,4 +389,71 @@ void main(List<String> args) async {
       return embeddings.first.embedding;
     },
   );
+
+  // --- Embedding With Options Flow ---
+  // Per-request options are applied: a reduced output dimensionality and a task
+  // type. The returned vector has 256 dimensions instead of the model default.
+  ai.defineFlow(
+    name: 'embeddingWithOptions',
+    inputSchema: .string(defaultValue: 'Hello Genkit'),
+    outputSchema: .integer(),
+    fn: (input, _) async {
+      final embeddings = await ai.embedMany(
+        embedder: vertexAI.textEmbedding('gemini-embedding-001'),
+        documents: [
+          DocumentData(content: [TextPart(text: input)]),
+        ],
+        options: TextEmbedderOptions(
+          outputDimensionality: 256,
+          taskType: 'RETRIEVAL_DOCUMENT',
+        ),
+      );
+      return embeddings.first.embedding.length;
+    },
+  );
+
+  // --- Multimodal Embedding Flow ---
+  // `multimodalembedding` returns one embedding *per modality per document*, not
+  // one per document. The input below is a single document containing both the
+  // `caption` (text) and the `imageUri` (image), so it produces TWO embeddings
+  // and the flat result is not 1:1 with the input documents. Each embedding
+  // carries metadata (`documentIndex`, `modality`, ...) that callers use to map
+  // it back to its source. This flow returns that mapping so the shape is
+  // visible: e.g. [{modality: text, ...}, {modality: image, ...}].
+  // The default `imageUri` is a public Google sample (needs GCS read access);
+  // inline `data:` image URIs work too.
+  ai.defineFlow(
+    name: 'multimodalEmbedding',
+    inputSchema: MultimodalEmbeddingInput.$schema,
+    outputSchema: .list(.map(.string(), .dynamicSchema())),
+    fn: (input, _) async {
+      final uri = input.imageUri;
+      final contentType = uri.endsWith('.png')
+          ? 'image/png'
+          : uri.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
+
+      final embeddings = await ai.embedMany(
+        embedder: vertexAI.textEmbedding('multimodalembedding'),
+        documents: [
+          DocumentData(
+            content: [
+              TextPart(text: input.caption),
+              MediaPart(
+                media: Media(url: uri, contentType: contentType),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      // Return each embedding's full metadata (documentIndex, modality,
+      // partIndex/partIndices, segmentIndex, ...) plus its dimension count so
+      // the per-modality mapping is visible end to end.
+      return embeddings
+          .map((e) => {...?e.metadata, 'dimensions': e.embedding.length})
+          .toList();
+    },
+  );
 }

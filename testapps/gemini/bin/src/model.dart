@@ -65,3 +65,20 @@ abstract class $CharacterProfile {
   String get bio;
   int get age;
 }
+
+@Schema()
+abstract class $MultimodalEmbeddingInput {
+  @StringField(
+    description: 'Text to embed alongside the image.',
+    defaultValue: 'a plate of scones',
+  )
+  String get caption;
+
+  @StringField(
+    description:
+        'gs:// (or data:) URI of an image to embed as a separate modality '
+        'from the caption.',
+    defaultValue: 'gs://cloud-samples-data/generative-ai/image/scones.jpg',
+  )
+  String get imageUri;
+}
