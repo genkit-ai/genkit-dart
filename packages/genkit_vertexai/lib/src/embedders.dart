@@ -22,13 +22,12 @@ List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
   required List<dynamic> publisherModels,
 }) {
   return publisherModels
-      .where((m) {
-        final modelMap = m as Map<String, dynamic>;
+      .whereType<Map>()
+      .where((modelMap) {
         final name = modelMap['name'] as String?;
         return name != null && name.contains('embedding');
       })
-      .map((m) {
-        final modelMap = m as Map<String, dynamic>;
+      .map((modelMap) {
         final modelName = (modelMap['name'] as String).split('/').last;
         return _vertexEmbedderMetadata('$pluginName/$modelName');
       })
@@ -121,13 +120,13 @@ List<Map<String, dynamic>> _requirePredictions(
   }
 
   return rawPredictions.map((prediction) {
-    if (prediction is! Map<String, dynamic>) {
+    if (prediction is! Map) {
       throw GenkitException(
         'Vertex AI returned an invalid prediction payload.',
         status: StatusCodes.INTERNAL,
       );
     }
-    return prediction;
+    return prediction.cast<String, dynamic>();
   }).toList();
 }
 
@@ -160,10 +159,11 @@ Future<List<Embedding>> _runMultimodalPredictRequests({
       _toMultimodalInstance(docs[i], documentIndex: i),
   ];
   final parameters = <String, dynamic>{};
-  if (options?.outputDimensionality != null) {
+  final outputDimensionality = options?.outputDimensionality;
+  if (outputDimensionality != null) {
     // Multimodal predict expects `parameters.dimension`, not
     // `outputDimensionality`.
-    parameters['dimension'] = options!.outputDimensionality;
+    parameters['dimension'] = outputDimensionality;
   }
 
   final res = await service.predict({
@@ -191,20 +191,23 @@ Future<List<Embedding>> _runTextPredictRequests({
   required google.TextEmbedderOptions? options,
 }) async {
   // Older text embedders still use the predict payload shape.
+  final title = options?.title;
+  final taskType = options?.taskType;
   final instances = docs.map((doc) {
     final instance = <String, dynamic>{'content': _documentText(doc)};
-    if (options?.title != null) {
-      instance['title'] = options!.title;
+    if (title != null) {
+      instance['title'] = title;
     }
-    if (options?.taskType != null) {
-      instance['task_type'] = options!.taskType;
+    if (taskType != null) {
+      instance['task_type'] = taskType;
     }
     return instance;
   }).toList();
 
   final parameters = <String, dynamic>{};
-  if (options?.outputDimensionality != null) {
-    parameters['outputDimensionality'] = options!.outputDimensionality;
+  final outputDimensionality = options?.outputDimensionality;
+  if (outputDimensionality != null) {
+    parameters['outputDimensionality'] = outputDimensionality;
   }
 
   final res = await service.predict({
@@ -221,9 +224,7 @@ Future<List<Embedding>> _runTextPredictRequests({
 
 Embedding _textPredictionEmbedding(Map<String, dynamic> prediction) {
   final embeddingData = prediction['embeddings'];
-  final values = embeddingData is Map<String, dynamic>
-      ? embeddingData['values']
-      : null;
+  final values = embeddingData is Map ? embeddingData['values'] : null;
   if (values is! List) {
     throw GenkitException(
       'Vertex AI returned an invalid prediction payload.',
@@ -265,9 +266,10 @@ _MultimodalInstance _toMultimodalInstance(
 
   for (var i = 0; i < doc.content.length; i++) {
     final part = doc.content[i];
-    if (!part.isMedia) continue;
+    final media = part.media;
+    if (!part.isMedia || media == null) continue;
 
-    final mediaField = _toMultimodalMediaField(part.media!);
+    final mediaField = _toMultimodalMediaField(media);
     if (instance.containsKey(mediaField.key)) {
       throw GenkitException(
         'Vertex multimodalembedding supports at most one ${mediaField.key} part per input document.',
@@ -400,7 +402,13 @@ List<Embedding> _multimodalPredictionEmbeddings(
         }
 
         for (var i = 0; i < videoEmbeddings.length; i++) {
-          final videoEmbedding = videoEmbeddings[i] as Map<String, dynamic>;
+          final videoEmbedding = videoEmbeddings[i];
+          if (videoEmbedding is! Map) {
+            throw GenkitException(
+              'Vertex multimodalembedding returned an invalid video embedding.',
+              status: StatusCodes.INTERNAL,
+            );
+          }
           embeddings.add(
             _embeddingFromMultimodalValues(
               videoEmbedding['embedding'] as List?,
