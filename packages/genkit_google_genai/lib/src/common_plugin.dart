@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
@@ -23,6 +24,7 @@ import 'aggregation.dart';
 import 'api_client.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
+import 'veo.dart';
 
 final logger = Logger('genkit_google_genai');
 
@@ -189,6 +191,14 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return createEmbedder(name);
     }
     if (actionType == 'model') {
+      if (name.startsWith('veo-')) {
+        return createVeoModel(
+          pluginName: this.name,
+          modelName: name,
+          getApiClient: getApiClient,
+          handleException: handleException,
+        );
+      }
       if (name.contains('-tts')) {
         return createModel(name, GeminiTtsOptions.$schema);
       }

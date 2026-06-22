@@ -19,6 +19,7 @@ import 'api_client.dart';
 import 'common_plugin.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
+import 'veo.dart';
 
 @visibleForTesting
 class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
@@ -54,12 +55,21 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       final models = (modelsResponse.models ?? [])
           .where((model) {
             return model.name != null &&
-                model.name!.startsWith('models/gemini-');
+                (model.name!.startsWith('models/gemini-') ||
+                    model.name!.startsWith('models/veo-'));
           })
           .map((model) {
+            final shortName = model.name!.split('/').last;
+            if (shortName.startsWith('veo-')) {
+              return modelMetadata(
+                '$name/$shortName',
+                customOptions: VeoOptions.$schema,
+                modelInfo: veoModelInfo,
+              );
+            }
             final isTts = model.name!.contains('-tts');
             return modelMetadata(
-              '$name/${model.name!.split('/').last}',
+              '$name/$shortName',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
@@ -75,7 +85,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
                     model.name!.startsWith('models/embedding-')),
           )
           .map((model) {
-            return embedderMetadata('$name/${model.name!.split('/').last}');
+            return createEmbedder(model.name!.split('/').last);
           })
           .toList();
       return [...models, ...embedders];
@@ -92,6 +102,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   Embedder createEmbedder(String embedderName) {
     return Embedder(
       name: '$name/$embedderName',
+      customOptions: TextEmbedderOptions.$schema,
       fn: (req, ctx) async {
         if (req == null || req.input.isEmpty) {
           return EmbedResponse(embeddings: []);
