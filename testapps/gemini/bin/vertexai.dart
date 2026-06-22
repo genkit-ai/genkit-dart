@@ -20,6 +20,26 @@ import 'package:genkit_vertexai/genkit_vertexai.dart';
 
 import 'src/model.dart';
 
+const _vertexAiTunedModelEndpointIdEnvVar = 'VERTEX_AI_TUNED_MODEL_ENDPOINT_ID';
+
+String _vertexAiTunedModelEndpointId() {
+  final endpointId = Platform.environment[_vertexAiTunedModelEndpointIdEnvVar];
+  if (endpointId == null || endpointId.isEmpty) {
+    throw StateError(
+      'Set $_vertexAiTunedModelEndpointIdEnvVar to an endpoint ID or '
+      'endpoints/ENDPOINT_ID to test Vertex AI tuned model flows.',
+    );
+  }
+  return endpointId;
+}
+
+String _vertexAiTunedModelName() {
+  final endpointId = _vertexAiTunedModelEndpointId();
+  return endpointId.startsWith('endpoints/')
+      ? endpointId
+      : 'endpoints/$endpointId';
+}
+
 void main(List<String> args) async {
   final ai = Genkit(
     plugins: [
@@ -39,6 +59,150 @@ void main(List<String> args) async {
       final response = await ai.generate(
         model: vertexAI.gemini('gemini-flash-latest'),
         prompt: input,
+      );
+      return response.text;
+    },
+  );
+
+  // --- Tuned Model Flow ---
+  ai.defineFlow(
+    name: 'tunedModelGenerate',
+    inputSchema: .string(defaultValue: 'Hello from a Vertex AI tuned model!'),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: vertexAI.tunedModel(_vertexAiTunedModelEndpointId()),
+        prompt: prompt,
+        config: GeminiOptions(maxOutputTokens: 256, temperature: 0.2),
+      );
+      return response.text;
+    },
+  );
+
+  // --- Tuned Model Resolution Flow ---
+  ai.defineFlow(
+    name: 'tunedModelResolveGenerate',
+    inputSchema: .string(
+      defaultValue:
+          'Confirm this endpoint resolves through the model registry.',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: modelRef(
+          'vertexai/${_vertexAiTunedModelName()}',
+          customOptions: GeminiOptions.$schema,
+        ),
+        prompt: prompt,
+        config: GeminiOptions(maxOutputTokens: 256, temperature: 0.2),
+      );
+      return response.text;
+    },
+  );
+
+  // --- Tuned Model Streaming Flow ---
+  ai.defineFlow(
+    name: 'tunedModelStreaming',
+    inputSchema: .string(
+      defaultValue: 'Stream a short greeting from this tuned model.',
+    ),
+    outputSchema: .string(),
+    streamSchema: .string(),
+    fn: (prompt, ctx) async {
+      final stream = ai.generateStream(
+        model: vertexAI.tunedModel(_vertexAiTunedModelEndpointId()),
+        prompt: prompt,
+        config: GeminiOptions(maxOutputTokens: 256, temperature: 0.2),
+      );
+
+      await for (final chunk in stream) {
+        if (ctx.streamingRequested) {
+          ctx.sendChunk(chunk.text);
+        }
+      }
+
+      return (await stream.onResult).text;
+    },
+  );
+
+  // --- Tuned Model Summarization Flow ---
+  ai.defineFlow(
+    name: 'tunedModelSummarize',
+    inputSchema: .string(
+      defaultValue:
+          'Genkit helps developers build AI-powered applications by providing '
+          'model plugins, flows, tools, streaming, and structured output in a '
+          'single framework. Summarize this for a teammate.',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: vertexAI.tunedModel(_vertexAiTunedModelEndpointId()),
+        prompt: 'Summarize this in 3 concise bullets:\n\n$prompt',
+        config: GeminiOptions(maxOutputTokens: 256, temperature: 0.2),
+      );
+      return response.text;
+    },
+  );
+
+  // --- Tuned Model Comparison Flow ---
+  ai.defineFlow(
+    name: 'tunedModelCompareBase',
+    inputSchema: .string(
+      defaultValue:
+          'Explain why endpoint support matters for Vertex AI tuned models.',
+    ),
+    outputSchema: .map(.string(), .string()),
+    fn: (prompt, _) async {
+      final baseResponse = await ai.generate(
+        model: vertexAI.gemini('gemini-2.5-flash-lite'),
+        prompt: prompt,
+        config: GeminiOptions(maxOutputTokens: 256, temperature: 0.2),
+      );
+      final tunedResponse = await ai.generate(
+        model: vertexAI.tunedModel(_vertexAiTunedModelEndpointId()),
+        prompt: prompt,
+        config: GeminiOptions(maxOutputTokens: 256, temperature: 0.2),
+      );
+      return {'base': baseResponse.text, 'tuned': tunedResponse.text};
+    },
+  );
+
+  // --- Tuned Model Multi-turn Flow ---
+  ai.defineFlow(
+    name: 'tunedModelMultiTurn',
+    inputSchema: .string(defaultValue: 'Now make that answer more concise.'),
+    outputSchema: .string(),
+    fn: (followUp, _) async {
+      final response = await ai.generate(
+        model: vertexAI.tunedModel(_vertexAiTunedModelEndpointId()),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              TextPart(
+                text:
+                    'Summarize why Genkit flows are useful for testing model '
+                    'integrations.',
+              ),
+            ],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              TextPart(
+                text:
+                    'Genkit flows provide repeatable entry points for manual '
+                    'and automated model testing.',
+              ),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: followUp)],
+          ),
+        ],
+        config: GeminiOptions(maxOutputTokens: 256, temperature: 0.2),
       );
       return response.text;
     },

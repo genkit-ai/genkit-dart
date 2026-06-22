@@ -20,13 +20,24 @@ import 'package:meta/meta.dart';
 
 import 'auth.dart';
 
+const _vertexApiVersion = 'v1beta1';
+
+@visibleForTesting
+const vertexApiVersion = _vertexApiVersion;
+
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? projectId;
   String? location;
   http.Client? authClient;
+  List<String> tunedModelEndpoints;
 
-  VertexAiPluginImpl({this.projectId, this.location, this.authClient});
+  VertexAiPluginImpl({
+    this.projectId,
+    this.location,
+    this.authClient,
+    this.tunedModelEndpoints = const [],
+  });
 
   String? _resolvedProjectId;
   String get _getResolvedProjectId =>
@@ -40,10 +51,10 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   String get name => 'vertexai';
 
-  @override
-  Future<GenerativeLanguageBaseClient> getApiClient([
-    String? requestApiKey,
-  ]) async {
+  Future<GenerativeLanguageBaseClient> _createVertexApiClient({
+    String apiVersion = _vertexApiVersion,
+    String pathSuffix = '',
+  }) async {
     final validFormat = RegExp(r'^[a-z0-9-]+$');
     final resolvedProjectId = _getResolvedProjectId;
     final resolvedLocation = location ?? 'global';
@@ -61,7 +72,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         ? 'https://aiplatform.googleapis.com/'
         : 'https://$safeLocation-aiplatform.googleapis.com/';
     final apiUrlPrefix =
-        'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
+        '$apiVersion/projects/$safeProjectId/locations/$safeLocation/$pathSuffix';
 
     final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
     final customClient = CustomClient(
@@ -75,6 +86,29 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       client: client,
       apiUrlPrefix: apiUrlPrefix,
     );
+  }
+
+  @override
+  Future<GenerativeLanguageBaseClient> getApiClient([
+    String? requestApiKey,
+  ]) async {
+    return _createVertexApiClient(pathSuffix: 'publishers/google/');
+  }
+
+  Future<GenerativeLanguageBaseClient> getEndpointApiClient() async {
+    return _createVertexApiClient();
+  }
+
+  @override
+  Future<GenerativeLanguageBaseClient> clientForModel(
+    String modelName,
+    String? apiKey, {
+    String? apiModelName,
+  }) {
+    if (apiModelName?.startsWith('endpoints/') == true) {
+      return getEndpointApiClient();
+    }
+    return getApiClient(apiKey);
   }
 
   @override
@@ -122,7 +156,17 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           })
           .toList();
 
-      return [...models, ...embedders];
+      final tunedModels = tunedModelEndpoints
+          .map(
+            (endpointName) => modelMetadata(
+              _endpointActionName(endpointName),
+              customOptions: GeminiOptions.$schema,
+              modelInfo: commonModelInfo,
+            ),
+          )
+          .toList();
+
+      return [...models, ...tunedModels, ...embedders];
     } catch (e, stack) {
       if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
@@ -190,4 +234,33 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       },
     );
   }
+
+  Model createTunedModel(String endpointName) {
+    final endpointId = _endpointId(endpointName);
+    final safeEndpointId = Uri.encodeComponent(endpointId);
+    return createModel(
+      endpointId,
+      GeminiOptions.$schema,
+      actionName: 'endpoints/$endpointId',
+      apiModelName: 'endpoints/$safeEndpointId',
+    );
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && name.startsWith('endpoints/')) {
+      return createTunedModel(name);
+    }
+    return super.resolve(actionType, name);
+  }
+}
+
+String _endpointId(String endpointName) {
+  return endpointName.startsWith('endpoints/')
+      ? endpointName.substring('endpoints/'.length)
+      : endpointName;
+}
+
+String _endpointActionName(String endpointName) {
+  return 'vertexai/endpoints/${_endpointId(endpointName)}';
 }

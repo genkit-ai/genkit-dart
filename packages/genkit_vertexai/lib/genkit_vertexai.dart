@@ -41,15 +41,24 @@ class VertexAiPluginHandle {
     String? projectId,
     String? location,
     http.Client? authClient,
+    List<String> tunedModelEndpoints = const [],
   }) {
     return VertexAiPluginImpl(
       projectId: projectId,
       location: location,
       authClient: authClient,
+      tunedModelEndpoints: tunedModelEndpoints,
     );
   }
 
   ModelRef<GeminiOptions> gemini(String name) {
+    return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
+  }
+
+  ModelRef<GeminiOptions> tunedModel(String endpointId) {
+    final name = endpointId.startsWith('endpoints/')
+        ? endpointId
+        : 'endpoints/$endpointId';
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
   }
 

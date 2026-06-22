@@ -15,6 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_vertexai/genkit_vertexai.dart';
 
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
@@ -75,7 +76,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://us-central1-aiplatform.googleapis.com/$vertexApiVersion/projects/my-project/locations/us-central1/publishers/google/models/gemini-1.5-pro:generateContent',
       );
     });
 
@@ -102,8 +103,64 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://aiplatform.googleapis.com/$vertexApiVersion/projects/my-project/locations/global/publishers/google/models/gemini-1.5-pro:generateContent',
       );
+    });
+
+    test('uses tuned model endpoint path', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final model = plugin.resolve('model', 'endpoints/123456789') as Action;
+      final req = ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+      );
+
+      await model.run(req);
+
+      expect(mockClient.lastUrl, isNotNull);
+      expect(
+        mockClient.lastUrl.toString(),
+        'https://us-central1-aiplatform.googleapis.com/$vertexApiVersion/projects/my-project/locations/us-central1/endpoints/123456789:generateContent',
+      );
+    });
+
+    test('creates tuned model refs under endpoints path', () {
+      expect(
+        vertexAI.tunedModel('123456789').name,
+        'vertexai/endpoints/123456789',
+      );
+      expect(
+        vertexAI.tunedModel('endpoints/123456789').name,
+        'vertexai/endpoints/123456789',
+      );
+    });
+
+    test('lists configured tuned model endpoint refs', () async {
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: MockHttpClient(),
+        tunedModelEndpoints: ['123456789', 'endpoints/987654321'],
+      );
+
+      final actions = await plugin.list();
+      final modelNames = actions
+          .where((action) => action.actionType == 'model')
+          .map((action) => action.name)
+          .toList();
+
+      expect(modelNames, contains('vertexai/endpoints/123456789'));
+      expect(modelNames, contains('vertexai/endpoints/987654321'));
     });
   });
 }
