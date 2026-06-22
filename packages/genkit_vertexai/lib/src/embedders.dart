@@ -131,13 +131,30 @@ List<Map<String, dynamic>> _requirePredictions(
   }).toList();
 }
 
+/// Embeds [docs] with a multimodal model (e.g. `multimodalembedding`), which
+/// uses a different `:predict` request and response shape than text embedders.
+///
+/// Unlike text embedders, a multimodal model returns **one embedding per
+/// modality per document**, not one per document: a document with both text and
+/// an image yields two embeddings, and a video yields one embedding per segment.
+/// The returned `List<Embedding>` is therefore **not** positionally aligned with
+/// [docs]; callers must group by the `documentIndex` metadata rather than zip by
+/// list index.
+///
+/// Each returned [Embedding] carries metadata identifying its source:
+/// - `documentIndex`: index into [docs] this embedding came from.
+/// - `modality`: `'text'`, `'image'`, or `'video'`.
+/// - `partIndex` (image/video): index of the source [Part] within the document.
+/// - `partIndices` (text): indices of the non-empty text parts that were
+///   concatenated into the embedded text.
+/// - `segmentIndex` (video): the segment ordinal, plus `startOffsetSec` /
+///   `endOffsetSec` when the API returns them.
 Future<List<Embedding>> _runMultimodalPredictRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required List<DocumentData> docs,
   required google.TextEmbedderOptions? options,
 }) async {
-  // Multimodal embedders use a different predict request and response shape.
   final instances = [
     for (var i = 0; i < docs.length; i++)
       _toMultimodalInstance(docs[i], documentIndex: i),
