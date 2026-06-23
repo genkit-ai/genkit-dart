@@ -145,7 +145,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   final fac.FirebaseAppCheck? _appCheck;
   final fauth.FirebaseAuth? _auth;
   final bool? _useLimitedUseAppCheckTokens;
-  final FirebaseAiProvider provider;
+  final FirebaseAiProvider _provider;
 
   @override
   String get name => 'firebaseai';
@@ -155,14 +155,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     fac.FirebaseAppCheck? appCheck,
     fauth.FirebaseAuth? auth,
     bool? useLimitedUseAppCheckTokens,
-    this.provider = const FirebaseAiProvider.googleAI(),
+    FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
   }) : _app = app,
        _appCheck = appCheck,
        _auth = auth,
-       _useLimitedUseAppCheckTokens = useLimitedUseAppCheckTokens;
+       _useLimitedUseAppCheckTokens = useLimitedUseAppCheckTokens,
+       _provider = provider;
 
-  fai.FirebaseAI _getFirebaseAI() {
-    return switch (provider) {
+  fai.FirebaseAI get _firebaseAI {
+    return switch (_provider) {
       _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
         app: _app,
         appCheck: _appCheck,
@@ -207,8 +208,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
-        final instance = _getFirebaseAI();
-        final model = instance.generativeModel(
+        final model = _firebaseAI.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
             options,
@@ -336,8 +336,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               ?.toDouble(),
         );
 
-        final instance = _getFirebaseAI();
-        final model = instance.liveGenerativeModel(
+        final model = _firebaseAI.liveGenerativeModel(
           model: modelName,
           liveGenerationConfig: liveConfig,
           tools: tools,
