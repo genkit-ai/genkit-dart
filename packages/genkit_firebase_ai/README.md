@@ -33,8 +33,8 @@ final firebasePlugin = firebaseAI(
   app: Firebase.app('my-app'),
   appCheck: FirebaseAppCheck.instanceFor(app: Firebase.app('my-app')),
   auth: FirebaseAuth.instanceFor(app: Firebase.app('my-app')),
-  useLimitedUseAppCheckTokens: true,
   provider: FirebaseAiProvider.vertexAI(location: 'us-central1'),
+  useLimitedUseAppCheckTokens: true,
 );
 
 final ai = Genkit(plugins: [firebasePlugin]);
