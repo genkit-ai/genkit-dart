@@ -47,6 +47,26 @@ SessionSnapshot _cloneSnapshot(SessionSnapshot snapshot) =>
       _deepClone(snapshot.toJson()) as Map<String, dynamic>,
     );
 
+/// Decodes a stored JSON list into typed values via [fromJson], treating a
+/// missing/null entry as an empty list.
+List<T> _decodeJsonList<T>(
+  Object? raw,
+  T Function(Map<String, dynamic>) fromJson,
+) =>
+    (raw as List?)?.map((e) => fromJson(e as Map<String, dynamic>)).toList() ??
+    [];
+
+/// Registers [callback] under [key] in [listeners], returning an unsubscribe
+/// function that removes exactly that registration.
+void Function() _addListener<T>(
+  Map<String, List<T>> listeners,
+  String key,
+  T callback,
+) {
+  (listeners[key] ??= []).add(callback);
+  return () => listeners[key]?.remove(callback);
+}
+
 /// The lifecycle event that triggered a snapshot.
 ///
 /// Mirrors the JS `SnapshotEventSchema` (`'turnEnd'` | `'invocationEnd'`). It
@@ -174,12 +194,8 @@ class Session {
 
   /// Subscribes to a session [event] (`'customChanged'`, `'artifactAdded'`,
   /// `'artifactUpdated'`). Returns an unsubscribe function.
-  void Function() on(String event, void Function(Object? arg) callback) {
-    (_listeners[event] ??= []).add(callback);
-    return () {
-      _listeners[event]?.remove(callback);
-    };
-  }
+  void Function() on(String event, void Function(Object? arg) callback) =>
+      _addListener(_listeners, event, callback);
 
   void _emit(String event, [Object? arg]) {
     final callbacks = _listeners[event];
@@ -195,10 +211,7 @@ class Session {
 
   /// Retrieves all messages associated with the session.
   List<Message> getMessages() =>
-      (_json['messages'] as List?)
-          ?.map((e) => Message.fromJson(e as Map<String, dynamic>))
-          .toList() ??
-      [];
+      _decodeJsonList(_json['messages'], Message.fromJson);
 
   /// Appends a list of messages to the session.
   void addMessages(List<Message> messages) {
@@ -225,10 +238,7 @@ class Session {
 
   /// Retrieves the list of artifacts generated during the session.
   List<Artifact> getArtifacts() =>
-      (_json['artifacts'] as List?)
-          ?.map((e) => Artifact.fromJson(e as Map<String, dynamic>))
-          .toList() ??
-      [];
+      _decodeJsonList(_json['artifacts'], Artifact.fromJson);
 
   /// Adds artifacts to the session, deduplicating items by name.
   ///
@@ -354,13 +364,7 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
     final result = mutator(current != null ? _cloneSnapshot(current) : null);
     if (result == null) return null;
 
-    // Determine the final ID. The runtime normally supplies a snapshotId, but
-    // fall back to a fresh UUID for direct store users who omit it.
-    final resultId = result.snapshotId;
-    final id = (snapshotId != null && snapshotId.isNotEmpty)
-        ? snapshotId
-        : (resultId.isNotEmpty ? resultId : generateUuidV4());
-
+    final id = resolveSnapshotId(snapshotId, result);
     result.snapshotId = id;
     _snapshots[id] = _cloneSnapshot(result);
 
@@ -378,12 +382,7 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
     String snapshotId,
     void Function(SessionSnapshot snapshot) callback, {
     Map<String, dynamic>? context,
-  }) {
-    (_listeners[snapshotId] ??= []).add(callback);
-    return () {
-      _listeners[snapshotId]?.remove(callback);
-    };
-  }
+  }) => _addListener(_listeners, snapshotId, callback);
 }
 
 // ---------------------------------------------------------------------------
@@ -413,6 +412,17 @@ void assertValidSessionId(String sessionId) {
 /// end reuse that very id, or the detach path which pre-reserves the in-flight
 /// snapshot's id.
 String reserveSnapshotId() => generateUuidV4();
+
+/// Resolves the id a snapshot should be stored under.
+///
+/// The runtime normally supplies a [requestedId], but direct store users may
+/// omit it; in that case we reuse the id already on [result] (if any) and
+/// otherwise mint a fresh UUID.
+String resolveSnapshotId(String? requestedId, SessionSnapshot result) {
+  if (requestedId != null && requestedId.isNotEmpty) return requestedId;
+  final resultId = result.snapshotId;
+  return resultId.isNotEmpty ? resultId : generateUuidV4();
+}
 
 /// Returns the sessionId a snapshot belongs to, preferring the top-level
 /// `sessionId` and falling back to `state.sessionId`.
