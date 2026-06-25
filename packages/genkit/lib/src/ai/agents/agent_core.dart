@@ -441,7 +441,6 @@ class AgentChat {
   }
 
   /// Loads aggregates from a server snapshot (used by `loadChat`).
-
   void loadFromSnapshot(SessionSnapshot snapshot) {
     snapshotId = snapshot.snapshotId;
     _hydrateFromState(snapshot.state);
@@ -536,12 +535,7 @@ class AgentChat {
       messages.removeRange(messageCountBeforeTurn, messages.length);
     }
     _applyOutput(raw);
-    final response = AgentResponse(
-      raw,
-      [...messages],
-      () => state,
-      () => sessionId,
-    );
+    final response = _response(raw);
     if (raw.finishReason == AgentFinishReason.failed) {
       throw AgentError(
         message: raw.error?.message ?? 'Agent turn failed.',
@@ -593,15 +587,16 @@ class AgentChat {
     return turn.response;
   }
 
+  /// Builds an [AgentResponse] for [raw] over a snapshot of the current
+  /// aggregates (messages, state, sessionId).
+  AgentResponse _response(AgentOutput raw) =>
+      AgentResponse(raw, [...messages], () => state, () => sessionId);
+
   /// Builds a synthetic `aborted` [AgentResponse] for a turn that never ran
   /// (the caller's token was already cancelled). Mirrors the JS core's
   /// pre-aborted bail, which short-circuits with `finishReason: 'aborted'`.
-  AgentResponse _abortedResponse() => AgentResponse(
-    AgentOutput(finishReason: AgentFinishReason.aborted),
-    [...messages],
-    () => state,
-    () => sessionId,
-  );
+  AgentResponse _abortedResponse() =>
+      _response(AgentOutput(finishReason: AgentFinishReason.aborted));
 
   /// Runs a single turn and returns an [AgentTurn] exposing `.stream` and
   /// `.response`.
@@ -736,12 +731,7 @@ class AgentChat {
       finishReason: AgentFinishReason.failed,
       error: AgentErrorInfo(status: status, message: message),
     );
-    final response = AgentResponse(
-      raw,
-      [...messages],
-      () => _clientState?.custom,
-      () => sessionId,
-    );
+    final response = _response(raw);
     return AgentError(
       message: message,
       status: status,
