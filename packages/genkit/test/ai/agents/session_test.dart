@@ -93,7 +93,7 @@ void main() {
       final session = Session(initial);
 
       // Mutate the caller's nested structures after constructing the session.
-      (custom['nested'] as Map)['items'].add('leaked');
+      ((custom['nested'] as Map)['items'] as List).add('leaked');
       custom['counter'] = 99;
 
       // The session must not observe the caller's later mutations.
