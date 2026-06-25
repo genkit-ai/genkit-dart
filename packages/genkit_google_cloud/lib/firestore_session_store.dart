@@ -226,6 +226,45 @@ Object? _sanitize(Object? value) => jsonDecode(jsonEncode(value));
 /// UTF-8 byte length of a JSON-serializable value.
 int _byteLength(Object? value) => utf8.encode(jsonEncode(value)).length;
 
+/// Normalizes and validates `getSnapshot` options.
+///
+/// Enforces that exactly one of [snapshotId] / [sessionId] is provided
+/// (mirroring JS truthiness: an empty-string id is treated as absent, so a
+/// blank id coming straight off the wire does not satisfy the requirement).
+({String? snapshotId, String? sessionId}) _normalizeGetSnapshotOptions(
+  String? snapshotId,
+  String? sessionId,
+) {
+  final hasSnapshot = snapshotId != null && snapshotId.isNotEmpty;
+  final hasSession = sessionId != null && sessionId.isNotEmpty;
+  if (hasSnapshot == hasSession) {
+    throw GenkitException(
+      "getSnapshot requires exactly one of 'snapshotId' or 'sessionId' "
+      "(got ${hasSnapshot ? 'snapshotId' : 'neither'}"
+      "${hasSession ? ' and sessionId' : ''}).",
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  return (
+    snapshotId: hasSnapshot ? snapshotId : null,
+    sessionId: hasSession ? sessionId : null,
+  );
+}
+
+/// Resolves the id a snapshot should be stored under: prefer the explicitly
+/// [requestedId], otherwise reuse the id already on [result], otherwise mint a
+/// fresh UUID.
+String _resolveSnapshotId(String? requestedId, SessionSnapshot result) {
+  if (requestedId != null && requestedId.isNotEmpty) return requestedId;
+  final resultId = result.snapshotId;
+  return resultId.isNotEmpty ? resultId : generateUuidV4();
+}
+
+/// Returns the sessionId a snapshot belongs to, preferring the top-level
+/// `sessionId` and falling back to `state.sessionId`.
+String? _snapshotSessionId(SessionSnapshot snapshot) =>
+    snapshot.sessionId ?? snapshot.state?.sessionId;
+
 /// A Firestore-backed [SessionStore] that persists session snapshots as
 /// incremental JSON Patch diffs anchored to periodic, sharded full-state
 /// checkpoints.
@@ -337,10 +376,7 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
     String? sessionId,
     Map<String, dynamic>? context,
   }) {
-    final normalized = normalizeGetSnapshotOptions(
-      snapshotId: snapshotId,
-      sessionId: sessionId,
-    );
+    final normalized = _normalizeGetSnapshotOptions(snapshotId, sessionId);
 
     // Reconstruct inside a read-only transaction so the pointer read and the
     // batched shard/diff reads all observe a single, consistent point in time.
@@ -405,14 +441,14 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
       final result = mutator(current);
       if (result == null) return null;
 
-      final id = resolveSnapshotId(
+      final id = _resolveSnapshotId(
         snapshotId != null && snapshotId.isNotEmpty ? snapshotId : null,
         result,
       );
       // Prefer the snapshot's top-level `sessionId`; fall back to the id
       // carried in its state for rows written before snapshot-level ids
       // existed.
-      final sessionId = snapshotSessionId(result);
+      final sessionId = _snapshotSessionId(result);
       if (sessionId == null) {
         throw GenkitException(
           "FirestoreSessionStore requires 'sessionId' to be set on the "

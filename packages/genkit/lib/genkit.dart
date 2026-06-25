@@ -53,7 +53,6 @@ export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
 export 'src/ai/agents/session.dart'
     show
         InMemorySessionStore,
-        NormalizedGetSnapshot,
         Session,
         SessionError,
         SessionStore,
@@ -62,15 +61,10 @@ export 'src/ai/agents/session.dart'
         SnapshotContext,
         SnapshotEvent,
         SnapshotMutator,
-        assertValidSessionId,
         generateUuidV4,
         getCurrentSession,
-        normalizeGetSnapshotOptions,
         reserveSnapshotId,
-        resolveSnapshotId,
-        runWithSession,
-        selectLeafSnapshot,
-        snapshotSessionId;
+        runWithSession;
 
 export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
