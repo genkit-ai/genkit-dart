@@ -256,6 +256,41 @@ void main() {
     });
   });
 
+  group('AgentChat.sessionId', () {
+    test('is adopted from connectInit on construction', () {
+      final transport = _FakeTransport([]);
+      final chat = AgentApi(transport).chat(sessionId: 'sess_1');
+      expect(chat.sessionId, 'sess_1');
+    });
+
+    test('is restored from a hydrated state', () {
+      final transport = _FakeTransport([]);
+      final chat = AgentApi(transport).chat(
+        state: SessionState(sessionId: 'sess_2', custom: {'a': 1}),
+      );
+      expect(chat.sessionId, 'sess_2');
+    });
+
+    test(
+      'is adopted from a turn output and surfaced on the response',
+      () async {
+        final transport = _FakeTransport([
+          _TurnScript(
+            output: AgentOutput(
+              snapshotId: 's_1',
+              sessionId: 'sess_3',
+              message: _modelMessage('hi'),
+            ),
+          ),
+        ], supportsRun: true);
+        final chat = AgentApi(transport).chat();
+        final res = await chat.send(agentInputFromText('hi'));
+        expect(chat.sessionId, 'sess_3');
+        expect(res.sessionId, 'sess_3');
+      },
+    );
+  });
+
   group('AgentInterrupt', () {
     test('respond/restart build the right parts', () {
       final part = ToolRequestPart(
