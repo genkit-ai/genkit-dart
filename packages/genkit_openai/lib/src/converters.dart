@@ -101,15 +101,35 @@ abstract final class GenkitConverter {
     }
     if (part.isMedia) {
       final media = part.media!;
+      // The MIME type may include parameters (e.g. "application/pdf;
+      // charset=utf-8"). Strip them so matching and extension derivation work
+      // against the base type.
+      final mimeType = (media.contentType ?? 'image/png')
+          .split(';')
+          .first
+          .trim();
+      final isImage = mimeType.toLowerCase().startsWith('image/');
+
       if (media.url.startsWith('data:')) {
         // Parse data URI: data:<mediaType>;base64,<data>
         final commaIdx = media.url.indexOf(',');
         final base64Data = media.url.substring(commaIdx + 1);
-        final mimeType = media.contentType ?? 'image/png';
-        return sdk.ContentPart.imageBase64(
+        if (isImage) {
+          return sdk.ContentPart.imageBase64(
+            data: base64Data,
+            mediaType: mimeType,
+            detail: _mapVisualDetailLevel(visualDetailLevel),
+          );
+        }
+        // Non-image documents (e.g. application/pdf) must be sent as a `file`
+        // content part. Routing them through image_url makes the API reject
+        // them with "Invalid MIME type. Only image types are supported."
+        // OpenAI infers the document type from the filename extension, and
+        // Genkit's Media carries no filename, so one is synthesized.
+        return sdk.ContentPart.fileData(
           data: base64Data,
           mediaType: mimeType,
-          detail: _mapVisualDetailLevel(visualDetailLevel),
+          filename: _filenameForMimeType(mimeType),
         );
       }
       return sdk.ContentPart.imageUrl(
@@ -118,6 +138,25 @@ abstract final class GenkitConverter {
       );
     }
     throw UnimplementedError('Unsupported part type: $part');
+  }
+
+  /// Derives a synthetic filename for an OpenAI `file` content part.
+  ///
+  /// OpenAI infers a document's type from its filename extension, but Genkit's
+  /// [Media] does not carry a filename, so one is derived from the MIME type.
+  static String _filenameForMimeType(String mimeType) {
+    final ext = switch (mimeType.toLowerCase()) {
+      'application/pdf' => 'pdf',
+      'text/plain' => 'txt',
+      'text/csv' => 'csv',
+      'application/json' => 'json',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+        'docx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' =>
+        'xlsx',
+      _ => mimeType.contains('/') ? mimeType.split('/').last : 'bin',
+    };
+    return 'document.$ext';
   }
 
   /// Map visual detail level string to enum
