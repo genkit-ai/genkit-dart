@@ -5804,7 +5804,7 @@ base class AgentErrorInfo {
 
   AgentErrorInfo._(this._json);
 
-  AgentErrorInfo({String? status, required String message, dynamic details}) {
+  AgentErrorInfo({String? status, required String message, Object? details}) {
     _json = {'status': ?status, 'message': message, 'details': ?details};
   }
 
@@ -5834,12 +5834,16 @@ base class AgentErrorInfo {
     _json['message'] = value;
   }
 
-  dynamic get details {
-    return _json['details'] as dynamic;
+  Object? get details {
+    return _json['details'] as Object?;
   }
 
-  set details(dynamic value) {
-    _json['details'] = value;
+  set details(Object? value) {
+    if (value == null) {
+      _json.remove('details');
+    } else {
+      _json['details'] = value;
+    }
   }
 
   @override
@@ -5871,7 +5875,7 @@ base class _AgentErrorInfoTypeFactory extends SchemanticType<AgentErrorInfo> {
             'message': $Schema.string(),
             'details': $Schema.any(),
           },
-          required: ['message', 'details'],
+          required: ['message'],
         )
         .value,
     dependencies: [],
@@ -6362,12 +6366,12 @@ base class JsonPatchOperation {
   JsonPatchOperation._(this._json);
 
   JsonPatchOperation({
-    required String op,
+    required JsonPatchOp op,
     required String path,
     String? from,
-    dynamic value,
+    Object? value,
   }) {
-    _json = {'op': op, 'path': path, 'from': ?from, 'value': ?value};
+    _json = {'op': op.value, 'path': path, 'from': ?from, 'value': ?value};
   }
 
   late final Map<String, dynamic> _json;
@@ -6376,12 +6380,13 @@ base class JsonPatchOperation {
   static const SchemanticType<JsonPatchOperation> $schema =
       _JsonPatchOperationTypeFactory();
 
-  String get op {
-    return _json['op'] as String;
+  JsonPatchOp get op {
+    final value = _json['op'] as String;
+    return JsonPatchOp(value);
   }
 
-  set op(String value) {
-    _json['op'] = value;
+  set op(JsonPatchOp value) {
+    _json['op'] = value.value;
   }
 
   String get path {
@@ -6404,12 +6409,16 @@ base class JsonPatchOperation {
     }
   }
 
-  dynamic get value {
-    return _json['value'] as dynamic;
+  Object? get value {
+    return _json['value'] as Object?;
   }
 
-  set value(dynamic value) {
-    _json['value'] = value;
+  set value(Object? value) {
+    if (value == null) {
+      _json.remove('value');
+    } else {
+      _json['value'] = value;
+    }
   }
 
   @override
@@ -6438,12 +6447,12 @@ base class _JsonPatchOperationTypeFactory
     definition: $Schema
         .object(
           properties: {
-            'op': $Schema.string(),
+            'op': $Schema.any(),
             'path': $Schema.string(),
             'from': $Schema.string(),
             'value': $Schema.any(),
           },
-          required: ['op', 'path', 'value'],
+          required: ['op', 'path'],
         )
         .value,
     dependencies: [],
@@ -6464,7 +6473,7 @@ base class SessionSnapshot {
     required String createdAt,
     String? updatedAt,
     String? heartbeatAt,
-    String? status,
+    SnapshotStatus? status,
     AgentFinishReason? finishReason,
     AgentErrorInfo? error,
     SessionState? state,
@@ -6476,7 +6485,7 @@ base class SessionSnapshot {
       'createdAt': createdAt,
       'updatedAt': ?updatedAt,
       'heartbeatAt': ?heartbeatAt,
-      'status': ?status,
+      'status': ?status?.value,
       'finishReason': ?finishReason?.value,
       'error': ?error?.toJson(),
       'state': ?state?.toJson(),
@@ -6553,11 +6562,11 @@ base class SessionSnapshot {
     }
   }
 
-  String? get status {
-    return _json['status'] as String?;
+  SnapshotStatus? get status {
+    return _json['status'] as SnapshotStatus?;
   }
 
-  set status(String? value) {
+  set status(SnapshotStatus? value) {
     if (value == null) {
       _json.remove('status');
     } else {
@@ -6636,7 +6645,7 @@ base class _SessionSnapshotTypeFactory extends SchemanticType<SessionSnapshot> {
             'createdAt': $Schema.string(),
             'updatedAt': $Schema.string(),
             'heartbeatAt': $Schema.string(),
-            'status': $Schema.string(),
+            'status': $Schema.any(),
             'finishReason': $Schema.any(),
             'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
             'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
