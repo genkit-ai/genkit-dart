@@ -257,11 +257,7 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     final result = mutator(current);
     if (result == null) return null;
 
-    // Determine the final ID. The runtime normally supplies a snapshotId, but
-    // fall back to a fresh UUID for direct store users who omit it.
-    final id = hasId
-        ? snapshotId
-        : (result.snapshotId.isNotEmpty ? result.snapshotId : generateUuidV4());
+    final id = resolveSnapshotId(hasId ? snapshotId : null, result);
     result.snapshotId = id;
 
     final file = await _fileFor(id, context);
