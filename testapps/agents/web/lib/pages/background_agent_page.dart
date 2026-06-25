@@ -69,7 +69,8 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
         setState(() {
           _polls++;
           _status = snap.status ?? 'pending';
-          final messages = snap.state.messages;
+          final messages = snap.state?.messages;
+
           if (messages != null && messages.isNotEmpty) {
             _report = messages.last.content
                 .map((part) => part.text ?? '')
