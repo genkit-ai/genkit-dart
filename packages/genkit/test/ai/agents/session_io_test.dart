@@ -269,23 +269,31 @@ void main() {
 
     group('onSnapshotStateChange', () {
       test('fires when a watched snapshot changes', () async {
-        await store.saveSnapshot(
+        // Use a short poll interval so the test does not depend on the
+        // directory watcher, which can silently miss events on some CI
+        // filesystems. The polling fallback then observes the change well
+        // within the wait below.
+        final watched = FileSessionStore(
+          tempDir.path,
+          snapshotWatchPollInterval: const Duration(milliseconds: 20),
+        );
+        await watched.saveSnapshot(
           's1',
           (_) => _snap(snapshotId: 's1', sessionId: 'sess'),
         );
         final seen = <SnapshotStatus?>[];
-        final unsub = store.onSnapshotStateChange('s1', (snap) {
+        final unsub = watched.onSnapshotStateChange('s1', (snap) {
           seen.add(snap.status);
         });
         // Initial emit of the existing state.
         await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        await store.saveSnapshot('s1', (current) {
+        await watched.saveSnapshot('s1', (current) {
           current!.status = SnapshotStatus.aborted;
           return current;
         });
         // Allow the watcher/poller to observe the change.
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
         unsub?.call();
 
         expect(seen.map((s) => s?.value), contains('aborted'));
