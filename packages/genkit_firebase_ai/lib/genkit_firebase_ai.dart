@@ -492,7 +492,9 @@ fai.Part toGeminiPart(Part p) {
     try {
       return fai.FunctionCall.forTest(
         toolRequest.name,
-        (toolRequest.input as Map<String, Object?>?) ?? {},
+        toolRequest.input is Map
+            ? (toolRequest.input as Map).cast<String, Object?>()
+            : <String, Object?>{},
         id: toolRequest.ref,
         isThought: isThought,
         thoughtSignature: thoughtSignature,
@@ -500,7 +502,9 @@ fai.Part toGeminiPart(Part p) {
     } catch (_) {
       return fai.FunctionCall(
         toolRequest.name,
-        (toolRequest.input as Map<String, Object?>?) ?? {},
+        toolRequest.input is Map
+            ? (toolRequest.input as Map).cast<String, Object?>()
+            : <String, Object?>{},
         id: toolRequest.ref,
         isThought: isThought,
       );
