@@ -58,7 +58,11 @@ Future<List<WorkspaceFile>> _walk(String dir, String rootDir) async {
   await for (final entity in d.list()) {
     final name = p.basename(entity.path);
     if (name.startsWith('.')) continue;
-    final relativePath = p.relative(entity.path, from: rootDir);
+    // Normalize to forward slashes so the web UI (and round-trips back to the
+    // server) get consistent paths on Windows, where `p.relative` uses `\`.
+    final relativePath = p
+        .relative(entity.path, from: rootDir)
+        .replaceAll('\\', '/');
     if (entity is Directory) {
       result.add(
         WorkspaceFile(

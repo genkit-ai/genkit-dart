@@ -81,6 +81,7 @@ class _StreamingChatPageState extends State<StreamingChatPage> {
       final turn = chat.sendStream(agentInputFromText(text));
       var accumulated = '';
       await for (final chunk in turn.stream) {
+        if (!mounted) break;
         // Render tool calls / responses inline from the raw chunk. The fallback
         // must be typed `const <Part>[]`; an untyped `const []` would widen the
         // element type to `dynamic`, breaking the `Part` extension getters under
@@ -115,6 +116,7 @@ class _StreamingChatPageState extends State<StreamingChatPage> {
         }
       }
 
+      if (!mounted) return;
       final res = await turn.response;
       setState(() {
         _streamingText = '';
@@ -126,6 +128,7 @@ class _StreamingChatPageState extends State<StreamingChatPage> {
         );
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _streamingText = '';
         _messages.add(
@@ -138,7 +141,9 @@ class _StreamingChatPageState extends State<StreamingChatPage> {
         );
       });
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

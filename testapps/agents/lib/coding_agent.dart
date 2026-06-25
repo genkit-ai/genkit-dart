@@ -143,11 +143,15 @@ final runShell = ai.defineTool(
     // Execute the command in the workspace directory.
     await Directory(workspaceDir).create(recursive: true);
     try {
+      final shell = Platform.isWindows ? 'cmd.exe' : '/bin/sh';
+      final shellArgs = Platform.isWindows
+          ? ['/c', input.command]
+          : ['-c', input.command];
       final result = await Process.run(
-        '/bin/sh',
-        ['-c', input.command],
+        shell,
+        shellArgs,
         workingDirectory: workspaceDir,
-        environment: {'HOME': workspaceDir},
+        environment: {'HOME': workspaceDir, 'USERPROFILE': workspaceDir},
       );
       return RunShellOutput(
         stdout: result.stdout.toString(),

@@ -77,6 +77,27 @@ class _BranchingPageState extends State<BranchingPage> {
     }
   }
 
+  @override
+  void didUpdateComponent(BranchingPage oldComponent) {
+    super.didUpdateComponent(oldComponent);
+    // The route's snapshotId can change without remounting (back/forward
+    // navigation or a directly edited URL), so re-sync state here.
+    if (component.snapshotId == oldComponent.snapshotId) return;
+    setState(() {
+      _snapshotId = component.snapshotId;
+      _restoring = component.snapshotId != null;
+    });
+    if (component.snapshotId != null) {
+      _restore(component.snapshotId!);
+    } else {
+      setState(() {
+        _messages.clear();
+        _variantA = null;
+        _variantB = null;
+      });
+    }
+  }
+
   // ── Restore session history from a snapshotId ──────────────────────────
   Future<void> _restore(String snapshotId) async {
     try {
