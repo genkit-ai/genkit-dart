@@ -82,8 +82,13 @@ class AgentErrorDetails {
     this.details,
   });
 
+  /// The canonical status code name (e.g. `'INVALID_ARGUMENT'`).
   final String status;
+
+  /// A human-readable description of what went wrong.
   final String message;
+
+  /// Optional machine-readable payload carried alongside the error.
   final dynamic details;
 }
 
@@ -138,7 +143,6 @@ class AgentInitError extends GenkitException {
 /// when the current snapshot was concurrently aborted, otherwise writes
 /// [input]. This prevents a "completed"/"failed" write from clobbering an
 /// "aborted" status set by a concurrent abort.
-
 SnapshotMutator _abortAwareMutator(SessionSnapshot input) {
   return (current) => current?.status?.value == 'aborted' ? null : input;
 }
@@ -1282,7 +1286,6 @@ Agent defineCustomAgent(
             message: agentResult.message,
             finishReason: finishReason,
             snapshotId: config.store != null ? finalSnapshotId : null,
-
             state: config.store == null
                 ? toClientState(session.getState())
                 : null,

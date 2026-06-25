@@ -222,7 +222,7 @@ Object? _applyOperation(Object? doc, JsonPatchOperationMap op) {
       case 'copy':
         return _clone(_getValue(doc, _parsePointer(op['from'] as String)));
       default:
-        throw ArgumentError('Unsupported JSON Patch op: $opName');
+        throw _unsupportedOp(opName);
     }
   }
 
@@ -259,8 +259,23 @@ Object? _applyOperation(Object? doc, JsonPatchOperationMap op) {
       _setValue(doc, tokens, value, true);
       return doc;
     default:
-      throw ArgumentError('Unsupported JSON Patch op: $opName');
+      throw _unsupportedOp(opName);
   }
+}
+
+/// Thrown when a patch contains an operation outside the RFC 6902 set.
+Never _unsupportedOp(String opName) =>
+    throw ArgumentError('Unsupported JSON Patch op: $opName');
+
+/// Parses [token] as an index into [list].
+///
+/// Returns `null` unless the token is a non-negative integer within bounds.
+/// When [allowEnd] is true the index may equal `list.length`, the valid
+/// insertion point used by `add`.
+int? _listIndex(List<Object?> list, String token, {bool allowEnd = false}) {
+  final idx = int.tryParse(token);
+  if (idx == null || idx < 0) return null;
+  return idx > (allowEnd ? list.length : list.length - 1) ? null : idx;
 }
 
 /// Reads the value at [tokens], returning `null` for any missing segment.
@@ -269,8 +284,8 @@ Object? _getValue(Object? doc, List<String> tokens) {
   for (final token in tokens) {
     if (cur == null) return null;
     if (cur is List) {
-      final idx = int.tryParse(token);
-      if (idx == null || idx < 0 || idx >= cur.length) return null;
+      final idx = _listIndex(cur, token);
+      if (idx == null) return null;
       cur = cur[idx];
     } else if (cur is Map) {
       cur = cur[token];
@@ -293,13 +308,11 @@ void _setValue(Object? doc, List<String> tokens, Object? value, bool isAdd) {
       parent.add(value);
       return;
     }
-    final idx = int.tryParse(last);
+    final idx = _listIndex(parent, last, allowEnd: isAdd);
     if (idx == null) return;
     if (isAdd) {
-      if (idx < 0 || idx > parent.length) return;
       parent.insert(idx, value);
     } else {
-      if (idx < 0 || idx >= parent.length) return;
       parent[idx] = value;
     }
     return;
@@ -315,10 +328,8 @@ void _removeValue(Object? doc, List<String> tokens) {
   if (parent == null) return;
   final last = tokens.last;
   if (parent is List) {
-    final idx = int.tryParse(last);
-    if (idx != null && idx >= 0 && idx < parent.length) {
-      parent.removeAt(idx);
-    }
+    final idx = _listIndex(parent, last);
+    if (idx != null) parent.removeAt(idx);
     return;
   }
   if (parent is Map) {
@@ -335,8 +346,8 @@ Object? _ensureParent(Object? doc, List<String> tokens) {
     if (cur == null) return null;
     Object? next;
     if (cur is List) {
-      final idx = int.tryParse(token);
-      next = (idx != null && idx >= 0 && idx < cur.length) ? cur[idx] : null;
+      final idx = _listIndex(cur, token);
+      next = idx != null ? cur[idx] : null;
     } else if (cur is Map) {
       next = cur[token];
     } else {
@@ -345,8 +356,8 @@ Object? _ensureParent(Object? doc, List<String> tokens) {
     if (next is! Map && next is! List) {
       final created = <String, dynamic>{};
       if (cur is List) {
-        final idx = int.tryParse(token);
-        if (idx == null || idx < 0 || idx >= cur.length) return null;
+        final idx = _listIndex(cur, token);
+        if (idx == null) return null;
         cur[idx] = created;
       } else if (cur is Map) {
         cur[token] = created;
