@@ -15,9 +15,11 @@
 @TestOn('vm')
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/io.dart';
+
 import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/types.dart';
 import 'package:test/test.dart';
@@ -264,6 +266,95 @@ void main() {
         expect(await trimming.getSnapshot(snapshotId: 'c'), isNotNull);
         expect(await trimming.getSnapshot(snapshotId: 'b'), isNotNull);
         expect(await trimming.getSnapshot(snapshotId: 'a'), isNull);
+      });
+    });
+
+    group('per-session pointer', () {
+      test('writes a pointer file under .pointers/ on save', () async {
+        await store.saveSnapshot(
+          's1',
+          (_) => _snap(snapshotId: 's1', sessionId: 'sess'),
+        );
+        final pointer = File('${tempDir.path}/global/.pointers/sess.json');
+        expect(pointer.existsSync(), isTrue);
+        final doc = jsonDecode(pointer.readAsStringSync()) as Map;
+        expect(doc['currentSnapshotId'], 's1');
+      });
+
+      test('does not treat the .pointers dir as a snapshot in the scan', () {
+        // The pointers sub-directory must never confuse the sessionId scan,
+        // even when the fast-path pointer is bypassed.
+        return Future(() async {
+          await store.saveSnapshot(
+            's1',
+            (_) => _snap(snapshotId: 's1', sessionId: 'sess'),
+          );
+          // Force a scan (no pointer hit) by using a strict store rooted at the
+          // same dir, which bypasses the pointer fast path.
+          final strict = FileSessionStore(
+            tempDir.path,
+            rejectBranchingSessions: true,
+          );
+          final leaf = await strict.getSnapshot(sessionId: 'sess');
+          expect(leaf!.snapshotId, 's1');
+        });
+      });
+
+      test('advances the pointer to the new leaf as a chain grows', () async {
+        await store.saveSnapshot(
+          'a',
+          (_) => _snap(snapshotId: 'a', sessionId: 'sess'),
+        );
+        await store.saveSnapshot(
+          'b',
+          (_) => _snap(snapshotId: 'b', sessionId: 'sess', parentId: 'a'),
+        );
+        final pointer = File('${tempDir.path}/global/.pointers/sess.json');
+        final doc = jsonDecode(pointer.readAsStringSync()) as Map;
+        expect(doc['currentSnapshotId'], 'b');
+        expect((await store.getSnapshot(sessionId: 'sess'))!.snapshotId, 'b');
+      });
+
+      test('self-heals a stale pointer via the scan fallback', () async {
+        await store.saveSnapshot(
+          'a',
+          (_) => _snap(
+            snapshotId: 'a',
+            sessionId: 'sess',
+            createdAt: '2024-01-01T00:00:00.000Z',
+          ),
+        );
+        await store.saveSnapshot(
+          'b',
+          (_) => _snap(
+            snapshotId: 'b',
+            sessionId: 'sess',
+            parentId: 'a',
+            createdAt: '2024-01-02T00:00:00.000Z',
+          ),
+        );
+        // Corrupt the pointer so it names a snapshot that no longer matches.
+        final pointer = File('${tempDir.path}/global/.pointers/sess.json');
+        pointer.writeAsStringSync(
+          jsonEncode({'currentSnapshotId': 'gone', 'updatedAt': 'x'}),
+        );
+        // The scan fallback still resolves the true leaf...
+        final leaf = await store.getSnapshot(sessionId: 'sess');
+        expect(leaf!.snapshotId, 'b');
+        // ...and rewrites the pointer so it is fresh again.
+        final doc = jsonDecode(pointer.readAsStringSync()) as Map;
+        expect(doc['currentSnapshotId'], 'b');
+      });
+
+      test('tolerates a corrupt pointer file', () async {
+        await store.saveSnapshot(
+          'a',
+          (_) => _snap(snapshotId: 'a', sessionId: 'sess'),
+        );
+        final pointer = File('${tempDir.path}/global/.pointers/sess.json');
+        pointer.writeAsStringSync('{not valid json');
+        final leaf = await store.getSnapshot(sessionId: 'sess');
+        expect(leaf!.snapshotId, 'a');
       });
     });
 
