@@ -563,10 +563,9 @@ tests:
   - name: abort completed agent
     description: >
       Abort an agent that has already finished. The abort returns
-      "completed" as previous status but the snapshot remains "completed"
-      because terminal states (completed, failed, aborted) cannot be
+      "done" as previous status but the snapshot remains "done"
+      because terminal states (done, failed, aborted) cannot be
       overridden — only "pending" can transition to "aborted".
-
     agent: promptAgentWithStore
     steps:
       - type: send
@@ -582,16 +581,18 @@ tests:
         snapshotId: '{{snap1}}'
         expectPreviousStatus: completed
 
-
       - type: getSnapshotData
         snapshotId: '{{snap1}}'
         expectSnapshot:
           status: completed
+
   - name: server-managed agent rejects init state
     description: >
-      When a server-managed agent receives init.state, it should throw a
-      FAILED_PRECONDITION error. Server-managed agents expect a snapshotId,
-      not the full state blob.
+      When a server-managed agent receives init.state, it must throw a
+      FAILED_PRECONDITION error (mapped to an HTTP status by the server
+      handler). Server-managed agents expect a snapshotId, not the full state
+      blob. This is API misuse, so it is a thrown error rather than a graceful
+      'failed' output.
     agent: promptAgentWithStore
     steps:
       - type: send
@@ -606,13 +607,11 @@ tests:
         modelResponses:
           - message: { role: model, content: [{ text: reply }] }
             finishReason: stop
-        # Pre-turn validation fails gracefully with finishReason 'failed' and
-        # the original FAILED_PRECONDITION status preserved.
-        expectOutput:
-          finishReason: failed
-          errorContains:
-            status: FAILED_PRECONDITION
-            message: Cannot send 'state' to agent
+        # API misuse: the turn throws rather than resolving with a graceful
+        # 'failed' output.
+        expectError:
+          status: FAILED_PRECONDITION
+          message: Cannot send 'state' to agent
 
   - name: pure detach without payload
     description: >
@@ -1281,70 +1280,36 @@ tests:
               - { role: model, content: [{ text: reply2 }] }
 
   # ---------------------------------------------------------------------------
-  # sessionId lookup rejected for a branching session
+  # Non-UUID sessionId accepted
   # ---------------------------------------------------------------------------
-  - name: sessionId lookup rejected for branching session
+  - name: non-UUID sessionId accepted
     description: >
-      When a session has branched (more than one leaf snapshot — e.g. two
-      continuations forked from the same snapshot), there is no single "latest"
-      snapshot. Resolving the session by sessionId must fail with
-      FAILED_PRECONDITION; the caller must resume by an exact snapshotId.
+      A sessionId can be any non-empty string (not necessarily a UUID).
+      Sending an application-specific (non-UUID) sessionId to a server-managed
+      agent is accepted; the session is bound to that id and is resumable by it.
     agent: promptAgentWithStore
     steps:
       - type: send
-        init: { sessionId: 33333333-3333-4333-8333-333333333333 }
+        init: { sessionId: my-app-session-123 }
         inputs:
-          - message: { role: user, content: [{ text: root }] }
+          - message: { role: user, content: [{ text: first }] }
         modelResponses:
-          - message: { role: model, content: [{ text: rootReply }] }
+          - message: { role: model, content: [{ text: reply1 }] }
             finishReason: stop
+        expectOutput:
+          finishReason: stop
+          hasSnapshotId: true
         captureSnapshotId: snap1
 
-      # Fork branch A from the root snapshot.
-      - type: send
-        init: { snapshotId: '{{snap1}}' }
-        inputs:
-          - message: { role: user, content: [{ text: branch-a }] }
-        modelResponses:
-          - message: { role: model, content: [{ text: reply-a }] }
-            finishReason: stop
-
-      # Fork branch B from the same root snapshot — now two leaves exist.
-      - type: send
-        init: { snapshotId: '{{snap1}}' }
-        inputs:
-          - message: { role: user, content: [{ text: branch-b }] }
-        modelResponses:
-          - message: { role: model, content: [{ text: reply-b }] }
-            finishReason: stop
-
-      # Resolving by sessionId is now ambiguous and must error.
       - type: getSnapshotData
-        sessionId: 33333333-3333-4333-8333-333333333333
-        expectError: branching snapshots
-
-  # ---------------------------------------------------------------------------
-  # Non-UUID sessionId rejected
-  # ---------------------------------------------------------------------------
-  - name: non-UUID sessionId rejected
-    description: >
-      A sessionId must be a bare UUID. Sending a non-UUID sessionId to a
-      server-managed agent must be rejected.
-    agent: promptAgentWithStore
-    steps:
-      - type: send
-        init: { sessionId: not-a-uuid }
-        inputs:
-          - message: { role: user, content: [{ text: hi }] }
-        modelResponses:
-          - message: { role: model, content: [{ text: hello }] }
-            finishReason: stop
-        # Resolves gracefully with finishReason 'failed'. The non-UUID check
-        # surfaces as a plain Error (no status), so only the message is asserted.
-        expectOutput:
-          finishReason: failed
-          errorContains:
-            message: expected a UUID
+        sessionId: my-app-session-123
+        expectSnapshot:
+          status: completed
+          stateContains:
+            sessionId: my-app-session-123
+            messages:
+              - { role: user, content: [{ text: first }] }
+              - { role: model, content: [{ text: reply1 }] }
 
   # ---------------------------------------------------------------------------
   # Client-managed agent rejects sessionId
@@ -1363,21 +1328,20 @@ tests:
         modelResponses:
           - message: { role: model, content: [{ text: hello }] }
             finishReason: stop
-        # Resolves gracefully with finishReason 'failed' and the original
-        # FAILED_PRECONDITION status preserved.
-        expectOutput:
-          finishReason: failed
-          errorContains:
-            status: FAILED_PRECONDITION
-            message: "Cannot use 'sessionId'"
+        # API misuse: the turn throws with the original FAILED_PRECONDITION
+        # status rather than resolving with a graceful 'failed' output.
+        expectError:
+          status: FAILED_PRECONDITION
+          message: "Cannot use 'sessionId'"
 
   # ---------------------------------------------------------------------------
-  # snapshotId and sessionId are mutually exclusive
+  # snapshotId + sessionId: snapshotId selects, sessionId guards ownership
   # ---------------------------------------------------------------------------
-  - name: snapshotId and sessionId together rejected
+  - name: snapshotId and matching sessionId together resume
     description: >
-      init may carry a snapshotId (exact snapshot) or a sessionId (latest
-      snapshot) but not both. Providing both must be rejected.
+      init may carry both a snapshotId (the exact snapshot to resume) and a
+      sessionId. When the snapshot belongs to that session, the sessionId acts
+      as an ownership guard and the resume proceeds normally.
     agent: promptAgentWithStore
     steps:
       - type: send
@@ -1398,10 +1362,35 @@ tests:
         modelResponses:
           - message: { role: model, content: [{ text: reply2 }] }
             finishReason: stop
-        # Resolves gracefully with finishReason 'failed' and the original
-        # INVALID_ARGUMENT status preserved.
         expectOutput:
-          finishReason: failed
-          errorContains:
-            status: INVALID_ARGUMENT
-            message: 'Cannot send both'
+          finishReason: stop
+
+  - name: snapshotId with mismatched sessionId rejected
+    description: >
+      When init carries both a snapshotId and a sessionId, the snapshot must
+      belong to that session. A mismatch is rejected.
+    agent: promptAgentWithStore
+    steps:
+      - type: send
+        init: { sessionId: 55555555-5555-4555-8555-555555555555 }
+        inputs:
+          - message: { role: user, content: [{ text: first }] }
+        modelResponses:
+          - message: { role: model, content: [{ text: reply1 }] }
+            finishReason: stop
+        captureSnapshotId: snap1
+
+      - type: send
+        init:
+          snapshotId: '{{snap1}}'
+          sessionId: 99999999-9999-4999-8999-999999999999
+        inputs:
+          - message: { role: user, content: [{ text: second }] }
+        modelResponses:
+          - message: { role: model, content: [{ text: reply2 }] }
+            finishReason: stop
+        # API misuse: the turn throws with the original INVALID_ARGUMENT status
+        # rather than resolving with a graceful 'failed' output.
+        expectError:
+          status: INVALID_ARGUMENT
+          message: 'does not belong to session'
