@@ -68,7 +68,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
       await for (final snap in task.poll(intervalMs: 1500)) {
         setState(() {
           _polls++;
-          _status = snap.status ?? 'pending';
+          _status = snap.status?.value ?? 'pending';
           final messages = snap.state?.messages;
 
           if (messages != null && messages.isNotEmpty) {
