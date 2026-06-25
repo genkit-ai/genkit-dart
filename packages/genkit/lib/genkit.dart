@@ -49,6 +49,7 @@ export 'src/ai/agents/agent_core.dart'
         createAgentApi;
 export 'src/ai/agents/json_patch.dart'
     show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
+export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
 export 'src/ai/agents/session.dart'
     show
         InMemorySessionStore,
@@ -58,6 +59,7 @@ export 'src/ai/agents/session.dart'
         SnapshotCallback,
         SnapshotChangeNotifier,
         SnapshotContext,
+        SnapshotEvent,
         SnapshotMutator,
         generateUuidV4,
         getCurrentSession,
