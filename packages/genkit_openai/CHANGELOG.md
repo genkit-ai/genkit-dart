@@ -1,3 +1,10 @@
+## 0.3.5
+
+### Fixes
+
+ - send non-image media as OpenAI file content parts (#297)
+
+
 ## 0.3.4
 
  - updated internal dependencies.

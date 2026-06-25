@@ -1,6 +1,6 @@
 name: genkit_firebase_ai
 description: Firebase AI plugin for Genkit Dart.
-version: 0.1.10
+version: 0.1.11
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 

@@ -1,3 +1,10 @@
+## 0.1.11
+
+### Features
+
+ - Support Vertex AI Gemini API (#296)
+
+
 ## 0.1.10
 
  - updated internal dependencies.

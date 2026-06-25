@@ -9,7 +9,7 @@ environment:
 dependencies:
   genkit: ^0.14.1
   genkit_google_genai: ^0.2.9
-  genkit_openai: ^0.3.4
+  genkit_openai: ^0.3.5
   genkit_shelf: ^0.1.9
   http: ^1.6.0
   shelf: ^1.4.2
