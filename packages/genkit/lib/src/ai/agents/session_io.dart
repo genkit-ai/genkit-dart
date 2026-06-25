@@ -55,6 +55,11 @@ void _assertSafeSnapshotId(String snapshotId) {
 
 /// A `dart:io` file-system backed session snapshot store.
 ///
+/// **Note:** This store is primarily intended for local development and
+/// testing. Because `getSnapshot(sessionId: ...)` performs an O(N) scan of all
+/// files in the prefix directory, it may become a performance bottleneck in
+/// production environments with a large number of sessions.
+///
 /// Snapshots are stored as flat JSON files keyed by their `snapshotId`, under an
 /// optional per-tenant sub-directory prefix:
 ///
@@ -196,17 +201,22 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     if (!dir.existsSync()) return null;
 
     final snapshots = <SessionSnapshot>[];
-    await for (final entry in dir.list()) {
-      if (entry is! File || !entry.path.endsWith('.json')) continue;
-      try {
-        final snap = SessionSnapshot.fromJson(
-          jsonDecode(await entry.readAsString()) as Map<String, dynamic>,
-        );
-        if (snapshotSessionId(snap) == sessionId) snapshots.add(snap);
-      } on FileSystemException {
-        // Concurrently removed mid-scan; skip it.
-        continue;
+    try {
+      await for (final entry in dir.list()) {
+        if (entry is! File || !entry.path.endsWith('.json')) continue;
+        try {
+          final snap = SessionSnapshot.fromJson(
+            jsonDecode(await entry.readAsString()) as Map<String, dynamic>,
+          );
+          if (snapshotSessionId(snap) == sessionId) snapshots.add(snap);
+        } catch (_) {
+          // Skip corrupted, malformed, or concurrently deleted files so a
+          // single bad file does not break the whole scan.
+          continue;
+        }
       }
+    } catch (_) {
+      // Directory listing/access error: degrade gracefully.
     }
 
     return selectLeafSnapshot(
@@ -276,8 +286,11 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     Map<String, dynamic>? context,
   ) async {
     final chain = <String>[];
+    final visited = <String>{};
     SessionSnapshot? cur = head;
-    while (cur != null) {
+    // `visited.add` returns false on a repeat, breaking on a cyclic parent
+    // chain (corrupt data) instead of looping forever.
+    while (cur != null && visited.add(cur.snapshotId)) {
       chain.add(cur.snapshotId);
       final parentId = cur.parentId;
       cur = parentId != null ? await _snapshotById(parentId, context) : null;
@@ -345,33 +358,49 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     final file = File('${dir.path}${Platform.pathSeparator}$fileName');
 
     var closed = false;
+    var isReading = false;
+    var needsRecheck = false;
     String? lastSerialized;
 
     // Re-read the file and fire the callback only when the content actually
     // changed. Watchers fire multiple events per write, so dedupe by content.
+    // A non-overlapping loop (isReading / needsRecheck) ensures concurrent
+    // events/poll ticks process sequentially without dropping a change.
     Future<void> emitIfChanged() async {
       if (closed) return;
-      String contents;
-      try {
-        contents = await file.readAsString();
-      } catch (_) {
-        // Missing file (not yet created) or a transient read error during a
-        // concurrent rewrite: ignore and wait for the next event/poll.
+      if (isReading) {
+        needsRecheck = true;
         return;
       }
-      if (closed || contents == lastSerialized) return;
-      SessionSnapshot snapshot;
+      isReading = true;
       try {
-        snapshot = SessionSnapshot.fromJson(
-          jsonDecode(contents) as Map<String, dynamic>,
-        );
-      } catch (_) {
-        // Partially written file mid-rewrite: skip without updating
-        // lastSerialized so the next event/poll re-reads the complete file.
-        return;
+        do {
+          needsRecheck = false;
+          String contents;
+          try {
+            contents = await file.readAsString();
+          } catch (_) {
+            // Missing file (not yet created) or a transient read error during a
+            // concurrent rewrite: ignore and wait for the next event/poll.
+            continue;
+          }
+          if (closed || contents == lastSerialized) continue;
+          SessionSnapshot snapshot;
+          try {
+            snapshot = SessionSnapshot.fromJson(
+              jsonDecode(contents) as Map<String, dynamic>,
+            );
+          } catch (_) {
+            // Partially written file mid-rewrite: skip without updating
+            // lastSerialized so the next event/poll re-reads the complete file.
+            continue;
+          }
+          lastSerialized = contents;
+          callback(snapshot);
+        } while (needsRecheck && !closed);
+      } finally {
+        isReading = false;
       }
-      lastSerialized = contents;
-      callback(snapshot);
     }
 
     // Watch the directory (not the file) so this still works before the file
@@ -379,7 +408,7 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     StreamSubscription<FileSystemEvent>? watcher;
     try {
       watcher = dir.watch().listen((event) {
-        if (event.path.endsWith(fileName)) unawaited(emitIfChanged());
+        if (event.path == file.path) unawaited(emitIfChanged());
       });
     } catch (_) {
       // Some environments disallow directory watching; polling covers us.

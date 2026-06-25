@@ -1105,14 +1105,19 @@ Agent defineCustomAgent(
               });
 
               if (resolvedStore is SnapshotChangeNotifier) {
-                unsubscribe = (resolvedStore as SnapshotChangeNotifier)
+                // Capture the unsubscribe in a local first: if
+                // `onSnapshotStateChange` fires the callback synchronously on
+                // registration, the outer `unsubscribe` would still be null.
+                void Function()? localUnsubscribe;
+                localUnsubscribe = (resolvedStore as SnapshotChangeNotifier)
                     .onSnapshotStateChange(snapshotId, (snap) {
                       if (snap.status?.value == 'aborted') {
                         stopHeartbeat();
                         cancelToken.cancel();
-                        unsubscribe?.call();
+                        localUnsubscribe?.call();
                       }
                     });
+                unsubscribe = localUnsubscribe;
               }
             },
 
@@ -1253,13 +1258,11 @@ Agent defineCustomAgent(
               sessionId: session.sessionId,
               finishReason: AgentFinishReason.failed,
               error: _toErrorInfo(runner.lastTurnError!),
-              artifacts:
-                  (agentResult.artifacts != null &&
-                      agentResult.artifacts!.isNotEmpty)
+              artifacts: agentResult.artifacts?.isNotEmpty == true
                   ? agentResult.artifacts
                   : null,
-              message: (lastGoodMessages != null && lastGoodMessages.isNotEmpty)
-                  ? lastGoodMessages.last
+              message: lastGoodMessages?.isNotEmpty == true
+                  ? lastGoodMessages!.last
                   : null,
               snapshotId: config.store != null
                   ? await runner.ensureRecoverySnapshot()
@@ -1273,9 +1276,7 @@ Agent defineCustomAgent(
 
           return AgentOutput(
             sessionId: session.sessionId,
-            artifacts:
-                (agentResult.artifacts != null &&
-                    agentResult.artifacts!.isNotEmpty)
+            artifacts: agentResult.artifacts?.isNotEmpty == true
                 ? agentResult.artifacts
                 : null,
             message: agentResult.message,
@@ -1464,12 +1465,10 @@ Agent definePromptAgent(
       if (inputResume != null) {
         validateResumeAgainstHistory(inputResume, sess.getMessages());
         resume = GenerateResumeOptions(
-          restart:
-              (inputResume.restart != null && inputResume.restart!.isNotEmpty)
+          restart: inputResume.restart?.isNotEmpty == true
               ? inputResume.restart
               : null,
-          respond:
-              (inputResume.respond != null && inputResume.respond!.isNotEmpty)
+          respond: inputResume.respond?.isNotEmpty == true
               ? inputResume.respond
               : null,
         );
@@ -1478,7 +1477,7 @@ Agent definePromptAgent(
       genOpts = GenerateActionOptions.fromJson({
         ...genOpts.toJson(),
         'messages': renderedMessages.map((m) => m.toJson()).toList(),
-        if (resume != null) 'resume': resume.toJson(),
+        'resume': ?resume?.toJson(),
       });
 
       final res = await runGenerateAction(registry, genOpts, (
@@ -1508,7 +1507,7 @@ Agent definePromptAgent(
         if (parts.isNotEmpty) {
           sendChunk(
             AgentStreamChunk(
-              modelChunk: ModelResponseChunk(role: Role.tool, content: parts),
+              modelChunk: ModelResponseChunk(role: Role.model, content: parts),
             ),
           );
         }

@@ -211,13 +211,6 @@ class AgentResponse {
 
   List<Message> get messages => _messages;
 
-  GenerationUsage get usage {
-    final raw = _raw.toJson()['usage'];
-    return GenerationUsage.fromJson(
-      raw is Map ? raw.cast<String, dynamic>() : <String, dynamic>{},
-    );
-  }
-
   AgentFinishReason get finishReason =>
       _raw.finishReason ?? AgentFinishReason.unknown;
 
@@ -354,15 +347,28 @@ class DetachedTask {
   final AgentTransport _transport;
 
   /// Yields status until a terminal state.
-  Stream<SessionSnapshot> poll({int intervalMs = 1000}) async* {
+  ///
+  /// A snapshot can be briefly absent right after [DetachedTask] is created
+  /// (the background worker hasn't persisted the first snapshot yet), so a
+  /// `null` read is tolerated. But a snapshot that never appears (deleted, or a
+  /// bad id) would otherwise loop forever and leak this poller, so give up
+  /// after [maxConsecutiveMisses] consecutive misses.
+  Stream<SessionSnapshot> poll({
+    int intervalMs = 1000,
+    int maxConsecutiveMisses = 10,
+  }) async* {
+    var misses = 0;
     while (true) {
       final snap = await _transport.getSnapshot(snapshotId: snapshotId);
-      if (snap != null) {
+      if (snap == null) {
+        if (++misses >= maxConsecutiveMisses) {
+          throw StateError('Snapshot $snapshotId not found.');
+        }
+      } else {
+        misses = 0;
         yield snap;
         final status = snap.status;
-        if (status != null && _terminalStatuses.contains(status.value)) {
-          return;
-        }
+        if (status != null && _terminalStatuses.contains(status.value)) return;
       }
       await Future<void>.delayed(Duration(milliseconds: intervalMs));
     }
@@ -723,7 +729,7 @@ class AgentChat {
 
   AgentError _toAgentError(Object e) {
     if (e is AgentError) return e;
-    final message = e is Error ? e.toString() : e.toString();
+    final message = e.toString();
     final match = RegExp(r'^([A-Z_]+):').firstMatch(message);
     final status = match != null ? match.group(1)! : 'UNKNOWN';
     final raw = AgentOutput(

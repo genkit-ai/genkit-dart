@@ -265,7 +265,9 @@ sdk.InputMessage toAnthropicMessage(Message m) {
         sdk.InputContentBlock.toolUse(
           id: req.ref ?? '',
           name: req.name,
-          input: (req.input as Map<String, dynamic>?) ?? {},
+          input: req.input is Map
+              ? (req.input as Map).cast<String, dynamic>()
+              : <String, dynamic>{},
         ),
       ];
     } else if (p.isToolResponse) {
