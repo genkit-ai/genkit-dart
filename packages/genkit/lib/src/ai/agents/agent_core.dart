@@ -403,6 +403,9 @@ class AgentChat {
       if (init.snapshotId != null) {
         snapshotId = init.snapshotId;
       }
+      if (init.sessionId != null) {
+        sessionId = init.sessionId;
+      }
       final state = init.state;
       if (state != null) {
         _hydrateFromState(state);
@@ -432,6 +435,9 @@ class AgentChat {
     _clientState = state;
     messages = state?.messages != null ? [...state!.messages!] : [];
     artifacts = state?.artifacts != null ? [...state!.artifacts!] : [];
+    if (state?.sessionId != null) {
+      sessionId = state!.sessionId;
+    }
   }
 
   /// Loads aggregates from a server snapshot (used by `loadChat`).
