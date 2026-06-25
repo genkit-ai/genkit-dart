@@ -103,14 +103,28 @@ abstract interface class SessionStore {
   /// than one leaf) resolves to the most-recently created leaf by default, or
   /// is rejected with [StatusCodes.FAILED_PRECONDITION] when the store is
   /// configured to reject branching.
-  Future<SessionSnapshot?> getSnapshot({String? snapshotId, String? sessionId});
+  ///
+  /// [context] carries the ambient request/action context (e.g. the
+  /// authenticated user) so multi-tenant stores can route reads.
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  });
 
   /// Atomically reads the current snapshot (if [snapshotId] is provided),
   /// passes it to [mutator], and persists the result.
   ///
+  /// [context] carries the ambient request/action context (e.g. the
+  /// authenticated user) so multi-tenant stores can route writes.
+  ///
   /// Returns the `snapshotId` that was used, or `null` when the mutator
   /// returned `null`.
-  Future<String?> saveSnapshot(String? snapshotId, SnapshotMutator mutator);
+  Future<String?> saveSnapshot(
+    String? snapshotId,
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  });
 }
 
 /// Optional capability: a store may notify listeners when a snapshot's state
@@ -118,10 +132,14 @@ abstract interface class SessionStore {
 abstract interface class SnapshotChangeNotifier {
   /// Registers [callback] for state changes to [snapshotId]. Returns an
   /// unsubscribe function, or `null` if not supported.
+  ///
+  /// [context] carries the ambient request/action context so multi-tenant
+  /// stores can route the subscription.
   void Function()? onSnapshotStateChange(
     String snapshotId,
-    void Function(SessionSnapshot snapshot) callback,
-  );
+    void Function(SessionSnapshot snapshot) callback, {
+    Map<String, dynamic>? context,
+  });
 }
 
 /// State manager for a session turn, tracking messages, custom state, and
@@ -289,6 +307,7 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async {
     final normalized = _normalizeGetSnapshotOptions(
       snapshotId: snapshotId,
@@ -320,9 +339,12 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
   @override
   Future<String?> saveSnapshot(
     String? snapshotId,
-    SnapshotMutator mutator,
-  ) async {
-    final current = snapshotId != null ? _snapshots[snapshotId] : null;
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  }) async {
+    final current = (snapshotId != null && snapshotId.isNotEmpty)
+        ? _snapshots[snapshotId]
+        : null;
 
     final result = mutator(current != null ? _cloneSnapshot(current) : null);
     if (result == null) return null;
@@ -349,8 +371,9 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
   @override
   void Function()? onSnapshotStateChange(
     String snapshotId,
-    void Function(SessionSnapshot snapshot) callback,
-  ) {
+    void Function(SessionSnapshot snapshot) callback, {
+    Map<String, dynamic>? context,
+  }) {
     (_listeners[snapshotId] ??= []).add(callback);
     return () {
       _listeners[snapshotId]?.remove(callback);
@@ -405,8 +428,11 @@ _NormalizedGetSnapshot _normalizeGetSnapshotOptions({
   String? snapshotId,
   String? sessionId,
 }) {
-  final hasSnapshot = snapshotId != null;
-  final hasSession = sessionId != null;
+  // Mirror JS truthiness: an empty-string id is treated as absent, so a blank
+  // `snapshotId` coming straight off the wire does not satisfy the
+  // "exactly one of" requirement.
+  final hasSnapshot = snapshotId != null && snapshotId.isNotEmpty;
+  final hasSession = sessionId != null && sessionId.isNotEmpty;
   if (hasSnapshot == hasSession) {
     throw GenkitException(
       "getSnapshot requires exactly one of 'snapshotId' or 'sessionId' "
@@ -415,10 +441,13 @@ _NormalizedGetSnapshot _normalizeGetSnapshotOptions({
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
-  if (sessionId != null) {
+  if (hasSession) {
     assertValidSessionId(sessionId);
   }
-  return _NormalizedGetSnapshot(snapshotId: snapshotId, sessionId: sessionId);
+  return _NormalizedGetSnapshot(
+    snapshotId: hasSnapshot ? snapshotId : null,
+    sessionId: hasSession ? sessionId : null,
+  );
 }
 
 /// Selects the latest leaf snapshot from a set belonging to one session.

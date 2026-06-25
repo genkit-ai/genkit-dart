@@ -247,11 +247,11 @@ void main() {
       SessionSnapshot? seen;
       store.onSnapshotStateChange(id!, (snap) => seen = snap);
       await store.saveSnapshot(id, (current) {
-        current!.status = 'completed';
+        current!.status = SnapshotStatus.completed;
         return current;
       });
       expect(seen, isNotNull);
-      expect(seen!.status, 'completed');
+      expect(seen!.status?.value, 'completed');
     });
   });
 }
