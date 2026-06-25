@@ -117,6 +117,19 @@ AgentErrorInfo _toErrorInfo(AgentErrorDetails details) => AgentErrorInfo(
   details: details.details,
 );
 
+/// Error thrown for agent init *API misuse* that should surface to the caller
+/// as a real, thrown error (mapped to an HTTP status by the server handler)
+/// rather than being absorbed into a graceful `finishReason: 'failed'` result.
+///
+/// Covers calling an agent with an init that does not match its
+/// state-management mode (e.g. sending `state` to a server-managed agent, or
+/// `snapshotId`/`sessionId` to a client-managed one) and the snapshot/session
+/// ownership guard. Other pre-turn failures (missing snapshot, non-resumable
+/// snapshot, invalid custom state) remain graceful.
+class AgentInitError extends GenkitException {
+  AgentInitError(super.message, {required super.status, super.details});
+}
+
 // ---------------------------------------------------------------------------
 // Snapshot mutators.
 // ---------------------------------------------------------------------------
@@ -347,11 +360,9 @@ class SessionRunner {
       final parentSnapshotId = _lastSnapshot?.snapshotId;
 
       if (_store != null && newSnapshotId == null) {
-        newSnapshotId = reserveSnapshotId(
-          sessionId: session.sessionId,
-          parentId: parentSnapshotId,
-        );
+        newSnapshotId = reserveSnapshotId();
       }
+
       final turnSnapshotId = newSnapshotId;
       newSnapshotId = null;
 
@@ -422,6 +433,7 @@ class SessionRunner {
     final now = DateTime.now().toUtc().toIso8601String();
     final snapshotInput = SessionSnapshot(
       snapshotId: '',
+      sessionId: session.sessionId,
       createdAt: now,
       updatedAt: now,
       state: lastGoodState!,
@@ -486,8 +498,10 @@ class SessionRunner {
     final now = DateTime.now().toUtc().toIso8601String();
     final snapshotInput = SessionSnapshot(
       snapshotId: effectiveId ?? '',
+      sessionId: session.sessionId,
       createdAt: _lastSnapshot?.createdAt ?? now,
       updatedAt: now,
+
       // Stamp an initial heartbeat on a `pending` (detached, in-flight)
       // snapshot. A background heartbeat loop refreshes it; if it goes stale
       // the snapshot is reported as `expired` on read (worker presumed dead).
@@ -580,37 +594,48 @@ class _AgentConfig {
 // resolveSession.
 // ---------------------------------------------------------------------------
 
-Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
-  _AgentConfig config,
-  SessionStore store,
-  AgentInit? init,
-  ValidateCustomState validateCustomState,
-) async {
+/// Asserts that the init strategy matches the agent's state-management mode,
+/// throwing an [AgentInitError] on a mismatch.
+///
+/// Server-managed agents (with a store) resume via a `snapshotId` / `sessionId`;
+/// client-managed agents (no store) supply the full `state` blob. This is API
+/// misuse, so it propagates as a thrown error rather than a graceful failure.
+void _assertInitMatchesStateManagement(_AgentConfig config, AgentInit? init) {
   if ((init?.snapshotId != null || init?.sessionId != null) &&
       config.store == null) {
     final which = init!.snapshotId != null ? 'snapshotId' : 'sessionId';
-    throw GenkitException(
+    throw AgentInitError(
       "Cannot use '$which' with agent '${config.name}': this agent has no "
       "store configured (client-managed state). Send 'state' instead.",
       status: StatusCodes.FAILED_PRECONDITION,
     );
   }
   if (init?.state != null && config.store != null) {
-    throw GenkitException(
+    throw AgentInitError(
       "Cannot send 'state' to agent '${config.name}': this agent uses a "
       "server-managed store. Send 'snapshotId' or 'sessionId' instead.",
       status: StatusCodes.FAILED_PRECONDITION,
     );
   }
-  if (init?.snapshotId != null && init?.sessionId != null) {
-    throw GenkitException(
-      "Cannot send both 'snapshotId' and 'sessionId' to agent "
-      "'${config.name}'. Provide exactly one (snapshotId for an exact "
-      "snapshot, sessionId for the session's latest snapshot).",
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
+}
 
+/// Resolves the [Session] (and originating snapshot, if any) for an agent turn
+/// from its [AgentInit].
+///
+/// Server-managed agents (with a store) resume via a `snapshotId` (an exact
+/// snapshot) or a `sessionId` (the session's latest snapshot); client-managed
+/// agents (no store) supply the full `state` blob. Throws a [GenkitException]
+/// on a missing snapshot, non-resumable snapshot, or invalid custom state - the
+/// caller translates that into a graceful `finishReason: 'failed'` result. The
+/// state-management mismatch checks are performed up front by
+/// [_assertInitMatchesStateManagement] and throw [AgentInitError]. The
+/// snapshot/session ownership guard also throws [AgentInitError].
+Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
+  _AgentConfig config,
+  SessionStore store,
+  AgentInit? init,
+  ValidateCustomState validateCustomState,
+) async {
   if (init?.snapshotId != null) {
     final snapshot = await store.getSnapshot(snapshotId: init!.snapshotId);
     if (snapshot == null) {
@@ -619,15 +644,63 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
         status: StatusCodes.NOT_FOUND,
       );
     }
-    validateCustomState(snapshot.state.custom);
-    return (snapshot: snapshot, session: Session(snapshot.state));
+    // When both `snapshotId` and `sessionId` are supplied, `snapshotId` selects
+    // the exact snapshot to resume and `sessionId` acts as an ownership guard:
+    // the snapshot must belong to that session. A mismatch is API misuse, so it
+    // propagates as a thrown [AgentInitError]. Prefer the snapshot's top-level
+    // `sessionId`; fall back to the id carried in its state for rows written
+    // before snapshot-level ids existed.
+    final snapshotSessionId = snapshot.sessionId ?? snapshot.state?.sessionId;
+    if (init.sessionId != null && snapshotSessionId != init.sessionId) {
+      throw AgentInitError(
+        'Snapshot ${init.snapshotId} does not belong to session '
+        '${init.sessionId} (it belongs to '
+        '${snapshotSessionId ?? 'an unknown session'}).',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    // Only `completed` snapshots are resumable. A failed/aborted/pending
+    // snapshot is persisted for inspection but is not a valid resume target.
+    if (snapshot.status != 'completed') {
+      throw GenkitException(
+        'Snapshot ${init.snapshotId} is not resumable (status: '
+        "${snapshot.status ?? 'unknown'}). Only 'completed' snapshots can be "
+        'resumed.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    validateCustomState(snapshot.state?.custom);
+    return (snapshot: snapshot, session: Session(snapshot.state!));
   }
 
   if (init?.sessionId != null) {
-    final snapshot = await store.getSnapshot(sessionId: init!.sessionId);
+    // Resume the session's latest snapshot. The store returns the latest leaf
+    // regardless of status, but only `completed` snapshots are resumable - so
+    // if the leaf is a non-resumable turn, walk back over its parent chain to
+    // the last-good (`completed`) snapshot. When the session has no resumable
+    // snapshot, seed a fresh session bound to the requested sessionId.
+    var snapshot = await store.getSnapshot(sessionId: init!.sessionId);
+    final visited = <String>{};
+    while (snapshot != null && snapshot.status != 'completed') {
+      if (visited.contains(snapshot.snapshotId)) {
+        throw GenkitException(
+          "Session '${init.sessionId}' has a cyclic snapshot parent chain "
+          "(snapshot '${snapshot.snapshotId}' was visited twice). Resume by "
+          'snapshotId instead.',
+          status: StatusCodes.FAILED_PRECONDITION,
+        );
+      }
+      visited.add(snapshot.snapshotId);
+      final parentId = snapshot.parentId;
+      snapshot = parentId != null
+          ? await store.getSnapshot(snapshotId: parentId)
+          : null;
+    }
     if (snapshot != null) {
-      validateCustomState(snapshot.state.custom);
-      return (snapshot: snapshot, session: Session(snapshot.state));
+      validateCustomState(snapshot.state?.custom);
+      return (snapshot: snapshot, session: Session(snapshot.state!));
     }
     return (
       snapshot: null,
@@ -679,9 +752,7 @@ void _pipeInputWithDetach(
             );
           } else {
             final runner = getRunner();
-            final turnSnapshotId =
-                runner.newSnapshotId ??
-                reserveSnapshotId(sessionId: runner.session.sessionId);
+            final turnSnapshotId = runner.newSnapshotId ?? reserveSnapshotId();
             runner.newSnapshotId = turnSnapshotId;
 
             await runner.maybeSnapshot(
@@ -904,6 +975,12 @@ Agent defineCustomAgent(
           final init = ctx.init;
           final resolvedStore = config.store ?? InMemorySessionStore();
 
+          // API-misuse checks (init does not match the agent's state-management
+          // mode) throw out of the handler so the server maps them to a proper
+          // HTTP status, rather than being absorbed into a graceful
+          // `finishReason: 'failed'` result below.
+          _assertInitMatchesStateManagement(config, init);
+
           Session session;
           SessionSnapshot? snapshot;
           try {
@@ -916,6 +993,12 @@ Agent defineCustomAgent(
             session = resolved.session;
             snapshot = resolved.snapshot;
           } catch (e) {
+            // An AgentInitError signals API misuse (e.g. the snapshot/session
+            // ownership guard) that must surface as a thrown error; re-throw it
+            // so the server handler maps it to a proper HTTP status. Other
+            // pre-turn failures resolve gracefully with `finishReason: 'failed'`
+            // (preserving the original error.status).
+            if (e is AgentInitError) rethrow;
             return AgentOutput(
               finishReason: AgentFinishReason.failed,
               error: _toErrorInfo(toErrorDetails(e)),
@@ -1186,9 +1269,11 @@ Agent defineCustomAgent(
   registry.register(primaryAction);
 
   SessionSnapshot toClientSnapshot(SessionSnapshot snapshot) {
-    if (config.clientTransform?.state == null) return snapshot;
+    final transform = config.clientTransform?.state;
+    final state = snapshot.state;
+    if (transform == null || state == null) return snapshot;
     final json = Map<String, dynamic>.from(snapshot.toJson());
-    json['state'] = config.clientTransform!.state!(snapshot.state).toJson();
+    json['state'] = transform(state).toJson();
     return SessionSnapshot.fromJson(json);
   }
 

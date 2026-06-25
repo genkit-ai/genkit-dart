@@ -145,7 +145,7 @@ void main() {
       final snap = await agent.getSnapshot(snapshotId: 's_z');
       expect(seenUrl, 'http://host/agent/state');
       expect(snap, isNotNull);
-      expect(snap!.state.custom, {'k': 'v'});
+      expect(snap!.state?.custom, {'k': 'v'});
     });
 
     test('abort() posts to the abort URL and returns prior status', () async {

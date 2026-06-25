@@ -13,9 +13,11 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/src/ai/agents/agent_core.dart';
 import 'package:test/test.dart';
 
 /// A scripted transport: each turn returns the queued [_TurnScript].
+
 class _FakeTransport extends AgentTransport {
   _FakeTransport(this._scripts, {this.supportsRun = false});
 
