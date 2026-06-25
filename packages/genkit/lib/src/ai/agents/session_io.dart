@@ -31,43 +31,80 @@ import 'session.dart';
 /// [FileSessionStore.onSnapshotStateChange].
 const Duration _defaultSnapshotWatchPollInterval = Duration(seconds: 2);
 
-/// Validates that a snapshotId is a plain file basename and not a path that
-/// could escape the (per-tenant) prefix directory.
+/// Validates that an id is a plain file basename and not a path that could
+/// escape the (per-tenant) prefix directory.
 ///
-/// A `snapshotId` can arrive straight off the wire (the abort/getSnapshot
-/// actions accept a bare string), so without this an id like `../../foo` would
-/// let a caller read or write outside the prefix and break per-tenant
-/// isolation.
-void _assertSafeSnapshotId(String snapshotId) {
-  if (snapshotId.isEmpty ||
-      snapshotId.contains('/') ||
-      snapshotId.contains(r'\') ||
-      snapshotId.contains('\u0000') ||
-      snapshotId == '.' ||
-      snapshotId == '..') {
+/// Ids (`snapshotId`, `sessionId`) can arrive straight off the wire (the
+/// abort/getSnapshot actions accept a bare string), so without this an id like
+/// `../../foo` would let a caller read or write outside the prefix and break
+/// per-tenant isolation.
+void _assertSafeId(String id, String label) {
+  if (id.isEmpty ||
+      id.contains('/') ||
+      id.contains(r'\') ||
+      id.contains('\u0000') ||
+      id == '.' ||
+      id == '..') {
     throw GenkitException(
-      'Invalid snapshotId: "$snapshotId". A snapshotId must be a plain file '
-      'name (no path separators or "..").',
+      'Invalid $label: "$id". A $label must be a plain file name (no path '
+      'separators or "..").',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
 }
 
+/// Validates that a snapshotId is a plain file basename and not a path that
+/// could escape the (per-tenant) prefix directory.
+void _assertSafeSnapshotId(String snapshotId) =>
+    _assertSafeId(snapshotId, 'snapshotId');
+
+/// Hidden sub-directory (within each prefix) holding the per-session pointer
+/// files. It is a directory, so the snapshot scan in
+/// [FileSessionStore._latestSnapshotForSession] - which only considers `*.json`
+/// *files* - naturally skips it.
+const String _pointersSubdir = '.pointers';
+
+/// The per-session pointer document. Records the current leaf snapshot id for a
+/// session so a `getSnapshot(sessionId: ...)` lookup is a single pointer read
+/// followed by one snapshot read, instead of scanning and parsing every
+/// snapshot file in the prefix directory.
+class _PointerDoc {
+  _PointerDoc({required this.currentSnapshotId, required this.updatedAt});
+
+  /// Reads a [_PointerDoc] from decoded JSON, returning `null` when the payload
+  /// is missing the required `currentSnapshotId`.
+  static _PointerDoc? fromJson(Map<String, dynamic> json) {
+    final currentSnapshotId = json['currentSnapshotId'] as String?;
+    if (currentSnapshotId == null || currentSnapshotId.isEmpty) return null;
+    return _PointerDoc(
+      currentSnapshotId: currentSnapshotId,
+      updatedAt: json['updatedAt'] as String? ?? '',
+    );
+  }
+
+  final String currentSnapshotId;
+  final String updatedAt;
+
+  Map<String, dynamic> toJson() => {
+    'currentSnapshotId': currentSnapshotId,
+    'updatedAt': updatedAt,
+  };
+}
+
 /// A `dart:io` file-system backed session snapshot store.
-///
-/// **Note:** This store is primarily intended for local development and
-/// testing. Because `getSnapshot(sessionId: ...)` performs an O(N) scan of all
-/// files in the prefix directory, it may become a performance bottleneck in
-/// production environments with a large number of sessions.
 ///
 /// Snapshots are stored as flat JSON files keyed by their `snapshotId`, under an
 /// optional per-tenant sub-directory prefix:
 ///
 ///     dirPath/<prefix>/<snapshotId>.json
 ///
-/// `getSnapshot(sessionId: ...)` scans the prefix directory and selects the
-/// single leaf snapshot whose `state.sessionId` matches - there is no separate
-/// grouping directory, the `sessionId` lives in each snapshot's state.
+/// `getSnapshot(sessionId: ...)` resolves the session's current leaf via a tiny
+/// per-session pointer file (`<prefix>/.pointers/<sessionId>.json`, see
+/// [_PointerDoc]) - one pointer read plus one snapshot read. When the pointer is
+/// missing (e.g. a legacy store) or stale it transparently falls back to
+/// scanning the prefix directory and selecting the single leaf whose
+/// `sessionId` matches, then rewrites the pointer so subsequent lookups are fast
+/// again.
 class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
   /// Creates a file-backed store rooted at [dirPath] (created if missing).
   ///
@@ -138,6 +175,69 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     return File('${dir.path}${Platform.pathSeparator}$snapshotId.json');
   }
 
+  /// Resolves the (per-tenant) directory holding per-session pointer files.
+  Directory _pointersDir(Map<String, dynamic>? context) {
+    return Directory(
+      '${_prefixDir(context).path}${Platform.pathSeparator}$_pointersSubdir',
+    );
+  }
+
+  /// Resolves the pointer file for a session, validating `sessionId` is a plain
+  /// basename so it can never escape the pointers directory. Pure: it does not
+  /// create the directory, so the read path stays side-effect free. The write
+  /// path creates the directory before writing.
+  File _pointerFileFor(String sessionId, Map<String, dynamic>? context) {
+    _assertSafeId(sessionId, 'sessionId');
+    return File(
+      '${_pointersDir(context).path}${Platform.pathSeparator}$sessionId.json',
+    );
+  }
+
+  /// Reads the per-session [_PointerDoc], or `null` when it is missing (legacy
+  /// store / not yet written) or unreadable / corrupt - callers fall back to a
+  /// full directory scan in that case. Best-effort: any error reading the
+  /// pointer resolves to `null` so the optimization can never make a lookup (or
+  /// save) fail where the scan-only baseline would have succeeded.
+  Future<_PointerDoc?> _readPointer(
+    String sessionId,
+    Map<String, dynamic>? context,
+  ) async {
+    try {
+      final file = _pointerFileFor(sessionId, context);
+      if (!file.existsSync()) return null;
+      return _PointerDoc.fromJson(
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      // Missing / unreadable / corrupt pointer: fall back to the scan.
+      return null;
+    }
+  }
+
+  /// Atomically writes the per-session [_PointerDoc]. Best-effort: a pointer
+  /// write failure is swallowed since the pointer is only an optimization -
+  /// `sessionId` lookups still self-heal via the full scan.
+  Future<void> _writePointer(
+    String sessionId,
+    String currentSnapshotId,
+    Map<String, dynamic>? context,
+  ) async {
+    try {
+      final file = _pointerFileFor(sessionId, context);
+      await _pointersDir(context).create(recursive: true);
+      final pointer = _PointerDoc(
+        currentSnapshotId: currentSnapshotId,
+        updatedAt: DateTime.now().toUtc().toIso8601String(),
+      );
+      await _atomicWrite(
+        file,
+        const JsonEncoder.withIndent('  ').convert(pointer.toJson()),
+      );
+    } catch (_) {
+      // Ignore: the scan fallback keeps `sessionId` lookups correct.
+    }
+  }
+
   /// Serializes async work per resolved file path so a read-modify-write in
   /// [saveSnapshot] is not interleaved with a concurrent one for the same
   /// snapshot (see [_writeLocks]).
@@ -190,13 +290,36 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     );
   }
 
-  /// Resolves the latest (leaf) snapshot for a session by scanning every
-  /// snapshot file in the (per-tenant) prefix directory, keeping those whose
-  /// `state.sessionId` matches, and selecting the single leaf.
+  /// Resolves the latest (leaf) snapshot for a session.
+  ///
+  /// Fast path: read the per-session pointer file and load the leaf it names -
+  /// one pointer read plus one snapshot read, independent of session count /
+  /// length. The pointer is skipped (and the scan used) when
+  /// [rejectBranchingSessions] is set, since detecting branches requires seeing
+  /// every leaf.
+  ///
+  /// Fallback (no/stale/corrupt pointer, or branch detection): scan every
+  /// snapshot file in the prefix directory, keep those whose `sessionId`
+  /// matches, select the single leaf, and refresh the pointer so later lookups
+  /// take the fast path.
   Future<SessionSnapshot?> _latestSnapshotForSession(
     String sessionId,
     Map<String, dynamic>? context,
   ) async {
+    // Fast path via the pointer file (skipped when we must detect branching).
+    if (!rejectBranchingSessions) {
+      final pointer = await _readPointer(sessionId, context);
+      if (pointer != null) {
+        final snap = await _snapshotById(pointer.currentSnapshotId, context);
+        // Honor the pointer only when the leaf still exists and belongs to this
+        // session; otherwise it is stale - fall through to the scan, which also
+        // rewrites the pointer.
+        if (snap != null && snapshotSessionId(snap) == sessionId) {
+          return snap;
+        }
+      }
+    }
+
     final dir = _prefixDir(context);
     if (!dir.existsSync()) return null;
 
@@ -219,11 +342,17 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
       // Directory listing/access error: degrade gracefully.
     }
 
-    return selectLeafSnapshot(
+    final leaf = selectLeafSnapshot(
       snapshots,
       sessionId,
       rejectBranching: rejectBranchingSessions,
     );
+    if (leaf == null) return null;
+
+    // Refresh the pointer so subsequent lookups take the fast path.
+    // Best-effort.
+    await _writePointer(sessionId, leaf.snapshotId, context);
+    return leaf;
   }
 
   @override
@@ -265,6 +394,24 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
       file,
       const JsonEncoder.withIndent('  ').convert(result.toJson()),
     );
+
+    // Maintain the per-session pointer so `sessionId` lookups stay fast (one
+    // pointer read plus one snapshot read). Advance the pointer for a new leaf,
+    // refresh it when rewriting the current leaf, and leave it untouched when
+    // upserting an older (non-leaf) snapshot. Snapshots without a `sessionId`
+    // are not addressable by session, so skip the pointer.
+    final sessionId = snapshotSessionId(result);
+    if (sessionId != null) {
+      final isNew = current == null;
+      final pointer = await _readPointer(sessionId, context);
+      if (isNew || pointer == null || pointer.currentSnapshotId == id) {
+        await _writePointer(
+          sessionId,
+          isNew || pointer == null ? id : pointer.currentSnapshotId,
+          context,
+        );
+      }
+    }
 
     final maxChain = maxPersistedChainLength;
     if (maxChain != null && maxChain > 0) {
