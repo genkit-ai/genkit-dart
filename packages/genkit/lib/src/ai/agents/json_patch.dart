@@ -45,9 +45,17 @@ String _escapeToken(String token) =>
 String _unescapeToken(String token) =>
     token.replaceAll('~1', '/').replaceAll('~0', '~');
 
+/// Reference tokens that could be used to pollute an object's prototype (or its
+/// constructor) when walking into an existing object. We reject these outright
+/// since patches may originate from untrusted, server-sent data.
+const Set<String> _forbiddenTokens = {'__proto__', 'prototype', 'constructor'};
+
 /// Parses a JSON Pointer string into its reference tokens.
 ///
 /// The root pointer (`""`) parses to an empty list.
+///
+/// Reference tokens that could lead to prototype pollution (`__proto__`,
+/// `prototype`, `constructor`) are rejected.
 List<String> _parsePointer(String pointer) {
   if (pointer == '') return [];
   if (!pointer.startsWith('/')) {
@@ -55,7 +63,15 @@ List<String> _parsePointer(String pointer) {
       'Invalid JSON Pointer: "$pointer" must start with "/".',
     );
   }
-  return pointer.substring(1).split('/').map(_unescapeToken).toList();
+  final tokens = pointer.substring(1).split('/').map(_unescapeToken).toList();
+  for (final token in tokens) {
+    if (_forbiddenTokens.contains(token)) {
+      throw ArgumentError(
+        'Invalid JSON Pointer: "$pointer" contains forbidden token "$token".',
+      );
+    }
+  }
+  return tokens;
 }
 
 /// Returns `true` for values that are plain JSON objects (not lists / null).
