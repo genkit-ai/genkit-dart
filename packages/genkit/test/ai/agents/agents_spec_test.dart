@@ -525,6 +525,45 @@ Future<void> _executeSend(
   // unawaited `session.close()`.
   unawaited(bidi.close());
 
+  // --- expectError: an API-misuse case that must THROW rather than resolve
+  // gracefully. The thrown error (an AgentInitError / GenkitException) surfaces
+  // through the bidi stream or its result future; assert its status + message.
+  final expectError = resolved['expectError'];
+  if (expectError is Map) {
+    Object? thrown;
+    try {
+      await for (final _ in bidi) {
+        // Drain any chunks emitted before the error.
+      }
+      await bidi.onResult;
+    } catch (e) {
+      thrown = e;
+    }
+    if (thrown == null) {
+      throw _SpecError(
+        'Expected the turn to throw $expectError, but it resolved normally.',
+      );
+    }
+    final status = thrown is GenkitException ? thrown.status.name : null;
+    final message = thrown is GenkitException
+        ? thrown.message
+        : thrown.toString();
+    if (expectError['status'] != null && status != expectError['status']) {
+      throw _SpecError(
+        "Expected thrown error.status '${expectError['status']}', "
+        "got '$status' (message: $message)",
+      );
+    }
+    if (expectError['message'] != null &&
+        !message.contains(expectError['message'] as String)) {
+      throw _SpecError(
+        "Expected thrown error.message to contain '${expectError['message']}', "
+        'got: $message',
+      );
+    }
+    return;
+  }
+
   final chunks = <AgentStreamChunk>[];
   await for (final chunk in bidi) {
     chunks.add(chunk);
@@ -533,6 +572,7 @@ Future<void> _executeSend(
 
   // --- expectChunks: strict ordered comparison ---
   final expectChunks = resolved['expectChunks'] as List?;
+
   if (expectChunks != null) {
     final actualChunks = chunks.map((c) => c.toJson()).toList();
     if (actualChunks.length != expectChunks.length) {
@@ -761,7 +801,7 @@ void _assertSnapshot(SessionSnapshot snapshot, Map? expect) {
     }
   }
   if (expect['hasSessionId'] == true) {
-    final sid = snapshot.state.sessionId;
+    final sid = snapshot.state?.sessionId;
     if (sid == null || sid.isEmpty) {
       throw _SpecError(
         'Expected snapshot.state to have a sessionId, got: $sid',
@@ -769,12 +809,16 @@ void _assertSnapshot(SessionSnapshot snapshot, Map? expect) {
     }
   }
   if (expect['stateContains'] != null) {
+    if (snapshot.state == null) {
+      throw _SpecError('Expected snapshot to have state');
+    }
     _assertContains(
-      snapshot.state.toJson(),
+      snapshot.state!.toJson(),
       expect['stateContains'],
       'snapshot.state',
     );
   }
+
   if (expect['errorContains'] != null) {
     if (snapshot.error == null) {
       throw _SpecError('Expected snapshot to have error');

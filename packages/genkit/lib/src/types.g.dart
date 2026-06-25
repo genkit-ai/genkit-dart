@@ -4849,7 +4849,7 @@ base class ReflectionRegisterParams {
 
   ReflectionRegisterParams({
     required String id,
-    int? pid,
+    required int pid,
     String? name,
     String? genkitVersion,
     double? reflectionApiSpecVersion,
@@ -4857,7 +4857,7 @@ base class ReflectionRegisterParams {
   }) {
     _json = {
       'id': id,
-      'pid': ?pid,
+      'pid': pid,
       'name': ?name,
       'genkitVersion': ?genkitVersion,
       'reflectionApiSpecVersion': ?reflectionApiSpecVersion,
@@ -4879,16 +4879,12 @@ base class ReflectionRegisterParams {
     _json['id'] = value;
   }
 
-  int? get pid {
-    return _json['pid'] as int?;
+  int get pid {
+    return _json['pid'] as int;
   }
 
-  set pid(int? value) {
-    if (value == null) {
-      _json.remove('pid');
-    } else {
-      _json['pid'] = value;
-    }
+  set pid(int value) {
+    _json['pid'] = value;
   }
 
   String? get name {
@@ -4972,7 +4968,7 @@ base class _ReflectionRegisterParamsTypeFactory
             'reflectionApiSpecVersion': $Schema.number(),
             'envs': $Schema.list(items: $Schema.string()),
           },
-          required: ['id'],
+          required: ['id', 'pid'],
         )
         .value,
     dependencies: [],
@@ -6471,7 +6467,7 @@ base class SessionSnapshot {
     String? status,
     AgentFinishReason? finishReason,
     AgentErrorInfo? error,
-    required SessionState state,
+    SessionState? state,
   }) {
     _json = {
       'snapshotId': snapshotId,
@@ -6483,7 +6479,7 @@ base class SessionSnapshot {
       'status': ?status,
       'finishReason': ?finishReason?.value,
       'error': ?error?.toJson(),
-      'state': state.toJson(),
+      'state': ?state?.toJson(),
     };
   }
 
@@ -6595,12 +6591,18 @@ base class SessionSnapshot {
     }
   }
 
-  SessionState get state {
-    return SessionState.fromJson(_json['state'] as Map<String, dynamic>);
+  SessionState? get state {
+    return _json['state'] == null
+        ? null
+        : SessionState.fromJson(_json['state'] as Map<String, dynamic>);
   }
 
-  set state(SessionState value) {
-    _json['state'] = value;
+  set state(SessionState? value) {
+    if (value == null) {
+      _json.remove('state');
+    } else {
+      _json['state'] = value;
+    }
   }
 
   @override
@@ -6639,7 +6641,7 @@ base class _SessionSnapshotTypeFactory extends SchemanticType<SessionSnapshot> {
             'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
             'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
           },
-          required: ['snapshotId', 'createdAt', 'state'],
+          required: ['snapshotId', 'createdAt'],
         )
         .value,
     dependencies: [AgentErrorInfo.$schema, SessionState.$schema],

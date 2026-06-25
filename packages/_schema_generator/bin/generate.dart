@@ -21,7 +21,7 @@ import 'package:http/http.dart' as http;
 void main() async {
   final response = await http.get(
     Uri.parse(
-      'https://raw.githubusercontent.com/genkit-ai/genkit/pj/agent-git-sample/genkit-tools/genkit-schema.json',
+      'https://raw.githubusercontent.com/genkit-ai/genkit/refs/heads/main/genkit-tools/genkit-schema.json',
     ),
   );
 
@@ -46,8 +46,8 @@ void main() async {
       }
     }
 
-    // The agent schemas define a few inline (anonymous) objects. Promote them
-    // to named `$defs` so they get their own generated classes.
+    // The `AgentInput.resume` schema is an inline (anonymous) object. Promote
+    // it to a named `$def` so it gets its own generated class.
     if (definitions.containsKey('AgentInput')) {
       final agentInput = definitions['AgentInput'] as Map<String, dynamic>;
       final props = agentInput['properties'] as Map<String, dynamic>? ?? {};
@@ -55,14 +55,20 @@ void main() async {
         definitions['AgentResume'] = props['resume'];
       }
     }
-    if (definitions.containsKey('AgentOutput')) {
-      final agentOutput = definitions['AgentOutput'] as Map<String, dynamic>;
-      final props = agentOutput['properties'] as Map<String, dynamic>? ?? {};
-      if (props.containsKey('error')) {
-        // Named `AgentErrorInfo` (not `AgentError`) to avoid colliding with the
-        // hand-written `AgentError` exception class in agent_core.dart.
-        definitions['AgentErrorInfo'] = props['error'];
-      }
+
+    // The structured error carried in agent outputs and snapshots is named
+    // `RuntimeError` on the wire. Generate it under the Dart-internal name
+    // `AgentErrorInfo` (to avoid colliding with the hand-written `AgentError`
+    // exception class in agent_core.dart) by aliasing the `RuntimeError` def.
+    if (definitions.containsKey('RuntimeError')) {
+      definitions['AgentErrorInfo'] = definitions['RuntimeError'];
+    }
+
+    // The `getSnapshot` companion action input is named `GetSnapshotRequest` on
+    // the wire. Generate it under the Dart-internal name `GetSnapshotDataInput`
+    // by aliasing the `GetSnapshotRequest` def.
+    if (definitions.containsKey('GetSnapshotRequest')) {
+      definitions['GetSnapshotDataInput'] = definitions['GetSnapshotRequest'];
     }
 
     final classGenerator = ClassGenerator(definitions);
@@ -168,5 +174,5 @@ const _allowlist = {
   'JsonPatchOperation',
   'SessionSnapshot',
   'SessionState',
-  'SnapshotEvent',
+  'SnapshotStatus',
 };
