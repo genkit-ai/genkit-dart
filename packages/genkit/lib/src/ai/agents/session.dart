@@ -324,7 +324,7 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
     String? sessionId,
     Map<String, dynamic>? context,
   }) async {
-    final normalized = _normalizeGetSnapshotOptions(
+    final normalized = normalizeGetSnapshotOptions(
       snapshotId: snapshotId,
       sessionId: sessionId,
     );
@@ -339,11 +339,11 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
     // resolve the single leaf (latest) snapshot.
     final owned = <SessionSnapshot>[];
     for (final snap in _snapshots.values) {
-      if (_snapshotSessionId(snap) == normalized.sessionId) {
+      if (snapshotSessionId(snap) == normalized.sessionId) {
         owned.add(snap);
       }
     }
-    final leaf = _selectLeafSnapshot(
+    final leaf = selectLeafSnapshot(
       owned,
       normalized.sessionId!,
       rejectBranching: rejectBranchingSessions,
@@ -426,11 +426,11 @@ String resolveSnapshotId(String? requestedId, SessionSnapshot result) {
 
 /// Returns the sessionId a snapshot belongs to, preferring the top-level
 /// `sessionId` and falling back to `state.sessionId`.
-String? _snapshotSessionId(SessionSnapshot snapshot) =>
+String? snapshotSessionId(SessionSnapshot snapshot) =>
     snapshot.sessionId ?? snapshot.state?.sessionId;
 
-class _NormalizedGetSnapshot {
-  _NormalizedGetSnapshot({this.snapshotId, this.sessionId});
+class NormalizedGetSnapshot {
+  NormalizedGetSnapshot({this.snapshotId, this.sessionId});
   final String? snapshotId;
   final String? sessionId;
 }
@@ -439,7 +439,7 @@ class _NormalizedGetSnapshot {
 ///
 /// Enforces that exactly one of [snapshotId] / [sessionId] is provided and,
 /// when a [sessionId] is given, that it is a non-empty string.
-_NormalizedGetSnapshot _normalizeGetSnapshotOptions({
+NormalizedGetSnapshot normalizeGetSnapshotOptions({
   String? snapshotId,
   String? sessionId,
 }) {
@@ -459,7 +459,7 @@ _NormalizedGetSnapshot _normalizeGetSnapshotOptions({
   if (hasSession) {
     assertValidSessionId(sessionId);
   }
-  return _NormalizedGetSnapshot(
+  return NormalizedGetSnapshot(
     snapshotId: hasSnapshot ? snapshotId : null,
     sessionId: hasSession ? sessionId : null,
   );
@@ -478,7 +478,7 @@ _NormalizedGetSnapshot _normalizeGetSnapshotOptions({
 ///     `createdAt`).
 ///   - `true`: throws [StatusCodes.FAILED_PRECONDITION], since there is no
 ///     unambiguous "latest".
-SessionSnapshot? _selectLeafSnapshot(
+SessionSnapshot? selectLeafSnapshot(
   List<SessionSnapshot> snapshots,
   String sessionId, {
   bool rejectBranching = false,
