@@ -22,8 +22,51 @@
 /// @docImport 'src/core/flow.dart';
 library;
 
+export 'src/ai/agents/agent.dart'
+    show
+        Agent,
+        AgentFn,
+        AgentFnOptions,
+        ClientTransform,
+        SessionRunner,
+        TurnContext,
+        TurnResult,
+        validateResumeAgainstHistory;
+export 'src/ai/agents/agent_core.dart'
+    show
+        AgentApi,
+        AgentChat,
+        AgentChunk,
+        AgentError,
+        AgentInterrupt,
+        AgentResponse,
+        AgentTransport,
+        AgentTurn,
+        CancellationToken,
+        DetachedTask,
+        TurnStream,
+        agentInputFromText,
+        createAgentApi;
+export 'src/ai/agents/json_patch.dart'
+    show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
+export 'src/ai/agents/session.dart'
+    show
+        InMemorySessionStore,
+        Session,
+        SessionError,
+        SessionStore,
+        SnapshotCallback,
+        SnapshotChangeNotifier,
+        SnapshotContext,
+        SnapshotMutator,
+        generateUuidV4,
+        getCurrentSession,
+        reserveSnapshotId,
+        runWithSession;
+
 export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
+
 export 'src/ai/formatters/types.dart';
 export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'src/ai/generate_middleware.dart'
