@@ -262,7 +262,7 @@ void main() {
             createdAt: stale,
             updatedAt: stale,
             heartbeatAt: stale,
-            status: 'pending',
+            status: SnapshotStatus.pending,
             state: SessionState(
               sessionId: sessionId,
               messages: [],
@@ -273,15 +273,15 @@ void main() {
 
         // Stored status is still `pending`.
         final raw = await store.getSnapshot(snapshotId: id);
-        expect(raw!.status, 'pending');
+        expect(raw!.status?.value, 'pending');
 
         // ...but a read through the agent surfaces it as `expired`.
         final snapshot = await agent.getSnapshotData(snapshotId: id);
-        expect(snapshot!.status, 'expired');
+        expect(snapshot!.status?.value, 'expired');
 
         // The expiry is read-only: the stored snapshot stays `pending`.
         final after = await store.getSnapshot(snapshotId: id);
-        expect(after!.status, 'pending');
+        expect(after!.status?.value, 'pending');
       },
     );
 
