@@ -104,7 +104,10 @@ abstract final class GenkitConverter {
       // The MIME type may include parameters (e.g. "application/pdf;
       // charset=utf-8"). Strip them so matching and extension derivation work
       // against the base type.
-      final mimeType = (media.contentType ?? 'image/png').split(';').first.trim();
+      final mimeType = (media.contentType ?? 'image/png')
+          .split(';')
+          .first
+          .trim();
       final isImage = mimeType.toLowerCase().startsWith('image/');
 
       if (media.url.startsWith('data:')) {
