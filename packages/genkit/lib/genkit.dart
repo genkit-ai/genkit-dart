@@ -65,9 +65,9 @@ export 'src/ai/agents/session.dart'
         SnapshotMutator,
         generateUuidV4,
         getCurrentSession,
-        isSnapshotId,
         reserveSnapshotId,
         runWithSession;
+
 export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 

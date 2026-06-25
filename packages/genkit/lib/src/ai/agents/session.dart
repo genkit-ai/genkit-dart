@@ -14,8 +14,8 @@
 
 /// Session and snapshot storage for agents.
 ///
-/// Ported from the Genkit JS `session.ts`, kept browser-safe (no `dart:io`).
-/// The `dart:io`-backed `FileSessionStore` lives in `session_io.dart`.
+/// Ported from the Genkit JS `session.ts` / `session-stores.ts`, kept
+/// browser-safe (no `dart:io`).
 library;
 
 import 'dart:async';
@@ -65,7 +65,6 @@ extension type SnapshotEvent(String value) {
 class SnapshotContext {
   SnapshotContext({
     required this.state,
-
     this.prevState,
     required this.turnIndex,
     required this.event,
@@ -99,8 +98,11 @@ abstract interface class SessionStore {
   /// Loads a snapshot either by its [snapshotId] or by [sessionId].
   ///
   /// Exactly one of [snapshotId] / [sessionId] must be provided. A [sessionId]
-  /// resolves to the session's latest leaf snapshot and rejects branching
-  /// histories with [StatusCodes.FAILED_PRECONDITION].
+  /// resolves to the session's latest leaf snapshot (the most recent snapshot
+  /// that no other snapshot points to as its parent). A branched history (more
+  /// than one leaf) resolves to the most-recently created leaf by default, or
+  /// is rejected with [StatusCodes.FAILED_PRECONDITION] when the store is
+  /// configured to reject branching.
   Future<SessionSnapshot?> getSnapshot({String? snapshotId, String? sessionId});
 
   /// Atomically reads the current snapshot (if [snapshotId] is provided),
@@ -267,6 +269,19 @@ class SessionError implements Exception {
 
 /// In-memory implementation of persistent session store.
 class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
+  /// Creates an in-memory store.
+  ///
+  /// When [rejectBranchingSessions] is `true`, a `sessionId` lookup that
+  /// resolves to a branched history (more than one leaf) throws
+  /// [StatusCodes.FAILED_PRECONDITION] instead of returning the latest leaf.
+  /// Defaults to `false`; opt in (e.g. in dev) to surface accidental branching
+  /// early.
+  InMemorySessionStore({this.rejectBranchingSessions = false});
+
+  /// Whether a branched `sessionId` lookup is rejected instead of resolving to
+  /// the most-recent leaf.
+  final bool rejectBranchingSessions;
+
   final Map<String, SessionSnapshot> _snapshots = {};
   final Map<String, List<void Function(SessionSnapshot)>> _listeners = {};
 
@@ -290,11 +305,15 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
     // resolve the single leaf (latest) snapshot.
     final owned = <SessionSnapshot>[];
     for (final snap in _snapshots.values) {
-      if (snap.state.sessionId == normalized.sessionId) {
+      if (_snapshotSessionId(snap) == normalized.sessionId) {
         owned.add(snap);
       }
     }
-    final leaf = _selectLeafSnapshot(owned, normalized.sessionId!);
+    final leaf = _selectLeafSnapshot(
+      owned,
+      normalized.sessionId!,
+      rejectBranching: rejectBranchingSessions,
+    );
     return leaf != null ? _cloneSnapshot(leaf) : null;
   }
 
@@ -308,18 +327,12 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
     final result = mutator(current != null ? _cloneSnapshot(current) : null);
     if (result == null) return null;
 
-    // Determine the final ID. For new snapshots compose an `s_{convoId}_{suffix}`
-    // id where convoId is derived from the session id (so all snapshots of a
-    // session share a grouping key for `getSnapshot(sessionId: ...)`).
+    // Determine the final ID. The runtime normally supplies a snapshotId, but
+    // fall back to a fresh UUID for direct store users who omit it.
     final resultId = result.snapshotId;
     final id = (snapshotId != null && snapshotId.isNotEmpty)
         ? snapshotId
-        : (resultId.isNotEmpty
-              ? resultId
-              : _composeSnapshotId(
-                  _deriveConvoId(result),
-                  _generateSnapshotSuffix(),
-                ));
+        : (resultId.isNotEmpty ? resultId : generateUuidV4());
 
     result.snapshotId = id;
     _snapshots[id] = _cloneSnapshot(result);
@@ -346,116 +359,37 @@ class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
 }
 
 // ---------------------------------------------------------------------------
-// snapshotId helpers (format must match JS for conformance).
+// sessionId / snapshotId helpers.
 // ---------------------------------------------------------------------------
 
-// Only UUID-shaped strings are accepted for the convoId / sessionId component.
-final RegExp _uuidPattern = RegExp(
-  r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-  caseSensitive: false,
-);
-
-// The suffix part (after the convoId) must be alphanumeric / hyphens /
-// underscores.
-final RegExp _safeSuffixPattern = RegExp(r'^[0-9a-zA-Z_-]+$');
-
-/// Prefix that visually distinguishes a `snapshotId` from a bare `sessionId`.
+/// Validates that [sessionId] is a non-empty string, throwing a descriptive
+/// error otherwise.
 ///
-/// A `sessionId` is a plain UUID; a `snapshotId` is
-/// `s_{sessionId}_{epochMs}_{random}`.
-const String _snapshotIdPrefix = 's_';
-
-/// Returns `true` when [id] looks like a snapshotId (carries the `s_` prefix).
-bool isSnapshotId(String id) => id.startsWith(_snapshotIdPrefix);
-
-/// Validates that [sessionId] is a UUID, throwing a descriptive error
-/// otherwise.
+/// Session ids can be minted by the client and can be any non-empty string
+/// (e.g. a UUID, or an application-specific identifier). We only reject empty /
+/// blank values so the id stays usable as a key.
 void assertValidSessionId(String sessionId) {
-  if (!_uuidPattern.hasMatch(sessionId)) {
+  if (sessionId.trim().isEmpty) {
     throw GenkitException(
-      'Invalid sessionId: expected a UUID, got "$sessionId". '
-      'Session ids must be UUIDs (e.g. generateUuidV4()).',
+      'Invalid sessionId: expected a non-empty string, got "$sessionId".',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
 }
 
-/// Generates a short, unique suffix for a snapshot ID.
+/// Mints a new `snapshotId` (a plain random UUID).
 ///
-/// Format: `{epochMs}_{random4}` - e.g. `1747000878123_k9m2`.
-String _generateSnapshotSuffix() {
-  final timestamp = DateTime.now().millisecondsSinceEpoch;
-  final random = _randomBase36(4);
-  return '${timestamp}_$random';
-}
+/// The runtime normally supplies the snapshotId to the store at save time, but
+/// some flows need the id *ahead of time* - e.g. an agent turn that wants to
+/// know the snapshotId at turn *start*, and have the snapshot persisted at turn
+/// end reuse that very id, or the detach path which pre-reserves the in-flight
+/// snapshot's id.
+String reserveSnapshotId() => generateUuidV4();
 
-/// Composes a snapshot ID from a conversation ID and a short suffix.
-///
-/// Format: `s_{convoId}_{epochMs}_{random}`.
-String _composeSnapshotId(String convoId, String suffix) =>
-    '$_snapshotIdPrefix${convoId}_$suffix';
-
-/// Mints a new, store-compatible `snapshotId` *ahead of time* (before the
-/// snapshot it identifies is actually written).
-///
-/// The convoId is derived from [sessionId] when provided (so all snapshots of a
-/// session group together), falling back to the parent's convoId, then to a
-/// fresh UUID.
-String reserveSnapshotId({String? sessionId, String? parentId}) {
-  String convoId;
-  if (sessionId != null) {
-    assertValidSessionId(sessionId);
-    convoId = sessionId;
-  } else if (parentId != null) {
-    convoId = _parseSnapshotId(parentId).convoId;
-  } else {
-    convoId = generateUuidV4();
-  }
-  return _composeSnapshotId(convoId, _generateSnapshotSuffix());
-}
-
-class _ParsedSnapshotId {
-  _ParsedSnapshotId(this.convoId, this.suffix);
-  final String convoId;
-  final String suffix;
-}
-
-/// Parses a composite snapshot ID into its conversation ID and suffix.
-///
-/// Throws if the ID cannot be parsed or the convoId is not a valid UUID.
-_ParsedSnapshotId _parseSnapshotId(String snapshotId) {
-  if (!snapshotId.startsWith(_snapshotIdPrefix)) {
-    throw GenkitException(
-      'Invalid snapshotId: expected format "s_{uuid}_{suffix}", got '
-      '"$snapshotId". (A bare UUID is a sessionId, not a snapshotId.)',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-  final body = snapshotId.substring(_snapshotIdPrefix.length);
-  // UUID is always 36 chars (8-4-4-4-12). The separator `_` follows at index 36.
-  if (body.length < 38 || body[36] != '_') {
-    throw GenkitException(
-      'Invalid snapshotId: expected format "s_{uuid}_{suffix}", got '
-      '"$snapshotId"',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-  final convoId = body.substring(0, 36);
-  final suffix = body.substring(37);
-  if (!_uuidPattern.hasMatch(convoId)) {
-    throw GenkitException(
-      'Invalid snapshotId: convoId component is not a valid UUID ("$convoId")',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-  if (suffix.isEmpty || !_safeSuffixPattern.hasMatch(suffix)) {
-    throw GenkitException(
-      'Invalid snapshotId: suffix component is invalid ("$suffix")',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-  return _ParsedSnapshotId(convoId, suffix);
-}
+/// Returns the sessionId a snapshot belongs to, preferring the top-level
+/// `sessionId` and falling back to `state.sessionId`.
+String? _snapshotSessionId(SessionSnapshot snapshot) =>
+    snapshot.sessionId ?? snapshot.state?.sessionId;
 
 class _NormalizedGetSnapshot {
   _NormalizedGetSnapshot({this.snapshotId, this.sessionId});
@@ -466,7 +400,7 @@ class _NormalizedGetSnapshot {
 /// Normalizes and validates `getSnapshot` options.
 ///
 /// Enforces that exactly one of [snapshotId] / [sessionId] is provided and,
-/// when a [sessionId] is given, that it is a valid UUID.
+/// when a [sessionId] is given, that it is a non-empty string.
 _NormalizedGetSnapshot _normalizeGetSnapshotOptions({
   String? snapshotId,
   String? sessionId,
@@ -487,32 +421,24 @@ _NormalizedGetSnapshot _normalizeGetSnapshotOptions({
   return _NormalizedGetSnapshot(snapshotId: snapshotId, sessionId: sessionId);
 }
 
-/// Derives the convoId to embed in a *new* snapshot's id.
+/// Selects the latest leaf snapshot from a set belonging to one session.
 ///
-/// Prefers the snapshot's own `state.sessionId`, falling back to the parent's
-/// convoId, then to a fresh random UUID.
-String _deriveConvoId(SessionSnapshot snapshot) {
-  final sessionId = snapshot.state.sessionId;
-  if (sessionId != null && sessionId.isNotEmpty) {
-    assertValidSessionId(sessionId);
-    return sessionId;
-  }
-  final parentId = snapshot.parentId;
-  if (parentId != null) {
-    return _parseSnapshotId(parentId).convoId;
-  }
-  return generateUuidV4();
-}
-
-/// Selects the single leaf (latest) snapshot from a set belonging to one
-/// session.
+/// A "leaf" is a snapshot that no other snapshot points to as its `parentId`.
+/// A healthy linear session has exactly one leaf - the latest turn.
 ///
-/// Throws [StatusCodes.FAILED_PRECONDITION] when the history has branched
-/// (more than one leaf, e.g. after a regenerate).
+/// - Returns `null` when [snapshots] is empty.
+/// - Returns the single leaf when the history is linear.
+/// - When the history has branched (more than one leaf, e.g. after a
+///   regenerate) the behavior depends on [rejectBranching]:
+///   - `false` (default): returns the most-recently created leaf (by
+///     `createdAt`).
+///   - `true`: throws [StatusCodes.FAILED_PRECONDITION], since there is no
+///     unambiguous "latest".
 SessionSnapshot? _selectLeafSnapshot(
   List<SessionSnapshot> snapshots,
-  String sessionId,
-) {
+  String sessionId, {
+  bool rejectBranching = false,
+}) {
   if (snapshots.isEmpty) return null;
 
   final parentIds = <String>{};
@@ -524,9 +450,11 @@ SessionSnapshot? _selectLeafSnapshot(
       .where((s) => !parentIds.contains(s.snapshotId))
       .toList();
 
+  // A single-snapshot session, or any chain, collapses to one leaf.
   if (leaves.length == 1) return leaves.first;
 
   if (leaves.isEmpty) {
+    // Cyclic / corrupt history - every snapshot is someone's parent.
     throw GenkitException(
       "Session '$sessionId' has no leaf snapshot (corrupt or cyclic "
       'history). Resume by snapshotId instead.',
@@ -534,52 +462,23 @@ SessionSnapshot? _selectLeafSnapshot(
     );
   }
 
-  throw GenkitException(
-    "Session '$sessionId' has branching snapshots (${leaves.length} "
-    'leaves), so there is no single latest snapshot. This happens when a '
-    'conversation is branched (e.g. regenerate). Resume by snapshotId instead.',
-    status: StatusCodes.FAILED_PRECONDITION,
+  if (rejectBranching) {
+    throw GenkitException(
+      "Session '$sessionId' has branching snapshots (${leaves.length} "
+      'leaves), so there is no single latest snapshot. This happens when a '
+      'conversation is branched (e.g. regenerate). Resume by snapshotId '
+      'instead.',
+      status: StatusCodes.FAILED_PRECONDITION,
+    );
+  }
+
+  // Default: pick the most-recently created leaf. `createdAt` is an ISO-8601
+  // timestamp, so lexicographic comparison matches chronological order.
+  return leaves.reduce(
+    (latest, snap) =>
+        snap.createdAt.compareTo(latest.createdAt) > 0 ? snap : latest,
   );
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers shared with the file store (via session_io.dart re-export).
-// ---------------------------------------------------------------------------
-
-/// @nodoc — exposed for the IO file store implementation.
-String composeSnapshotIdInternal(String convoId, String suffix) =>
-    _composeSnapshotId(convoId, suffix);
-
-/// @nodoc — exposed for the IO file store implementation.
-String generateSnapshotSuffixInternal() => _generateSnapshotSuffix();
-
-/// @nodoc — exposed for the IO file store implementation.
-({String convoId, String suffix}) parseSnapshotIdInternal(String snapshotId) {
-  final parsed = _parseSnapshotId(snapshotId);
-  return (convoId: parsed.convoId, suffix: parsed.suffix);
-}
-
-/// @nodoc — exposed for the IO file store implementation.
-({String? snapshotId, String? sessionId}) normalizeGetSnapshotOptionsInternal({
-  String? snapshotId,
-  String? sessionId,
-}) {
-  final normalized = _normalizeGetSnapshotOptions(
-    snapshotId: snapshotId,
-    sessionId: sessionId,
-  );
-  return (snapshotId: normalized.snapshotId, sessionId: normalized.sessionId);
-}
-
-/// @nodoc — exposed for the IO file store implementation.
-String deriveConvoIdInternal(SessionSnapshot snapshot) =>
-    _deriveConvoId(snapshot);
-
-/// @nodoc — exposed for the IO file store implementation.
-SessionSnapshot? selectLeafSnapshotInternal(
-  List<SessionSnapshot> snapshots,
-  String sessionId,
-) => _selectLeafSnapshot(snapshots, sessionId);
 
 // ---------------------------------------------------------------------------
 // UUID + RNG (browser-safe).
@@ -596,10 +495,4 @@ String generateUuidV4() {
   final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
       '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
-}
-
-/// Returns [length] random base-36 characters (0-9a-z).
-String _randomBase36(int length) {
-  const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
-  return List.generate(length, (_) => chars[_rng.nextInt(chars.length)]).join();
 }

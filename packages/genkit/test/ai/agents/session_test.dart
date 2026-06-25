@@ -33,7 +33,7 @@ SessionSnapshot _snapshot({
 );
 
 void main() {
-  group('snapshotId helpers', () {
+  group('sessionId / snapshotId helpers', () {
     test('generateUuidV4 produces a valid v4 UUID', () {
       final id = generateUuidV4();
       expect(
@@ -49,31 +49,29 @@ void main() {
       expect(() => assertValidSessionId(id), returnsNormally);
     });
 
-    test('reserveSnapshotId embeds the sessionId as convoId', () {
-      final sessionId = generateUuidV4();
-      final id = reserveSnapshotId(sessionId: sessionId);
-      expect(isSnapshotId(id), isTrue);
-      expect(id, startsWith('s_${sessionId}_'));
-    });
-
-    test('reserveSnapshotId inherits convoId from parent', () {
-      final sessionId = generateUuidV4();
-      final parent = reserveSnapshotId(sessionId: sessionId);
-      final child = reserveSnapshotId(parentId: parent);
-      expect(child, startsWith('s_${sessionId}_'));
-    });
-
-    test('isSnapshotId distinguishes snapshot ids from session ids', () {
-      expect(isSnapshotId(generateUuidV4()), isFalse);
+    test('reserveSnapshotId mints a plain UUID', () {
+      final id = reserveSnapshotId();
       expect(
-        isSnapshotId(reserveSnapshotId(sessionId: generateUuidV4())),
-        isTrue,
+        id,
+        matches(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-'
+            r'[0-9a-f]{12}$',
+          ),
+        ),
       );
     });
 
-    test('assertValidSessionId rejects non-UUIDs', () {
+    test('assertValidSessionId accepts any non-empty string', () {
+      expect(() => assertValidSessionId('not-a-uuid'), returnsNormally);
+      expect(() => assertValidSessionId('my-app-session-123'), returnsNormally);
+      expect(() => assertValidSessionId(generateUuidV4()), returnsNormally);
+    });
+
+    test('assertValidSessionId rejects empty / blank strings', () {
+      expect(() => assertValidSessionId(''), throwsA(isA<GenkitException>()));
       expect(
-        () => assertValidSessionId('not-a-uuid'),
+        () => assertValidSessionId('   '),
         throwsA(isA<GenkitException>()),
       );
     });
@@ -151,9 +149,8 @@ void main() {
         (_) => _snapshot(snapshotId: '', sessionId: sessionId),
       );
       expect(id, isNotNull);
-      expect(isSnapshotId(id!), isTrue);
 
-      final loaded = await store.getSnapshot(snapshotId: id);
+      final loaded = await store.getSnapshot(snapshotId: id!);
       expect(loaded, isNotNull);
       expect(loaded!.snapshotId, id);
     });
@@ -175,14 +172,38 @@ void main() {
       expect(leaf!.snapshotId, secondId);
     });
 
-    test('getSnapshot by sessionId rejects branching histories', () async {
+    test('getSnapshot by sessionId returns latest leaf when branching', () async {
       final store = InMemorySessionStore();
       final sessionId = generateUuidV4();
       final rootId = await store.saveSnapshot(
         null,
         (_) => _snapshot(snapshotId: '', sessionId: sessionId),
       );
-      // Two children of the same parent => two leaves => branch.
+      // Two children of the same parent => two leaves => branch. By default the
+      // store resolves the most-recently created leaf rather than throwing.
+      await store.saveSnapshot(
+        null,
+        (_) =>
+            _snapshot(snapshotId: '', parentId: rootId, sessionId: sessionId),
+      );
+      final laterId = await store.saveSnapshot(
+        null,
+        (_) =>
+            _snapshot(snapshotId: '', parentId: rootId, sessionId: sessionId),
+      );
+
+      final leaf = await store.getSnapshot(sessionId: sessionId);
+      expect(leaf, isNotNull);
+      expect(leaf!.snapshotId, laterId);
+    });
+
+    test('rejectBranchingSessions throws on a branched history', () async {
+      final store = InMemorySessionStore(rejectBranchingSessions: true);
+      final sessionId = generateUuidV4();
+      final rootId = await store.saveSnapshot(
+        null,
+        (_) => _snapshot(snapshotId: '', sessionId: sessionId),
+      );
       await store.saveSnapshot(
         null,
         (_) =>
@@ -226,11 +247,11 @@ void main() {
       SessionSnapshot? seen;
       store.onSnapshotStateChange(id!, (snap) => seen = snap);
       await store.saveSnapshot(id, (current) {
-        current!.status = 'done';
+        current!.status = 'completed';
         return current;
       });
       expect(seen, isNotNull);
-      expect(seen!.status, 'done');
+      expect(seen!.status, 'completed');
     });
   });
 }
