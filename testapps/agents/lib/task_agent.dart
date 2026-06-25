@@ -75,6 +75,29 @@ Map<String, dynamic> _stateOrEmpty(dynamic custom) {
   return {'tasks': <dynamic>[], 'nextId': 1};
 }
 
+/// Locates the task with the given [id] in the session's task list and applies
+/// [onFound] to mutate it, returning the standard success/error result map.
+/// Shared by `toggleTask` and `removeTask` to avoid repeating the lookup and
+/// not-found boilerplate.
+Map<String, dynamic> _mutateTaskById(
+  int id,
+  Map<String, dynamic> Function(List<Map<String, dynamic>> tasks, int idx)
+  onFound,
+) {
+  final session = ai.currentSession()!;
+  var result = <String, dynamic>{'success': false};
+  session.updateCustom((custom) {
+    final s = _stateOrEmpty(custom);
+    final tasks = (s['tasks'] as List).cast<Map<String, dynamic>>();
+    final idx = tasks.indexWhere((t) => t['id'] == id);
+    result = idx >= 0
+        ? onFound(tasks, idx)
+        : {'success': false, 'error': 'Task $id not found'};
+    return s;
+  });
+  return result;
+}
+
 final addTask = ai.defineTool(
   name: 'addTask',
   description:
@@ -101,46 +124,20 @@ final toggleTask = ai.defineTool(
       'Toggle a task between done and not-done by its ID. Returns the updated '
       'task or an error message.',
   inputSchema: ToggleTaskInput.$schema,
-  fn: (input, _) async {
-    final session = ai.currentSession()!;
-    var result = <String, dynamic>{'success': false};
-    session.updateCustom((custom) {
-      final s = _stateOrEmpty(custom);
-      final tasks = (s['tasks'] as List).cast<Map<String, dynamic>>();
-      final idx = tasks.indexWhere((t) => t['id'] == input.id);
-      if (idx >= 0) {
-        tasks[idx]['done'] = !(tasks[idx]['done'] as bool);
-        result = {'success': true, 'task': tasks[idx]};
-      } else {
-        result = {'success': false, 'error': 'Task ${input.id} not found'};
-      }
-      return s;
-    });
-    return result;
-  },
+  fn: (input, _) async => _mutateTaskById(input.id, (tasks, idx) {
+    tasks[idx]['done'] = !(tasks[idx]['done'] as bool);
+    return {'success': true, 'task': tasks[idx]};
+  }),
 );
 
 final removeTask = ai.defineTool(
   name: 'removeTask',
   description: 'Remove a task from the list by its ID.',
   inputSchema: RemoveTaskInput.$schema,
-  fn: (input, _) async {
-    final session = ai.currentSession()!;
-    var result = <String, dynamic>{'success': false};
-    session.updateCustom((custom) {
-      final s = _stateOrEmpty(custom);
-      final tasks = (s['tasks'] as List).cast<Map<String, dynamic>>();
-      final idx = tasks.indexWhere((t) => t['id'] == input.id);
-      if (idx >= 0) {
-        tasks.removeAt(idx);
-        result = {'success': true};
-      } else {
-        result = {'success': false, 'error': 'Task ${input.id} not found'};
-      }
-      return s;
-    });
-    return result;
-  },
+  fn: (input, _) async => _mutateTaskById(input.id, (tasks, idx) {
+    tasks.removeAt(idx);
+    return {'success': true};
+  }),
 );
 
 final taskAgent = ai.defineAgent(

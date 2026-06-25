@@ -36,8 +36,8 @@ Future<void> main() async {
   // ── A server-managed agent (weatherAgent has a session store). ───────────
   final weather = remoteAgent(
     url: '$_base/api/weatherAgent',
-    // The Dart server mounts the snapshot action under `/getSnapshot`.
-    getSnapshotUrl: '$_base/api/weatherAgent/getSnapshot',
+    // The Dart server mounts the snapshot action under `/state`.
+    getSnapshotUrl: '$_base/api/weatherAgent/state',
     abortUrl: '$_base/api/weatherAgent/abort',
   );
 
