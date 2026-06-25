@@ -448,7 +448,9 @@ gcl.Part toGeminiPart(Part p) {
       functionCall: gcl.FunctionCall(
         id: p.toolRequest!.ref ?? '',
         name: _toGeminiToolName(p.toolRequest!.name),
-        args: p.toolRequest!.input as Map<String, Object?>?, // always a map
+        args: p.toolRequest!.input is Map
+            ? (p.toolRequest!.input as Map).cast<String, Object?>()
+            : null,
       ),
 
       thoughtSignature: thoughtSignature,
