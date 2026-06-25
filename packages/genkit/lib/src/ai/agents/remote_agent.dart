@@ -31,51 +31,51 @@ import 'agent_core.dart';
 /// Resolves request headers, either statically or per request.
 typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 
-/// Options for [remoteAgent].
-class RemoteAgentOptions {
-  RemoteAgentOptions({
-    required this.url,
-    this.getSnapshotUrl,
-    this.abortUrl,
-    this.headers,
-    this.stateManagement,
-    this.httpClient,
-  });
-
-  /// Required. The agent endpoint.
-  final String url;
-
-  /// Optional. Defaults to `'$url/getSnapshot'`.
-  final String? getSnapshotUrl;
-
-  /// Optional. Defaults to `'$url/abort'`.
-  final String? abortUrl;
-
-  /// Optional. Static headers, or a function called per request.
-  final HeadersResolver? headers;
-
-  /// Optional. Declares server- vs client-managed state; inferred otherwise.
-  final String? stateManagement;
-
-  /// Optional. Provide to control the HTTP client lifecycle.
-  final http.Client? httpClient;
-}
-
 /// Creates a typed client for talking to a Genkit agent over HTTP.
 ///
+/// - [url]: Required. The agent endpoint.
+/// - [getSnapshotUrl]: Optional. Defaults to `'$url/getSnapshot'`.
+/// - [abortUrl]: Optional. Defaults to `'$url/abort'`.
+/// - [headers]: Optional. Static headers, or a function called per request.
+/// - [stateManagement]: Optional. Declares server- vs client-managed state;
+///   inferred otherwise.
+/// - [httpClient]: Optional. Provide to control the HTTP client lifecycle.
+///
 /// ```dart
-/// final agent = remoteAgent(RemoteAgentOptions(url: 'http://host/weatherAgent'));
+/// final agent = remoteAgent(url: 'http://host/weatherAgent');
 /// final chat = agent.chat();
 /// final res = await chat.send(agentInputFromText('Weather in Tokyo?'));
 /// print(res.text);
 /// ```
-AgentApi remoteAgent(RemoteAgentOptions options) =>
-    createAgentApi(_HttpAgentTransport(options));
+AgentApi remoteAgent({
+  required String url,
+  String? getSnapshotUrl,
+  String? abortUrl,
+  HeadersResolver? headers,
+  String? stateManagement,
+  http.Client? httpClient,
+}) => createAgentApi(
+  _HttpAgentTransport(
+    url: url,
+    getSnapshotUrl: getSnapshotUrl,
+    abortUrl: abortUrl,
+    headers: headers,
+    stateManagement: stateManagement,
+    httpClient: httpClient,
+  ),
+);
 
 class _HttpAgentTransport extends AgentTransport {
-  _HttpAgentTransport(this._options)
-    : _httpClient = _options.httpClient ?? http.Client() {
-    stateManagement = _options.stateManagement;
+  _HttpAgentTransport({
+    required String url,
+    String? getSnapshotUrl,
+    String? abortUrl,
+    HeadersResolver? headers,
+    String? stateManagement,
+    http.Client? httpClient,
+  }) : _headers = headers,
+       _httpClient = httpClient ?? http.Client() {
+    this.stateManagement = stateManagement;
 
     _turnAction =
         defineRemoteAction<
@@ -84,7 +84,7 @@ class _HttpAgentTransport extends AgentTransport {
           AgentStreamChunk,
           AgentInit
         >(
-          url: _options.url,
+          url: url,
           httpClient: _httpClient,
           outputSchema: AgentOutput.$schema,
           streamSchema: AgentStreamChunk.$schema,
@@ -92,7 +92,7 @@ class _HttpAgentTransport extends AgentTransport {
 
     _snapshotAction =
         defineRemoteAction<Map<String, dynamic>, SessionSnapshot?, void, void>(
-          url: _options.getSnapshotUrl ?? '${_options.url}/getSnapshot',
+          url: getSnapshotUrl ?? '$url/getSnapshot',
           httpClient: _httpClient,
           fromResponse: (d) => d == null
               ? null
@@ -102,7 +102,7 @@ class _HttpAgentTransport extends AgentTransport {
 
     _abortAction =
         defineRemoteAction<AgentAbortRequest, AgentAbortResponse, void, void>(
-          url: _options.abortUrl ?? '${_options.url}/abort',
+          url: abortUrl ?? '$url/abort',
           httpClient: _httpClient,
           fromResponse: (d) =>
               AgentAbortResponse.fromJson((d as Map).cast<String, dynamic>()),
@@ -110,7 +110,7 @@ class _HttpAgentTransport extends AgentTransport {
         );
   }
 
-  final RemoteAgentOptions _options;
+  final HeadersResolver? _headers;
   final http.Client _httpClient;
 
   late final RemoteAction<AgentInput, AgentOutput, AgentStreamChunk, AgentInit>
@@ -121,7 +121,7 @@ class _HttpAgentTransport extends AgentTransport {
   _abortAction;
 
   Future<Map<String, String>?> _resolveHeaders() async {
-    final headers = _options.headers;
+    final headers = _headers;
     if (headers == null) return null;
     return headers();
   }

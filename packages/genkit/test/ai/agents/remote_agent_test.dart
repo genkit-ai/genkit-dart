@@ -77,11 +77,10 @@ void main() {
         ];
       });
 
-      final agent = remoteAgent(
-        RemoteAgentOptions(url: 'http://host/agent', httpClient: client),
-      );
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
       final res = await chat.send(agentInputFromText('hi'));
+
       expect(res.text, 'hi there');
       expect(res.snapshotId, 's_x');
       expect(res.finishReason, AgentFinishReason.stop);
@@ -113,9 +112,7 @@ void main() {
         ];
       });
 
-      final agent = remoteAgent(
-        RemoteAgentOptions(url: 'http://host/agent', httpClient: client),
-      );
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
       final turn = chat.sendStream(agentInputFromText('hi'));
 
@@ -143,10 +140,9 @@ void main() {
         });
       });
 
-      final agent = remoteAgent(
-        RemoteAgentOptions(url: 'http://host/agent', httpClient: client),
-      );
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final snap = await agent.getSnapshot(snapshotId: 's_z');
+
       expect(seenUrl, 'http://host/agent/getSnapshot');
       expect(snap, isNotNull);
       expect(snap!.state?.custom, {'k': 'v'});
@@ -162,10 +158,9 @@ void main() {
         });
       });
 
-      final agent = remoteAgent(
-        RemoteAgentOptions(url: 'http://host/agent', httpClient: client),
-      );
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final status = await agent.abort('s_z');
+
       expect(seenUrl, 'http://host/agent/abort');
       expect(status, 'done');
     });
@@ -189,15 +184,14 @@ void main() {
 
       var calls = 0;
       final agent = remoteAgent(
-        RemoteAgentOptions(
-          url: 'http://host/agent',
-          httpClient: client,
-          headers: () {
-            calls++;
-            return {'authorization': 'Bearer token'};
-          },
-        ),
+        url: 'http://host/agent',
+        httpClient: client,
+        headers: () {
+          calls++;
+          return {'authorization': 'Bearer token'};
+        },
       );
+
       await agent.chat().send(agentInputFromText('hi'));
       expect(calls, greaterThan(0));
       expect(captured, isNotNull);
