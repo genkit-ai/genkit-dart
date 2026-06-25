@@ -33,7 +33,9 @@ const typeOverrides = {
   'SessionSnapshot': {'error': '\$AgentErrorInfo', 'status': 'String'},
   'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
   'SessionState': {'custom': 'dynamic'},
-  'JsonPatchOperation': {'value': 'dynamic'},
+  // `op` is a string-union on the wire (add/remove/replace/move/copy/test);
+  // keep it a plain `String` so the runtime can compare against literals.
+  'JsonPatchOperation': {'op': 'String', 'value': 'dynamic'},
   'AgentErrorInfo': {'details': 'dynamic'},
 };
 
@@ -271,9 +273,11 @@ class ClassGenerator {
         typeOverrides[parentType]!.containsKey(fieldName)) {
       final overrideType = typeOverrides[parentType]![fieldName];
       if (overrideType == 'dynamic') return refer('dynamic');
+      if (isRequired) return refer(overrideType!.replaceAll('?', ''));
       return refer('$overrideType?');
     }
     final type = _mapTypeInner(parentType, schema);
+
     if (isRequired) {
       return refer(type.symbol!.replaceAll('?', ''));
     }

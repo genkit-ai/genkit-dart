@@ -397,7 +397,7 @@ abstract class $ReflectionListValuesResponse {
 @Schema()
 abstract class $ReflectionRegisterParams {
   String get id;
-  int? get pid;
+  int get pid;
   String? get name;
   String? get genkitVersion;
   double? get reflectionApiSpecVersion;
@@ -438,10 +438,10 @@ extension type AgentFinishReason(String value) {
   static AgentFinishReason get stop => AgentFinishReason('stop');
   static AgentFinishReason get length => AgentFinishReason('length');
   static AgentFinishReason get blocked => AgentFinishReason('blocked');
-  static AgentFinishReason get aborted => AgentFinishReason('aborted');
   static AgentFinishReason get interrupted => AgentFinishReason('interrupted');
   static AgentFinishReason get other => AgentFinishReason('other');
   static AgentFinishReason get unknown => AgentFinishReason('unknown');
+  static AgentFinishReason get aborted => AgentFinishReason('aborted');
   static AgentFinishReason get detached => AgentFinishReason('detached');
   static AgentFinishReason get failed => AgentFinishReason('failed');
 }
@@ -537,7 +537,7 @@ abstract class $SessionSnapshot {
   String? get status;
   AgentFinishReason? get finishReason;
   $AgentErrorInfo? get error;
-  $SessionState get state;
+  $SessionState? get state;
 }
 
 @Schema()
