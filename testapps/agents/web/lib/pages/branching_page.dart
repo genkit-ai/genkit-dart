@@ -54,9 +54,7 @@ class BranchingPage extends StatefulComponent {
 }
 
 class _BranchingPageState extends State<BranchingPage> {
-  late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase/api/branchingAgent'),
-  );
+  late final AgentApi _agent = remoteAgent(url: '$apiBase/api/branchingAgent');
 
   final List<_ChatMessage> _messages = [];
   bool _loading = false;

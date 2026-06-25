@@ -34,9 +34,8 @@ class ResearchPage extends StatefulComponent {
 }
 
 class _ResearchPageState extends State<ResearchPage> {
-  late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase/api/researchAgent'),
-  );
+  late final AgentApi _agent = remoteAgent(url: '$apiBase/api/researchAgent');
+
   AgentChat? _chat;
 
   final List<ChatMessage> _messages = [];

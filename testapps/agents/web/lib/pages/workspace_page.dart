@@ -36,9 +36,8 @@ class WorkspacePage extends StatefulComponent {
 }
 
 class _WorkspacePageState extends State<WorkspacePage> {
-  late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase/api/workspaceAgent'),
-  );
+  late final AgentApi _agent = remoteAgent(url: '$apiBase/api/workspaceAgent');
+
   AgentChat? _chat;
 
   final List<ChatMessage> _messages = [];

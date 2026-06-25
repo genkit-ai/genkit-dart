@@ -57,8 +57,9 @@ class StreamingChatPage extends StatefulComponent {
 
 class _StreamingChatPageState extends State<StreamingChatPage> {
   late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase${component.endpoint}'),
+    url: '$apiBase${component.endpoint}',
   );
+
   AgentChat? _chat;
 
   final List<ChatMessage> _messages = [];

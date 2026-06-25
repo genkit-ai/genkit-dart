@@ -35,9 +35,7 @@ class BackgroundAgentPage extends StatefulComponent {
 }
 
 class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
-  late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase/api/backgroundAgent'),
-  );
+  late final AgentApi _agent = remoteAgent(url: '$apiBase/api/backgroundAgent');
 
   String _topic = '';
   bool _running = false;

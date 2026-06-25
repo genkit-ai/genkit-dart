@@ -36,9 +36,8 @@ class BankingPage extends StatefulComponent {
 }
 
 class _BankingPageState extends State<BankingPage> {
-  late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase/api/bankingAgent'),
-  );
+  late final AgentApi _agent = remoteAgent(url: '$apiBase/api/bankingAgent');
+
   AgentChat? _chat;
 
   final List<ChatMessage> _messages = [];

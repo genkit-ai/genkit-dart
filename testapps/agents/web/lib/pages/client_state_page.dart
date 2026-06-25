@@ -37,8 +37,9 @@ class ClientStatePage extends StatefulComponent {
 
 class _ClientStatePageState extends State<ClientStatePage> {
   late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase/api/weatherAgentStateless'),
+    url: '$apiBase/api/weatherAgentStateless',
   );
+
   AgentChat? _chat;
 
   final List<ChatMessage> _messages = [];

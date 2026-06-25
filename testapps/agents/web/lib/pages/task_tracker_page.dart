@@ -37,9 +37,8 @@ class TaskTrackerPage extends StatefulComponent {
 }
 
 class _TaskTrackerPageState extends State<TaskTrackerPage> {
-  late final AgentApi _agent = remoteAgent(
-    RemoteAgentOptions(url: '$apiBase/api/taskAgent'),
-  );
+  late final AgentApi _agent = remoteAgent(url: '$apiBase/api/taskAgent');
+
   AgentChat? _chat;
 
   final List<ChatMessage> _messages = [];

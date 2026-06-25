@@ -35,12 +35,10 @@ String get _base =>
 Future<void> main() async {
   // ── A server-managed agent (weatherAgent has a session store). ───────────
   final weather = remoteAgent(
-    RemoteAgentOptions(
-      url: '$_base/api/weatherAgent',
-      // The Dart server mounts the snapshot action under `/state`.
-      getSnapshotUrl: '$_base/api/weatherAgent/state',
-      abortUrl: '$_base/api/weatherAgent/abort',
-    ),
+    url: '$_base/api/weatherAgent',
+    // The Dart server mounts the snapshot action under `/getSnapshot`.
+    getSnapshotUrl: '$_base/api/weatherAgent/getSnapshot',
+    abortUrl: '$_base/api/weatherAgent/abort',
   );
 
   stdout.writeln('\n=== weatherAgent: streaming turn ===');
@@ -80,9 +78,8 @@ Future<void> main() async {
   // ── Error handling demonstration. ────────────────────────────────────────
   stdout.writeln('\n=== error handling ===');
   try {
-    final bad = remoteAgent(
-      RemoteAgentOptions(url: '$_base/api/does-not-exist'),
-    );
+    final bad = remoteAgent(url: '$_base/api/does-not-exist');
+
     await bad.chat().send(agentInputFromText('hello'));
   } catch (err) {
     if (err is AgentError) {
