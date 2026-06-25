@@ -133,7 +133,7 @@ void main() {
             AgentStreamChunk(
               customPatch: [
                 JsonPatchOperation(
-                  op: 'replace',
+                  op: JsonPatchOp.replace,
                   path: '',
                   value: {'count': 0},
                 ),
@@ -141,7 +141,11 @@ void main() {
             ),
             AgentStreamChunk(
               customPatch: [
-                JsonPatchOperation(op: 'replace', path: '/count', value: 1),
+                JsonPatchOperation(
+                  op: JsonPatchOp.replace,
+                  path: '/count',
+                  value: 1,
+                ),
               ],
             ),
           ],

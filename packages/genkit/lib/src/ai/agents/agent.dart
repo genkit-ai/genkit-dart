@@ -140,7 +140,7 @@ class AgentInitError extends GenkitException {
 /// "aborted" status set by a concurrent abort.
 
 SnapshotMutator _abortAwareMutator(SessionSnapshot input) {
-  return (current) => current?.status == 'aborted' ? null : input;
+  return (current) => current?.status?.value == 'aborted' ? null : input;
 }
 
 /// Asserts that an operation requiring a persistent store is not being invoked
@@ -165,14 +165,14 @@ Future<String?> _abortSnapshotInStore(
   String? previousStatus;
   await store.saveSnapshot(snapshotId, (current) {
     if (current == null) return null;
-    previousStatus = current.status;
-    if (current.status == 'completed' ||
-        current.status == 'failed' ||
-        current.status == 'aborted') {
+    previousStatus = current.status?.value;
+    if (previousStatus == 'completed' ||
+        previousStatus == 'failed' ||
+        previousStatus == 'aborted') {
       return null; // Already terminal - don't override.
     }
 
-    current.status = 'aborted';
+    current.status = SnapshotStatus.aborted;
     return current;
   });
   return previousStatus;
@@ -199,7 +199,7 @@ bool _isHeartbeatExpired(
   SessionSnapshot snapshot, [
   Duration timeout = _defaultHeartbeatTimeout,
 ]) {
-  if (snapshot.status != 'pending' || snapshot.heartbeatAt == null) {
+  if (snapshot.status?.value != 'pending' || snapshot.heartbeatAt == null) {
     return false;
   }
   final last = DateTime.tryParse(snapshot.heartbeatAt!);
@@ -264,6 +264,7 @@ class SessionRunner {
     SnapshotCallback? snapshotCallback,
     SessionSnapshot? lastSnapshot,
     SessionStore? store,
+    this.cancel,
     this.onEndTurn,
     this.onDetach,
   }) : _snapshotCallback = snapshotCallback,
@@ -282,6 +283,12 @@ class SessionRunner {
   OnEndTurn? onEndTurn;
   OnDetach? onDetach;
   String? newSnapshotId;
+
+  /// Cooperative cancellation token (the Dart stand-in for `AbortSignal`). When
+  /// cancelled, a turn that rejects out of `generate` is reported as `aborted`
+  /// (not `failed`) and its failed snapshot write is skipped (the abort path
+  /// already persisted the `aborted` status).
+  final CancellationToken? cancel;
 
   /// The finish reason of the most recently completed turn.
   AgentFinishReason? lastTurnFinishReason;
@@ -396,6 +403,18 @@ class SessionRunner {
         }, input: input);
         turnIndex++;
       } catch (e) {
+        // An aborted turn rejects out of `generate` and lands here. Treat it as
+        // `aborted` rather than `failed`: the abort path already persisted the
+        // `aborted` status (the abort-aware mutator would skip a `failed` write
+        // anyway), so we record the finish reason and skip the failed snapshot
+        // write entirely instead of reporting a spurious error.
+        if (cancel?.isCancelled ?? false) {
+          lastTurnFinishReason = AgentFinishReason.aborted;
+          lastTurnError = null;
+          _notifyEndTurn(_lastSnapshot?.snapshotId, AgentFinishReason.aborted);
+          break;
+        }
+
         lastTurnFinishReason = AgentFinishReason.failed;
         lastTurnError = toErrorDetails(e);
         final snapshotId = await maybeSnapshot(
@@ -438,7 +457,7 @@ class SessionRunner {
       updatedAt: now,
       state: lastGoodState!,
       parentId: _lastSnapshot?.snapshotId,
-      status: 'completed',
+      status: SnapshotStatus.completed,
       finishReason: _lastGoodFinishReason,
     );
 
@@ -508,7 +527,7 @@ class SessionRunner {
       heartbeatAt: status == 'pending' ? now : null,
       state: currentState,
       parentId: _lastSnapshot?.snapshotId,
-      status: status ?? 'completed',
+      status: SnapshotStatus(status ?? 'completed'),
       finishReason: finishReason,
       error: error != null ? _toErrorInfo(error) : null,
     );
@@ -662,11 +681,11 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
 
     // Only `completed` snapshots are resumable. A failed/aborted/pending
     // snapshot is persisted for inspection but is not a valid resume target.
-    if (snapshot.status != 'completed') {
+    if (snapshot.status?.value != 'completed') {
       throw GenkitException(
         'Snapshot ${init.snapshotId} is not resumable (status: '
-        "${snapshot.status ?? 'unknown'}). Only 'completed' snapshots can be "
-        'resumed.',
+        "${snapshot.status?.value ?? 'unknown'}). Only 'completed' snapshots "
+        'can be resumed.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -683,7 +702,7 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
     // snapshot, seed a fresh session bound to the requested sessionId.
     var snapshot = await store.getSnapshot(sessionId: init!.sessionId);
     final visited = <String>{};
-    while (snapshot != null && snapshot.status != 'completed') {
+    while (snapshot != null && snapshot.status?.value != 'completed') {
       if (visited.contains(snapshot.snapshotId)) {
         throw GenkitException(
           "Session '${init.sessionId}' has a cyclic snapshot parent chain "
@@ -1054,6 +1073,7 @@ Agent defineCustomAgent(
             store: resolvedStore,
             snapshotCallback: config.snapshotCallback,
             lastSnapshot: snapshot,
+            cancel: cancelToken,
             onDetach: (snapshotId) {
               detachedSnapshotId = snapshotId;
               if (!detachCompleter.isCompleted) detachCompleter.complete();
@@ -1068,7 +1088,7 @@ Agent defineCustomAgent(
                 unawaited(
                   resolvedStore
                       .saveSnapshot(snapshotId, (current) {
-                        if (current?.status != 'pending') return null;
+                        if (current?.status?.value != 'pending') return null;
                         current!.heartbeatAt = DateTime.now()
                             .toUtc()
                             .toIso8601String();
@@ -1084,7 +1104,7 @@ Agent defineCustomAgent(
               if (resolvedStore is SnapshotChangeNotifier) {
                 unsubscribe = (resolvedStore as SnapshotChangeNotifier)
                     .onSnapshotStateChange(snapshotId, (snap) {
-                      if (snap.status == 'aborted') {
+                      if (snap.status?.value == 'aborted') {
                         stopHeartbeat();
                         cancelToken.cancel();
                         unsubscribe?.call();
@@ -1292,7 +1312,8 @@ Agent defineCustomAgent(
     // `expired` rather than leaving it `pending` forever. This is read-only -
     // the status is not written back to the store.
     final effective = _isHeartbeatExpired(snapshot)
-        ? (SessionSnapshot.fromJson(snapshot.toJson())..status = 'expired')
+        ? (SessionSnapshot.fromJson(snapshot.toJson())
+            ..status = SnapshotStatus.expired)
         : snapshot;
     return toClientSnapshot(effective);
   }
