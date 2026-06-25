@@ -156,8 +156,10 @@ void main() {
       late String seenUrl;
       final client = _MockClient((url, body) {
         seenUrl = url;
-        expect(body['data'], 's_z');
-        return jsonEncode({'result': 'done'});
+        expect(body['data'], {'snapshotId': 's_z'});
+        return jsonEncode({
+          'result': {'snapshotId': 's_z', 'status': 'done'},
+        });
       });
 
       final agent = remoteAgent(

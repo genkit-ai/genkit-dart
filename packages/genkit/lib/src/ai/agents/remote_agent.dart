@@ -100,12 +100,14 @@ class _HttpAgentTransport extends AgentTransport {
           fromStreamChunk: (_) {},
         );
 
-    _abortAction = defineRemoteAction<String, String?, void, void>(
-      url: _options.abortUrl ?? '${_options.url}/abort',
-      httpClient: _httpClient,
-      fromResponse: (d) => d as String?,
-      fromStreamChunk: (_) {},
-    );
+    _abortAction =
+        defineRemoteAction<AgentAbortRequest, AgentAbortResponse, void, void>(
+          url: _options.abortUrl ?? '${_options.url}/abort',
+          httpClient: _httpClient,
+          fromResponse: (d) =>
+              AgentAbortResponse.fromJson((d as Map).cast<String, dynamic>()),
+          fromStreamChunk: (_) {},
+        );
   }
 
   final RemoteAgentOptions _options;
@@ -115,7 +117,8 @@ class _HttpAgentTransport extends AgentTransport {
   _turnAction;
   late final RemoteAction<Map<String, dynamic>, SessionSnapshot?, void, void>
   _snapshotAction;
-  late final RemoteAction<String, String?, void, void> _abortAction;
+  late final RemoteAction<AgentAbortRequest, AgentAbortResponse, void, void>
+  _abortAction;
 
   Future<Map<String, String>?> _resolveHeaders() async {
     final headers = _options.headers;
@@ -210,6 +213,10 @@ class _HttpAgentTransport extends AgentTransport {
   @override
   Future<String?> abort(String snapshotId) async {
     final headers = await _resolveHeaders();
-    return _abortAction.call(input: snapshotId, headers: headers);
+    final response = await _abortAction.call(
+      input: AgentAbortRequest(snapshotId: snapshotId),
+      headers: headers,
+    );
+    return response.status?.value;
   }
 }
