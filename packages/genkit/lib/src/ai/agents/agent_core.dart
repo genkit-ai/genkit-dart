@@ -159,13 +159,7 @@ class AgentInterrupt {
 
   /// Builds a `restart` entry re-issuing the original tool request.
   ToolRequestPart restart() => ToolRequestPart(
-    toolRequest: ToolRequest(
-      name: name,
-      ref: ref,
-      input: input is Map<String, dynamic>
-          ? input as Map<String, dynamic>
-          : (input is Map ? (input as Map).cast<String, dynamic>() : null),
-    ),
+    toolRequest: ToolRequest(name: name, ref: ref, input: input),
   );
 }
 

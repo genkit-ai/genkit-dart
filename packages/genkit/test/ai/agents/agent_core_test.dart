@@ -352,6 +352,29 @@ void main() {
       expect(restartPart.toolRequest.name, 'userApproval');
       expect(restartPart.toolRequest.input, {'amount': 500});
     });
+
+    test('restart preserves non-Map (list/scalar) tool inputs', () {
+      for (final input in <Object?>[
+        [1, 2, 3],
+        'just-a-string',
+        42,
+        true,
+      ]) {
+        final part = ToolRequestPart(
+          toolRequest: ToolRequest(name: 'tool', ref: 'r', input: input),
+          metadata: {'interrupt': true},
+        );
+        final response = AgentResponse(
+          AgentOutput(
+            message: Message(role: Role.model, content: [part]),
+          ),
+          [],
+        );
+        final restartPart = response.interrupts.first.restart();
+        // The original input round-trips verbatim, no coercion to a Map.
+        expect(restartPart.toolRequest.input, input);
+      }
+    });
   });
 }
 
