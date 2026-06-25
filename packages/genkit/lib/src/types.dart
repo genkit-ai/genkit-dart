@@ -481,7 +481,7 @@ abstract class $AgentOutput {
 abstract class $AgentErrorInfo {
   String? get status;
   String get message;
-  dynamic get details;
+  Object? get details;
 }
 
 @Schema()
@@ -520,10 +520,10 @@ abstract class $GetSnapshotDataInput {
 
 @Schema()
 abstract class $JsonPatchOperation {
-  String get op;
+  JsonPatchOp get op;
   String get path;
   String? get from;
-  dynamic get value;
+  Object? get value;
 }
 
 @Schema()
@@ -534,7 +534,7 @@ abstract class $SessionSnapshot {
   String get createdAt;
   String? get updatedAt;
   String? get heartbeatAt;
-  String? get status;
+  SnapshotStatus? get status;
   AgentFinishReason? get finishReason;
   $AgentErrorInfo? get error;
   $SessionState? get state;
@@ -554,4 +554,13 @@ extension type SnapshotStatus(String value) {
   static SnapshotStatus get aborted => SnapshotStatus('aborted');
   static SnapshotStatus get failed => SnapshotStatus('failed');
   static SnapshotStatus get expired => SnapshotStatus('expired');
+}
+
+extension type JsonPatchOp(String value) {
+  static JsonPatchOp get add => JsonPatchOp('add');
+  static JsonPatchOp get remove => JsonPatchOp('remove');
+  static JsonPatchOp get replace => JsonPatchOp('replace');
+  static JsonPatchOp get move => JsonPatchOp('move');
+  static JsonPatchOp get copy => JsonPatchOp('copy');
+  static JsonPatchOp get test => JsonPatchOp('test');
 }

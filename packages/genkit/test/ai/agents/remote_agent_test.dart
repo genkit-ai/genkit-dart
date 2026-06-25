@@ -57,20 +57,24 @@ class _MockClient extends http.BaseClient {
 
 void main() {
   group('remoteAgent', () {
-    test('send() drives runFlow and parses the output', () async {
+    test('send() drives the streaming path and parses the output', () async {
       final client = _MockClient((url, body) {
         expect(url, 'http://host/agent');
         expect(body['data'], isNotNull);
-        return jsonEncode({
-          'result': AgentOutput(
-            snapshotId: 's_x',
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: 'hi there')],
-            ),
-            finishReason: AgentFinishReason.stop,
-          ).toJson(),
-        });
+        // `send()` always runs over the streaming transport (no unary fast
+        // path), so respond with an SSE stream carrying the final result.
+        return <String>[
+          'data: ${jsonEncode({
+            'result': AgentOutput(
+              snapshotId: 's_x',
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'hi there')],
+              ),
+              finishReason: AgentFinishReason.stop,
+            ).toJson(),
+          })}',
+        ];
       });
 
       final agent = remoteAgent(
@@ -126,7 +130,7 @@ void main() {
       expect(res.snapshotId, 's_y');
     });
 
-    test('getSnapshot() posts to the state URL', () async {
+    test('getSnapshot() posts to the getSnapshot URL', () async {
       late String seenUrl;
       final client = _MockClient((url, body) {
         seenUrl = url;
@@ -143,7 +147,7 @@ void main() {
         RemoteAgentOptions(url: 'http://host/agent', httpClient: client),
       );
       final snap = await agent.getSnapshot(snapshotId: 's_z');
-      expect(seenUrl, 'http://host/agent/state');
+      expect(seenUrl, 'http://host/agent/getSnapshot');
       expect(snap, isNotNull);
       expect(snap!.state?.custom, {'k': 'v'});
     });
@@ -168,14 +172,17 @@ void main() {
       Map<String, dynamic>? captured;
       final client = _MockClient((url, body) {
         captured = body;
-        return jsonEncode({
-          'result': AgentOutput(
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: 'ok')],
-            ),
-          ).toJson(),
-        });
+        // `send()` streams, so respond with an SSE final-result chunk.
+        return <String>[
+          'data: ${jsonEncode({
+            'result': AgentOutput(
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ).toJson(),
+          })}',
+        ];
       });
 
       var calls = 0;
