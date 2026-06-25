@@ -1304,6 +1304,185 @@ Hello {{name}}!
       );
       expect(mdAction, isNull);
     });
+
+    test('wires input.schema (picoschema) onto the prompt action', () async {
+      File(p.join(tempDir.path, 'greet.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    name: string, the person to greet
+    formal?: boolean, whether to be formal
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'greet')
+              as PromptAction;
+      expect(
+        action.inputSchema,
+        isNotNull,
+        reason:
+            'input.schema in the .prompt file should be surfaced so the '
+            'Developer UI can render a form and input can be validated',
+      );
+
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['type'], equals('object'));
+      expect(jsonSchema['properties'], contains('name'));
+      expect(
+        (jsonSchema['properties'] as Map)['name'],
+        containsPair('type', 'string'),
+      );
+      // Required and optional fields are honored.
+      expect(jsonSchema['required'], contains('name'));
+      expect(jsonSchema['required'], isNot(contains('formal')));
+    });
+
+    test('accepts plain JSON Schema for input.schema unchanged', () async {
+      File(p.join(tempDir.path, 'jsoninput.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    type: object
+    properties:
+      topic:
+        type: string
+    required:
+      - topic
+---
+Write about {{topic}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'jsoninput')
+              as PromptAction;
+      expect(action.inputSchema, isNotNull);
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['type'], equals('object'));
+      expect(jsonSchema['properties'], contains('topic'));
+    });
+
+    test('treats JSON Schema without a top-level type as JSON Schema', () async {
+      // A valid JSON Schema may omit the top-level `type` and rely on
+      // `properties` (or a combinator like anyOf). It must not be mistaken for
+      // Picoschema and re-converted.
+      File(p.join(tempDir.path, 'notype.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    properties:
+      topic:
+        type: string
+    required:
+      - topic
+---
+Write about {{topic}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'notype')
+              as PromptAction;
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['properties'], contains('topic'));
+      // Picoschema conversion would have wrapped `properties` as a field, so
+      // its value would no longer be a nested schema map.
+      expect(
+        (jsonSchema['properties'] as Map)['topic'],
+        containsPair('type', 'string'),
+      );
+    });
+
+    test('input schema parse tolerates null input', () async {
+      File(p.join(tempDir.path, 'opt.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    name: string, the name
+---
+Hello {{name}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'opt')
+              as PromptAction;
+      // A prompt may be invoked with no input; parsing null must not throw.
+      expect(() => action.inputSchema!.parse(null), returnsNormally);
+      expect(action.inputSchema!.parse(null), isEmpty);
+    });
+
+    test('converts output.schema (picoschema) to JSON Schema', () async {
+      File(p.join(tempDir.path, 'classify.prompt')).writeAsStringSync('''
+---
+output:
+  format: json
+  schema:
+    category: string, the predicted category
+    confidence: number, a score from 0 to 1
+---
+Classify: {{text}}
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'classify');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'text': 'hello',
+      });
+
+      // The output schema reaching the model must be JSON Schema, not the raw
+      // Picoschema strings.
+      final outputSchema = options.output!.jsonSchema as Map<String, dynamic>;
+      expect(outputSchema['type'], equals('object'));
+      final properties = outputSchema['properties'] as Map<String, dynamic>;
+      expect(properties['category'], containsPair('type', 'string'));
+      expect(properties['confidence'], containsPair('type', 'number'));
+      expect(options.output!.format, equals('json'));
+    });
+
+    test('resolves a named schema referenced in input.schema', () async {
+      // A schema registered via `defineSchema` is referenced by name in the
+      // .prompt frontmatter. The loader must pass registered schemas to the
+      // Picoschema converter so the reference resolves to the real schema.
+      registry.registerValue('schema', 'Address', {
+        'type': 'object',
+        'properties': {
+          'street': {'type': 'string'},
+          'city': {'type': 'string'},
+        },
+        'required': ['street', 'city'],
+      });
+
+      File(p.join(tempDir.path, 'shipto.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    address: Address
+---
+Ship to {{address.city}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'shipto')
+              as PromptAction;
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      final addressSchema = (jsonSchema['properties'] as Map)['address'] as Map;
+      // If the named reference were not resolved, `address` would not be an
+      // object schema with the registered properties.
+      expect(addressSchema['type'], equals('object'));
+      expect(addressSchema['properties'], contains('street'));
+      expect(addressSchema['properties'], contains('city'));
+    });
   });
 
   group('DotpromptRegistry', () {
