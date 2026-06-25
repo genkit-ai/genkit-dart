@@ -32,7 +32,7 @@ Object? _deepClone(Object? value) {
   if (value is Map) {
     return <String, dynamic>{
       for (final entry in value.entries)
-        entry.key as String: _deepClone(entry.value),
+        entry.key.toString(): _deepClone(entry.value),
     };
   }
   if (value is List) {

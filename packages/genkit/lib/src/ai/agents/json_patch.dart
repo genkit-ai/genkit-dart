@@ -105,7 +105,7 @@ Object? _cloneValue(Object? value) {
   if (value is Map) {
     return <String, dynamic>{
       for (final entry in value.entries)
-        entry.key as String: _cloneValue(entry.value),
+        entry.key.toString(): _cloneValue(entry.value),
     };
   }
   if (value is List) {
@@ -137,8 +137,8 @@ void _diffRecursive(Object? from, Object? to, String pointer, JsonPatch patch) {
     final fromMap = from as Map;
     final toMap = to as Map;
     final keys = <String>{
-      ...fromMap.keys.cast<String>(),
-      ...toMap.keys.cast<String>(),
+      ...fromMap.keys.whereType<String>(),
+      ...toMap.keys.whereType<String>(),
     };
     for (final key in keys) {
       final childPointer = '$pointer/${_escapeToken(key)}';
