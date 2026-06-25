@@ -84,6 +84,24 @@ void main() {
       expect(session.getState().sessionId, session.sessionId);
     });
 
+    test('deep-clones initial state so it does not alias the caller', () {
+      final custom = <String, dynamic>{
+        'counter': 1,
+        'nested': {'items': <dynamic>[]},
+      };
+      final initial = SessionState(custom: custom);
+      final session = Session(initial);
+
+      // Mutate the caller's nested structures after constructing the session.
+      ((custom['nested'] as Map)['items'] as List).add('leaked');
+      custom['counter'] = 99;
+
+      // The session must not observe the caller's later mutations.
+      final sessionCustom = session.getCustom() as Map<String, dynamic>;
+      expect(sessionCustom['counter'], 1);
+      expect((sessionCustom['nested'] as Map)['items'], isEmpty);
+    });
+
     test('addMessages appends and bumps version', () {
       final session = Session(SessionState(messages: []));
       expect(session.getVersion(), 0);

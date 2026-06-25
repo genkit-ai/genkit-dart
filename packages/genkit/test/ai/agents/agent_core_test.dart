@@ -212,6 +212,40 @@ void main() {
     });
   });
 
+  group('AgentChat pre-aborted bail', () {
+    test(
+      'send() bails before dispatching when the token is cancelled',
+      () async {
+        final transport = _FakeTransport([], supportsRun: true);
+        final token = CancellationToken()..cancel();
+        final chat = AgentApi(transport).chat();
+        final res = await chat.send(agentInputFromText('hi'), cancel: token);
+        expect(res.finishReason, AgentFinishReason.aborted);
+        // No user message was pushed and no turn was dispatched.
+        expect(chat.messages, isEmpty);
+      },
+    );
+
+    test(
+      'sendStream() bails with an empty stream when the token is cancelled',
+      () async {
+        final transport = _FakeTransport([]);
+        final token = CancellationToken()..cancel();
+        final chat = AgentApi(transport).chat();
+        final turn = chat.sendStream(agentInputFromText('hi'), cancel: token);
+        final chunks = <AgentChunk>[];
+        await for (final c in turn.stream) {
+          chunks.add(c);
+        }
+        expect(chunks, isEmpty);
+        final res = await turn.response;
+        expect(res.finishReason, AgentFinishReason.aborted);
+        // No user message was pushed and no turn was dispatched.
+        expect(chat.messages, isEmpty);
+      },
+    );
+  });
+
   group('AgentChat.resume', () {
     test('passes resume payload through to the transport', () async {
       late AgentInput captured;
@@ -316,6 +350,29 @@ void main() {
       final restartPart = interrupt.restart();
       expect(restartPart.toolRequest.name, 'userApproval');
       expect(restartPart.toolRequest.input, {'amount': 500});
+    });
+
+    test('restart preserves non-Map (list/scalar) tool inputs', () {
+      for (final input in <Object?>[
+        [1, 2, 3],
+        'just-a-string',
+        42,
+        true,
+      ]) {
+        final part = ToolRequestPart(
+          toolRequest: ToolRequest(name: 'tool', ref: 'r', input: input),
+          metadata: {'interrupt': true},
+        );
+        final response = AgentResponse(
+          AgentOutput(
+            message: Message(role: Role.model, content: [part]),
+          ),
+          [],
+        );
+        final restartPart = response.interrupts.first.restart();
+        // The original input round-trips verbatim, no coercion to a Map.
+        expect(restartPart.toolRequest.input, input);
+      }
     });
   });
 }
