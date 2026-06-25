@@ -787,9 +787,9 @@ void _assertSnapshot(SessionSnapshot snapshot, Map? expect) {
       "Expected parentId '${expect['parentId']}', got '${snapshot.parentId}'",
     );
   }
-  if (expect['status'] != null && snapshot.status != expect['status']) {
+  if (expect['status'] != null && snapshot.status?.value != expect['status']) {
     throw _SpecError(
-      "Expected status '${expect['status']}', got '${snapshot.status}'",
+      "Expected status '${expect['status']}', got '${snapshot.status?.value}'",
     );
   }
   if (expect['finishReason'] != null) {
@@ -871,7 +871,7 @@ Future<void> _executeWaitUntilCompleted(
   SessionSnapshot? snapshot;
   while (DateTime.now().difference(start).inMilliseconds < timeoutMs) {
     snapshot = await agent.getSnapshotData(snapshotId: snapshotId);
-    if (snapshot != null && terminal.contains(snapshot.status)) {
+    if (snapshot != null && terminal.contains(snapshot.status?.value)) {
       break;
     }
     await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -880,7 +880,7 @@ Future<void> _executeWaitUntilCompleted(
   if (snapshot == null) {
     throw _SpecError('Snapshot $snapshotId not found after waiting');
   }
-  if (!terminal.contains(snapshot.status)) {
+  if (!terminal.contains(snapshot.status?.value)) {
     throw _SpecError(
       'Snapshot $snapshotId did not reach terminal status within ${timeoutMs}ms.'
       ' Status: ${snapshot.status}',
