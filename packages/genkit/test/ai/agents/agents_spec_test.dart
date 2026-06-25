@@ -259,7 +259,7 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
       if (resumed == null) {
         ctx.interrupt({'requiresConfirmation': true});
       }
-      final action = (input is Map ? input.cast() : const {})['action'];
+      final action = input['action'];
       return {'result': 'confirmed: $action'};
     },
   );
