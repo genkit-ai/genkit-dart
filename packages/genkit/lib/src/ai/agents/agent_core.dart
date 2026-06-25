@@ -399,13 +399,14 @@ class AgentChat {
 
   /// Replaces the tracked aggregates with (copies of) those carried by a
   /// session state.
-  void _hydrateFromState(SessionState state) {
+  void _hydrateFromState(SessionState? state) {
     _clientState = state;
-    messages = state.messages != null ? [...state.messages!] : [];
-    artifacts = state.artifacts != null ? [...state.artifacts!] : [];
+    messages = state?.messages != null ? [...state!.messages!] : [];
+    artifacts = state?.artifacts != null ? [...state!.artifacts!] : [];
   }
 
   /// Loads aggregates from a server snapshot (used by `loadChat`).
+
   void loadFromSnapshot(SessionSnapshot snapshot) {
     snapshotId = snapshot.snapshotId;
     _hydrateFromState(snapshot.state);
