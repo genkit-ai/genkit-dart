@@ -40,6 +40,7 @@ abstract class $Message {
 @Schema()
 abstract class $ToolDefinition {
   String get name;
+  String? get key;
   String get description;
   Map<String, dynamic>? get inputSchema;
   Map<String, dynamic>? get outputSchema;
@@ -164,7 +165,7 @@ abstract class $Media {
 abstract class $ToolRequest {
   String? get ref;
   String get name;
-  Map<String, dynamic>? get input;
+  Object? get input;
   bool? get partial;
 }
 
@@ -292,6 +293,7 @@ extension type FinishReason(String value) {
   static FinishReason get other => FinishReason('other');
   static FinishReason get unknown => FinishReason('unknown');
 }
+
 extension type Role(String value) {
   static Role get system => Role('system');
   static Role get user => Role('user');
@@ -395,7 +397,7 @@ abstract class $ReflectionListValuesResponse {
 @Schema()
 abstract class $ReflectionRegisterParams {
   String get id;
-  int? get pid;
+  int get pid;
   String? get name;
   String? get genkitVersion;
   double? get reflectionApiSpecVersion;
@@ -407,6 +409,7 @@ abstract class $ReflectionRunActionParams {
   String? get runtimeId;
   String get key;
   dynamic get input;
+  dynamic get init;
   dynamic get context;
   Map<String, dynamic>? get telemetryLabels;
   bool? get stream;
@@ -429,4 +432,179 @@ abstract class $ReflectionSendInputStreamChunkParams {
 abstract class $ReflectionStreamChunkParams {
   String get requestId;
   dynamic get chunk;
+}
+
+extension type AgentFinishReason(String value) {
+  static AgentFinishReason get stop => AgentFinishReason('stop');
+  static AgentFinishReason get length => AgentFinishReason('length');
+  static AgentFinishReason get blocked => AgentFinishReason('blocked');
+  static AgentFinishReason get interrupted => AgentFinishReason('interrupted');
+  static AgentFinishReason get other => AgentFinishReason('other');
+  static AgentFinishReason get unknown => AgentFinishReason('unknown');
+  static AgentFinishReason get aborted => AgentFinishReason('aborted');
+  static AgentFinishReason get detached => AgentFinishReason('detached');
+  static AgentFinishReason get failed => AgentFinishReason('failed');
+}
+
+@Schema()
+abstract class $AgentInit {
+  String? get sessionId;
+  String? get snapshotId;
+  $SessionState? get state;
+}
+
+@Schema()
+abstract class $AgentInput {
+  bool? get detach;
+  $Message? get message;
+  $AgentResume? get resume;
+}
+
+@Schema()
+abstract class $AgentResume {
+  List<$ToolResponsePart>? get respond;
+  List<$ToolRequestPart>? get restart;
+}
+
+@Schema()
+abstract class $AgentOutput {
+  String? get sessionId;
+  String? get snapshotId;
+  $SessionState? get state;
+  $Message? get message;
+  List<$Artifact>? get artifacts;
+  AgentFinishReason? get finishReason;
+  $AgentErrorInfo? get error;
+}
+
+@Schema()
+abstract class $AgentErrorInfo {
+  String? get status;
+  String get message;
+  Object? get details;
+}
+
+@Schema()
+abstract class $AgentResult {
+  $Message? get message;
+  List<$Artifact>? get artifacts;
+  AgentFinishReason? get finishReason;
+}
+
+@Schema()
+abstract class $AgentStreamChunk {
+  $ModelResponseChunk? get modelChunk;
+  List<$JsonPatchOperation>? get customPatch;
+  $Artifact? get artifact;
+  $TurnEnd? get turnEnd;
+}
+
+@Schema()
+abstract class $TurnEnd {
+  String? get snapshotId;
+  AgentFinishReason? get finishReason;
+}
+
+@Schema()
+abstract class $Artifact {
+  String? get name;
+  List<$Part> get parts;
+  Map<String, dynamic>? get metadata;
+}
+
+@Schema()
+abstract class $GetSnapshotDataInput {
+  String? get snapshotId;
+  String? get sessionId;
+}
+
+/// Input identifying which snapshot's invocation to abort.
+@Schema()
+abstract class $AgentAbortRequest {
+  String get snapshotId;
+}
+
+/// Result of an abort attempt: the targeted snapshot and its resulting status.
+@Schema()
+abstract class $AgentAbortResponse {
+  String get snapshotId;
+  SnapshotStatus? get status;
+}
+
+/// Agent capability metadata placed under `metadata.agent` on an agent's action
+/// descriptor.
+///
+/// Lets the Dev UI and other reflective callers render the right surface (e.g.
+/// hide the Abort button when the configured store doesn't support it) without
+/// round-tripping through the reflection API.
+@Schema()
+abstract class $AgentMetadata {
+  /// Who owns session state for this agent.
+  AgentStateManagement get stateManagement;
+
+  /// Whether the agent's invocations can be aborted. True only when the
+  /// configured store implements the abort lifecycle.
+  bool get abortable;
+
+  /// JSON schema for the agent's custom session state (the `custom` field of
+  /// [$SessionState]). Omitted when the state type carries no schema to infer.
+  Map<String, dynamic>? get stateSchema;
+}
+
+@Schema()
+abstract class $JsonPatchOperation {
+  JsonPatchOp get op;
+  String get path;
+  String? get from;
+  Object? get value;
+}
+
+@Schema()
+abstract class $SessionSnapshot {
+  String get snapshotId;
+  String? get sessionId;
+  String? get parentId;
+  String get createdAt;
+  String? get updatedAt;
+  String? get heartbeatAt;
+  SnapshotStatus? get status;
+  AgentFinishReason? get finishReason;
+  $AgentErrorInfo? get error;
+  $SessionState? get state;
+}
+
+@Schema()
+abstract class $SessionState {
+  String? get sessionId;
+  List<$Message>? get messages;
+  dynamic get custom;
+  List<$Artifact>? get artifacts;
+}
+
+/// Who owns session state for an agent.
+///
+/// - `server`: a session store is configured and snapshots are persisted
+///   server-side.
+/// - `client`: no store; state flows through the agent's invocation init and
+///   output payloads.
+extension type AgentStateManagement(String value) {
+  static AgentStateManagement get server => AgentStateManagement('server');
+  static AgentStateManagement get client => AgentStateManagement('client');
+}
+
+extension type SnapshotStatus(String value) {
+  static SnapshotStatus get pending => SnapshotStatus('pending');
+  static SnapshotStatus get completed => SnapshotStatus('completed');
+  static SnapshotStatus get aborted => SnapshotStatus('aborted');
+  static SnapshotStatus get failed => SnapshotStatus('failed');
+  static SnapshotStatus get expired => SnapshotStatus('expired');
+}
+
+extension type JsonPatchOp(String value) {
+  static JsonPatchOp get add => JsonPatchOp('add');
+  static JsonPatchOp get remove => JsonPatchOp('remove');
+  static JsonPatchOp get replace => JsonPatchOp('replace');
+  static JsonPatchOp get move => JsonPatchOp('move');
+  static JsonPatchOp get copy => JsonPatchOp('copy');
+  static JsonPatchOp get test => JsonPatchOp('test');
 }

@@ -24,6 +24,19 @@ const typeOverrides = {
   'ModelResponseChunk': {'index': 'int'},
   'ReflectionRegisterParams': {'pid': 'int'},
   'ReflectionStreamChunkParams': {'chunk': 'dynamic'},
+  // Agent types: inline objects promoted to named defs, the JsonPatch array
+  // alias, and open `{}` schemas that should be `dynamic`.
+  'AgentInput': {'resume': '\$AgentResume'},
+  'AgentOutput': {'error': '\$AgentErrorInfo'},
+  // `status` is a string-union on the wire (pending/completed/failed/aborted);
+  // keep it a plain `String` so the runtime can compare against literals.
+  'SessionSnapshot': {'error': '\$AgentErrorInfo', 'status': 'String'},
+  'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
+  'SessionState': {'custom': 'dynamic'},
+  // `op` is a string-union on the wire (add/remove/replace/move/copy/test);
+  // keep it a plain `String` so the runtime can compare against literals.
+  'JsonPatchOperation': {'op': 'String', 'value': 'dynamic'},
+  'AgentErrorInfo': {'details': 'dynamic'},
 };
 
 class ClassGenerator {
@@ -260,9 +273,11 @@ class ClassGenerator {
         typeOverrides[parentType]!.containsKey(fieldName)) {
       final overrideType = typeOverrides[parentType]![fieldName];
       if (overrideType == 'dynamic') return refer('dynamic');
+      if (isRequired) return refer(overrideType!.replaceAll('?', ''));
       return refer('$overrideType?');
     }
     final type = _mapTypeInner(parentType, schema);
+
     if (isRequired) {
       return refer(type.symbol!.replaceAll('?', ''));
     }
