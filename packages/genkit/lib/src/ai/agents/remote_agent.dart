@@ -35,7 +35,7 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 class RemoteAgentOptions {
   RemoteAgentOptions({
     required this.url,
-    this.stateUrl,
+    this.getSnapshotUrl,
     this.abortUrl,
     this.headers,
     this.stateManagement,
@@ -45,8 +45,8 @@ class RemoteAgentOptions {
   /// Required. The agent endpoint.
   final String url;
 
-  /// Optional. Defaults to `'$url/state'`.
-  final String? stateUrl;
+  /// Optional. Defaults to `'$url/getSnapshot'`.
+  final String? getSnapshotUrl;
 
   /// Optional. Defaults to `'$url/abort'`.
   final String? abortUrl;
@@ -90,9 +90,9 @@ class _HttpAgentTransport extends AgentTransport {
           streamSchema: AgentStreamChunk.$schema,
         );
 
-    _stateAction =
+    _snapshotAction =
         defineRemoteAction<Map<String, dynamic>, SessionSnapshot?, void, void>(
-          url: _options.stateUrl ?? '${_options.url}/state',
+          url: _options.getSnapshotUrl ?? '${_options.url}/getSnapshot',
           httpClient: _httpClient,
           fromResponse: (d) => d == null
               ? null
@@ -114,7 +114,7 @@ class _HttpAgentTransport extends AgentTransport {
   late final RemoteAction<AgentInput, AgentOutput, AgentStreamChunk, AgentInit>
   _turnAction;
   late final RemoteAction<Map<String, dynamic>, SessionSnapshot?, void, void>
-  _stateAction;
+  _snapshotAction;
   late final RemoteAction<String, String?, void, void> _abortAction;
 
   Future<Map<String, String>?> _resolveHeaders() async {
@@ -186,9 +186,12 @@ class _HttpAgentTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
-  }) async {
-    final headers = await _resolveHeaders();
-    return _turnAction.call(input: input, init: init, headers: headers);
+  }) {
+    // Opt out of the non-streaming fast path: `send()` should always run the
+    // turn over the streaming transport and drain the stream so a server-managed
+    // agent's `customPatch` chunks are applied to the chat's tracked state. The
+    // turn output is still available via [runTurn]'s `output` future.
+    return null;
   }
 
   @override
@@ -201,7 +204,7 @@ class _HttpAgentTransport extends AgentTransport {
       'snapshotId': ?snapshotId,
       'sessionId': ?sessionId,
     };
-    return _stateAction.call(input: lookup, headers: headers);
+    return _snapshotAction.call(input: lookup, headers: headers);
   }
 
   @override
