@@ -159,13 +159,7 @@ class AgentInterrupt {
 
   /// Builds a `restart` entry re-issuing the original tool request.
   ToolRequestPart restart() => ToolRequestPart(
-    toolRequest: ToolRequest(
-      name: name,
-      ref: ref,
-      input: input is Map<String, dynamic>
-          ? input as Map<String, dynamic>
-          : (input is Map ? (input as Map).cast<String, dynamic>() : null),
-    ),
+    toolRequest: ToolRequest(name: name, ref: ref, input: input),
   );
 }
 
@@ -570,6 +564,12 @@ class AgentChat {
     CancellationToken? cancel,
   }) async {
     final token = cancel ?? CancellationToken();
+    // Bail before pushing the message or dispatching the turn if the caller's
+    // token is already cancelled: there's no point starting work, and we must
+    // not leave an orphaned user message in `messages`.
+    if (token.isCancelled) {
+      return _abortedResponse();
+    }
     final runFuture = _transport.run(input, _buildInit(), cancel: token);
     if (runFuture != null) {
       final messageCountBeforeTurn = messages.length;
@@ -587,10 +587,31 @@ class AgentChat {
     return turn.response;
   }
 
+  /// Builds a synthetic `aborted` [AgentResponse] for a turn that never ran
+  /// (the caller's token was already cancelled). Mirrors the JS core's
+  /// pre-aborted bail, which short-circuits with `finishReason: 'aborted'`.
+  AgentResponse _abortedResponse() => AgentResponse(
+    AgentOutput(finishReason: AgentFinishReason.aborted),
+    [...messages],
+    () => state,
+    () => sessionId,
+  );
+
   /// Runs a single turn and returns an [AgentTurn] exposing `.stream` and
   /// `.response`.
   AgentTurn sendStream(AgentInput input, {CancellationToken? cancel}) {
     final token = cancel ?? CancellationToken();
+    // Bail before pushing the message or dispatching the turn if the caller's
+    // token is already cancelled: return an empty stream and a synthetic
+    // `aborted` response, and leave `messages` untouched. Mirrors the JS
+    // core's pre-aborted short-circuit.
+    if (token.isCancelled) {
+      return AgentTurn(
+        stream: const Stream<AgentChunk>.empty(),
+        response: Future.value(_abortedResponse()),
+        onAbort: () {},
+      );
+    }
     // Remember the message count so a failed/aborted turn that returns no
     // authoritative messages can roll back the eager push below (see
     // `_buildResponse`).
