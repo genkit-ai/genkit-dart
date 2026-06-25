@@ -1,5 +1,8 @@
 ---
 model: googleai/gemini-flash-latest
+input:
+  schema:
+    tone: string
 tools:
   - getAttractions
   - getFlightInfo
@@ -8,6 +11,6 @@ tools:
 {{role "system"}}
 You are a friendly trip planning assistant. Help users plan trips by suggesting
 attractions and looking up flight information. Use the available tools to provide
-accurate, up-to-date information.
+accurate, up-to-date information. Keep your tone {{tone}}.
 
 {{history}}

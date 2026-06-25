@@ -53,7 +53,7 @@ testapps/agents/
 | Task Tracker | `taskAgent` | custom session state, live `customPatch` chunks |
 | Research | `researchAgent` | multi-step `defineCustomAgent`, live status |
 | Sub-Agent Delegation | `orchestratorAgent` | delegation to researcher / coder sub-agents |
-| Trip Planner | `tripPlannerAgent` | `definePromptAgent` from a `.prompt` file |
+| Trip Planner | `tripPlannerAgent` | `definePromptAgent` from a `.prompt` file, customized via `promptInput` |
 
 ## Running
 
@@ -103,9 +103,9 @@ for browser access.
 
 ## Notes on differences from the JS sample
 
-- **Session store:** the JS sample uses `FileSessionStore`; the Dart
-  `FileSessionStore` is not yet available, so server-managed agents use
-  `InMemorySessionStore` (sessions reset on server restart).
+- **Session store:** server-managed agents use `InMemorySessionStore`
+  (sessions reset on server restart). A `FileSessionStore` is also available
+  via `package:genkit/io.dart` for persistence across restarts.
 - **Interrupts:** Dart has no `defineInterrupt`; interrupts are modeled as tools
   that call `ctx.interrupt(...)` (e.g. `userApproval`, `ask_user`).
 - **Middleware:** the JS `artifacts()` and `agents()` delegation middleware are

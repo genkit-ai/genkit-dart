@@ -125,7 +125,12 @@ final getFlightInfo = ai.defineTool(
 );
 
 /// Wired from the `prompts/tripPlanner.prompt` file via `definePromptAgent`.
+///
+/// `promptInput` supplies values for the prompt template's input variables, so
+/// a single shared `.prompt` file can be reused and customized by multiple
+/// agents. Here it sets the `{{tone}}` placeholder in `tripPlanner.prompt`.
 final tripPlannerAgent = ai.definePromptAgent(
   promptName: 'tripPlanner',
+  promptInput: {'tone': 'enthusiastic'},
   store: InMemorySessionStore(),
 );
