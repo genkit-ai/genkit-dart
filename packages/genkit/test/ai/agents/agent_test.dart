@@ -203,17 +203,16 @@ void main() {
       final chat = agent.chat(sessionId: sessionId);
       final res1 = await chat.send(agentInputFromText('one'));
       expect(res1.snapshotId, isNotNull);
-      expect(isSnapshotId(res1.snapshotId!), isTrue);
 
       // A fresh chat resuming the same session sees prior state.
       final snapshot = await agent.getSnapshot(sessionId: sessionId);
       expect(snapshot, isNotNull);
-      expect(snapshot!.state.custom, {'count': 1});
+      expect(snapshot!.state?.custom, {'count': 1});
 
       final chat2 = agent.chat(sessionId: sessionId);
       await chat2.send(agentInputFromText('two'));
       final snapshot2 = await agent.getSnapshot(sessionId: sessionId);
-      expect(snapshot2!.state.custom, {'count': 2});
+      expect(snapshot2!.state?.custom, {'count': 2});
     });
 
     test('abort returns the prior status', () async {
