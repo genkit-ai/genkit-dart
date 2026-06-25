@@ -165,7 +165,7 @@ abstract class $Media {
 abstract class $ToolRequest {
   String? get ref;
   String get name;
-  Map<String, dynamic>? get input;
+  Object? get input;
   bool? get partial;
 }
 
