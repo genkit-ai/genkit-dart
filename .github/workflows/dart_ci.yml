@@ -3,7 +3,7 @@ name: Dart CI
 on:
   push:
     branches: [ main ]
-  pull_request: 
+  pull_request:
 
 jobs:
   test:
@@ -81,4 +81,3 @@ jobs:
         run: >-
           firebase emulators:exec --only firestore --project demo-genkit
           "dart test"
-
