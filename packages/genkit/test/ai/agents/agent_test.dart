@@ -236,6 +236,31 @@ void main() {
       expect(prior, 'completed');
     });
 
+    test('abortAgentAction round-trips typed request/response', () async {
+      final store = InMemorySessionStore();
+      final agent = ai.defineCustomAgent(
+        name: 'abortableTyped',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+      final res = await chat.send(agentInputFromText('hi'));
+
+      final response = await agent.abortAgentAction(
+        AgentAbortRequest(snapshotId: res.snapshotId!),
+      );
+      expect(response.snapshotId, res.snapshotId);
+      // Turn already completed, so the prior status is reported.
+      expect(response.status?.value, 'completed');
+    });
+
     test(
       'getSnapshotData reports a stale pending snapshot as expired',
       () async {
@@ -332,6 +357,40 @@ void main() {
       expect(res2.text, 'echo: second');
       // History should include both user turns + model replies.
       expect(chat.messages.length, greaterThanOrEqualTo(4));
+    });
+
+    test('promptInput supplies the prompt template variables', () async {
+      // A model that echoes the rendered system message so we can confirm the
+      // promptInput values reached the prompt template.
+      ai.defineModel(
+        name: 'sys-echo',
+        fn: (request, ctx) async {
+          final sys = request.messages
+              .firstWhere(
+                (m) => m.role == Role.system,
+                orElse: () => request.messages.first,
+              )
+              .text;
+          return ModelResponse(
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'system: $sys')],
+            ),
+            finishReason: FinishReason.stop,
+          );
+        },
+      );
+
+      final agent = ai.defineAgent(
+        name: 'greeter',
+        model: modelRef('sys-echo'),
+        system: 'You greet {{name}} warmly.',
+        promptInput: {'name': 'Sparky'},
+      );
+
+      final chat = agent.chat();
+      final res = await chat.send(agentInputFromText('hi'));
+      expect(res.text, 'system: You greet Sparky warmly.');
     });
   });
 
