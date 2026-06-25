@@ -1841,7 +1841,7 @@ base class ToolRequest {
   ToolRequest({
     String? ref,
     required String name,
-    Map<String, dynamic>? input,
+    Object? input,
     bool? partial,
   }) {
     _json = {'ref': ?ref, 'name': name, 'input': ?input, 'partial': ?partial};
@@ -1872,11 +1872,11 @@ base class ToolRequest {
     _json['name'] = value;
   }
 
-  Map<String, dynamic>? get input {
-    return (_json['input'] as Map?)?.cast<String, dynamic>();
+  Object? get input {
+    return _json['input'] as Object?;
   }
 
-  set input(Map<String, dynamic>? value) {
+  set input(Object? value) {
     if (value == null) {
       _json.remove('input');
     } else {
@@ -1923,7 +1923,7 @@ base class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
           properties: {
             'ref': $Schema.string(),
             'name': $Schema.string(),
-            'input': $Schema.object(additionalProperties: $Schema.any()),
+            'input': $Schema.any(),
             'partial': $Schema.boolean(),
           },
           required: ['name'],
