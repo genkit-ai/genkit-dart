@@ -95,7 +95,12 @@ abstract class AgentTransport {
   Future<String?> abort(String snapshotId);
 }
 
-const Set<String> _terminalStatuses = {'completed', 'failed', 'aborted'};
+const Set<String> _terminalStatuses = {
+  'completed',
+  'failed',
+  'aborted',
+  'expired',
+};
 
 // ---------------------------------------------------------------------------
 // Part-derived accessor helpers (mirroring generate).
@@ -171,10 +176,26 @@ class AgentInterrupt {
 /// The completed result of a turn. Mirrors `GenerateResponse` and adds the
 /// agent fields (`snapshotId`, `state`, `artifacts`).
 class AgentResponse {
-  AgentResponse(this._raw, this._messages);
+  AgentResponse(
+    this._raw,
+    this._messages, [
+    this._fallbackState,
+    this._fallbackSessionId,
+  ]);
 
   final AgentOutput _raw;
   final List<Message> _messages;
+
+  /// Fallback custom-state getter. Server-managed agents (with a store) do not
+  /// return `state` on the wire; the chat tracks custom state locally (via
+  /// streamed `customPatch` chunks), so we fall back to it here, ensuring
+  /// `res.state` matches `chat.state`.
+  final dynamic Function()? _fallbackState;
+
+  /// Fallback sessionId getter. Server-managed agents may not echo `sessionId`
+  /// on every wire frame; fall back to the chat's tracked sessionId so
+  /// `res.sessionId` matches `chat.sessionId`.
+  final String? Function()? _fallbackSessionId;
 
   Message? get message => _raw.message;
 
@@ -212,7 +233,15 @@ class AgentResponse {
 
   String? get snapshotId => _raw.snapshotId;
 
-  dynamic get state => _raw.state?.custom;
+  /// Stable identifier correlating snapshots/turns of this conversation.
+  String? get sessionId => _raw.sessionId ?? _fallbackSessionId?.call();
+
+  dynamic get state {
+    final fromWire = _raw.state?.custom;
+    // Server-managed agents omit `state` on the wire; fall back to the chat's
+    // locally tracked custom state so `res.state == chat.state`.
+    return fromWire ?? _fallbackState?.call();
+  }
 
   List<Artifact> get artifacts => _raw.artifacts ?? _raw.state?.artifacts ?? [];
 
@@ -337,7 +366,7 @@ class DetachedTask {
       if (snap != null) {
         yield snap;
         final status = snap.status;
-        if (status != null && _terminalStatuses.contains(status)) {
+        if (status != null && _terminalStatuses.contains(status.value)) {
           return;
         }
       }
@@ -476,6 +505,7 @@ class AgentChat {
   Future<AgentResponse> _buildResponse(
     Future<AgentOutput> output,
     CancellationToken cancel,
+    int messageCountBeforeTurn,
   ) async {
     AgentOutput raw;
     try {
@@ -487,8 +517,25 @@ class AgentChat {
         throw _toAgentError(e);
       }
     }
+    // A failed/aborted turn that returns no authoritative messages leaves the
+    // eagerly-pushed user message orphaned in `messages` with no reply. Roll it
+    // back so it isn't re-sent on the next turn. When the turn returns
+    // authoritative `state.messages`, `_applyOutput` replaces the array
+    // wholesale, so this rollback is a no-op for the success path.
+    if ((raw.finishReason == AgentFinishReason.failed ||
+            raw.finishReason == AgentFinishReason.aborted) &&
+        raw.state?.messages == null &&
+        raw.message == null &&
+        messages.length > messageCountBeforeTurn) {
+      messages.removeRange(messageCountBeforeTurn, messages.length);
+    }
     _applyOutput(raw);
-    final response = AgentResponse(raw, [...messages]);
+    final response = AgentResponse(
+      raw,
+      [...messages],
+      () => state,
+      () => sessionId,
+    );
     if (raw.finishReason == AgentFinishReason.failed) {
       throw AgentError(
         message: raw.error?.message ?? 'Agent turn failed.',
@@ -503,23 +550,45 @@ class AgentChat {
   }
 
   /// Runs a single turn and resolves with the completed [AgentResponse].
-  Future<AgentResponse> send(AgentInput input, {CancellationToken? cancel}) {
+  ///
+  /// `send()` is a non-streaming veneer over the streaming path: it runs the
+  /// turn via [sendStream] and drains the stream internally before resolving.
+  /// Draining matters for server-managed agents (with a store): they do not
+  /// return custom `state` on the wire (only a `snapshotId`); the chat's
+  /// tracked custom state is kept live by applying the streamed `customPatch`
+  /// chunks. Consuming the stream here keeps `send()` and `sendStream()`
+  /// consistent. A transport that opts into the non-streaming [AgentTransport.run]
+  /// path (e.g. returns full state on the wire) skips the drain.
+  Future<AgentResponse> send(
+    AgentInput input, {
+    CancellationToken? cancel,
+  }) async {
     final token = cancel ?? CancellationToken();
     final runFuture = _transport.run(input, _buildInit(), cancel: token);
     if (runFuture != null) {
+      final messageCountBeforeTurn = messages.length;
       final inputMessage = input.message;
       if (inputMessage != null) {
         messages.add(inputMessage);
       }
-      return _buildResponse(runFuture, token);
+      return _buildResponse(runFuture, token, messageCountBeforeTurn);
     }
-    return sendStream(input, cancel: token).response;
+    final turn = sendStream(input, cancel: token);
+    // Drain the stream so custom-state patches are applied to the chat.
+    await for (final _ in turn.stream) {
+      // no-op: side effects (custom-state patches) happen as we iterate.
+    }
+    return turn.response;
   }
 
   /// Runs a single turn and returns an [AgentTurn] exposing `.stream` and
   /// `.response`.
   AgentTurn sendStream(AgentInput input, {CancellationToken? cancel}) {
     final token = cancel ?? CancellationToken();
+    // Remember the message count so a failed/aborted turn that returns no
+    // authoritative messages can roll back the eager push below (see
+    // `_buildResponse`).
+    final messageCountBeforeTurn = messages.length;
     final inputMessage = input.message;
     if (inputMessage != null) {
       messages.add(inputMessage);
@@ -528,7 +597,11 @@ class AgentChat {
 
     final turn = _transport.runTurn(input, init, cancel: token);
 
-    final responsePromise = _buildResponse(turn.output, token);
+    final responsePromise = _buildResponse(
+      turn.output,
+      token,
+      messageCountBeforeTurn,
+    );
     // Avoid unhandled-rejection warnings when only the stream is consumed.
     responsePromise.catchError((_) => AgentResponse(AgentOutput(), messages));
 
@@ -630,7 +703,12 @@ class AgentChat {
       finishReason: AgentFinishReason.failed,
       error: AgentErrorInfo(status: status, message: message),
     );
-    final response = AgentResponse(raw, [...messages]);
+    final response = AgentResponse(
+      raw,
+      [...messages],
+      () => _clientState?.custom,
+      () => sessionId,
+    );
     return AgentError(
       message: message,
       status: status,
