@@ -252,6 +252,43 @@ void main() {
           },
         );
       });
+
+      test('rejects pointers with prototype-pollution tokens', () {
+        for (final token in const ['__proto__', 'prototype', 'constructor']) {
+          expect(
+            () => applyPatch(
+              {'a': 1},
+              [
+                {'op': 'add', 'path': '/$token/polluted', 'value': true},
+              ],
+            ),
+            throwsA(isA<ArgumentError>()),
+            reason: 'token "$token" should be rejected',
+          );
+          // Also rejected when the forbidden token is the leaf.
+          expect(
+            () => applyPatch(
+              {'a': 1},
+              [
+                {'op': 'add', 'path': '/$token', 'value': true},
+              ],
+            ),
+            throwsA(isA<ArgumentError>()),
+            reason: 'leaf token "$token" should be rejected',
+          );
+          // Also rejected when used as a `move`/`copy` source.
+          expect(
+            () => applyPatch(
+              {'a': 1},
+              [
+                {'op': 'move', 'from': '/$token', 'path': '/b'},
+              ],
+            ),
+            throwsA(isA<ArgumentError>()),
+            reason: 'forbidden "from" token "$token" should be rejected',
+          );
+        }
+      });
     });
   });
 }

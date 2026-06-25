@@ -155,11 +155,16 @@ class Session {
   /// (de)serialization regardless of the generated setter behavior.
   Session(SessionState initialState)
     : sessionId = initialState.sessionId ?? generateUuidV4() {
-    _json = Map<String, dynamic>.from(initialState.toJson());
+    // Deep-clone so we never alias (or mutate) the caller's object: the session
+    // owns its state, and a handler mutating it must not reach back into the
+    // caller's / chat's state. A shallow `Map.from` would leave nested
+    // structures (messages, custom, artifacts) shared by reference.
+    _json = _deepClone(initialState.toJson()) as Map<String, dynamic>;
     _json['sessionId'] = sessionId;
   }
 
   late final Map<String, dynamic> _json;
+
   int _version = 0;
 
   /// Stable identifier that correlates traces across agent turns.
