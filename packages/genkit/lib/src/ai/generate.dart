@@ -395,6 +395,20 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
+  // If the loop will continue, stream out the tool response message so clients
+  // (e.g. agents) observe tool execution mid-turn. It occupies the message
+  // slot immediately after the model message (which used `messageIndex`); the
+  // next turn continues at `messageIndex + 2`.
+  if (ctx.streamingRequested) {
+    ctx.sendChunk(
+      ModelResponseChunk(
+        index: messageIndex + 1,
+        role: Role.tool,
+        content: toolResponses,
+      ),
+    );
+  }
+
   final newMessages = List<Message>.from(currentRequest.messages)
     ..add(response.message!)
     ..add(Message(role: Role.tool, content: toolResponses));
