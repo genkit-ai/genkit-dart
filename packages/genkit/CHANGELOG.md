@@ -1,3 +1,10 @@
+## 0.14.1
+
+### Fixes
+
+ - apply input and output schemas when loading .prompt files (#300)
+
+
 ## 0.14.0
 
 ### Breaking Changes
