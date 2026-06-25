@@ -337,6 +337,10 @@ final class Genkit {
     String? toolChoice,
     List<GenerateMiddlewareRef>? use,
 
+    /// Supplies values for the prompt's input variables, so a single prompt
+    /// can be reused and customized by multiple agents.
+    Map<String, dynamic>? promptInput,
+
     /// Optional schema describing the shape of the custom session state.
     SchemanticType<dynamic>? stateSchema,
     SessionStore? store,
@@ -371,6 +375,7 @@ final class Genkit {
     return agent_lib.definePromptAgent(
       registry,
       promptName: variant != null ? '$name.$variant' : name,
+      promptInput: promptInput,
       stateSchema: stateSchema,
       store: store,
       snapshotCallback: snapshotCallback,
@@ -407,6 +412,10 @@ final class Genkit {
   /// Registers an agent from an existing, previously-defined prompt.
   Agent definePromptAgent({
     required String promptName,
+
+    /// Supplies values for the prompt's input variables, so a single prompt
+    /// can be reused and customized by multiple agents.
+    Map<String, dynamic>? promptInput,
     SchemanticType<dynamic>? stateSchema,
     SessionStore? store,
     SnapshotCallback? snapshotCallback,
@@ -415,6 +424,7 @@ final class Genkit {
     return agent_lib.definePromptAgent(
       registry,
       promptName: promptName,
+      promptInput: promptInput,
       stateSchema: stateSchema,
       store: store,
       snapshotCallback: snapshotCallback,

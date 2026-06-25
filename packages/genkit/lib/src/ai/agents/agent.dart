@@ -896,7 +896,8 @@ class Agent {
   getSnapshotDataAction;
 
   /// The `abort` action.
-  final Action<String, String?, void, void> abortAgentAction;
+  final Action<AgentAbortRequest, AgentAbortResponse, void, void>
+  abortAgentAction;
 
   final AgentApi _api;
   final Future<SessionSnapshot?> Function(String? snapshotId, String? sessionId)
@@ -984,11 +985,13 @@ Agent defineCustomAgent(
         streamSchema: AgentStreamChunk.$schema,
         initSchema: AgentInit.$schema,
         metadata: {
-          'agent': {
-            'stateManagement': config.store != null ? 'server' : 'client',
-            'abortable': config.store is SnapshotChangeNotifier,
-            'stateSchema': ?stateJsonSchema,
-          },
+          'agent': AgentMetadata(
+            stateManagement: config.store != null
+                ? AgentStateManagement.server
+                : AgentStateManagement.client,
+            abortable: config.store is SnapshotChangeNotifier,
+            stateSchema: stateJsonSchema,
+          ).toJson(),
         },
         fn: (input, ctx) async {
           final init = ctx.init;
@@ -1335,16 +1338,23 @@ Agent defineCustomAgent(
       );
   registry.register(getSnapshotDataAction);
 
-  final abortAgentAction = Action<String, String?, void, void>(
-    name: config.name,
-    description:
-        'Aborts ${config.name} agent by snapshotId. Returns the previous '
-        "status of the snapshot before it was set to 'aborted', or null if "
-        'the snapshot was not found.',
-    actionType: 'agent-abort',
-    inputSchema: SchemanticType.string(),
-    fn: (snapshotId, ctx) async => runAbort(snapshotId!),
-  );
+  final abortAgentAction =
+      Action<AgentAbortRequest, AgentAbortResponse, void, void>(
+        name: config.name,
+        description:
+            'Aborts ${config.name} agent by snapshotId. Returns the snapshot '
+            'id and its status after the abort attempt.',
+        actionType: 'agent-abort',
+        inputSchema: AgentAbortRequest.$schema,
+        outputSchema: AgentAbortResponse.$schema,
+        fn: (request, ctx) async {
+          final status = await runAbort(request!.snapshotId);
+          return AgentAbortResponse(
+            snapshotId: request.snapshotId,
+            status: status != null ? SnapshotStatus(status) : null,
+          );
+        },
+      );
   registry.register(abortAgentAction);
 
   final transport = _InProcessTransport(
@@ -1380,9 +1390,14 @@ const _historyTag = '_genkit_history';
 const _promptTag = 'agentPreamble';
 
 /// Registers an agent from an existing prompt.
+///
+/// The [promptInput] supplies values for the referenced prompt's input
+/// variables, so a single prompt can be reused and customized by multiple
+/// agents.
 Agent definePromptAgent(
   Registry registry, {
   required String promptName,
+  Map<String, dynamic>? promptInput,
   SchemanticType<dynamic>? stateSchema,
   SessionStore? store,
   SnapshotCallback? snapshotCallback,
@@ -1422,7 +1437,7 @@ Agent definePromptAgent(
       }).toList();
 
       var genOpts = await cachedPrompt!.render(
-        <String, dynamic>{},
+        promptInput ?? <String, dynamic>{},
         PromptGenerateOptions(messages: history),
       );
 
