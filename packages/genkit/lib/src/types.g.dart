@@ -6358,6 +6358,242 @@ base class _GetSnapshotDataInputTypeFactory
   );
 }
 
+/// Input identifying which snapshot's invocation to abort.
+base class AgentAbortRequest {
+  /// Creates a [AgentAbortRequest] from a JSON map.
+  factory AgentAbortRequest.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  AgentAbortRequest._(this._json);
+
+  AgentAbortRequest({required String snapshotId}) {
+    _json = {'snapshotId': snapshotId};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [AgentAbortRequest].
+  static const SchemanticType<AgentAbortRequest> $schema =
+      _AgentAbortRequestTypeFactory();
+
+  String get snapshotId {
+    return _json['snapshotId'] as String;
+  }
+
+  set snapshotId(String value) {
+    _json['snapshotId'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [AgentAbortRequest] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _AgentAbortRequestTypeFactory
+    extends SchemanticType<AgentAbortRequest> {
+  const _AgentAbortRequestTypeFactory();
+
+  @override
+  AgentAbortRequest parse(Object? json) {
+    return AgentAbortRequest._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'AgentAbortRequest',
+    definition: $Schema
+        .object(
+          properties: {'snapshotId': $Schema.string()},
+          required: ['snapshotId'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+/// Result of an abort attempt: the targeted snapshot and its resulting status.
+base class AgentAbortResponse {
+  /// Creates a [AgentAbortResponse] from a JSON map.
+  factory AgentAbortResponse.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  AgentAbortResponse._(this._json);
+
+  AgentAbortResponse({required String snapshotId, SnapshotStatus? status}) {
+    _json = {'snapshotId': snapshotId, 'status': ?status?.value};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [AgentAbortResponse].
+  static const SchemanticType<AgentAbortResponse> $schema =
+      _AgentAbortResponseTypeFactory();
+
+  String get snapshotId {
+    return _json['snapshotId'] as String;
+  }
+
+  set snapshotId(String value) {
+    _json['snapshotId'] = value;
+  }
+
+  SnapshotStatus? get status {
+    return _json['status'] as SnapshotStatus?;
+  }
+
+  set status(SnapshotStatus? value) {
+    if (value == null) {
+      _json.remove('status');
+    } else {
+      _json['status'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [AgentAbortResponse] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _AgentAbortResponseTypeFactory
+    extends SchemanticType<AgentAbortResponse> {
+  const _AgentAbortResponseTypeFactory();
+
+  @override
+  AgentAbortResponse parse(Object? json) {
+    return AgentAbortResponse._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'AgentAbortResponse',
+    definition: $Schema
+        .object(
+          properties: {'snapshotId': $Schema.string(), 'status': $Schema.any()},
+          required: ['snapshotId'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+/// Agent capability metadata placed under `metadata.agent` on an agent's action
+/// descriptor.
+///
+/// Lets the Dev UI and other reflective callers render the right surface (e.g.
+/// hide the Abort button when the configured store doesn't support it) without
+/// round-tripping through the reflection API.
+base class AgentMetadata {
+  /// Creates a [AgentMetadata] from a JSON map.
+  factory AgentMetadata.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  AgentMetadata._(this._json);
+
+  AgentMetadata({
+    required AgentStateManagement stateManagement,
+    required bool abortable,
+    Map<String, dynamic>? stateSchema,
+  }) {
+    _json = {
+      'stateManagement': stateManagement.value,
+      'abortable': abortable,
+      'stateSchema': ?stateSchema,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [AgentMetadata].
+  static const SchemanticType<AgentMetadata> $schema =
+      _AgentMetadataTypeFactory();
+
+  /// Who owns session state for this agent.
+  AgentStateManagement get stateManagement {
+    final value = _json['stateManagement'] as String;
+    return AgentStateManagement(value);
+  }
+
+  /// Who owns session state for this agent.
+  set stateManagement(AgentStateManagement value) {
+    _json['stateManagement'] = value.value;
+  }
+
+  /// Whether the agent's invocations can be aborted. True only when the
+  /// configured store implements the abort lifecycle.
+  bool get abortable {
+    return _json['abortable'] as bool;
+  }
+
+  /// Whether the agent's invocations can be aborted. True only when the
+  /// configured store implements the abort lifecycle.
+  set abortable(bool value) {
+    _json['abortable'] = value;
+  }
+
+  /// JSON schema for the agent's custom session state (the `custom` field of
+  /// [$SessionState]). Omitted when the state type carries no schema to infer.
+  Map<String, dynamic>? get stateSchema {
+    return (_json['stateSchema'] as Map?)?.cast<String, dynamic>();
+  }
+
+  /// JSON schema for the agent's custom session state (the `custom` field of
+  /// [$SessionState]). Omitted when the state type carries no schema to infer.
+  set stateSchema(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('stateSchema');
+    } else {
+      _json['stateSchema'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [AgentMetadata] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _AgentMetadataTypeFactory extends SchemanticType<AgentMetadata> {
+  const _AgentMetadataTypeFactory();
+
+  @override
+  AgentMetadata parse(Object? json) {
+    return AgentMetadata._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'AgentMetadata',
+    definition: $Schema
+        .object(
+          properties: {
+            'stateManagement': $Schema.any(),
+            'abortable': $Schema.boolean(),
+            'stateSchema': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['stateManagement', 'abortable'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
 base class JsonPatchOperation {
   /// Creates a [JsonPatchOperation] from a JSON map.
   factory JsonPatchOperation.fromJson(Map<String, dynamic> json) =>

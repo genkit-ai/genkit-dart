@@ -518,6 +518,39 @@ abstract class $GetSnapshotDataInput {
   String? get sessionId;
 }
 
+/// Input identifying which snapshot's invocation to abort.
+@Schema()
+abstract class $AgentAbortRequest {
+  String get snapshotId;
+}
+
+/// Result of an abort attempt: the targeted snapshot and its resulting status.
+@Schema()
+abstract class $AgentAbortResponse {
+  String get snapshotId;
+  SnapshotStatus? get status;
+}
+
+/// Agent capability metadata placed under `metadata.agent` on an agent's action
+/// descriptor.
+///
+/// Lets the Dev UI and other reflective callers render the right surface (e.g.
+/// hide the Abort button when the configured store doesn't support it) without
+/// round-tripping through the reflection API.
+@Schema()
+abstract class $AgentMetadata {
+  /// Who owns session state for this agent.
+  AgentStateManagement get stateManagement;
+
+  /// Whether the agent's invocations can be aborted. True only when the
+  /// configured store implements the abort lifecycle.
+  bool get abortable;
+
+  /// JSON schema for the agent's custom session state (the `custom` field of
+  /// [$SessionState]). Omitted when the state type carries no schema to infer.
+  Map<String, dynamic>? get stateSchema;
+}
+
 @Schema()
 abstract class $JsonPatchOperation {
   JsonPatchOp get op;
@@ -546,6 +579,17 @@ abstract class $SessionState {
   List<$Message>? get messages;
   dynamic get custom;
   List<$Artifact>? get artifacts;
+}
+
+/// Who owns session state for an agent.
+///
+/// - `server`: a session store is configured and snapshots are persisted
+///   server-side.
+/// - `client`: no store; state flows through the agent's invocation init and
+///   output payloads.
+extension type AgentStateManagement(String value) {
+  static AgentStateManagement get server => AgentStateManagement('server');
+  static AgentStateManagement get client => AgentStateManagement('client');
 }
 
 extension type SnapshotStatus(String value) {
