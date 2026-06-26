@@ -801,9 +801,9 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
       final end = (start + shardSize) < buf.length
           ? (start + shardSize)
           : buf.length;
-      // Copy the slice into its own buffer so the Firestore serializer persists
-      // exactly these bytes.
-      final chunk = Uint8List.fromList(buf.sublist(start, end));
+      // `buf.sublist` already returns an independent `Uint8List` copy, so the
+      // Firestore serializer persists exactly these bytes.
+      final chunk = buf.sublist(start, end);
       tx.set(shardsCol.doc('${checkpointId}_$i'), {'chunk': chunk});
     }
     for (var i = count; i < oldShardCount; i++) {
