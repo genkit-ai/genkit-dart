@@ -29,6 +29,7 @@ export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
+        GenerateMiddlewareContext,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
         defineMiddleware,

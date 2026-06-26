@@ -15,6 +15,7 @@
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
+import '../core/registry.dart';
 import '../types.dart';
 import 'generate_types.dart';
 import 'tool.dart';
@@ -81,12 +82,22 @@ abstract class GenerateMiddleware {
   }
 }
 
+/// Ambient dependencies handed to a middleware factory at instantiation time.
+///
+/// The `registry` field is the active action registry, letting a middleware
+/// resolve other registered actions (models, tools, agents, etc.) by name when
+/// it is created.
+typedef GenerateMiddlewareContext = ({Registry registry});
+
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get configSchema;
   Map<String, Object?>? get configJsonSchema;
 
-  GenerateMiddleware create([CustomOptions? config]);
+  GenerateMiddleware create(
+    CustomOptions? config,
+    GenerateMiddlewareContext ctx,
+  );
 }
 
 class _GenerateMiddlewareDef<CustomOptions>
@@ -95,7 +106,11 @@ class _GenerateMiddlewareDef<CustomOptions>
   final String name;
   @override
   final SchemanticType<CustomOptions>? configSchema;
-  final GenerateMiddleware Function([CustomOptions? config]) _create;
+  final GenerateMiddleware Function(
+    CustomOptions? config,
+    GenerateMiddlewareContext ctx,
+  )
+  _create;
 
   _GenerateMiddlewareDef(this.name, this._create, this.configSchema);
 
@@ -103,12 +118,19 @@ class _GenerateMiddlewareDef<CustomOptions>
   Map<String, Object?>? get configJsonSchema => configSchema?.jsonSchema();
 
   @override
-  GenerateMiddleware create([CustomOptions? config]) => _create(config);
+  GenerateMiddleware create(
+    CustomOptions? config,
+    GenerateMiddlewareContext ctx,
+  ) => _create(config, ctx);
 }
 
 GenerateMiddlewareDef<CustomOptions> defineMiddleware<CustomOptions>({
   required String name,
-  required GenerateMiddleware Function([CustomOptions? config]) create,
+  required GenerateMiddleware Function(
+    CustomOptions? config,
+    GenerateMiddlewareContext ctx,
+  )
+  create,
   SchemanticType<CustomOptions>? configSchema,
 }) {
   return _GenerateMiddlewareDef<CustomOptions>(name, create, configSchema);

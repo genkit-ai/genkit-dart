@@ -108,7 +108,7 @@ abstract class GenerateConfig {}
             ? def.configSchema!.parse(config)
             : config;
 
-        resolvedMiddleware.add(def.create(parsedConfig));
+        resolvedMiddleware.add(def.create(parsedConfig, (registry: registry)));
       } else {
         throw GenkitException(
           'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',
