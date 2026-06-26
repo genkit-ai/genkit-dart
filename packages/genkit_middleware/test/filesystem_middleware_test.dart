@@ -176,13 +176,14 @@ void main() {
       await result.onResult;
 
       final indices = chunks.map((c) => c.index).toSet().toList();
-      // Expect indices 0, 2, 3
+      // Expect indices 0, 1, 2, 3
       // 0: Model tool request
-      // 1: Tool response string (Not streamed in Dart)
+      // 1: Tool response (streamed mid-turn by the generate loop)
       // 2: Injected file content
       // 3: Final model response
       expect(indices, [
         0,
+        1,
         2,
         3,
       ], reason: 'Should have expected message indices');
