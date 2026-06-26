@@ -15,7 +15,7 @@
 /// Shelf server exposing the agents over HTTP for the Jaspr web UI.
 ///
 /// Ported from the JS `src/index.ts` Express server. Each agent is mounted at
-/// `/api/<agentName>` (the turn action), plus `/api/<agentName>/state` and
+/// `/api/<agentName>` (the turn action), plus `/api/<agentName>/getSnapshot` and
 /// `/api/<agentName>/abort` for the snapshot and abort actions where relevant.
 /// The wire body matches the Genkit client: `{ "data": <input>, "init": <init> }`.
 library;
@@ -41,10 +41,13 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_router/shelf_router.dart';
 
-/// Mounts an agent's turn action plus its `/state` and `/abort` actions.
+/// Mounts an agent's turn action plus its `/getSnapshot` and `/abort` actions.
 void _mountAgent(Router router, String path, Agent agent) {
   router.post('/api/$path', shelfHandler(agent.action));
-  router.post('/api/$path/state', shelfHandler(agent.getSnapshotDataAction));
+  router.post(
+    '/api/$path/getSnapshot',
+    shelfHandler(agent.getSnapshotDataAction),
+  );
   router.post('/api/$path/abort', shelfHandler(agent.abortAgentAction));
 }
 
