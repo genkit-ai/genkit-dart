@@ -66,3 +66,60 @@ void main() async {
   print(embeddings[0].embedding);
 }
 ```
+
+Both the legacy `text-embedding-*` models and the newer `gemini-embedding-*`
+models are supported through the same `textEmbedding` call; the correct request
+shape is selected from the model name.
+
+#### Embedding options
+
+`TextEmbedderOptions` lets you tune a request. `outputDimensionality` reduces the
+vector size, while `taskType` and `title` tailor the embedding to its use case
+(supported by the Gemini and `text-embedding-*` models).
+
+```dart
+final embeddings = await ai.embedMany(
+  embedder: vertexAI.textEmbedding('gemini-embedding-001'),
+  documents: [
+    DocumentData(content: [TextPart(text: 'Hello world')]),
+  ],
+  options: TextEmbedderOptions(
+    outputDimensionality: 256,
+    taskType: 'RETRIEVAL_DOCUMENT',
+  ),
+);
+```
+
+#### Multimodal embeddings
+
+The `multimodalembedding` model embeds text, images, and video. Provide each
+input as a `MediaPart` using either an inline `data:` URI or a `gs://` / `https`
+Google Cloud Storage URI (with a `contentType`). Text parts are embedded too.
+
+A single document can produce **more than one embedding**: one per modality (and
+one per video segment). The flat result is therefore not 1:1 with the input
+documents, so each embedding carries metadata (`documentIndex`, `modality`,
+`partIndex`, `segmentIndex`, ...) that you use to map it back to its source.
+
+```dart
+final embeddings = await ai.embedMany(
+  embedder: vertexAI.textEmbedding('multimodalembedding'),
+  documents: [
+    DocumentData(
+      content: [
+        TextPart(text: 'A photo of a cat.'),
+        MediaPart(
+          media: Media(
+            url: 'gs://my-bucket/cat.jpg',
+            contentType: 'image/jpeg',
+          ),
+        ),
+      ],
+    ),
+  ],
+);
+
+for (final e in embeddings) {
+  print('${e.metadata?['modality']}: ${e.embedding.length} dims');
+}
+```
