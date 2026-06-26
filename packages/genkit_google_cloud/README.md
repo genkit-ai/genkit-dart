@@ -98,3 +98,11 @@ export FIRESTORE_EMULATOR_HOST=localhost:8080
 export GOOGLE_CLOUD_PROJECT=demo-genkit
 dart test
 ```
+
+Alternatively, from the repository root, the Melos `test-firestore` script
+starts the emulator and runs the tests in one step (requires `firebase-tools`
+and Java 21+):
+
+```bash
+melos run test-firestore
+```
