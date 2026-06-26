@@ -278,6 +278,90 @@ void main() {
       expect(result.text, 'echo: intercepted: original');
     });
 
+    test('should pass a GenkitAI instance in the middleware context', () async {
+      GenerateMiddlewareContext? capturedCtx;
+
+      final mw = defineMiddleware(
+        name: 'ctx-capture-mw',
+        create: (config, ctx) {
+          capturedCtx = ctx;
+          return TestMiddleware(<String>[], 'ctx-capture-mw');
+        },
+      );
+
+      genkit = Genkit(
+        isDevEnv: false,
+        plugins: [
+          MiddlewarePlugin([mw]),
+        ],
+      );
+
+      genkit.defineModel(
+        name: 'ctx-model',
+        fn: (req, ctx) async => ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: 'ok')],
+          ),
+        ),
+      );
+
+      await genkit.generate(
+        model: modelRef('ctx-model'),
+        prompt: 'hi',
+        use: [middlewareRef(name: 'ctx-capture-mw')],
+      );
+
+      expect(capturedCtx, isNotNull);
+      expect(capturedCtx!.ai, isA<GenkitAI>());
+      // The ephemeral GenkitAI is backed by the active generation registry.
+      expect(capturedCtx!.ai.registry, isNotNull);
+    });
+
+    test('middleware can run nested AI operations via context', () async {
+      genkit = Genkit(isDevEnv: false);
+
+      genkit.defineModel(
+        name: 'nested-model',
+        fn: (req, ctx) async {
+          final text = req.messages.last.content.first.text!;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'nested: $text')],
+            ),
+          );
+        },
+      );
+
+      String? nestedResult;
+      final mw = defineMiddleware(
+        name: 'nested-mw',
+        create: (config, ctx) => FunctionMiddleware(
+          generateFn: (envelope, mctx, next) async {
+            // Use the GenkitAI passed in the context to run a nested generate.
+            final nested = await ctx.ai.generate(
+              model: modelRef('nested-model'),
+              prompt: 'from-middleware',
+            );
+            nestedResult = nested.text;
+            return next(envelope, mctx);
+          },
+        ),
+      );
+      genkit.registry.registerValue('middleware', mw.name, mw);
+
+      await genkit.generate(
+        model: modelRef('nested-model'),
+        prompt: 'outer',
+        use: [middlewareRef(name: 'nested-mw')],
+      );
+
+      expect(nestedResult, 'nested: from-middleware');
+    });
+
     test('should resolve and execute registered middleware refs', () async {
       final log = <String>[];
 

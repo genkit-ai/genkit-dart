@@ -15,7 +15,7 @@
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
-import '../core/registry.dart';
+import '../genkit_ai.dart';
 import '../types.dart';
 import 'generate_types.dart';
 import 'tool.dart';
@@ -84,10 +84,12 @@ abstract class GenerateMiddleware {
 
 /// Ambient dependencies handed to a middleware factory at instantiation time.
 ///
-/// The `registry` field is the active action registry, letting a middleware
-/// resolve other registered actions (models, tools, agents, etc.) by name when
-/// it is created.
-typedef GenerateMiddlewareContext = ({Registry registry});
+/// The `ai` field is an ephemeral [GenkitAI] instance backed by the active
+/// action registry. It lets a middleware run nested AI operations (e.g.
+/// [GenkitAI.generate], [GenkitAI.embed]) and resolve other registered actions
+/// (models, tools, agents, etc.) by name when it is created. The underlying
+/// registry is available via `ai.registry`.
+typedef GenerateMiddlewareContext = ({GenkitAI ai});
 
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;

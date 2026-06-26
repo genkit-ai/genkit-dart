@@ -62,6 +62,7 @@ export 'src/core/action.dart' show Action, ActionFnArg, ActionMetadata;
 export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
 export 'src/exception.dart' show GenkitException, StatusCodes;
+export 'src/genkit_ai.dart' show GenkitAI;
 export 'src/genkit_class.dart';
 export 'src/schema_extensions.dart';
 export 'src/types.dart';
