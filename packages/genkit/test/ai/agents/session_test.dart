@@ -25,10 +25,11 @@ SessionSnapshot _snapshot({
   required String snapshotId,
   String? parentId,
   required String sessionId,
+  String? createdAt,
 }) => SessionSnapshot(
   snapshotId: snapshotId,
   parentId: parentId,
-  createdAt: DateTime.now().toIso8601String(),
+  createdAt: createdAt ?? DateTime.now().toIso8601String(),
   state: SessionState(sessionId: sessionId, messages: [], artifacts: []),
 );
 
@@ -214,6 +215,120 @@ void main() {
       expect(leaf, isNotNull);
       expect(leaf!.snapshotId, laterId);
     });
+
+    test(
+      'branched leaves with mixed timezone offsets resolve chronologically',
+      () async {
+        final store = InMemorySessionStore();
+        final sessionId = generateUuidV4();
+        final rootId = await store.saveSnapshot(
+          null,
+          (_) => _snapshot(snapshotId: '', sessionId: sessionId),
+        );
+        // Earlier instant (05:00 UTC) but written with a +05:00 offset, so its
+        // raw string sorts lexicographically *above* the truly-later UTC one
+        // below (because '10' > '09' at the hour position).
+        await store.saveSnapshot(
+          null,
+          (_) => _snapshot(
+            snapshotId: '',
+            parentId: rootId,
+            sessionId: sessionId,
+            createdAt: '2024-01-01T10:00:00.000+05:00',
+          ),
+        );
+        // Later instant (09:00 UTC) written as UTC 'Z'. A naive lexicographic
+        // compare would wrongly rank this below the +05:00 string above.
+        final latestUtcId = await store.saveSnapshot(
+          null,
+          (_) => _snapshot(
+            snapshotId: '',
+            parentId: rootId,
+            sessionId: sessionId,
+            createdAt: '2024-01-01T09:00:00.000Z',
+          ),
+        );
+
+        // 09:00 UTC is later than 05:00 UTC (10:00+05:00), so parsing to a
+        // comparable instant must resolve to the 'Z' snapshot, not the
+        // lexicographically-larger +05:00 one.
+        final leaf = await store.getSnapshot(sessionId: sessionId);
+        expect(leaf!.snapshotId, latestUtcId);
+      },
+    );
+
+    test(
+      'branched leaves with an exact timestamp tie pick the newest save',
+      () async {
+        final store = InMemorySessionStore();
+        final sessionId = generateUuidV4();
+        const sameTime = '2024-01-01T00:00:00.000Z';
+        final rootId = await store.saveSnapshot(
+          null,
+          (_) => _snapshot(snapshotId: '', sessionId: sessionId),
+        );
+        await store.saveSnapshot(
+          null,
+          (_) => _snapshot(
+            snapshotId: '',
+            parentId: rootId,
+            sessionId: sessionId,
+            createdAt: sameTime,
+          ),
+        );
+        final lastSavedId = await store.saveSnapshot(
+          null,
+          (_) => _snapshot(
+            snapshotId: '',
+            parentId: rootId,
+            sessionId: sessionId,
+            createdAt: sameTime,
+          ),
+        );
+
+        // Ties break by insertion order, so the most-recently saved leaf wins.
+        final leaf = await store.getSnapshot(sessionId: sessionId);
+        expect(leaf!.snapshotId, lastSavedId);
+      },
+    );
+
+    test(
+      'branched leaves with an unparseable timestamp do not throw',
+      () async {
+        final store = InMemorySessionStore();
+        final sessionId = generateUuidV4();
+        final rootId = await store.saveSnapshot(
+          null,
+          (_) => _snapshot(snapshotId: '', sessionId: sessionId),
+        );
+        await store.saveSnapshot(
+          null,
+          (_) => _snapshot(
+            snapshotId: '',
+            parentId: rootId,
+            sessionId: sessionId,
+            createdAt: 'not-a-timestamp',
+          ),
+        );
+        await store.saveSnapshot(
+          null,
+          (_) => _snapshot(
+            snapshotId: '',
+            parentId: rootId,
+            sessionId: sessionId,
+            createdAt: '2024-01-01T00:00:00.000Z',
+          ),
+        );
+
+        SessionSnapshot? leaf;
+        expect(
+          () async => leaf = await store.getSnapshot(sessionId: sessionId),
+          returnsNormally,
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(leaf, isNotNull);
+      },
+    );
 
     test('rejectBranchingSessions throws on a branched history', () async {
       final store = InMemorySessionStore(rejectBranchingSessions: true);
