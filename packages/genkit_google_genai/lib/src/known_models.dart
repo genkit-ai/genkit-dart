@@ -21,14 +21,16 @@ import 'package:genkit/plugin.dart';
 /// native constrained generation.
 ModelInfo multimodalModelInfo(String label) => ModelInfo(
   label: label,
-  supports: {
+  // Unmodifiable: curated entries are shared across every resolution of the
+  // model, so accidental mutation through action metadata must fail loudly.
+  supports: Map.unmodifiable({
     'multiturn': true,
     'media': true,
     'tools': true,
     'toolChoice': true,
     'systemRole': true,
     'constrained': true,
-  },
+  }),
   stage: 'stable',
 );
 
