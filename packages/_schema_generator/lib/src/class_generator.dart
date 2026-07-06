@@ -24,19 +24,20 @@ const typeOverrides = {
   'ModelResponseChunk': {'index': 'int'},
   'ReflectionRegisterParams': {'pid': 'int'},
   'ReflectionStreamChunkParams': {'chunk': 'dynamic'},
+  // `input` is `z.unknown().optional()` on the wire; keep it `Object?` so any
+  // JSON value (map/list/scalar) round-trips instead of being cast to a map.
+  'ToolRequest': {'input': 'Object'},
   // Agent types: inline objects promoted to named defs, the JsonPatch array
-  // alias, and open `{}` schemas that should be `dynamic`.
+  // alias, and open `{}` schemas that should be `Object?`.
   'AgentInput': {'resume': '\$AgentResume'},
   'AgentOutput': {'error': '\$AgentErrorInfo'},
-  // `status` is a string-union on the wire (pending/completed/failed/aborted);
-  // keep it a plain `String` so the runtime can compare against literals.
-  'SessionSnapshot': {'error': '\$AgentErrorInfo', 'status': 'String'},
+  'SessionSnapshot': {'error': '\$AgentErrorInfo'},
   'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
   'SessionState': {'custom': 'dynamic'},
-  // `op` is a string-union on the wire (add/remove/replace/move/copy/test);
-  // keep it a plain `String` so the runtime can compare against literals.
-  'JsonPatchOperation': {'op': 'String', 'value': 'dynamic'},
-  'AgentErrorInfo': {'details': 'dynamic'},
+  // `value` is an open `{}` schema; keep it `Object?` so any JSON value
+  // round-trips. `op` follows its `$ref` to the JsonPatchOp enum.
+  'JsonPatchOperation': {'value': 'Object'},
+  'AgentErrorInfo': {'details': 'Object'},
 };
 
 class ClassGenerator {
