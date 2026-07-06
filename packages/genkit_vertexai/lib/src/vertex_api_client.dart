@@ -120,7 +120,9 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           .map(
             (entry) => modelMetadata(
               '$name/${entry.key}',
-              customOptions: GeminiOptions.$schema,
+              customOptions: entry.key.contains('-tts')
+                  ? GeminiTtsOptions.$schema
+                  : GeminiOptions.$schema,
               modelInfo: entry.value,
             ),
           );
