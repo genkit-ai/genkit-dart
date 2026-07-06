@@ -396,21 +396,16 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     );
 
     // Maintain the per-session pointer so `sessionId` lookups stay fast (one
-    // pointer read plus one snapshot read). Advance the pointer for a new leaf,
-    // refresh it when rewriting the current leaf, and leave it untouched when
-    // upserting an older (non-leaf) snapshot. Snapshots without a `sessionId`
-    // are not addressable by session, so skip the pointer.
+    // pointer read plus one snapshot read). Matching the JS store, the pointer
+    // is only advanced for a brand-new snapshot (`current == null`); rewriting
+    // an existing snapshot (leaf or not) leaves the pointer untouched, so a
+    // non-leaf rewrite can never aim the session at a non-leaf. A missing
+    // pointer self-heals via the scan fallback in `_latestSnapshotForSession`.
+    // Snapshots without a `sessionId` are not addressable by session, so skip
+    // the pointer.
     final sessionId = snapshotSessionId(result);
-    if (sessionId != null) {
-      final isNew = current == null;
-      final pointer = await _readPointer(sessionId, context);
-      if (isNew || pointer == null || pointer.currentSnapshotId == id) {
-        await _writePointer(
-          sessionId,
-          isNew || pointer == null ? id : pointer.currentSnapshotId,
-          context,
-        );
-      }
+    if (sessionId != null && current == null) {
+      await _writePointer(sessionId, id, context);
     }
 
     final maxChain = maxPersistedChainLength;

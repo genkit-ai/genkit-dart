@@ -356,6 +356,55 @@ void main() {
         final leaf = await store.getSnapshot(sessionId: 'sess');
         expect(leaf!.snapshotId, 'a');
       });
+
+      test(
+        'a non-leaf rewrite with an absent pointer never aims at the non-leaf',
+        () async {
+          // Matching the JS store, the pointer is only advanced for a
+          // brand-new snapshot. Rewriting an older (non-leaf) snapshot must
+          // never point the session at it, even when the pointer file is
+          // absent (e.g. a crash after the snapshot write but before the
+          // best-effort pointer write, or a legacy store).
+          await store.saveSnapshot(
+            's1',
+            (_) => _snap(
+              snapshotId: 's1',
+              sessionId: 'sess',
+              createdAt: '2024-01-01T00:00:00.000Z',
+            ),
+          );
+          await store.saveSnapshot(
+            's2',
+            (_) => _snap(
+              snapshotId: 's2',
+              sessionId: 'sess',
+              parentId: 's1',
+              createdAt: '2024-01-02T00:00:00.000Z',
+            ),
+          );
+          // Simulate the pointer never having been written (or lost).
+          File('${tempDir.path}/global/.pointers/sess.json').deleteSync();
+
+          // Rewrite the non-leaf s1 (e.g. a status/heartbeat update).
+          await store.saveSnapshot('s1', (current) {
+            current!.status = SnapshotStatus.completed;
+            return current;
+          });
+
+          // The lookup must resolve to the real leaf s2, not the rewritten s1.
+          final leaf = await store.getSnapshot(sessionId: 'sess');
+          expect(leaf!.snapshotId, 's2');
+          // And the pointer that the scan self-heals must name s2.
+          final doc =
+              jsonDecode(
+                    File(
+                      '${tempDir.path}/global/.pointers/sess.json',
+                    ).readAsStringSync(),
+                  )
+                  as Map;
+          expect(doc['currentSnapshotId'], 's2');
+        },
+      );
     });
 
     group('onSnapshotStateChange', () {
