@@ -227,6 +227,13 @@ class Session {
   }
 
   /// Retrieves the custom state of the session (plain JSON).
+  ///
+  /// Unlike [getState] and [getMessages], this returns the *live* internal
+  /// value rather than a copy (matching the JS implementation). Treat it as
+  /// read-only: mutating the returned object in place bypasses the version bump
+  /// and the `customChanged` event, so no `customPatch` is emitted upstack and
+  /// client state can silently diverge. To change custom state, always go
+  /// through [updateCustom].
   dynamic getCustom() => _json['custom'];
 
   /// Updates the custom state of the session using a mutator function.
@@ -516,12 +523,35 @@ SessionSnapshot? selectLeafSnapshot(
     );
   }
 
-  // Default: pick the most-recently created leaf. `createdAt` is an ISO-8601
-  // timestamp, so lexicographic comparison matches chronological order.
-  return leaves.reduce(
-    (latest, snap) =>
-        snap.createdAt.compareTo(latest.createdAt) > 0 ? snap : latest,
-  );
+  // Default: pick the most-recently created leaf.
+  //
+  // `createdAt` is expected to be a UTC ISO-8601 timestamp (see
+  // `SessionSnapshot.createdAt`), but `SessionStore` is a public interface and
+  // third-party stores could emit mixed offset formats (e.g. `...+05:00` vs
+  // `...Z`), which a naive lexicographic compare would order incorrectly. We
+  // therefore parse to a comparable instant when possible and only fall back to
+  // lexicographic ordering when a timestamp can't be parsed (so we never throw
+  // on malformed input). On an exact tie we keep the later element in iteration
+  // order; since callers build [snapshots] by iterating an insertion-ordered
+  // store, this resolves ties to the most-recently saved leaf.
+  var latest = leaves.first;
+  for (final snap in leaves.skip(1)) {
+    if (_compareSnapshotRecency(snap, latest) >= 0) latest = snap;
+  }
+  return latest;
+}
+
+/// Compares two snapshots by recency, returning a positive value when [a] is
+/// at least as recent as [b].
+///
+/// Prefers parsing `createdAt` to a UTC instant so mixed ISO-8601 offset
+/// formats are ordered correctly; falls back to a lexicographic comparison of
+/// the raw strings when either value can't be parsed.
+int _compareSnapshotRecency(SessionSnapshot a, SessionSnapshot b) {
+  final aTime = DateTime.tryParse(a.createdAt)?.toUtc();
+  final bTime = DateTime.tryParse(b.createdAt)?.toUtc();
+  if (aTime != null && bTime != null) return aTime.compareTo(bTime);
+  return a.createdAt.compareTo(b.createdAt);
 }
 
 // ---------------------------------------------------------------------------
