@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'auth.dart';
+import 'embedders.dart';
 
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
@@ -107,20 +108,10 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           })
           .toList();
 
-      final embedders = publisherModels
-          .where((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final name = modelMap['name'] as String?;
-            return name != null &&
-                (name.contains('text-embedding-') ||
-                    name.contains('embedding-'));
-          })
-          .map((m) {
-            final modelMap = m as Map<String, dynamic>;
-            final modelName = (modelMap['name'] as String).split('/').last;
-            return embedderMetadata('$name/$modelName');
-          })
-          .toList();
+      final embedders = listVertexEmbedders(
+        pluginName: name,
+        publisherModels: publisherModels,
+      );
 
       return [...models, ...embedders];
     } catch (e, stack) {
@@ -136,58 +127,12 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
   @override
   Embedder createEmbedder(String embedderName) {
-    return Embedder(
-      name: '$name/$embedderName',
-      fn: (req, ctx) async {
-        if (req == null || req.input.isEmpty) {
-          return EmbedResponse(embeddings: []);
-        }
-        final service = await getApiClient();
-        try {
-          final options = req.options != null
-              ? TextEmbedderOptions.fromJson(req.options!)
-              : null;
-
-          final instances = req.input.map((doc) {
-            final text = doc.content
-                .where((p) => p.isText)
-                .map((p) => p.text)
-                .join('\n');
-            return {'content': text};
-          }).toList();
-
-          final parameters = <String, dynamic>{};
-          if (options?.outputDimensionality != null) {
-            parameters['outputDimensionality'] = options!.outputDimensionality;
-          }
-          if (options?.taskType != null) {
-            parameters['taskType'] = options!.taskType;
-          }
-
-          final res = await service.predict({
-            'instances': instances,
-            if (parameters.isNotEmpty) 'parameters': parameters,
-          }, model: 'models/$embedderName');
-
-          final predictions = res['predictions'] as List;
-          final embeddings = predictions.map((p) {
-            final emb =
-                (p as Map<String, dynamic>)['embeddings']
-                    as Map<String, dynamic>;
-            final vals = emb['values'] as List;
-            return Embedding(
-              embedding: vals.map((e) => (e as num).toDouble()).toList(),
-            );
-          }).toList();
-          return EmbedResponse(embeddings: embeddings);
-        } catch (e, stack) {
-          throw handleException(e, stack);
-        } finally {
-          if (authClient == null) {
-            service.client.close();
-          }
-        }
-      },
+    return createVertexEmbedder(
+      pluginName: name,
+      embedderName: embedderName,
+      getApiClient: getApiClient,
+      handleException: handleException,
+      closeService: authClient == null,
     );
   }
 }
