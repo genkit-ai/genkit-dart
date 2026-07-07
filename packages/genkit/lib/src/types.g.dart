@@ -4975,6 +4975,7 @@ base class ReflectionRunActionParams {
     String? runtimeId,
     required String key,
     dynamic input,
+    dynamic init,
     dynamic context,
     Map<String, dynamic>? telemetryLabels,
     bool? stream,
@@ -4984,6 +4985,7 @@ base class ReflectionRunActionParams {
       'runtimeId': ?runtimeId,
       'key': key,
       'input': ?input,
+      'init': ?init,
       'context': ?context,
       'telemetryLabels': ?telemetryLabels,
       'stream': ?stream,
@@ -5023,6 +5025,14 @@ base class ReflectionRunActionParams {
 
   set input(dynamic value) {
     _json['input'] = value;
+  }
+
+  dynamic get init {
+    return _json['init'] as dynamic;
+  }
+
+  set init(dynamic value) {
+    _json['init'] = value;
   }
 
   dynamic get context {
@@ -5098,6 +5108,7 @@ base class _ReflectionRunActionParamsTypeFactory
             'runtimeId': $Schema.string(),
             'key': $Schema.string(),
             'input': $Schema.any(),
+            'init': $Schema.any(),
             'context': $Schema.any(),
             'telemetryLabels': $Schema.object(
               additionalProperties: $Schema.any(),
@@ -5105,7 +5116,7 @@ base class _ReflectionRunActionParamsTypeFactory
             'stream': $Schema.boolean(),
             'streamInput': $Schema.boolean(),
           },
-          required: ['key', 'input', 'context'],
+          required: ['key', 'input', 'init', 'context'],
         )
         .value,
     dependencies: [],

@@ -407,6 +407,7 @@ abstract class $ReflectionRunActionParams {
   String? get runtimeId;
   String get key;
   dynamic get input;
+  dynamic get init;
   dynamic get context;
   Map<String, dynamic>? get telemetryLabels;
   bool? get stream;

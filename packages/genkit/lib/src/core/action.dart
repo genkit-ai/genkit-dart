@@ -150,7 +150,14 @@ class Action<Input, Output, Chunk, Init>
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
-      init: initSchema != null ? initSchema!.parse(init) : init as Init?,
+      // Skip validation when no init was supplied. `init` is optional on the
+      // first request (e.g. an agent's fresh session sends no init), so a null
+      // value must pass through untouched rather than be validated against a
+      // non-nullable init schema. Mirrors the Go core's `isNilValue(init)`
+      // guard and JS's convention of only validating a present init.
+      init: (initSchema != null && init != null)
+          ? initSchema!.parse(init)
+          : init as Init?,
       onTraceStart: onTraceStart,
     );
   }
