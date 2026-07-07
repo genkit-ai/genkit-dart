@@ -273,6 +273,7 @@ class ReflectionServerV2 {
     if (id == null) return;
     final key = params.key;
     final input = params.input;
+    final init = params.init;
     final context = params.context as Map<String, dynamic>?;
     final stream = params.stream == true;
     final streamInput = params.streamInput == true;
@@ -300,6 +301,7 @@ class ReflectionServerV2 {
       if (stream) {
         final result = await action.runRaw(
           input,
+          init: init,
           onChunk: (chunk) {
             final params = ReflectionStreamChunkParams(
               requestId: id.toString(),
@@ -325,6 +327,7 @@ class ReflectionServerV2 {
       } else {
         final result = await action.runRaw(
           input,
+          init: init,
           onTraceStart: ({required String traceId, required String spanId}) {
             final params = ReflectionRunActionStateParams(
               requestId: id.toString(),
