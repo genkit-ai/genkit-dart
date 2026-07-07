@@ -253,6 +253,7 @@ base class ToolDefinition {
 
   ToolDefinition({
     required String name,
+    String? key,
     required String description,
     Map<String, dynamic>? inputSchema,
     Map<String, dynamic>? outputSchema,
@@ -260,6 +261,7 @@ base class ToolDefinition {
   }) {
     _json = {
       'name': name,
+      'key': ?key,
       'description': description,
       'inputSchema': ?inputSchema,
       'outputSchema': ?outputSchema,
@@ -279,6 +281,18 @@ base class ToolDefinition {
 
   set name(String value) {
     _json['name'] = value;
+  }
+
+  String? get key {
+    return _json['key'] as String?;
+  }
+
+  set key(String? value) {
+    if (value == null) {
+      _json.remove('key');
+    } else {
+      _json['key'] = value;
+    }
   }
 
   String get description {
@@ -351,6 +365,7 @@ base class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
         .object(
           properties: {
             'name': $Schema.string(),
+            'key': $Schema.string(),
             'description': $Schema.string(),
             'inputSchema': $Schema.object(additionalProperties: $Schema.any()),
             'outputSchema': $Schema.object(additionalProperties: $Schema.any()),
