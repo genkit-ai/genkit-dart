@@ -1769,7 +1769,7 @@ extension type ContentEmbedding._(Map<String, Object?> _data) {
 
   set values(List<double>? value) => _data['values'] = value;
 
-  /// This field stores the soft tokens tensor frame shape (e.g. [1, 1, 256, 2048]).
+  /// This field stores the soft tokens tensor frame shape (e.g. `[1, 1, 256, 2048]`).
   List<int>? get shape {
     final v = _data['shape'];
     if (v == null) return null;
