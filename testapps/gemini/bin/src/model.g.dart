@@ -437,3 +437,85 @@ base class _CharacterProfileTypeFactory
     dependencies: [],
   );
 }
+
+base class MultimodalEmbeddingInput {
+  /// Creates a [MultimodalEmbeddingInput] from a JSON map.
+  factory MultimodalEmbeddingInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  MultimodalEmbeddingInput._(this._json);
+
+  MultimodalEmbeddingInput({
+    required String caption,
+    required String imageUri,
+  }) {
+    _json = {'caption': caption, 'imageUri': imageUri};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [MultimodalEmbeddingInput].
+  static const SchemanticType<MultimodalEmbeddingInput> $schema =
+      _MultimodalEmbeddingInputTypeFactory();
+
+  String get caption {
+    return _json['caption'] as String;
+  }
+
+  set caption(String value) {
+    _json['caption'] = value;
+  }
+
+  String get imageUri {
+    return _json['imageUri'] as String;
+  }
+
+  set imageUri(String value) {
+    _json['imageUri'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [MultimodalEmbeddingInput] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _MultimodalEmbeddingInputTypeFactory
+    extends SchemanticType<MultimodalEmbeddingInput> {
+  const _MultimodalEmbeddingInputTypeFactory();
+
+  @override
+  MultimodalEmbeddingInput parse(Object? json) {
+    return MultimodalEmbeddingInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MultimodalEmbeddingInput',
+    definition: $Schema
+        .object(
+          properties: {
+            'caption': $Schema.fromMap({
+              'description': 'Text to embed alongside the image.',
+              'default': 'a plate of scones',
+              'type': 'string',
+            }),
+            'imageUri': $Schema.fromMap({
+              'description':
+                  'gs:// (or data:) URI of an image to embed as a separate modality from the caption.',
+              'default':
+                  'gs://cloud-samples-data/generative-ai/image/scones.jpg',
+              'type': 'string',
+            }),
+          },
+          required: ['caption', 'imageUri'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
