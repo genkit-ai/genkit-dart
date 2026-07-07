@@ -180,6 +180,34 @@ void main() {
         expect(embeddings.length, 1);
         expect(embeddings.first.embedding.length, 256);
       });
+
+      test('should embed text and image with multimodal embedder', () async {
+        final embeddings = await ai.embedMany(
+          embedder: config.textEmbedding('multimodalembedding'),
+          documents: [
+            DocumentData(
+              content: [
+                TextPart(text: 'a plate of scones'),
+                MediaPart(
+                  media: Media(
+                    url:
+                        'gs://cloud-samples-data/generative-ai/image/scones.jpg',
+                    contentType: 'image/jpeg',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+
+        // multimodalembedding flattens to one embedding per modality.
+        expect(embeddings.length, 2);
+        expect(embeddings.every((e) => e.embedding.isNotEmpty), isTrue);
+        expect(
+          embeddings.map((e) => e.metadata?['modality']),
+          containsAll(['text', 'image']),
+        );
+      });
     });
   }
 }
