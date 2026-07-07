@@ -43,7 +43,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String get name => 'vertexai';
 
   @override
-  Map<String, ModelInfo> get knownModels => vertexAiKnownModels;
+  final Map<String, ModelInfo> knownModels = vertexAiKnownModels;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
