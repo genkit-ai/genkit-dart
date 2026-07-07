@@ -220,6 +220,8 @@ class ReflectionServerV1 {
     final body = await _jsonDecodeStream(request);
     final key = body['key'] as String;
     final input = body['input'];
+    final init = body['init'];
+    final context = body['context'] as Map<String, dynamic>?;
     final stream = request.uri.queryParameters['stream'] == 'true';
 
     final parts = key.split('/');
@@ -278,6 +280,8 @@ class ReflectionServerV1 {
       try {
         final result = await action.runRaw(
           input,
+          init: init,
+          context: context,
           onChunk: (chunk) {
             request.response.writeln(jsonEncode(chunk));
           },
@@ -309,7 +313,12 @@ class ReflectionServerV1 {
       try {
         // Set contentType early as onTraceStart will flush headers
         request.response.headers.contentType = ContentType.json;
-        final result = await action.runRaw(input, onTraceStart: onTraceStart);
+        final result = await action.runRaw(
+          input,
+          init: init,
+          context: context,
+          onTraceStart: onTraceStart,
+        );
         final response = RunActionResponse(
           result: result.result,
           telemetry: {'traceId': result.traceId},

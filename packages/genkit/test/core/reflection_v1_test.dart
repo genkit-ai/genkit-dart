@@ -169,6 +169,37 @@ void main() {
       expect(body['telemetry']['traceId'], isA<String>());
     });
 
+    test('POST /api/runAction forwards init to the action handler', () async {
+      Object? receivedInit;
+      final initAction = Action(
+        actionType: 'test',
+        inputSchema: .string(),
+        outputSchema: .string(),
+        initSchema: .map(.string(), .string()),
+        name: 'initAction',
+        fn: (input, context) async {
+          receivedInit = context.init;
+          return 'ok';
+        },
+      );
+      registry.register(initAction);
+
+      final response = await http.post(
+        Uri.parse('$url/api/runAction'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'key': '/test/initAction',
+          'input': 'testInput',
+          'init': {'foo': 'bar'},
+        }),
+      );
+
+      expect(response.statusCode, 200);
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      expect(body['result'], 'ok');
+      expect(receivedInit, {'foo': 'bar'});
+    });
+
     test('POST /api/runAction (streaming)', () async {
       final request = http.Request(
         'POST',
