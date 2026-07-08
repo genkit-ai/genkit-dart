@@ -63,7 +63,7 @@ void main() {
       final actions = await plugin().list();
       final names = actions.map((a) => a.name).toList();
 
-      expect(names, contains('vertexai/gemini-1.5-pro'));
+      expect(names, contains('vertexai/gemini-2.5-pro'));
       for (final name in vertexAiKnownModelNames) {
         expect(names, contains('vertexai/$name'));
       }
@@ -81,7 +81,7 @@ void main() {
         publisherModelsResponse:
             '{"publisherModels": ['
             '{"name": "publishers/google/models/gemini-3.5-flash"}, '
-            '{"name": "publishers/google/models/gemini-1.5-pro"}]}',
+            '{"name": "publishers/google/models/gemini-2.5-pro"}]}',
       );
       final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();

@@ -61,7 +61,7 @@ class MockHttpClient extends http.BaseClient {
         Stream.value(
           utf8.encode(
             publisherModelsResponse ??
-                '{"publisherModels": [{"name": "publishers/google/models/gemini-1.5-pro"}, {"name": "publishers/google/models/text-embedding-005"}, {"name": "publishers/google/models/multimodalembedding"}]}',
+                '{"publisherModels": [{"name": "publishers/google/models/gemini-2.5-pro"}, {"name": "publishers/google/models/text-embedding-005"}, {"name": "publishers/google/models/multimodalembedding"}]}',
           ),
         ),
         200,
