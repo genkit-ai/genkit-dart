@@ -69,6 +69,31 @@ void main(List<String> args) async {
     },
   );
 
+  // --- Video Generator Flow using Veo ---
+  ai.defineFlow(
+    name: 'videoGenerator',
+    inputSchema: .string(
+      defaultValue:
+          'A cinematic tracking shot of waves rolling onto black sand.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (input, context) async {
+      final response = await ai.generate(
+        model: googleAI.veo('veo-3.1-generate-preview'),
+        prompt: input,
+        config: VeoOptions(
+          aspectRatio: '16:9',
+          durationSeconds: 8,
+          numberOfVideos: 1,
+        ),
+      );
+      if (response.media == null) {
+        throw Exception('No video generated');
+      }
+      return response.media!;
+    },
+  );
+
   // --- Lite Generate Flow (Wrapped) ---
   ai.defineFlow(
     name: 'liteGenerate',

@@ -1149,6 +1149,243 @@ base class _GeminiTtsOptionsTypeFactory
   );
 }
 
+base class VeoOptions {
+  /// Creates a [VeoOptions] from a JSON map.
+  factory VeoOptions.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  VeoOptions._(this._json);
+
+  VeoOptions({
+    String? aspectRatio,
+    int? numberOfVideos,
+    int? durationSeconds,
+    String? personGeneration,
+    String? resolution,
+    int? seed,
+    String? negativePrompt,
+    bool? enhancePrompt,
+    int? pollingIntervalMs,
+    int? timeoutMs,
+    bool? embedMedia,
+    int? downloadTimeoutMs,
+  }) {
+    _json = {
+      'aspectRatio': ?aspectRatio,
+      'numberOfVideos': ?numberOfVideos,
+      'durationSeconds': ?durationSeconds,
+      'personGeneration': ?personGeneration,
+      'resolution': ?resolution,
+      'seed': ?seed,
+      'negativePrompt': ?negativePrompt,
+      'enhancePrompt': ?enhancePrompt,
+      'pollingIntervalMs': ?pollingIntervalMs,
+      'timeoutMs': ?timeoutMs,
+      'embedMedia': ?embedMedia,
+      'downloadTimeoutMs': ?downloadTimeoutMs,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [VeoOptions].
+  static const SchemanticType<VeoOptions> $schema = _VeoOptionsTypeFactory();
+
+  String? get aspectRatio {
+    return _json['aspectRatio'] as String?;
+  }
+
+  set aspectRatio(String? value) {
+    if (value == null) {
+      _json.remove('aspectRatio');
+    } else {
+      _json['aspectRatio'] = value;
+    }
+  }
+
+  int? get numberOfVideos {
+    return _json['numberOfVideos'] as int?;
+  }
+
+  set numberOfVideos(int? value) {
+    if (value == null) {
+      _json.remove('numberOfVideos');
+    } else {
+      _json['numberOfVideos'] = value;
+    }
+  }
+
+  int? get durationSeconds {
+    return _json['durationSeconds'] as int?;
+  }
+
+  set durationSeconds(int? value) {
+    if (value == null) {
+      _json.remove('durationSeconds');
+    } else {
+      _json['durationSeconds'] = value;
+    }
+  }
+
+  String? get personGeneration {
+    return _json['personGeneration'] as String?;
+  }
+
+  set personGeneration(String? value) {
+    if (value == null) {
+      _json.remove('personGeneration');
+    } else {
+      _json['personGeneration'] = value;
+    }
+  }
+
+  String? get resolution {
+    return _json['resolution'] as String?;
+  }
+
+  set resolution(String? value) {
+    if (value == null) {
+      _json.remove('resolution');
+    } else {
+      _json['resolution'] = value;
+    }
+  }
+
+  int? get seed {
+    return _json['seed'] as int?;
+  }
+
+  set seed(int? value) {
+    if (value == null) {
+      _json.remove('seed');
+    } else {
+      _json['seed'] = value;
+    }
+  }
+
+  String? get negativePrompt {
+    return _json['negativePrompt'] as String?;
+  }
+
+  set negativePrompt(String? value) {
+    if (value == null) {
+      _json.remove('negativePrompt');
+    } else {
+      _json['negativePrompt'] = value;
+    }
+  }
+
+  bool? get enhancePrompt {
+    return _json['enhancePrompt'] as bool?;
+  }
+
+  set enhancePrompt(bool? value) {
+    if (value == null) {
+      _json.remove('enhancePrompt');
+    } else {
+      _json['enhancePrompt'] = value;
+    }
+  }
+
+  int? get pollingIntervalMs {
+    return _json['pollingIntervalMs'] as int?;
+  }
+
+  set pollingIntervalMs(int? value) {
+    if (value == null) {
+      _json.remove('pollingIntervalMs');
+    } else {
+      _json['pollingIntervalMs'] = value;
+    }
+  }
+
+  int? get timeoutMs {
+    return _json['timeoutMs'] as int?;
+  }
+
+  set timeoutMs(int? value) {
+    if (value == null) {
+      _json.remove('timeoutMs');
+    } else {
+      _json['timeoutMs'] = value;
+    }
+  }
+
+  /// Downloads generated videos and returns data URIs instead of source URLs.
+  ///
+  /// Disabled by default to avoid loading large video files into memory.
+  bool? get embedMedia {
+    return _json['embedMedia'] as bool?;
+  }
+
+  /// Downloads generated videos and returns data URIs instead of source URLs.
+  ///
+  /// Disabled by default to avoid loading large video files into memory.
+  set embedMedia(bool? value) {
+    if (value == null) {
+      _json.remove('embedMedia');
+    } else {
+      _json['embedMedia'] = value;
+    }
+  }
+
+  int? get downloadTimeoutMs {
+    return _json['downloadTimeoutMs'] as int?;
+  }
+
+  set downloadTimeoutMs(int? value) {
+    if (value == null) {
+      _json.remove('downloadTimeoutMs');
+    } else {
+      _json['downloadTimeoutMs'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [VeoOptions] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _VeoOptionsTypeFactory extends SchemanticType<VeoOptions> {
+  const _VeoOptionsTypeFactory();
+
+  @override
+  VeoOptions parse(Object? json) {
+    return VeoOptions._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'VeoOptions',
+    definition: $Schema
+        .object(
+          properties: {
+            'aspectRatio': $Schema.string(enumValues: ['16:9', '9:16']),
+            'numberOfVideos': $Schema.integer(minimum: 1, maximum: 2),
+            'durationSeconds': $Schema.integer(minimum: 4, maximum: 8),
+            'personGeneration': $Schema.string(
+              enumValues: ['allow_all', 'allow_adult', 'dont_allow'],
+            ),
+            'resolution': $Schema.string(enumValues: ['720p', '1080p', '4k']),
+            'seed': $Schema.integer(),
+            'negativePrompt': $Schema.string(),
+            'enhancePrompt': $Schema.boolean(),
+            'pollingIntervalMs': $Schema.integer(minimum: 100),
+            'timeoutMs': $Schema.integer(minimum: 1000),
+            'embedMedia': $Schema.boolean(),
+            'downloadTimeoutMs': $Schema.integer(minimum: 1000),
+          },
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
 base class SpeechConfig {
   /// Creates a [SpeechConfig] from a JSON map.
   factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
