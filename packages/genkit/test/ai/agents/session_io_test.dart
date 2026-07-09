@@ -212,6 +212,19 @@ void main() {
       }
     });
 
+    group('sessionId safety', () {
+      // An invalid sessionId must fail fast rather than being swallowed into a
+      // silent scan fallback, so it can never escape the pointers directory.
+      for (final bad in ['../escape', 'a/b', r'a\b', '..', '.']) {
+        test('rejects unsafe sessionId "$bad"', () async {
+          expect(
+            () => store.getSnapshot(sessionId: bad),
+            throwsA(isA<GenkitException>()),
+          );
+        });
+      }
+    });
+
     group('snapshotPathPrefix (multi-tenant)', () {
       test('isolates snapshots per tenant prefix', () async {
         final tenantStore = FileSessionStore(
@@ -438,6 +451,18 @@ void main() {
 
         expect(seen.map((s) => s?.value), contains('aborted'));
       });
+
+      for (final bad in ['../escape', 'a/b', r'a\b', '..', '.', '']) {
+        test('rejects unsafe snapshotId "$bad"', () {
+          // This path builds the watched file straight from `snapshotId`, so it
+          // must apply the same safety check as every other FS op to stop a
+          // `../otherTenant/id` reaching across the prefix.
+          expect(
+            () => store.onSnapshotStateChange(bad, (_) {}),
+            throwsA(isA<GenkitException>()),
+          );
+        });
+      }
     });
   });
 }
