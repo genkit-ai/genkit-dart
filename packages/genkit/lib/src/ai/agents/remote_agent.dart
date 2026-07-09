@@ -39,13 +39,17 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 /// - [headers]: Optional. Static headers, or a function called per request.
 /// - [stateManagement]: Optional. Declares server- vs client-managed state;
 ///   inferred otherwise.
-/// - [httpClient]: Optional. Provide to control the HTTP client lifecycle.
+/// - [httpClient]: Optional. Provide to control the HTTP client lifecycle. When
+///   supplied, the client stays caller-owned and is not closed by [AgentApi.close];
+///   when omitted, an internal client is created and closed by [AgentApi.close].
 ///
 /// ```dart
 /// final agent = remoteAgent(url: 'http://host/weatherAgent');
 /// final chat = agent.chat();
 /// final res = await chat.send(agentInputFromText('Weather in Tokyo?'));
 /// print(res.text);
+/// // Release the internally-created HTTP client when done.
+/// await agent.close();
 /// ```
 AgentApi remoteAgent({
   required String url,
@@ -74,6 +78,9 @@ class _HttpAgentTransport extends AgentTransport {
     String? stateManagement,
     http.Client? httpClient,
   }) : _headers = headers,
+       // Track ownership: only close a client we created. A caller-passed
+       // client stays caller-owned and must not be closed by us.
+       _ownsClient = httpClient == null,
        _httpClient = httpClient ?? http.Client() {
     this.stateManagement = stateManagement;
 
@@ -112,6 +119,7 @@ class _HttpAgentTransport extends AgentTransport {
 
   final HeadersResolver? _headers;
   final http.Client _httpClient;
+  final bool _ownsClient;
 
   late final RemoteAction<AgentInput, AgentOutput, AgentStreamChunk, AgentInit>
   _turnAction;
@@ -218,5 +226,14 @@ class _HttpAgentTransport extends AgentTransport {
       headers: headers,
     );
     return response.status?.value;
+  }
+
+  @override
+  void close() {
+    // Only close the client if we created it; a caller-passed client stays
+    // caller-owned.
+    if (_ownsClient) {
+      _httpClient.close();
+    }
   }
 }
