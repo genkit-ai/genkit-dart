@@ -38,6 +38,7 @@ import 'json_patch.dart';
 /// Web's `AbortSignal`/`AbortController`.
 class CancellationToken {
   final Completer<void> _completer = Completer<void>();
+  final List<void Function()> _listeners = [];
 
   /// Whether cancellation has been requested.
   bool get isCancelled => _completer.isCompleted;
@@ -45,9 +46,32 @@ class CancellationToken {
   /// Completes when [cancel] is called.
   Future<void> get whenCancelled => _completer.future;
 
+  /// Registers [callback] to run when this token is cancelled, and returns a
+  /// disposer that unregisters it. Unlike [whenCancelled] (a one-shot future
+  /// that can never be detached), this lets a caller-supplied token be reused
+  /// across turns without leaking per-turn handlers. If the token is already
+  /// cancelled, [callback] runs synchronously and the returned disposer is a
+  /// no-op.
+  void Function() onCancel(void Function() callback) {
+    if (_completer.isCompleted) {
+      callback();
+      return () {};
+    }
+    _listeners.add(callback);
+    return () => _listeners.remove(callback);
+  }
+
   /// Requests cancellation (idempotent).
   void cancel() {
-    if (!_completer.isCompleted) _completer.complete();
+    if (_completer.isCompleted) return;
+    _completer.complete();
+    // Snapshot then clear so listeners that (re)register during fan-out don't
+    // fire twice and can't be stranded in the list.
+    final listeners = [..._listeners];
+    _listeners.clear();
+    for (final listener in listeners) {
+      listener();
+    }
   }
 }
 
@@ -519,6 +543,13 @@ class AgentChat {
       if (cancel.isCancelled) {
         raw = AgentOutput(finishReason: AgentFinishReason.aborted);
       } else {
+        // A thrown transport error / non-200 rejects before reaching the
+        // structured failed/aborted rollback below, so trim the eagerly-pushed
+        // user message here too. Otherwise it's left orphaned in `messages`
+        // (with no reply) and the next send stacks another one after it.
+        if (messages.length > messageCountBeforeTurn) {
+          messages.removeRange(messageCountBeforeTurn, messages.length);
+        }
         throw _toAgentError(e);
       }
     }
