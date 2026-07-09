@@ -114,7 +114,7 @@ void main() {
     test('should handle listValues for middleware', () async {
       final def = defineMiddleware<dynamic>(
         name: 'retry',
-        create: ([config]) => throw UnimplementedError(),
+        create: (config, ctx) => throw UnimplementedError(),
       );
       registry.registerValue('middleware', def.name, def);
 
