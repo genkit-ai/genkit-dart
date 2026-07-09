@@ -44,7 +44,7 @@ class SkillsPlugin extends GenkitPlugin {
     defineMiddleware<SkillsPluginOptions>(
       name: 'skills',
       configSchema: SkillsPluginOptions.$schema,
-      create: ([SkillsPluginOptions? config]) =>
+      create: (config, ctx) =>
           SkillsMiddleware(config?.skillPaths ?? const ['skills']),
     ),
   ];
