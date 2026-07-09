@@ -6885,7 +6885,7 @@ base class SessionState {
   SessionState({
     String? sessionId,
     List<Message>? messages,
-    dynamic custom,
+    Object? custom,
     List<Artifact>? artifacts,
   }) {
     _json = {
@@ -6928,12 +6928,16 @@ base class SessionState {
     }
   }
 
-  dynamic get custom {
-    return _json['custom'] as dynamic;
+  Object? get custom {
+    return _json['custom'] as Object?;
   }
 
-  set custom(dynamic value) {
-    _json['custom'] = value;
+  set custom(Object? value) {
+    if (value == null) {
+      _json.remove('custom');
+    } else {
+      _json['custom'] = value;
+    }
   }
 
   List<Artifact>? get artifacts {
@@ -6984,7 +6988,6 @@ base class _SessionStateTypeFactory extends SchemanticType<SessionState> {
               items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
             ),
           },
-          required: ['custom'],
         )
         .value,
     dependencies: [Message.$schema, Artifact.$schema],
