@@ -157,6 +157,20 @@ void main() {
       state.messages = [...state.messages!, _user('extra')];
       expect(session.getMessages().length, 1);
     });
+
+    test('getMessages returns copies that do not alias session state', () {
+      final session = Session(SessionState(messages: [_user('hi')]));
+      // Message setters write through; mutating a returned Message must not
+      // reach back into the session's internal state.
+      final messages = session.getMessages();
+      messages.first.content = [TextPart(text: 'mutated')];
+
+      final reread = session.getMessages();
+      expect(reread.first.content.first.text, 'hi');
+
+      // No mutation happened through the public API, so the version is unchanged.
+      expect(session.getVersion(), 0);
+    });
   });
 
   group('InMemorySessionStore', () {

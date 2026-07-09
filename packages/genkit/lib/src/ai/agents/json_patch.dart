@@ -192,6 +192,14 @@ void _diffRecursive(Object? from, Object? to, String pointer, JsonPatch patch) {
 /// `replace` whose parent container is missing initializes the parent as an
 /// object, and a `remove` / `replace` targeting a missing member is a no-op
 /// rather than an error. `test` operations are honored and throw on mismatch.
+///
+/// Reserved keys: because patches may originate from untrusted, server-sent
+/// data, JSON Pointer paths containing the tokens `__proto__`, `prototype`, or
+/// `constructor` are rejected with an [ArgumentError] as a prototype-pollution
+/// defense. These keys are therefore reserved and cannot be used in custom
+/// state. Note the check lives here on the (untrusted) apply side, so [diff]
+/// does not filter them; a document that legitimately contains such a key will
+/// round-trip through [diff] but throw here on [applyPatch].
 Object? applyPatch(Object? document, JsonPatch patch) {
   var doc = _clone(document);
   for (final op in patch) {
