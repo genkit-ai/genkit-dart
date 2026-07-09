@@ -17,7 +17,6 @@ import 'package:genkit/src/ai/agents/agent_core.dart';
 import 'package:test/test.dart';
 
 /// A scripted transport: each turn returns the queued [_TurnScript].
-
 class _FakeTransport extends AgentTransport {
   _FakeTransport(this._scripts, {this.supportsRun = false});
 
@@ -70,6 +69,68 @@ class _TurnScript {
 
   Stream<AgentStreamChunk> streamOf() => Stream.fromIterable(chunks);
   Future<AgentOutput> outputOf() async => output;
+}
+
+/// A single scripted step for [_StepTransport]: either yields [output] or
+/// throws [error] from the turn's `output` future.
+class _Step {
+  _Step.output(this.output) : error = null;
+  _Step.error(this.error) : output = null;
+
+  final AgentOutput? output;
+  final Error? error;
+
+  Future<AgentOutput> resolve() async {
+    final err = error;
+    if (err != null) throw err;
+    return output!;
+  }
+}
+
+_Step _outputStep(AgentOutput output) => _Step.output(output);
+_Step _throwStep(String message) => _Step.error(StateError(message));
+
+/// A transport whose turns can throw, to exercise the thrown-error rollback.
+class _StepTransport extends AgentTransport {
+  _StepTransport(this._steps, {this.supportsRun = false});
+
+  final List<_Step> _steps;
+  final bool supportsRun;
+  int _index = 0;
+
+  _Step _next() => _steps[_index++];
+
+  @override
+  TurnStream runTurn(
+    AgentInput input,
+    AgentInit init, {
+    required CancellationToken cancel,
+  }) {
+    final step = _next();
+    return (
+      stream: const Stream<AgentStreamChunk>.empty(),
+      output: step.resolve(),
+    );
+  }
+
+  @override
+  Future<AgentOutput>? run(
+    AgentInput input,
+    AgentInit init, {
+    required CancellationToken cancel,
+  }) {
+    if (!supportsRun) return null;
+    return _next().resolve();
+  }
+
+  @override
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+  }) async => null;
+
+  @override
+  Future<String?> abort(String snapshotId) async => null;
 }
 
 Message _modelMessage(String text) => Message(
@@ -323,6 +384,92 @@ void main() {
         expect(res.sessionId, 'sess_3');
       },
     );
+  });
+
+  group('AgentChat message rollback on error', () {
+    test(
+      'a thrown transport error rolls back the eager user message',
+      () async {
+        final transport = _StepTransport([
+          _throwStep('INTERNAL: transport blew up'),
+        ], supportsRun: true);
+        final chat = AgentApi(transport).chat();
+        await expectLater(
+          chat.send(agentInputFromText('hi')),
+          throwsA(isA<AgentError>()),
+        );
+        // The eagerly-pushed user message must not be left orphaned.
+        expect(chat.messages, isEmpty);
+      },
+    );
+
+    test(
+      'a follow-up send after a thrown error does not stack a stale message',
+      () async {
+        final transport = _StepTransport([
+          _throwStep('INTERNAL: transport blew up'),
+          _outputStep(
+            AgentOutput(
+              message: _modelMessage('pong'),
+              finishReason: AgentFinishReason.stop,
+            ),
+          ),
+        ], supportsRun: true);
+        final chat = AgentApi(transport).chat();
+        await expectLater(
+          chat.send(agentInputFromText('first')),
+          throwsA(isA<AgentError>()),
+        );
+        expect(chat.messages, isEmpty);
+
+        final res = await chat.send(agentInputFromText('second'));
+        expect(res.text, 'pong');
+        // Only the second turn's user + model messages remain; the first
+        // (failed) turn's user message did not stack.
+        expect(chat.messages.length, 2);
+        expect(chat.messages.first.content.first.text, 'second');
+      },
+    );
+  });
+
+  group('CancellationToken.onCancel', () {
+    test('fires registered callbacks on cancel', () {
+      final token = CancellationToken();
+      var fired = 0;
+      token.onCancel(() => fired++);
+      token.onCancel(() => fired++);
+      expect(fired, 0);
+      token.cancel();
+      expect(fired, 2);
+    });
+
+    test('only fires once even if cancel is called repeatedly', () {
+      final token = CancellationToken();
+      var fired = 0;
+      token.onCancel(() => fired++);
+      token
+        ..cancel()
+        ..cancel();
+      expect(fired, 1);
+    });
+
+    test('the disposer unregisters the callback', () {
+      final token = CancellationToken();
+      var fired = 0;
+      final dispose = token.onCancel(() => fired++);
+      dispose();
+      token.cancel();
+      expect(fired, 0);
+    });
+
+    test('runs the callback synchronously if already cancelled', () {
+      final token = CancellationToken()..cancel();
+      var fired = 0;
+      final dispose = token.onCancel(() => fired++);
+      expect(fired, 1);
+      // The disposer for an already-cancelled token is a harmless no-op.
+      expect(dispose, returnsNormally);
+    });
   });
 
   group('AgentInterrupt', () {
