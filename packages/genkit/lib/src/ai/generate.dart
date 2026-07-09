@@ -18,6 +18,7 @@ import '../core/action.dart';
 import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
+import '../genkit_ai.dart';
 import '../o11y/instrumentation.dart';
 import '../schema.dart';
 import '../schema_extensions.dart';
@@ -108,7 +109,9 @@ abstract class GenerateConfig {}
             ? def.configSchema!.parse(config)
             : config;
 
-        resolvedMiddleware.add(def.create(parsedConfig));
+        resolvedMiddleware.add(
+          def.create(parsedConfig, (ai: GenkitAI(registry))),
+        );
       } else {
         throw GenkitException(
           'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',

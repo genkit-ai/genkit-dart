@@ -36,7 +36,7 @@ class ToolApprovalPlugin extends GenkitPlugin {
     defineMiddleware<ToolApprovalOptions>(
       name: 'toolApproval',
       configSchema: ToolApprovalOptions.$schema,
-      create: ([ToolApprovalOptions? config]) {
+      create: (config, ctx) {
         final options =
             config ?? ToolApprovalOptions(approved: approvedTools ?? []);
         return ToolApprovalMiddleware(options);
