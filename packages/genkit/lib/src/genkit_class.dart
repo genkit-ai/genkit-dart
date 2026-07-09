@@ -27,7 +27,6 @@ import 'ai/embedder.dart';
 import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
-import 'ai/generate_bidi.dart';
 import 'ai/generate_middleware.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
