@@ -33,7 +33,11 @@ const typeOverrides = {
   'AgentOutput': {'error': '\$AgentErrorInfo'},
   'SessionSnapshot': {'error': '\$AgentErrorInfo'},
   'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
-  'SessionState': {'custom': 'dynamic'},
+  // `custom` is `z.any().optional()` on the wire; keep it `Object?` (not
+  // `dynamic`) so the schemantic builder treats it as optional. A non-nullable
+  // `dynamic` getter is emitted as a required field, producing JSON that
+  // violates the schema when `custom` is omitted.
+  'SessionState': {'custom': 'Object'},
   // `value` is an open `{}` schema; keep it `Object?` so any JSON value
   // round-trips. `op` follows its `$ref` to the JsonPatchOp enum.
   'JsonPatchOperation': {'value': 'Object'},
