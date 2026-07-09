@@ -576,7 +576,7 @@ abstract class $SessionSnapshot {
 abstract class $SessionState {
   String? get sessionId;
   List<$Message>? get messages;
-  dynamic get custom;
+  Object? get custom;
   List<$Artifact>? get artifacts;
 }
 
