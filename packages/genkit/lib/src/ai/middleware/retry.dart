@@ -49,7 +49,7 @@ class RetryPlugin extends GenkitPlugin {
     defineMiddleware<RetryOptions>(
       name: 'retry',
       configSchema: RetryOptions.$schema,
-      create: ([RetryOptions? config]) => RetryMiddleware(
+      create: (config, ctx) => RetryMiddleware(
         maxRetries: config?.maxRetries ?? 3,
         statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
         initialDelayMs: config?.initialDelayMs ?? 1000,

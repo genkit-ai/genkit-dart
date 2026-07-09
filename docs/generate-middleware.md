@@ -120,7 +120,7 @@ class LoggerPlugin extends GenkitPlugin {
       // name should be reasonably unique to avoid conflicts with other plugins.
       name: 'logger',
       configSchema: LoggerOptions.$schema,
-      create: ([LoggerOptions? config]) => LoggerMiddleware(
+      create: (config, ctx) => LoggerMiddleware(
         enableColor: config?.enableColor ?? false,
         maxLogLength: config?.maxLogLength ?? 1000,
       ),
@@ -170,6 +170,75 @@ void main() {
     ],
   );
 }
+```
+
+## Accessing AI from Middleware (Middleware Context)
+
+The `create` callback you pass to `defineMiddleware` receives two positional
+arguments: the resolved `config`, and a `GenerateMiddlewareContext` (`ctx`).
+
+```dart
+create: (config, ctx) => LoggerMiddleware(...),
+```
+
+If you don't need the context, name the second parameter `_` and ignore it.
+
+The context carries an ephemeral `GenkitAI` instance via `ctx.ai`. This lets a
+middleware run its own AI operations (`generate`, `generateStream`, `embed`,
+etc.) at request time. This is useful for middleware that needs to call a model
+itself, for example an AI risk/safety classifier that scores or filters a
+request, a summarization or guardrail middleware, or a routing middleware that
+asks a model to pick a downstream model.
+
+```dart
+class RiskClassifierPlugin extends GenkitPlugin {
+  @override
+  String get name => 'risk_classifier';
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => [
+    defineMiddleware<RiskClassifierOptions>(
+      name: 'risk_classifier',
+      configSchema: RiskClassifierOptions.$schema,
+      // Pass the ephemeral GenkitAI to the middleware via the context.
+      create: (config, ctx) =>
+          RiskClassifierMiddleware(config, ai: ctx.ai),
+    ),
+  ];
+}
+
+class RiskClassifierMiddleware extends GenerateMiddleware {
+  RiskClassifierMiddleware(this.config, {required this.ai});
+
+  final RiskClassifierOptions? config;
+  final GenkitAI ai;
+
+  @override
+  Future<GenerateResponseHelper> generate(
+    GenerateActionOptions options,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResponseHelper> Function(
+      GenerateActionOptions options,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    ) next,
+  ) async {
+    // Run a nested generate to classify the request before continuing.
+    final verdict = await ai.generate(
+      prompt: 'Classify the risk of this request: $options',
+    );
+    if (verdict.text.contains('BLOCK')) {
+      throw GenkitException('Request blocked by risk classifier');
+    }
+    return next(options, ctx);
+  }
+}
+```
+
+The same `ctx.ai` also exposes the active registry, so a middleware can resolve
+other registered actions (models, tools, agents, etc.) by name:
+
+```dart
+final agent = await ctx.ai.registry.lookupAction('agent', 'researcher');
 ```
 
 ## Lifecycle and Stateful Middleware
