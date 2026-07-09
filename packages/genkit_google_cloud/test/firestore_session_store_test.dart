@@ -369,6 +369,182 @@ void main() {
       });
     });
 
+    group('prefix validation', () {
+      test('rejects a blank prefix with INVALID_ARGUMENT', () async {
+        final store = newStore(snapshotPathPrefix: (_) => '   ');
+        expect(
+          () => store.saveSnapshot(
+            's1',
+            (_) => _snap(snapshotId: 's1', sessionId: 'sess'),
+          ),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.status,
+              'status',
+              StatusCodes.INVALID_ARGUMENT,
+            ),
+          ),
+        );
+      });
+
+      test('rejects a prefix containing a slash', () async {
+        final store = newStore(snapshotPathPrefix: (_) => 'a/b');
+        expect(
+          () => store.getSnapshot(snapshotId: 's1'),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.status,
+              'status',
+              StatusCodes.INVALID_ARGUMENT,
+            ),
+          ),
+        );
+      });
+
+      test('rejects "." and ".." prefixes', () async {
+        for (final bad in ['.', '..']) {
+          final store = newStore(snapshotPathPrefix: (_) => bad);
+          expect(
+            () => store.getSnapshot(snapshotId: 's1'),
+            throwsA(
+              isA<GenkitException>().having(
+                (e) => e.status,
+                'status',
+                StatusCodes.INVALID_ARGUMENT,
+              ),
+            ),
+            reason: 'prefix "$bad" should be rejected',
+          );
+        }
+      });
+    });
+
+    group('terminal-state upsert guard', () {
+      test('rejects upserting a terminal snapshot', () async {
+        final store = newStore();
+        await store.saveSnapshot(
+          's1',
+          (_) => _snap(
+            snapshotId: 's1',
+            sessionId: 'sess',
+            custom: {'v': 1},
+            status: SnapshotStatus.completed,
+          ),
+        );
+        expect(
+          () => store.saveSnapshot(
+            's1',
+            (current) =>
+                _snap(snapshotId: 's1', sessionId: 'sess', custom: {'v': 2}),
+          ),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.status,
+              'status',
+              StatusCodes.FAILED_PRECONDITION,
+            ),
+          ),
+        );
+        // The rejected write leaves the original state intact.
+        final loaded = await store.getSnapshot(snapshotId: 's1');
+        expect(loaded!.state?.custom, {'v': 1});
+      });
+
+      test('allows upserting a non-terminal (pending) snapshot', () async {
+        final store = newStore();
+        await store.saveSnapshot(
+          's1',
+          (_) => _snap(
+            snapshotId: 's1',
+            sessionId: 'sess',
+            custom: {'v': 1},
+            status: SnapshotStatus.pending,
+          ),
+        );
+        // Upgrade pending -> completed in place, mirroring the detached-run
+        // upgrade path.
+        final id = await store.saveSnapshot('s1', (current) {
+          current!.status = SnapshotStatus.completed;
+          return current;
+        });
+        expect(id, 's1');
+        final loaded = await store.getSnapshot(snapshotId: 's1');
+        expect(loaded!.status?.value, 'completed');
+        expect(loaded.state?.custom, {'v': 1});
+      });
+    });
+
+    group('pointer advancement', () {
+      test('does not regress to a backdated older leaf', () async {
+        final store = newStore(checkpointInterval: 100);
+        await store.saveSnapshot(
+          'a',
+          (_) => _snap(
+            snapshotId: 'a',
+            sessionId: 'sess',
+            createdAt: '2020-01-01T00:00:00.000Z',
+            custom: {'v': 1},
+          ),
+        );
+        // Newer leaf, saved first.
+        await store.saveSnapshot(
+          'newer',
+          (_) => _snap(
+            snapshotId: 'newer',
+            sessionId: 'sess',
+            parentId: 'a',
+            createdAt: '2020-01-01T00:00:02.000Z',
+            custom: {'v': 2},
+          ),
+        );
+        // Older (backdated) leaf, saved after: it must not clobber the pointer.
+        await store.saveSnapshot(
+          'older',
+          (_) => _snap(
+            snapshotId: 'older',
+            sessionId: 'sess',
+            parentId: 'a',
+            createdAt: '2020-01-01T00:00:01.000Z',
+            custom: {'v': 3},
+          ),
+        );
+
+        final leaf = await store.getSnapshot(sessionId: 'sess');
+        expect(leaf!.snapshotId, 'newer');
+        expect(leaf.state?.custom, {'v': 2});
+        // Both leaves are still individually addressable by snapshotId.
+        expect((await store.getSnapshot(snapshotId: 'older'))!.state?.custom, {
+          'v': 3,
+        });
+      });
+
+      test('advances to a strictly newer leaf', () async {
+        final store = newStore(checkpointInterval: 100);
+        await store.saveSnapshot(
+          'a',
+          (_) => _snap(
+            snapshotId: 'a',
+            sessionId: 'sess',
+            createdAt: '2020-01-01T00:00:00.000Z',
+            custom: {'v': 1},
+          ),
+        );
+        await store.saveSnapshot(
+          'b',
+          (_) => _snap(
+            snapshotId: 'b',
+            sessionId: 'sess',
+            parentId: 'a',
+            createdAt: '2020-01-01T00:00:01.000Z',
+            custom: {'v': 2},
+          ),
+        );
+        final leaf = await store.getSnapshot(sessionId: 'sess');
+        expect(leaf!.snapshotId, 'b');
+        expect(leaf.state?.custom, {'v': 2});
+      });
+    });
+
     group('onSnapshotStateChange', () {
       test('fires the callback when the snapshot changes', () async {
         final store = newStore();

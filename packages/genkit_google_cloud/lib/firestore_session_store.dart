@@ -53,6 +53,17 @@ const String _defaultPrefix = 'global';
 /// Default polling interval for [FirestoreSessionStore.onSnapshotStateChange].
 const Duration _defaultSnapshotWatchPollInterval = Duration(seconds: 2);
 
+/// Snapshot statuses that are terminal: once a snapshot reaches one of these it
+/// is immutable and may have descendants, so it must never be upserted in place
+/// (doing so would prune/rewrite shards its descendants still depend on). Kept
+/// in sync with the core runtime's terminal-status set.
+const Set<String> _terminalStatuses = {
+  'completed',
+  'failed',
+  'aborted',
+  'expired',
+};
+
 /// Firestore document data is a plain string-keyed map.
 typedef _Doc = Map<String, Object?>;
 
@@ -193,6 +204,7 @@ class _PointerDoc {
     required this.checkpointId,
     required this.checkpointShardCount,
     required this.segmentPath,
+    required this.createdAt,
     required this.updatedAt,
   });
 
@@ -201,6 +213,7 @@ class _PointerDoc {
     checkpointId: d['checkpointId'] as String,
     checkpointShardCount: (d['checkpointShardCount'] as num).toInt(),
     segmentPath: (d['segmentPath'] as List?)?.cast<String>() ?? const [],
+    createdAt: d['createdAt'] as String? ?? '',
     updatedAt: d['updatedAt'] as String? ?? '',
   );
 
@@ -208,6 +221,11 @@ class _PointerDoc {
   final String checkpointId;
   final int checkpointShardCount;
   final List<String> segmentPath;
+
+  /// The `createdAt` of [currentSnapshotId]. Used to gate pointer advancement
+  /// so a concurrently-committed or backdated older leaf can never clobber a
+  /// newer one (see `saveSnapshot`).
+  final String createdAt;
   final String updatedAt;
 
   Map<String, Object?> toData() => {
@@ -215,6 +233,7 @@ class _PointerDoc {
     'checkpointId': checkpointId,
     'checkpointShardCount': checkpointShardCount,
     'segmentPath': segmentPath,
+    'createdAt': createdAt,
     'updatedAt': updatedAt,
   };
 }
@@ -264,6 +283,34 @@ String _resolveSnapshotId(String? requestedId, SessionSnapshot result) {
 /// `sessionId` and falling back to `state.sessionId`.
 String? _snapshotSessionId(SessionSnapshot snapshot) =>
     snapshot.sessionId ?? snapshot.state?.sessionId;
+
+/// Compares two `createdAt` timestamps, preferring to parse them to a UTC
+/// instant so mixed ISO-8601 offset formats (e.g. `...+05:00` vs `...Z`) order
+/// correctly; falls back to a lexicographic compare when either can't be parsed
+/// (so it never throws on malformed input). Mirrors `selectLeafSnapshot`.
+int _compareCreatedAt(String a, String b) {
+  final aTime = DateTime.tryParse(a)?.toUtc();
+  final bTime = DateTime.tryParse(b)?.toUtc();
+  if (aTime != null && bTime != null) return aTime.compareTo(bTime);
+  return a.compareTo(b);
+}
+
+/// Whether the leaf `(aCreatedAt, aId)` is strictly newer than
+/// `(bCreatedAt, bId)`, using the same `(createdAt, snapshotId)` ordering as
+/// `selectLeafSnapshot` and the Go store: compare `createdAt`, breaking exact
+/// ties by `snapshotId`. Strictly-greater means an older-or-equal leaf never
+/// wins, so a backdated or concurrently-committed leaf can't clobber a newer
+/// one.
+bool _isNewerLeaf(
+  String aCreatedAt,
+  String aId,
+  String bCreatedAt,
+  String bId,
+) {
+  final cmp = _compareCreatedAt(aCreatedAt, bCreatedAt);
+  if (cmp != 0) return cmp > 0;
+  return aId.compareTo(bId) > 0;
+}
 
 /// A Firestore-backed [SessionStore] that persists session snapshots as
 /// incremental JSON Patch diffs anchored to periodic, sharded full-state
@@ -349,8 +396,26 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
   final Duration _snapshotWatchPollInterval;
 
   /// Resolves the (per-tenant) prefix for the given call context.
-  String _prefixFor(Map<String, dynamic>? context) =>
-      snapshotPathPrefix?.call(context) ?? _defaultPrefix;
+  ///
+  /// The prefix is used verbatim as a Firestore document id, so a blank prefix
+  /// would throw opaquely mid-transaction and a value containing `/` (or `.` /
+  /// `..`) would silently nest into a deeper path instead of isolating a
+  /// tenant. Reject those up front with a clean `INVALID_ARGUMENT` (matching the
+  /// Go store).
+  String _prefixFor(Map<String, dynamic>? context) {
+    final prefix = snapshotPathPrefix?.call(context) ?? _defaultPrefix;
+    if (prefix.trim().isEmpty ||
+        prefix.contains('/') ||
+        prefix == '.' ||
+        prefix == '..') {
+      throw GenkitException(
+        "FirestoreSessionStore: invalid snapshotPathPrefix '$prefix' - it must "
+        "be a non-blank string that is not '.' / '..' and contains no '/'.",
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    return prefix;
+  }
 
   /// The (per-tenant) snapshots subcollection.
   CollectionReference<_Doc> _snapshotsCol(Map<String, dynamic>? context) => db
@@ -471,7 +536,29 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
         // Upsert: preserve the document's role and chain position; only the
         // state/metadata change. Callers must only upsert the *leaf* -
         // rewriting a non-leaf snapshot's state would invalidate its
-        // descendants' diffs.
+        // descendants' diffs (re-checkpointing prunes trailing shards and
+        // promotion nulls a diff's statePatch, either of which corrupts a
+        // descendant that still depends on this document's chain position).
+        //
+        // Nothing enforces "leaf only" at the type level, so enforce the
+        // invariant that guarantees it: only a *terminal* snapshot can have
+        // descendants (the runtime only ever resumes - and thus parents a child
+        // onto - a `completed` snapshot), so a snapshot in a terminal state may
+        // already have descendants and must never be rewritten in place. Every
+        // legitimate upsert (a detached `pending -> completed` upgrade, an
+        // `abort`'s `pending -> aborted`) targets a non-terminal snapshot, so
+        // this rejects only genuine misuse - loudly, before any shard is
+        // pruned - rather than silently corrupting the chain.
+        if (existing.doc.status != null &&
+            _terminalStatuses.contains(existing.doc.status)) {
+          throw GenkitException(
+            "FirestoreSessionStore: cannot upsert snapshot '$id' because it is "
+            "in a terminal state ('${existing.doc.status}'). Terminal snapshots "
+            'are immutable and may have descendants; write a new child snapshot '
+            'instead.',
+            status: StatusCodes.FAILED_PRECONDITION,
+          );
+        }
         if (existing.doc.kind == 'checkpoint') {
           chain = _writeCheckpoint(
             tx,
@@ -580,20 +667,42 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
         (_sanitize(doc.toData()) as Map).cast<String, Object?>(),
       );
 
-      // Advance the pointer when this is a new leaf, or refresh it when we just
-      // rewrote the current leaf. Upserts of older, non-leaf snapshots leave
-      // the pointer untouched.
+      // Update the pointer in one of two cases:
+      //
+      // - Refresh: we just rewrote the snapshot the pointer already tracks
+      //   (an in-place leaf upsert), so re-point at its (possibly changed)
+      //   chain metadata under the same id.
+      // - Advance: a brand-new leaf. When there is no pointer yet it wins
+      //   unconditionally; otherwise it must be strictly newer - by
+      //   `(createdAt, snapshotId)`, the same ordering `selectLeafSnapshot` and
+      //   the Go store use - than the leaf the pointer currently tracks. Gating
+      //   on recency (rather than always advancing) means a backdated or
+      //   concurrently-committed *older* leaf can't clobber a newer one and
+      //   stick, which would otherwise violate the 'most recently created leaf'
+      //   contract under clock skew / concurrency. We rely on `(createdAt, id)`
+      //   here rather than a full-collection scan fallback (as InMemory/File
+      //   do) so `sessionId` resolution stays a single pointer read - the whole
+      //   point of the pointer design.
       final isNew = existing == null;
-      if (isNew || pointer == null || pointer.currentSnapshotId == id) {
+      final isRefresh = pointer != null && pointer.currentSnapshotId == id;
+      final advances =
+          isNew &&
+          (pointer == null ||
+              _isNewerLeaf(
+                result.createdAt,
+                id,
+                pointer.createdAt,
+                pointer.currentSnapshotId,
+              ));
+      if (isRefresh || advances) {
         tx.set(
           pointerRef,
           _PointerDoc(
-            currentSnapshotId: isNew || pointer == null
-                ? id
-                : pointer.currentSnapshotId,
+            currentSnapshotId: advances ? id : pointer!.currentSnapshotId,
             checkpointId: chain.checkpointId,
             checkpointShardCount: chain.checkpointShardCount,
             segmentPath: chain.segmentPath,
+            createdAt: result.createdAt,
             updatedAt: DateTime.now().toUtc().toIso8601String(),
           ).toData(),
         );
