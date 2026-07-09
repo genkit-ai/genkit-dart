@@ -12,32 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Sub-agent delegation demo.
+/// Sub-agent delegation demo — demonstrates the `agents` middleware.
 ///
-/// Ported from the JS `orchestrator-agent.ts`. The JS sample uses the
-/// `agents()` middleware to auto-inject one delegation tool per sub-agent. The
-/// Dart middleware suite does not yet include that middleware, so this sample
-/// wires delegation explicitly: the orchestrator is given two tools
-/// (`delegate_to_researcher`, `delegate_to_coder`) that run the corresponding
-/// sub-agent (via its in-process chat API) and return the sub-agent's text
-/// response as the tool result.
+/// Ported from the JS `orchestrator-agent.ts`. The `agents()` middleware
+/// auto-injects one delegation tool per sub-agent (e.g.
+/// `delegate_to_researcher`, `delegate_to_coder`) and appends a `<sub-agents>`
+/// block to the orchestrator's system prompt listing the available agents and
+/// their descriptions. When the orchestrator model calls a delegation tool the
+/// middleware resolves the target agent from the registry, runs it, and returns
+/// its response as the tool result.
+///
+/// Key features demonstrated:
+///   * Per-agent delegation tools (one tool per agent).
+///   * Auto-discovered agent descriptions from registry metadata.
+///   * `maxDelegations` guard rail to prevent runaway loops.
+///   * `historyLength` to forward conversation context to sub-agents.
 library;
 
 import 'package:genkit/genkit.dart';
-import 'package:schemantic/schemantic.dart';
+import 'package:genkit_middleware/agents.dart';
 
 import 'genkit.dart';
 
-part 'orchestrator_agent.g.dart';
-
-@Schema()
-abstract class $DelegateInput {
-  @Field(description: 'The task or question to hand to the sub-agent.')
-  String get task;
-}
-
 // ---------------------------------------------------------------------------
-// Sub-agents.
+// Sub-agents. Both declare a `description`, which the `agents` middleware
+// auto-discovers and surfaces in the orchestrator's system prompt.
 // ---------------------------------------------------------------------------
 
 final researcher = ai.defineAgent(
@@ -52,7 +51,8 @@ final researcher = ai.defineAgent(
 
 final coder = ai.defineAgent(
   name: 'coder',
-  description: 'An expert programmer that writes clean, well-commented code.',
+  description:
+      'Writes, debugs, and explains code. Use for any programming tasks.',
   maxTurns: 10,
   system:
       'You are an expert programmer. When asked to write code, provide clean, '
@@ -61,37 +61,9 @@ final coder = ai.defineAgent(
 );
 
 // ---------------------------------------------------------------------------
-// Delegation tools.
-// ---------------------------------------------------------------------------
-
-final delegateToResearcher = ai.defineTool(
-  name: 'delegate_to_researcher',
-  description:
-      'Delegate a research task to the researcher sub-agent. Returns the '
-      "sub-agent's findings.",
-  inputSchema: DelegateInput.$schema,
-  outputSchema: .string(),
-  fn: (input, _) async {
-    final res = await researcher.chat().send(agentInputFromText(input.task));
-    return res.text;
-  },
-);
-
-final delegateToCoder = ai.defineTool(
-  name: 'delegate_to_coder',
-  description:
-      'Delegate a coding task to the coder sub-agent. Writes, debugs, and '
-      'explains code. Use for any programming tasks.',
-  inputSchema: DelegateInput.$schema,
-  outputSchema: .string(),
-  fn: (input, _) async {
-    final res = await coder.chat().send(agentInputFromText(input.task));
-    return res.text;
-  },
-);
-
-// ---------------------------------------------------------------------------
-// Orchestrator.
+// Orchestrator. The `agents()` middleware injects the delegation tools and the
+// `<sub-agents>` prompt block, so the system prompt only needs high-level
+// guidance on how to coordinate.
 // ---------------------------------------------------------------------------
 
 final orchestratorAgent = ai.defineAgent(
@@ -99,12 +71,15 @@ final orchestratorAgent = ai.defineAgent(
   system: '''
 You are a helpful project assistant.
 
-Analyze the user's request and delegate to the appropriate sub-agent using the delegation tools:
-- Use delegate_to_researcher for research questions.
-- Use delegate_to_coder for programming tasks.
-
+Analyze the user's request and delegate to the appropriate sub-agent.
 If the request requires both research AND code, call them sequentially.
 After receiving sub-agent responses, synthesize a final answer for the user.''',
-  tools: [delegateToResearcher, delegateToCoder],
+  use: [
+    agents(
+      agents: ['researcher', 'coder'],
+      maxDelegations: 5,
+      historyLength: 4,
+    ),
+  ],
   store: InMemorySessionStore(),
 );
