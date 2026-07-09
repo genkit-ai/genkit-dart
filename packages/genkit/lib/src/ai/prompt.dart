@@ -217,6 +217,20 @@ class ExecutablePrompt<Input> {
           ...?opts?.tools?.map((t) => t.name),
         }.toList();
 
+        // Resolve middleware refs. These must be carried on the returned
+        // options so callers that run the rendered request directly (e.g. the
+        // agent runtime via `runGenerateAction`) still apply the middleware.
+        final resolvedUse = <MiddlewareRef>[
+          ...?_config.use?.map(
+            (mw) =>
+                MiddlewareRef(name: mw.name, config: _configToMap(mw.config)),
+          ),
+          ...?opts?.use?.map(
+            (mw) =>
+                MiddlewareRef(name: mw.name, config: _configToMap(mw.config)),
+          ),
+        ];
+
         return GenerateActionOptions(
           model: resolvedModel?.name,
           messages: messages,
@@ -227,6 +241,7 @@ class ExecutablePrompt<Input> {
               opts?.returnToolRequests ?? _config.returnToolRequests,
           maxTurns: opts?.maxTurns ?? _config.maxTurns,
           output: opts?.output ?? _config.output,
+          use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
       input: input,
