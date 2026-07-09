@@ -202,8 +202,10 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     String sessionId,
     Map<String, dynamic>? context,
   ) async {
+    // Resolve (and validate `sessionId`) outside the try so an invalid id
+    // fails fast rather than being swallowed into a silent scan fallback.
+    final file = _pointerFileFor(sessionId, context);
     try {
-      final file = _pointerFileFor(sessionId, context);
       if (!file.existsSync()) return null;
       return _PointerDoc.fromJson(
         jsonDecode(await file.readAsString()) as Map<String, dynamic>,
@@ -222,8 +224,10 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     String currentSnapshotId,
     Map<String, dynamic>? context,
   ) async {
+    // Resolve (and validate `sessionId`) outside the try so an invalid id
+    // fails fast rather than being swallowed by the best-effort catch.
+    final file = _pointerFileFor(sessionId, context);
     try {
-      final file = _pointerFileFor(sessionId, context);
       await _pointersDir(context).create(recursive: true);
       final pointer = _PointerDoc(
         currentSnapshotId: currentSnapshotId,
@@ -491,6 +495,7 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     void Function(SessionSnapshot snapshot) callback, {
     Map<String, dynamic>? context,
   }) {
+    _assertSafeSnapshotId(snapshotId);
     final dir = _prefixDir(context)..createSync(recursive: true);
     final fileName = '$snapshotId.json';
     final file = File('${dir.path}${Platform.pathSeparator}$fileName');
