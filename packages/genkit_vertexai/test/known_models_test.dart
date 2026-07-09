@@ -31,17 +31,17 @@ void main() {
       (action.metadata['model'] as Map).cast<String, dynamic>();
 
   group('known model resolution', () {
-    for (final name in vertexAiKnownModelNames) {
-      test('$name resolves with curated metadata', () {
-        final action = plugin().resolve('model', name);
+    for (final model in vertexAiKnownGeminiModels) {
+      test('${model.id} resolves with curated metadata', () {
+        final action = plugin().resolve('model', model.id);
 
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
-        expect(info['label'], knownGeminiModels[name]!.label);
+        expect(info['label'], model.label);
         expect(info['stage'], 'stable');
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
-          knownGeminiModels[name]!.supports,
+          model.info.supports,
         );
       });
     }
@@ -64,8 +64,8 @@ void main() {
       final names = actions.map((a) => a.name).toList();
 
       expect(names, contains('vertexai/gemini-2.5-pro'));
-      for (final name in vertexAiKnownModelNames) {
-        expect(names, contains('vertexai/$name'));
+      for (final model in vertexAiKnownGeminiModels) {
+        expect(names, contains('vertexai/${model.id}'));
       }
 
       final curated = actions.firstWhere(

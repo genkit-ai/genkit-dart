@@ -17,18 +17,19 @@ import 'package:genkit_google_genai/common.dart';
 
 /// Gemini models the Vertex AI plugin curates capability metadata for.
 ///
-/// Any other model name still resolves dynamically with the common fallback
-/// metadata; this list only controls which names get accurate per-model
-/// `supports` and appear in listings even when model discovery omits them.
-const vertexAiKnownModelNames = [
-  'gemini-3.5-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-3.1-flash-image',
-  'gemini-3-pro-image',
+/// A subset of [KnownGeminiModel]. Any other model name still resolves
+/// dynamically with the common fallback metadata; these entries only give the
+/// listed models accurate per-model `supports` and keep them in listings even
+/// when model discovery omits them.
+const vertexAiKnownGeminiModels = <KnownGeminiModel>[
+  KnownGeminiModel.gemini35Flash,
+  KnownGeminiModel.gemini31FlashLite,
+  KnownGeminiModel.gemini31FlashImage,
+  KnownGeminiModel.gemini3ProImage,
 ];
 
 /// Curated capability metadata for the Vertex AI plugin, keyed by bare model
-/// name.
+/// name. Derived from [vertexAiKnownGeminiModels].
 final vertexAiKnownModels = <String, ModelInfo>{
-  for (final name in vertexAiKnownModelNames) name: knownGeminiModels[name]!,
+  for (final model in vertexAiKnownGeminiModels) model.id: model.info,
 };
