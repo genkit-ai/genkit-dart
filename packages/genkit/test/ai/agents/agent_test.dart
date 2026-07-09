@@ -215,6 +215,54 @@ void main() {
       expect(snapshot2!.state?.custom, {'count': 2});
     });
 
+    test('detached turn does not self-parent its snapshot', () async {
+      final store = InMemorySessionStore();
+      final agent = ai.defineCustomAgent(
+        name: 'detachable',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((custom) {
+              final map = (custom as Map?)?.cast<String, dynamic>() ?? {};
+              final count = (map['count'] as int?) ?? 0;
+              return {'count': count + 1};
+            });
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+
+      // An attached turn first, to establish a parent snapshot.
+      final first = await chat.send(agentInputFromText('one'));
+      final parentId = first.snapshotId;
+      expect(parentId, isNotNull);
+
+      // A detached turn reserves an id for its `pending` snapshot and then
+      // upgrades that same id to `completed` in the background. The upgrade
+      // must keep the parent of the reserved snapshot rather than pointing the
+      // snapshot at itself.
+      final task = await chat.detach(agentInputFromText('two'));
+      final terminal = await task.wait(intervalMs: 10);
+
+      expect(terminal.status?.value, 'completed');
+      expect(terminal.snapshotId, isNot(parentId));
+      // The completed snapshot parents the prior turn, not itself.
+      expect(terminal.parentId, parentId);
+      expect(terminal.parentId, isNot(terminal.snapshotId));
+
+      // A fresh chat resumes the session without tripping the cycle guard.
+      final resumed = await agent.loadChat(sessionId: sessionId);
+      expect(resumed.state, {'count': 2});
+
+      // ...and getSnapshot resolves the latest leaf cleanly.
+      final snapshot = await agent.getSnapshot(sessionId: sessionId);
+      expect(snapshot!.state?.custom, {'count': 2});
+    });
+
     test('abort returns the prior status', () async {
       final store = InMemorySessionStore();
       final agent = ai.defineCustomAgent(
