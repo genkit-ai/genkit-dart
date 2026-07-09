@@ -430,8 +430,14 @@ class ExecutablePrompt<Input> {
 /// Converts a config value to a Map. Follows the same pattern as generate.dart.
 Map<String, dynamic>? _configToMap(dynamic config) {
   if (config == null) return null;
-  if (config is Map) return config as Map<String, dynamic>;
-  return (config as dynamic).toJson() as Map<String, dynamic>;
+  if (config is Map) return config.cast<String, dynamic>();
+  if (config is String || config is num || config is bool) return null;
+
+  try {
+    return (config as dynamic).toJson() as Map<String, dynamic>?;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Defines an executable prompt and registers it in the registry.

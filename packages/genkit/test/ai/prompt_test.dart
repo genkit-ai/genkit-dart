@@ -466,6 +466,31 @@ void main() {
       expect(options.use, isNull);
     });
 
+    test('middleware config with non-String map keys is handled', () async {
+      // A middleware config given as a Map<dynamic, dynamic> (not exactly
+      // Map<String, dynamic>) must not throw during render.
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [
+            middlewareRef<Map<dynamic, dynamic>>(
+              name: 'mw1',
+              config: <dynamic, dynamic>{'foo': 'bar'},
+            ),
+          ],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNotNull);
+      expect(options.use![0].name, equals('mw1'));
+      expect(options.use![0].config, equals({'foo': 'bar'}));
+    });
+
     test('adds history from opts when no messages config', () async {
       final ep = definePromptAction(
         registry,
