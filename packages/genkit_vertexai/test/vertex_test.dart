@@ -28,7 +28,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
+      final model = plugin.resolve('model', 'gemini-2.5-pro') as Action;
       final req = ModelRequest(
         messages: [
           Message(
@@ -43,7 +43,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-2.5-pro:generateContent',
       );
     });
 
@@ -55,7 +55,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
+      final model = plugin.resolve('model', 'gemini-2.5-pro') as Action;
       final req = ModelRequest(
         messages: [
           Message(
@@ -70,7 +70,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-2.5-pro:generateContent',
       );
     });
   });
