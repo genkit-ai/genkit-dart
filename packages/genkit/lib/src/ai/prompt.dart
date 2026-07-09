@@ -217,6 +217,20 @@ class ExecutablePrompt<Input> {
           ...?opts?.tools?.map((t) => t.name),
         }.toList();
 
+        // Resolve middleware refs. These must be carried on the returned
+        // options so callers that run the rendered request directly (e.g. the
+        // agent runtime via `runGenerateAction`) still apply the middleware.
+        final resolvedUse = <MiddlewareRef>[
+          ...?_config.use?.map(
+            (mw) =>
+                MiddlewareRef(name: mw.name, config: _configToMap(mw.config)),
+          ),
+          ...?opts?.use?.map(
+            (mw) =>
+                MiddlewareRef(name: mw.name, config: _configToMap(mw.config)),
+          ),
+        ];
+
         return GenerateActionOptions(
           model: resolvedModel?.name,
           messages: messages,
@@ -227,6 +241,7 @@ class ExecutablePrompt<Input> {
               opts?.returnToolRequests ?? _config.returnToolRequests,
           maxTurns: opts?.maxTurns ?? _config.maxTurns,
           output: opts?.output ?? _config.output,
+          use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
       input: input,
@@ -415,8 +430,14 @@ class ExecutablePrompt<Input> {
 /// Converts a config value to a Map. Follows the same pattern as generate.dart.
 Map<String, dynamic>? _configToMap(dynamic config) {
   if (config == null) return null;
-  if (config is Map) return config as Map<String, dynamic>;
-  return (config as dynamic).toJson() as Map<String, dynamic>;
+  if (config is Map) return config.cast<String, dynamic>();
+  if (config is String || config is num || config is bool) return null;
+
+  try {
+    return (config as dynamic).toJson() as Map<String, dynamic>?;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Defines an executable prompt and registers it in the registry.
