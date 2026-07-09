@@ -108,7 +108,7 @@ void main() {
     test('GET /api/values for middleware', () async {
       final def = defineMiddleware<dynamic>(
         name: 'retry',
-        create: ([config]) => throw UnimplementedError(),
+        create: (config, ctx) => throw UnimplementedError(),
       );
       registry.registerValue('middleware', def.name, def);
 
