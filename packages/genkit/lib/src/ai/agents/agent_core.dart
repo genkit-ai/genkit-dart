@@ -117,6 +117,10 @@ abstract class AgentTransport {
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
   Future<String?> abort(String snapshotId);
+
+  /// Releases any resources owned by this transport. The default is a no-op;
+  /// transports that own resources (e.g. an HTTP client) override it.
+  FutureOr<void> close() {}
 }
 
 const Set<String> _terminalStatuses = {
@@ -822,6 +826,12 @@ class AgentApi {
 
   /// Aborts a running snapshot. Requires a server store.
   Future<String?> abort(String snapshotId) => _transport.abort(snapshotId);
+
+  /// Releases any resources owned by the underlying transport (e.g. an HTTP
+  /// client created by `remoteAgent`). A caller-supplied HTTP client is left
+  /// open, since it stays caller-owned. Safe to call on the in-process agent
+  /// (a no-op there).
+  FutureOr<void> close() => _transport.close();
 }
 
 /// Composes the [AgentApi] surface over an [AgentTransport]. Shared by the
