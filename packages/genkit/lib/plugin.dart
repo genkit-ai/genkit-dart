@@ -25,6 +25,7 @@ export 'package:genkit/src/ai/embedder.dart'
 export 'package:genkit/src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
+        GenerateMiddlewareContext,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
         GenerateTurnState,
@@ -39,6 +40,7 @@ export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
 export 'package:genkit/src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata;
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
+export 'package:genkit/src/core/registry.dart' show Registry;
 export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';
