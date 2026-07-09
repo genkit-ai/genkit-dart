@@ -14,35 +14,55 @@
 
 import 'package:genkit/plugin.dart';
 
-/// Builds the [ModelInfo] for a multimodal Gemini model.
+/// Gemini models the Google generative-AI plugins curate capability metadata
+/// for.
 ///
-/// Mirrors the `Multimodal` capability preset the Go plugin uses for its
-/// curated model list: multiturn chat, media input/output, tool calling and
-/// native constrained generation.
-ModelInfo multimodalModelInfo(String label) => ModelInfo(
-  label: label,
-  // Unmodifiable: curated entries are shared across every resolution of the
-  // model, so accidental mutation through action metadata must fail loudly.
-  supports: Map.unmodifiable({
-    'multiturn': true,
-    'media': true,
-    'tools': true,
-    'toolChoice': true,
-    'systemRole': true,
-    'constrained': true,
-  }),
-  stage: 'stable',
-);
+/// Each value pairs a bare model [id] (no plugin prefix) with a display
+/// [label]; [info] builds the shared multimodal capability preset. Other model
+/// names still resolve dynamically via the plugin's `commonModelInfo`
+/// fallback, so this enum only enriches the names listed here.
+enum KnownGeminiModel {
+  gemini35Flash('gemini-3.5-flash', 'Gemini 3.5 Flash'),
+  gemini31FlashLite('gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'),
+  gemini31FlashImage('gemini-3.1-flash-image', 'Gemini 3.1 Flash Image'),
+  gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image');
+
+  const KnownGeminiModel(this.id, this.label);
+
+  /// Bare model name (no plugin prefix).
+  final String id;
+
+  /// Human-readable label surfaced in listings.
+  final String label;
+
+  /// The multimodal capability profile for this model.
+  ///
+  /// Mirrors the `Multimodal` preset the Go plugin uses for its curated model
+  /// list: multiturn chat, media input/output, tool calling with tool choice,
+  /// a system role, and native constrained generation.
+  ModelInfo get info => ModelInfo(
+    label: label,
+    // Unmodifiable: curated entries are shared across every resolution of the
+    // model, so accidental mutation through action metadata must fail loudly.
+    supports: Map.unmodifiable({
+      'multiturn': true,
+      'media': true,
+      'tools': true,
+      'toolChoice': true,
+      'systemRole': true,
+      'constrained': true,
+    }),
+    stage: 'stable',
+  );
+}
 
 /// Curated capability metadata for known Gemini models, keyed by bare model
 /// name (no plugin prefix).
 ///
-/// Models are still resolved from raw strings; this map only enriches known
-/// names with per-model metadata instead of the shared `commonModelInfo`
-/// fallback. Plugins expose a subset via `CommonGoogleGenPlugin.knownModels`.
+/// Derived from [KnownGeminiModel]; models are still resolved from raw strings,
+/// this map only enriches known names with per-model metadata instead of the
+/// shared `commonModelInfo` fallback. Plugins expose a subset via
+/// `CommonGoogleGenPlugin.knownModels`.
 final knownGeminiModels = <String, ModelInfo>{
-  'gemini-3.5-flash': multimodalModelInfo('Gemini 3.5 Flash'),
-  'gemini-3.1-flash-lite': multimodalModelInfo('Gemini 3.1 Flash Lite'),
-  'gemini-3.1-flash-image': multimodalModelInfo('Gemini 3.1 Flash Image'),
-  'gemini-3-pro-image': multimodalModelInfo('Gemini 3 Pro Image'),
+  for (final model in KnownGeminiModel.values) model.id: model.info,
 };
