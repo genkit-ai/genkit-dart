@@ -27,13 +27,20 @@ class _MockClient extends http.BaseClient {
   /// Returns either a `String` body (unary) or a `List<String>` of SSE lines.
   final Object Function(String url, Map<String, dynamic> body) handler;
 
-  final List<({String url, Map<String, dynamic> body})> requests = [];
+  final List<
+    ({String url, Map<String, dynamic> body, Map<String, String> headers})
+  >
+  requests = [];
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final req = request as http.Request;
     final body = jsonDecode(req.body) as Map<String, dynamic>;
-    requests.add((url: req.url.toString(), body: body));
+    requests.add((
+      url: req.url.toString(),
+      body: body,
+      headers: Map<String, String>.from(req.headers),
+    ));
     final result = handler(req.url.toString(), body);
 
     if (result is List<String>) {
@@ -165,10 +172,8 @@ void main() {
       expect(status, 'done');
     });
 
-    test('resolves headers per request', () async {
-      Map<String, dynamic>? captured;
+    test('re-resolves headers per request and sends them on the wire', () async {
       final client = _MockClient((url, body) {
-        captured = body;
         // `send()` streams, so respond with an SSE final-result chunk.
         return <String>[
           'data: ${jsonEncode({
@@ -187,14 +192,25 @@ void main() {
         url: 'http://host/agent',
         httpClient: client,
         headers: () {
+          // Return a distinct value per call to prove the resolver runs each
+          // request rather than being resolved once and cached.
           calls++;
-          return {'authorization': 'Bearer token'};
+          return {'authorization': 'Bearer token-$calls'};
         },
       );
 
-      await agent.chat().send(agentInputFromText('hi'));
-      expect(calls, greaterThan(0));
-      expect(captured, isNotNull);
+      final chat = agent.chat();
+      await chat.send(agentInputFromText('hi'));
+      await chat.send(agentInputFromText('again'));
+
+      // Resolver ran once per turn.
+      expect(calls, 2);
+      // Both requests actually carried the resolved header on the wire, and the
+      // value changed between requests (proving per-request re-resolution, not
+      // a cached header).
+      expect(client.requests, hasLength(2));
+      expect(client.requests[0].headers['authorization'], 'Bearer token-1');
+      expect(client.requests[1].headers['authorization'], 'Bearer token-2');
     });
   });
 }
