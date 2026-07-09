@@ -516,6 +516,17 @@ class SessionRunner {
 
     final effectiveId = snapshotId ?? newSnapshotId;
 
+    // When an id is reused (e.g. the detached `pending` snapshot is upgraded to
+    // `completed` under the same id), `_lastSnapshot` already points at that id.
+    // Inherit its parent instead of pointing the snapshot at itself, which would
+    // create a self-referential `parentId` and later trip the cycle guard in
+    // `loadChat`/`getSnapshot`.
+    final reusingId =
+        effectiveId != null && effectiveId == _lastSnapshot?.snapshotId;
+    final parentId = reusingId
+        ? _lastSnapshot?.parentId
+        : _lastSnapshot?.snapshotId;
+
     // The `invocationEnd` write (the only caller that omits a status) persists
     // as `completed` so it stays a valid resume target.
     final now = DateTime.now().toUtc().toIso8601String();
@@ -530,7 +541,7 @@ class SessionRunner {
       // the snapshot is reported as `expired` on read (worker presumed dead).
       heartbeatAt: status == 'pending' ? now : null,
       state: currentState,
-      parentId: _lastSnapshot?.snapshotId,
+      parentId: parentId,
       status: SnapshotStatus(status ?? 'completed'),
       finishReason: finishReason,
       error: error != null ? _toErrorInfo(error) : null,
@@ -837,6 +848,14 @@ class _InProcessTransport extends AgentTransport {
     return bidi;
   }
 
+  // NOTE: [cancel] is accepted to satisfy the [AgentTransport] contract but is
+  // not threaded into `generate` on the in-process transport today, so it does
+  // not stop an in-flight model call for an *attached* turn. Cooperative
+  // cancellation currently only takes effect on the detached path: `abort`
+  // flips the persisted snapshot to `aborted`, and a detached worker observing
+  // that (via `SnapshotChangeNotifier`) cancels its own turn. Aborting an
+  // attached in-process turn is therefore effectively persist-only. Threading
+  // cancellation through `generate` to cancel attached turns is future work.
   @override
   TurnStream runTurn(
     AgentInput input,
@@ -847,6 +866,8 @@ class _InProcessTransport extends AgentTransport {
     return (stream: bidi, output: bidi.onResult);
   }
 
+  // See [runTurn]: [cancel] is not wired into `generate` here, so aborting an
+  // attached in-process turn is persist-only (does not stop the model).
   @override
   Future<AgentOutput>? run(
     AgentInput input,
@@ -862,6 +883,10 @@ class _InProcessTransport extends AgentTransport {
     String? sessionId,
   }) => getSnapshotFn(snapshotId, sessionId);
 
+  // Detached/persist-only: flips the persisted snapshot to `aborted` and
+  // returns its prior status. A detached worker watching the snapshot cancels
+  // its own turn in response; an attached in-process turn's model call is not
+  // interrupted (see [runTurn]).
   @override
   Future<String?> abort(String snapshotId) => abortFn(snapshotId);
 }
