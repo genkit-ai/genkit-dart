@@ -21,11 +21,15 @@ class MockHttpClient extends http.BaseClient {
     this.returnEmptyPredictions = false,
     this.returnInvalidTextPrediction = false,
     this.returnMissingMultimodalEmbedding = false,
+    this.publisherModelsResponse,
   });
 
   final bool returnEmptyPredictions;
   final bool returnInvalidTextPrediction;
   final bool returnMissingMultimodalEmbedding;
+
+  /// Overrides the JSON body returned for the publisher-models listing.
+  final String? publisherModelsResponse;
   final List<Uri> requestUrls = [];
   final List<String> requestBodies = [];
   Uri? lastUrl;
@@ -56,7 +60,8 @@ class MockHttpClient extends http.BaseClient {
       return http.StreamedResponse(
         Stream.value(
           utf8.encode(
-            '{"publisherModels": [{"name": "publishers/google/models/gemini-1.5-pro"}, {"name": "publishers/google/models/text-embedding-005"}, {"name": "publishers/google/models/multimodalembedding"}]}',
+            publisherModelsResponse ??
+                '{"publisherModels": [{"name": "publishers/google/models/gemini-2.5-pro"}, {"name": "publishers/google/models/text-embedding-005"}, {"name": "publishers/google/models/multimodalembedding"}]}',
           ),
         ),
         200,
