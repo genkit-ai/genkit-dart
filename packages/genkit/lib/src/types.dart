@@ -40,6 +40,7 @@ abstract class $Message {
 @Schema()
 abstract class $ToolDefinition {
   String get name;
+  String? get key;
   String get description;
   Map<String, dynamic>? get inputSchema;
   Map<String, dynamic>? get outputSchema;
@@ -292,6 +293,7 @@ extension type FinishReason(String value) {
   static FinishReason get other => FinishReason('other');
   static FinishReason get unknown => FinishReason('unknown');
 }
+
 extension type Role(String value) {
   static Role get system => Role('system');
   static Role get user => Role('user');
@@ -407,6 +409,7 @@ abstract class $ReflectionRunActionParams {
   String? get runtimeId;
   String get key;
   dynamic get input;
+  dynamic get init;
   dynamic get context;
   Map<String, dynamic>? get telemetryLabels;
   bool? get stream;
