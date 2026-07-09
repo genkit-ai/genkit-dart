@@ -200,6 +200,40 @@ void main() {
       expect(receivedInit, {'foo': 'bar'});
     });
 
+    test('POST /api/runAction passes through a null init without validating '
+        'against the init schema', () async {
+      var invoked = false;
+      Object? receivedInit = 'sentinel';
+      final initAction = Action(
+        actionType: 'test',
+        inputSchema: .string(),
+        outputSchema: .string(),
+        // A non-nullable init schema. A missing init must NOT be validated
+        // against it, otherwise a fresh request (no init) would throw.
+        initSchema: .map(.string(), .string()),
+        name: 'nullInitAction',
+        fn: (input, context) async {
+          invoked = true;
+          receivedInit = context.init;
+          return 'ok';
+        },
+      );
+      registry.register(initAction);
+
+      final response = await http.post(
+        Uri.parse('$url/api/runAction'),
+        headers: {'Content-Type': 'application/json'},
+        // No `init` supplied on the request.
+        body: jsonEncode({'key': '/test/nullInitAction', 'input': 'testInput'}),
+      );
+
+      expect(response.statusCode, 200);
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      expect(body['result'], 'ok');
+      expect(invoked, isTrue);
+      expect(receivedInit, isNull);
+    });
+
     test('POST /api/runAction (streaming)', () async {
       final request = http.Request(
         'POST',
