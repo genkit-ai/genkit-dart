@@ -372,6 +372,125 @@ void main() {
       expect(options.maxTurns, equals(10));
     });
 
+    test('resolves middleware use from config', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [middlewareRef(name: 'mw1')],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNotNull);
+      expect(options.use!.length, equals(1));
+      expect(options.use![0].name, equals('mw1'));
+    });
+
+    test('resolves middleware use from opts', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(name: 'test', prompt: 'Hello'),
+      );
+
+      final options = await ep.render(
+        {},
+        PromptGenerateOptions(use: [middlewareRef(name: 'mw2')]),
+      );
+
+      expect(options.use, isNotNull);
+      expect(options.use!.length, equals(1));
+      expect(options.use![0].name, equals('mw2'));
+    });
+
+    test('merges middleware use from config and opts', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [middlewareRef(name: 'configMw')],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render(
+        {},
+        PromptGenerateOptions(use: [middlewareRef(name: 'optsMw')]),
+      );
+
+      // Config middleware should come first, then opts middleware.
+      expect(options.use, isNotNull);
+      expect(
+        options.use!.map((m) => m.name).toList(),
+        equals(['configMw', 'optsMw']),
+      );
+    });
+
+    test('carries middleware config through render', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [
+            middlewareRef<Map<String, dynamic>>(
+              name: 'mw1',
+              config: {'foo': 'bar'},
+            ),
+          ],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNotNull);
+      expect(options.use![0].name, equals('mw1'));
+      expect(options.use![0].config, equals({'foo': 'bar'}));
+    });
+
+    test('use is null when no middleware provided', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(name: 'test', prompt: 'Hello'),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNull);
+    });
+
+    test('middleware config with non-String map keys is handled', () async {
+      // A middleware config given as a Map<dynamic, dynamic> (not exactly
+      // Map<String, dynamic>) must not throw during render.
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [
+            middlewareRef<Map<dynamic, dynamic>>(
+              name: 'mw1',
+              config: <dynamic, dynamic>{'foo': 'bar'},
+            ),
+          ],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNotNull);
+      expect(options.use![0].name, equals('mw1'));
+      expect(options.use![0].config, equals({'foo': 'bar'}));
+    });
+
     test('adds history from opts when no messages config', () async {
       final ep = definePromptAction(
         registry,
