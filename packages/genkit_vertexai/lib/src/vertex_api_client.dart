@@ -20,6 +20,7 @@ import 'package:meta/meta.dart';
 
 import 'auth.dart';
 import 'embedders.dart';
+import 'known_models.dart';
 
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
@@ -40,6 +41,9 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
   @override
   String get name => 'vertexai';
+
+  @override
+  final Map<String, ModelInfo> knownModels = vertexAiKnownModels;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
@@ -88,6 +92,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       );
       final publisherModels = (res['publisherModels'] as List?) ?? [];
 
+      final discoveredNames = <String>{};
       final models = publisherModels
           .where((m) {
             final modelMap = m as Map<String, dynamic>;
@@ -97,23 +102,37 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
           .map((m) {
             final modelMap = m as Map<String, dynamic>;
             final modelName = (modelMap['name'] as String).split('/').last;
+            discoveredNames.add(modelName);
             final isTts = modelName.contains('-tts');
             return modelMetadata(
               '$name/$modelName',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
-              modelInfo: commonModelInfo,
+              modelInfo: modelInfoFor(modelName),
             );
           })
           .toList();
+
+      // Curated models are listed even when model discovery omits them.
+      final curated = knownModels.entries
+          .where((entry) => !discoveredNames.contains(entry.key))
+          .map(
+            (entry) => modelMetadata(
+              '$name/${entry.key}',
+              customOptions: entry.key.contains('-tts')
+                  ? GeminiTtsOptions.$schema
+                  : GeminiOptions.$schema,
+              modelInfo: entry.value,
+            ),
+          );
 
       final embedders = listVertexEmbedders(
         pluginName: name,
         publisherModels: publisherModels,
       );
 
-      return [...models, ...embedders];
+      return [...models, ...curated, ...embedders];
     } catch (e, stack) {
       if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
