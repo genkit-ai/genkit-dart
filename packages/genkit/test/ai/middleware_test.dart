@@ -124,11 +124,11 @@ void main() {
       final log = <String>[];
       final mw1 = defineMiddleware(
         name: 'mw1',
-        create: ([c]) => TestMiddleware(log, 'mw1'),
+        create: (c, ctx) => TestMiddleware(log, 'mw1'),
       );
       final mw2 = defineMiddleware(
         name: 'mw2',
-        create: ([c]) => TestMiddleware(log, 'mw2'),
+        create: (c, ctx) => TestMiddleware(log, 'mw2'),
       );
 
       genkit = Genkit(
@@ -246,7 +246,7 @@ void main() {
     test('should intercept model request', () async {
       final interceptor = defineMiddleware(
         name: 'interceptor',
-        create: ([_]) => InterceptorMiddleware(),
+        create: (_, _) => InterceptorMiddleware(),
       );
       genkit = Genkit(
         isDevEnv: false,
@@ -278,13 +278,98 @@ void main() {
       expect(result.text, 'echo: intercepted: original');
     });
 
+    test('should pass a GenkitAI instance in the middleware context', () async {
+      GenerateMiddlewareContext? capturedCtx;
+
+      final mw = defineMiddleware(
+        name: 'ctx-capture-mw',
+        create: (config, ctx) {
+          capturedCtx = ctx;
+          return TestMiddleware(<String>[], 'ctx-capture-mw');
+        },
+      );
+
+      genkit = Genkit(
+        isDevEnv: false,
+        plugins: [
+          MiddlewarePlugin([mw]),
+        ],
+      );
+
+      genkit.defineModel(
+        name: 'ctx-model',
+        fn: (req, ctx) async => ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: 'ok')],
+          ),
+        ),
+      );
+
+      await genkit.generate(
+        model: modelRef('ctx-model'),
+        prompt: 'hi',
+        use: [middlewareRef(name: 'ctx-capture-mw')],
+      );
+
+      expect(capturedCtx, isNotNull);
+      expect(capturedCtx!.ai, isA<GenkitAI>());
+      // The ephemeral GenkitAI is backed by the active generation registry.
+      expect(capturedCtx!.ai.registry, isNotNull);
+    });
+
+    test('middleware can run nested AI operations via context', () async {
+      genkit = Genkit(isDevEnv: false);
+
+      genkit.defineModel(
+        name: 'nested-model',
+        fn: (req, ctx) async {
+          final text = req.messages.last.content.first.text!;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'nested: $text')],
+            ),
+          );
+        },
+      );
+
+      String? nestedResult;
+      final mw = defineMiddleware(
+        name: 'nested-mw',
+        create: (config, ctx) => FunctionMiddleware(
+          generateFn: (envelope, mctx, next) async {
+            // Use the GenkitAI passed in the context to run a nested generate.
+            final nested = await ctx.ai.generate(
+              model: modelRef('nested-model'),
+              prompt: 'from-middleware',
+            );
+            nestedResult = nested.text;
+            return next(envelope, mctx);
+          },
+        ),
+      );
+      genkit.registry.registerValue('middleware', mw.name, mw);
+
+      await genkit.generate(
+        model: modelRef('nested-model'),
+        prompt: 'outer',
+        use: [middlewareRef(name: 'nested-mw')],
+      );
+
+      expect(nestedResult, 'nested: from-middleware');
+    });
+
     test('should resolve and execute registered middleware refs', () async {
       final log = <String>[];
 
       // Register a middleware definition manually (as a plugin would).
       final def = defineMiddleware<dynamic>(
         name: 'reg-mw',
-        create: ([config]) => TestMiddleware(log, 'reg-mw-${config ?? 'none'}'),
+        create: (config, ctx) =>
+            TestMiddleware(log, 'reg-mw-${config ?? 'none'}'),
       );
       genkit.registry.registerValue('middleware', def.name, def);
 
@@ -336,7 +421,7 @@ void main() {
 
       final mw = defineMiddleware(
         name: 'injected-tool-mw',
-        create: ([_]) => ToolInjectingMiddleware([injectedTool]),
+        create: (_, _) => ToolInjectingMiddleware([injectedTool]),
       );
       genkit = Genkit(
         isDevEnv: false,
@@ -389,7 +474,7 @@ void main() {
       final mw1 = TestMiddleware(log, 'mw1');
       var toolCallCount = 0;
 
-      final mdef1 = defineMiddleware(name: 'mw1', create: ([_]) => mw1);
+      final mdef1 = defineMiddleware(name: 'mw1', create: (_, _) => mw1);
 
       genkit = Genkit(
         isDevEnv: false,
@@ -501,7 +586,7 @@ void main() {
 
         final envChecker = defineMiddleware(
           name: 'env-checker',
-          create: ([_]) => FunctionMiddleware(
+          create: (_, _) => FunctionMiddleware(
             generateFn: (envelope, ctx, next) async {
               receivedIndex = envelope.messageIndex;
               receivedTurn = envelope.currentTurn;
@@ -518,7 +603,7 @@ void main() {
         var checkTurn = -1;
         final envValidator = defineMiddleware(
           name: 'env-validator',
-          create: ([_]) => FunctionMiddleware(
+          create: (_, _) => FunctionMiddleware(
             generateFn: (envelope, ctx, next) async {
               checkIndex = envelope.messageIndex;
               checkTurn = envelope.currentTurn;
@@ -603,7 +688,7 @@ void main() {
         final capturedOptions = <GenerateActionOptions>[];
         final middleware = defineMiddleware(
           name: 'captureOptions',
-          create: ([config]) => _CaptureMiddleware(capturedOptions),
+          create: (config, ctx) => _CaptureMiddleware(capturedOptions),
         );
         genkit.registry.registerValue(
           'middleware',
@@ -633,7 +718,7 @@ void main() {
         final capturedOptions = <GenerateActionOptions>[];
         final middleware = defineMiddleware(
           name: 'captureOptionsResume',
-          create: ([config]) => _CaptureMiddleware(capturedOptions),
+          create: (config, ctx) => _CaptureMiddleware(capturedOptions),
         );
         genkit.registry.registerValue(
           'middleware',
@@ -723,7 +808,7 @@ void main() {
         final capturedOptions = <GenerateActionOptions>[];
         final middleware = defineMiddleware(
           name: 'captureOptionsMiddleware',
-          create: ([config]) => _CaptureMiddleware(capturedOptions),
+          create: (config, ctx) => _CaptureMiddleware(capturedOptions),
         );
         genkit.registry.registerValue(
           'middleware',
@@ -761,7 +846,7 @@ void main() {
           final capturedOptions = <GenerateActionOptions>[];
           final middleware = defineMiddleware(
             name: 'captureOptionsAction',
-            create: ([config]) => _CaptureMiddleware(capturedOptions),
+            create: (config, ctx) => _CaptureMiddleware(capturedOptions),
           );
           genkit.registry.registerValue(
             'middleware',
