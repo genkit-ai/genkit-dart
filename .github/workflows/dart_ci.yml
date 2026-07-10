@@ -40,3 +40,44 @@ jobs:
 
       - name: Verify clean git tree
         run: '[ -z "$(git status --short)" ] || (git status --short && exit 1)'
+
+  firestore-emulator-test:
+    name: Firestore Emulator Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.10'
+
+      - name: Set up Java (required by the Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap Workspace
+        run: melos bootstrap
+
+      - name: Run FirestoreSessionStore tests against the emulator
+        working-directory: packages/genkit_google_cloud
+        env:
+          GOOGLE_CLOUD_PROJECT: demo-genkit
+        run: >-
+          firebase emulators:exec --only firestore --project demo-genkit
+          "dart test"
