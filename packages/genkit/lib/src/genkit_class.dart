@@ -17,6 +17,11 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
+import 'ai/agents/agent.dart' as agent_lib;
+import 'ai/agents/agent.dart' show Agent, AgentFn, ClientTransform;
+import 'ai/agents/session.dart'
+    show Session, SessionStore, SnapshotCallback, getCurrentSession;
+
 import 'ai/dotprompt_registry.dart';
 import 'ai/embedder.dart';
 import 'ai/evaluator.dart';
@@ -297,6 +302,132 @@ final class Genkit extends GenkitAI {
   Future<ExecutablePrompt> prompt(String name, {String? variant}) {
     return lookupPrompt(registry, name, variant: variant);
   }
+
+  /// Defines and registers an agent by creating a prompt and wiring it into a
+  /// multi-turn agent in one step.
+  ///
+  /// This is a convenience shortcut for calling [definePrompt] followed by
+  /// [definePromptAgent].
+  Agent defineAgent<CustomOptions, Input>({
+    required String name,
+    String? variant,
+    ModelRef<CustomOptions>? model,
+    CustomOptions? config,
+    String? description,
+    SchemanticType<Input>? inputSchema,
+    String? system,
+    List<Part>? systemParts,
+    String? prompt,
+    List<Part>? promptParts,
+    List<Message>? messages,
+    String? messagesTemplate,
+    GenerateActionOutputConfig? output,
+    int? maxTurns,
+    bool? returnToolRequests,
+    Map<String, dynamic>? metadata,
+    List<Tool>? tools,
+    List<String>? toolNames,
+    String? toolChoice,
+    List<GenerateMiddlewareRef>? use,
+
+    /// Supplies values for the prompt's input variables, so a single prompt
+    /// can be reused and customized by multiple agents.
+    Map<String, dynamic>? promptInput,
+
+    /// Optional schema describing the shape of the custom session state.
+    SchemanticType<dynamic>? stateSchema,
+    SessionStore? store,
+    SnapshotCallback? snapshotCallback,
+    ClientTransform? clientTransform,
+  }) {
+    // Register the prompt.
+    definePrompt<CustomOptions, Input>(
+      name: name,
+      variant: variant,
+      model: model,
+      config: config,
+      description: description,
+      inputSchema: inputSchema,
+      system: system,
+      systemParts: systemParts,
+      prompt: prompt,
+      promptParts: promptParts,
+      messages: messages,
+      messagesTemplate: messagesTemplate,
+      output: output,
+      maxTurns: maxTurns,
+      returnToolRequests: returnToolRequests,
+      metadata: metadata,
+      tools: tools,
+      toolNames: toolNames,
+      toolChoice: toolChoice,
+      use: use,
+    );
+
+    // Wire it into a prompt agent.
+    return agent_lib.definePromptAgent(
+      registry,
+      promptName: variant != null ? '$name.$variant' : name,
+      promptInput: promptInput,
+      stateSchema: stateSchema,
+      store: store,
+      snapshotCallback: snapshotCallback,
+      clientTransform: clientTransform,
+    );
+  }
+
+  /// Registers a multi-turn custom agent action capable of maintaining
+  /// persistent state.
+  ///
+  /// Use this when you need full control over the agent turn loop. For the
+  /// common prompt-driven case, use [defineAgent].
+  Agent defineCustomAgent({
+    required String name,
+    String? description,
+    SchemanticType<dynamic>? stateSchema,
+    SessionStore? store,
+    SnapshotCallback? snapshotCallback,
+    ClientTransform? clientTransform,
+    required AgentFn fn,
+  }) {
+    return agent_lib.defineCustomAgent(
+      registry,
+      name: name,
+      description: description,
+      stateSchema: stateSchema,
+      store: store,
+      snapshotCallback: snapshotCallback,
+      clientTransform: clientTransform,
+      fn: fn,
+    );
+  }
+
+  /// Registers an agent from an existing, previously-defined prompt.
+  Agent definePromptAgent({
+    required String promptName,
+
+    /// Supplies values for the prompt's input variables, so a single prompt
+    /// can be reused and customized by multiple agents.
+    Map<String, dynamic>? promptInput,
+    SchemanticType<dynamic>? stateSchema,
+    SessionStore? store,
+    SnapshotCallback? snapshotCallback,
+    ClientTransform? clientTransform,
+  }) {
+    return agent_lib.definePromptAgent(
+      registry,
+      promptName: promptName,
+      promptInput: promptInput,
+      stateSchema: stateSchema,
+      store: store,
+      snapshotCallback: snapshotCallback,
+      clientTransform: clientTransform,
+    );
+  }
+
+  /// Returns the [Session] active in the current agent turn, or `null` when
+  /// called outside of an agent turn.
+  Session? currentSession() => getCurrentSession();
 
   /// Registers a Handlebars partial template for use in prompts.
   ///
