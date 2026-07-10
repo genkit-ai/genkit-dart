@@ -101,9 +101,63 @@ void main() {
     expect(await stream.onResult, 'Done');
   });
 
+  test('Unary flow receives init', () async {
+    final initFlow = ai.defineFlow<String, String, void, String>(
+      name: 'unaryInit',
+      fn: (input, ctx) async => 'input=$input init=${ctx.init}',
+      inputSchema: .string(),
+      outputSchema: .string(),
+      initSchema: .string(),
+    );
+
+    server = await startFlowServer(flows: [initFlow], port: 0);
+    port = server!.port;
+
+    final action = defineRemoteAction<String, String, void, String>(
+      url: 'http://localhost:$port/unaryInit',
+      fromResponse: (data) => data as String,
+    );
+
+    final result = await action.call(input: 'hello', init: 'config-1');
+    expect(result, 'input=hello init=config-1');
+  });
+
+  test('Streaming flow receives init', () async {
+    final initStreamFlow = ai.defineFlow<String, String, String, String>(
+      name: 'streamInit',
+      fn: (input, ctx) async {
+        ctx.sendChunk('chunk init=${ctx.init}');
+        return 'done init=${ctx.init}';
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
+      initSchema: .string(),
+    );
+
+    server = await startFlowServer(flows: [initStreamFlow], port: 0);
+    port = server!.port;
+
+    final action = defineRemoteAction<String, String, String, String>(
+      url: 'http://localhost:$port/streamInit',
+      fromResponse: (data) => data as String,
+      fromStreamChunk: (data) => data as String,
+    );
+
+    final stream = action.stream(input: 'start', init: 'config-2');
+    final chunks = <String>[];
+    await for (final chunk in stream) {
+      chunks.add(chunk);
+    }
+
+    expect(chunks, ['chunk init=config-2']);
+    expect(await stream.onResult, 'done init=config-2');
+  });
+
   test('Context provider', () async {
     final authFlow = ai.defineFlow(
       name: 'auth',
+
       fn: (input, ctx) async {
         final user = ctx.context?['user'];
         if (user == null) {
