@@ -1,0 +1,8 @@
+include: ../../analysis_options.yaml
+
+analyzer:
+  exclude:
+    # The Jaspr web UI lives in a nested package that is intentionally outside
+    # the melos workspace (Jaspr is not a workspace dependency), so its
+    # dependencies are not resolved during CI. Exclude it from analysis here.
+    - web/**
