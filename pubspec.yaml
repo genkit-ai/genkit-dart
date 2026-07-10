@@ -11,6 +11,7 @@ workspace:
   - packages/_schema_generator
   - packages/genkit
   - packages/genkit_mcp
+  - packages/genkit_google_cloud
   - packages/genkit_google_genai
   - packages/genkit_vertexai
   - packages/genkit_vertex_auth
@@ -55,6 +56,16 @@ melos:
       exec: dart test
       packageFilters:
         dirExists: test
+
+    test-firestore:
+      exec: >-
+        GOOGLE_CLOUD_PROJECT=demo-genkit firebase emulators:exec
+        --only firestore --project demo-genkit "dart test"
+      packageFilters:
+        scope: genkit_google_cloud
+      description: >-
+        Run the genkit_google_cloud tests against the Firestore emulator
+        (requires firebase-tools + Java 21+).
 
     analyze:
       exec: dart analyze --fatal-infos .
