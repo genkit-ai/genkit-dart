@@ -1,0 +1,27 @@
+name: agents_sample
+description: >-
+  Genkit Dart agents testapp — a faithful port of the JS `testapps/agents`
+  sample. A shelf server exposes a suite of agents (weather, banking,
+  background, branching, tasks, research, trip planner, coding, workspace,
+  sub-agent delegation) consumed by a Jaspr web UI under `web/`.
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  genkit: ^0.14.0
+  genkit_google_genai: ^0.2.8
+  genkit_middleware: ^0.4.3
+  genkit_shelf: ^0.1.8
+  path: ^1.9.0
+  schemantic: ^0.2.0
+  shelf: ^1.4.2
+  shelf_cors_headers: ^0.1.5
+  shelf_router: ^1.1.4
+
+dev_dependencies:
+  build_runner: ^2.10.5
+  schemantic_builder: ^0.1.0
+  test: ^1.29.0
