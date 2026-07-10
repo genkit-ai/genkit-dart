@@ -93,6 +93,7 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
     }
 
     dynamic input;
+    dynamic init;
     try {
       if (bodyStr.isNotEmpty) {
         final jsonBody = jsonDecode(bodyStr);
@@ -109,9 +110,13 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
           );
         }
         input = jsonBody['data'];
+        init = jsonBody['init'];
       }
       if (action.inputSchema != null && input != null) {
         input = action.inputSchema!.parse(input);
+      }
+      if (action.initSchema != null && init != null) {
+        init = action.initSchema!.parse(init);
       }
     } catch (e) {
       return Response(
@@ -155,6 +160,7 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
           .run(
             input,
             context: context,
+            init: init,
             onChunk: (chunk) {
               sendChunk('data:', {'message': chunk});
             },
@@ -182,7 +188,8 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
       );
     } else {
       try {
-        final result = await action.run(input, context: context);
+        final result = await action.run(input, context: context, init: init);
+
         return Response.ok(
           jsonEncode({'result': result.result}),
           headers: {
