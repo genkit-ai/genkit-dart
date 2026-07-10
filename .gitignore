@@ -20,4 +20,9 @@ build
 melos_*.iml
 packages/genkit_firebase_ai/.flutter-plugins-dependencies
 
+# Firebase emulator debug logs
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
 *.local.*
