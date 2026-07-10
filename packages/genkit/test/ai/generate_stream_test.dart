@@ -101,7 +101,10 @@ void main() {
         onChunk: chunks.add,
       );
 
-      expect(chunks.length, 3);
+      // The tool-response message is streamed between turns (matching JS), so
+      // the sequence is: 2 model chunks (turn 1), 1 tool-response chunk, then
+      // 1 model chunk (turn 2).
+      expect(chunks.length, 4);
 
       expect(
         chunks[0].index,
@@ -113,7 +116,8 @@ void main() {
         0,
         reason: 'Second chunk of first turn should be 0',
       );
-      expect(chunks[2].index, 2, reason: 'Chunk of second turn should be 2');
+      expect(chunks[2].index, 1, reason: 'Tool-response chunk should be 1');
+      expect(chunks[3].index, 2, reason: 'Chunk of second turn should be 2');
     });
 
     test(
@@ -192,18 +196,22 @@ void main() {
           onChunk: chunks.add,
         );
 
-        expect(chunks.length, 3);
+        // Turn 1 model chunk, then the streamed tool-response chunk, then the
+        // two turn-2 chunks.
+        expect(chunks.length, 4);
 
         expect(chunks[0].index, 0, reason: 'Turn 1, Chunk 1 should be 0');
+        // The tool-response message streamed between turns occupies slot 1.
+        expect(chunks[1].index, 1, reason: 'Tool-response chunk should be 1');
         // Turn 2: messageIndex starts at 2
         expect(
-          chunks[1].index,
+          chunks[2].index,
           2,
           reason: 'Turn 2, Chunk 1 (Role.tool) should be 2',
         );
         // Then role changes to Role.model for the next chunk in the same turn -> modelHasSentChunks is true
         expect(
-          chunks[2].index,
+          chunks[3].index,
           3,
           reason: 'Turn 2, Chunk 2 (Role.model) should be 3',
         );
