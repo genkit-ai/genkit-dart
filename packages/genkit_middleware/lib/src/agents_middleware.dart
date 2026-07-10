@@ -207,7 +207,7 @@ class AgentsMiddleware extends GenerateMiddleware {
     return action;
   }
 
-  Future<String?> _discoverDescription(String name) async {
+  Future<String> _discoverDescription(String name) async {
     final cached = _descriptionCache[name];
     if (cached != null) return cached;
 
@@ -225,10 +225,13 @@ class AgentsMiddleware extends GenerateMiddleware {
       desc = promptAction?.description;
     }
 
-    if (desc != null && desc.isNotEmpty) {
-      _descriptionCache[name] = desc;
-    }
-    return desc;
+    // Cache the resolved value (including the fallback) so repeated turns in a
+    // multi-turn conversation don't re-run the registry lookups above.
+    final resolvedDesc = (desc != null && desc.isNotEmpty)
+        ? desc
+        : 'No description available.';
+    _descriptionCache[name] = resolvedDesc;
+    return resolvedDesc;
   }
 
   @override
@@ -438,10 +441,9 @@ class AgentsMiddleware extends GenerateMiddleware {
     // ── Auto-discover descriptions for the system prompt ──────────────────
     final agentList = <String>[];
     for (final agentName in _agentNames) {
-      final description =
-          (await _discoverDescription(agentName)) ??
-          'No description available.';
+      final description = await _discoverDescription(agentName);
       final toolName = _makeToolName(_prefix, agentName);
+
       agentList.add('  - $toolName: $description');
     }
 
