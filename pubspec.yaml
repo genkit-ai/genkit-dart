@@ -21,6 +21,7 @@ workspace:
   - packages/schemantic
   - packages/schemantic_builder
   - packages/genkit_middleware
+  - testapps/agents
   - testapps/agentic_patterns
   - testapps/ai_features
   - testapps/basic
