@@ -24,6 +24,24 @@ const typeOverrides = {
   'ModelResponseChunk': {'index': 'int'},
   'ReflectionRegisterParams': {'pid': 'int'},
   'ReflectionStreamChunkParams': {'chunk': 'dynamic'},
+  // `input` is `z.unknown().optional()` on the wire; keep it `Object?` so any
+  // JSON value (map/list/scalar) round-trips instead of being cast to a map.
+  'ToolRequest': {'input': 'Object'},
+  // Agent types: inline objects promoted to named defs, the JsonPatch array
+  // alias, and open `{}` schemas that should be `Object?`.
+  'AgentInput': {'resume': '\$AgentResume'},
+  'AgentOutput': {'error': '\$AgentErrorInfo'},
+  'SessionSnapshot': {'error': '\$AgentErrorInfo'},
+  'AgentStreamChunk': {'customPatch': 'List<\$JsonPatchOperation>'},
+  // `custom` is `z.any().optional()` on the wire; keep it `Object?` (not
+  // `dynamic`) so the schemantic builder treats it as optional. A non-nullable
+  // `dynamic` getter is emitted as a required field, producing JSON that
+  // violates the schema when `custom` is omitted.
+  'SessionState': {'custom': 'Object'},
+  // `value` is an open `{}` schema; keep it `Object?` so any JSON value
+  // round-trips. `op` follows its `$ref` to the JsonPatchOp enum.
+  'JsonPatchOperation': {'value': 'Object'},
+  'AgentErrorInfo': {'details': 'Object'},
 };
 
 class ClassGenerator {
@@ -260,9 +278,11 @@ class ClassGenerator {
         typeOverrides[parentType]!.containsKey(fieldName)) {
       final overrideType = typeOverrides[parentType]![fieldName];
       if (overrideType == 'dynamic') return refer('dynamic');
+      if (isRequired) return refer(overrideType!.replaceAll('?', ''));
       return refer('$overrideType?');
     }
     final type = _mapTypeInner(parentType, schema);
+
     if (isRequired) {
       return refer(type.symbol!.replaceAll('?', ''));
     }
