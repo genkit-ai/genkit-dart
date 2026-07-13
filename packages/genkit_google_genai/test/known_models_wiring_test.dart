@@ -58,7 +58,7 @@ void main() {
   Map<String, dynamic> modelInfoOf(Action action) =>
       (action.metadata['model'] as Map).cast<String, dynamic>();
 
-  group('resolve', () {
+  group('known model resolution', () {
     for (final model in KnownGeminiModel.values) {
       test('${model.id} resolves with curated metadata', () {
         final action = plugin().resolve('model', model.id);
@@ -165,22 +165,22 @@ void main() {
     });
   });
 
-  group('GeminiModels', () {
+  group('GoogleAiModels', () {
     test('refs point at the curated action names', () {
       expect(
-        GeminiModels.gemini35Flash.name,
+        GoogleAiModels.gemini35Flash.name,
         'googleai/${KnownGeminiModel.gemini35Flash.id}',
       );
       expect(
-        GeminiModels.gemini31FlashLite.name,
+        GoogleAiModels.gemini31FlashLite.name,
         'googleai/${KnownGeminiModel.gemini31FlashLite.id}',
       );
       expect(
-        GeminiModels.gemini31FlashImage.name,
+        GoogleAiModels.gemini31FlashImage.name,
         'googleai/${KnownGeminiModel.gemini31FlashImage.id}',
       );
       expect(
-        GeminiModels.gemini3ProImage.name,
+        GoogleAiModels.gemini3ProImage.name,
         'googleai/${KnownGeminiModel.gemini3ProImage.id}',
       );
     });
