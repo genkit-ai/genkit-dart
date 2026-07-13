@@ -78,7 +78,7 @@ class _StreamingChatPageState extends State<StreamingChatPage> {
     final chat = _chat!;
 
     try {
-      final turn = chat.sendStream(agentInputFromText(text));
+      final turn = chat.sendTextStream(text);
       var accumulated = '';
       await for (final chunk in turn.stream) {
         if (!mounted) break;

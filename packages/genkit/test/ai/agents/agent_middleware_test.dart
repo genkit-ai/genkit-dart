@@ -137,7 +137,7 @@ void main() {
       );
 
       final chat = agent.chat();
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.sendText('hi');
 
       expect(res.finishReason, AgentFinishReason.stop);
 

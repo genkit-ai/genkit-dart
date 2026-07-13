@@ -106,7 +106,7 @@ class _BankingPageState extends State<BankingPage> {
 
     _chat ??= _agent.chat();
     try {
-      await _runTurn(_chat!.sendStream(agentInputFromText(text)));
+      await _runTurn(_chat!.sendTextStream(text));
     } catch (e) {
       setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
     } finally {

@@ -17,18 +17,35 @@
 /// Ported from the Genkit JS `agent-core.ts`. This module is browser-safe: it
 /// has no `dart:io` dependency. Both the in-process server agent
 /// (`ai.defineAgent`) and the HTTP `remoteAgent` client compose the same
-/// [AgentChat] / [createAgentApi] core over a transport that implements
+/// [AgentChat] / [AgentApi] core over a transport that implements
 /// [AgentTransport].
 ///
-/// Custom state is handled as plain JSON (`dynamic`), mirroring the JS core's
-/// `unknown` state. A typed `State` layer can be added by callers on top.
+/// Custom state is exposed through a `State` type parameter that defaults to
+/// `Object?`. Because state travels the wire as plain JSON, `State` is a
+/// view-cast over that JSON: parameterize with `Object?` / a `Map`-shaped type,
+/// or convert to your own domain types yourself. A mismatched `State` throws at
+/// read time (Dart generics are reified, unlike the erased TypeScript original).
 library;
 
 import 'dart:async';
 
+import 'package:schemantic/schemantic.dart';
+
 import '../../schema_extensions.dart';
 import '../../types.dart';
 import 'json_patch.dart';
+
+/// Casts or parses raw JSON [raw] into the typed [State].
+///
+/// When a [schema] is supplied, the raw JSON is `parse`d into a real `State`
+/// instance (e.g. a schemantic-generated class); otherwise it is a bare view
+/// cast over the JSON (the `Object?` / `Map`-shaped default). Returns `null`
+/// when [raw] is `null`. Mirrors the `inputSchema != null ? parse : as` pattern
+/// used by `Action`.
+State? _castOrParseState<State>(Object? raw, SchemanticType<State>? schema) {
+  if (raw == null) return null;
+  return schema != null ? schema.parse(raw) : raw as State;
+}
 
 // ---------------------------------------------------------------------------
 // Cancellation (Dart has no AbortSignal/AbortController).
@@ -91,9 +108,10 @@ typedef TurnStream = ({
 /// exist for the in-process server agent (driving the agent action directly)
 /// and for the HTTP `remoteAgent` (driving stream/run calls).
 abstract class AgentTransport {
-  /// Declares server- vs client-managed state (`'server'` | `'client'`);
+  /// Declares server- vs client-managed state
+  /// ([AgentStateManagement.server] | [AgentStateManagement.client]);
   /// auto-detected when left `null`.
-  String? stateManagement;
+  AgentStateManagement? stateManagement;
 
   /// Runs a single turn, returning the streamed chunks plus a future for the
   /// final, non-throwing [AgentOutput].
@@ -116,7 +134,7 @@ abstract class AgentTransport {
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
-  Future<String?> abort(String snapshotId);
+  Future<SnapshotStatus?> abort(String snapshotId);
 
   /// Releases any resources owned by this transport. The default is a no-op;
   /// transports that own resources (e.g. an HTTP client) override it.
@@ -152,7 +170,7 @@ Media? _firstMedia(List<Part>? parts) {
   return null;
 }
 
-dynamic _firstData(List<Part>? parts) {
+Object? _firstData(List<Part>? parts) {
   for (final p in parts ?? const <Part>[]) {
     if (p.isData) return p.data;
   }
@@ -164,24 +182,32 @@ List<ToolRequestPart> _toolRequestParts(List<Part>? parts) => (parts ?? [])
     .map((p) => p.toolRequestPart!)
     .toList();
 
+/// Wraps [text] into an [AgentInput] with a single user message.
+AgentInput _agentInputFromText(String text) => AgentInput(
+  message: Message(
+    role: Role.user,
+    content: [TextPart(text: text)],
+  ),
+);
+
 // ---------------------------------------------------------------------------
 // AgentInterrupt
 // ---------------------------------------------------------------------------
 
 /// A single tool request a turn paused on. `respond`/`restart` are builders:
 /// they return the part to put into a `resume` payload; they do not send.
-class AgentInterrupt {
+class AgentInterrupt<Input, Output> {
   AgentInterrupt(ToolRequestPart part)
     : name = part.toolRequest.name,
       ref = part.toolRequest.ref,
-      input = part.toolRequest.input;
+      input = part.toolRequest.input as Input;
 
   final String name;
   final String? ref;
-  final dynamic input;
+  final Input input;
 
   /// Builds a `respond` entry for this interrupt. Does not send.
-  ToolResponsePart respond(dynamic output) => ToolResponsePart(
+  ToolResponsePart respond(Output output) => ToolResponsePart(
     toolResponse: ToolResponse(name: name, ref: ref, output: output),
   );
 
@@ -197,22 +223,27 @@ class AgentInterrupt {
 
 /// The completed result of a turn. Mirrors `GenerateResponse` and adds the
 /// agent fields (`snapshotId`, `state`, `artifacts`).
-class AgentResponse {
+class AgentResponse<State> {
   AgentResponse(
     this._raw,
     this._messages, [
     this._fallbackState,
     this._fallbackSessionId,
+    this._stateSchema,
   ]);
 
   final AgentOutput _raw;
   final List<Message> _messages;
 
+  /// Optional schema used to `parse` the raw wire state into a typed [State]
+  /// instance; when `null`, [state] is a bare view cast over the JSON.
+  final SchemanticType<State>? _stateSchema;
+
   /// Fallback custom-state getter. Server-managed agents (with a store) do not
   /// return `state` on the wire; the chat tracks custom state locally (via
   /// streamed `customPatch` chunks), so we fall back to it here, ensuring
   /// `res.state` matches `chat.state`.
-  final dynamic Function()? _fallbackState;
+  final State? Function()? _fallbackState;
 
   /// Fallback sessionId getter. Server-managed agents may not echo `sessionId`
   /// on every wire frame; fall back to the chat's tracked sessionId so
@@ -227,7 +258,7 @@ class AgentResponse {
 
   Media? get media => _firstMedia(_raw.message?.content);
 
-  dynamic get data => _firstData(_raw.message?.content);
+  Object? get data => _firstData(_raw.message?.content);
 
   List<ToolRequestPart> get toolRequests =>
       _toolRequestParts(_raw.message?.content);
@@ -251,11 +282,13 @@ class AgentResponse {
   /// Stable identifier correlating snapshots/turns of this conversation.
   String? get sessionId => _raw.sessionId ?? _fallbackSessionId?.call();
 
-  dynamic get state {
+  State? get state {
     final fromWire = _raw.state?.custom;
     // Server-managed agents omit `state` on the wire; fall back to the chat's
-    // locally tracked custom state so `res.state == chat.state`.
-    return fromWire ?? _fallbackState?.call();
+    // locally tracked custom state (already typed) so `res.state == chat.state`.
+    // The wire branch is cast/parsed via the optional schema.
+    if (fromWire != null) return _castOrParseState(fromWire, _stateSchema);
+    return _fallbackState?.call();
   }
 
   List<Artifact> get artifacts => _raw.artifacts ?? _raw.state?.artifacts ?? [];
@@ -278,15 +311,15 @@ class AgentResponse {
 
 /// A streamed chunk. Mirrors `GenerateResponseChunk` and adds the agent fields
 /// (`artifact`, `custom`).
-class AgentChunk {
+class AgentChunk<State> {
   AgentChunk(this._raw, this._previousText);
 
   final AgentStreamChunk _raw;
   final String _previousText;
-  dynamic _custom;
+  State? _custom;
 
   /// Internal: records the post-patch custom state this chunk reports.
-  void setCustom(dynamic custom) => _custom = custom;
+  void _setCustom(State? custom) => _custom = custom;
 
   List<Part>? get _content => _raw.modelChunk?.content;
 
@@ -298,7 +331,7 @@ class AgentChunk {
 
   List<ToolRequestPart> get toolRequests => _toolRequestParts(_content);
 
-  dynamic get data => _firstData(_content);
+  Object? get data => _firstData(_content);
 
   Media? get media => _firstMedia(_content);
 
@@ -306,7 +339,7 @@ class AgentChunk {
 
   /// The full, post-patch custom state. Present only on chunks that carry a
   /// custom-state update; `null` otherwise.
-  dynamic get custom => _custom;
+  State? get custom => _custom;
 
   AgentStreamChunk get raw => _raw;
 }
@@ -317,7 +350,7 @@ class AgentChunk {
 
 /// A single in-flight turn — the analog of `generateStream`'s
 /// `{stream, response}`, plus [abort].
-class AgentTurn {
+class AgentTurn<State> {
   AgentTurn({
     required this.stream,
     required this.response,
@@ -325,10 +358,10 @@ class AgentTurn {
   }) : _onAbort = onAbort;
 
   /// Chunks as the turn progresses.
-  final Stream<AgentChunk> stream;
+  final Stream<AgentChunk<State>> stream;
 
   /// The completed turn, with generate-style accessors.
-  final Future<AgentResponse> response;
+  final Future<AgentResponse<State>> response;
 
   final void Function() _onAbort;
 
@@ -342,7 +375,7 @@ class AgentTurn {
 
 /// Thrown when a turn fails. Carries the last-good state so the session is
 /// recoverable.
-class AgentError implements Exception {
+class AgentError<State> implements Exception {
   AgentError({
     required this.message,
     required this.status,
@@ -355,9 +388,9 @@ class AgentError implements Exception {
   final String message;
   final String status;
   final Object? details;
-  final dynamic state;
+  final State? state;
   final String? snapshotId;
-  final AgentResponse response;
+  final AgentResponse<State> response;
 
   @override
   String toString() => 'AgentError($status): $message';
@@ -382,7 +415,7 @@ class DetachedTask {
   /// bad id) would otherwise loop forever and leak this poller, so give up
   /// after [maxConsecutiveMisses] consecutive misses.
   Stream<SessionSnapshot> poll({
-    int intervalMs = 1000,
+    Duration interval = const Duration(seconds: 1),
     int maxConsecutiveMisses = 10,
   }) async* {
     var misses = 0;
@@ -398,14 +431,16 @@ class DetachedTask {
         final status = snap.status;
         if (status != null && _terminalStatuses.contains(status.value)) return;
       }
-      await Future<void>.delayed(Duration(milliseconds: intervalMs));
+      await Future<void>.delayed(interval);
     }
   }
 
   /// Resolves when the task reaches a terminal state.
-  Future<SessionSnapshot> wait({int intervalMs = 1000}) async {
+  Future<SessionSnapshot> wait({
+    Duration interval = const Duration(seconds: 1),
+  }) async {
     SessionSnapshot? last;
-    await for (final snap in poll(intervalMs: intervalMs)) {
+    await for (final snap in poll(interval: interval)) {
       last = snap;
     }
     if (last == null) {
@@ -415,7 +450,7 @@ class DetachedTask {
   }
 
   /// Aborts the task.
-  Future<String?> abort() => _transport.abort(snapshotId);
+  Future<SnapshotStatus?> abort() => _transport.abort(snapshotId);
 }
 
 // ---------------------------------------------------------------------------
@@ -424,8 +459,8 @@ class DetachedTask {
 
 /// A stateful conversation with an agent. Tracks state across turns so callers
 /// do not have to thread `snapshotId`/`state` by hand.
-class AgentChat {
-  AgentChat(this._transport, [this._connectInit]) {
+class AgentChat<State> {
+  AgentChat(this._transport, [this._connectInit, this._stateSchema]) {
     final init = _connectInit;
     if (init != null) {
       if (init.snapshotId != null) {
@@ -444,6 +479,10 @@ class AgentChat {
   final AgentTransport _transport;
   final AgentInit? _connectInit;
 
+  /// Optional schema used to `parse` the raw wire state into a typed [State]
+  /// instance; when `null`, [state] is a bare view cast over the JSON.
+  final SchemanticType<State>? _stateSchema;
+
   String? snapshotId;
 
   /// The server-assigned session id, populated from each turn's
@@ -455,7 +494,7 @@ class AgentChat {
 
   SessionState? _clientState;
 
-  dynamic get state => _clientState?.custom;
+  State? get state => _castOrParseState(_clientState?.custom, _stateSchema);
 
   /// Replaces the tracked aggregates with (copies of) those carried by a
   /// session state.
@@ -496,9 +535,9 @@ class AgentChat {
     }
     if (_transport.stateManagement == null) {
       if (raw.snapshotId != null) {
-        _transport.stateManagement = 'server';
+        _transport.stateManagement = AgentStateManagement.server;
       } else if (raw.state != null) {
-        _transport.stateManagement = 'client';
+        _transport.stateManagement = AgentStateManagement.client;
       }
     }
     final stateMessages = raw.state?.messages;
@@ -535,7 +574,7 @@ class AgentChat {
   /// Resolves a turn's raw `output` into an [AgentResponse], applying it to the
   /// running aggregates and throwing an [AgentError] on a failed turn. Aborted
   /// turns resolve to a synthetic `aborted` response.
-  Future<AgentResponse> _buildResponse(
+  Future<AgentResponse<State>> _buildResponse(
     Future<AgentOutput> output,
     CancellationToken cancel,
     int messageCountBeforeTurn,
@@ -572,17 +611,24 @@ class AgentChat {
     _applyOutput(raw);
     final response = _response(raw);
     if (raw.finishReason == AgentFinishReason.failed) {
-      throw AgentError(
+      throw AgentError<State>(
         message: raw.error?.message ?? 'Agent turn failed.',
         status: raw.error?.status ?? 'UNKNOWN',
         details: raw.error?.details,
-        state: raw.state?.custom,
+        state: _castOrParseState(raw.state?.custom, _stateSchema),
         snapshotId: raw.snapshotId,
         response: response,
       );
     }
     return response;
   }
+
+  /// Runs a single turn from free-form [text] and resolves with the completed
+  /// [AgentResponse]. Sugar for [send] with a single user text message.
+  Future<AgentResponse<State>> sendText(
+    String text, {
+    CancellationToken? cancel,
+  }) => send(_agentInputFromText(text), cancel: cancel);
 
   /// Runs a single turn and resolves with the completed [AgentResponse].
   ///
@@ -594,7 +640,7 @@ class AgentChat {
   /// chunks. Consuming the stream here keeps `send()` and `sendStream()`
   /// consistent. A transport that opts into the non-streaming [AgentTransport.run]
   /// path (e.g. returns full state on the wire) skips the drain.
-  Future<AgentResponse> send(
+  Future<AgentResponse<State>> send(
     AgentInput input, {
     CancellationToken? cancel,
   }) async {
@@ -624,26 +670,36 @@ class AgentChat {
 
   /// Builds an [AgentResponse] for [raw] over a snapshot of the current
   /// aggregates (messages, state, sessionId).
-  AgentResponse _response(AgentOutput raw) =>
-      AgentResponse(raw, [...messages], () => state, () => sessionId);
+  AgentResponse<State> _response(AgentOutput raw) => AgentResponse<State>(
+    raw,
+    [...messages],
+    () => state,
+    () => sessionId,
+    _stateSchema,
+  );
 
   /// Builds a synthetic `aborted` [AgentResponse] for a turn that never ran
   /// (the caller's token was already cancelled). Mirrors the JS core's
   /// pre-aborted bail, which short-circuits with `finishReason: 'aborted'`.
-  AgentResponse _abortedResponse() =>
+  AgentResponse<State> _abortedResponse() =>
       _response(AgentOutput(finishReason: AgentFinishReason.aborted));
+
+  /// Runs a single turn from free-form [text] and returns an [AgentTurn]. Sugar
+  /// for [sendStream] with a single user text message.
+  AgentTurn<State> sendTextStream(String text, {CancellationToken? cancel}) =>
+      sendStream(_agentInputFromText(text), cancel: cancel);
 
   /// Runs a single turn and returns an [AgentTurn] exposing `.stream` and
   /// `.response`.
-  AgentTurn sendStream(AgentInput input, {CancellationToken? cancel}) {
+  AgentTurn<State> sendStream(AgentInput input, {CancellationToken? cancel}) {
     final token = cancel ?? CancellationToken();
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: return an empty stream and a synthetic
     // `aborted` response, and leave `messages` untouched. Mirrors the JS
     // core's pre-aborted short-circuit.
     if (token.isCancelled) {
-      return AgentTurn(
-        stream: const Stream<AgentChunk>.empty(),
+      return AgentTurn<State>(
+        stream: const Stream.empty(),
         response: Future.value(_abortedResponse()),
         onAbort: () {},
       );
@@ -666,13 +722,15 @@ class AgentChat {
       messageCountBeforeTurn,
     );
     // Avoid unhandled-rejection warnings when only the stream is consumed.
-    responsePromise.catchError((_) => AgentResponse(AgentOutput(), messages));
+    responsePromise.catchError(
+      (_) => AgentResponse<State>(AgentOutput(), messages),
+    );
 
-    Stream<AgentChunk> buildStream() async* {
+    Stream<AgentChunk<State>> buildStream() async* {
       var previousText = '';
       try {
         await for (final raw in turn.stream) {
-          final chunk = AgentChunk(raw, previousText);
+          final chunk = AgentChunk<State>(raw, previousText);
           previousText = chunk.accumulatedText;
           // Keep the locally tracked custom state live mid-stream by applying
           // each streamed JSON Patch to it; surface the post-patch state on
@@ -681,7 +739,7 @@ class AgentChat {
           final patch = raw.customPatch;
           if (patch != null) {
             _applyCustomPatch(patch);
-            chunk.setCustom(state);
+            chunk._setCustom(state);
           }
           yield chunk;
         }
@@ -695,7 +753,7 @@ class AgentChat {
       await responsePromise;
     }
 
-    return AgentTurn(
+    return AgentTurn<State>(
       stream: buildStream(),
       response: responsePromise,
       onAbort: token.cancel,
@@ -703,14 +761,16 @@ class AgentChat {
   }
 
   /// Resumes after an interrupt. Sugar for `send` with only the resume params.
-  Future<AgentResponse> resume(
+  Future<AgentResponse<State>> resume(
     AgentResume resume, {
     CancellationToken? cancel,
   }) => send(AgentInput(resume: resume), cancel: cancel);
 
   /// Streaming resume. Sugar for `sendStream` with only the resume params.
-  AgentTurn resumeStream(AgentResume resume, {CancellationToken? cancel}) =>
-      sendStream(AgentInput(resume: resume), cancel: cancel);
+  AgentTurn<State> resumeStream(
+    AgentResume resume, {
+    CancellationToken? cancel,
+  }) => sendStream(AgentInput(resume: resume), cancel: cancel);
 
   /// Applies a streamed RFC 6902 JSON Patch to the locally tracked custom
   /// state, keeping [state] live as the turn streams.
@@ -750,15 +810,20 @@ class AgentChat {
     return DetachedTask(id, _transport);
   }
 
+  /// Submits a detached (background) turn from free-form [text]. Requires a
+  /// store. Sugar for [detach] with a single user text message.
+  Future<DetachedTask> detachText(String text) =>
+      detach(_agentInputFromText(text));
+
   /// Aborts the current snapshot.
-  Future<String?> abort() async {
+  Future<SnapshotStatus?> abort() async {
     final id = snapshotId;
     if (id == null) return null;
     return _transport.abort(id);
   }
 
-  AgentError _toAgentError(Object e) {
-    if (e is AgentError) return e;
+  AgentError<State> _toAgentError(Object e) {
+    if (e is AgentError<State>) return e;
     final message = e.toString();
     final match = RegExp(r'^([A-Z_]+):').firstMatch(message);
     final status = match != null ? match.group(1)! : 'UNKNOWN';
@@ -767,11 +832,11 @@ class AgentChat {
       error: AgentErrorInfo(status: status, message: message),
     );
     final response = _response(raw);
-    return AgentError(
+    return AgentError<State>(
       message: message,
       status: status,
       details: e,
-      state: _clientState?.custom,
+      state: _castOrParseState(_clientState?.custom, _stateSchema),
       snapshotId: snapshotId,
       response: response,
     );
@@ -785,26 +850,48 @@ class AgentChat {
 /// The transport-agnostic surface for talking to an agent. The same shape is
 /// returned by `ai.defineAgent(...)` on the server and by `remoteAgent(...)`
 /// on the client.
-class AgentApi {
-  AgentApi(this._transport);
+class AgentApi<State> {
+  AgentApi(this._transport, {SchemanticType<State>? stateSchema})
+    : _stateSchema = stateSchema;
 
   final AgentTransport _transport;
 
+  /// Optional schema used to `parse` the raw wire state into a typed [State]
+  /// instance; forwarded to every [AgentChat] this api creates. When `null`,
+  /// state is a bare view cast over the JSON (the `Object?` / `Map` default).
+  final SchemanticType<State>? _stateSchema;
+
   /// Starts a new chat, optionally attaching via [snapshotId] / [sessionId] /
   /// [state] (provide at most one).
-  AgentChat chat({String? snapshotId, String? sessionId, SessionState? state}) {
+  AgentChat<State> chat({
+    String? snapshotId,
+    String? sessionId,
+    SessionState? state,
+  }) {
+    assert(
+      [snapshotId, sessionId, state].where((x) => x != null).length <= 1,
+      'Provide at most one of snapshotId, sessionId, or state.',
+    );
     if (snapshotId == null && sessionId == null && state == null) {
-      return AgentChat(_transport);
+      return AgentChat<State>(_transport, null, _stateSchema);
     }
-    return AgentChat(
+    return AgentChat<State>(
       _transport,
       AgentInit(snapshotId: snapshotId, sessionId: sessionId, state: state),
+      _stateSchema,
     );
   }
 
   /// Loads a server snapshot and returns a chat with history restored. Provide
   /// exactly one of [snapshotId] / [sessionId].
-  Future<AgentChat> loadChat({String? snapshotId, String? sessionId}) async {
+  Future<AgentChat<State>> loadChat({
+    String? snapshotId,
+    String? sessionId,
+  }) async {
+    assert(
+      (snapshotId != null) ^ (sessionId != null),
+      'Provide exactly one of snapshotId or sessionId.',
+    );
     final snapshot = await _transport.getSnapshot(
       snapshotId: snapshotId,
       sessionId: sessionId,
@@ -813,7 +900,7 @@ class AgentApi {
       final id = snapshotId ?? 'session $sessionId';
       throw StateError('Snapshot $id not found.');
     }
-    final chat = AgentChat(_transport);
+    final chat = AgentChat<State>(_transport, null, _stateSchema);
     chat.loadFromSnapshot(snapshot);
     return chat;
   }
@@ -824,8 +911,10 @@ class AgentApi {
     String? sessionId,
   }) => _transport.getSnapshot(snapshotId: snapshotId, sessionId: sessionId);
 
-  /// Aborts a running snapshot. Requires a server store.
-  Future<String?> abort(String snapshotId) => _transport.abort(snapshotId);
+  /// Aborts a running snapshot. Requires a server store. Returns the prior
+  /// status, or `null`.
+  Future<SnapshotStatus?> abort(String snapshotId) =>
+      _transport.abort(snapshotId);
 
   /// Releases any resources owned by the underlying transport (e.g. an HTTP
   /// client created by `remoteAgent`). A caller-supplied HTTP client is left
@@ -833,15 +922,3 @@ class AgentApi {
   /// (a no-op there).
   FutureOr<void> close() => _transport.close();
 }
-
-/// Composes the [AgentApi] surface over an [AgentTransport]. Shared by the
-/// in-process server agent and the HTTP `remoteAgent`.
-AgentApi createAgentApi(AgentTransport transport) => AgentApi(transport);
-
-/// Wraps `input` text into an [AgentInput] with a single user message.
-AgentInput agentInputFromText(String text) => AgentInput(
-  message: Message(
-    role: Role.user,
-    content: [TextPart(text: text)],
-  ),
-);

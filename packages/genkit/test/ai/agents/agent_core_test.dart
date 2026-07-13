@@ -13,7 +13,30 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
+
+/// A small domain type used to exercise schema-aware (parsed) `State` typing.
+/// Uses the BYOT bridge (`SchemanticType.from`) so the test needs no codegen.
+class _Counter {
+  _Counter(this.count);
+
+  final int count;
+
+  factory _Counter.fromJson(Map<String, dynamic> json) =>
+      _Counter(json['count'] as int);
+
+  static final schema = SchemanticType.from<_Counter>(
+    jsonSchema: {
+      'type': 'object',
+      'properties': {
+        'count': {'type': 'integer'},
+      },
+      'required': ['count'],
+    },
+    parse: (json) => _Counter.fromJson((json as Map).cast<String, dynamic>()),
+  );
+}
 
 /// A scripted transport: each turn returns the queued [_TurnScript].
 class _FakeTransport extends AgentTransport {
@@ -54,9 +77,9 @@ class _FakeTransport extends AgentTransport {
   }) async => snapshots[snapshotId];
 
   @override
-  Future<String?> abort(String snapshotId) async {
+  Future<SnapshotStatus?> abort(String snapshotId) async {
     aborted.add(snapshotId);
-    return 'aborted';
+    return SnapshotStatus.aborted;
   }
 }
 
@@ -129,7 +152,7 @@ class _StepTransport extends AgentTransport {
   }) async => null;
 
   @override
-  Future<String?> abort(String snapshotId) async => null;
+  Future<SnapshotStatus?> abort(String snapshotId) async => null;
 }
 
 Message _modelMessage(String text) => Message(
@@ -155,7 +178,7 @@ void main() {
         ),
       ]);
       final chat = AgentApi(transport).chat();
-      final turn = chat.sendStream(agentInputFromText('hi'));
+      final turn = chat.sendTextStream('hi');
 
       final texts = <String>[];
       await for (final c in turn.stream) {
@@ -179,7 +202,7 @@ void main() {
         ),
       ]);
       final chat = AgentApi(transport).chat();
-      final turn = chat.sendStream(agentInputFromText('hi'));
+      final turn = chat.sendTextStream('hi');
       final acc = <String>[];
       await for (final c in turn.stream) {
         acc.add(c.accumulatedText);
@@ -217,7 +240,7 @@ void main() {
         ),
       ]);
       final chat = AgentApi(transport).chat();
-      final turn = chat.sendStream(agentInputFromText('go'));
+      final turn = chat.sendTextStream('go');
 
       final customs = <dynamic>[];
       await for (final c in turn.stream) {
@@ -245,7 +268,7 @@ void main() {
         ),
       ], supportsRun: true);
       final chat = AgentApi(transport).chat();
-      final res = await chat.send(agentInputFromText('ping'));
+      final res = await chat.sendText('ping');
       expect(res.text, 'pong');
       expect(res.snapshotId, 's_y');
     });
@@ -262,7 +285,7 @@ void main() {
       ], supportsRun: true);
       final chat = AgentApi(transport).chat();
       await expectLater(
-        chat.send(agentInputFromText('x')),
+        chat.sendText('x'),
         throwsA(
           isA<AgentError>()
               .having((e) => e.status, 'status', 'INTERNAL')
@@ -280,7 +303,7 @@ void main() {
         final transport = _FakeTransport([], supportsRun: true);
         final token = CancellationToken()..cancel();
         final chat = AgentApi(transport).chat();
-        final res = await chat.send(agentInputFromText('hi'), cancel: token);
+        final res = await chat.sendText('hi', cancel: token);
         expect(res.finishReason, AgentFinishReason.aborted);
         // No user message was pushed and no turn was dispatched.
         expect(chat.messages, isEmpty);
@@ -293,7 +316,7 @@ void main() {
         final transport = _FakeTransport([]);
         final token = CancellationToken()..cancel();
         final chat = AgentApi(transport).chat();
-        final turn = chat.sendStream(agentInputFromText('hi'), cancel: token);
+        final turn = chat.sendTextStream('hi', cancel: token);
         final chunks = <AgentChunk>[];
         await for (final c in turn.stream) {
           chunks.add(c);
@@ -337,9 +360,9 @@ void main() {
         ),
       ], supportsRun: true);
       final chat = AgentApi(transport).chat();
-      await chat.send(agentInputFromText('hi'));
+      await chat.sendText('hi');
       final status = await chat.abort();
-      expect(status, 'aborted');
+      expect(status?.value, 'aborted');
       expect(transport.aborted, ['s_z']);
     });
 
@@ -378,7 +401,7 @@ void main() {
           ),
         ], supportsRun: true);
         final chat = AgentApi(transport).chat();
-        final res = await chat.send(agentInputFromText('hi'));
+        final res = await chat.sendText('hi');
         expect(chat.sessionId, 'sess_3');
         expect(res.sessionId, 'sess_3');
       },
@@ -393,10 +416,7 @@ void main() {
           _throwStep('INTERNAL: transport blew up'),
         ], supportsRun: true);
         final chat = AgentApi(transport).chat();
-        await expectLater(
-          chat.send(agentInputFromText('hi')),
-          throwsA(isA<AgentError>()),
-        );
+        await expectLater(chat.sendText('hi'), throwsA(isA<AgentError>()));
         // The eagerly-pushed user message must not be left orphaned.
         expect(chat.messages, isEmpty);
       },
@@ -415,13 +435,10 @@ void main() {
           ),
         ], supportsRun: true);
         final chat = AgentApi(transport).chat();
-        await expectLater(
-          chat.send(agentInputFromText('first')),
-          throwsA(isA<AgentError>()),
-        );
+        await expectLater(chat.sendText('first'), throwsA(isA<AgentError>()));
         expect(chat.messages, isEmpty);
 
-        final res = await chat.send(agentInputFromText('second'));
+        final res = await chat.sendText('second');
         expect(res.text, 'pong');
         // Only the second turn's user + model messages remain; the first
         // (failed) turn's user message did not stack.
@@ -522,6 +539,319 @@ void main() {
       }
     });
   });
+
+  group('generic State typing (wire -> client)', () {
+    test('typed Map state flows from the wire to the client', () async {
+      final transport = _FakeTransport([
+        _TurnScript(
+          output: AgentOutput(
+            state: SessionState(custom: {'count': 3}),
+            message: _modelMessage('hi'),
+          ),
+        ),
+      ], supportsRun: true);
+      final chat = AgentApi<Map<String, dynamic>>(transport).chat();
+      final res = await chat.sendText('hi');
+
+      // The chat's tracked state and the response state are both typed Maps.
+      expect(chat.state, isA<Map<String, dynamic>>());
+      expect(chat.state?['count'], 3);
+      expect(res.state, isA<Map<String, dynamic>>());
+      expect(res.state?['count'], 3);
+      // `res.state` and `chat.state` agree.
+      expect(res.state, chat.state);
+    });
+
+    test(
+      'typed state is recovered via the fallback when the wire omits state',
+      () async {
+        // A server-managed agent: the wire carries only a snapshotId plus
+        // customPatch chunks; `state` is never sent. The chat tracks custom
+        // state locally, and the typed fallback surfaces it on the response.
+        final transport = _FakeTransport([
+          _TurnScript(
+            chunks: [
+              AgentStreamChunk(
+                customPatch: [
+                  JsonPatchOperation(
+                    op: JsonPatchOp.replace,
+                    path: '',
+                    value: {'count': 1},
+                  ),
+                ],
+              ),
+            ],
+            output: AgentOutput(
+              snapshotId: 's_1',
+              message: _modelMessage('done'),
+            ),
+          ),
+        ]);
+        final chat = AgentApi<Map<String, dynamic>>(transport).chat();
+        final turn = chat.sendTextStream('go');
+        await for (final _ in turn.stream) {
+          // Drain so the customPatch is applied.
+        }
+        final res = await turn.response;
+
+        expect(chat.state, isA<Map<String, dynamic>>());
+        expect(chat.state?['count'], 1);
+        // No `state` on the wire, so this exercises the typed fallback.
+        expect(res.raw.state, isNull);
+        expect(res.state, isA<Map<String, dynamic>>());
+        expect(res.state?['count'], 1);
+      },
+    );
+
+    test('AgentChunk.custom is typed mid-stream', () async {
+      final transport = _FakeTransport([
+        _TurnScript(
+          chunks: [
+            AgentStreamChunk(
+              customPatch: [
+                JsonPatchOperation(
+                  op: JsonPatchOp.replace,
+                  path: '',
+                  value: {'count': 0},
+                ),
+              ],
+            ),
+            AgentStreamChunk(
+              customPatch: [
+                JsonPatchOperation(
+                  op: JsonPatchOp.replace,
+                  path: '/count',
+                  value: 1,
+                ),
+              ],
+            ),
+          ],
+          output: AgentOutput(message: _modelMessage('done')),
+        ),
+      ]);
+      final chat = AgentApi<Map<String, dynamic>>(transport).chat();
+      final turn = chat.sendTextStream('go');
+
+      final customs = <Map<String, dynamic>?>[];
+      await for (final c in turn.stream) {
+        if (c.custom != null) {
+          // The chunk's custom state is statically typed as the chat's State.
+          expect(c.custom, isA<Map<String, dynamic>>());
+          customs.add(c.custom);
+        }
+      }
+      await turn.response;
+
+      expect(customs, [
+        {'count': 0},
+        {'count': 1},
+      ]);
+    });
+
+    test('scalar State round-trips from the wire', () async {
+      final transport = _FakeTransport([
+        _TurnScript(
+          output: AgentOutput(
+            state: SessionState(custom: 7),
+            message: _modelMessage('hi'),
+          ),
+        ),
+      ], supportsRun: true);
+      final chat = AgentApi<int>(transport).chat();
+      final res = await chat.sendText('hi');
+      expect(chat.state, 7);
+      expect(res.state, 7);
+    });
+
+    test('a mismatched State throws at read time', () async {
+      // The wire carries a Map, but the chat is parameterized with String.
+      // Dart generics are reified, so the turn resolves fine but *reading*
+      // the state casts and throws (the documented contract).
+      final transport = _FakeTransport([
+        _TurnScript(
+          output: AgentOutput(
+            state: SessionState(custom: {'a': 1}),
+            message: _modelMessage('hi'),
+          ),
+        ),
+      ], supportsRun: true);
+      final chat = AgentApi<String>(transport).chat();
+      final res = await chat.sendText('hi');
+      expect(() => chat.state, throwsA(isA<TypeError>()));
+      expect(() => res.state, throwsA(isA<TypeError>()));
+    });
+
+    test('loadChat preserves the typed State', () async {
+      final transport = _FakeTransport([]);
+      transport.snapshots['s1'] = SessionSnapshot(
+        snapshotId: 's1',
+        createdAt: 't',
+        updatedAt: 't',
+        status: SnapshotStatus.completed,
+        state: SessionState(custom: {'k': 'v'}, messages: [], artifacts: []),
+      );
+      final chat = await AgentApi<Map<String, dynamic>>(
+        transport,
+      ).loadChat(snapshotId: 's1');
+      expect(chat.state, isA<Map<String, dynamic>>());
+      expect(chat.state?['k'], 'v');
+    });
+  });
+
+  group('schema-aware State typing (SchemanticType<State>)', () {
+    test('parses the wire state into a typed domain object', () async {
+      final transport = _FakeTransport([
+        _TurnScript(
+          output: AgentOutput(
+            state: SessionState(custom: {'count': 3}),
+            message: _modelMessage('hi'),
+          ),
+        ),
+      ], supportsRun: true);
+      final chat = AgentApi<_Counter>(
+        transport,
+        stateSchema: _Counter.schema,
+      ).chat();
+      final res = await chat.sendText('hi');
+
+      // With a schema, state is a *parsed* domain instance, not a raw Map.
+      expect(chat.state, isA<_Counter>());
+      expect(chat.state?.count, 3);
+      expect(res.state, isA<_Counter>());
+      expect(res.state?.count, 3);
+    });
+
+    test(
+      'parses via the fallback when the wire omits state (server-managed)',
+      () async {
+        final transport = _FakeTransport([
+          _TurnScript(
+            chunks: [
+              AgentStreamChunk(
+                customPatch: [
+                  JsonPatchOperation(
+                    op: JsonPatchOp.replace,
+                    path: '',
+                    value: {'count': 5},
+                  ),
+                ],
+              ),
+            ],
+            output: AgentOutput(
+              snapshotId: 's_1',
+              message: _modelMessage('done'),
+            ),
+          ),
+        ]);
+        final chat = AgentApi<_Counter>(
+          transport,
+          stateSchema: _Counter.schema,
+        ).chat();
+        final turn = chat.sendTextStream('go');
+        await for (final _ in turn.stream) {
+          // Drain so the customPatch is applied.
+        }
+        final res = await turn.response;
+
+        expect(chat.state, isA<_Counter>());
+        expect(chat.state?.count, 5);
+        // No `state` on the wire, so this exercises the typed/parsed fallback.
+        expect(res.raw.state, isNull);
+        expect(res.state, isA<_Counter>());
+        expect(res.state?.count, 5);
+      },
+    );
+
+    test('AgentChunk.custom is a parsed domain object mid-stream', () async {
+      final transport = _FakeTransport([
+        _TurnScript(
+          chunks: [
+            AgentStreamChunk(
+              customPatch: [
+                JsonPatchOperation(
+                  op: JsonPatchOp.replace,
+                  path: '',
+                  value: {'count': 0},
+                ),
+              ],
+            ),
+            AgentStreamChunk(
+              customPatch: [
+                JsonPatchOperation(
+                  op: JsonPatchOp.replace,
+                  path: '/count',
+                  value: 2,
+                ),
+              ],
+            ),
+          ],
+          output: AgentOutput(message: _modelMessage('done')),
+        ),
+      ]);
+      final chat = AgentApi<_Counter>(
+        transport,
+        stateSchema: _Counter.schema,
+      ).chat();
+      final turn = chat.sendTextStream('go');
+
+      final counts = <int>[];
+      await for (final c in turn.stream) {
+        final custom = c.custom;
+        if (custom != null) {
+          expect(custom, isA<_Counter>());
+          counts.add(custom.count);
+        }
+      }
+      await turn.response;
+
+      expect(counts, [0, 2]);
+    });
+
+    test('loadChat parses the typed State', () async {
+      final transport = _FakeTransport([]);
+      transport.snapshots['s1'] = SessionSnapshot(
+        snapshotId: 's1',
+        createdAt: 't',
+        updatedAt: 't',
+        status: SnapshotStatus.completed,
+        state: SessionState(custom: {'count': 9}, messages: [], artifacts: []),
+      );
+      final chat = await AgentApi<_Counter>(
+        transport,
+        stateSchema: _Counter.schema,
+      ).loadChat(snapshotId: 's1');
+      expect(chat.state, isA<_Counter>());
+      expect(chat.state?.count, 9);
+    });
+
+    test(
+      'a failed turn surfaces parsed last-good state on AgentError',
+      () async {
+        final transport = _FakeTransport([
+          _TurnScript(
+            output: AgentOutput(
+              finishReason: AgentFinishReason.failed,
+              state: SessionState(custom: {'count': 42}),
+              error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
+            ),
+          ),
+        ], supportsRun: true);
+        final chat = AgentApi<_Counter>(
+          transport,
+          stateSchema: _Counter.schema,
+        ).chat();
+        await expectLater(
+          chat.sendText('x'),
+          throwsA(
+            isA<AgentError<_Counter>>()
+                .having((e) => e.status, 'status', 'INTERNAL')
+                .having((e) => e.state, 'state', isA<_Counter>())
+                .having((e) => e.state?.count, 'state.count', 42),
+          ),
+        );
+      },
+    );
+  });
 }
 
 /// A transport that captures the [AgentInput] and returns a fixed output.
@@ -557,5 +887,5 @@ class _CaptureTransport extends AgentTransport {
   }) async => null;
 
   @override
-  Future<String?> abort(String snapshotId) async => null;
+  Future<SnapshotStatus?> abort(String snapshotId) async => null;
 }

@@ -308,7 +308,7 @@ final class Genkit extends GenkitAI {
   ///
   /// This is a convenience shortcut for calling [definePrompt] followed by
   /// [definePromptAgent].
-  Agent defineAgent<CustomOptions, Input>({
+  Agent<State> defineAgent<CustomOptions, Input, State>({
     required String name,
     String? variant,
     ModelRef<CustomOptions>? model,
@@ -334,8 +334,9 @@ final class Genkit extends GenkitAI {
     /// can be reused and customized by multiple agents.
     Map<String, dynamic>? promptInput,
 
-    /// Optional schema describing the shape of the custom session state.
-    SchemanticType<dynamic>? stateSchema,
+    /// Optional schema describing the shape of the custom session state. When
+    /// provided, `chat().state` / `res.state` return parsed `State` instances.
+    SchemanticType<State>? stateSchema,
     SessionStore? store,
     SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
@@ -365,7 +366,7 @@ final class Genkit extends GenkitAI {
     );
 
     // Wire it into a prompt agent.
-    return agent_lib.definePromptAgent(
+    return agent_lib.definePromptAgent<State>(
       registry,
       promptName: variant != null ? '$name.$variant' : name,
       promptInput: promptInput,
@@ -381,16 +382,16 @@ final class Genkit extends GenkitAI {
   ///
   /// Use this when you need full control over the agent turn loop. For the
   /// common prompt-driven case, use [defineAgent].
-  Agent defineCustomAgent({
+  Agent<State> defineCustomAgent<State>({
     required String name,
     String? description,
-    SchemanticType<dynamic>? stateSchema,
+    SchemanticType<State>? stateSchema,
     SessionStore? store,
     SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
     required AgentFn fn,
   }) {
-    return agent_lib.defineCustomAgent(
+    return agent_lib.defineCustomAgent<State>(
       registry,
       name: name,
       description: description,
@@ -403,18 +404,18 @@ final class Genkit extends GenkitAI {
   }
 
   /// Registers an agent from an existing, previously-defined prompt.
-  Agent definePromptAgent({
+  Agent<State> definePromptAgent<State>({
     required String promptName,
 
     /// Supplies values for the prompt's input variables, so a single prompt
     /// can be reused and customized by multiple agents.
     Map<String, dynamic>? promptInput,
-    SchemanticType<dynamic>? stateSchema,
+    SchemanticType<State>? stateSchema,
     SessionStore? store,
     SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
   }) {
-    return agent_lib.definePromptAgent(
+    return agent_lib.definePromptAgent<State>(
       registry,
       promptName: promptName,
       promptInput: promptInput,

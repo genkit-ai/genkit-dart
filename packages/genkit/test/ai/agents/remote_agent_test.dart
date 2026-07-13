@@ -86,7 +86,7 @@ void main() {
 
       final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.sendText('hi');
 
       expect(res.text, 'hi there');
       expect(res.snapshotId, 's_x');
@@ -121,7 +121,7 @@ void main() {
 
       final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
-      final turn = chat.sendStream(agentInputFromText('hi'));
+      final turn = chat.sendTextStream('hi');
 
       final texts = <String>[];
       await for (final c in turn.stream) {
@@ -200,8 +200,8 @@ void main() {
       );
 
       final chat = agent.chat();
-      await chat.send(agentInputFromText('hi'));
-      await chat.send(agentInputFromText('again'));
+      await chat.sendText('hi');
+      await chat.sendText('again');
 
       // Resolver ran once per turn.
       expect(calls, 2);

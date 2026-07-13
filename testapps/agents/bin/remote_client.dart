@@ -44,23 +44,19 @@ Future<void> main() async {
   stdout.writeln('\n=== weatherAgent: streaming turn ===');
 
   final chat = weather.chat(sessionId: _randomUuid());
-  final turn = chat.sendStream(
-    agentInputFromText('What is the weather like in Tokyo?'),
-  );
+  final turn = chat.sendTextStream('What is the weather like in Tokyo?');
   await for (final chunk in turn.stream) {
     if (chunk.text.isNotEmpty) stdout.write(chunk.text);
   }
   final res = await turn.response;
   stdout.writeln('\n--- response ---');
   stdout.writeln('text: ${res.text}');
-  stdout.writeln('finishReason: ${res.finishReason?.value}');
+  stdout.writeln('finishReason: ${res.finishReason.value}');
   stdout.writeln('snapshotId: ${res.snapshotId}');
   stdout.writeln('chat.snapshotId: ${chat.snapshotId}');
 
   stdout.writeln('\n=== weatherAgent: multi-turn (state auto-carried) ===');
-  final res2 = await chat.send(
-    agentInputFromText('What about Paris?'),
-  ); // non-streaming send
+  final res2 = await chat.sendText('What about Paris?'); // non-streaming send
   stdout.writeln('text: ${res2.text}');
   stdout.writeln('chat.snapshotId: ${chat.snapshotId}');
   stdout.writeln('chat.state: ${_pretty(chat.state)}');
@@ -71,7 +67,7 @@ Future<void> main() async {
     final loaded = await weather.loadChat(snapshotId: chat.snapshotId);
     stdout.writeln('restored messages: ${loaded.messages.length}');
     stdout.writeln('loaded.state: ${_pretty(loaded.state)}');
-    final res3 = await loaded.send(agentInputFromText('And London?'));
+    final res3 = await loaded.sendText('And London?');
     stdout.writeln('text: ${res3.text}');
   }
 
@@ -80,7 +76,7 @@ Future<void> main() async {
   try {
     final bad = remoteAgent(url: '$_base/api/does-not-exist');
 
-    await bad.chat().send(agentInputFromText('hello'));
+    await bad.chat().sendText('hello');
   } catch (err) {
     if (err is AgentError) {
       stdout.writeln('caught AgentError, status: ${err.status}');

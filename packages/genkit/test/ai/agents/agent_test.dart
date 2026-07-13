@@ -76,11 +76,11 @@ void main() {
       );
 
       final chat = agent.chat();
-      final res1 = await chat.send(agentInputFromText('hi'));
+      final res1 = await chat.sendText('hi');
       expect(res1.finishReason, AgentFinishReason.stop);
       expect(chat.state, {'count': 1});
 
-      final res2 = await chat.send(agentInputFromText('again'));
+      final res2 = await chat.sendText('again');
       expect(res2.finishReason, AgentFinishReason.stop);
       expect(chat.state, {'count': 2});
     });
@@ -112,7 +112,7 @@ void main() {
       );
 
       final chat = agent.chat();
-      final turn = chat.sendStream(agentInputFromText('go'));
+      final turn = chat.sendTextStream('go');
 
       final texts = <String>[];
       final customs = <dynamic>[];
@@ -153,11 +153,11 @@ void main() {
       );
 
       final chat = agent.chat();
-      await chat.send(agentInputFromText('first'));
+      await chat.sendText('first');
       expect(chat.state, {'ok': true});
 
       await expectLater(
-        chat.send(agentInputFromText('second')),
+        chat.sendText('second'),
         throwsA(
           isA<AgentError>()
               .having((e) => e.status, 'status', 'INTERNAL')
@@ -201,7 +201,7 @@ void main() {
 
       final sessionId = generateUuidV4();
       final chat = agent.chat(sessionId: sessionId);
-      final res1 = await chat.send(agentInputFromText('one'));
+      final res1 = await chat.sendText('one');
       expect(res1.snapshotId, isNotNull);
 
       // A fresh chat resuming the same session sees prior state.
@@ -210,7 +210,7 @@ void main() {
       expect(snapshot!.state?.custom, {'count': 1});
 
       final chat2 = agent.chat(sessionId: sessionId);
-      await chat2.send(agentInputFromText('two'));
+      await chat2.sendText('two');
       final snapshot2 = await agent.getSnapshot(sessionId: sessionId);
       expect(snapshot2!.state?.custom, {'count': 2});
     });
@@ -237,7 +237,7 @@ void main() {
       final chat = agent.chat(sessionId: sessionId);
 
       // An attached turn first, to establish a parent snapshot.
-      final first = await chat.send(agentInputFromText('one'));
+      final first = await chat.sendText('one');
       final parentId = first.snapshotId;
       expect(parentId, isNotNull);
 
@@ -245,8 +245,10 @@ void main() {
       // upgrades that same id to `completed` in the background. The upgrade
       // must keep the parent of the reserved snapshot rather than pointing the
       // snapshot at itself.
-      final task = await chat.detach(agentInputFromText('two'));
-      final terminal = await task.wait(intervalMs: 10);
+      final task = await chat.detachText('two');
+      final terminal = await task.wait(
+        interval: const Duration(milliseconds: 10),
+      );
 
       expect(terminal.status?.value, 'completed');
       expect(terminal.snapshotId, isNot(parentId));
@@ -278,10 +280,10 @@ void main() {
 
       final sessionId = generateUuidV4();
       final chat = agent.chat(sessionId: sessionId);
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.sendText('hi');
       final prior = await agent.abort(res.snapshotId!);
       // Turn already completed, so abort reports the prior status.
-      expect(prior, 'completed');
+      expect(prior?.value, 'completed');
     });
 
     test('abortAgentAction round-trips typed request/response', () async {
@@ -299,7 +301,7 @@ void main() {
 
       final sessionId = generateUuidV4();
       final chat = agent.chat(sessionId: sessionId);
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.sendText('hi');
 
       final response = await agent.abortAgentAction(
         AgentAbortRequest(snapshotId: res.snapshotId!),
@@ -391,7 +393,7 @@ void main() {
       );
 
       final chat = agent.chat();
-      final res = await chat.send(agentInputFromText('world'));
+      final res = await chat.sendText('world');
       expect(res.text, 'echo: world');
       expect(res.finishReason, AgentFinishReason.stop);
     });
@@ -400,8 +402,8 @@ void main() {
       final agent = ai.defineAgent(name: 'assistant2', model: modelRef('echo'));
 
       final chat = agent.chat();
-      await chat.send(agentInputFromText('first'));
-      final res2 = await chat.send(agentInputFromText('second'));
+      await chat.sendText('first');
+      final res2 = await chat.sendText('second');
       expect(res2.text, 'echo: second');
       // History should include both user turns + model replies.
       expect(chat.messages.length, greaterThanOrEqualTo(4));
@@ -437,7 +439,7 @@ void main() {
       );
 
       final chat = agent.chat();
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.sendText('hi');
       expect(res.text, 'system: You greet Sparky warmly.');
     });
   });
@@ -465,7 +467,7 @@ void main() {
       );
 
       expect(ai.currentSession(), isNull);
-      await agent.chat().send(agentInputFromText('hi'));
+      await agent.chat().sendText('hi');
       expect(seen, isNotNull);
     });
   });

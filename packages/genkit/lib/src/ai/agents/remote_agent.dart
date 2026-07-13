@@ -23,6 +23,7 @@ library;
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
 
 import '../../client/client.dart';
 import '../../types.dart';
@@ -39,6 +40,9 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 /// - [headers]: Optional. Static headers, or a function called per request.
 /// - [stateManagement]: Optional. Declares server- vs client-managed state;
 ///   inferred otherwise.
+/// - [stateSchema]: Optional. When provided, `chat().state` / `res.state` return
+///   parsed `State` instances (e.g. a schemantic-generated class) instead of the
+///   raw JSON map. When omitted, state is a bare view cast over the JSON.
 /// - [httpClient]: Optional. Provide to control the HTTP client lifecycle. When
 ///   supplied, the client stays caller-owned and is not closed by [AgentApi.close];
 ///   when omitted, an internal client is created and closed by [AgentApi.close].
@@ -46,19 +50,20 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 /// ```dart
 /// final agent = remoteAgent(url: 'http://host/weatherAgent');
 /// final chat = agent.chat();
-/// final res = await chat.send(agentInputFromText('Weather in Tokyo?'));
+/// final res = await chat.sendText('Weather in Tokyo?');
 /// print(res.text);
 /// // Release the internally-created HTTP client when done.
 /// await agent.close();
 /// ```
-AgentApi remoteAgent({
+AgentApi<State> remoteAgent<State>({
   required String url,
   String? getSnapshotUrl,
   String? abortUrl,
   HeadersResolver? headers,
-  String? stateManagement,
+  AgentStateManagement? stateManagement,
+  SchemanticType<State>? stateSchema,
   http.Client? httpClient,
-}) => createAgentApi(
+}) => AgentApi<State>(
   _HttpAgentTransport(
     url: url,
     getSnapshotUrl: getSnapshotUrl,
@@ -67,6 +72,7 @@ AgentApi remoteAgent({
     stateManagement: stateManagement,
     httpClient: httpClient,
   ),
+  stateSchema: stateSchema,
 );
 
 class _HttpAgentTransport extends AgentTransport {
@@ -75,7 +81,7 @@ class _HttpAgentTransport extends AgentTransport {
     String? getSnapshotUrl,
     String? abortUrl,
     HeadersResolver? headers,
-    String? stateManagement,
+    AgentStateManagement? stateManagement,
     http.Client? httpClient,
   }) : _headers = headers,
        // Track ownership: only close a client we created. A caller-passed
@@ -219,13 +225,13 @@ class _HttpAgentTransport extends AgentTransport {
   }
 
   @override
-  Future<String?> abort(String snapshotId) async {
+  Future<SnapshotStatus?> abort(String snapshotId) async {
     final headers = await _resolveHeaders();
     final response = await _abortAction.call(
       input: AgentAbortRequest(snapshotId: snapshotId),
       headers: headers,
     );
-    return response.status?.value;
+    return response.status;
   }
 
   @override

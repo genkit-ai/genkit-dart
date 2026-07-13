@@ -57,7 +57,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
     });
 
     try {
-      final task = await _agent.chat().detach(agentInputFromText(topic));
+      final task = await _agent.chat().detachText(topic);
       setState(() {
         _task = task;
         _snapshotId = task.snapshotId;
