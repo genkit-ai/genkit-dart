@@ -13,21 +13,32 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'api_client.dart';
 import 'common_plugin.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'known_models.dart';
 import 'model.dart';
 
 @visibleForTesting
 class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   String? apiKey;
 
-  GoogleGenAiPluginImpl({this.apiKey});
+  /// Test-only HTTP transport. When set it replaces the API-key client for
+  /// every request (any per-request `apiKey` option is ignored) and is never
+  /// closed by the plugin; the caller owns its lifecycle.
+  @visibleForTesting
+  final http.Client? httpClient;
+
+  GoogleGenAiPluginImpl({this.apiKey, this.httpClient});
 
   @override
   String get name => 'googleai';
+
+  @override
+  final Map<String, ModelInfo> knownModels = knownGeminiModels;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
@@ -35,7 +46,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   ]) async {
     return GenerativeLanguageBaseClient(
       baseUrl: 'https://generativelanguage.googleapis.com/',
-      client: httpClientFromApiKey(requestApiKey ?? apiKey),
+      client: httpClient ?? httpClientFromApiKey(requestApiKey ?? apiKey),
     );
   }
 
@@ -49,24 +60,33 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         modelsResponse = await service.listModels(pageSize: 1000);
       } catch (e, stack) {
         logger.warning('Failed to list models: $e', e, stack);
-        throw handleException(e, stack);
+        return knownModels.entries.map(_curatedModelMetadata).toList();
       }
+      final discoveredNames = <String>{};
       final models = (modelsResponse.models ?? [])
           .where((model) {
             return model.name != null &&
                 model.name!.startsWith('models/gemini-');
           })
           .map((model) {
-            final isTts = model.name!.contains('-tts');
+            final bareName = model.name!.split('/').last;
+            discoveredNames.add(bareName);
+            final isTts = bareName.contains('-tts');
             return modelMetadata(
-              '$name/${model.name!.split('/').last}',
+              '$name/$bareName',
               customOptions: isTts
                   ? GeminiTtsOptions.$schema
                   : GeminiOptions.$schema,
-              modelInfo: commonModelInfo,
+              modelInfo: modelInfoFor(bareName),
             );
           })
           .toList();
+
+      // Curated models are listed even when model discovery omits them.
+      final curated = knownModels.entries
+          .where((entry) => !discoveredNames.contains(entry.key))
+          .map(_curatedModelMetadata);
+
       final embedders = (modelsResponse.models ?? [])
           .where(
             (model) =>
@@ -78,14 +98,28 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             return embedderMetadata('$name/${model.name!.split('/').last}');
           })
           .toList();
-      return [...models, ...embedders];
+      return [...models, ...curated, ...embedders];
     } catch (e, stack) {
       if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
       throw handleException(e, stack);
     } finally {
-      service.client.close();
+      if (httpClient == null) {
+        service.client.close();
+      }
     }
+  }
+
+  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _curatedModelMetadata(
+    MapEntry<String, ModelInfo> entry,
+  ) {
+    return modelMetadata(
+      '$name/${entry.key}',
+      customOptions: entry.key.contains('-tts')
+          ? GeminiTtsOptions.$schema
+          : GeminiOptions.$schema,
+      modelInfo: entry.value,
+    );
   }
 
   @override
@@ -145,7 +179,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
-          service.client.close();
+          if (httpClient == null) {
+            service.client.close();
+          }
         }
       },
     );
