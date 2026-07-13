@@ -15,6 +15,7 @@
 import 'package:genkit/plugin.dart';
 
 import 'src/google_api_client.dart';
+import 'src/known_models.dart';
 import 'src/model.dart';
 
 export 'src/model.dart';
@@ -38,4 +39,26 @@ class GoogleGenAiPluginHandle {
       customOptions: TextEmbedderOptions.$schema,
     );
   }
+}
+
+/// Typed [ModelRef]s for the curated Gemini models.
+///
+/// Each entry is equivalent to `googleAI.gemini('<name>')`, which remains the
+/// escape hatch for models not listed here.
+abstract final class GeminiModels {
+  static final ModelRef<GeminiOptions> gemini35Flash = googleAI.gemini(
+    KnownGeminiModel.gemini35Flash.id,
+  );
+
+  static final ModelRef<GeminiOptions> gemini31FlashLite = googleAI.gemini(
+    KnownGeminiModel.gemini31FlashLite.id,
+  );
+
+  static final ModelRef<GeminiOptions> gemini31FlashImage = googleAI.gemini(
+    KnownGeminiModel.gemini31FlashImage.id,
+  );
+
+  static final ModelRef<GeminiOptions> gemini3ProImage = googleAI.gemini(
+    KnownGeminiModel.gemini3ProImage.id,
+  );
 }
