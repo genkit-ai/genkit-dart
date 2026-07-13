@@ -46,7 +46,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   ]) async {
     return GenerativeLanguageBaseClient(
       baseUrl: 'https://generativelanguage.googleapis.com/',
-      client: httpClient ?? httpClientFromApiKey(requestApiKey ?? apiKey),
+      client: httpClient != null
+          ? _NonClosingClient(httpClient!)
+          : httpClientFromApiKey(requestApiKey ?? apiKey),
     );
   }
 
@@ -104,9 +106,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       logger.warning('Failed to list models: $e', e, stack);
       throw handleException(e, stack);
     } finally {
-      if (httpClient == null) {
-        service.client.close();
-      }
+      service.client.close();
     }
   }
 
@@ -179,11 +179,21 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
-          if (httpClient == null) {
-            service.client.close();
-          }
+          service.client.close();
         }
       },
     );
   }
+}
+
+/// Delegates to a caller-owned client but ignores `close()`, so the plugin's
+/// per-call cleanup never tears down an injected transport.
+class _NonClosingClient extends http.BaseClient {
+  _NonClosingClient(this._inner);
+
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
 }
