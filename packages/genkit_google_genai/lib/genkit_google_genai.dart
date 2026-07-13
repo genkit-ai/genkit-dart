@@ -41,11 +41,11 @@ class GoogleGenAiPluginHandle {
   }
 }
 
-/// Typed [ModelRef]s for the curated Gemini models.
+/// Typed [ModelRef]s for the Gemini models curated by the googleai plugin.
 ///
 /// Each entry is equivalent to `googleAI.gemini('<name>')`, which remains the
 /// escape hatch for models not listed here.
-abstract final class GeminiModels {
+abstract final class GoogleAiModels {
   static final ModelRef<GeminiOptions> gemini35Flash = googleAI.gemini(
     KnownGeminiModel.gemini35Flash.id,
   );

@@ -29,7 +29,6 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   /// Test-only HTTP transport. When set it replaces the API-key client for
   /// every request (any per-request `apiKey` option is ignored) and is never
   /// closed by the plugin; the caller owns its lifecycle.
-  @visibleForTesting
   final http.Client? httpClient;
 
   GoogleGenAiPluginImpl({this.apiKey, this.httpClient});
