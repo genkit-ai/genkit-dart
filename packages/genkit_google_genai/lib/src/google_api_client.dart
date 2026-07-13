@@ -60,6 +60,10 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       try {
         modelsResponse = await service.listModels(pageSize: 1000);
       } catch (e, stack) {
+        // Any discovery failure (network, auth, quota) degrades to the curated
+        // catalog rather than rethrowing, matching the anthropic plugin. The
+        // Go and JS plugins swallow these errors too but return an empty list;
+        // a misconfigured key still fails loudly at generate time.
         logger.warning('Failed to list models: $e', e, stack);
         return knownModels.entries.map(_curatedModelMetadata).toList();
       }
