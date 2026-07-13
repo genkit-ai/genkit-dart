@@ -501,7 +501,7 @@ void main() {
       final raw = AgentOutput(
         message: Message(role: Role.model, content: [part]),
       );
-      final response = AgentResponse(raw, []);
+      final response = AgentResponse.forTesting(raw, []);
       expect(response.interrupts.length, 1);
       final interrupt = response.interrupts.first;
       expect(interrupt.name, 'userApproval');
@@ -527,7 +527,7 @@ void main() {
           toolRequest: ToolRequest(name: 'tool', ref: 'r', input: input),
           metadata: {'interrupt': true},
         );
-        final response = AgentResponse(
+        final response = AgentResponse.forTesting(
           AgentOutput(
             message: Message(role: Role.model, content: [part]),
           ),

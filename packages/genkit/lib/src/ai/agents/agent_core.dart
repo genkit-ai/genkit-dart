@@ -29,6 +29,7 @@ library;
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../schema_extensions.dart';
@@ -224,13 +225,19 @@ class AgentInterrupt<Input, Output> {
 /// The completed result of a turn. Mirrors `GenerateResponse` and adds the
 /// agent fields (`snapshotId`, `state`, `artifacts`).
 class AgentResponse<State> {
-  AgentResponse(
+  AgentResponse._(
     this._raw,
     this._messages, [
     this._fallbackState,
     this._fallbackSessionId,
     this._stateSchema,
   ]);
+
+  /// Test-only constructor for building a response directly from a raw
+  /// [AgentOutput] and message list, bypassing a transport turn.
+  @visibleForTesting
+  AgentResponse.forTesting(AgentOutput raw, List<Message> messages)
+    : this._(raw, messages);
 
   final AgentOutput _raw;
   final List<Message> _messages;
@@ -312,7 +319,7 @@ class AgentResponse<State> {
 /// A streamed chunk. Mirrors `GenerateResponseChunk` and adds the agent fields
 /// (`artifact`, `custom`).
 class AgentChunk<State> {
-  AgentChunk(this._raw, this._previousText);
+  AgentChunk._(this._raw, this._previousText);
 
   final AgentStreamChunk _raw;
   final String _previousText;
@@ -351,7 +358,7 @@ class AgentChunk<State> {
 /// A single in-flight turn — the analog of `generateStream`'s
 /// `{stream, response}`, plus [abort].
 class AgentTurn<State> {
-  AgentTurn({
+  AgentTurn._({
     required this.stream,
     required this.response,
     required void Function() onAbort,
@@ -402,7 +409,7 @@ class AgentError<State> implements Exception {
 
 /// A handle to a background (detached) task.
 class DetachedTask {
-  DetachedTask(this.snapshotId, this._transport);
+  DetachedTask._(this.snapshotId, this._transport);
 
   final String snapshotId;
   final AgentTransport _transport;
@@ -460,14 +467,14 @@ class DetachedTask {
 /// A stateful conversation with an agent. Tracks state across turns so callers
 /// do not have to thread `snapshotId`/`state` by hand.
 class AgentChat<State> {
-  AgentChat(this._transport, [this._connectInit, this._stateSchema]) {
+  AgentChat._(this._transport, [this._connectInit, this._stateSchema]) {
     final init = _connectInit;
     if (init != null) {
       if (init.snapshotId != null) {
-        snapshotId = init.snapshotId;
+        _snapshotId = init.snapshotId;
       }
       if (init.sessionId != null) {
-        sessionId = init.sessionId;
+        _sessionId = init.sessionId;
       }
       final state = init.state;
       if (state != null) {
@@ -483,14 +490,28 @@ class AgentChat<State> {
   /// instance; when `null`, [state] is a bare view cast over the JSON.
   final SchemanticType<State>? _stateSchema;
 
-  String? snapshotId;
+  String? _snapshotId;
+
+  /// The snapshot id tracked across turns of this conversation.
+  String? get snapshotId => _snapshotId;
 
   /// The server-assigned session id, populated from each turn's
   /// [AgentOutput.sessionId]. Lets a server-managed chat be resumed by
   /// `sessionId` later.
-  String? sessionId;
-  List<Message> messages = [];
-  List<Artifact> artifacts = [];
+  String? _sessionId;
+
+  /// Stable identifier correlating snapshots/turns of this conversation.
+  String? get sessionId => _sessionId;
+
+  List<Message> _messages = [];
+
+  /// The running message history of this conversation.
+  List<Message> get messages => _messages;
+
+  List<Artifact> _artifacts = [];
+
+  /// The artifacts accumulated across this conversation.
+  List<Artifact> get artifacts => _artifacts;
 
   SessionState? _clientState;
 
@@ -500,24 +521,24 @@ class AgentChat<State> {
   /// session state.
   void _hydrateFromState(SessionState? state) {
     _clientState = state;
-    messages = state?.messages != null ? [...state!.messages!] : [];
-    artifacts = state?.artifacts != null ? [...state!.artifacts!] : [];
+    _messages = state?.messages != null ? [...state!.messages!] : [];
+    _artifacts = state?.artifacts != null ? [...state!.artifacts!] : [];
     if (state?.sessionId != null) {
-      sessionId = state!.sessionId;
+      _sessionId = state!.sessionId;
     }
   }
 
   /// Loads aggregates from a server snapshot (used by `loadChat`).
-  void loadFromSnapshot(SessionSnapshot snapshot) {
-    snapshotId = snapshot.snapshotId;
+  void _loadFromSnapshot(SessionSnapshot snapshot) {
+    _snapshotId = snapshot.snapshotId;
     _hydrateFromState(snapshot.state);
   }
 
   /// Builds the init for the next turn from tracked aggregates. Always returns
   /// an object (never `null`) — an empty init is the valid "fresh session".
   AgentInit _buildInit() {
-    if (snapshotId != null) {
-      return AgentInit(snapshotId: snapshotId);
+    if (_snapshotId != null) {
+      return AgentInit(snapshotId: _snapshotId);
     }
     if (_clientState != null) {
       return AgentInit(state: _clientState);
@@ -528,7 +549,7 @@ class AgentChat<State> {
   /// Applies a completed turn's output to the running aggregates.
   void _applyOutput(AgentOutput raw) {
     if (raw.snapshotId != null) {
-      snapshotId = raw.snapshotId;
+      _snapshotId = raw.snapshotId;
     }
     if (raw.state != null) {
       _clientState = raw.state;
@@ -542,30 +563,30 @@ class AgentChat<State> {
     }
     final stateMessages = raw.state?.messages;
     if (stateMessages != null) {
-      messages = [...stateMessages];
+      _messages = [...stateMessages];
     } else if (raw.message != null) {
-      messages.add(raw.message!);
+      _messages.add(raw.message!);
     }
     // Adopt the server-assigned sessionId so future turns of a server-managed
     // chat resume the same conversation.
     final outSessionId = raw.sessionId;
     if (outSessionId != null) {
-      sessionId = outSessionId;
+      _sessionId = outSessionId;
     }
 
     final stateArtifacts = raw.state?.artifacts;
     if (stateArtifacts != null) {
-      artifacts = [...stateArtifacts];
+      _artifacts = [...stateArtifacts];
     } else if (raw.artifacts != null && raw.artifacts!.isNotEmpty) {
       for (final a in raw.artifacts!) {
         final name = a.name;
         final idx = name != null
-            ? artifacts.indexWhere((x) => x.name == name)
+            ? _artifacts.indexWhere((x) => x.name == name)
             : -1;
         if (idx >= 0) {
-          artifacts[idx] = a;
+          _artifacts[idx] = a;
         } else {
-          artifacts.add(a);
+          _artifacts.add(a);
         }
       }
     }
@@ -670,7 +691,7 @@ class AgentChat<State> {
 
   /// Builds an [AgentResponse] for [raw] over a snapshot of the current
   /// aggregates (messages, state, sessionId).
-  AgentResponse<State> _response(AgentOutput raw) => AgentResponse<State>(
+  AgentResponse<State> _response(AgentOutput raw) => AgentResponse<State>._(
     raw,
     [...messages],
     () => state,
@@ -698,7 +719,7 @@ class AgentChat<State> {
     // `aborted` response, and leave `messages` untouched. Mirrors the JS
     // core's pre-aborted short-circuit.
     if (token.isCancelled) {
-      return AgentTurn<State>(
+      return AgentTurn<State>._(
         stream: const Stream.empty(),
         response: Future.value(_abortedResponse()),
         onAbort: () {},
@@ -723,14 +744,14 @@ class AgentChat<State> {
     );
     // Avoid unhandled-rejection warnings when only the stream is consumed.
     responsePromise.catchError(
-      (_) => AgentResponse<State>(AgentOutput(), messages),
+      (_) => AgentResponse<State>._(AgentOutput(), messages),
     );
 
     Stream<AgentChunk<State>> buildStream() async* {
       var previousText = '';
       try {
         await for (final raw in turn.stream) {
-          final chunk = AgentChunk<State>(raw, previousText);
+          final chunk = AgentChunk<State>._(raw, previousText);
           previousText = chunk.accumulatedText;
           // Keep the locally tracked custom state live mid-stream by applying
           // each streamed JSON Patch to it; surface the post-patch state on
@@ -753,7 +774,7 @@ class AgentChat<State> {
       await responsePromise;
     }
 
-    return AgentTurn<State>(
+    return AgentTurn<State>._(
       stream: buildStream(),
       response: responsePromise,
       onAbort: token.cancel,
@@ -807,7 +828,7 @@ class AgentChat<State> {
     if (id == null) {
       throw StateError('detach did not return a snapshotId.');
     }
-    return DetachedTask(id, _transport);
+    return DetachedTask._(id, _transport);
   }
 
   /// Submits a detached (background) turn from free-form [text]. Requires a
@@ -851,6 +872,7 @@ class AgentChat<State> {
 /// returned by `ai.defineAgent(...)` on the server and by `remoteAgent(...)`
 /// on the client.
 class AgentApi<State> {
+  @internal
   AgentApi(this._transport, {SchemanticType<State>? stateSchema})
     : _stateSchema = stateSchema;
 
@@ -873,9 +895,9 @@ class AgentApi<State> {
       'Provide at most one of snapshotId, sessionId, or state.',
     );
     if (snapshotId == null && sessionId == null && state == null) {
-      return AgentChat<State>(_transport, null, _stateSchema);
+      return AgentChat<State>._(_transport, null, _stateSchema);
     }
-    return AgentChat<State>(
+    return AgentChat<State>._(
       _transport,
       AgentInit(snapshotId: snapshotId, sessionId: sessionId, state: state),
       _stateSchema,
@@ -900,8 +922,8 @@ class AgentApi<State> {
       final id = snapshotId ?? 'session $sessionId';
       throw StateError('Snapshot $id not found.');
     }
-    final chat = AgentChat<State>(_transport, null, _stateSchema);
-    chat.loadFromSnapshot(snapshot);
+    final chat = AgentChat<State>._(_transport, null, _stateSchema);
+    chat._loadFromSnapshot(snapshot);
     return chat;
   }
 
