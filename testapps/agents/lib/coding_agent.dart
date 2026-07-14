@@ -32,12 +32,12 @@ library;
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/io.dart';
 import 'package:genkit_middleware/filesystem.dart';
 import 'package:genkit_middleware/skills.dart';
 import 'package:genkit_middleware/tool_approval.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
-import 'package:genkit/io.dart';
 
 import 'genkit.dart';
 

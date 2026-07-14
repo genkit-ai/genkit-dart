@@ -421,15 +421,82 @@ class AgentError<State> implements Exception {
 }
 
 // ---------------------------------------------------------------------------
+// AgentSnapshot
+// ---------------------------------------------------------------------------
+
+/// A generate-style, typed veneer over a raw [SessionSnapshot]. Mirrors how
+/// [AgentResponse] wraps an [AgentOutput]: it delegates the snapshot's scalar
+/// fields and surfaces the aggregates ([messages], [artifacts]) and the typed
+/// custom state ([custom]), while keeping the untyped wire objects reachable
+/// via [sessionState] / [raw].
+///
+/// Because [SessionSnapshot] is a generated schemantic type it cannot carry a
+/// `State` type parameter itself; this wrapper provides it by composition.
+class AgentSnapshot<State> {
+  AgentSnapshot._(this._raw, [this._stateSchema]);
+
+  /// Test-only constructor for building a snapshot wrapper directly from a raw
+  /// [SessionSnapshot], bypassing a transport read.
+  @visibleForTesting
+  AgentSnapshot.forTesting(SessionSnapshot raw) : this._(raw);
+
+  final SessionSnapshot _raw;
+
+  /// Optional schema used to `parse` the raw wire state into a typed [State]
+  /// instance; when `null`, [custom] is a bare view cast over the JSON.
+  final SchemanticType<State>? _stateSchema;
+
+  String get snapshotId => _raw.snapshotId;
+
+  /// Stable identifier correlating snapshots/turns of this conversation.
+  String? get sessionId => _raw.sessionId;
+
+  String? get parentId => _raw.parentId;
+
+  String get createdAt => _raw.createdAt;
+
+  String? get updatedAt => _raw.updatedAt;
+
+  String? get heartbeatAt => _raw.heartbeatAt;
+
+  SnapshotStatus? get status => _raw.status;
+
+  AgentFinishReason? get finishReason => _raw.finishReason;
+
+  AgentErrorInfo? get error => _raw.error;
+
+  /// The message history carried by this snapshot's session state.
+  List<Message> get messages => _raw.state?.messages ?? [];
+
+  /// The artifacts carried by this snapshot's session state.
+  List<Artifact> get artifacts => _raw.state?.artifacts ?? [];
+
+  /// The typed custom state, cast/parsed via the optional schema. `null` when
+  /// the snapshot carries no custom state.
+  State? get custom => _castOrParseState(_raw.state?.custom, _stateSchema);
+
+  /// The raw session state (with untyped `custom`), if you need it.
+  SessionState? get sessionState => _raw.state;
+
+  /// The underlying raw [SessionSnapshot].
+  SessionSnapshot get raw => _raw;
+}
+
+// ---------------------------------------------------------------------------
 // DetachedTask
 // ---------------------------------------------------------------------------
 
 /// A handle to a background (detached) task.
-class DetachedTask {
-  DetachedTask._(this.snapshotId, this._transport);
+class DetachedTask<State> {
+  DetachedTask._(this.snapshotId, this._transport, [this._stateSchema]);
 
   final String snapshotId;
   final AgentTransport _transport;
+
+  /// Optional schema used to `parse` the raw wire state into a typed [State]
+  /// instance on the snapshots this task yields; when `null`, state is a bare
+  /// view cast over the JSON.
+  final SchemanticType<State>? _stateSchema;
 
   /// Yields status until a terminal state.
   ///
@@ -438,7 +505,7 @@ class DetachedTask {
   /// `null` read is tolerated. But a snapshot that never appears (deleted, or a
   /// bad id) would otherwise loop forever and leak this poller, so give up
   /// after [maxConsecutiveMisses] consecutive misses.
-  Stream<SessionSnapshot> poll({
+  Stream<AgentSnapshot<State>> poll({
     Duration interval = const Duration(seconds: 1),
     int maxConsecutiveMisses = 10,
   }) async* {
@@ -451,7 +518,7 @@ class DetachedTask {
         }
       } else {
         misses = 0;
-        yield snap;
+        yield AgentSnapshot<State>._(snap, _stateSchema);
         final status = snap.status;
         if (status != null && _terminalStatuses.contains(status.value)) return;
       }
@@ -460,10 +527,10 @@ class DetachedTask {
   }
 
   /// Resolves when the task reaches a terminal state.
-  Future<SessionSnapshot> wait({
+  Future<AgentSnapshot<State>> wait({
     Duration interval = const Duration(seconds: 1),
   }) async {
-    SessionSnapshot? last;
+    AgentSnapshot<State>? last;
     await for (final snap in poll(interval: interval)) {
       last = snap;
     }
@@ -869,7 +936,7 @@ class AgentChat<State> {
   /// honored by the in-process transport (observable by the agent handler via
   /// `getContext()`); the remote transport rejects a non-empty context with an
   /// [UnsupportedError] (see [AgentTransport]).
-  Future<DetachedTask> detach(
+  Future<DetachedTask<State>> detach(
     AgentInput input, {
     Map<String, dynamic>? context,
   }) async {
@@ -897,12 +964,12 @@ class AgentChat<State> {
     if (id == null) {
       throw StateError('detach did not return a snapshotId.');
     }
-    return DetachedTask._(id, _transport);
+    return DetachedTask<State>._(id, _transport, _stateSchema);
   }
 
   /// Submits a detached (background) turn from free-form [text]. Requires a
   /// store. Sugar for [detach] with a single user text message.
-  Future<DetachedTask> detachText(
+  Future<DetachedTask<State>> detachText(
     String text, {
     Map<String, dynamic>? context,
   }) => detach(_agentInputFromText(text), context: context);
@@ -999,10 +1066,20 @@ class AgentApi<State> {
   }
 
   /// Reads a snapshot without starting a chat. Requires a server store.
-  Future<SessionSnapshot?> getSnapshot({
+  ///
+  /// Returns a typed [AgentSnapshot] wrapper (with the same `stateSchema`
+  /// applied to `snapshot.state`), or `null` when no snapshot is found.
+  Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
-  }) => _transport.getSnapshot(snapshotId: snapshotId, sessionId: sessionId);
+  }) async {
+    final snapshot = await _transport.getSnapshot(
+      snapshotId: snapshotId,
+      sessionId: sessionId,
+    );
+    if (snapshot == null) return null;
+    return AgentSnapshot<State>._(snapshot, _stateSchema);
+  }
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.

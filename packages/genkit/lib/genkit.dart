@@ -40,6 +40,7 @@ export 'src/ai/agents/agent_core.dart'
         AgentError,
         AgentInterrupt,
         AgentResponse,
+        AgentSnapshot,
         AgentTransport,
         AgentTurn,
         CancellationToken,

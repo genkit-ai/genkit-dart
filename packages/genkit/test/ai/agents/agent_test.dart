@@ -218,6 +218,7 @@ void main() {
       final agent = ai.defineCustomAgent(
         name: 'persistent',
         store: store,
+        stateSchema: .map(.string(), .integer()),
         fn: (sess, options) async {
           await sess.run((input, ctx) async {
             sess.updateCustom((custom) {
@@ -243,12 +244,12 @@ void main() {
       // A fresh chat resuming the same session sees prior state.
       final snapshot = await agent.getSnapshot(sessionId: sessionId);
       expect(snapshot, isNotNull);
-      expect(snapshot!.state?.custom, {'count': 1});
+      expect(snapshot!.custom, {'count': 1});
 
       final chat2 = agent.chat(sessionId: sessionId);
       await chat2.sendText('two');
       final snapshot2 = await agent.getSnapshot(sessionId: sessionId);
-      expect(snapshot2!.state?.custom, {'count': 2});
+      expect(snapshot2!.custom, {'count': 2});
     });
 
     test('detached turn does not self-parent its snapshot', () async {
@@ -298,7 +299,7 @@ void main() {
 
       // ...and getSnapshot resolves the latest leaf cleanly.
       final snapshot = await agent.getSnapshot(sessionId: sessionId);
-      expect(snapshot!.state?.custom, {'count': 2});
+      expect(snapshot!.custom, {'count': 2});
     });
 
     test('abort returns the prior status', () async {

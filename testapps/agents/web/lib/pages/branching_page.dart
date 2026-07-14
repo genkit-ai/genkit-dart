@@ -102,7 +102,7 @@ class _BranchingPageState extends State<BranchingPage> {
   Future<void> _restore(String snapshotId) async {
     try {
       final snapshot = await _agent.getSnapshot(snapshotId: snapshotId);
-      final messages = snapshot?.state?.messages;
+      final messages = snapshot?.messages;
       if (messages != null) {
         final restored = <_ChatMessage>[];
         for (final msg in messages) {

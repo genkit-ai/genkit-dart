@@ -949,7 +949,10 @@ class Agent<State> {
       _api.loadChat(snapshotId: snapshotId, sessionId: sessionId);
 
   /// Reads a snapshot without starting a chat. Requires a server store.
-  Future<SessionSnapshot?> getSnapshot({
+  ///
+  /// Returns a typed [AgentSnapshot] wrapper (with the same `stateSchema`
+  /// applied to `snapshot.state`), or `null` when no snapshot is found.
+  Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
   }) => _api.getSnapshot(snapshotId: snapshotId, sessionId: sessionId);
