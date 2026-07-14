@@ -212,5 +212,61 @@ void main() {
       expect(client.requests[0].headers['authorization'], 'Bearer token-1');
       expect(client.requests[1].headers['authorization'], 'Bearer token-2');
     });
+
+    test('throws when a non-empty context is passed', () async {
+      final client = _MockClient((url, body) {
+        return <String>[
+          'data: ${jsonEncode({
+            'result': AgentOutput(
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ).toJson(),
+          })}',
+        ];
+      });
+
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
+      final chat = agent.chat();
+
+      // A remote agent cannot honor client-supplied context, so passing it is
+      // a hard error rather than a silent no-op.
+      expect(
+        () => chat.sendText(
+          'hi',
+          context: {
+            'auth': {'uid': 'user-123'},
+          },
+        ),
+        throwsA(isA<UnsupportedError>()),
+      );
+      // The rejected turn never hit the wire.
+      expect(client.requests, isEmpty);
+    });
+
+    test('ignores an empty/null context (stays polymorphic)', () async {
+      final client = _MockClient((url, body) {
+        return <String>[
+          'data: ${jsonEncode({
+            'result': AgentOutput(
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ).toJson(),
+          })}',
+        ];
+      });
+
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
+      final chat = agent.chat();
+
+      // An empty context is a no-op: the same call site can target either an
+      // in-process or a remote agent without special-casing.
+      final res = await chat.sendText('hi', context: const {});
+      expect(res.text, 'ok');
+      expect(client.requests, hasLength(1));
+    });
   });
 }

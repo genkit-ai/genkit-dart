@@ -55,6 +55,7 @@ class _FakeTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
     final script = _next();
     return (stream: script.streamOf(), output: script.outputOf());
@@ -65,6 +66,7 @@ class _FakeTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
     if (!supportsRun) return null;
     return _next().outputOf();
@@ -127,6 +129,7 @@ class _StepTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
     final step = _next();
     return (
@@ -140,6 +143,7 @@ class _StepTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
     if (!supportsRun) return null;
     return _next().resolve();
@@ -865,6 +869,7 @@ class _CaptureTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
     final output = _handler(input);
     return (
@@ -878,6 +883,7 @@ class _CaptureTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) => Future.value(_handler(input));
 
   @override

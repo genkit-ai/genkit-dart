@@ -116,18 +116,30 @@ abstract class AgentTransport {
 
   /// Runs a single turn, returning the streamed chunks plus a future for the
   /// final, non-throwing [AgentOutput].
+  ///
+  /// [context] is the ambient request context to run the turn under. It is only
+  /// meaningful for the in-process transport (which runs the turn under that
+  /// context, observable by the agent handler via `getContext()`). A remote
+  /// agent derives its context server-side from the incoming HTTP request
+  /// (headers, auth, etc.), so the remote transport rejects a non-empty
+  /// [context] with an [UnsupportedError] rather than silently dropping it.
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   });
 
   /// Runs a single turn without streaming. Returns `null` to signal the core
   /// should fall back to consuming [runTurn]'s `output`.
+  ///
+  /// [context] behaves as documented on [runTurn]: honored by the in-process
+  /// transport, rejected by the remote transport.
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) => null;
 
   /// Reads a snapshot. Requires a server store.
@@ -646,10 +658,16 @@ class AgentChat<State> {
 
   /// Runs a single turn from free-form [text] and resolves with the completed
   /// [AgentResponse]. Sugar for [send] with a single user text message.
+  ///
+  /// [context] is the ambient request context to run the turn under. It is only
+  /// honored by the in-process transport (observable by the agent handler via
+  /// `getContext()`); the remote transport rejects a non-empty context with an
+  /// [UnsupportedError] (see [AgentTransport]).
   Future<AgentResponse<State>> sendText(
     String text, {
     CancellationToken? cancel,
-  }) => send(_agentInputFromText(text), cancel: cancel);
+    Map<String, dynamic>? context,
+  }) => send(_agentInputFromText(text), cancel: cancel, context: context);
 
   /// Runs a single turn and resolves with the completed [AgentResponse].
   ///
@@ -664,6 +682,7 @@ class AgentChat<State> {
   Future<AgentResponse<State>> send(
     AgentInput input, {
     CancellationToken? cancel,
+    Map<String, dynamic>? context,
   }) async {
     final token = cancel ?? CancellationToken();
     // Bail before pushing the message or dispatching the turn if the caller's
@@ -672,7 +691,12 @@ class AgentChat<State> {
     if (token.isCancelled) {
       return _abortedResponse();
     }
-    final runFuture = _transport.run(input, _buildInit(), cancel: token);
+    final runFuture = _transport.run(
+      input,
+      _buildInit(),
+      cancel: token,
+      context: context,
+    );
     if (runFuture != null) {
       final messageCountBeforeTurn = messages.length;
       final inputMessage = input.message;
@@ -681,7 +705,7 @@ class AgentChat<State> {
       }
       return _buildResponse(runFuture, token, messageCountBeforeTurn);
     }
-    final turn = sendStream(input, cancel: token);
+    final turn = sendStream(input, cancel: token, context: context);
     // Drain the stream so custom-state patches are applied to the chat.
     await for (final _ in turn.stream) {
       // no-op: side effects (custom-state patches) happen as we iterate.
@@ -707,12 +731,24 @@ class AgentChat<State> {
 
   /// Runs a single turn from free-form [text] and returns an [AgentTurn]. Sugar
   /// for [sendStream] with a single user text message.
-  AgentTurn<State> sendTextStream(String text, {CancellationToken? cancel}) =>
-      sendStream(_agentInputFromText(text), cancel: cancel);
+  AgentTurn<State> sendTextStream(
+    String text, {
+    CancellationToken? cancel,
+    Map<String, dynamic>? context,
+  }) => sendStream(_agentInputFromText(text), cancel: cancel, context: context);
 
   /// Runs a single turn and returns an [AgentTurn] exposing `.stream` and
   /// `.response`.
-  AgentTurn<State> sendStream(AgentInput input, {CancellationToken? cancel}) {
+  ///
+  /// [context] is the ambient request context to run the turn under. It is only
+  /// honored by the in-process transport (observable by the agent handler via
+  /// `getContext()`); the remote transport rejects a non-empty context with an
+  /// [UnsupportedError] (see [AgentTransport]).
+  AgentTurn<State> sendStream(
+    AgentInput input, {
+    CancellationToken? cancel,
+    Map<String, dynamic>? context,
+  }) {
     final token = cancel ?? CancellationToken();
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: return an empty stream and a synthetic
@@ -735,7 +771,12 @@ class AgentChat<State> {
     }
     final init = _buildInit();
 
-    final turn = _transport.runTurn(input, init, cancel: token);
+    final turn = _transport.runTurn(
+      input,
+      init,
+      cancel: token,
+      context: context,
+    );
 
     final responsePromise = _buildResponse(
       turn.output,
@@ -785,13 +826,23 @@ class AgentChat<State> {
   Future<AgentResponse<State>> resume(
     AgentResume resume, {
     CancellationToken? cancel,
-  }) => send(AgentInput(resume: resume), cancel: cancel);
+    Map<String, dynamic>? context,
+  }) => send(
+    AgentInput(resume: resume),
+    cancel: cancel,
+    context: context,
+  );
 
   /// Streaming resume. Sugar for `sendStream` with only the resume params.
   AgentTurn<State> resumeStream(
     AgentResume resume, {
     CancellationToken? cancel,
-  }) => sendStream(AgentInput(resume: resume), cancel: cancel);
+    Map<String, dynamic>? context,
+  }) => sendStream(
+    AgentInput(resume: resume),
+    cancel: cancel,
+    context: context,
+  );
 
   /// Applies a streamed RFC 6902 JSON Patch to the locally tracked custom
   /// state, keeping [state] live as the turn streams.
@@ -808,7 +859,15 @@ class AgentChat<State> {
   }
 
   /// Submits a detached (background) turn. Requires a store.
-  Future<DetachedTask> detach(AgentInput input) async {
+  ///
+  /// [context] is the ambient request context to run the turn under. It is only
+  /// honored by the in-process transport (observable by the agent handler via
+  /// `getContext()`); the remote transport rejects a non-empty context with an
+  /// [UnsupportedError] (see [AgentTransport]).
+  Future<DetachedTask> detach(
+    AgentInput input, {
+    Map<String, dynamic>? context,
+  }) async {
     final agentInput = AgentInput(
       message: input.message,
       resume: input.resume,
@@ -821,7 +880,12 @@ class AgentChat<State> {
     final init = _buildInit();
 
     final token = CancellationToken();
-    final turn = _transport.runTurn(agentInput, init, cancel: token);
+    final turn = _transport.runTurn(
+      agentInput,
+      init,
+      cancel: token,
+      context: context,
+    );
     final raw = await turn.output;
     _applyOutput(raw);
     final id = raw.snapshotId;
@@ -833,8 +897,10 @@ class AgentChat<State> {
 
   /// Submits a detached (background) turn from free-form [text]. Requires a
   /// store. Sugar for [detach] with a single user text message.
-  Future<DetachedTask> detachText(String text) =>
-      detach(_agentInputFromText(text));
+  Future<DetachedTask> detachText(
+    String text, {
+    Map<String, dynamic>? context,
+  }) => detach(_agentInputFromText(text), context: context);
 
   /// Aborts the current snapshot.
   Future<SnapshotStatus?> abort() async {

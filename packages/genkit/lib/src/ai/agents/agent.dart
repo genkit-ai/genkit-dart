@@ -840,9 +840,10 @@ class _InProcessTransport extends AgentTransport {
 
   BidiActionStream<AgentStreamChunk, AgentOutput, AgentInput> _startBidi(
     AgentInput input,
-    AgentInit init,
-  ) {
-    final bidi = primaryAction.streamBidi(init: init);
+    AgentInit init, [
+    Map<String, dynamic>? context,
+  ]) {
+    final bidi = primaryAction.streamBidi(init: init, context: context);
     bidi.send(input);
     bidi.close();
     return bidi;
@@ -861,8 +862,9 @@ class _InProcessTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
-    final bidi = _startBidi(input, init);
+    final bidi = _startBidi(input, init, context);
     return (stream: bidi, output: bidi.onResult);
   }
 
@@ -873,8 +875,9 @@ class _InProcessTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
-    return _startBidi(input, init).onResult;
+    return _startBidi(input, init, context).onResult;
   }
 
   @override

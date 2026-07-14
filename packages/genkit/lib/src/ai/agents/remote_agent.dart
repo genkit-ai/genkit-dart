@@ -140,12 +140,32 @@ class _HttpAgentTransport extends AgentTransport {
     return headers();
   }
 
+  // A remote agent derives its context server-side from the incoming HTTP
+  // request (headers, auth, etc.), so a client-supplied [context] can never
+  // reach the handler. Rather than silently drop it (a subtle footgun, since
+  // context most often carries auth), fail fast: a caller passing context to a
+  // remote agent almost certainly expects it to take effect. Empty/null context
+  // is a no-op and is allowed, so the shared client surface still works
+  // polymorphically for callers that don't use context.
+  void _rejectContext(Map<String, dynamic>? context) {
+    if (context != null && context.isNotEmpty) {
+      throw UnsupportedError(
+        'A remote agent cannot accept client-supplied context: a remote agent '
+        'derives its context server-side from the incoming HTTP request. Send '
+        "the data via request headers (see remoteAgent's `headers`) and have "
+        'the server build its context from them instead.',
+      );
+    }
+  }
+
   @override
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
+    _rejectContext(context);
     final controller = StreamController<AgentStreamChunk>();
     final outputCompleter = Completer<AgentOutput>();
 
@@ -203,7 +223,9 @@ class _HttpAgentTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
+    _rejectContext(context);
     // Opt out of the non-streaming fast path: `send()` should always run the
     // turn over the streaming transport and drain the stream so a server-managed
     // agent's `customPatch` chunks are applied to the chat's tracked state. The

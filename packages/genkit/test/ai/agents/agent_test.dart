@@ -85,6 +85,42 @@ void main() {
       expect(chat.state, {'count': 2});
     });
 
+    test('passes custom context to the in-process agent handler', () async {
+      Map<String, dynamic>? seenContext;
+      final agent = ai.defineCustomAgent(
+        name: 'contextual',
+        fn: (sess, options) async {
+          seenContext = options.context;
+          await sess.run((input, ctx) async {
+            sess.addMessages([
+              Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ]);
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          final msgs = sess.getMessages();
+          return AgentResult(
+            message: msgs.isNotEmpty ? msgs.last : null,
+            finishReason: sess.lastTurnFinishReason,
+          );
+        },
+      );
+
+      final chat = agent.chat();
+      await chat.sendText(
+        'hi',
+        context: {
+          'auth': {'uid': 'user-123'},
+        },
+      );
+
+      expect(seenContext, {
+        'auth': {'uid': 'user-123'},
+      });
+    });
+
     test('streams model chunks and customPatch chunks', () async {
       final agent = ai.defineCustomAgent(
         name: 'streamer',
