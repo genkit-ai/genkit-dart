@@ -37,6 +37,7 @@ import 'package:genkit_middleware/skills.dart';
 import 'package:genkit_middleware/tool_approval.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
+import 'package:genkit/io.dart';
 
 import 'genkit.dart';
 
@@ -101,8 +102,8 @@ final runShell = ai.defineTool(
   outputSchema: RunShellOutput.$schema,
   fn: (input, ctx) async {
     // Check if this is a resumed (user-approved) invocation.
-    final resumed = ctx.toolRequest?.metadata?['resumed'];
-    final isApproved = resumed is Map && resumed['toolApproved'] == true;
+    final resumed = ctx.resumed;
+    final isApproved = resumed is Map && resumed['tool-approved'] == true;
 
     if (!isApproved) {
       // AI-powered safety gate — use a fast model to evaluate the command.
@@ -131,7 +132,7 @@ final runShell = ai.defineTool(
       if (verdict != null && verdict.verdict == 'risky') {
         // Interrupt — the client shows the command + reason and asks for
         // approval. If approved, the tool is restarted with
-        // { toolApproved: true }.
+        // { tool-approved: true }.
         ctx.interrupt({
           'command': input.command,
           'reason': verdict.reason,
@@ -221,6 +222,6 @@ Use markdown for all responses. Use code blocks with language tags for code snip
     // Automatic retry on transient model errors.
     retry(),
   ],
-  store: InMemorySessionStore(),
+  store: FileSessionStore('.sessions'),
   maxTurns: 30,
 );

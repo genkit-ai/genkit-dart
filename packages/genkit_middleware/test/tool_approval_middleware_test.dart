@@ -188,19 +188,16 @@ void main() {
 
         expect(response1.finishReason, FinishReason.interrupted);
 
-        // User confirms execution by re-running and placing 'tool-approved': true
-        // inside the interruptRestart configuration
-
+        // User confirms execution by re-running and placing the approval flag
+        // under the `resumed` metadata (via `restart`).
         final response2 = await genkit.generate(
           model: modelRef('approval-test-model-resume'),
           messages: response1.messages,
           use: [mw],
           interruptRestart: [
-            ToolRequestPart(
-              toolRequest:
-                  response1.message!.content.first.toolRequestPart!.toolRequest,
-              metadata: {'tool-approved': true},
-            ),
+            response1.message!.content.first.toolRequestPart!.restart({
+              'tool-approved': true,
+            }),
           ],
         );
 

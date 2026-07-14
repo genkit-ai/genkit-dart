@@ -110,7 +110,7 @@ for browser access.
   that call `ctx.interrupt(...)`. A tool can interrupt unconditionally (e.g.
   `ask_user`) or conditionally — the banking agent's `transferMoney` tool only
   interrupts for large, unapproved transfers, and is resumed by restarting it
-  with a `transfer-approved` flag in its metadata.
+  with a `transferApproved` flag in its metadata.
 - **Middleware:** the orchestrator uses the real `agents()` delegation
   middleware (auto-injecting `delegate_to_*` tools). The JS `artifacts()`
   middleware is not in the Dart middleware suite yet, so the workspace agent

@@ -170,7 +170,15 @@ extension PartExtension on Part {
 
 /// Extension methods for [ToolRequestPart].
 extension ToolRequestPartExtension on ToolRequestPart {
-  /// Returns a new [ToolRequestPart] with the given [metadata] merged in.
+  /// The resumed payload if this tool request was restarted after an interrupt.
+  ///
+  /// Reads the `resumed` metadata key populated by [restart]. Mirrors the
+  /// tool-side `ToolFnArgs.resumed` getter. Null when the request was not
+  /// resumed.
+  dynamic get resumed => metadata?['resumed'];
+
+  /// Returns a new [ToolRequestPart] with the given [metadata] merged into the
+  /// existing metadata.
   ToolRequestPart withMetadata(Map<String, dynamic> metadata) {
     return ToolRequestPart(
       toolRequest: toolRequest,
@@ -179,4 +187,20 @@ extension ToolRequestPartExtension on ToolRequestPart {
       custom: custom,
     );
   }
+
+  /// Returns a new [ToolRequestPart] marked for restart, with the given
+  /// [metadata] payload nested under the `resumed` field.
+  ///
+  /// Mirrors the JS `restart(interrupt, resumedMetadata)` convention where the
+  /// supplied payload is stored under `metadata.resumed`. The tool can read the
+  /// payload back via `ToolFnArgs.resumed`.
+  ToolRequestPart restart(Map<String, dynamic> metadata) {
+    return ToolRequestPart(
+      toolRequest: toolRequest,
+      data: data,
+      metadata: {...?this.metadata, 'resumed': metadata},
+      custom: custom,
+    );
+  }
 }
+

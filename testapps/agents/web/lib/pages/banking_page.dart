@@ -17,9 +17,9 @@
 /// The `transferMoney` tool guards large transfers with a conditional
 /// interrupt. When the agent pauses on it, an approve/deny dialog appears.
 /// Approving resumes the chat by *restarting* the tool with a
-/// `transfer-approved: true` flag in its metadata (so it re-runs and clears the
-/// gate); denying resumes with the interrupt's `respond` builder, supplying a
-/// "not completed" result.
+/// `transferApproved: true` flag in its `resumed` payload (so it re-runs and
+/// clears the gate); denying resumes with the interrupt's `respond` builder,
+/// supplying a "not completed" result.
 library;
 
 import 'dart:convert';
@@ -53,7 +53,13 @@ class _BankingPageState extends State<BankingPage> {
     await for (final chunk in turn.stream) {
       for (final part in chunk.raw.modelChunk?.content ?? const <Part>[]) {
         if (part.isToolRequest) {
+          // Skip interrupted tool requests: the agent re-emits them as an extra
+          // chunk carrying `metadata.interrupt` (surfaced via the approval
+          // dialog below), but they were already streamed once during
+          // generation. Rendering both would duplicate the tool card.
+          if (part.metadata?['interrupt'] != null) continue;
           final tr = part.toolRequest!;
+
           setState(() {
             _messages.add(
               ChatMessage(
@@ -133,15 +139,15 @@ class _BankingPageState extends State<BankingPage> {
     });
 
     try {
-      // Approve by restarting the tool with the `transfer-approved` flag set so
-      // the tool's conditional interrupt is cleared and the transfer executes.
-      // Deny by responding with a "not completed" result, without re-running
-      // the tool.
+      // Approve by restarting the tool with the `transferApproved` flag in its
+      // `resumed` payload so the tool's conditional interrupt is cleared and the
+      // transfer executes. Deny by responding with a "not completed" result,
+      // without re-running the tool.
       final turn = chat.resumeStream(
         approved
             ? AgentResume(
                 restart: [
-                  approval.restart().withMetadata({'transfer-approved': true}),
+                  approval.restart({'transferApproved': true}),
                 ],
               )
             : AgentResume(

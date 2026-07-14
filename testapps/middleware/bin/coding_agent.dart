@@ -123,12 +123,7 @@ void main() async {
           stdout.write('Approve? (y/N): ');
           final approval = await _readLineAsync();
           if (approval != null && approval.trim().toLowerCase() == 'y') {
-            approvedInterrupts.add(
-              ToolRequestPart(
-                toolRequest: interrupt.toolRequest,
-                metadata: {...?interrupt.metadata, 'tool-approved': true},
-              ),
-            );
+            approvedInterrupts.add(interrupt.restart({'tool-approved': true}));
           }
         }
 
