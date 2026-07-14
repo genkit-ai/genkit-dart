@@ -63,7 +63,9 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
         _snapshotId = task.snapshotId;
       });
 
-      await for (final snap in task.poll(intervalMs: 1500)) {
+      await for (final snap in task.poll(
+        interval: const Duration(milliseconds: 1500),
+      )) {
         setState(() {
           _polls++;
           _status = snap.status?.value ?? 'pending';

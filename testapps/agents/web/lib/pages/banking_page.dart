@@ -14,9 +14,12 @@
 
 /// Banking (interrupt) — human-in-the-loop approval.
 ///
-/// Ported from the JS `BankingInterrupt.tsx`. When the agent pauses on the
-/// `userApproval` interrupt, an approve/deny dialog appears. Approving resumes
-/// the chat with `chat.resume(...)` using the interrupt's `respond` builder.
+/// The `transferMoney` tool guards large transfers with a conditional
+/// interrupt. When the agent pauses on it, an approve/deny dialog appears.
+/// Approving resumes the chat by *restarting* the tool with a
+/// `transfer-approved: true` flag in its metadata (so it re-runs and clears the
+/// gate); denying resumes with the interrupt's `respond` builder, supplying a
+/// "not completed" result.
 library;
 
 import 'dart:convert';
@@ -88,9 +91,9 @@ class _BankingPageState extends State<BankingPage> {
           ),
         );
       }
-      // Surface a pending approval interrupt, if any.
+      // Surface a pending transferMoney approval interrupt, if any.
       final approval = res.interrupts
-          .where((interrupt) => interrupt.name == 'userApproval')
+          .where((interrupt) => interrupt.name == 'transferMoney')
           .toList();
       _pendingApproval = approval.isNotEmpty ? approval.first : null;
     });
@@ -130,15 +133,22 @@ class _BankingPageState extends State<BankingPage> {
     });
 
     try {
+      // Approve by restarting the tool with the `transfer-approved` flag set so
+      // the tool's conditional interrupt is cleared and the transfer executes.
+      // Deny by responding with a "not completed" result, without re-running
+      // the tool.
       final turn = chat.resumeStream(
-        AgentResume(
-          respond: [
-            approval.respond({
-              'approved': approved,
-              'feedback': approved ? 'Looks good' : 'User denied',
-            }),
-          ],
-        ),
+        approved
+            ? AgentResume(
+                restart: [
+                  approval.restart().withMetadata({'transfer-approved': true}),
+                ],
+              )
+            : AgentResume(
+                respond: [
+                  approval.respond({'success': false, 'transactionId': ''}),
+                ],
+              ),
       );
       await _runTurn(turn);
     } catch (e) {
@@ -155,10 +165,10 @@ class _BankingPageState extends State<BankingPage> {
       ChatUI(
         title: 'Banking Agent',
         description:
-            'Ask to transfer money — the agent pauses for your approval before '
-            'executing the transfer (human-in-the-loop interrupt).',
+            'Ask to transfer money — large transfers pause for your approval '
+            'before executing (a conditional interrupt inside the tool).',
         suggestions: const [
-          'Transfer \$500 to my savings account.',
+          'Transfer \$50 to my savings account.',
           'Move \$1200 to account 4471.',
         ],
         messages: _messages,
