@@ -166,6 +166,7 @@ class Person {
   static final schema = SchemanticType.from<Person>(
     jsonSchema: Person.jsonSchema,
     parse: (json) => Person.fromJson(json as Map<String, dynamic>),
+    serialize: (person) => person.toJson(),
   );
 }
 ```
@@ -177,6 +178,36 @@ final personSchema = Person.schema;
 print(personSchema.jsonSchema());
 // Output: {type: object, properties: {firstName: {type: string}, ...}, required: [firstName, lastName]}
 ```
+
+### Serialization
+
+Every `SchemanticType<T>` can convert a typed value back into plain JSON via
+`serialize`, which is the inverse of `parse`:
+
+```dart
+final scores = SchemanticType.map(.string(), .integer());
+final parsed = scores.parse({'Alice': 100}); // Map<String, int>
+print(scores.serialize(parsed)); // {Alice: 100}
+```
+
+For basic types, lists, maps, and generated schema types (which all expose a
+`toJson()` method) the default implementation works out of the box. When
+bridging your own types with `SchemanticType.from`, pass a `serialize` callback
+so writes round-trip correctly. This is the type-safe way to plug in
+`json_serializable`, `freezed`, `built_value`, or hand-rolled encodings:
+
+```dart
+final schema = SchemanticType.from<Person>(
+  jsonSchema: Person.jsonSchema,
+  parse: (json) => Person.fromJson(json as Map<String, dynamic>),
+  serialize: (person) => person.toJson(),
+);
+```
+
+If `serialize` is omitted, the default falls back to calling `toJson()` on the
+value, so a plain `json_serializable` class still works; provide the callback
+explicitly for anything that needs custom encoding (e.g. enums or generic
+types).
 
 ## Advanced
 
