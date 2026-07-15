@@ -270,14 +270,12 @@ class SessionRunner<State> {
   SessionRunner(
     this.session,
     this.inputCh, {
-    SnapshotCallback? snapshotCallback,
     SessionSnapshot? lastSnapshot,
     SessionStore? store,
     this.cancel,
     this.onEndTurn,
     this.onDetach,
-  }) : _snapshotCallback = snapshotCallback,
-       _lastSnapshot = lastSnapshot,
+  }) : _lastSnapshot = lastSnapshot,
        _store = store {
     // Seed the last-good state with the initial session state so a failure on
     // the very first turn still has a valid fallback state.
@@ -310,8 +308,6 @@ class SessionRunner<State> {
   SessionState? lastGoodState;
   AgentFinishReason? _lastGoodFinishReason;
   int? lastGoodStateVersion;
-
-  final SnapshotCallback? _snapshotCallback;
   SessionSnapshot? _lastSnapshot;
   int _lastSnapshotVersion = 0;
   final SessionStore? _store;
@@ -397,7 +393,6 @@ class SessionRunner<State> {
           lastTurnError = null;
 
           final snapshotId = await maybeSnapshot(
-            SnapshotEvent.turnEnd,
             status: 'completed',
             snapshotId: turnSnapshotId,
             finishReason: finishReason,
@@ -427,7 +422,6 @@ class SessionRunner<State> {
         lastTurnFinishReason = AgentFinishReason.failed;
         lastTurnError = toErrorDetails(e);
         final snapshotId = await maybeSnapshot(
-          SnapshotEvent.turnEnd,
           status: 'failed',
           error: lastTurnError,
           snapshotId: turnSnapshotId,
@@ -487,8 +481,7 @@ class SessionRunner<State> {
   }
 
   /// Evaluates whether to save a snapshot to the persistent store.
-  Future<String?> maybeSnapshot(
-    SnapshotEvent event, {
+  Future<String?> maybeSnapshot({
     String? status,
     AgentErrorDetails? error,
     String? snapshotId,
@@ -505,20 +498,6 @@ class SessionRunner<State> {
     }
 
     final currentState = session.getState();
-    final prevState = _lastSnapshot?.state;
-
-    if (_snapshotCallback != null && !isDetached) {
-      final keep = _snapshotCallback(
-        SnapshotContext(
-          state: currentState,
-          prevState: prevState,
-          turnIndex: turnIndex,
-          event: event.value,
-        ),
-      );
-      if (!keep) return null;
-    }
-
     final effectiveId = snapshotId ?? newSnapshotId;
 
     // When an id is reused (e.g. the detached `pending` snapshot is upgraded to
@@ -625,7 +604,6 @@ class _AgentConfig<State> {
     this.description,
     this.stateSchema,
     this.store,
-    this.snapshotCallback,
     this.clientTransform,
   });
 
@@ -633,7 +611,6 @@ class _AgentConfig<State> {
   final String? description;
   final SchemanticType<State>? stateSchema;
   final SessionStore? store;
-  final SnapshotCallback? snapshotCallback;
   final ClientTransform? clientTransform;
 }
 
@@ -816,7 +793,6 @@ void _pipeInputWithDetach(
             runner.newSnapshotId = turnSnapshotId;
 
             await runner.maybeSnapshot(
-              SnapshotEvent.turnEnd,
               status: 'pending',
               snapshotId: turnSnapshotId,
             );
@@ -1011,7 +987,6 @@ Agent<State> defineCustomAgent<State>(
   String? description,
   SchemanticType<State>? stateSchema,
   SessionStore? store,
-  SnapshotCallback? snapshotCallback,
   ClientTransform? clientTransform,
   required AgentFn<State> fn,
 }) {
@@ -1020,7 +995,6 @@ Agent<State> defineCustomAgent<State>(
     description: description,
     stateSchema: stateSchema,
     store: store,
-    snapshotCallback: snapshotCallback,
     clientTransform: clientTransform,
   );
 
@@ -1140,7 +1114,6 @@ Agent<State> defineCustomAgent<State>(
             session,
             runnerInputController.stream,
             store: resolvedStore,
-            snapshotCallback: config.snapshotCallback,
             lastSnapshot: snapshot,
             cancel: cancelToken,
             onDetach: (snapshotId) {
@@ -1258,9 +1231,7 @@ Agent<State> defineCustomAgent<State>(
                   ),
                 ),
               );
-              final finalSnapshotId = await runner.maybeSnapshot(
-                SnapshotEvent.invocationEnd,
-              );
+              final finalSnapshotId = await runner.maybeSnapshot();
               return (result: result, finalSnapshotId: finalSnapshotId);
             } finally {
               // The turn has settled (the snapshot reached a terminal status),
@@ -1469,7 +1440,6 @@ Agent<State> definePromptAgent<State>(
   Map<String, dynamic>? promptInput,
   SchemanticType<State>? stateSchema,
   SessionStore? store,
-  SnapshotCallback? snapshotCallback,
   ClientTransform? clientTransform,
 }) {
   ExecutablePrompt? cachedPrompt;
@@ -1600,7 +1570,6 @@ Agent<State> definePromptAgent<State>(
     name: promptName,
     stateSchema: stateSchema,
     store: store,
-    snapshotCallback: snapshotCallback,
     clientTransform: clientTransform,
     fn: fn,
   );

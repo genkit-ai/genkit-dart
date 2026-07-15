@@ -70,20 +70,6 @@ void Function() _addListener<T>(
   return () => listeners[key]?.remove(callback);
 }
 
-/// The lifecycle event that triggered a snapshot.
-///
-/// Mirrors the JS `SnapshotEventSchema` (`'turnEnd'` | `'invocationEnd'`). It
-/// is surfaced to the [SnapshotCallback] via [SnapshotContext.event]; unlike
-/// older revisions of the wire protocol it is no longer persisted as a field on
-/// [SessionSnapshot].
-extension type SnapshotEvent(String value) {
-  /// A snapshot taken at the end of a single turn.
-  static SnapshotEvent get turnEnd => SnapshotEvent('turnEnd');
-
-  /// A snapshot taken at the end of the whole invocation.
-  static SnapshotEvent get invocationEnd => SnapshotEvent('invocationEnd');
-}
-
 /// The execution context provided to a snapshot callback.
 class SnapshotContext {
   SnapshotContext({
@@ -100,10 +86,6 @@ class SnapshotContext {
   /// `'turnEnd'` | `'invocationEnd'`.
   final String event;
 }
-
-/// Callback triggered before a snapshot is saved. Return `false` to reject
-/// persistence.
-typedef SnapshotCallback = bool Function(SnapshotContext ctx);
 
 /// A function that receives the current snapshot and returns the updated
 /// snapshot to persist.

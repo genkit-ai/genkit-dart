@@ -19,8 +19,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'ai/agents/agent.dart' as agent_lib;
 import 'ai/agents/agent.dart' show Agent, AgentFn, ClientTransform;
-import 'ai/agents/session.dart'
-    show Session, SessionStore, SnapshotCallback, getCurrentSession;
+import 'ai/agents/session.dart' show Session, SessionStore, getCurrentSession;
 
 import 'ai/dotprompt_registry.dart';
 import 'ai/embedder.dart';
@@ -338,7 +337,6 @@ final class Genkit extends GenkitAI {
     /// provided, `chat().state` / `res.state` return parsed `State` instances.
     SchemanticType<State>? stateSchema,
     SessionStore? store,
-    SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
   }) {
     // Register the prompt.
@@ -372,7 +370,6 @@ final class Genkit extends GenkitAI {
       promptInput: promptInput,
       stateSchema: stateSchema,
       store: store,
-      snapshotCallback: snapshotCallback,
       clientTransform: clientTransform,
     );
   }
@@ -387,7 +384,6 @@ final class Genkit extends GenkitAI {
     String? description,
     SchemanticType<State>? stateSchema,
     SessionStore? store,
-    SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
     required AgentFn<State> fn,
   }) {
@@ -397,7 +393,6 @@ final class Genkit extends GenkitAI {
       description: description,
       stateSchema: stateSchema,
       store: store,
-      snapshotCallback: snapshotCallback,
       clientTransform: clientTransform,
       fn: fn,
     );
@@ -412,7 +407,6 @@ final class Genkit extends GenkitAI {
     Map<String, dynamic>? promptInput,
     SchemanticType<State>? stateSchema,
     SessionStore? store,
-    SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
   }) {
     return agent_lib.definePromptAgent<State>(
@@ -421,7 +415,6 @@ final class Genkit extends GenkitAI {
       promptInput: promptInput,
       stateSchema: stateSchema,
       store: store,
-      snapshotCallback: snapshotCallback,
       clientTransform: clientTransform,
     );
   }
