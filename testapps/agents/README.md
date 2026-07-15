@@ -108,9 +108,9 @@ for browser access.
   via `package:genkit/io.dart` for persistence across restarts.
 - **Interrupts:** Dart has no `defineInterrupt`; interrupts are modeled as tools
   that call `ctx.interrupt(...)` (e.g. `userApproval`, `ask_user`).
-- **Middleware:** the JS `artifacts()` and `agents()` delegation middleware are
-  not in the Dart middleware suite yet, so the workspace agent defines
-  `write_artifact`/`read_artifact` tools directly and the orchestrator wires
-  `delegate_to_*` tools explicitly.
+- **Middleware:** the orchestrator uses the real `agents()` delegation
+  middleware (auto-injecting `delegate_to_*` tools). The JS `artifacts()`
+  middleware is not in the Dart middleware suite yet, so the workspace agent
+  defines `write_artifact`/`read_artifact` tools directly.
 - **UI:** Jaspr replaces React + Vite. The component structure, streaming loop,
   and `remoteAgent` client usage mirror the JS pages.

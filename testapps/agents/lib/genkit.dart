@@ -21,6 +21,7 @@ library;
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_middleware/agents.dart';
 import 'package:genkit_middleware/filesystem.dart';
 import 'package:genkit_middleware/skills.dart';
 import 'package:genkit_middleware/tool_approval.dart';
@@ -33,12 +34,13 @@ final ModelRef liteModel = googleAI.gemini('gemini-flash-lite-latest');
 
 /// The shared Genkit instance. Prompts are loaded from `./prompts`.
 ///
-/// The middleware plugins (filesystem, skills, tool approval, retry) must be
-/// registered here so that the `use: [...]` references in the coding agent
+/// The middleware plugins (agents, filesystem, skills, tool approval, retry)
+/// must be registered here so that the `use: [...]` references in the agents
 /// resolve at runtime.
 final Genkit ai = Genkit(
   plugins: [
     googleAI(),
+    AgentsPlugin(),
     FilesystemPlugin(),
     SkillsPlugin(),
     ToolApprovalPlugin(),
