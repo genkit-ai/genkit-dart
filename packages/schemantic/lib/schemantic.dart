@@ -149,15 +149,54 @@ abstract class SchemanticType<T> {
   const SchemanticType();
 
   /// Creates a schema from a JSON schema and a parse function.
+  ///
+  /// Optionally provide [serialize] to convert a [T] back into plain JSON; when
+  /// omitted, the default [SchemanticType.serialize] is used (which handles
+  /// scalars, lists, maps, and any object exposing a `toJson()` method).
   static SchemanticType<T> from<T>({
     required Map<String, Object?> jsonSchema,
     required T Function(dynamic json) parse,
-  }) => _AdHocSchema(jsonSchema, parse);
+    Object? Function(T value)? serialize,
+  }) => _AdHocSchema(jsonSchema, parse, serialize);
 
   /// Parses the given [json] object into type [T].
   ///
   /// Throws if the JSON data does not match the expected structure.
   T parse(Object? json);
+
+  /// Serializes a [value] of type [T] back into plain JSON (a `Map`, `List`,
+  /// `String`, `num`, `bool`, or `null`) - the inverse of [parse].
+  ///
+  /// The default implementation handles scalars, lists, and maps recursively,
+  /// and delegates to `toJson()` for any other object (all generated schemantic
+  /// types expose one). Override this for custom encodings.
+  Object? serialize(T value) => _serializeToJson(value);
+
+  /// Recursively converts a JSON-shaped [value] (scalar, `List`, `Map`, or an
+  /// object with a `toJson()` method) into plain JSON.
+  static Object? _serializeToJson(Object? value) {
+    if (value == null || value is String || value is num || value is bool) {
+      return value;
+    }
+    if (value is List) return value.map(_serializeToJson).toList();
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), _serializeToJson(v)));
+    }
+    final Object? json;
+    try {
+      json = (value as dynamic).toJson();
+      // Detecting a dynamic `toJson()` at runtime requires catching this error.
+      // ignore: avoid_catching_errors
+    } on NoSuchMethodError {
+      throw ArgumentError(
+        'Type ${value.runtimeType} cannot be serialized to JSON. '
+        'Provide a custom serialize function or implement toJson().',
+      );
+    }
+    // Recurse into the result so a hand-rolled `toJson()` that returns nested
+    // non-JSON values (e.g. domain objects) is still normalized to plain JSON.
+    return _serializeToJson(json);
+  }
 
   /// Validates the given [data] against this schema.
   ///
@@ -572,11 +611,16 @@ extension on jsb.ValidationErrorType {
 class _AdHocSchema<T> extends SchemanticType<T> {
   final Map<String, Object?> _jsonSchema;
   final T Function(dynamic json) _parse;
+  final Object? Function(T value)? _serialize;
 
-  const _AdHocSchema(this._jsonSchema, this._parse);
+  const _AdHocSchema(this._jsonSchema, this._parse, this._serialize);
 
   @override
   T parse(Object? json) => _parse(json);
+
+  @override
+  Object? serialize(T value) =>
+      _serialize != null ? _serialize(value) : super.serialize(value);
 
   @override
   Map<String, Object?> jsonSchema({bool useRefs = false}) =>

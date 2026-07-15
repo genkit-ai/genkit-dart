@@ -40,6 +40,12 @@ final class _NullableSchemaFactory<T> extends SchemanticType<T?> {
   }
 
   @override
+  Object? serialize(T? value) {
+    if (value == null) return null;
+    return _type.serialize(value);
+  }
+
+  @override
   Map<String, Object?> jsonSchema({bool useRefs = false}) {
     return {
       'oneOf': [
@@ -354,6 +360,9 @@ final class _ListSchemaFactory<T> extends SchemanticType<List<T>> {
   List<T> parse(Object? json) => (json as List).map(itemType.parse).toList();
 
   @override
+  Object? serialize(List<T> value) => value.map(itemType.serialize).toList();
+
+  @override
   Map<String, Object?> jsonSchema({bool useRefs = false}) {
     final itemSchema = itemType.jsonSchema(useRefs: useRefs);
     var schema = jsb.Schema.list(
@@ -428,6 +437,14 @@ final class _MapSchemaFactory<K, V> extends SchemanticType<Map<K, V>> {
     return (json as Map).map((k, v) {
       return MapEntry(keyType.parse(k), valueType.parse(v));
     });
+  }
+
+  @override
+  Object? serialize(Map<K, V> value) {
+    return value.map(
+      (k, v) =>
+          MapEntry(keyType.serialize(k).toString(), valueType.serialize(v)),
+    );
   }
 
   @override
