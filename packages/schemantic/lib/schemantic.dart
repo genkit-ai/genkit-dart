@@ -170,17 +170,17 @@ abstract class SchemanticType<T> {
   /// The default implementation handles scalars, lists, and maps recursively,
   /// and delegates to `toJson()` for any other object (all generated schemantic
   /// types expose one). Override this for custom encodings.
-  Object? serialize(T value) => serializeToJson(value);
+  Object? serialize(T value) => _serializeToJson(value);
 
   /// Recursively converts a JSON-shaped [value] (scalar, `List`, `Map`, or an
   /// object with a `toJson()` method) into plain JSON.
-  static Object? serializeToJson(Object? value) {
+  static Object? _serializeToJson(Object? value) {
     if (value == null || value is String || value is num || value is bool) {
       return value;
     }
-    if (value is List) return value.map(serializeToJson).toList();
+    if (value is List) return value.map(_serializeToJson).toList();
     if (value is Map) {
-      return value.map((k, v) => MapEntry(k.toString(), serializeToJson(v)));
+      return value.map((k, v) => MapEntry(k.toString(), _serializeToJson(v)));
     }
     try {
       return (value as dynamic).toJson();

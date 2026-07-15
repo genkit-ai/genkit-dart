@@ -209,7 +209,6 @@ value, so a plain `json_serializable` class still works; provide the callback
 explicitly for anything that needs custom encoding (e.g. enums or generic
 types).
 
-
 ## Advanced
 
 ### Recursive Schemas

@@ -138,7 +138,88 @@ void main() {
         expect(serialized, {'id': 'w1'});
       });
     });
+
+    group('generated schema types', () {
+      // Mirrors the shape of code emitted by schemantic_builder: a
+      // SchemanticType factory whose parse() wraps the JSON map and whose
+      // values expose a toJson(). This exercises the default serialize path
+      // (the headline use case) end to end.
+      test('default serialize round trips a generated-style type', () {
+        final person = _GeneratedPerson.$schema.parse({
+          'name': 'Alice',
+          'age': 30,
+        });
+
+        final serialized = _GeneratedPerson.$schema.serialize(person);
+
+        expect(serialized, {'name': 'Alice', 'age': 30});
+        // Round trips back into an equal object.
+        final reparsed = _GeneratedPerson.$schema.parse(serialized);
+        expect(reparsed.name, 'Alice');
+        expect(reparsed.age, 30);
+      });
+
+      test('generated-style types serialize inside list and map', () {
+        final listSchema = SchemanticType.list(_GeneratedPerson.$schema);
+        final list = listSchema.parse([
+          {'name': 'Alice', 'age': 30},
+          {'name': 'Bob', 'age': 25},
+        ]);
+        expect(listSchema.serialize(list), [
+          {'name': 'Alice', 'age': 30},
+          {'name': 'Bob', 'age': 25},
+        ]);
+
+        final mapSchema = SchemanticType.map(
+          SchemanticType.string(),
+          _GeneratedPerson.$schema,
+        );
+        final map = mapSchema.parse({
+          'a': {'name': 'Alice', 'age': 30},
+        });
+        expect(mapSchema.serialize(map), {
+          'a': {'name': 'Alice', 'age': 30},
+        });
+      });
+    });
   });
+}
+
+/// A stand-in for a `@Schema`-generated data class (see the shape produced by
+/// schemantic_builder): backed by a JSON map with a `toJson()` method.
+class _GeneratedPerson {
+  _GeneratedPerson._(this._json);
+
+  static const SchemanticType<_GeneratedPerson> $schema =
+      _GeneratedPersonFactory();
+
+  final Map<String, dynamic> _json;
+
+  String get name => _json['name'] as String;
+  int get age => _json['age'] as int;
+
+  Map<String, dynamic> toJson() => _json;
+}
+
+final class _GeneratedPersonFactory extends SchemanticType<_GeneratedPerson> {
+  const _GeneratedPersonFactory();
+
+  @override
+  _GeneratedPerson parse(Object? json) =>
+      _GeneratedPerson._(json as Map<String, dynamic>);
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => const JsonSchemaMetadata(
+    name: 'GeneratedPerson',
+    definition: {
+      'type': 'object',
+      'properties': {
+        'name': {'type': 'string'},
+        'age': {'type': 'integer'},
+      },
+      'required': ['name', 'age'],
+    },
+  );
 }
 
 class _Person {
