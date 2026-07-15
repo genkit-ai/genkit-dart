@@ -213,8 +213,8 @@ class Session<State> {
   /// Returns copies: the underlying maps are deep-cloned before decoding so
   /// mutating the returned [Message] objects (whose setters write through) can't
   /// alter session state without a version bump or event. This mirrors the JS
-  /// implementation, which returns a `structuredClone`. (Note: unlike this and
-  /// [getState], [getCustom] and [getArtifacts] intentionally return live data.)
+  /// implementation, which returns a `structuredClone`. (Note: [getArtifacts]
+  /// intentionally returns live data.)
   List<Message> getMessages() =>
       _decodeJsonList(_deepClone(_json['messages']), Message.fromJson);
 

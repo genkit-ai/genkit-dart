@@ -980,7 +980,7 @@ class Agent<State> {
 /// When a [stateSchema] is provided, the returned [Agent] is typed as
 /// `Agent<State>`, and `chat().state` / `res.state` return parsed `State`
 /// instances instead of raw JSON maps. Without one, `State` defaults to
-/// `Object?` (a bare view over the JSON).
+/// `dynamic` (a bare view over the JSON).
 Agent<State> defineCustomAgent<State>(
   Registry registry, {
   required String name,

@@ -21,8 +21,8 @@
 /// [AgentTransport].
 ///
 /// Custom state is exposed through a `State` type parameter that defaults to
-/// `Object?`. Because state travels the wire as plain JSON, `State` is a
-/// view-cast over that JSON: parameterize with `Object?` / a `Map`-shaped type,
+/// `dynamic`. Because state travels the wire as plain JSON, `State` is a
+/// view-cast over that JSON: parameterize with `dynamic` / a `Map`-shaped type,
 /// or convert to your own domain types yourself. A mismatched `State` throws at
 /// read time (Dart generics are reified, unlike the erased TypeScript original).
 library;
@@ -1007,7 +1007,7 @@ class AgentApi<State> {
 
   /// Optional schema used to `parse` the raw wire state into a typed [State]
   /// instance; forwarded to every [AgentChat] this api creates. When `null`,
-  /// state is a bare view cast over the JSON (the `Object?` / `Map` default).
+  /// state is a bare view cast over the JSON (the `dynamic` / `Map` default).
   final SchemanticType<State>? _stateSchema;
 
   /// Starts a new chat, optionally attaching via [snapshotId] / [sessionId] /
