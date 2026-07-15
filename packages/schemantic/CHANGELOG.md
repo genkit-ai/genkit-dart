@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+ - add `SchemanticType.serialize` to convert a typed value back into plain JSON
+   (the inverse of `parse`), with an optional `serialize` callback on
+   `SchemanticType.from` for bring-your-own serialization
+
 ## 0.2.0
 
 ### Fixes
