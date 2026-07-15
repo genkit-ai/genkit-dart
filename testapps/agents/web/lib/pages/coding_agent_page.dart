@@ -127,7 +127,7 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
 
     _chat ??= _agent.chat();
     try {
-      await _runTurn(_chat!.sendTextStream(text));
+      await _runTurn(_chat!.sendStream(text: text));
     } catch (e) {
       setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
     } finally {
@@ -193,10 +193,8 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
     try {
       await _runTurn(
         chat.resumeStream(
-          AgentResume(
-            restart: restarts.isNotEmpty ? restarts : null,
-            respond: responses.isNotEmpty ? responses : null,
-          ),
+          restart: restarts.isNotEmpty ? restarts : null,
+          respond: responses.isNotEmpty ? responses : null,
         ),
       );
     } catch (e) {

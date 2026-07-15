@@ -115,7 +115,7 @@ class _BankingPageState extends State<BankingPage> {
 
     _chat ??= _agent.chat();
     try {
-      await _runTurn(_chat!.sendTextStream(text));
+      await _runTurn(_chat!.sendStream(text: text));
     } catch (e) {
       setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
     } finally {
@@ -143,19 +143,17 @@ class _BankingPageState extends State<BankingPage> {
       // `resumed` payload so the tool's conditional interrupt is cleared and the
       // transfer executes. Deny by responding with a "not completed" result,
       // without re-running the tool.
-      final turn = chat.resumeStream(
-        approved
-            ? AgentResume(
-                restart: [
-                  approval.restart({'transferApproved': true}),
-                ],
-              )
-            : AgentResume(
-                respond: [
-                  approval.respond({'success': false, 'transactionId': ''}),
-                ],
-              ),
-      );
+      final turn = approved
+          ? chat.resumeStream(
+              restart: [
+                approval.restart({'transferApproved': true}),
+              ],
+            )
+          : chat.resumeStream(
+              respond: [
+                approval.respond({'success': false, 'transactionId': ''}),
+              ],
+            );
       await _runTurn(turn);
     } catch (e) {
       setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));

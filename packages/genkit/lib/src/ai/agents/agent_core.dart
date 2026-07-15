@@ -184,13 +184,38 @@ List<ToolRequestPart> _toolRequestParts(List<Part>? parts) => (parts ?? [])
     .map((p) => p.toolRequestPart!)
     .toList();
 
-/// Wraps [text] into an [AgentInput] with a single user message.
-AgentInput _agentInputFromText(String text) => AgentInput(
-  message: Message(
-    role: Role.user,
-    content: [TextPart(text: text)],
-  ),
-);
+/// Builds an [AgentInput] from the flat send/detach params.
+///
+/// [text] and [message] are mutually exclusive (at most one). [respond] /
+/// [restart] are bundled into an [AgentResume] when either is non-empty.
+/// [detach] flags a background turn.
+AgentInput _buildAgentInput({
+  String? text,
+  Message? message,
+  List<ToolResponsePart>? respond,
+  List<ToolRequestPart>? restart,
+  bool detach = false,
+}) {
+  assert(
+    !(text != null && message != null),
+    'Provide at most one of text or message.',
+  );
+  final msg =
+      message ??
+      (text != null
+          ? Message(
+              role: Role.user,
+              content: [TextPart(text: text)],
+            )
+          : null);
+  final hasResume =
+      (respond?.isNotEmpty ?? false) || (restart?.isNotEmpty ?? false);
+  return AgentInput(
+    message: msg,
+    resume: hasResume ? AgentResume(respond: respond, restart: restart) : null,
+    detach: detach ? true : null,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // AgentInterrupt
@@ -717,30 +742,48 @@ class AgentChat<State> {
     return response;
   }
 
-  /// Runs a single turn from free-form [text] and resolves with the completed
-  /// [AgentResponse]. Sugar for [send] with a single user text message.
+  /// Runs a single turn and resolves with the completed [AgentResponse].
+  ///
+  /// Pass either [text] (free-form user text) or a fully-built [message] (at
+  /// most one). To resume an interrupted turn in the same call, pass [respond]
+  /// entries (built via [AgentInterrupt.respond]) and/or [restart] entries
+  /// (built via [AgentInterrupt.restart]); they are bundled into an
+  /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
   /// honored by the in-process transport (observable by the agent handler via
   /// `getContext()`); the remote transport rejects a non-empty context with an
   /// [UnsupportedError] (see [AgentTransport]).
-  Future<AgentResponse<State>> sendText(
-    String text, {
+  Future<AgentResponse<State>> send({
+    String? text,
+    Message? message,
+    List<ToolResponsePart>? respond,
+    List<ToolRequestPart>? restart,
     CancellationToken? cancel,
     Map<String, dynamic>? context,
-  }) => send(_agentInputFromText(text), cancel: cancel, context: context);
+  }) => _send(
+    _buildAgentInput(
+      text: text,
+      message: message,
+      respond: respond,
+      restart: restart,
+    ),
+    cancel: cancel,
+    context: context,
+  );
 
-  /// Runs a single turn and resolves with the completed [AgentResponse].
+  /// Runs a single [input] turn and resolves with the completed
+  /// [AgentResponse].
   ///
-  /// `send()` is a non-streaming veneer over the streaming path: it runs the
-  /// turn via [sendStream] and drains the stream internally before resolving.
+  /// `_send()` is a non-streaming veneer over the streaming path: it runs the
+  /// turn via [_sendStream] and drains the stream internally before resolving.
   /// Draining matters for server-managed agents (with a store): they do not
   /// return custom `state` on the wire (only a `snapshotId`); the chat's
   /// tracked custom state is kept live by applying the streamed `customPatch`
   /// chunks. Consuming the stream here keeps `send()` and `sendStream()`
   /// consistent. A transport that opts into the non-streaming [AgentTransport.run]
   /// path (e.g. returns full state on the wire) skips the drain.
-  Future<AgentResponse<State>> send(
+  Future<AgentResponse<State>> _send(
     AgentInput input, {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
@@ -766,7 +809,7 @@ class AgentChat<State> {
       }
       return _buildResponse(runFuture, token, messageCountBeforeTurn);
     }
-    final turn = sendStream(input, cancel: token, context: context);
+    final turn = _sendStream(input, cancel: token, context: context);
     // Drain the stream so custom-state patches are applied to the chat.
     await for (final _ in turn.stream) {
       // no-op: side effects (custom-state patches) happen as we iterate.
@@ -790,22 +833,40 @@ class AgentChat<State> {
   AgentResponse<State> _abortedResponse() =>
       _response(AgentOutput(finishReason: AgentFinishReason.aborted));
 
-  /// Runs a single turn from free-form [text] and returns an [AgentTurn]. Sugar
-  /// for [sendStream] with a single user text message.
-  AgentTurn<State> sendTextStream(
-    String text, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) => sendStream(_agentInputFromText(text), cancel: cancel, context: context);
-
   /// Runs a single turn and returns an [AgentTurn] exposing `.stream` and
   /// `.response`.
+  ///
+  /// Pass either [text] (free-form user text) or a fully-built [message] (at
+  /// most one). To resume an interrupted turn in the same call, pass [respond]
+  /// entries (built via [AgentInterrupt.respond]) and/or [restart] entries
+  /// (built via [AgentInterrupt.restart]); they are bundled into an
+  /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
   /// honored by the in-process transport (observable by the agent handler via
   /// `getContext()`); the remote transport rejects a non-empty context with an
   /// [UnsupportedError] (see [AgentTransport]).
-  AgentTurn<State> sendStream(
+  AgentTurn<State> sendStream({
+    String? text,
+    Message? message,
+    List<ToolResponsePart>? respond,
+    List<ToolRequestPart>? restart,
+    CancellationToken? cancel,
+    Map<String, dynamic>? context,
+  }) => _sendStream(
+    _buildAgentInput(
+      text: text,
+      message: message,
+      respond: respond,
+      restart: restart,
+    ),
+    cancel: cancel,
+    context: context,
+  );
+
+  /// Runs a single [input] turn and returns an [AgentTurn] exposing `.stream`
+  /// and `.response`.
+  AgentTurn<State> _sendStream(
     AgentInput input, {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
@@ -884,23 +945,35 @@ class AgentChat<State> {
   }
 
   /// Resumes after an interrupt. Sugar for `send` with only the resume params.
-  Future<AgentResponse<State>> resume(
-    AgentResume resume, {
+  ///
+  /// Pass [respond] entries (built via [AgentInterrupt.respond]) and/or
+  /// [restart] entries (built via [AgentInterrupt.restart]); they are bundled
+  /// into an [AgentResume] internally.
+  Future<AgentResponse<State>> resume({
+    List<ToolResponsePart>? respond,
+    List<ToolRequestPart>? restart,
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) => send(
-    AgentInput(resume: resume),
+    respond: respond,
+    restart: restart,
     cancel: cancel,
     context: context,
   );
 
   /// Streaming resume. Sugar for `sendStream` with only the resume params.
-  AgentTurn<State> resumeStream(
-    AgentResume resume, {
+  ///
+  /// Pass [respond] entries (built via [AgentInterrupt.respond]) and/or
+  /// [restart] entries (built via [AgentInterrupt.restart]); they are bundled
+  /// into an [AgentResume] internally.
+  AgentTurn<State> resumeStream({
+    List<ToolResponsePart>? respond,
+    List<ToolRequestPart>? restart,
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) => sendStream(
-    AgentInput(resume: resume),
+    respond: respond,
+    restart: restart,
     cancel: cancel,
     context: context,
   );
@@ -921,17 +994,28 @@ class AgentChat<State> {
 
   /// Submits a detached (background) turn. Requires a store.
   ///
+  /// Pass either [text] (free-form user text) or a fully-built [message] (at
+  /// most one). To resume an interrupted turn in the background, pass [respond]
+  /// entries (built via [AgentInterrupt.respond]) and/or [restart] entries
+  /// (built via [AgentInterrupt.restart]); they are bundled into an
+  /// [AgentResume] internally.
+  ///
   /// [context] is the ambient request context to run the turn under. It is only
   /// honored by the in-process transport (observable by the agent handler via
   /// `getContext()`); the remote transport rejects a non-empty context with an
   /// [UnsupportedError] (see [AgentTransport]).
-  Future<DetachedTask<State>> detach(
-    AgentInput input, {
+  Future<DetachedTask<State>> detach({
+    String? text,
+    Message? message,
+    List<ToolResponsePart>? respond,
+    List<ToolRequestPart>? restart,
     Map<String, dynamic>? context,
   }) async {
-    final agentInput = AgentInput(
-      message: input.message,
-      resume: input.resume,
+    final agentInput = _buildAgentInput(
+      text: text,
+      message: message,
+      respond: respond,
+      restart: restart,
       detach: true,
     );
     final inputMessage = agentInput.message;
@@ -955,13 +1039,6 @@ class AgentChat<State> {
     }
     return DetachedTask<State>._(id, _transport, _stateSchema);
   }
-
-  /// Submits a detached (background) turn from free-form [text]. Requires a
-  /// store. Sugar for [detach] with a single user text message.
-  Future<DetachedTask<State>> detachText(
-    String text, {
-    Map<String, dynamic>? context,
-  }) => detach(_agentInputFromText(text), context: context);
 
   /// Aborts the current snapshot.
   Future<SnapshotStatus?> abort() async {

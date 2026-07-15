@@ -86,7 +86,7 @@ void main() {
 
       final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
-      final res = await chat.sendText('hi');
+      final res = await chat.send(text: 'hi');
 
       expect(res.text, 'hi there');
       expect(res.snapshotId, 's_x');
@@ -121,7 +121,7 @@ void main() {
 
       final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
-      final turn = chat.sendTextStream('hi');
+      final turn = chat.sendStream(text: 'hi');
 
       final texts = <String>[];
       await for (final c in turn.stream) {
@@ -201,8 +201,8 @@ void main() {
       );
 
       final chat = agent.chat();
-      await chat.sendText('hi');
-      await chat.sendText('again');
+      await chat.send(text: 'hi');
+      await chat.send(text: 'again');
 
       // Resolver ran once per turn.
       expect(calls, 2);
@@ -234,8 +234,8 @@ void main() {
       // A remote agent cannot honor client-supplied context, so passing it is
       // a hard error rather than a silent no-op.
       expect(
-        () => chat.sendText(
-          'hi',
+        () => chat.send(
+          text: 'hi',
           context: {
             'auth': {'uid': 'user-123'},
           },
@@ -265,7 +265,7 @@ void main() {
 
       // An empty context is a no-op: the same call site can target either an
       // in-process or a remote agent without special-casing.
-      final res = await chat.sendText('hi', context: const {});
+      final res = await chat.send(text: 'hi', context: const {});
       expect(res.text, 'ok');
       expect(client.requests, hasLength(1));
     });

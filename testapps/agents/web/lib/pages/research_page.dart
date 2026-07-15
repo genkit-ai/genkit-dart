@@ -73,7 +73,7 @@ class _ResearchPageState extends State<ResearchPage> {
     final chat = _chat!;
 
     try {
-      final turn = chat.sendTextStream(text);
+      final turn = chat.sendStream(text: text);
       var accumulated = '';
       await for (final chunk in turn.stream) {
         if (chunk.custom != null) _applyCustom(chunk.custom);

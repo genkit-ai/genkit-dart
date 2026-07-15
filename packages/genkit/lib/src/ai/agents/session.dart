@@ -70,23 +70,6 @@ void Function() _addListener<T>(
   return () => listeners[key]?.remove(callback);
 }
 
-/// The execution context provided to a snapshot callback.
-class SnapshotContext {
-  SnapshotContext({
-    required this.state,
-    this.prevState,
-    required this.turnIndex,
-    required this.event,
-  });
-
-  final SessionState state;
-  final SessionState? prevState;
-  final int turnIndex;
-
-  /// `'turnEnd'` | `'invocationEnd'`.
-  final String event;
-}
-
 /// A function that receives the current snapshot and returns the updated
 /// snapshot to persist.
 ///

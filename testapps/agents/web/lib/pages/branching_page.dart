@@ -144,8 +144,8 @@ class _BranchingPageState extends State<BranchingPage> {
 
     try {
       final results = await Future.wait([
-        makeChat().sendText(text),
-        makeChat().sendText(text),
+        makeChat().send(text: text),
+        makeChat().send(text: text),
       ]);
       setState(() {
         _variantA = _Variant(results[0].text, results[0].snapshotId ?? '');

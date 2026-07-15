@@ -63,7 +63,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
     final chat = _chat!;
 
     try {
-      final turn = chat.sendTextStream(text);
+      final turn = chat.sendStream(text: text);
       var accumulated = '';
       await for (final chunk in turn.stream) {
         final artifact = chunk.artifact;

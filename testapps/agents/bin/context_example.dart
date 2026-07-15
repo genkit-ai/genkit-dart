@@ -60,8 +60,8 @@ void main() async {
 
   // Pass a custom context for this turn. The handler reads it via
   // `options.context`.
-  final res = await chat.sendText(
-    'hi',
+  final res = await chat.send(
+    text: 'hi',
     context: {
       'auth': {'name': 'Ada'},
     },
@@ -69,7 +69,7 @@ void main() async {
   print(res.text); // -> Hello, Ada!
 
   // Without a context, the handler falls back to its default.
-  final res2 = await chat.sendText('hi again');
+  final res2 = await chat.send(text: 'hi again');
   print(res2.text); // -> Hello, stranger!
 
   await ai.shutdown();

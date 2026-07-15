@@ -56,7 +56,6 @@ export 'src/ai/agents/session.dart'
         SessionError,
         SessionStore,
         SnapshotChangeNotifier,
-        SnapshotContext,
         SnapshotMutator,
         generateUuidV4,
         getCurrentSession,

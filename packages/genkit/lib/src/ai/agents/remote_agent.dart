@@ -50,7 +50,7 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 /// ```dart
 /// final agent = remoteAgent(url: 'http://host/weatherAgent');
 /// final chat = agent.chat();
-/// final res = await chat.sendText('Weather in Tokyo?');
+/// final res = await chat.send(text: 'Weather in Tokyo?');
 /// print(res.text);
 /// // Release the internally-created HTTP client when done.
 /// await agent.close();

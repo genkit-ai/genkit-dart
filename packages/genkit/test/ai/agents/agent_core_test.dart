@@ -182,7 +182,7 @@ void main() {
         ),
       ]);
       final chat = AgentApi(transport).chat();
-      final turn = chat.sendTextStream('hi');
+      final turn = chat.sendStream(text: 'hi');
 
       final texts = <String>[];
       await for (final c in turn.stream) {
@@ -206,7 +206,7 @@ void main() {
         ),
       ]);
       final chat = AgentApi(transport).chat();
-      final turn = chat.sendTextStream('hi');
+      final turn = chat.sendStream(text: 'hi');
       final acc = <String>[];
       await for (final c in turn.stream) {
         acc.add(c.accumulatedText);
@@ -244,7 +244,7 @@ void main() {
         ),
       ]);
       final chat = AgentApi(transport).chat();
-      final turn = chat.sendTextStream('go');
+      final turn = chat.sendStream(text: 'go');
 
       final customs = <dynamic>[];
       await for (final c in turn.stream) {
@@ -272,7 +272,7 @@ void main() {
         ),
       ], supportsRun: true);
       final chat = AgentApi(transport).chat();
-      final res = await chat.sendText('ping');
+      final res = await chat.send(text: 'ping');
       expect(res.text, 'pong');
       expect(res.snapshotId, 's_y');
     });
@@ -289,7 +289,7 @@ void main() {
       ], supportsRun: true);
       final chat = AgentApi(transport).chat();
       await expectLater(
-        chat.sendText('x'),
+        chat.send(text: 'x'),
         throwsA(
           isA<AgentError>()
               .having((e) => e.status, 'status', 'INTERNAL')
@@ -307,7 +307,7 @@ void main() {
         final transport = _FakeTransport([], supportsRun: true);
         final token = CancellationToken()..cancel();
         final chat = AgentApi(transport).chat();
-        final res = await chat.sendText('hi', cancel: token);
+        final res = await chat.send(text: 'hi', cancel: token);
         expect(res.finishReason, AgentFinishReason.aborted);
         // No user message was pushed and no turn was dispatched.
         expect(chat.messages, isEmpty);
@@ -320,7 +320,7 @@ void main() {
         final transport = _FakeTransport([]);
         final token = CancellationToken()..cancel();
         final chat = AgentApi(transport).chat();
-        final turn = chat.sendTextStream('hi', cancel: token);
+        final turn = chat.sendStream(text: 'hi', cancel: token);
         final chunks = <AgentChunk>[];
         await for (final c in turn.stream) {
           chunks.add(c);
@@ -343,13 +343,11 @@ void main() {
       });
       final chat = AgentApi(transport).chat();
       await chat.resume(
-        AgentResume(
-          respond: [
-            ToolResponsePart(
-              toolResponse: ToolResponse(name: 'approve', output: true),
-            ),
-          ],
-        ),
+        respond: [
+          ToolResponsePart(
+            toolResponse: ToolResponse(name: 'approve', output: true),
+          ),
+        ],
       );
       expect(captured.resume, isNotNull);
       expect(captured.resume!.respond!.first.toolResponse.name, 'approve');
@@ -364,7 +362,7 @@ void main() {
         ),
       ], supportsRun: true);
       final chat = AgentApi(transport).chat();
-      await chat.sendText('hi');
+      await chat.send(text: 'hi');
       final status = await chat.abort();
       expect(status?.value, 'aborted');
       expect(transport.aborted, ['s_z']);
@@ -405,7 +403,7 @@ void main() {
           ),
         ], supportsRun: true);
         final chat = AgentApi(transport).chat();
-        final res = await chat.sendText('hi');
+        final res = await chat.send(text: 'hi');
         expect(chat.sessionId, 'sess_3');
         expect(res.sessionId, 'sess_3');
       },
@@ -420,7 +418,7 @@ void main() {
           _throwStep('INTERNAL: transport blew up'),
         ], supportsRun: true);
         final chat = AgentApi(transport).chat();
-        await expectLater(chat.sendText('hi'), throwsA(isA<AgentError>()));
+        await expectLater(chat.send(text: 'hi'), throwsA(isA<AgentError>()));
         // The eagerly-pushed user message must not be left orphaned.
         expect(chat.messages, isEmpty);
       },
@@ -439,10 +437,10 @@ void main() {
           ),
         ], supportsRun: true);
         final chat = AgentApi(transport).chat();
-        await expectLater(chat.sendText('first'), throwsA(isA<AgentError>()));
+        await expectLater(chat.send(text: 'first'), throwsA(isA<AgentError>()));
         expect(chat.messages, isEmpty);
 
-        final res = await chat.sendText('second');
+        final res = await chat.send(text: 'second');
         expect(res.text, 'pong');
         // Only the second turn's user + model messages remain; the first
         // (failed) turn's user message did not stack.
@@ -555,7 +553,7 @@ void main() {
         ),
       ], supportsRun: true);
       final chat = AgentApi<Map<String, dynamic>>(transport).chat();
-      final res = await chat.sendText('hi');
+      final res = await chat.send(text: 'hi');
 
       // The chat's tracked state and the response state are both typed Maps.
       expect(chat.state, isA<Map<String, dynamic>>());
@@ -592,7 +590,7 @@ void main() {
           ),
         ]);
         final chat = AgentApi<Map<String, dynamic>>(transport).chat();
-        final turn = chat.sendTextStream('go');
+        final turn = chat.sendStream(text: 'go');
         await for (final _ in turn.stream) {
           // Drain so the customPatch is applied.
         }
@@ -634,7 +632,7 @@ void main() {
         ),
       ]);
       final chat = AgentApi<Map<String, dynamic>>(transport).chat();
-      final turn = chat.sendTextStream('go');
+      final turn = chat.sendStream(text: 'go');
 
       final customs = <Map<String, dynamic>?>[];
       await for (final c in turn.stream) {
@@ -662,7 +660,7 @@ void main() {
         ),
       ], supportsRun: true);
       final chat = AgentApi<int>(transport).chat();
-      final res = await chat.sendText('hi');
+      final res = await chat.send(text: 'hi');
       expect(chat.state, 7);
       expect(res.state, 7);
     });
@@ -680,7 +678,7 @@ void main() {
         ),
       ], supportsRun: true);
       final chat = AgentApi<String>(transport).chat();
-      final res = await chat.sendText('hi');
+      final res = await chat.send(text: 'hi');
       expect(() => chat.state, throwsA(isA<TypeError>()));
       expect(() => res.state, throwsA(isA<TypeError>()));
     });
@@ -716,7 +714,7 @@ void main() {
         transport,
         stateSchema: _Counter.schema,
       ).chat();
-      final res = await chat.sendText('hi');
+      final res = await chat.send(text: 'hi');
 
       // With a schema, state is a *parsed* domain instance, not a raw Map.
       expect(chat.state, isA<_Counter>());
@@ -751,7 +749,7 @@ void main() {
           transport,
           stateSchema: _Counter.schema,
         ).chat();
-        final turn = chat.sendTextStream('go');
+        final turn = chat.sendStream(text: 'go');
         await for (final _ in turn.stream) {
           // Drain so the customPatch is applied.
         }
@@ -796,7 +794,7 @@ void main() {
         transport,
         stateSchema: _Counter.schema,
       ).chat();
-      final turn = chat.sendTextStream('go');
+      final turn = chat.sendStream(text: 'go');
 
       final counts = <int>[];
       await for (final c in turn.stream) {
@@ -845,7 +843,7 @@ void main() {
           stateSchema: _Counter.schema,
         ).chat();
         await expectLater(
-          chat.sendText('x'),
+          chat.send(text: 'x'),
           throwsA(
             isA<AgentError<_Counter>>()
                 .having((e) => e.status, 'status', 'INTERNAL')
