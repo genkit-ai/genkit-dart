@@ -66,6 +66,33 @@ void main() {
       expect(schema.serialize(schema.parse(7)), 7);
     });
 
+    test('nested custom serialized types inside list, map, and nullable', () {
+      final customInt = SchemanticType.from<int>(
+        jsonSchema: {'type': 'integer'},
+        parse: (json) => (json as int) + 1,
+        serialize: (val) => val - 1,
+      );
+
+      final listSchema = SchemanticType.list(customInt);
+      expect(listSchema.serialize([3, 4]), [2, 3]);
+
+      final mapSchema = SchemanticType.map(SchemanticType.string(), customInt);
+      expect(mapSchema.serialize({'a': 3}), {'a': 2});
+
+      final nullableSchema = SchemanticType.nullable(customInt);
+      expect(nullableSchema.serialize(3), 2);
+      expect(nullableSchema.serialize(null), null);
+    });
+
+    test('throws ArgumentError when value cannot be serialized', () {
+      final schema = SchemanticType.from<_Opaque>(
+        jsonSchema: {'type': 'object'},
+        parse: (json) => _Opaque(),
+      );
+
+      expect(() => schema.serialize(_Opaque()), throwsArgumentError);
+    });
+
     group('SchemanticType.from', () {
       final personSchema = {
         'type': 'object',
@@ -128,3 +155,5 @@ class _Widget {
 
   Map<String, Object?> toJson() => {'id': id};
 }
+
+class _Opaque {}

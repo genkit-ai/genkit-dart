@@ -182,7 +182,16 @@ abstract class SchemanticType<T> {
     if (value is Map) {
       return value.map((k, v) => MapEntry(k.toString(), serializeToJson(v)));
     }
-    return (value as dynamic).toJson();
+    try {
+      return (value as dynamic).toJson();
+      // Detecting a dynamic `toJson()` at runtime requires catching this error.
+      // ignore: avoid_catching_errors
+    } on NoSuchMethodError {
+      throw ArgumentError(
+        'Type ${value.runtimeType} cannot be serialized to JSON. '
+        'Provide a custom serialize function or implement toJson().',
+      );
+    }
   }
 
   /// Validates the given [data] against this schema.
