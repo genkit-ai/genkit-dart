@@ -65,35 +65,28 @@ abstract class $RemoveTaskInput {
   int get id;
 }
 
-Map<String, dynamic> _stateOrEmpty(dynamic custom) {
-  if (custom is Map) {
-    final map = Map<String, dynamic>.from(custom);
-    map['tasks'] = (map['tasks'] as List?)?.toList() ?? <dynamic>[];
-    map['nextId'] = map['nextId'] ?? 1;
-    return map;
-  }
-  return {'tasks': <dynamic>[], 'nextId': 1};
-}
-
-/// Locates the task with the given [id] in the session's task list and applies
-/// [onFound] to mutate it, returning the standard success/error result map.
-/// Shared by `toggleTask` and `removeTask` to avoid repeating the lookup and
-/// not-found boilerplate.
+/// Locates the task with the given [id] in the session's typed task list and
+/// applies [onFound] to mutate it, returning the standard success/error result
+/// map. Shared by `toggleTask` and `removeTask` to avoid repeating the lookup
+/// and not-found boilerplate.
 Map<String, dynamic> _mutateTaskById(
   int id,
-  Map<String, dynamic> Function(List<Map<String, dynamic>> tasks, int idx)
-  onFound,
+  Map<String, dynamic> Function(List<TaskItem> tasks, int idx) onFound,
 ) {
-  final session = ai.currentSession()!;
+  final session = ai.currentSession<TaskState>()!;
   var result = <String, dynamic>{'success': false};
-  session.updateCustom((custom) {
-    final s = _stateOrEmpty(custom);
-    final tasks = (s['tasks'] as List).cast<Map<String, dynamic>>();
-    final idx = tasks.indexWhere((t) => t['id'] == id);
-    result = idx >= 0
-        ? onFound(tasks, idx)
-        : {'success': false, 'error': 'Task $id not found'};
-    return s;
+  session.updateCustom((state) {
+    state ??= TaskState(tasks: [], nextId: 1);
+    final tasks = state.tasks;
+    final idx = tasks.indexWhere((t) => t.id == id);
+    if (idx >= 0) {
+      result = onFound(tasks, idx);
+      // Reassign so the mutated list is written back to the session state.
+      state.tasks = tasks;
+    } else {
+      result = {'success': false, 'error': 'Task $id not found'};
+    }
+    return state;
   });
   return result;
 }
@@ -105,16 +98,16 @@ final addTask = ai.defineTool(
   inputSchema: AddTaskInput.$schema,
   outputSchema: TaskItem.$schema,
   fn: (input, _) async {
-    final session = ai.currentSession()!;
-    late Map<String, dynamic> newTask;
-    session.updateCustom((custom) {
-      final s = _stateOrEmpty(custom);
-      newTask = {'id': s['nextId'], 'title': input.title, 'done': false};
-      (s['tasks'] as List).add(newTask);
-      s['nextId'] = (s['nextId'] as int) + 1;
-      return s;
+    final session = ai.currentSession<TaskState>()!;
+    late TaskItem newTask;
+    session.updateCustom((state) {
+      state ??= TaskState(tasks: [], nextId: 1);
+      newTask = TaskItem(id: state.nextId, title: input.title, done: false);
+      state.tasks = [...state.tasks, newTask];
+      state.nextId += 1;
+      return state;
     });
-    return TaskItem.fromJson(newTask);
+    return newTask;
   },
 );
 
@@ -125,8 +118,8 @@ final toggleTask = ai.defineTool(
       'task or an error message.',
   inputSchema: ToggleTaskInput.$schema,
   fn: (input, _) async => _mutateTaskById(input.id, (tasks, idx) {
-    tasks[idx]['done'] = !(tasks[idx]['done'] as bool);
-    return {'success': true, 'task': tasks[idx]};
+    tasks[idx].done = !tasks[idx].done;
+    return {'success': true, 'task': tasks[idx].toJson()};
   }),
 );
 

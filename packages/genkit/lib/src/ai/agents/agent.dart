@@ -261,7 +261,12 @@ typedef OnDetach = void Function(String snapshotId);
 
 /// Executor responsible for running turns over input streams and persisting
 /// state.
-class SessionRunner {
+///
+/// The `State` type parameter mirrors the wrapped [Session]'s: [getCustom] /
+/// [updateCustom] delegate straight through, so a `SessionRunner<State>` exposes
+/// the same typed custom-state API. It defaults to `dynamic` for the untyped
+/// (raw-JSON) case.
+class SessionRunner<State> {
   SessionRunner(
     this.session,
     this.inputCh, {
@@ -280,7 +285,7 @@ class SessionRunner {
     lastGoodStateVersion = session.getVersion();
   }
 
-  final Session session;
+  final Session<State> session;
   final Stream<AgentInput> inputCh;
 
   int turnIndex = 0;
@@ -334,11 +339,11 @@ class SessionRunner {
   /// Overwrites the session messages.
   void setMessages(List<Message> messages) => session.setMessages(messages);
 
-  /// Retrieves the custom state of the session.
-  dynamic getCustom() => session.getCustom();
+  /// Retrieves the custom state of the session as a typed `State`.
+  State? getCustom() => session.getCustom();
 
   /// Updates the custom state using a mutator function.
-  void updateCustom(dynamic Function(dynamic custom) fn) =>
+  void updateCustom(State? Function(State? custom) fn) =>
       session.updateCustom(fn);
 
   /// Retrieves the list of artifacts generated during the session.
@@ -596,8 +601,16 @@ class AgentFnOptions {
 }
 
 /// Function handler definition for custom agent actions.
-typedef AgentFn =
-    Future<AgentResult> Function(SessionRunner sess, AgentFnOptions options);
+///
+/// The `State` type parameter surfaces the agent's typed custom state on the
+/// [SessionRunner] passed to the handler, so `sess.getCustom()` /
+/// `sess.updateCustom(...)` are typed. It defaults to `dynamic` (raw JSON) when
+/// the agent has no `stateSchema`.
+typedef AgentFn<State> =
+    Future<AgentResult> Function(
+      SessionRunner<State> sess,
+      AgentFnOptions options,
+    );
 
 /// Validation callback for the `custom` field of a session state.
 typedef ValidateCustomState = void Function(dynamic custom);
@@ -664,12 +677,14 @@ void _assertInitMatchesStateManagement(_AgentConfig config, AgentInit? init) {
 /// state-management mismatch checks are performed up front by
 /// [_assertInitMatchesStateManagement] and throw [AgentInitError]. The
 /// snapshot/session ownership guard also throws [AgentInitError].
-Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
-  _AgentConfig config,
+Future<({Session<State> session, SessionSnapshot? snapshot})>
+_resolveSession<State>(
+  _AgentConfig<State> config,
   SessionStore store,
   AgentInit? init,
   ValidateCustomState validateCustomState,
 ) async {
+  final stateSchema = config.stateSchema;
   if (init?.snapshotId != null) {
     final snapshot = await store.getSnapshot(snapshotId: init!.snapshotId);
     if (snapshot == null) {
@@ -706,7 +721,10 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
     }
 
     validateCustomState(snapshot.state?.custom);
-    return (snapshot: snapshot, session: Session(snapshot.state!));
+    return (
+      snapshot: snapshot,
+      session: Session(snapshot.state!, stateSchema: stateSchema),
+    );
   }
 
   if (init?.sessionId != null) {
@@ -734,7 +752,10 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
     }
     if (snapshot != null) {
       validateCustomState(snapshot.state?.custom);
-      return (snapshot: snapshot, session: Session(snapshot.state!));
+      return (
+        snapshot: snapshot,
+        session: Session(snapshot.state!, stateSchema: stateSchema),
+      );
     }
     return (
       snapshot: null,
@@ -745,19 +766,24 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
           messages: [],
           sessionId: init.sessionId,
         ),
+        stateSchema: stateSchema,
       ),
     );
   }
 
   if (init?.state != null && config.store == null) {
     validateCustomState(init!.state!.custom);
-    return (snapshot: null, session: Session(init.state!));
+    return (
+      snapshot: null,
+      session: Session(init.state!, stateSchema: stateSchema),
+    );
   }
 
   return (
     snapshot: null,
     session: Session(
       SessionState(custom: <String, dynamic>{}, artifacts: [], messages: []),
+      stateSchema: stateSchema,
     ),
   );
 }
@@ -987,7 +1013,7 @@ Agent<State> defineCustomAgent<State>(
   SessionStore? store,
   SnapshotCallback? snapshotCallback,
   ClientTransform? clientTransform,
-  required AgentFn fn,
+  required AgentFn<State> fn,
 }) {
   final config = _AgentConfig<State>(
     name: name,
@@ -1043,10 +1069,10 @@ Agent<State> defineCustomAgent<State>(
           // `finishReason: 'failed'` result below.
           _assertInitMatchesStateManagement(config, init);
 
-          Session session;
+          Session<State> session;
           SessionSnapshot? snapshot;
           try {
-            final resolved = await _resolveSession(
+            final resolved = await _resolveSession<State>(
               config,
               resolvedStore,
               init,
@@ -1084,7 +1110,7 @@ Agent<State> defineCustomAgent<State>(
             heartbeatTimer = null;
           }
 
-          late SessionRunner runner;
+          late SessionRunner<State> runner;
 
           void emitChunk(AgentStreamChunk chunk) {
             final transform = config.clientTransform?.chunk;
@@ -1110,7 +1136,7 @@ Agent<State> defineCustomAgent<State>(
             },
           );
 
-          runner = SessionRunner(
+          runner = SessionRunner<State>(
             session,
             runnerInputController.stream,
             store: resolvedStore,

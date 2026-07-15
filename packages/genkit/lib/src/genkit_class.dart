@@ -389,7 +389,7 @@ final class Genkit extends GenkitAI {
     SessionStore? store,
     SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
-    required AgentFn fn,
+    required AgentFn<State> fn,
   }) {
     return agent_lib.defineCustomAgent<State>(
       registry,
@@ -428,7 +428,13 @@ final class Genkit extends GenkitAI {
 
   /// Returns the [Session] active in the current agent turn, or `null` when
   /// called outside of an agent turn.
-  Session? currentSession() => getCurrentSession();
+  ///
+  /// When a `State` type argument is supplied it is applied to the returned
+  /// session so `getCustom()` / `updateCustom(...)` are typed. Because Dart
+  /// generics are reified, the requested `State` must match the one the running
+  /// agent was defined with (a mismatch throws on the cast). Defaults to the
+  /// untyped `Session<dynamic>?` view.
+  Session<State>? currentSession<State>() => getCurrentSession<State>();
 
   /// Registers a Handlebars partial template for use in prompts.
   ///

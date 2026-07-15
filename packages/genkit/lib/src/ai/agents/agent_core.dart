@@ -35,18 +35,7 @@ import 'package:schemantic/schemantic.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
 import 'json_patch.dart';
-
-/// Casts or parses raw JSON [raw] into the typed [State].
-///
-/// When a [schema] is supplied, the raw JSON is `parse`d into a real `State`
-/// instance (e.g. a schemantic-generated class); otherwise it is a bare view
-/// cast over the JSON (the `Object?` / `Map`-shaped default). Returns `null`
-/// when [raw] is `null`. Mirrors the `inputSchema != null ? parse : as` pattern
-/// used by `Action`.
-State? _castOrParseState<State>(Object? raw, SchemanticType<State>? schema) {
-  if (raw == null) return null;
-  return schema != null ? schema.parse(raw) : raw as State;
-}
+import 'state_codec.dart';
 
 // ---------------------------------------------------------------------------
 // Cancellation (Dart has no AbortSignal/AbortController).
@@ -311,7 +300,7 @@ class AgentResponse<State> {
     // Server-managed agents omit `state` on the wire; fall back to the chat's
     // locally tracked custom state (already typed) so `res.state == chat.state`.
     // The wire branch is cast/parsed via the optional schema.
-    if (fromWire != null) return _castOrParseState(fromWire, _stateSchema);
+    if (fromWire != null) return castOrParseState(fromWire, _stateSchema);
     return _fallbackState?.call();
   }
 
@@ -473,7 +462,7 @@ class AgentSnapshot<State> {
 
   /// The typed custom state, cast/parsed via the optional schema. `null` when
   /// the snapshot carries no custom state.
-  State? get custom => _castOrParseState(_raw.state?.custom, _stateSchema);
+  State? get custom => castOrParseState(_raw.state?.custom, _stateSchema);
 
   /// The raw session state (with untyped `custom`), if you need it.
   SessionState? get sessionState => _raw.state;
@@ -599,7 +588,7 @@ class AgentChat<State> {
 
   SessionState? _clientState;
 
-  State? get state => _castOrParseState(_clientState?.custom, _stateSchema);
+  State? get state => castOrParseState(_clientState?.custom, _stateSchema);
 
   /// Replaces the tracked aggregates with (copies of) those carried by a
   /// session state.
@@ -720,7 +709,7 @@ class AgentChat<State> {
         message: raw.error?.message ?? 'Agent turn failed.',
         status: raw.error?.status ?? 'UNKNOWN',
         details: raw.error?.details,
-        state: _castOrParseState(raw.state?.custom, _stateSchema),
+        state: castOrParseState(raw.state?.custom, _stateSchema),
         snapshotId: raw.snapshotId,
         response: response,
       );
@@ -995,7 +984,7 @@ class AgentChat<State> {
       message: message,
       status: status,
       details: e,
-      state: _castOrParseState(_clientState?.custom, _stateSchema),
+      state: castOrParseState(_clientState?.custom, _stateSchema),
       snapshotId: snapshotId,
       response: response,
     );
