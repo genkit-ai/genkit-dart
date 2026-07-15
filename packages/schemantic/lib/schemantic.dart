@@ -182,8 +182,9 @@ abstract class SchemanticType<T> {
     if (value is Map) {
       return value.map((k, v) => MapEntry(k.toString(), _serializeToJson(v)));
     }
+    final Object? json;
     try {
-      return (value as dynamic).toJson();
+      json = (value as dynamic).toJson();
       // Detecting a dynamic `toJson()` at runtime requires catching this error.
       // ignore: avoid_catching_errors
     } on NoSuchMethodError {
@@ -192,6 +193,9 @@ abstract class SchemanticType<T> {
         'Provide a custom serialize function or implement toJson().',
       );
     }
+    // Recurse into the result so a hand-rolled `toJson()` that returns nested
+    // non-JSON values (e.g. domain objects) is still normalized to plain JSON.
+    return _serializeToJson(json);
   }
 
   /// Validates the given [data] against this schema.

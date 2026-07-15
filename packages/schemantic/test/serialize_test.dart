@@ -137,6 +137,30 @@ void main() {
         final serialized = schema.serialize(_Widget('w1'));
         expect(serialized, {'id': 'w1'});
       });
+
+      test('default serialize recurses into nested toJson() results', () {
+        // _Container.toJson() returns a map holding a raw _Widget (a non-JSON
+        // domain object). The default serializer should normalize it to plain
+        // JSON rather than leaking the object.
+        final schema = SchemanticType.from<_Container>(
+          jsonSchema: {'type': 'object'},
+          parse: (json) => _Container(_Widget('w1')),
+        );
+
+        final serialized = schema.serialize(_Container(_Widget('w2')));
+        expect(serialized, {
+          'widget': {'id': 'w2'},
+        });
+      });
+
+      test('default serialize throws for nested non-serializable values', () {
+        final schema = SchemanticType.from<_OpaqueContainer>(
+          jsonSchema: {'type': 'object'},
+          parse: (json) => _OpaqueContainer(),
+        );
+
+        expect(() => schema.serialize(_OpaqueContainer()), throwsArgumentError);
+      });
     });
 
     group('generated schema types', () {
@@ -235,6 +259,20 @@ class _Widget {
   _Widget(this.id);
 
   Map<String, Object?> toJson() => {'id': id};
+}
+
+/// A hand-rolled type whose `toJson()` returns a nested non-JSON value.
+class _Container {
+  final _Widget widget;
+
+  _Container(this.widget);
+
+  Map<String, Object?> toJson() => {'widget': widget};
+}
+
+/// A hand-rolled type whose `toJson()` returns a nested non-serializable value.
+class _OpaqueContainer {
+  Map<String, Object?> toJson() => {'value': _Opaque()};
 }
 
 class _Opaque {}
