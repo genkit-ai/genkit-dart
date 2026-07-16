@@ -86,7 +86,7 @@ void main() {
 
       final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.send(text: 'hi');
 
       expect(res.text, 'hi there');
       expect(res.snapshotId, 's_x');
@@ -121,7 +121,7 @@ void main() {
 
       final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
       final chat = agent.chat();
-      final turn = chat.sendStream(agentInputFromText('hi'));
+      final turn = chat.sendStream(text: 'hi');
 
       final texts = <String>[];
       await for (final c in turn.stream) {
@@ -152,7 +152,8 @@ void main() {
 
       expect(seenUrl, 'http://host/agent/getSnapshot');
       expect(snap, isNotNull);
-      expect(snap!.state?.custom, {'k': 'v'});
+      expect(snap!.custom, {'k': 'v'});
+      expect(snap.sessionState?.custom, {'k': 'v'});
     });
 
     test('abort() posts to the abort URL and returns prior status', () async {
@@ -200,8 +201,8 @@ void main() {
       );
 
       final chat = agent.chat();
-      await chat.send(agentInputFromText('hi'));
-      await chat.send(agentInputFromText('again'));
+      await chat.send(text: 'hi');
+      await chat.send(text: 'again');
 
       // Resolver ran once per turn.
       expect(calls, 2);
@@ -211,6 +212,62 @@ void main() {
       expect(client.requests, hasLength(2));
       expect(client.requests[0].headers['authorization'], 'Bearer token-1');
       expect(client.requests[1].headers['authorization'], 'Bearer token-2');
+    });
+
+    test('throws when a non-empty context is passed', () async {
+      final client = _MockClient((url, body) {
+        return <String>[
+          'data: ${jsonEncode({
+            'result': AgentOutput(
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ).toJson(),
+          })}',
+        ];
+      });
+
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
+      final chat = agent.chat();
+
+      // A remote agent cannot honor client-supplied context, so passing it is
+      // a hard error rather than a silent no-op.
+      expect(
+        () => chat.send(
+          text: 'hi',
+          context: {
+            'auth': {'uid': 'user-123'},
+          },
+        ),
+        throwsA(isA<UnsupportedError>()),
+      );
+      // The rejected turn never hit the wire.
+      expect(client.requests, isEmpty);
+    });
+
+    test('ignores an empty/null context (stays polymorphic)', () async {
+      final client = _MockClient((url, body) {
+        return <String>[
+          'data: ${jsonEncode({
+            'result': AgentOutput(
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ).toJson(),
+          })}',
+        ];
+      });
+
+      final agent = remoteAgent(url: 'http://host/agent', httpClient: client);
+      final chat = agent.chat();
+
+      // An empty context is a no-op: the same call site can target either an
+      // in-process or a remote agent without special-casing.
+      final res = await chat.send(text: 'hi', context: const {});
+      expect(res.text, 'ok');
+      expect(client.requests, hasLength(1));
     });
   });
 }

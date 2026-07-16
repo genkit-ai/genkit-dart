@@ -76,13 +76,49 @@ void main() {
       );
 
       final chat = agent.chat();
-      final res1 = await chat.send(agentInputFromText('hi'));
+      final res1 = await chat.send(text: 'hi');
       expect(res1.finishReason, AgentFinishReason.stop);
       expect(chat.state, {'count': 1});
 
-      final res2 = await chat.send(agentInputFromText('again'));
+      final res2 = await chat.send(text: 'again');
       expect(res2.finishReason, AgentFinishReason.stop);
       expect(chat.state, {'count': 2});
+    });
+
+    test('passes custom context to the in-process agent handler', () async {
+      Map<String, dynamic>? seenContext;
+      final agent = ai.defineCustomAgent(
+        name: 'contextual',
+        fn: (sess, options) async {
+          seenContext = options.context;
+          await sess.run((input, ctx) async {
+            sess.addMessages([
+              Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            ]);
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          final msgs = sess.getMessages();
+          return AgentResult(
+            message: msgs.isNotEmpty ? msgs.last : null,
+            finishReason: sess.lastTurnFinishReason,
+          );
+        },
+      );
+
+      final chat = agent.chat();
+      await chat.send(
+        text: 'hi',
+        context: {
+          'auth': {'uid': 'user-123'},
+        },
+      );
+
+      expect(seenContext, {
+        'auth': {'uid': 'user-123'},
+      });
     });
 
     test('streams model chunks and customPatch chunks', () async {
@@ -112,7 +148,7 @@ void main() {
       );
 
       final chat = agent.chat();
-      final turn = chat.sendStream(agentInputFromText('go'));
+      final turn = chat.sendStream(text: 'go');
 
       final texts = <String>[];
       final customs = <dynamic>[];
@@ -153,11 +189,11 @@ void main() {
       );
 
       final chat = agent.chat();
-      await chat.send(agentInputFromText('first'));
+      await chat.send(text: 'first');
       expect(chat.state, {'ok': true});
 
       await expectLater(
-        chat.send(agentInputFromText('second')),
+        chat.send(text: 'second'),
         throwsA(
           isA<AgentError>()
               .having((e) => e.status, 'status', 'INTERNAL')
@@ -182,6 +218,7 @@ void main() {
       final agent = ai.defineCustomAgent(
         name: 'persistent',
         store: store,
+        stateSchema: .map(.string(), .integer()),
         fn: (sess, options) async {
           await sess.run((input, ctx) async {
             sess.updateCustom((custom) {
@@ -201,18 +238,18 @@ void main() {
 
       final sessionId = generateUuidV4();
       final chat = agent.chat(sessionId: sessionId);
-      final res1 = await chat.send(agentInputFromText('one'));
+      final res1 = await chat.send(text: 'one');
       expect(res1.snapshotId, isNotNull);
 
       // A fresh chat resuming the same session sees prior state.
       final snapshot = await agent.getSnapshot(sessionId: sessionId);
       expect(snapshot, isNotNull);
-      expect(snapshot!.state?.custom, {'count': 1});
+      expect(snapshot!.custom, {'count': 1});
 
       final chat2 = agent.chat(sessionId: sessionId);
-      await chat2.send(agentInputFromText('two'));
+      await chat2.send(text: 'two');
       final snapshot2 = await agent.getSnapshot(sessionId: sessionId);
-      expect(snapshot2!.state?.custom, {'count': 2});
+      expect(snapshot2!.custom, {'count': 2});
     });
 
     test('detached turn does not self-parent its snapshot', () async {
@@ -237,7 +274,7 @@ void main() {
       final chat = agent.chat(sessionId: sessionId);
 
       // An attached turn first, to establish a parent snapshot.
-      final first = await chat.send(agentInputFromText('one'));
+      final first = await chat.send(text: 'one');
       final parentId = first.snapshotId;
       expect(parentId, isNotNull);
 
@@ -245,8 +282,10 @@ void main() {
       // upgrades that same id to `completed` in the background. The upgrade
       // must keep the parent of the reserved snapshot rather than pointing the
       // snapshot at itself.
-      final task = await chat.detach(agentInputFromText('two'));
-      final terminal = await task.wait(intervalMs: 10);
+      final task = await chat.detach(text: 'two');
+      final terminal = await task.wait(
+        interval: const Duration(milliseconds: 10),
+      );
 
       expect(terminal.status?.value, 'completed');
       expect(terminal.snapshotId, isNot(parentId));
@@ -260,7 +299,7 @@ void main() {
 
       // ...and getSnapshot resolves the latest leaf cleanly.
       final snapshot = await agent.getSnapshot(sessionId: sessionId);
-      expect(snapshot!.state?.custom, {'count': 2});
+      expect(snapshot!.custom, {'count': 2});
     });
 
     test('abort returns the prior status', () async {
@@ -278,10 +317,10 @@ void main() {
 
       final sessionId = generateUuidV4();
       final chat = agent.chat(sessionId: sessionId);
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.send(text: 'hi');
       final prior = await agent.abort(res.snapshotId!);
       // Turn already completed, so abort reports the prior status.
-      expect(prior, 'completed');
+      expect(prior?.value, 'completed');
     });
 
     test('abortAgentAction round-trips typed request/response', () async {
@@ -299,7 +338,7 @@ void main() {
 
       final sessionId = generateUuidV4();
       final chat = agent.chat(sessionId: sessionId);
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.send(text: 'hi');
 
       final response = await agent.abortAgentAction(
         AgentAbortRequest(snapshotId: res.snapshotId!),
@@ -391,7 +430,7 @@ void main() {
       );
 
       final chat = agent.chat();
-      final res = await chat.send(agentInputFromText('world'));
+      final res = await chat.send(text: 'world');
       expect(res.text, 'echo: world');
       expect(res.finishReason, AgentFinishReason.stop);
     });
@@ -400,8 +439,8 @@ void main() {
       final agent = ai.defineAgent(name: 'assistant2', model: modelRef('echo'));
 
       final chat = agent.chat();
-      await chat.send(agentInputFromText('first'));
-      final res2 = await chat.send(agentInputFromText('second'));
+      await chat.send(text: 'first');
+      final res2 = await chat.send(text: 'second');
       expect(res2.text, 'echo: second');
       // History should include both user turns + model replies.
       expect(chat.messages.length, greaterThanOrEqualTo(4));
@@ -437,7 +476,7 @@ void main() {
       );
 
       final chat = agent.chat();
-      final res = await chat.send(agentInputFromText('hi'));
+      final res = await chat.send(text: 'hi');
       expect(res.text, 'system: You greet Sparky warmly.');
     });
   });
@@ -465,7 +504,7 @@ void main() {
       );
 
       expect(ai.currentSession(), isNull);
-      await agent.chat().send(agentInputFromText('hi'));
+      await agent.chat().send(text: 'hi');
       expect(seen, isNotNull);
     });
   });

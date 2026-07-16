@@ -40,13 +40,12 @@ export 'src/ai/agents/agent_core.dart'
         AgentError,
         AgentInterrupt,
         AgentResponse,
+        AgentSnapshot,
         AgentTransport,
         AgentTurn,
         CancellationToken,
         DetachedTask,
-        TurnStream,
-        agentInputFromText,
-        createAgentApi;
+        TurnStream;
 export 'src/ai/agents/json_patch.dart'
     show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
 export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
@@ -56,10 +55,7 @@ export 'src/ai/agents/session.dart'
         Session,
         SessionError,
         SessionStore,
-        SnapshotCallback,
         SnapshotChangeNotifier,
-        SnapshotContext,
-        SnapshotEvent,
         SnapshotMutator,
         generateUuidV4,
         getCurrentSession,

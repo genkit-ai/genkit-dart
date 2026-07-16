@@ -21,8 +21,11 @@ library;
 import 'dart:async';
 import 'dart:math';
 
+import 'package:schemantic/schemantic.dart';
+
 import '../../exception.dart';
 import '../../types.dart';
+import 'state_codec.dart';
 
 /// Zone key under which the active [Session] is stored during an agent turn.
 const Object _sessionZoneKey = #ai.session;
@@ -66,41 +69,6 @@ void Function() _addListener<T>(
   (listeners[key] ??= []).add(callback);
   return () => listeners[key]?.remove(callback);
 }
-
-/// The lifecycle event that triggered a snapshot.
-///
-/// Mirrors the JS `SnapshotEventSchema` (`'turnEnd'` | `'invocationEnd'`). It
-/// is surfaced to the [SnapshotCallback] via [SnapshotContext.event]; unlike
-/// older revisions of the wire protocol it is no longer persisted as a field on
-/// [SessionSnapshot].
-extension type SnapshotEvent(String value) {
-  /// A snapshot taken at the end of a single turn.
-  static SnapshotEvent get turnEnd => SnapshotEvent('turnEnd');
-
-  /// A snapshot taken at the end of the whole invocation.
-  static SnapshotEvent get invocationEnd => SnapshotEvent('invocationEnd');
-}
-
-/// The execution context provided to a snapshot callback.
-class SnapshotContext {
-  SnapshotContext({
-    required this.state,
-    this.prevState,
-    required this.turnIndex,
-    required this.event,
-  });
-
-  final SessionState state;
-  final SessionState? prevState;
-  final int turnIndex;
-
-  /// `'turnEnd'` | `'invocationEnd'`.
-  final String event;
-}
-
-/// Callback triggered before a snapshot is saved. Return `false` to reject
-/// persistence.
-typedef SnapshotCallback = bool Function(SnapshotContext ctx);
 
 /// A function that receives the current snapshot and returns the updated
 /// snapshot to persist.
@@ -165,16 +133,28 @@ abstract interface class SnapshotChangeNotifier {
 /// State manager for a session turn, tracking messages, custom state, and
 /// artifacts.
 ///
-/// Custom state is held as plain JSON (`dynamic`); the typed `State` layer is
-/// provided by the agent runtime, which (de)serializes around these values.
-class Session {
+/// Custom state is stored internally as plain JSON (mirroring the JS plain
+/// object), and the typed `State` layer is a thin veneer over it: [getCustom]
+/// parses the JSON into a `State`, and [updateCustom] serializes the returned
+/// `State` back to JSON before storing. When a `stateSchema` is supplied,
+/// `State` is a real parsed type (e.g. a schemantic-generated class); without
+/// one `State` defaults to `dynamic` and the value is a bare view over the JSON.
+///
+/// Keeping the internal representation as plain JSON is deliberate: the
+/// `customChanged` -> `customPatch` streaming logic diffs raw JSON, so the typed
+/// API never changes what is stored on the wire.
+final class Session<State> {
   /// Builds a session from [initialState], assigning a [sessionId] if absent.
   ///
   /// State is held internally as the raw JSON map (mirroring the JS plain
   /// object) so mutations round-trip cleanly through `SessionState`'s
   /// (de)serialization regardless of the generated setter behavior.
-  Session(SessionState initialState)
-    : sessionId = initialState.sessionId ?? generateUuidV4() {
+  ///
+  /// When a [stateSchema] is provided, [getCustom] / [updateCustom] parse and
+  /// serialize the custom state through it; otherwise they operate on raw JSON.
+  Session(SessionState initialState, {SchemanticType<State>? stateSchema})
+    : sessionId = initialState.sessionId ?? generateUuidV4(),
+      _stateSchema = stateSchema {
     // Deep-clone so we never alias (or mutate) the caller's object: the session
     // owns its state, and a handler mutating it must not reach back into the
     // caller's / chat's state. A shallow `Map.from` would leave nested
@@ -182,6 +162,8 @@ class Session {
     _json = _deepClone(initialState.toJson()) as Map<String, dynamic>;
     _json['sessionId'] = sessionId;
   }
+
+  final SchemanticType<State>? _stateSchema;
 
   late final Map<String, dynamic> _json;
 
@@ -214,8 +196,8 @@ class Session {
   /// Returns copies: the underlying maps are deep-cloned before decoding so
   /// mutating the returned [Message] objects (whose setters write through) can't
   /// alter session state without a version bump or event. This mirrors the JS
-  /// implementation, which returns a `structuredClone`. (Note: unlike this and
-  /// [getState], [getCustom] and [getArtifacts] intentionally return live data.)
+  /// implementation, which returns a `structuredClone`. (Note: [getArtifacts]
+  /// intentionally returns live data.)
   List<Message> getMessages() =>
       _decodeJsonList(_deepClone(_json['messages']), Message.fromJson);
 
@@ -232,19 +214,30 @@ class Session {
     _version++;
   }
 
-  /// Retrieves the custom state of the session (plain JSON).
+  /// Retrieves the custom state of the session as a typed `State`.
   ///
-  /// Unlike [getState] and [getMessages], this returns the *live* internal
-  /// value rather than a copy (matching the JS implementation). Treat it as
-  /// read-only: mutating the returned object in place bypasses the version bump
-  /// and the `customChanged` event, so no `customPatch` is emitted upstack and
-  /// client state can silently diverge. To change custom state, always go
-  /// through [updateCustom].
-  dynamic getCustom() => _json['custom'];
+  /// When a `stateSchema` was supplied, the stored JSON is parsed into a real
+  /// `State` instance; otherwise the raw JSON is returned (a bare view cast to
+  /// `State`). Returns `null` when no custom state has been set.
+  ///
+  /// Unlike the untyped JS implementation this returns a *parsed* value, so
+  /// (when a schema is present) mutating it in place does not write back to the
+  /// session - always persist changes through [updateCustom]. When no schema is
+  /// present and the state is a raw `Map`/`List`, the returned value still
+  /// aliases the live internal JSON, so treat it as read-only for the same
+  /// reason: an in-place mutation bypasses the version bump and the
+  /// `customChanged` event, so no `customPatch` is emitted upstack.
+  State? getCustom() => castOrParseState<State>(_json['custom'], _stateSchema);
 
   /// Updates the custom state of the session using a mutator function.
-  void updateCustom(dynamic Function(dynamic custom) fn) {
-    _json['custom'] = fn(_json['custom']);
+  ///
+  /// The current custom state is parsed into a `State`, handed to [fn], and the
+  /// returned `State` is serialized back to plain JSON before storing. Storage
+  /// stays plain JSON so the `customChanged` -> `customPatch` streaming diff
+  /// keeps working unchanged.
+  void updateCustom(State? Function(State? custom) fn) {
+    final next = fn(castOrParseState<State>(_json['custom'], _stateSchema));
+    _json['custom'] = serializeState<State>(next, _stateSchema);
     _version++;
     _emit('customChanged');
   }
@@ -302,10 +295,17 @@ class Session {
 O runWithSession<O>(Session session, O Function() fn) => session.run(fn);
 
 /// Returns the [Session] instance active in the current context, or `null`.
-Session? getCurrentSession() => Zone.current[_sessionZoneKey] as Session?;
+///
+/// When a `State` type argument is supplied it is applied to the returned
+/// session, so `getCustom()` / `updateCustom(...)` are typed. Because Dart
+/// generics are reified, the requested `State` must match the one the session
+/// was created with (a mismatch throws on the cast). Defaults to
+/// `Session<dynamic>?` (the untyped view) when no type argument is given.
+Session<State>? getCurrentSession<State>() =>
+    Zone.current[_sessionZoneKey] as Session<State>?;
 
 /// Error thrown during session execution.
-class SessionError implements Exception {
+final class SessionError implements Exception {
   SessionError(this.message);
   final String message;
 
@@ -314,7 +314,8 @@ class SessionError implements Exception {
 }
 
 /// In-memory implementation of persistent session store.
-class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
+final class InMemorySessionStore
+    implements SessionStore, SnapshotChangeNotifier {
   /// Creates an in-memory store.
   ///
   /// When [rejectBranchingSessions] is `true`, a `sessionId` lookup that
@@ -442,7 +443,7 @@ String resolveSnapshotId(String? requestedId, SessionSnapshot result) {
 String? snapshotSessionId(SessionSnapshot snapshot) =>
     snapshot.sessionId ?? snapshot.state?.sessionId;
 
-class NormalizedGetSnapshot {
+final class NormalizedGetSnapshot {
   NormalizedGetSnapshot({this.snapshotId, this.sessionId});
   final String? snapshotId;
   final String? sessionId;

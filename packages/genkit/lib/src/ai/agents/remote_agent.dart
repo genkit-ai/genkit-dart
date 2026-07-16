@@ -23,6 +23,7 @@ library;
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
+import 'package:schemantic/schemantic.dart';
 
 import '../../client/client.dart';
 import '../../types.dart';
@@ -39,6 +40,9 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 /// - [headers]: Optional. Static headers, or a function called per request.
 /// - [stateManagement]: Optional. Declares server- vs client-managed state;
 ///   inferred otherwise.
+/// - [stateSchema]: Optional. When provided, `chat().state` / `res.state` return
+///   parsed `State` instances (e.g. a schemantic-generated class) instead of the
+///   raw JSON map. When omitted, state is a bare view cast over the JSON.
 /// - [httpClient]: Optional. Provide to control the HTTP client lifecycle. When
 ///   supplied, the client stays caller-owned and is not closed by [AgentApi.close];
 ///   when omitted, an internal client is created and closed by [AgentApi.close].
@@ -46,19 +50,20 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 /// ```dart
 /// final agent = remoteAgent(url: 'http://host/weatherAgent');
 /// final chat = agent.chat();
-/// final res = await chat.send(agentInputFromText('Weather in Tokyo?'));
+/// final res = await chat.send(text: 'Weather in Tokyo?');
 /// print(res.text);
 /// // Release the internally-created HTTP client when done.
 /// await agent.close();
 /// ```
-AgentApi remoteAgent({
+AgentApi<State> remoteAgent<State>({
   required String url,
   String? getSnapshotUrl,
   String? abortUrl,
   HeadersResolver? headers,
-  String? stateManagement,
+  AgentStateManagement? stateManagement,
+  SchemanticType<State>? stateSchema,
   http.Client? httpClient,
-}) => createAgentApi(
+}) => AgentApi<State>(
   _HttpAgentTransport(
     url: url,
     getSnapshotUrl: getSnapshotUrl,
@@ -67,15 +72,16 @@ AgentApi remoteAgent({
     stateManagement: stateManagement,
     httpClient: httpClient,
   ),
+  stateSchema: stateSchema,
 );
 
-class _HttpAgentTransport extends AgentTransport {
+final class _HttpAgentTransport extends AgentTransport {
   _HttpAgentTransport({
     required String url,
     String? getSnapshotUrl,
     String? abortUrl,
     HeadersResolver? headers,
-    String? stateManagement,
+    AgentStateManagement? stateManagement,
     http.Client? httpClient,
   }) : _headers = headers,
        // Track ownership: only close a client we created. A caller-passed
@@ -134,12 +140,32 @@ class _HttpAgentTransport extends AgentTransport {
     return headers();
   }
 
+  // A remote agent derives its context server-side from the incoming HTTP
+  // request (headers, auth, etc.), so a client-supplied [context] can never
+  // reach the handler. Rather than silently drop it (a subtle footgun, since
+  // context most often carries auth), fail fast: a caller passing context to a
+  // remote agent almost certainly expects it to take effect. Empty/null context
+  // is a no-op and is allowed, so the shared client surface still works
+  // polymorphically for callers that don't use context.
+  void _rejectContext(Map<String, dynamic>? context) {
+    if (context != null && context.isNotEmpty) {
+      throw UnsupportedError(
+        'A remote agent cannot accept client-supplied context: a remote agent '
+        'derives its context server-side from the incoming HTTP request. Send '
+        "the data via request headers (see remoteAgent's `headers`) and have "
+        'the server build its context from them instead.',
+      );
+    }
+  }
+
   @override
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
+    _rejectContext(context);
     final controller = StreamController<AgentStreamChunk>();
     final outputCompleter = Completer<AgentOutput>();
 
@@ -197,7 +223,9 @@ class _HttpAgentTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
+    _rejectContext(context);
     // Opt out of the non-streaming fast path: `send()` should always run the
     // turn over the streaming transport and drain the stream so a server-managed
     // agent's `customPatch` chunks are applied to the chat's tracked state. The
@@ -219,13 +247,13 @@ class _HttpAgentTransport extends AgentTransport {
   }
 
   @override
-  Future<String?> abort(String snapshotId) async {
+  Future<SnapshotStatus?> abort(String snapshotId) async {
     final headers = await _resolveHeaders();
     final response = await _abortAction.call(
       input: AgentAbortRequest(snapshotId: snapshotId),
       headers: headers,
     );
-    return response.status?.value;
+    return response.status;
   }
 
   @override

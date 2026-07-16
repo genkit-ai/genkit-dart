@@ -215,7 +215,7 @@ if (response.finishReason == FinishReason.interrupted) {
       toolChoice: ToolChoice.none, // Prevent immediate re-call
       // ... other options
       interruptRestart: [
-        interrupt.toolRequestPart!.withMetadata({'tool-approved': true}),
+        interrupt.toolRequestPart!.restart({'tool-approved': true}),
       ],
     );
   }

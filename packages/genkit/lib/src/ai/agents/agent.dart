@@ -261,18 +261,21 @@ typedef OnDetach = void Function(String snapshotId);
 
 /// Executor responsible for running turns over input streams and persisting
 /// state.
-class SessionRunner {
+///
+/// The `State` type parameter mirrors the wrapped [Session]'s: [getCustom] /
+/// [updateCustom] delegate straight through, so a `SessionRunner<State>` exposes
+/// the same typed custom-state API. It defaults to `dynamic` for the untyped
+/// (raw-JSON) case.
+class SessionRunner<State> {
   SessionRunner(
     this.session,
     this.inputCh, {
-    SnapshotCallback? snapshotCallback,
     SessionSnapshot? lastSnapshot,
     SessionStore? store,
     this.cancel,
     this.onEndTurn,
     this.onDetach,
-  }) : _snapshotCallback = snapshotCallback,
-       _lastSnapshot = lastSnapshot,
+  }) : _lastSnapshot = lastSnapshot,
        _store = store {
     // Seed the last-good state with the initial session state so a failure on
     // the very first turn still has a valid fallback state.
@@ -280,7 +283,7 @@ class SessionRunner {
     lastGoodStateVersion = session.getVersion();
   }
 
-  final Session session;
+  final Session<State> session;
   final Stream<AgentInput> inputCh;
 
   int turnIndex = 0;
@@ -305,8 +308,6 @@ class SessionRunner {
   SessionState? lastGoodState;
   AgentFinishReason? _lastGoodFinishReason;
   int? lastGoodStateVersion;
-
-  final SnapshotCallback? _snapshotCallback;
   SessionSnapshot? _lastSnapshot;
   int _lastSnapshotVersion = 0;
   final SessionStore? _store;
@@ -334,11 +335,11 @@ class SessionRunner {
   /// Overwrites the session messages.
   void setMessages(List<Message> messages) => session.setMessages(messages);
 
-  /// Retrieves the custom state of the session.
-  dynamic getCustom() => session.getCustom();
+  /// Retrieves the custom state of the session as a typed `State`.
+  State? getCustom() => session.getCustom();
 
   /// Updates the custom state using a mutator function.
-  void updateCustom(dynamic Function(dynamic custom) fn) =>
+  void updateCustom(State? Function(State? custom) fn) =>
       session.updateCustom(fn);
 
   /// Retrieves the list of artifacts generated during the session.
@@ -392,7 +393,6 @@ class SessionRunner {
           lastTurnError = null;
 
           final snapshotId = await maybeSnapshot(
-            SnapshotEvent.turnEnd,
             status: 'completed',
             snapshotId: turnSnapshotId,
             finishReason: finishReason,
@@ -422,7 +422,6 @@ class SessionRunner {
         lastTurnFinishReason = AgentFinishReason.failed;
         lastTurnError = toErrorDetails(e);
         final snapshotId = await maybeSnapshot(
-          SnapshotEvent.turnEnd,
           status: 'failed',
           error: lastTurnError,
           snapshotId: turnSnapshotId,
@@ -482,8 +481,7 @@ class SessionRunner {
   }
 
   /// Evaluates whether to save a snapshot to the persistent store.
-  Future<String?> maybeSnapshot(
-    SnapshotEvent event, {
+  Future<String?> maybeSnapshot({
     String? status,
     AgentErrorDetails? error,
     String? snapshotId,
@@ -500,20 +498,6 @@ class SessionRunner {
     }
 
     final currentState = session.getState();
-    final prevState = _lastSnapshot?.state;
-
-    if (_snapshotCallback != null && !isDetached) {
-      final keep = _snapshotCallback(
-        SnapshotContext(
-          state: currentState,
-          prevState: prevState,
-          turnIndex: turnIndex,
-          event: event.value,
-        ),
-      );
-      if (!keep) return null;
-    }
-
     final effectiveId = snapshotId ?? newSnapshotId;
 
     // When an id is reused (e.g. the detached `pending` snapshot is upgraded to
@@ -596,8 +580,16 @@ class AgentFnOptions {
 }
 
 /// Function handler definition for custom agent actions.
-typedef AgentFn =
-    Future<AgentResult> Function(SessionRunner sess, AgentFnOptions options);
+///
+/// The `State` type parameter surfaces the agent's typed custom state on the
+/// [SessionRunner] passed to the handler, so `sess.getCustom()` /
+/// `sess.updateCustom(...)` are typed. It defaults to `dynamic` (raw JSON) when
+/// the agent has no `stateSchema`.
+typedef AgentFn<State> =
+    Future<AgentResult> Function(
+      SessionRunner<State> sess,
+      AgentFnOptions options,
+    );
 
 /// Validation callback for the `custom` field of a session state.
 typedef ValidateCustomState = void Function(dynamic custom);
@@ -606,21 +598,19 @@ typedef ValidateCustomState = void Function(dynamic custom);
 // Internal config.
 // ---------------------------------------------------------------------------
 
-class _AgentConfig {
+class _AgentConfig<State> {
   _AgentConfig({
     required this.name,
     this.description,
     this.stateSchema,
     this.store,
-    this.snapshotCallback,
     this.clientTransform,
   });
 
   final String name;
   final String? description;
-  final SchemanticType<dynamic>? stateSchema;
+  final SchemanticType<State>? stateSchema;
   final SessionStore? store;
-  final SnapshotCallback? snapshotCallback;
   final ClientTransform? clientTransform;
 }
 
@@ -664,12 +654,14 @@ void _assertInitMatchesStateManagement(_AgentConfig config, AgentInit? init) {
 /// state-management mismatch checks are performed up front by
 /// [_assertInitMatchesStateManagement] and throw [AgentInitError]. The
 /// snapshot/session ownership guard also throws [AgentInitError].
-Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
-  _AgentConfig config,
+Future<({Session<State> session, SessionSnapshot? snapshot})>
+_resolveSession<State>(
+  _AgentConfig<State> config,
   SessionStore store,
   AgentInit? init,
   ValidateCustomState validateCustomState,
 ) async {
+  final stateSchema = config.stateSchema;
   if (init?.snapshotId != null) {
     final snapshot = await store.getSnapshot(snapshotId: init!.snapshotId);
     if (snapshot == null) {
@@ -706,7 +698,10 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
     }
 
     validateCustomState(snapshot.state?.custom);
-    return (snapshot: snapshot, session: Session(snapshot.state!));
+    return (
+      snapshot: snapshot,
+      session: Session(snapshot.state!, stateSchema: stateSchema),
+    );
   }
 
   if (init?.sessionId != null) {
@@ -734,7 +729,10 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
     }
     if (snapshot != null) {
       validateCustomState(snapshot.state?.custom);
-      return (snapshot: snapshot, session: Session(snapshot.state!));
+      return (
+        snapshot: snapshot,
+        session: Session(snapshot.state!, stateSchema: stateSchema),
+      );
     }
     return (
       snapshot: null,
@@ -745,19 +743,24 @@ Future<({Session session, SessionSnapshot? snapshot})> _resolveSession(
           messages: [],
           sessionId: init.sessionId,
         ),
+        stateSchema: stateSchema,
       ),
     );
   }
 
   if (init?.state != null && config.store == null) {
     validateCustomState(init!.state!.custom);
-    return (snapshot: null, session: Session(init.state!));
+    return (
+      snapshot: null,
+      session: Session(init.state!, stateSchema: stateSchema),
+    );
   }
 
   return (
     snapshot: null,
     session: Session(
       SessionState(custom: <String, dynamic>{}, artifacts: [], messages: []),
+      stateSchema: stateSchema,
     ),
   );
 }
@@ -790,7 +793,6 @@ void _pipeInputWithDetach(
             runner.newSnapshotId = turnSnapshotId;
 
             await runner.maybeSnapshot(
-              SnapshotEvent.turnEnd,
               status: 'pending',
               snapshotId: turnSnapshotId,
             );
@@ -822,9 +824,9 @@ void _pipeInputWithDetach(
 // In-process transport.
 // ---------------------------------------------------------------------------
 
-class _InProcessTransport extends AgentTransport {
+final class _InProcessTransport extends AgentTransport {
   _InProcessTransport({
-    required String stateManagement,
+    required AgentStateManagement stateManagement,
     required this.primaryAction,
     required this.getSnapshotFn,
     required this.abortFn,
@@ -836,13 +838,14 @@ class _InProcessTransport extends AgentTransport {
   primaryAction;
   final Future<SessionSnapshot?> Function(String? snapshotId, String? sessionId)
   getSnapshotFn;
-  final Future<String?> Function(String snapshotId) abortFn;
+  final Future<SnapshotStatus?> Function(String snapshotId) abortFn;
 
   BidiActionStream<AgentStreamChunk, AgentOutput, AgentInput> _startBidi(
     AgentInput input,
-    AgentInit init,
-  ) {
-    final bidi = primaryAction.streamBidi(init: init);
+    AgentInit init, [
+    Map<String, dynamic>? context,
+  ]) {
+    final bidi = primaryAction.streamBidi(init: init, context: context);
     bidi.send(input);
     bidi.close();
     return bidi;
@@ -861,8 +864,9 @@ class _InProcessTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
-    final bidi = _startBidi(input, init);
+    final bidi = _startBidi(input, init, context);
     return (stream: bidi, output: bidi.onResult);
   }
 
@@ -873,8 +877,9 @@ class _InProcessTransport extends AgentTransport {
     AgentInput input,
     AgentInit init, {
     required CancellationToken cancel,
+    Map<String, dynamic>? context,
   }) {
-    return _startBidi(input, init).onResult;
+    return _startBidi(input, init, context).onResult;
   }
 
   @override
@@ -888,7 +893,7 @@ class _InProcessTransport extends AgentTransport {
   // its own turn in response; an attached in-process turn's model call is not
   // interrupted (see [runTurn]).
   @override
-  Future<String?> abort(String snapshotId) => abortFn(snapshotId);
+  Future<SnapshotStatus?> abort(String snapshotId) => abortFn(snapshotId);
 }
 
 // ---------------------------------------------------------------------------
@@ -901,18 +906,18 @@ class _InProcessTransport extends AgentTransport {
 /// `loadChat`, `getSnapshot`, `abort`) - the same surface returned by
 /// `remoteAgent` on the client - plus the lower-level [action] for serving
 /// over HTTP and the snapshot/abort actions.
-class Agent {
+class Agent<State> {
   Agent._({
     required this.action,
     required this.getSnapshotDataAction,
     required this.abortAgentAction,
-    required AgentApi api,
+    required AgentApi<State> api,
     required Future<SessionSnapshot?> Function(
       String? snapshotId,
       String? sessionId,
     )
     resolveSnapshot,
-    required Future<String?> Function(String snapshotId) runAbort,
+    required Future<SnapshotStatus?> Function(String snapshotId) runAbort,
   }) : _api = api,
        _resolveSnapshot = resolveSnapshot,
        _runAbort = runAbort;
@@ -928,25 +933,28 @@ class Agent {
   final Action<AgentAbortRequest, AgentAbortResponse, void, void>
   abortAgentAction;
 
-  final AgentApi _api;
+  final AgentApi<State> _api;
   final Future<SessionSnapshot?> Function(String? snapshotId, String? sessionId)
   _resolveSnapshot;
-  final Future<String?> Function(String snapshotId) _runAbort;
+  final Future<SnapshotStatus?> Function(String snapshotId) _runAbort;
 
   /// Starts a new chat, optionally attaching via [snapshotId] / [sessionId] /
   /// [state] (provide at most one).
-  AgentChat chat({
+  AgentChat<State> chat({
     String? snapshotId,
     String? sessionId,
     SessionState? state,
   }) => _api.chat(snapshotId: snapshotId, sessionId: sessionId, state: state);
 
   /// Loads a server snapshot and returns a chat with history restored.
-  Future<AgentChat> loadChat({String? snapshotId, String? sessionId}) =>
+  Future<AgentChat<State>> loadChat({String? snapshotId, String? sessionId}) =>
       _api.loadChat(snapshotId: snapshotId, sessionId: sessionId);
 
   /// Reads a snapshot without starting a chat. Requires a server store.
-  Future<SessionSnapshot?> getSnapshot({
+  ///
+  /// Returns a typed [AgentSnapshot] wrapper (with the same `stateSchema`
+  /// applied to `snapshot.state`), or `null` when no snapshot is found.
+  Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
   }) => _api.getSnapshot(snapshotId: snapshotId, sessionId: sessionId);
@@ -959,7 +967,7 @@ class Agent {
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
-  Future<String?> abort(String snapshotId) => _runAbort(snapshotId);
+  Future<SnapshotStatus?> abort(String snapshotId) => _runAbort(snapshotId);
 }
 
 // ---------------------------------------------------------------------------
@@ -968,22 +976,25 @@ class Agent {
 
 /// Registers a multi-turn custom agent action capable of maintaining
 /// persistent state.
-Agent defineCustomAgent(
+///
+/// When a [stateSchema] is provided, the returned [Agent] is typed as
+/// `Agent<State>`, and `chat().state` / `res.state` return parsed `State`
+/// instances instead of raw JSON maps. Without one, `State` defaults to
+/// `dynamic` (a bare view over the JSON).
+Agent<State> defineCustomAgent<State>(
   Registry registry, {
   required String name,
   String? description,
-  SchemanticType<dynamic>? stateSchema,
+  SchemanticType<State>? stateSchema,
   SessionStore? store,
-  SnapshotCallback? snapshotCallback,
   ClientTransform? clientTransform,
-  required AgentFn fn,
+  required AgentFn<State> fn,
 }) {
-  final config = _AgentConfig(
+  final config = _AgentConfig<State>(
     name: name,
     description: description,
     stateSchema: stateSchema,
     store: store,
-    snapshotCallback: snapshotCallback,
     clientTransform: clientTransform,
   );
 
@@ -1032,10 +1043,10 @@ Agent defineCustomAgent(
           // `finishReason: 'failed'` result below.
           _assertInitMatchesStateManagement(config, init);
 
-          Session session;
+          Session<State> session;
           SessionSnapshot? snapshot;
           try {
-            final resolved = await _resolveSession(
+            final resolved = await _resolveSession<State>(
               config,
               resolvedStore,
               init,
@@ -1073,7 +1084,7 @@ Agent defineCustomAgent(
             heartbeatTimer = null;
           }
 
-          late SessionRunner runner;
+          late SessionRunner<State> runner;
 
           void emitChunk(AgentStreamChunk chunk) {
             final transform = config.clientTransform?.chunk;
@@ -1099,11 +1110,10 @@ Agent defineCustomAgent(
             },
           );
 
-          runner = SessionRunner(
+          runner = SessionRunner<State>(
             session,
             runnerInputController.stream,
             store: resolvedStore,
-            snapshotCallback: config.snapshotCallback,
             lastSnapshot: snapshot,
             cancel: cancelToken,
             onDetach: (snapshotId) {
@@ -1221,9 +1231,7 @@ Agent defineCustomAgent(
                   ),
                 ),
               );
-              final finalSnapshotId = await runner.maybeSnapshot(
-                SnapshotEvent.invocationEnd,
-              );
+              final finalSnapshotId = await runner.maybeSnapshot();
               return (result: result, finalSnapshotId: finalSnapshotId);
             } finally {
               // The turn has settled (the snapshot reached a terminal status),
@@ -1350,9 +1358,10 @@ Agent defineCustomAgent(
     return toClientSnapshot(effective);
   }
 
-  Future<String?> runAbort(String snapshotId) async {
+  Future<SnapshotStatus?> runAbort(String snapshotId) async {
     _requireStore(config.store, 'abort', config.name);
-    return _abortSnapshotInStore(config.store!, snapshotId);
+    final previous = await _abortSnapshotInStore(config.store!, snapshotId);
+    return previous != null ? SnapshotStatus(previous) : null;
   }
 
   final getSnapshotDataAction =
@@ -1380,24 +1389,26 @@ Agent defineCustomAgent(
           final status = await runAbort(request!.snapshotId);
           return AgentAbortResponse(
             snapshotId: request.snapshotId,
-            status: status != null ? SnapshotStatus(status) : null,
+            status: status,
           );
         },
       );
   registry.register(abortAgentAction);
 
   final transport = _InProcessTransport(
-    stateManagement: config.store != null ? 'server' : 'client',
+    stateManagement: config.store != null
+        ? AgentStateManagement.server
+        : AgentStateManagement.client,
     primaryAction: primaryAction,
     getSnapshotFn: resolveSnapshot,
     abortFn: runAbort,
   );
 
-  return Agent._(
+  return Agent<State>._(
     action: primaryAction,
     getSnapshotDataAction: getSnapshotDataAction,
     abortAgentAction: abortAgentAction,
-    api: createAgentApi(transport),
+    api: AgentApi<State>(transport, stateSchema: config.stateSchema),
     resolveSnapshot: resolveSnapshot,
     runAbort: runAbort,
   );
@@ -1423,13 +1434,12 @@ const _promptTag = 'agentPreamble';
 /// The [promptInput] supplies values for the referenced prompt's input
 /// variables, so a single prompt can be reused and customized by multiple
 /// agents.
-Agent definePromptAgent(
+Agent<State> definePromptAgent<State>(
   Registry registry, {
   required String promptName,
   Map<String, dynamic>? promptInput,
-  SchemanticType<dynamic>? stateSchema,
+  SchemanticType<State>? stateSchema,
   SessionStore? store,
-  SnapshotCallback? snapshotCallback,
   ClientTransform? clientTransform,
 }) {
   ExecutablePrompt? cachedPrompt;
@@ -1555,12 +1565,11 @@ Agent definePromptAgent(
     );
   }
 
-  return defineCustomAgent(
+  return defineCustomAgent<State>(
     registry,
     name: promptName,
     stateSchema: stateSchema,
     store: store,
-    snapshotCallback: snapshotCallback,
     clientTransform: clientTransform,
     fn: fn,
   );

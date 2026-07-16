@@ -14,13 +14,13 @@
 
 /// Weather agent — multi-turn streaming chat with tool calling.
 ///
-/// Ported from the JS `weather-agent.ts`. The Dart `FileSessionStore` is not
-/// yet available, so this agent uses an [InMemorySessionStore] (server-managed
-/// state) instead. Tool calls and multi-turn session threading work
-/// identically.
+/// Ported from the JS `weather-agent.ts`. This agent uses a [FileSessionStore]
+/// (server-managed state) so sessions persist to disk across runs. Tool calls
+/// and multi-turn session threading work identically.
 library;
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/io.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'genkit.dart';
@@ -50,7 +50,7 @@ final getWeather = ai.defineTool(
   ),
 );
 
-/// The weather agent — server-managed state via an in-memory store.
+/// The weather agent — server-managed state via a file-backed store.
 final weatherAgent = ai.defineAgent(
   name: 'weatherAgent',
   system:
@@ -58,5 +58,5 @@ final weatherAgent = ai.defineAgent(
       'getWeather tool.',
   use: [retry()],
   tools: [getWeather],
-  store: InMemorySessionStore(),
+  store: FileSessionStore('.sessions'),
 );

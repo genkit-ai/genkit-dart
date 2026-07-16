@@ -14,9 +14,12 @@
 
 /// Banking (interrupt) — human-in-the-loop approval.
 ///
-/// Ported from the JS `BankingInterrupt.tsx`. When the agent pauses on the
-/// `userApproval` interrupt, an approve/deny dialog appears. Approving resumes
-/// the chat with `chat.resume(...)` using the interrupt's `respond` builder.
+/// The `transferMoney` tool guards large transfers with a conditional
+/// interrupt. When the agent pauses on it, an approve/deny dialog appears.
+/// Approving resumes the chat by *restarting* the tool with a
+/// `transferApproved: true` flag in its `resumed` payload (so it re-runs and
+/// clears the gate); denying resumes with the interrupt's `respond` builder,
+/// supplying a "not completed" result.
 library;
 
 import 'dart:convert';
@@ -50,7 +53,13 @@ class _BankingPageState extends State<BankingPage> {
     await for (final chunk in turn.stream) {
       for (final part in chunk.raw.modelChunk?.content ?? const <Part>[]) {
         if (part.isToolRequest) {
+          // Skip interrupted tool requests: the agent re-emits them as an extra
+          // chunk carrying `metadata.interrupt` (surfaced via the approval
+          // dialog below), but they were already streamed once during
+          // generation. Rendering both would duplicate the tool card.
+          if (part.metadata?['interrupt'] != null) continue;
           final tr = part.toolRequest!;
+
           setState(() {
             _messages.add(
               ChatMessage(
@@ -88,9 +97,9 @@ class _BankingPageState extends State<BankingPage> {
           ),
         );
       }
-      // Surface a pending approval interrupt, if any.
+      // Surface a pending transferMoney approval interrupt, if any.
       final approval = res.interrupts
-          .where((interrupt) => interrupt.name == 'userApproval')
+          .where((interrupt) => interrupt.name == 'transferMoney')
           .toList();
       _pendingApproval = approval.isNotEmpty ? approval.first : null;
     });
@@ -106,7 +115,7 @@ class _BankingPageState extends State<BankingPage> {
 
     _chat ??= _agent.chat();
     try {
-      await _runTurn(_chat!.sendStream(agentInputFromText(text)));
+      await _runTurn(_chat!.sendStream(text: text));
     } catch (e) {
       setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
     } finally {
@@ -130,16 +139,21 @@ class _BankingPageState extends State<BankingPage> {
     });
 
     try {
-      final turn = chat.resumeStream(
-        AgentResume(
-          respond: [
-            approval.respond({
-              'approved': approved,
-              'feedback': approved ? 'Looks good' : 'User denied',
-            }),
-          ],
-        ),
-      );
+      // Approve by restarting the tool with the `transferApproved` flag in its
+      // `resumed` payload so the tool's conditional interrupt is cleared and the
+      // transfer executes. Deny by responding with a "not completed" result,
+      // without re-running the tool.
+      final turn = approved
+          ? chat.resumeStream(
+              restart: [
+                approval.restart({'transferApproved': true}),
+              ],
+            )
+          : chat.resumeStream(
+              respond: [
+                approval.respond({'success': false, 'transactionId': ''}),
+              ],
+            );
       await _runTurn(turn);
     } catch (e) {
       setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
@@ -155,10 +169,10 @@ class _BankingPageState extends State<BankingPage> {
       ChatUI(
         title: 'Banking Agent',
         description:
-            'Ask to transfer money — the agent pauses for your approval before '
-            'executing the transfer (human-in-the-loop interrupt).',
+            'Ask to transfer money — large transfers pause for your approval '
+            'before executing (a conditional interrupt inside the tool).',
         suggestions: const [
-          'Transfer \$500 to my savings account.',
+          'Transfer \$50 to my savings account.',
           'Move \$1200 to account 4471.',
         ],
         messages: _messages,

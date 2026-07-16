@@ -78,7 +78,7 @@ class _StreamingChatPageState extends State<StreamingChatPage> {
     final chat = _chat!;
 
     try {
-      final turn = chat.sendStream(agentInputFromText(text));
+      final turn = chat.sendStream(text: text);
       var accumulated = '';
       await for (final chunk in turn.stream) {
         if (!mounted) break;
@@ -88,8 +88,12 @@ class _StreamingChatPageState extends State<StreamingChatPage> {
         // dart2js (they would compile to failing dynamic invocations).
         for (final part in chunk.raw.modelChunk?.content ?? const <Part>[]) {
           if (part.isToolRequest) {
+            // Skip interrupted tool requests: the agent re-emits them as an
+            // extra chunk carrying `metadata.interrupt`, but they were already
+            // streamed once during generation. Rendering both produces a
+            // duplicate "Calling" card.
+            if (part.metadata?['interrupt'] != null) continue;
             final tr = part.toolRequest!;
-
             setState(() {
               _messages.add(
                 ChatMessage(

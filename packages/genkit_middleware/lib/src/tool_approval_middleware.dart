@@ -70,7 +70,11 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
     )
     next,
   ) async {
-    final approvedByMetadata = request.metadata?['tool-approved'] == true;
+    // Access approval via the tool request's `resumed` payload (populated by
+    // `restart(...)`, matching the JS convention).
+    final resumed = request.metadata?['resumed'];
+    final approvedByMetadata =
+        resumed is Map && resumed['tool-approved'] == true;
 
     // Check if the tool is implicitly approved or explicitly approved via metadata
     if (!approvedTools.contains(request.toolRequest.name) &&

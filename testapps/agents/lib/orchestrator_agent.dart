@@ -83,3 +83,17 @@ After receiving sub-agent responses, synthesize a final answer for the user.''',
   ],
   store: InMemorySessionStore(),
 );
+
+/// Ensures the orchestrator's sub-agents are registered.
+///
+/// Dart initializes top-level `final`s lazily (only on first read), and the
+/// orchestrator references its sub-agents by *name* (not by variable), so the
+/// `researcher` / `coder` initializers - which call `ai.defineAgent(...)` and
+/// register them - never run just by using [orchestratorAgent]. The `agents`
+/// middleware then fails its by-name registry lookup at delegation time
+/// ("Agent 'researcher' not found in registry.").
+///
+/// Call this once during startup (see `bin/server.dart`) to force those
+/// registrations. Reading each variable is enough to trigger its initializer;
+/// the returned list is incidental (useful if a caller wants to mount them).
+List<Agent> registerSubAgents() => [researcher, coder];

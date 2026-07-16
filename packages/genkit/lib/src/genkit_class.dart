@@ -19,8 +19,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'ai/agents/agent.dart' as agent_lib;
 import 'ai/agents/agent.dart' show Agent, AgentFn, ClientTransform;
-import 'ai/agents/session.dart'
-    show Session, SessionStore, SnapshotCallback, getCurrentSession;
+import 'ai/agents/session.dart' show Session, SessionStore, getCurrentSession;
 
 import 'ai/dotprompt_registry.dart';
 import 'ai/embedder.dart';
@@ -308,7 +307,7 @@ final class Genkit extends GenkitAI {
   ///
   /// This is a convenience shortcut for calling [definePrompt] followed by
   /// [definePromptAgent].
-  Agent defineAgent<CustomOptions, Input>({
+  Agent<State> defineAgent<CustomOptions, Input, State>({
     required String name,
     String? variant,
     ModelRef<CustomOptions>? model,
@@ -334,10 +333,10 @@ final class Genkit extends GenkitAI {
     /// can be reused and customized by multiple agents.
     Map<String, dynamic>? promptInput,
 
-    /// Optional schema describing the shape of the custom session state.
-    SchemanticType<dynamic>? stateSchema,
+    /// Optional schema describing the shape of the custom session state. When
+    /// provided, `chat().state` / `res.state` return parsed `State` instances.
+    SchemanticType<State>? stateSchema,
     SessionStore? store,
-    SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
   }) {
     // Register the prompt.
@@ -365,13 +364,12 @@ final class Genkit extends GenkitAI {
     );
 
     // Wire it into a prompt agent.
-    return agent_lib.definePromptAgent(
+    return agent_lib.definePromptAgent<State>(
       registry,
       promptName: variant != null ? '$name.$variant' : name,
       promptInput: promptInput,
       stateSchema: stateSchema,
       store: store,
-      snapshotCallback: snapshotCallback,
       clientTransform: clientTransform,
     );
   }
@@ -381,53 +379,55 @@ final class Genkit extends GenkitAI {
   ///
   /// Use this when you need full control over the agent turn loop. For the
   /// common prompt-driven case, use [defineAgent].
-  Agent defineCustomAgent({
+  Agent<State> defineCustomAgent<State>({
     required String name,
     String? description,
-    SchemanticType<dynamic>? stateSchema,
+    SchemanticType<State>? stateSchema,
     SessionStore? store,
-    SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
-    required AgentFn fn,
+    required AgentFn<State> fn,
   }) {
-    return agent_lib.defineCustomAgent(
+    return agent_lib.defineCustomAgent<State>(
       registry,
       name: name,
       description: description,
       stateSchema: stateSchema,
       store: store,
-      snapshotCallback: snapshotCallback,
       clientTransform: clientTransform,
       fn: fn,
     );
   }
 
   /// Registers an agent from an existing, previously-defined prompt.
-  Agent definePromptAgent({
+  Agent<State> definePromptAgent<State>({
     required String promptName,
 
     /// Supplies values for the prompt's input variables, so a single prompt
     /// can be reused and customized by multiple agents.
     Map<String, dynamic>? promptInput,
-    SchemanticType<dynamic>? stateSchema,
+    SchemanticType<State>? stateSchema,
     SessionStore? store,
-    SnapshotCallback? snapshotCallback,
     ClientTransform? clientTransform,
   }) {
-    return agent_lib.definePromptAgent(
+    return agent_lib.definePromptAgent<State>(
       registry,
       promptName: promptName,
       promptInput: promptInput,
       stateSchema: stateSchema,
       store: store,
-      snapshotCallback: snapshotCallback,
       clientTransform: clientTransform,
     );
   }
 
   /// Returns the [Session] active in the current agent turn, or `null` when
   /// called outside of an agent turn.
-  Session? currentSession() => getCurrentSession();
+  ///
+  /// When a `State` type argument is supplied it is applied to the returned
+  /// session so `getCustom()` / `updateCustom(...)` are typed. Because Dart
+  /// generics are reified, the requested `State` must match the one the running
+  /// agent was defined with (a mismatch throws on the cast). Defaults to the
+  /// untyped `Session<dynamic>?` view.
+  Session<State>? currentSession<State>() => getCurrentSession<State>();
 
   /// Registers a Handlebars partial template for use in prompts.
   ///

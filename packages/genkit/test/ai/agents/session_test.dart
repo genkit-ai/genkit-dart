@@ -14,12 +14,38 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/agents/session.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 Message _user(String text) => Message(
   role: Role.user,
   content: [TextPart(text: text)],
 );
+
+/// A small domain type used to exercise schema-aware (parsed) `State` typing.
+/// Uses the BYOT bridge (`SchemanticType.from`) so the test needs no codegen.
+class _Counter {
+  _Counter(this.count);
+
+  final int count;
+
+  factory _Counter.fromJson(Map<String, dynamic> json) =>
+      _Counter(json['count'] as int);
+
+  Map<String, dynamic> toJson() => {'count': count};
+
+  static final schema = SchemanticType.from<_Counter>(
+    jsonSchema: {
+      'type': 'object',
+      'properties': {
+        'count': {'type': 'integer'},
+      },
+      'required': ['count'],
+    },
+    parse: (json) => _Counter.fromJson((json as Map).cast<String, dynamic>()),
+    serialize: (value) => value.toJson(),
+  );
+}
 
 SessionSnapshot _snapshot({
   required String snapshotId,
@@ -170,6 +196,87 @@ void main() {
 
       // No mutation happened through the public API, so the version is unchanged.
       expect(session.getVersion(), 0);
+    });
+  });
+
+  group('Session typed custom state', () {
+    test('getCustom parses stored JSON into the typed State', () {
+      final session = Session<_Counter>(
+        SessionState(custom: {'count': 3}),
+        stateSchema: _Counter.schema,
+      );
+      final custom = session.getCustom();
+      expect(custom, isA<_Counter>());
+      expect(custom!.count, 3);
+    });
+
+    test('updateCustom serializes the typed State back to plain JSON', () {
+      final session = Session<_Counter>(
+        SessionState(custom: {'count': 1}),
+        stateSchema: _Counter.schema,
+      );
+      var emitted = false;
+      session.on('customChanged', (_) => emitted = true);
+
+      session.updateCustom((c) => _Counter((c?.count ?? 0) + 1));
+
+      // The typed view round-trips.
+      expect(session.getCustom()!.count, 2);
+      // Storage stays plain JSON so the customPatch diff keeps working.
+      expect(session.getState().custom, {'count': 2});
+      expect(emitted, isTrue);
+      expect(session.getVersion(), 1);
+    });
+
+    test('getCustom returns null when no custom state is set', () {
+      final session = Session<_Counter>(
+        SessionState(),
+        stateSchema: _Counter.schema,
+      );
+      expect(session.getCustom(), isNull);
+    });
+
+    test('updateCustom can clear custom state to null', () {
+      final session = Session<_Counter>(
+        SessionState(custom: {'count': 5}),
+        stateSchema: _Counter.schema,
+      );
+      session.updateCustom((_) => null);
+      expect(session.getCustom(), isNull);
+      expect(session.getState().custom, isNull);
+    });
+
+    test('untyped default operates on raw JSON (backward compatible)', () {
+      final session = Session(SessionState(custom: {'count': 0}));
+      // No schema: getCustom returns the raw JSON map (a bare view).
+      expect(session.getCustom(), {'count': 0});
+      session.updateCustom((c) => {'count': ((c as Map)['count'] as int) + 1});
+      expect(session.getCustom(), {'count': 1});
+      expect(session.getState().custom, {'count': 1});
+    });
+
+    test('getCurrentSession<State> returns the typed session', () {
+      final session = Session<_Counter>(
+        SessionState(custom: {'count': 7}),
+        stateSchema: _Counter.schema,
+      );
+      session.run(() {
+        final current = getCurrentSession<_Counter>();
+        expect(current, same(session));
+        expect(current!.getCustom()!.count, 7);
+      });
+    });
+
+    test('getCurrentSession<State> throws on a mismatched State type', () {
+      final session = Session<_Counter>(
+        SessionState(),
+        stateSchema: _Counter.schema,
+      );
+      session.run(() {
+        // The reified generic does not match the requested type, so the cast
+        // throws.
+        expect(() => getCurrentSession<String>(), throwsA(isA<TypeError>()));
+      });
     });
   });
 

@@ -57,19 +57,21 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
     });
 
     try {
-      final task = await _agent.chat().detach(agentInputFromText(topic));
+      final task = await _agent.chat().detach(text: topic);
       setState(() {
         _task = task;
         _snapshotId = task.snapshotId;
       });
 
-      await for (final snap in task.poll(intervalMs: 1500)) {
+      await for (final snap in task.poll(
+        interval: const Duration(milliseconds: 1500),
+      )) {
         setState(() {
           _polls++;
           _status = snap.status?.value ?? 'pending';
-          final messages = snap.state?.messages;
+          final messages = snap.messages;
 
-          if (messages != null && messages.isNotEmpty) {
+          if (messages.isNotEmpty) {
             _report = messages.last.content
                 .map((part) => part.text ?? '')
                 .join();

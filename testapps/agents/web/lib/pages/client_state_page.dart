@@ -69,7 +69,7 @@ class _ClientStatePageState extends State<ClientStatePage> {
     final chat = _chat!;
 
     try {
-      final turn = chat.sendStream(agentInputFromText(text));
+      final turn = chat.sendStream(text: text);
       var accumulated = '';
       await for (final chunk in turn.stream) {
         for (final part in chunk.raw.modelChunk?.content ?? const <Part>[]) {

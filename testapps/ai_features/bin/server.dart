@@ -56,7 +56,7 @@ void main(List<String> args) async {
     inputSchema: TransferMoneyInput.$schema,
     outputSchema: TransferMoneyOutput.$schema,
     fn: (input, ctx) async {
-      final resumedData = ctx.toolRequest?.metadata?['resumed'];
+      final resumedData = ctx.resumed;
       final resumedStatus = resumedData is Map ? resumedData['status'] : null;
 
       // if the user rejected the transaction
@@ -96,11 +96,8 @@ void main(List<String> args) async {
         final confirmations = <ToolRequestPart>[];
         for (final interrupt in response.interrupts) {
           // use the 'restart' method on our tool to provide `resumed` metadata
-          // In Dart, we provide restarted parts with new metadata.
           confirmations.add(
-            interrupt.toolRequestPart!.withMetadata({
-              'resumed': {'status': 'APPROVED'},
-            }),
+            interrupt.toolRequestPart!.restart({'status': 'APPROVED'}),
           );
         }
 

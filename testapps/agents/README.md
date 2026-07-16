@@ -46,7 +46,7 @@ testapps/agents/
 | Coding Agent | `codingAgent` | filesystem + shell + skills middleware, tool-approval interrupts |
 | Weather Chat | `weatherAgent` | streaming chat, tool calls, server store |
 | Weather (Stateless) | `weatherAgentStateless` | client-managed state (round-tripped) |
-| Banking (Interrupt) | `bankingAgent` | human-in-the-loop approve/deny interrupt + resume |
+| Banking (Interrupt) | `bankingAgent` | restartable tool with a conditional approval interrupt + resume |
 | Workspace Builder | `workspaceAgent` | artifact production, streamed `artifact` chunks |
 | Background (Detach) | `backgroundAgent` | `detach` + status polling + abort |
 | Branching (Variants) | `branchingAgent` | fork a conversation from a snapshot |
@@ -106,8 +106,6 @@ for browser access.
 - **Session store:** server-managed agents use `InMemorySessionStore`
   (sessions reset on server restart). A `FileSessionStore` is also available
   via `package:genkit/io.dart` for persistence across restarts.
-- **Interrupts:** Dart has no `defineInterrupt`; interrupts are modeled as tools
-  that call `ctx.interrupt(...)` (e.g. `userApproval`, `ask_user`).
 - **Middleware:** the orchestrator uses the real `agents()` delegation
   middleware (auto-injecting `delegate_to_*` tools). The JS `artifacts()`
   middleware is not in the Dart middleware suite yet, so the workspace agent

@@ -102,7 +102,7 @@ class _BranchingPageState extends State<BranchingPage> {
   Future<void> _restore(String snapshotId) async {
     try {
       final snapshot = await _agent.getSnapshot(snapshotId: snapshotId);
-      final messages = snapshot?.state?.messages;
+      final messages = snapshot?.messages;
       if (messages != null) {
         final restored = <_ChatMessage>[];
         for (final msg in messages) {
@@ -144,8 +144,8 @@ class _BranchingPageState extends State<BranchingPage> {
 
     try {
       final results = await Future.wait([
-        makeChat().send(agentInputFromText(text)),
-        makeChat().send(agentInputFromText(text)),
+        makeChat().send(text: text),
+        makeChat().send(text: text),
       ]);
       setState(() {
         _variantA = _Variant(results[0].text, results[0].snapshotId ?? '');

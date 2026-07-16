@@ -36,16 +36,18 @@ import 'package:schemantic/schemantic.dart';
 
 import 'genkit.dart';
 
-Map<String, dynamic> _state(dynamic custom) {
-  if (custom is Map) return Map<String, dynamic>.from(custom);
-  return {'subQuestions': <dynamic>[], 'subAnswers': <dynamic>[]};
+Map<String, dynamic> _state(Map<String, dynamic>? custom) {
+  if (custom == null) {
+    return {'subQuestions': <dynamic>[], 'subAnswers': <dynamic>[]};
+  }
+  return custom;
 }
 
 final researchAgent = ai.defineCustomAgent(
   name: 'researchAgent',
+  stateSchema: .map(.string(), .dynamicSchema()),
   fn: (sess, options) async {
     Message? lastMessage;
-    final session = ai.currentSession()!;
 
     await sess.run((input, ctx) async {
       final userText = input.message?.content.firstOrNull?.text ?? '';
@@ -58,7 +60,7 @@ final researchAgent = ai.defineCustomAgent(
 
       // Step 1: Decompose the question. Mutating custom state auto-emits a
       // `customPatch` chunk to the client.
-      session.updateCustom((s) {
+      sess.updateCustom((s) {
         final state = _state(s);
         state['status'] = 'Decomposing question into sub-topics…';
         return state;
@@ -81,7 +83,7 @@ final researchAgent = ai.defineCustomAgent(
           .map((e) => e.toString())
           .toList();
 
-      session.updateCustom((s) {
+      sess.updateCustom((s) {
         final state = _state(s);
         state['subQuestions'] = subQuestions;
         state['subAnswers'] = <dynamic>[];
@@ -92,7 +94,7 @@ final researchAgent = ai.defineCustomAgent(
       final subAnswers = <Map<String, dynamic>>[];
       for (var i = 0; i < subQuestions.length; i++) {
         final q = subQuestions[i];
-        session.updateCustom((s) {
+        sess.updateCustom((s) {
           final state = _state(s);
           state['status'] = 'Researching (${i + 1}/${subQuestions.length}): $q';
           return state;
@@ -107,14 +109,14 @@ final researchAgent = ai.defineCustomAgent(
         subAnswers.add({'question': q, 'answer': research.text});
       }
 
-      session.updateCustom((s) {
+      sess.updateCustom((s) {
         final state = _state(s);
         state['subAnswers'] = subAnswers;
         return state;
       });
 
       // Step 3: Synthesize the final response.
-      session.updateCustom((s) {
+      sess.updateCustom((s) {
         final state = _state(s);
         state['status'] = 'Synthesizing final response…';
         return state;
@@ -153,7 +155,7 @@ final researchAgent = ai.defineCustomAgent(
         sess.addMessages([lastMessage!]);
       }
 
-      session.updateCustom((s) {
+      sess.updateCustom((s) {
         final state = _state(s);
         state['status'] = 'Done';
         return state;

@@ -52,6 +52,11 @@ void _mountAgent(Router router, String path, Agent agent) {
 }
 
 void main() async {
+  // The orchestrator references its sub-agents ('researcher', 'coder') by name,
+  // and Dart initializes their top-level `final`s lazily, so force their
+  // `defineAgent(...)` registration before any delegation happens.
+  registerSubAgents();
+
   final router = Router();
 
   // Friendly root route. This server only exposes the agents API under

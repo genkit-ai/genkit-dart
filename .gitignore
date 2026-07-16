@@ -26,3 +26,5 @@ firestore-debug.log
 ui-debug.log
 
 *.local.*
+# Agents sample: file-backed session store output
+testapps/agents/.sessions/
