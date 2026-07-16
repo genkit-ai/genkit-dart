@@ -20,9 +20,12 @@ import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
 
 import '../core/registry.dart';
+import '../exception.dart';
 import '../types.dart' show GenerateActionOutputConfig;
 import 'dotprompt_registry.dart';
+import 'generate_middleware.dart';
 import 'model.dart';
+
 import 'prompt.dart';
 
 final _logger = Logger('genkit.prompt_loader');
@@ -137,6 +140,27 @@ void _loadPrompt(
   final config = metadata.config;
   final tools = metadata.tools;
 
+  // Resolve fields that are not first-class dotprompt metadata (`use`,
+  // `toolChoice`, `maxTurns`, `returnToolRequests`) from the raw frontmatter
+  // map. They are threaded through `PromptConfig` so they apply at generate
+  // time (and, where applicable, surface on the prompt metadata built by
+  // `definePromptAction`), matching the JS loader. A value of the wrong type is
+  // an authoring error in a static file, so it fails fast with a clear message
+  // at load time rather than being silently ignored or surfacing later as an
+  // obscure downstream error.
+  final use = _toMiddlewareRefs(metadata.raw?['use']);
+  final toolChoice = _typedRawField<String>(
+    metadata.raw,
+    'toolChoice',
+    registryName,
+  );
+  final maxTurns = _typedRawField<int>(metadata.raw, 'maxTurns', registryName);
+  final returnToolRequests = _typedRawField<bool>(
+    metadata.raw,
+    'returnToolRequests',
+    registryName,
+  );
+
   // Named schemas registered via `defineSchema`. Picoschema may reference these
   // by name (e.g. `schema: MyAddress`), so they are passed through to the
   // converter to resolve, mirroring what `_resolveMetadata` does internally.
@@ -168,20 +192,9 @@ void _loadPrompt(
     });
   }
 
-  // Build prompt metadata for the registry
-  final promptMeta = <String, dynamic>{
-    'type': 'prompt',
-    'prompt': {
-      'name': name,
-      'variant': ?variant,
-      'model': ?model,
-      'config': ?config,
-      'tools': ?tools,
-      'template': parsedPrompt.template,
-    },
-  };
-
-  // Create the prompt config
+  // Create the prompt config. `definePromptAction` builds the registry/display
+  // metadata (`type`, `prompt`) from these fields, so `use`/`toolChoice` are
+  // surfaced for the Developer UI without building the metadata map here.
   final promptConfig = PromptConfig<Map<String, dynamic>, Map<String, dynamic>>(
     name: _registryDefinitionKey(name, null, ns),
     variant: variant,
@@ -189,16 +202,18 @@ void _loadPrompt(
     config: config,
     inputSchema: inputSchema,
     toolNames: tools,
+    toolChoice: toolChoice,
+    maxTurns: maxTurns,
+    returnToolRequests: returnToolRequests,
     messagesTemplate: parsedPrompt.template,
     output: outputConfig,
-    metadata: promptMeta,
+    use: use,
   );
 
   definePromptAction<Map<String, dynamic>, Map<String, dynamic>>(
     registry,
     dotpromptRegistry,
     promptConfig,
-    metadata: promptMeta,
   );
 
   _logger.fine('Registered prompt "$registryName" from "$filePath"');
@@ -208,6 +223,71 @@ String _registryDefinitionKey(String name, String? variant, String? ns) {
   final prefix = ns != null && ns.isNotEmpty ? '$ns/' : '';
   final suffix = variant != null ? '.$variant' : '';
   return '$prefix$name$suffix';
+}
+
+/// Reads a scalar frontmatter field of type [T] from the raw metadata map.
+///
+/// Returns `null` when the field is absent. A present value of the wrong type
+/// is an authoring error in a static prompt file, so it throws a
+/// [GenkitException] with a clear message at load time rather than silently
+/// ignoring the value or letting it fail obscurely downstream.
+T? _typedRawField<T>(Map<String, dynamic>? raw, String key, String promptName) {
+  final value = raw?[key];
+  if (value == null) return null;
+  if (value is T) return value;
+  throw GenkitException(
+    "Invalid '$key' in prompt '$promptName': expected $T, got "
+    '${value.runtimeType}.',
+    status: StatusCodes.INVALID_ARGUMENT,
+  );
+}
+
+/// Normalizes the frontmatter `use` field into a list of middleware refs.
+///
+/// dotprompt does not model `use` as a first-class field, so it arrives as a
+/// raw value from the parsed frontmatter. Two entry shapes are supported,
+/// mirroring the code API where `use: [retry(maxRetries: 3)]` is a middleware
+/// name plus optional config:
+///
+/// ```yaml
+/// use:
+///   - retry                 # bare string -> middlewareRef(name: 'retry')
+///   - name: retry           # map with optional config
+///     config:
+///       maxRetries: 3
+/// ```
+///
+/// Malformed entries (non-string / map without a `name`) are skipped rather
+/// than throwing, consistent with the loader's tolerant handling of
+/// frontmatter. Returns `null` when no valid middleware is declared.
+List<GenerateMiddlewareRef>? _toMiddlewareRefs(dynamic use) {
+  if (use is! List) return null;
+
+  final refs = <GenerateMiddlewareRef>[];
+  for (final entry in use) {
+    if (entry is String) {
+      refs.add(middlewareRef(name: entry));
+    } else if (entry is Map) {
+      final name = entry['name'];
+      if (name is! String) {
+        _logger.warning(
+          'Skipping middleware entry without a valid "name": $entry',
+        );
+        continue;
+      }
+      final config = entry['config'];
+      refs.add(
+        middlewareRef<dynamic>(
+          name: name,
+          config: config is Map ? Map<String, dynamic>.from(config) : config,
+        ),
+      );
+    } else {
+      _logger.warning('Skipping unsupported middleware entry: $entry');
+    }
+  }
+
+  return refs.isEmpty ? null : refs;
 }
 
 /// Converts a frontmatter schema map to a JSON Schema map.

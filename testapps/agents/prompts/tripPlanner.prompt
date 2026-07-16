@@ -6,6 +6,11 @@ input:
 tools:
   - getAttractions
   - getFlightInfo
+maxTurns: 20
+use:
+  - name: retry
+    config:
+      maxRetries: 4
 ---
 
 {{role "system"}}
