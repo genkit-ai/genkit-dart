@@ -809,6 +809,68 @@ void main() {
       expect(counts, [0, 2]);
     });
 
+    test(
+      'tolerates a partial intermediate frame without terminating the stream',
+      () async {
+        // The model streams state incrementally: the first frame is a partial
+        // custom object (missing the required `count`), which does not conform
+        // to `_Counter.schema`; the second frame completes it. The stream must
+        // not throw mid-turn - `chunk.custom` is `null` on the partial frame
+        // and the parsed object once it conforms, and the terminal response
+        // still parses the final, complete state.
+        final transport = _FakeTransport([
+          _TurnScript(
+            chunks: [
+              AgentStreamChunk(
+                customPatch: [
+                  JsonPatchOperation(
+                    op: JsonPatchOp.replace,
+                    path: '',
+                    value: {'other': 'partial'},
+                  ),
+                ],
+              ),
+              AgentStreamChunk(
+                customPatch: [
+                  JsonPatchOperation(
+                    op: JsonPatchOp.add,
+                    path: '/count',
+                    value: 7,
+                  ),
+                ],
+              ),
+            ],
+            output: AgentOutput(
+              state: SessionState(custom: {'count': 7}),
+              message: _modelMessage('done'),
+            ),
+          ),
+        ]);
+        final chat = AgentApi<_Counter>(
+          transport,
+          stateSchema: _Counter.schema,
+        ).chat();
+        final turn = chat.sendStream(text: 'go');
+
+        final customs = <_Counter?>[];
+        // Must not throw despite the partial first frame.
+        await expectLater(
+          turn.stream.forEach((c) => customs.add(c.custom)),
+          completes,
+        );
+        final res = await turn.response;
+
+        // Partial frame yields null; the completing frame yields a parsed value.
+        expect(customs.length, 2);
+        expect(customs[0], isNull);
+        expect(customs[1], isA<_Counter>());
+        expect(customs[1]?.count, 7);
+        // The terminal response validates and parses the final state strictly.
+        expect(res.state, isA<_Counter>());
+        expect(res.state?.count, 7);
+      },
+    );
+
     test('loadChat parses the typed State', () async {
       final transport = _FakeTransport([]);
       transport.snapshots['s1'] = SessionSnapshot(

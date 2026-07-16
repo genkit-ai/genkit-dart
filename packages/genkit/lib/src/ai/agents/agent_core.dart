@@ -926,8 +926,21 @@ final class AgentChat<State> {
           // whole-document replace that re-bases onto the server baseline.
           final patch = raw.customPatch;
           if (patch != null) {
+            // Always apply the patch so the raw JSON keeps accumulating across
+            // frames, even while it is still partial. Reading `state` parses
+            // that JSON through the optional schema, which throws on an
+            // intermediate frame whose required fields have not streamed in
+            // yet. Swallow that here and surface `null` on `chunk.custom` until
+            // the accumulated state conforms; the terminal `turn.response`
+            // still validates the final, complete state strictly.
             _applyCustomPatch(patch);
-            chunk._setCustom(state);
+            State? liveCustom;
+            try {
+              liveCustom = state;
+            } catch (_) {
+              liveCustom = null;
+            }
+            chunk._setCustom(liveCustom);
           }
           yield chunk;
         }
