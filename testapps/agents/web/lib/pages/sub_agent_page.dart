@@ -20,6 +20,7 @@ library;
 
 import 'package:jaspr/jaspr.dart';
 
+import '../components/info_sidebar.dart';
 import 'streaming_chat_page.dart';
 
 class SubAgentPage extends StatelessComponent {
@@ -27,17 +28,18 @@ class SubAgentPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const StreamingChatPage(
+    return StreamingChatPage(
       endpoint: '/api/orchestratorAgent',
       title: 'Sub-Agent Delegation',
       description:
           'An orchestrator agent that delegates to a researcher and a coder '
           'sub-agent and synthesizes their answers.',
-      suggestions: [
+      suggestions: const [
         'Research the best sorting algorithms and write a Dart quicksort.',
         'Write a function that calculates the fibonacci sequence.',
         'Explain how HTTPS works.',
       ],
+      sidebar: subAgentSidebar(),
     );
   }
 }

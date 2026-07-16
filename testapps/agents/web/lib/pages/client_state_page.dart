@@ -133,7 +133,20 @@ class _ClientStatePageState extends State<ClientStatePage> {
         onSend: _handleSend,
       ),
       aside(classes: 'state-inspector', [
-        h3([.text('🧠 Client-held state')]),
+        h3([.text('📦 Session State (client-owned)')]),
+        p(classes: 'state-inspector-hint', [
+          .text('This is the raw '),
+          code([.text('state')]),
+          .text(
+            ' blob the client round-trips. It contains the full message '
+            'history, custom data, and artifacts. The ',
+          ),
+          code([.text('remoteAgent')]),
+          .text(
+            ' client stores it and sends it back on every subsequent turn '
+            'automatically.',
+          ),
+        ]),
         pre(classes: 'state-inspector-json', [.text(_stateJson)]),
       ]),
     ]);

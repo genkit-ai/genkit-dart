@@ -16,8 +16,8 @@
 ///
 /// Ported from the JS `BackgroundAgent.tsx`. Submits a turn with `detach: true`
 /// via `chat.detach(...)`, which returns immediately with a snapshotId. The
-/// page then polls the task status (pending → done/failed/aborted) and renders
-/// the final report. An "Abort" button cancels the running task.
+/// page then polls the task status (pending → completed/failed/aborted/expired)
+/// and renders the final report. An "Abort" button cancels the running task.
 library;
 
 import 'package:genkit/client.dart';
@@ -25,6 +25,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
 import '../components/chat_ui.dart' show markdownBlock;
+import '../components/info_sidebar.dart';
 import 'streaming_chat_page.dart';
 
 class BackgroundAgentPage extends StatefulComponent {
@@ -42,7 +43,9 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
   String _status = '';
   String? _snapshotId;
   String _report = '';
+  String? _error;
   int _polls = 0;
+  int _formKey = 0;
   DetachedTask? _task;
 
   Future<void> _start() async {
@@ -52,6 +55,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
       _running = true;
       _status = 'pending';
       _report = '';
+      _error = null;
       _polls = 0;
       _snapshotId = null;
     });
@@ -78,8 +82,22 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
           }
         });
       }
+
+      // The poll stream completed without producing a report — the worker
+      // likely stopped heartbeating.
+      if (mounted && _report.isEmpty && _status == 'pending') {
+        setState(() {
+          _status = 'expired';
+          _error =
+              'The background worker stopped responding before producing a '
+              'report.';
+        });
+      }
     } catch (e) {
-      setState(() => _status = 'failed: $e');
+      setState(() {
+        _status = 'failed';
+        _error = '$e';
+      });
     } finally {
       setState(() => _running = false);
     }
@@ -92,8 +110,29 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
     setState(() => _status = 'aborted');
   }
 
+  void _reset() {
+    setState(() {
+      _topic = '';
+      _running = false;
+      _status = '';
+      _snapshotId = null;
+      _report = '';
+      _error = null;
+      _polls = 0;
+      _task = null;
+      _formKey++;
+    });
+  }
+
+  bool get _isTerminal =>
+      _status == 'completed' ||
+      _status == 'failed' ||
+      _status == 'aborted' ||
+      _status == 'expired';
+
   @override
   Component build(BuildContext context) {
+    final showForm = !_running && _report.isEmpty && !_isTerminal;
     return div(classes: 'page-with-sidebar', [
       div(classes: 'chat-panel', [
         div(classes: 'chat-header', [
@@ -113,8 +152,9 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
             ),
           ]),
         ]),
-        if (!_running && _report.isEmpty) _form() else _statusView(),
+        if (showForm) _form() else _statusView(),
       ]),
+      backgroundSidebar(),
     ]);
   }
 
@@ -123,7 +163,8 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
       label(classes: 'background-label', [.text('Research topic')]),
       textarea(
         [],
-        classes: 'chat-input',
+        key: ValueKey('bg-form-$_formKey'),
+        classes: 'background-input',
         rows: 3,
         placeholder: 'e.g. renewable energy trends',
         onInput: (v) => _topic = v,
@@ -137,36 +178,55 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
   }
 
   Component _statusView() {
-    final terminal =
-        _status == 'completed' ||
-        _status.startsWith('failed') ||
-        _status == 'aborted';
+    final badgeClass = switch (_status) {
+      'completed' => 'done',
+      'aborted' => 'aborted',
+      'failed' || 'expired' => 'failed',
+      _ => '',
+    };
     return div(classes: 'background-result', [
       div(classes: 'background-result-header', [
-        span(
-          classes:
-              'background-status-badge '
-              '${_status == 'completed'
-                  ? 'done'
-                  : _status == 'aborted'
-                  ? 'aborted'
-                  : _status.startsWith('failed')
-                  ? 'failed'
-                  : ''}',
-          [.text(_status)],
-        ),
-
+        span(classes: 'background-status-badge $badgeClass', [
+          .text(_statusLabel()),
+        ]),
         if (_snapshotId != null)
-          span(classes: 'chat-desc', [.text('snapshot: $_snapshotId')]),
-        if (!terminal) span(classes: 'chat-desc', [.text('polls: $_polls')]),
+          span(classes: 'background-snapshot-id', [
+            .text('snapshot: $_snapshotId'),
+          ]),
+        if (!_isTerminal)
+          span(classes: 'background-poll-count', [.text('polls: $_polls')]),
       ]),
-      if (!terminal)
+      if (!_isTerminal)
         div(classes: 'background-status', [
           span(classes: 'background-status-icon', [.text('⏳')]),
           h3([.text('Working…')]),
+          span(classes: 'background-status-detail', [
+            .text(
+              'The server is generating your report. This page polls for '
+              'status updates every couple of seconds.',
+            ),
+          ]),
         ]),
+      if (_error != null) p(classes: 'background-error', [.text(_error!)]),
       if (_report.isNotEmpty)
         div(classes: 'background-report', [markdownBlock(_report)]),
+      if (_isTerminal)
+        div(classes: 'background-form', [
+          button(
+            [.text(_status == 'completed' ? '📄 New Report' : '🔄 Try Again')],
+            classes: 'btn btn-send',
+            onClick: _reset,
+          ),
+        ]),
     ]);
   }
+
+  String _statusLabel() => switch (_status) {
+    'completed' => '✅ Completed',
+    'failed' => '❌ Failed',
+    'aborted' => '⏹ Aborted',
+    'expired' => '⌛ Expired',
+    'pending' => '⏳ Pending',
+    _ => _status,
+  };
 }

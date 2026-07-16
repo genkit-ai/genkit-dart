@@ -357,6 +357,25 @@ class _BranchingPageState extends State<BranchingPage> {
           "original commit doesn't change when you create branches from it.",
         ),
       ]),
+      h4([.text('Key APIs')]),
+      pre([
+        .text('''
+// Branch: two chats from the same snapshot
+final agent = remoteAgent(
+  url: '/api/branchingAgent',
+);
+AgentChat makeChat() =>
+    agent.chat(snapshotId: snapshotId);
+
+final results = await Future.wait([
+  makeChat().send(text: text),
+  makeChat().send(text: text),
+]);
+
+// results[0].snapshotId != results[1].snapshotId
+// Both branch from the same point
+// Pick one to continue from'''),
+      ]),
     ]);
   }
 }

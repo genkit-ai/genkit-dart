@@ -19,6 +19,7 @@ library;
 
 import 'package:jaspr/jaspr.dart';
 
+import '../components/info_sidebar.dart';
 import 'streaming_chat_page.dart';
 
 class TripPlannerPage extends StatelessComponent {
@@ -26,17 +27,18 @@ class TripPlannerPage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const StreamingChatPage(
+    return StreamingChatPage(
       endpoint: '/api/tripPlannerAgent',
       title: 'Trip Planner',
       description:
           'A prompt-file (dotprompt) agent. Suggests attractions and looks up '
           'flights using tools.',
-      suggestions: [
+      suggestions: const [
         'I want to plan a trip to Paris. What should I see there?',
         'Find me flights from London to Tokyo.',
         'What are the top attractions in Tokyo?',
       ],
+      sidebar: tripPlannerSidebar(),
     );
   }
 }

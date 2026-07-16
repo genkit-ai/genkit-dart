@@ -102,7 +102,7 @@ class _ResearchPageState extends State<ResearchPage> {
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'page-with-sidebar', [
+    return div(classes: 'research-layout', [
       ChatUI(
         title: 'Research Agent',
         description:
@@ -119,18 +119,58 @@ class _ResearchPageState extends State<ResearchPage> {
         renderMarkdown: true,
         onSend: _handleSend,
       ),
-      aside(classes: 'state-inspector', [
-        h3([.text('🔬 Progress')]),
-        if (_status.isNotEmpty)
-          p(classes: 'chat-desc', [.text(_status)])
-        else
-          p(classes: 'artifacts-empty', [.text('Idle.')]),
-        if (_subQuestions.isNotEmpty) ...[
-          h3([.text('Sub-questions')]),
-          ul([
-            for (final q in _subQuestions) li([.text(q)]),
+      _sidebar(),
+    ]);
+  }
+
+  Component _sidebar() {
+    final hasProgress = _status.isNotEmpty || _subQuestions.isNotEmpty;
+    return aside(classes: 'research-sidebar', [
+      h3([.text('🔬 Research Process')]),
+      p(classes: 'research-sidebar-hint', [
+        .text('A custom agent that orchestrates '),
+        code([.text('decompose → research → synthesize')]),
+        .text(' and streams progress via '),
+        code([.text('customPatch')]),
+        .text(' chunks.'),
+      ]),
+      if (_loading && _status.isNotEmpty)
+        div(classes: 'research-status-bar', [
+          div(classes: 'research-status-dot', []),
+          .text(_status),
+        ]),
+      if (!hasProgress)
+        div(classes: 'research-empty', [
+          .text('Ask a question to watch the research process unfold.'),
+        ]),
+      if (_subQuestions.isNotEmpty)
+        div(classes: 'research-section', [
+          h4([.text('Sub-questions')]),
+          p(classes: 'research-section-hint', [
+            .text('The agent decomposed your question into these parts:'),
           ]),
-        ],
+          ol(classes: 'research-questions', [
+            for (final q in _subQuestions)
+              li(classes: 'research-question', [.text(q)]),
+          ]),
+        ]),
+      hr(classes: 'research-divider'),
+      h4([.text('📋 How It Works')]),
+      ol(classes: 'research-howto', [
+        li([
+          .text('Decompose: the agent breaks your question into '),
+          code([.text('subQuestions')]),
+          .text('.'),
+        ]),
+        li([.text('Research: each sub-question is answered in turn.')]),
+        li([.text('Synthesize: answers are combined into a final response.')]),
+        li([
+          .text('Each step streams a '),
+          code([.text('customPatch')]),
+          .text(' with the live '),
+          code([.text('status')]),
+          .text('.'),
+        ]),
       ]),
     ]);
   }
