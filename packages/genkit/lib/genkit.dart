@@ -22,13 +22,55 @@
 /// @docImport 'src/core/flow.dart';
 library;
 
+export 'src/ai/agents/agent.dart'
+    show
+        Agent,
+        AgentFn,
+        AgentFnOptions,
+        ClientTransform,
+        SessionRunner,
+        TurnContext,
+        TurnResult,
+        validateResumeAgainstHistory;
+export 'src/ai/agents/agent_core.dart'
+    show
+        AgentApi,
+        AgentChat,
+        AgentChunk,
+        AgentError,
+        AgentInterrupt,
+        AgentResponse,
+        AgentSnapshot,
+        AgentTransport,
+        AgentTurn,
+        CancellationToken,
+        DetachedTask,
+        TurnStream;
+export 'src/ai/agents/json_patch.dart'
+    show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
+export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
+export 'src/ai/agents/session.dart'
+    show
+        InMemorySessionStore,
+        Session,
+        SessionError,
+        SessionStore,
+        SnapshotChangeNotifier,
+        SnapshotMutator,
+        generateUuidV4,
+        getCurrentSession,
+        reserveSnapshotId,
+        runWithSession;
+
 export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
+
 export 'src/ai/formatters/types.dart';
 export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
+        GenerateMiddlewareContext,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
         defineMiddleware,
@@ -61,6 +103,7 @@ export 'src/core/action.dart' show Action, ActionFnArg, ActionMetadata;
 export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
 export 'src/exception.dart' show GenkitException, StatusCodes;
+export 'src/genkit_ai.dart' show GenkitAI;
 export 'src/genkit_class.dart';
 export 'src/schema_extensions.dart';
 export 'src/types.dart';

@@ -17,14 +17,16 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
+import 'ai/agents/agent.dart' as agent_lib;
+import 'ai/agents/agent.dart' show Agent, AgentFn, ClientTransform;
+import 'ai/agents/session.dart' show Session, SessionStore, getCurrentSession;
+
 import 'ai/dotprompt_registry.dart';
 import 'ai/embedder.dart';
 import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
-import 'ai/generate_bidi.dart';
 import 'ai/generate_middleware.dart';
-import 'ai/generate_types.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
 import 'ai/prompt_loader.dart';
@@ -39,9 +41,8 @@ import 'core/plugin.dart';
 import 'core/reflection.dart';
 import 'core/registry.dart';
 import 'exception.dart';
-import 'o11y/instrumentation.dart';
+import 'genkit_ai.dart';
 import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
-import 'schema.dart';
 import 'types.dart';
 import 'utils.dart' as utils;
 
@@ -52,11 +53,13 @@ import 'utils.dart' as utils;
 /// methods to create AI actions, such as [defineFlow], [defineTool],
 /// [definePrompt], and [defineResource].
 ///
+/// It extends [GenkitAI], inheriting the model-orchestration veneer
+/// ([generate], [generateStream], [generateBidi], [embed], [embedMany], [run]).
+///
 /// If `isDevEnv` is true or the `GENKIT_ENV` environment variable is set to
 /// 'dev', initializing [Genkit] also starts a local reflection server that
 /// communicates with the Genkit Developer UI.
-final class Genkit {
-  final Registry registry = Registry();
+final class Genkit extends GenkitAI {
   ReflectionServerHandle? _reflectionServer;
 
   late final GenerateAction _generateAction;
@@ -73,7 +76,7 @@ final class Genkit {
     /// Defaults to `'./prompts'`. Set to `null` to disable automatic
     /// prompt loading.
     String? promptDir = './prompts',
-  }) {
+  }) : super(Registry()) {
     configureCollectorExporter();
 
     // Initialize dotprompt registry with schema resolver wired to the registry
@@ -119,11 +122,6 @@ final class Genkit {
     if (_reflectionServer != null) {
       await _reflectionServer!.stop();
     }
-  }
-
-  /// Runs an AI operation within a new trace span.
-  Future<Output> run<Output>(String name, Future<Output> Function() fn) {
-    return runInNewSpan(name, (_) => fn());
   }
 
   /// Defines a new strongly-typed Genkit flow.
@@ -304,6 +302,133 @@ final class Genkit {
     return lookupPrompt(registry, name, variant: variant);
   }
 
+  /// Defines and registers an agent by creating a prompt and wiring it into a
+  /// multi-turn agent in one step.
+  ///
+  /// This is a convenience shortcut for calling [definePrompt] followed by
+  /// [definePromptAgent].
+  Agent<State> defineAgent<CustomOptions, Input, State>({
+    required String name,
+    String? variant,
+    ModelRef<CustomOptions>? model,
+    CustomOptions? config,
+    String? description,
+    SchemanticType<Input>? inputSchema,
+    String? system,
+    List<Part>? systemParts,
+    String? prompt,
+    List<Part>? promptParts,
+    List<Message>? messages,
+    String? messagesTemplate,
+    GenerateActionOutputConfig? output,
+    int? maxTurns,
+    bool? returnToolRequests,
+    Map<String, dynamic>? metadata,
+    List<Tool>? tools,
+    List<String>? toolNames,
+    String? toolChoice,
+    List<GenerateMiddlewareRef>? use,
+
+    /// Supplies values for the prompt's input variables, so a single prompt
+    /// can be reused and customized by multiple agents.
+    Map<String, dynamic>? promptInput,
+
+    /// Optional schema describing the shape of the custom session state. When
+    /// provided, `chat().state` / `res.state` return parsed `State` instances.
+    SchemanticType<State>? stateSchema,
+    SessionStore? store,
+    ClientTransform? clientTransform,
+  }) {
+    // Register the prompt.
+    definePrompt<CustomOptions, Input>(
+      name: name,
+      variant: variant,
+      model: model,
+      config: config,
+      description: description,
+      inputSchema: inputSchema,
+      system: system,
+      systemParts: systemParts,
+      prompt: prompt,
+      promptParts: promptParts,
+      messages: messages,
+      messagesTemplate: messagesTemplate,
+      output: output,
+      maxTurns: maxTurns,
+      returnToolRequests: returnToolRequests,
+      metadata: metadata,
+      tools: tools,
+      toolNames: toolNames,
+      toolChoice: toolChoice,
+      use: use,
+    );
+
+    // Wire it into a prompt agent.
+    return agent_lib.definePromptAgent<State>(
+      registry,
+      promptName: variant != null ? '$name.$variant' : name,
+      promptInput: promptInput,
+      stateSchema: stateSchema,
+      store: store,
+      clientTransform: clientTransform,
+    );
+  }
+
+  /// Registers a multi-turn custom agent action capable of maintaining
+  /// persistent state.
+  ///
+  /// Use this when you need full control over the agent turn loop. For the
+  /// common prompt-driven case, use [defineAgent].
+  Agent<State> defineCustomAgent<State>({
+    required String name,
+    String? description,
+    SchemanticType<State>? stateSchema,
+    SessionStore? store,
+    ClientTransform? clientTransform,
+    required AgentFn<State> fn,
+  }) {
+    return agent_lib.defineCustomAgent<State>(
+      registry,
+      name: name,
+      description: description,
+      stateSchema: stateSchema,
+      store: store,
+      clientTransform: clientTransform,
+      fn: fn,
+    );
+  }
+
+  /// Registers an agent from an existing, previously-defined prompt.
+  Agent<State> definePromptAgent<State>({
+    required String promptName,
+
+    /// Supplies values for the prompt's input variables, so a single prompt
+    /// can be reused and customized by multiple agents.
+    Map<String, dynamic>? promptInput,
+    SchemanticType<State>? stateSchema,
+    SessionStore? store,
+    ClientTransform? clientTransform,
+  }) {
+    return agent_lib.definePromptAgent<State>(
+      registry,
+      promptName: promptName,
+      promptInput: promptInput,
+      stateSchema: stateSchema,
+      store: store,
+      clientTransform: clientTransform,
+    );
+  }
+
+  /// Returns the [Session] active in the current agent turn, or `null` when
+  /// called outside of an agent turn.
+  ///
+  /// When a `State` type argument is supplied it is applied to the returned
+  /// session so `getCustom()` / `updateCustom(...)` are typed. Because Dart
+  /// generics are reified, the requested `State` must match the one the running
+  /// agent was defined with (a mismatch throws on the cast). Defaults to the
+  /// untyped `Session<dynamic>?` view.
+  Session<State>? currentSession<State>() => getCurrentSession<State>();
+
   /// Registers a Handlebars partial template for use in prompts.
   ///
   /// Partials can be referenced in prompt templates using `{{> name}}`.
@@ -481,299 +606,5 @@ final class Genkit {
     );
     registry.register(evaluator);
     return evaluator;
-  }
-
-  /// Embeds multiple documents using the specified embedder.
-  Future<List<Embedding>> embedMany<CustomOptions>({
-    required EmbedderRef<CustomOptions> embedder,
-    required List<DocumentData> documents,
-    CustomOptions? options,
-  }) async {
-    final action = await registry.lookupAction('embedder', embedder.name);
-    if (action == null) {
-      throw GenkitException(
-        'Embedder ${embedder.name} not found',
-        status: StatusCodes.NOT_FOUND,
-      );
-    }
-
-    final resolvedOptions = options is Map
-        ? options as Map<String, dynamic>
-        : (options as dynamic)?.toJson() as Map<String, dynamic>?;
-
-    final req = EmbedRequest(input: documents, options: resolvedOptions);
-
-    final response = await action(req) as EmbedResponse;
-    return response.embeddings;
-  }
-
-  /// Embeds a single document or a list of documents.
-  Future<List<Embedding>> embed<CustomOptions>({
-    required EmbedderRef<CustomOptions> embedder,
-    DocumentData? document,
-    List<DocumentData>? documents,
-    CustomOptions? options,
-  }) async {
-    final docs = documents ?? (document != null ? [document] : []);
-    if (docs.isEmpty) {
-      throw ArgumentError(
-        'Either document or documents must be provided to embed.',
-      );
-    }
-    return embedMany(embedder: embedder, documents: docs, options: options);
-  }
-
-  /// Starts a bi-directional generator session.
-  Future<GenerateBidiSession> generateBidi({
-    required String model,
-    dynamic config,
-    List<Tool>? tools,
-    List<String>? toolNames,
-    String? system,
-  }) {
-    final resolved = _resolveTools(
-      registry,
-      tools: tools,
-      toolNames: toolNames,
-    );
-    return runGenerateBidi(
-      resolved.registry,
-      modelName: model,
-      config: config,
-      tools: resolved.toolNames,
-      system: system,
-    );
-  }
-
-  /// The tool resolution logic.
-  ///
-  /// Returns a new registry with embedded tools if necessary.
-  ({Registry registry, List<String>? toolNames}) _resolveTools(
-    Registry registry, {
-    List<Tool>? tools,
-    List<String>? toolNames,
-  }) {
-    if ((tools == null || tools.isEmpty) &&
-        (toolNames == null || toolNames.isEmpty)) {
-      return (registry: registry, toolNames: null);
-    }
-
-    final resolvedToolNames = <String>[...?toolNames];
-
-    if (tools == null || tools.isEmpty) {
-      return (registry: registry, toolNames: resolvedToolNames);
-    }
-
-    final childRegistry = Registry.childOf(registry);
-    for (final tool in tools) {
-      childRegistry.register(tool);
-      if (!resolvedToolNames.contains(tool.name)) {
-        resolvedToolNames.add(tool.name);
-      }
-    }
-    return (registry: childRegistry, toolNames: resolvedToolNames);
-  }
-
-  /// Generates a response using the specified model and context.
-  Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
-    String? system,
-    String? prompt,
-    List<Message>? messages,
-    ModelRef<CustomOptions>? model,
-    CustomOptions? config,
-    List<Tool>? tools,
-    List<String>? toolNames,
-    String? toolChoice,
-    bool? returnToolRequests,
-    int? maxTurns,
-    SchemanticType<Output>? outputSchema,
-    String? outputFormat,
-    bool? outputConstrained,
-    String? outputInstructions,
-    bool? outputNoInstructions,
-    String? outputContentType,
-    Map<String, dynamic>? context,
-    StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
-    List<GenerateMiddlewareRef>? use,
-
-    /// Optional data to resume an interrupted generation session.
-    ///
-    /// The list should contain [InterruptResponse]s for each interrupted tool request
-    /// that is providing an explicit output reply.
-    ///
-    /// Example (providing a response):
-    /// ```dart
-    /// interruptRespond: [
-    ///   InterruptResponse(interruptPart, 'User Answer')
-    /// ]
-    /// ```
-    List<InterruptResponse>? interruptRespond,
-
-    /// Optional list of tool requests to restart during an interrupted generation session.
-    ///
-    /// Restarts the execution of the specified tool part instead of providing a reply.
-    /// Example:
-    /// ```dart
-    /// interruptRestart: [interruptPart]
-    /// ```
-    List<ToolRequestPart>? interruptRestart,
-  }) async {
-    if (outputInstructions != null && outputNoInstructions == true) {
-      throw ArgumentError(
-        'Cannot set both outputInstructions and outputNoInstructions to true.',
-      );
-    }
-
-    GenerateActionOutputConfig? outputConfig;
-    if (outputSchema != null ||
-        outputFormat != null ||
-        outputConstrained != null ||
-        outputInstructions != null ||
-        outputNoInstructions != null ||
-        outputContentType != null) {
-      outputConfig = GenerateActionOutputConfig.fromJson({
-        'format': ?outputFormat,
-        if (outputSchema != null)
-          'jsonSchema': toJsonSchema(type: outputSchema),
-        'constrained': ?outputConstrained,
-        'instructions': ?outputInstructions,
-        'contentType': ?outputContentType,
-        if (outputNoInstructions == true) 'instructions': false,
-      });
-    }
-    final resolved = _resolveTools(
-      registry,
-      tools: tools,
-      toolNames: toolNames,
-    );
-    final rawResponse = await generateHelper(
-      resolved.registry,
-      system: system,
-      prompt: prompt,
-      messages: messages,
-      model: model,
-      config: config,
-      tools: resolved.toolNames,
-      toolChoice: toolChoice,
-      returnToolRequests: returnToolRequests,
-      maxTurns: maxTurns,
-      output: outputConfig,
-      context: context,
-      middleware: use
-          ?.map<GenerateMiddlewareOneof>(
-            (mw) => (middlewareRef: mw, middlewareInstance: null),
-          )
-          .toList(),
-      resume: interruptRespond,
-      restart: interruptRestart,
-      onChunk: onChunk == null
-          ? null
-          : (c) {
-              if (outputSchema != null) {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.rawChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    output: c.output != null
-                        ? outputSchema.parse(c.output)
-                        : null,
-                  ),
-                );
-              } else {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.rawChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    output: c.output as Output?,
-                  ),
-                );
-              }
-            },
-    );
-    if (outputSchema != null) {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        output: outputSchema.parse(rawResponse.output),
-      );
-    } else {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        request: rawResponse.modelRequest,
-        output: rawResponse.output as Output?,
-      );
-    }
-  }
-
-  /// Streams a response from the specified model.
-  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
-  generateStream<CustomOptions, Output>({
-    String? system,
-    String? prompt,
-    List<Message>? messages,
-    ModelRef<CustomOptions>? model,
-    CustomOptions? config,
-    List<Tool>? tools,
-    List<String>? toolNames,
-    String? toolChoice,
-    bool? returnToolRequests,
-    int? maxTurns,
-    SchemanticType<Output>? outputSchema,
-    String? outputFormat,
-    bool? outputConstrained,
-    String? outputInstructions,
-    bool? outputNoInstructions,
-    String? outputContentType,
-    Map<String, dynamic>? context,
-    List<GenerateMiddlewareRef>? use,
-    List<InterruptResponse>? interruptRespond,
-    List<ToolRequestPart>? interruptRestart,
-  }) {
-    final streamController = StreamController<GenerateResponseChunk<Output>>();
-    final actionStream =
-        ActionStream<
-          GenerateResponseChunk<Output>,
-          GenerateResponseHelper<Output>
-        >(streamController.stream);
-
-    generate(
-          system: system,
-          prompt: prompt,
-          messages: messages,
-          model: model,
-          config: config,
-          tools: tools,
-          toolNames: toolNames,
-          toolChoice: toolChoice,
-          returnToolRequests: returnToolRequests,
-          maxTurns: maxTurns,
-          outputSchema: outputSchema,
-          outputFormat: outputFormat,
-          outputConstrained: outputConstrained,
-          outputInstructions: outputInstructions,
-          outputNoInstructions: outputNoInstructions,
-          outputContentType: outputContentType,
-          use: use,
-          interruptRespond: interruptRespond,
-          interruptRestart: interruptRestart,
-          onChunk: (chunk) {
-            if (streamController.isClosed) return;
-            streamController.add(chunk);
-          },
-        )
-        .then((result) {
-          actionStream.setResult(result);
-          if (!streamController.isClosed) {
-            streamController.close();
-          }
-        })
-        .catchError((Object e, StackTrace s) {
-          actionStream.setError(e, s);
-          if (!streamController.isClosed) {
-            streamController.addError(e, s);
-            streamController.close();
-          }
-        });
-
-    return actionStream;
   }
 }

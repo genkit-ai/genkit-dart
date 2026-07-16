@@ -79,7 +79,7 @@ class FilesystemPlugin extends GenkitPlugin {
     defineMiddleware<FilesystemOptions>(
       name: 'filesystem',
       configSchema: FilesystemOptions.$schema,
-      create: ([FilesystemOptions? config]) {
+      create: (config, ctx) {
         if (config == null) {
           throw ArgumentError(
             'filesystem middleware requires a rootDirectory option',

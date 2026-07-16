@@ -21,7 +21,7 @@ import 'package:http/http.dart' as http;
 void main() async {
   final response = await http.get(
     Uri.parse(
-      'https://raw.githubusercontent.com/firebase/genkit/refs/heads/main/genkit-tools/genkit-schema.json',
+      'https://raw.githubusercontent.com/genkit-ai/genkit/refs/heads/main/genkit-tools/genkit-schema.json',
     ),
   );
 
@@ -44,6 +44,31 @@ void main() async {
       if (!props.containsKey('defaultInstructions')) {
         props['defaultInstructions'] = {'type': 'boolean'};
       }
+    }
+
+    // The `AgentInput.resume` schema is an inline (anonymous) object. Promote
+    // it to a named `$def` so it gets its own generated class.
+    if (definitions.containsKey('AgentInput')) {
+      final agentInput = definitions['AgentInput'] as Map<String, dynamic>;
+      final props = agentInput['properties'] as Map<String, dynamic>? ?? {};
+      if (props.containsKey('resume')) {
+        definitions['AgentResume'] = props['resume'];
+      }
+    }
+
+    // The structured error carried in agent outputs and snapshots is named
+    // `RuntimeError` on the wire. Generate it under the Dart-internal name
+    // `AgentErrorInfo` (to avoid colliding with the hand-written `AgentError`
+    // exception class in agent_core.dart) by aliasing the `RuntimeError` def.
+    if (definitions.containsKey('RuntimeError')) {
+      definitions['AgentErrorInfo'] = definitions['RuntimeError'];
+    }
+
+    // The `getSnapshot` companion action input is named `GetSnapshotRequest` on
+    // the wire. Generate it under the Dart-internal name `GetSnapshotDataInput`
+    // by aliasing the `GetSnapshotRequest` def.
+    if (definitions.containsKey('GetSnapshotRequest')) {
+      definitions['GetSnapshotDataInput'] = definitions['GetSnapshotRequest'];
     }
 
     final classGenerator = ClassGenerator(definitions);
@@ -134,4 +159,25 @@ const _allowlist = {
   'ReflectionRunActionStateParams',
   'ReflectionSendInputStreamChunkParams',
   'ReflectionStreamChunkParams',
+  // Agent types.
+  'AgentFinishReason',
+  'AgentInit',
+  'AgentInput',
+  'AgentResume',
+  'AgentOutput',
+  'AgentErrorInfo',
+  'AgentResult',
+  'AgentStreamChunk',
+  'AgentAbortRequest',
+  'AgentAbortResponse',
+  'AgentMetadata',
+  'AgentStateManagement',
+  'TurnEnd',
+  'Artifact',
+  'GetSnapshotDataInput',
+  'JsonPatchOp',
+  'JsonPatchOperation',
+  'SessionSnapshot',
+  'SessionState',
+  'SnapshotStatus',
 };

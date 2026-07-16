@@ -40,11 +40,24 @@ final commonModelInfo = ModelInfo(
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
+  /// Curated per-model capability metadata exposed by this plugin, keyed by
+  /// bare model name.
+  ///
+  /// Model names not present here still resolve; they fall back to
+  /// [commonModelInfo]. Override in concrete plugins to advertise accurate
+  /// capabilities for known models.
+  Map<String, ModelInfo> get knownModels => const {};
+
+  /// Returns the capability metadata for [modelName], falling back to
+  /// [commonModelInfo] for names not in [knownModels].
+  ModelInfo modelInfoFor(String modelName) =>
+      knownModels[modelName] ?? commonModelInfo;
+
   Model createModel(String modelName, SchemanticType customOptions) {
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
-      metadata: {'model': commonModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
         gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
@@ -448,8 +461,11 @@ gcl.Part toGeminiPart(Part p) {
       functionCall: gcl.FunctionCall(
         id: p.toolRequest!.ref ?? '',
         name: _toGeminiToolName(p.toolRequest!.name),
-        args: p.toolRequest!.input, // already a map
+        args: p.toolRequest!.input is Map
+            ? (p.toolRequest!.input as Map).cast<String, Object?>()
+            : null,
       ),
+
       thoughtSignature: thoughtSignature,
     );
   }

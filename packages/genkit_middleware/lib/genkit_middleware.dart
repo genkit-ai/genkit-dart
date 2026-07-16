@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export 'agents.dart';
 export 'filesystem.dart';
 export 'skills.dart';
 export 'tool_approval.dart';

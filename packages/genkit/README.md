@@ -228,15 +228,16 @@ while (response.finishReason == FinishReason.interrupted) {
 
 ##### Restart the tool (`interruptRestart`)
 
-Use `interruptRestart` when the environment has changed or the user has taken an action that allows the tool to proceed on its own. You can pass additional metadata to the tool (e.g., an approval token), which the tool can then access via `context.metadata`:
+Use `interruptRestart` when the environment has changed or the user has taken an action that allows the tool to proceed on its own. You can pass additional metadata to the tool (e.g., an approval token) via `restart`, which the tool can then access via `context.resumed`:
 
 ```dart
 final confirmAction = ai.defineTool(
   name: 'confirmAction',
   description: 'A tool that requires approval metadata',
   fn: (input, context) async {
-    // Access the metadata passed during the initial call or restart
-    if (context.metadata['approved'] != true) {
+    // Access the resumed payload passed via `restart`
+    final resumed = context.resumed;
+    if (resumed is! Map || resumed['approved'] != true) {
       context.interrupt('Approval required');
     }
     return 'Action confirmed';
@@ -255,12 +256,12 @@ if (response.finishReason == FinishReason.interrupted) {
   final confirmed = true; 
 
   if (confirmed) {
-    // Resume generation and use `withMetadata` to inject the approval
+    // Resume generation and use `restart` to inject the approval
     response = await ai.generate(
       messages: response.messages,
       toolNames: ['confirmAction'],
       interruptRestart: [
-        response.interrupts.first.toolRequestPart!.withMetadata({'approved': true}),
+        response.interrupts.first.toolRequestPart!.restart({'approved': true}),
       ],
     );
   }

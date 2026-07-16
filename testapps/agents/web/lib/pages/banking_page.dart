@@ -1,0 +1,210 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/// Banking (interrupt) — human-in-the-loop approval.
+///
+/// The `transferMoney` tool guards large transfers with a conditional
+/// interrupt. When the agent pauses on it, an approve/deny dialog appears.
+/// Approving resumes the chat by *restarting* the tool with a
+/// `transferApproved: true` flag in its `resumed` payload (so it re-runs and
+/// clears the gate); denying resumes with the interrupt's `respond` builder,
+/// supplying a "not completed" result.
+library;
+
+import 'dart:convert';
+
+import 'package:genkit/client.dart';
+import 'package:jaspr/dom.dart';
+import 'package:jaspr/jaspr.dart';
+
+import '../components/chat_ui.dart';
+import '../components/info_sidebar.dart';
+import 'streaming_chat_page.dart';
+
+class BankingPage extends StatefulComponent {
+  const BankingPage({super.key});
+
+  @override
+  State<BankingPage> createState() => _BankingPageState();
+}
+
+class _BankingPageState extends State<BankingPage> {
+  late final AgentApi _agent = remoteAgent(url: '$apiBase/api/bankingAgent');
+
+  AgentChat? _chat;
+
+  final List<ChatMessage> _messages = [];
+  String _streamingText = '';
+  bool _loading = false;
+  AgentInterrupt? _pendingApproval;
+
+  Future<void> _runTurn(AgentTurn turn) async {
+    var accumulated = '';
+    await for (final chunk in turn.stream) {
+      for (final part in chunk.raw.modelChunk?.content ?? const <Part>[]) {
+        if (part.isToolRequest) {
+          // Skip interrupted tool requests: the agent re-emits them as an extra
+          // chunk carrying `metadata.interrupt` (surfaced via the approval
+          // dialog below), but they were already streamed once during
+          // generation. Rendering both would duplicate the tool card.
+          if (part.metadata?['interrupt'] != null) continue;
+          final tr = part.toolRequest!;
+
+          setState(() {
+            _messages.add(
+              ChatMessage(
+                role: 'tool',
+                text: '🔧 ${tr.name}(${jsonEncode(tr.input)})',
+              ),
+            );
+          });
+        } else if (part.isToolResponse) {
+          final tr = part.toolResponse!;
+          setState(() {
+            _messages.add(
+              ChatMessage(
+                role: 'tool',
+                text: '✅ ${tr.name} → ${jsonEncode(tr.output)}',
+              ),
+            );
+          });
+        }
+      }
+      if (chunk.text.isNotEmpty) {
+        accumulated = chunk.accumulatedText;
+        setState(() => _streamingText = accumulated);
+      }
+    }
+
+    final res = await turn.response;
+    setState(() {
+      _streamingText = '';
+      if (res.text.isNotEmpty || accumulated.isNotEmpty) {
+        _messages.add(
+          ChatMessage(
+            role: 'model',
+            text: res.text.isNotEmpty ? res.text : accumulated,
+          ),
+        );
+      }
+      // Surface a pending transferMoney approval interrupt, if any.
+      final approval = res.interrupts
+          .where((interrupt) => interrupt.name == 'transferMoney')
+          .toList();
+      _pendingApproval = approval.isNotEmpty ? approval.first : null;
+    });
+  }
+
+  Future<void> _handleSend(String text) async {
+    if (_loading) return;
+    setState(() {
+      _messages.add(ChatMessage(role: 'user', text: text));
+      _loading = true;
+      _streamingText = '';
+    });
+
+    _chat ??= _agent.chat();
+    try {
+      await _runTurn(_chat!.sendStream(text: text));
+    } catch (e) {
+      setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _resolveApproval(bool approved) async {
+    final approval = _pendingApproval;
+    final chat = _chat;
+    if (approval == null || chat == null) return;
+    setState(() {
+      _pendingApproval = null;
+      _loading = true;
+      _messages.add(
+        ChatMessage(
+          role: 'system',
+          text: approved ? 'Approved transfer.' : 'Denied transfer.',
+        ),
+      );
+    });
+
+    try {
+      // Approve by restarting the tool with the `transferApproved` flag in its
+      // `resumed` payload so the tool's conditional interrupt is cleared and the
+      // transfer executes. Deny by responding with a "not completed" result,
+      // without re-running the tool.
+      final turn = approved
+          ? chat.resumeStream(
+              restart: [
+                approval.restart({'transferApproved': true}),
+              ],
+            )
+          : chat.resumeStream(
+              respond: [
+                approval.respond({'success': false, 'transactionId': ''}),
+              ],
+            );
+      await _runTurn(turn);
+    } catch (e) {
+      setState(() => _messages.add(ChatMessage(role: 'system', text: '⚠️ $e')));
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Component build(BuildContext context) {
+    final approval = _pendingApproval;
+    return div(classes: 'page-with-sidebar', [
+      ChatUI(
+        title: 'Banking Agent',
+        description:
+            'Ask to transfer money — large transfers pause for your approval '
+            'before executing (a conditional interrupt inside the tool).',
+        suggestions: const [
+          'Transfer \$50 to my savings account.',
+          'Move \$1200 to account 4471.',
+        ],
+        messages: _messages,
+        streamingText: _streamingText,
+        loading: _loading,
+        inputDisabled: approval != null,
+        renderMarkdown: true,
+        onSend: _handleSend,
+        extra: approval == null
+            ? null
+            : div(classes: 'interrupt-dialog', [
+                h3([.text('Approval required')]),
+                p([
+                  .text('The agent wants to: '),
+                  strong([.text(jsonEncode(approval.input))]),
+                ]),
+                div(classes: 'interrupt-buttons', [
+                  button(
+                    [.text('Approve')],
+                    classes: 'btn btn-approve',
+                    onClick: () => _resolveApproval(true),
+                  ),
+                  button(
+                    [.text('Deny')],
+                    classes: 'btn btn-deny',
+                    onClick: () => _resolveApproval(false),
+                  ),
+                ]),
+              ]),
+      ),
+      bankingSidebar(),
+    ]);
+  }
+}

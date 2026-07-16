@@ -32,6 +32,14 @@ class ToolFnArgs<Input> {
   ToolRequestPart? get toolRequest =>
       Zone.current[ToolRequestPart] as ToolRequestPart?;
 
+  /// The resumed payload if this tool was restarted after an interrupt.
+  ///
+  /// Populated from the triggering tool request's `resumed` metadata. Mirrors
+  /// the JS `ToolRunOptions.resumed`. The value is typically `true` or a
+  /// `Map<String, dynamic>` supplied via `restart(...)`. Null when the tool was
+  /// not resumed.
+  dynamic get resumed => toolRequest?.metadata?['resumed'];
+
   /// Interrupts the generation loop with optional [data].
   Never interrupt([dynamic data]) {
     setCustomMetadataAttributes({'interrupt': data ?? true});

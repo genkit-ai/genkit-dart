@@ -585,7 +585,8 @@ void main() {
         inputSchema: .map(.string(), .dynamicSchema()),
         fn: (input, context) async {
           capturedMetadata = context.toolRequest?.metadata ?? {};
-          if (context.toolRequest?.metadata?['approved'] != true) {
+          final resumed = context.resumed;
+          if (resumed is! Map || resumed['approved'] != true) {
             context.interrupt('NEEDS_APPROVAL');
           }
           return 'Metadata: ${context.toolRequest?.metadata}';
@@ -617,15 +618,14 @@ void main() {
         messages: history,
         toolNames: [toolName],
         interruptRestart: [
-          toolReq.withMetadata({'approved': true, 'secret': 'abc'}),
+          toolReq.restart({'approved': true, 'secret': 'abc'}),
         ],
       );
 
       expect(response2.text, 'Final response');
       expect(capturedMetadata, {
         'interrupt': 'NEEDS_APPROVAL',
-        'approved': true,
-        'secret': 'abc',
+        'resumed': {'approved': true, 'secret': 'abc'},
       });
     });
   });

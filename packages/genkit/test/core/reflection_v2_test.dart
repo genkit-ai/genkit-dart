@@ -114,7 +114,7 @@ void main() {
     test('should handle listValues for middleware', () async {
       final def = defineMiddleware<dynamic>(
         name: 'retry',
-        create: ([config]) => throw UnimplementedError(),
+        create: (config, ctx) => throw UnimplementedError(),
       );
       registry.registerValue('middleware', def.name, def);
 
@@ -315,6 +315,60 @@ void main() {
 
       expect(decoded['id'], equals('456'));
       expect(decoded['result']['result']['bar'], equals('baz'));
+    });
+
+    test('should pass init param from runAction to the action', () async {
+      Object? receivedInit;
+      final initAction = Action(
+        actionType: 'custom',
+        inputSchema: .map(.string(), .string()),
+        initSchema: .map(.string(), .string()),
+        name: 'initAction',
+        fn: (input, context) async {
+          receivedInit = context.init;
+          return {'ok': true};
+        },
+      );
+      registry.register(initAction);
+
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+
+      // First message is register
+      await queue.next;
+
+      // Request runAction with an init payload
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'runAction',
+          'params': {
+            'key': '/custom/initAction',
+            'input': {'foo': 'baz'},
+            'init': {'hello': 'world'},
+          },
+          'id': 'init-1',
+        }),
+      );
+
+      // Consume runActionState notification, then the response.
+      var done = false;
+      while (!done) {
+        final msg = await queue.next;
+        final decoded = jsonDecode(msg as String) as Map<String, dynamic>;
+        if (decoded['id'] == 'init-1') {
+          expect(decoded['result']['result']['ok'], isTrue);
+          done = true;
+        }
+      }
+      expect(receivedInit, {'hello': 'world'});
     });
 
     test('should handle streaming runAction', () async {

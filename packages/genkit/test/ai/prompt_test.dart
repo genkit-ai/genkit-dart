@@ -372,6 +372,125 @@ void main() {
       expect(options.maxTurns, equals(10));
     });
 
+    test('resolves middleware use from config', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [middlewareRef(name: 'mw1')],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNotNull);
+      expect(options.use!.length, equals(1));
+      expect(options.use![0].name, equals('mw1'));
+    });
+
+    test('resolves middleware use from opts', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(name: 'test', prompt: 'Hello'),
+      );
+
+      final options = await ep.render(
+        {},
+        PromptGenerateOptions(use: [middlewareRef(name: 'mw2')]),
+      );
+
+      expect(options.use, isNotNull);
+      expect(options.use!.length, equals(1));
+      expect(options.use![0].name, equals('mw2'));
+    });
+
+    test('merges middleware use from config and opts', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [middlewareRef(name: 'configMw')],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render(
+        {},
+        PromptGenerateOptions(use: [middlewareRef(name: 'optsMw')]),
+      );
+
+      // Config middleware should come first, then opts middleware.
+      expect(options.use, isNotNull);
+      expect(
+        options.use!.map((m) => m.name).toList(),
+        equals(['configMw', 'optsMw']),
+      );
+    });
+
+    test('carries middleware config through render', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [
+            middlewareRef<Map<String, dynamic>>(
+              name: 'mw1',
+              config: {'foo': 'bar'},
+            ),
+          ],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNotNull);
+      expect(options.use![0].name, equals('mw1'));
+      expect(options.use![0].config, equals({'foo': 'bar'}));
+    });
+
+    test('use is null when no middleware provided', () async {
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(name: 'test', prompt: 'Hello'),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNull);
+    });
+
+    test('middleware config with non-String map keys is handled', () async {
+      // A middleware config given as a Map<dynamic, dynamic> (not exactly
+      // Map<String, dynamic>) must not throw during render.
+      final ep = definePromptAction(
+        registry,
+        dpRegistry,
+        PromptConfig(
+          name: 'test',
+          use: [
+            middlewareRef<Map<dynamic, dynamic>>(
+              name: 'mw1',
+              config: <dynamic, dynamic>{'foo': 'bar'},
+            ),
+          ],
+          prompt: 'Hello',
+        ),
+      );
+
+      final options = await ep.render({});
+
+      expect(options.use, isNotNull);
+      expect(options.use![0].name, equals('mw1'));
+      expect(options.use![0].config, equals({'foo': 'bar'}));
+    });
+
     test('adds history from opts when no messages config', () async {
       final ep = definePromptAction(
         registry,
@@ -1303,6 +1422,444 @@ Hello {{name}}!
         'readme',
       );
       expect(mdAction, isNull);
+    });
+
+    test('wires input.schema (picoschema) onto the prompt action', () async {
+      File(p.join(tempDir.path, 'greet.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    name: string, the person to greet
+    formal?: boolean, whether to be formal
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'greet')
+              as PromptAction;
+      expect(
+        action.inputSchema,
+        isNotNull,
+        reason:
+            'input.schema in the .prompt file should be surfaced so the '
+            'Developer UI can render a form and input can be validated',
+      );
+
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['type'], equals('object'));
+      expect(jsonSchema['properties'], contains('name'));
+      expect(
+        (jsonSchema['properties'] as Map)['name'],
+        containsPair('type', 'string'),
+      );
+      // Required and optional fields are honored.
+      expect(jsonSchema['required'], contains('name'));
+      expect(jsonSchema['required'], isNot(contains('formal')));
+    });
+
+    test('accepts plain JSON Schema for input.schema unchanged', () async {
+      File(p.join(tempDir.path, 'jsoninput.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    type: object
+    properties:
+      topic:
+        type: string
+    required:
+      - topic
+---
+Write about {{topic}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'jsoninput')
+              as PromptAction;
+      expect(action.inputSchema, isNotNull);
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['type'], equals('object'));
+      expect(jsonSchema['properties'], contains('topic'));
+    });
+
+    test('treats JSON Schema without a top-level type as JSON Schema', () async {
+      // A valid JSON Schema may omit the top-level `type` and rely on
+      // `properties` (or a combinator like anyOf). It must not be mistaken for
+      // Picoschema and re-converted.
+      File(p.join(tempDir.path, 'notype.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    properties:
+      topic:
+        type: string
+    required:
+      - topic
+---
+Write about {{topic}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'notype')
+              as PromptAction;
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      expect(jsonSchema['properties'], contains('topic'));
+      // Picoschema conversion would have wrapped `properties` as a field, so
+      // its value would no longer be a nested schema map.
+      expect(
+        (jsonSchema['properties'] as Map)['topic'],
+        containsPair('type', 'string'),
+      );
+    });
+
+    test('input schema parse tolerates null input', () async {
+      File(p.join(tempDir.path, 'opt.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    name: string, the name
+---
+Hello {{name}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'opt')
+              as PromptAction;
+      // A prompt may be invoked with no input; parsing null must not throw.
+      expect(() => action.inputSchema!.parse(null), returnsNormally);
+      expect(action.inputSchema!.parse(null), isEmpty);
+    });
+
+    test('converts output.schema (picoschema) to JSON Schema', () async {
+      File(p.join(tempDir.path, 'classify.prompt')).writeAsStringSync('''
+---
+output:
+  format: json
+  schema:
+    category: string, the predicted category
+    confidence: number, a score from 0 to 1
+---
+Classify: {{text}}
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'classify');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'text': 'hello',
+      });
+
+      // The output schema reaching the model must be JSON Schema, not the raw
+      // Picoschema strings.
+      final outputSchema = options.output!.jsonSchema as Map<String, dynamic>;
+      expect(outputSchema['type'], equals('object'));
+      final properties = outputSchema['properties'] as Map<String, dynamic>;
+      expect(properties['category'], containsPair('type', 'string'));
+      expect(properties['confidence'], containsPair('type', 'number'));
+      expect(options.output!.format, equals('json'));
+    });
+
+    test('resolves a named schema referenced in input.schema', () async {
+      // A schema registered via `defineSchema` is referenced by name in the
+      // .prompt frontmatter. The loader must pass registered schemas to the
+      // Picoschema converter so the reference resolves to the real schema.
+      registry.registerValue('schema', 'Address', {
+        'type': 'object',
+        'properties': {
+          'street': {'type': 'string'},
+          'city': {'type': 'string'},
+        },
+        'required': ['street', 'city'],
+      });
+
+      File(p.join(tempDir.path, 'shipto.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    address: Address
+---
+Ship to {{address.city}}.
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'shipto')
+              as PromptAction;
+      final jsonSchema = action.inputSchema!.jsonSchema();
+      final addressSchema = (jsonSchema['properties'] as Map)['address'] as Map;
+      // If the named reference were not resolved, `address` would not be an
+      // object schema with the registered properties.
+      expect(addressSchema['type'], equals('object'));
+      expect(addressSchema['properties'], contains('street'));
+      expect(addressSchema['properties'], contains('city'));
+    });
+
+    test('parses bare-string middleware from the `use` frontmatter', () async {
+      File(p.join(tempDir.path, 'retrying.prompt')).writeAsStringSync('''
+---
+use:
+  - retry
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'retrying');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      final use = options.use!;
+      expect(use, hasLength(1));
+      expect(use.single.name, equals('retry'));
+      expect(use.single.config, anyOf(isNull, isEmpty));
+    });
+
+    test('parses middleware with config from the `use` frontmatter', () async {
+      File(p.join(tempDir.path, 'retrying.prompt')).writeAsStringSync('''
+---
+use:
+  - name: retry
+    config:
+      maxRetries: 3
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'retrying');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      final use = options.use!;
+      expect(use, hasLength(1));
+      expect(use.single.name, equals('retry'));
+      expect(use.single.config, containsPair('maxRetries', 3));
+    });
+
+    test('surfaces normalized `use` on the prompt metadata', () async {
+      File(p.join(tempDir.path, 'retrying.prompt')).writeAsStringSync('''
+---
+toolChoice: required
+use:
+  - logging
+  - name: retry
+    config:
+      maxRetries: 3
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'retrying')
+              as PromptAction;
+      final promptMeta = action.metadata['prompt'] as Map<String, dynamic>;
+
+      // Mirrors the JS loader's `metadata.prompt.use` / `toolChoice`.
+      expect(promptMeta['toolChoice'], equals('required'));
+      final useMeta = promptMeta['use'] as List;
+      expect(useMeta, hasLength(2));
+      expect(useMeta[0], equals({'name': 'logging'}));
+      expect(
+        useMeta[1],
+        equals({
+          'name': 'retry',
+          'config': {'maxRetries': 3},
+        }),
+      );
+    });
+
+    test('skips malformed and unsupported `use` entries', () async {
+      // A map without a `name`, and a non-string/non-map entry, are both
+      // dropped rather than throwing; the valid entry is still parsed.
+      File(p.join(tempDir.path, 'mixed.prompt')).writeAsStringSync('''
+---
+use:
+  - retry
+  - config:
+      maxRetries: 3
+  - 42
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'mixed');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      final use = options.use!;
+      expect(use, hasLength(1));
+      expect(use.single.name, equals('retry'));
+    });
+
+    test('parses toolChoice from frontmatter onto rendered options', () async {
+      File(p.join(tempDir.path, 'choosy.prompt')).writeAsStringSync('''
+---
+toolChoice: required
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'choosy');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.toolChoice, equals('required'));
+    });
+
+    test('parses maxTurns and returnToolRequests from frontmatter', () async {
+      File(p.join(tempDir.path, 'looped.prompt')).writeAsStringSync('''
+---
+maxTurns: 7
+returnToolRequests: true
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'looped');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.maxTurns, equals(7));
+      expect(options.returnToolRequests, isTrue);
+    });
+
+    test('returnToolRequests can be false in frontmatter', () async {
+      File(p.join(tempDir.path, 'noreturn.prompt')).writeAsStringSync('''
+---
+returnToolRequests: false
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'noreturn');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.returnToolRequests, isFalse);
+    });
+
+    test('omits maxTurns/returnToolRequests when absent', () async {
+      File(
+        p.join(tempDir.path, 'bare.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'bare');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.maxTurns, isNull);
+      expect(options.returnToolRequests, isNull);
+      expect(options.toolChoice, isNull);
+    });
+
+    test('throws a clear error for a wrong-typed maxTurns', () {
+      File(p.join(tempDir.path, 'badturns.prompt')).writeAsStringSync('''
+---
+maxTurns: not-a-number
+---
+Hello {{name}}!
+''');
+
+      // A wrong-typed scalar option is an authoring error and must fail fast
+      // with a GenkitException, not a raw TypeError or silent default.
+      expect(
+        () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('maxTurns'), contains('badturns')),
+          ),
+        ),
+      );
+    });
+
+    test('throws a clear error for a wrong-typed toolChoice', () {
+      File(p.join(tempDir.path, 'badchoice.prompt')).writeAsStringSync('''
+---
+toolChoice:
+  - not
+  - a
+  - string
+---
+Hello {{name}}!
+''');
+
+      expect(
+        () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('toolChoice'),
+          ),
+        ),
+      );
+    });
+
+    test('throws a clear error for a wrong-typed returnToolRequests', () {
+      File(p.join(tempDir.path, 'badreturn.prompt')).writeAsStringSync('''
+---
+returnToolRequests: 3
+---
+Hello {{name}}!
+''');
+
+      expect(
+        () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('returnToolRequests'),
+          ),
+        ),
+      );
+    });
+
+    test('ignores a prompt with no `use` frontmatter', () async {
+      File(
+        p.join(tempDir.path, 'plain.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'plain');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.use, anyOf(isNull, isEmpty));
     });
   });
 
