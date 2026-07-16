@@ -20,10 +20,12 @@ import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
 
 import '../core/registry.dart';
+import '../exception.dart';
 import '../types.dart' show GenerateActionOutputConfig;
 import 'dotprompt_registry.dart';
 import 'generate_middleware.dart';
 import 'model.dart';
+
 import 'prompt.dart';
 
 final _logger = Logger('genkit.prompt_loader');
@@ -142,13 +144,22 @@ void _loadPrompt(
   // `toolChoice`, `maxTurns`, `returnToolRequests`) from the raw frontmatter
   // map. They are threaded through `PromptConfig` so they apply at generate
   // time (and, where applicable, surface on the prompt metadata built by
-  // `definePromptAction`), matching the JS loader. Casts are guarded so a
-  // malformed value does not throw, consistent with the loader's tolerant
-  // handling of frontmatter.
+  // `definePromptAction`), matching the JS loader. A value of the wrong type is
+  // an authoring error in a static file, so it fails fast with a clear message
+  // at load time rather than being silently ignored or surfacing later as an
+  // obscure downstream error.
   final use = _toMiddlewareRefs(metadata.raw?['use']);
-  final toolChoice = metadata.raw?['toolChoice'] as String?;
-  final maxTurns = metadata.raw?['maxTurns'] as int?;
-  final returnToolRequests = metadata.raw?['returnToolRequests'] as bool?;
+  final toolChoice = _typedRawField<String>(
+    metadata.raw,
+    'toolChoice',
+    registryName,
+  );
+  final maxTurns = _typedRawField<int>(metadata.raw, 'maxTurns', registryName);
+  final returnToolRequests = _typedRawField<bool>(
+    metadata.raw,
+    'returnToolRequests',
+    registryName,
+  );
 
   // Named schemas registered via `defineSchema`. Picoschema may reference these
   // by name (e.g. `schema: MyAddress`), so they are passed through to the
@@ -212,6 +223,23 @@ String _registryDefinitionKey(String name, String? variant, String? ns) {
   final prefix = ns != null && ns.isNotEmpty ? '$ns/' : '';
   final suffix = variant != null ? '.$variant' : '';
   return '$prefix$name$suffix';
+}
+
+/// Reads a scalar frontmatter field of type [T] from the raw metadata map.
+///
+/// Returns `null` when the field is absent. A present value of the wrong type
+/// is an authoring error in a static prompt file, so it throws a
+/// [GenkitException] with a clear message at load time rather than silently
+/// ignoring the value or letting it fail obscurely downstream.
+T? _typedRawField<T>(Map<String, dynamic>? raw, String key, String promptName) {
+  final value = raw?[key];
+  if (value == null) return null;
+  if (value is T) return value;
+  throw GenkitException(
+    "Invalid '$key' in prompt '$promptName': expected $T, got "
+    '${value.runtimeType}.',
+    status: StatusCodes.INVALID_ARGUMENT,
+  );
 }
 
 /// Normalizes the frontmatter `use` field into a list of middleware refs.

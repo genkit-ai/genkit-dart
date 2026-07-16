@@ -1782,6 +1782,71 @@ Hello {{name}}!
       expect(options.toolChoice, isNull);
     });
 
+    test('throws a clear error for a wrong-typed maxTurns', () {
+      File(p.join(tempDir.path, 'badturns.prompt')).writeAsStringSync('''
+---
+maxTurns: not-a-number
+---
+Hello {{name}}!
+''');
+
+      // A wrong-typed scalar option is an authoring error and must fail fast
+      // with a GenkitException, not a raw TypeError or silent default.
+      expect(
+        () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('maxTurns'), contains('badturns')),
+          ),
+        ),
+      );
+    });
+
+    test('throws a clear error for a wrong-typed toolChoice', () {
+      File(p.join(tempDir.path, 'badchoice.prompt')).writeAsStringSync('''
+---
+toolChoice:
+  - not
+  - a
+  - string
+---
+Hello {{name}}!
+''');
+
+      expect(
+        () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('toolChoice'),
+          ),
+        ),
+      );
+    });
+
+    test('throws a clear error for a wrong-typed returnToolRequests', () {
+      File(p.join(tempDir.path, 'badreturn.prompt')).writeAsStringSync('''
+---
+returnToolRequests: 3
+---
+Hello {{name}}!
+''');
+
+      expect(
+        () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('returnToolRequests'),
+          ),
+        ),
+      );
+    });
+
     test('ignores a prompt with no `use` frontmatter', () async {
       File(
         p.join(tempDir.path, 'plain.prompt'),
