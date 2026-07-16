@@ -29,6 +29,7 @@ Future<Output?> streamFlow<Output, Chunk>({
   void Function(StreamSubscription)? onSubscription,
   void Function(void Function() cancelCallback)? setCancelCallback,
   dynamic input,
+  dynamic init,
   Map<String, String>? headers,
   http.Client? httpClient,
   Output Function(dynamic jsonData)? fromResponse,
@@ -47,12 +48,13 @@ Future<Output?> streamFlow<Output, Chunk>({
       'Content-Type': 'application/json',
       ...?headers,
     })
-    ..body = jsonEncode({'data': input});
+    ..body = jsonEncode({'data': input, 'init': ?init});
 
   final streamedResponse = await httpClient.send(request);
 
   if (streamedResponse.statusCode != 200) {
     final body = await streamedResponse.stream.bytesToString();
+
     throw GenkitException(
       'Server returned error: ${streamedResponse.statusCode}',
       status: StatusCodes.fromHttpStatus(streamedResponse.statusCode),
@@ -259,6 +261,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
   /// Invokes the remote flow.
   Future<Output> call({
     required Input input,
+    Init? init,
     Map<String, String>? headers,
   }) async {
     final uri = Uri.parse(_url);
@@ -267,7 +270,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
       ...?_defaultHeaders,
       ...?headers,
     };
-    final requestBody = jsonEncode({'data': input});
+    final requestBody = jsonEncode({'data': input, 'init': ?init});
 
     http.Response response;
     try {
@@ -326,6 +329,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
   /// Invokes the remote flow and streams its response.
   ActionStream<Chunk, Output> stream({
     required Input input,
+    Init? init,
     Map<String, String>? headers,
   }) {
     final fromStreamChunk = _fromStreamChunk;
@@ -361,6 +365,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
         };
       },
       input: input,
+      init: init,
       httpClient: _httpClient,
     ).then(
       (d) {

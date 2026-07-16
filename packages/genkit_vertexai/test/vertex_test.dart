@@ -12,43 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
-
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
-import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
-class MockHttpClient extends http.BaseClient {
-  Uri? lastUrl;
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    lastUrl = request.url;
-    if (request.url.host == 'metadata.google.internal' ||
-        request.url.host == 'oauth2.googleapis.com') {
-      return http.StreamedResponse(
-        Stream.value(
-          utf8.encode(
-            '{"access_token": "ya29.mock", "expires_in": 3600, "token_type": "Bearer"}',
-          ),
-        ),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    return http.StreamedResponse(
-      Stream.value(
-        utf8.encode(
-          '{"candidates": [{"content": {"parts": [{"text": "response"}], "role": "model"}, "finishReason": "STOP"}]} ',
-        ),
-      ),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  }
-}
+import 'test_http_client.dart';
 
 void main() {
   group('Vertex AI Plugin', () {
@@ -60,7 +28,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
+      final model = plugin.resolve('model', 'gemini-2.5-pro') as Action;
       final req = ModelRequest(
         messages: [
           Message(
@@ -75,7 +43,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-2.5-pro:generateContent',
       );
     });
 
@@ -87,7 +55,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final model = plugin.resolve('model', 'gemini-1.5-pro') as Action;
+      final model = plugin.resolve('model', 'gemini-2.5-pro') as Action;
       final req = ModelRequest(
         messages: [
           Message(
@@ -102,7 +70,7 @@ void main() {
       expect(mockClient.lastUrl, isNotNull);
       expect(
         mockClient.lastUrl.toString(),
-        'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-1.5-pro:generateContent',
+        'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-2.5-pro:generateContent',
       );
     });
   });

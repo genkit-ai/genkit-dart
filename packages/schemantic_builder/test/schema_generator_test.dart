@@ -288,6 +288,13 @@ Future<void> _testBuilderWithNoFail(
     outputs: outputs,
     onLog: (log) {
       if (log.level >= Level.WARNING) {
+        // Ignore the environmental warning emitted when the running SDK's
+        // language version is newer than the analyzer package's. It's
+        // unrelated to the builder's output.
+        if (log.message.contains('is newer than') &&
+            log.message.contains('analyzer')) {
+          return;
+        }
         addTearDown(() {
           fail('Unexpected log: $log');
         });

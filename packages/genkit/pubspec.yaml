@@ -1,7 +1,7 @@
 name: genkit
 description: Genkit Dart package, a Generative AI library for pure Dart client/server and Flutter apps.
 resolution: workspace
-version: 0.14.0
+version: 0.14.1
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
@@ -31,3 +31,4 @@ dev_dependencies:
   mockito: ^5.6.3
   schemantic_builder: ^0.1.0
   test: ^1.29.0
+  yaml: ^3.1.2
