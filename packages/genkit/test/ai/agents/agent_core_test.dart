@@ -39,7 +39,7 @@ class _Counter {
 }
 
 /// A scripted transport: each turn returns the queued [_TurnScript].
-class _FakeTransport extends AgentTransport {
+final class _FakeTransport extends AgentTransport {
   _FakeTransport(this._scripts, {this.supportsRun = false});
 
   final List<_TurnScript> _scripts;
@@ -115,7 +115,7 @@ _Step _outputStep(AgentOutput output) => _Step.output(output);
 _Step _throwStep(String message) => _Step.error(StateError(message));
 
 /// A transport whose turns can throw, to exercise the thrown-error rollback.
-class _StepTransport extends AgentTransport {
+final class _StepTransport extends AgentTransport {
   _StepTransport(this._steps, {this.supportsRun = false});
 
   final List<_Step> _steps;
@@ -857,7 +857,7 @@ void main() {
 }
 
 /// A transport that captures the [AgentInput] and returns a fixed output.
-class _CaptureTransport extends AgentTransport {
+final class _CaptureTransport extends AgentTransport {
   _CaptureTransport(this._handler);
 
   final AgentOutput Function(AgentInput input) _handler;

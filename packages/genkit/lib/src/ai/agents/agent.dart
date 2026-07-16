@@ -824,7 +824,7 @@ void _pipeInputWithDetach(
 // In-process transport.
 // ---------------------------------------------------------------------------
 
-class _InProcessTransport extends AgentTransport {
+final class _InProcessTransport extends AgentTransport {
   _InProcessTransport({
     required AgentStateManagement stateManagement,
     required this.primaryAction,

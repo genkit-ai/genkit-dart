@@ -143,7 +143,7 @@ abstract interface class SnapshotChangeNotifier {
 /// Keeping the internal representation as plain JSON is deliberate: the
 /// `customChanged` -> `customPatch` streaming logic diffs raw JSON, so the typed
 /// API never changes what is stored on the wire.
-class Session<State> {
+final class Session<State> {
   /// Builds a session from [initialState], assigning a [sessionId] if absent.
   ///
   /// State is held internally as the raw JSON map (mirroring the JS plain
@@ -305,7 +305,7 @@ Session<State>? getCurrentSession<State>() =>
     Zone.current[_sessionZoneKey] as Session<State>?;
 
 /// Error thrown during session execution.
-class SessionError implements Exception {
+final class SessionError implements Exception {
   SessionError(this.message);
   final String message;
 
@@ -314,7 +314,8 @@ class SessionError implements Exception {
 }
 
 /// In-memory implementation of persistent session store.
-class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier {
+final class InMemorySessionStore
+    implements SessionStore, SnapshotChangeNotifier {
   /// Creates an in-memory store.
   ///
   /// When [rejectBranchingSessions] is `true`, a `sessionId` lookup that
@@ -442,7 +443,7 @@ String resolveSnapshotId(String? requestedId, SessionSnapshot result) {
 String? snapshotSessionId(SessionSnapshot snapshot) =>
     snapshot.sessionId ?? snapshot.state?.sessionId;
 
-class NormalizedGetSnapshot {
+final class NormalizedGetSnapshot {
   NormalizedGetSnapshot({this.snapshotId, this.sessionId});
   final String? snapshotId;
   final String? sessionId;

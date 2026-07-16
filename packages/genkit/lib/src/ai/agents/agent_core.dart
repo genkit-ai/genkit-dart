@@ -43,7 +43,7 @@ import 'state_codec.dart';
 
 /// A minimal cooperative cancellation primitive, the Dart stand-in for the
 /// Web's `AbortSignal`/`AbortController`.
-class CancellationToken {
+final class CancellationToken {
   final Completer<void> _completer = Completer<void>();
   final List<void Function()> _listeners = [];
 
@@ -97,7 +97,11 @@ typedef TurnStream = ({
 /// The pluggable backend the agent-client core runs over. Implementations
 /// exist for the in-process server agent (driving the agent action directly)
 /// and for the HTTP `remoteAgent` (driving stream/run calls).
-abstract class AgentTransport {
+///
+/// This is a public extension point: third-party transports must `extend`
+/// (not `implement`) it, so they inherit the default [run] / [close] bodies
+/// and the mutable [stateManagement] field.
+abstract base class AgentTransport {
   /// Declares server- vs client-managed state
   /// ([AgentStateManagement.server] | [AgentStateManagement.client]);
   /// auto-detected when left `null`.
@@ -223,7 +227,7 @@ AgentInput _buildAgentInput({
 
 /// A single tool request a turn paused on. `respond`/`restart` are builders:
 /// they return the part to put into a `resume` payload; they do not send.
-class AgentInterrupt<Input, Output> {
+final class AgentInterrupt<Input, Output> {
   AgentInterrupt(ToolRequestPart part)
     : name = part.toolRequest.name,
       ref = part.toolRequest.ref,
@@ -255,7 +259,7 @@ class AgentInterrupt<Input, Output> {
 
 /// The completed result of a turn. Mirrors `GenerateResponse` and adds the
 /// agent fields (`snapshotId`, `state`, `artifacts`).
-class AgentResponse<State> {
+final class AgentResponse<State> {
   AgentResponse._(
     this._raw,
     this._messages, [
@@ -349,7 +353,7 @@ class AgentResponse<State> {
 
 /// A streamed chunk. Mirrors `GenerateResponseChunk` and adds the agent fields
 /// (`artifact`, `custom`).
-class AgentChunk<State> {
+final class AgentChunk<State> {
   AgentChunk._(this._raw, this._previousText);
 
   final AgentStreamChunk _raw;
@@ -388,7 +392,7 @@ class AgentChunk<State> {
 
 /// A single in-flight turn — the analog of `generateStream`'s
 /// `{stream, response}`, plus [abort].
-class AgentTurn<State> {
+final class AgentTurn<State> {
   AgentTurn._({
     required this.stream,
     required this.response,
@@ -413,7 +417,7 @@ class AgentTurn<State> {
 
 /// Thrown when a turn fails. Carries the last-good state so the session is
 /// recoverable.
-class AgentError<State> implements Exception {
+final class AgentError<State> implements Exception {
   AgentError({
     required this.message,
     required this.status,
@@ -446,7 +450,7 @@ class AgentError<State> implements Exception {
 ///
 /// Because [SessionSnapshot] is a generated schemantic type it cannot carry a
 /// `State` type parameter itself; this wrapper provides it by composition.
-class AgentSnapshot<State> {
+final class AgentSnapshot<State> {
   AgentSnapshot._(this._raw, [this._stateSchema]);
 
   /// Test-only constructor for building a snapshot wrapper directly from a raw
@@ -501,7 +505,7 @@ class AgentSnapshot<State> {
 // ---------------------------------------------------------------------------
 
 /// A handle to a background (detached) task.
-class DetachedTask<State> {
+final class DetachedTask<State> {
   DetachedTask._(this.snapshotId, this._transport, [this._stateSchema]);
 
   final String snapshotId;
@@ -564,7 +568,7 @@ class DetachedTask<State> {
 
 /// A stateful conversation with an agent. Tracks state across turns so callers
 /// do not have to thread `snapshotId`/`state` by hand.
-class AgentChat<State> {
+final class AgentChat<State> {
   AgentChat._(this._transport, [this._connectInit, this._stateSchema]) {
     final init = _connectInit;
     if (init != null) {
@@ -1075,7 +1079,7 @@ class AgentChat<State> {
 /// The transport-agnostic surface for talking to an agent. The same shape is
 /// returned by `ai.defineAgent(...)` on the server and by `remoteAgent(...)`
 /// on the client.
-class AgentApi<State> {
+final class AgentApi<State> {
   @internal
   AgentApi(this._transport, {SchemanticType<State>? stateSchema})
     : _stateSchema = stateSchema;

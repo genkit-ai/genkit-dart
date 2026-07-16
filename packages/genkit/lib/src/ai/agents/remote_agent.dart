@@ -75,7 +75,7 @@ AgentApi<State> remoteAgent<State>({
   stateSchema: stateSchema,
 );
 
-class _HttpAgentTransport extends AgentTransport {
+final class _HttpAgentTransport extends AgentTransport {
   _HttpAgentTransport({
     required String url,
     String? getSnapshotUrl,
