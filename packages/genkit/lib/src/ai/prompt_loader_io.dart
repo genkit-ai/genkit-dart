@@ -22,6 +22,7 @@ import 'package:schemantic/schemantic.dart';
 import '../core/registry.dart';
 import '../types.dart' show GenerateActionOutputConfig;
 import 'dotprompt_registry.dart';
+import 'generate_middleware.dart';
 import 'model.dart';
 import 'prompt.dart';
 
@@ -137,6 +138,18 @@ void _loadPrompt(
   final config = metadata.config;
   final tools = metadata.tools;
 
+  // Resolve fields that are not first-class dotprompt metadata (`use`,
+  // `toolChoice`, `maxTurns`, `returnToolRequests`) from the raw frontmatter
+  // map. They are threaded through `PromptConfig` so they apply at generate
+  // time (and, where applicable, surface on the prompt metadata built by
+  // `definePromptAction`), matching the JS loader. Casts are guarded so a
+  // malformed value does not throw, consistent with the loader's tolerant
+  // handling of frontmatter.
+  final use = _toMiddlewareRefs(metadata.raw?['use']);
+  final toolChoice = metadata.raw?['toolChoice'] as String?;
+  final maxTurns = metadata.raw?['maxTurns'] as int?;
+  final returnToolRequests = metadata.raw?['returnToolRequests'] as bool?;
+
   // Named schemas registered via `defineSchema`. Picoschema may reference these
   // by name (e.g. `schema: MyAddress`), so they are passed through to the
   // converter to resolve, mirroring what `_resolveMetadata` does internally.
@@ -168,20 +181,9 @@ void _loadPrompt(
     });
   }
 
-  // Build prompt metadata for the registry
-  final promptMeta = <String, dynamic>{
-    'type': 'prompt',
-    'prompt': {
-      'name': name,
-      'variant': ?variant,
-      'model': ?model,
-      'config': ?config,
-      'tools': ?tools,
-      'template': parsedPrompt.template,
-    },
-  };
-
-  // Create the prompt config
+  // Create the prompt config. `definePromptAction` builds the registry/display
+  // metadata (`type`, `prompt`) from these fields, so `use`/`toolChoice` are
+  // surfaced for the Developer UI without building the metadata map here.
   final promptConfig = PromptConfig<Map<String, dynamic>, Map<String, dynamic>>(
     name: _registryDefinitionKey(name, null, ns),
     variant: variant,
@@ -189,16 +191,18 @@ void _loadPrompt(
     config: config,
     inputSchema: inputSchema,
     toolNames: tools,
+    toolChoice: toolChoice,
+    maxTurns: maxTurns,
+    returnToolRequests: returnToolRequests,
     messagesTemplate: parsedPrompt.template,
     output: outputConfig,
-    metadata: promptMeta,
+    use: use,
   );
 
   definePromptAction<Map<String, dynamic>, Map<String, dynamic>>(
     registry,
     dotpromptRegistry,
     promptConfig,
-    metadata: promptMeta,
   );
 
   _logger.fine('Registered prompt "$registryName" from "$filePath"');
@@ -208,6 +212,54 @@ String _registryDefinitionKey(String name, String? variant, String? ns) {
   final prefix = ns != null && ns.isNotEmpty ? '$ns/' : '';
   final suffix = variant != null ? '.$variant' : '';
   return '$prefix$name$suffix';
+}
+
+/// Normalizes the frontmatter `use` field into a list of middleware refs.
+///
+/// dotprompt does not model `use` as a first-class field, so it arrives as a
+/// raw value from the parsed frontmatter. Two entry shapes are supported,
+/// mirroring the code API where `use: [retry(maxRetries: 3)]` is a middleware
+/// name plus optional config:
+///
+/// ```yaml
+/// use:
+///   - retry                 # bare string -> middlewareRef(name: 'retry')
+///   - name: retry           # map with optional config
+///     config:
+///       maxRetries: 3
+/// ```
+///
+/// Malformed entries (non-string / map without a `name`) are skipped rather
+/// than throwing, consistent with the loader's tolerant handling of
+/// frontmatter. Returns `null` when no valid middleware is declared.
+List<GenerateMiddlewareRef>? _toMiddlewareRefs(dynamic use) {
+  if (use is! List) return null;
+
+  final refs = <GenerateMiddlewareRef>[];
+  for (final entry in use) {
+    if (entry is String) {
+      refs.add(middlewareRef(name: entry));
+    } else if (entry is Map) {
+      final name = entry['name'];
+      if (name is! String) {
+        _logger.warning(
+          'Skipping middleware entry without a valid "name": $entry',
+        );
+        continue;
+      }
+      final config = entry['config'];
+      refs.add(
+        middlewareRef<dynamic>(
+          name: name,
+          config: config is Map ? Map<String, dynamic>.from(config) : config,
+        ),
+      );
+    } else {
+      _logger.warning('Skipping unsupported middleware entry: $entry');
+    }
+  }
+
+  return refs.isEmpty ? null : refs;
 }
 
 /// Converts a frontmatter schema map to a JSON Schema map.

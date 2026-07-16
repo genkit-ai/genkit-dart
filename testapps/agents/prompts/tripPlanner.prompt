@@ -6,6 +6,10 @@ input:
 tools:
   - getAttractions
   - getFlightInfo
+use:
+  - name: retry
+    config:
+      maxRetries: 4
 ---
 
 {{role "system"}}

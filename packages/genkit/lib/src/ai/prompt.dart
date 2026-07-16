@@ -490,7 +490,13 @@ Map<String, dynamic> _buildPromptMetadata<CustomOptions, Input>(
       if (config.toolNames != null) 'tools': config.toolNames,
       if (config.toolChoice != null) 'toolChoice': config.toolChoice,
       if (config.messagesTemplate != null) 'template': config.messagesTemplate,
-      // TODO: Add middleware metadata when middleware support is added.
+      // Surface middleware as `{name, config}` entries, mirroring the JS
+      // prompt loader's `metadata.prompt.use`.
+      if (config.use != null)
+        'use': [
+          for (final mw in config.use!)
+            {'name': mw.name, if (mw.config != null) 'config': mw.config},
+        ],
     },
   };
 }

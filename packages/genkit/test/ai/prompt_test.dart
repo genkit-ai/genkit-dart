@@ -1602,6 +1602,200 @@ Ship to {{address.city}}.
       expect(addressSchema['properties'], contains('street'));
       expect(addressSchema['properties'], contains('city'));
     });
+
+    test('parses bare-string middleware from the `use` frontmatter', () async {
+      File(p.join(tempDir.path, 'retrying.prompt')).writeAsStringSync('''
+---
+use:
+  - retry
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'retrying');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      final use = options.use!;
+      expect(use, hasLength(1));
+      expect(use.single.name, equals('retry'));
+      expect(use.single.config, anyOf(isNull, isEmpty));
+    });
+
+    test('parses middleware with config from the `use` frontmatter', () async {
+      File(p.join(tempDir.path, 'retrying.prompt')).writeAsStringSync('''
+---
+use:
+  - name: retry
+    config:
+      maxRetries: 3
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'retrying');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      final use = options.use!;
+      expect(use, hasLength(1));
+      expect(use.single.name, equals('retry'));
+      expect(use.single.config, containsPair('maxRetries', 3));
+    });
+
+    test('surfaces normalized `use` on the prompt metadata', () async {
+      File(p.join(tempDir.path, 'retrying.prompt')).writeAsStringSync('''
+---
+toolChoice: required
+use:
+  - logging
+  - name: retry
+    config:
+      maxRetries: 3
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final action =
+          await registry.lookupAction('executable-prompt', 'retrying')
+              as PromptAction;
+      final promptMeta = action.metadata['prompt'] as Map<String, dynamic>;
+
+      // Mirrors the JS loader's `metadata.prompt.use` / `toolChoice`.
+      expect(promptMeta['toolChoice'], equals('required'));
+      final useMeta = promptMeta['use'] as List;
+      expect(useMeta, hasLength(2));
+      expect(useMeta[0], equals({'name': 'logging'}));
+      expect(
+        useMeta[1],
+        equals({
+          'name': 'retry',
+          'config': {'maxRetries': 3},
+        }),
+      );
+    });
+
+    test('skips malformed and unsupported `use` entries', () async {
+      // A map without a `name`, and a non-string/non-map entry, are both
+      // dropped rather than throwing; the valid entry is still parsed.
+      File(p.join(tempDir.path, 'mixed.prompt')).writeAsStringSync('''
+---
+use:
+  - retry
+  - config:
+      maxRetries: 3
+  - 42
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'mixed');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      final use = options.use!;
+      expect(use, hasLength(1));
+      expect(use.single.name, equals('retry'));
+    });
+
+    test('parses toolChoice from frontmatter onto rendered options', () async {
+      File(p.join(tempDir.path, 'choosy.prompt')).writeAsStringSync('''
+---
+toolChoice: required
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'choosy');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.toolChoice, equals('required'));
+    });
+
+    test('parses maxTurns and returnToolRequests from frontmatter', () async {
+      File(p.join(tempDir.path, 'looped.prompt')).writeAsStringSync('''
+---
+maxTurns: 7
+returnToolRequests: true
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'looped');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.maxTurns, equals(7));
+      expect(options.returnToolRequests, isTrue);
+    });
+
+    test('returnToolRequests can be false in frontmatter', () async {
+      File(p.join(tempDir.path, 'noreturn.prompt')).writeAsStringSync('''
+---
+returnToolRequests: false
+---
+Hello {{name}}!
+''');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'noreturn');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.returnToolRequests, isFalse);
+    });
+
+    test('omits maxTurns/returnToolRequests when absent', () async {
+      File(
+        p.join(tempDir.path, 'bare.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'bare');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.maxTurns, isNull);
+      expect(options.returnToolRequests, isNull);
+      expect(options.toolChoice, isNull);
+    });
+
+    test('ignores a prompt with no `use` frontmatter', () async {
+      File(
+        p.join(tempDir.path, 'plain.prompt'),
+      ).writeAsStringSync('Hello {{name}}!');
+
+      loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+
+      final ep = await registry.lookupAction('executable-prompt', 'plain');
+      final options = await (ep as PromptAction).executablePrompt!.render({
+        'name': 'World',
+      });
+
+      expect(options.use, anyOf(isNull, isEmpty));
+    });
   });
 
   group('DotpromptRegistry', () {
