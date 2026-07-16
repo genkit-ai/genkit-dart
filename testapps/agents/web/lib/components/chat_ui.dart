@@ -18,17 +18,31 @@
 /// logic; each page owns its own session/streaming code and passes messages in.
 library;
 
+import 'dart:async';
+
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:web/web.dart' as web;
 
 /// A single chat message to render.
 class ChatMessage {
-  ChatMessage({required this.role, required this.text});
+  ChatMessage({
+    required this.role,
+    required this.text,
+    this.reasoning,
+    this.detail,
+  });
 
   /// One of `user`, `model`, `system`, `tool`.
   final String role;
   final String text;
+
+  /// Optional reasoning/thinking content — rendered as a collapsible block.
+  final String? reasoning;
+
+  /// Optional detail content — rendered as a terminal-style box below the text.
+  final String? detail;
 }
 
 /// Renders a markdown string as an HTML block.
@@ -40,15 +54,34 @@ Component markdownBlock(String source) {
   return div(classes: 'markdown-body', [RawText(html)]);
 }
 
+/// A collapsible "🧠 Thinking…" reasoning block.
+Component _thinkingBlock(String reasoning, {bool streaming = false}) {
+  return details(
+    open: streaming,
+    classes: streaming ? 'thinking-block thinking-streaming' : 'thinking-block',
+    [
+      summary(classes: 'thinking-summary', [
+        span(
+          classes: streaming ? 'thinking-icon thinking-pulse' : 'thinking-icon',
+          [.text('🧠')],
+        ),
+        .text(' Thinking…'),
+      ]),
+      div(classes: 'thinking-content', [markdownBlock(reasoning)]),
+    ],
+  );
+}
+
 /// Shared chat panel. The page supplies [messages], optional [streamingText],
 /// suggestions, and an [onSend] callback.
-class ChatUI extends StatelessComponent {
+class ChatUI extends StatefulComponent {
   const ChatUI({
     required this.title,
     required this.onSend,
     this.description,
     this.messages = const [],
     this.streamingText,
+    this.streamingReasoning,
     this.loading = false,
     this.inputDisabled = false,
     this.renderMarkdown = false,
@@ -62,6 +95,10 @@ class ChatUI extends StatelessComponent {
   final String? description;
   final List<ChatMessage> messages;
   final String? streamingText;
+
+  /// Partial reasoning text being streamed (shown as animated "thinking…"
+  /// block).
+  final String? streamingReasoning;
   final bool loading;
   final bool inputDisabled;
   final bool renderMarkdown;
@@ -74,15 +111,34 @@ class ChatUI extends StatelessComponent {
   final Component? extra;
 
   @override
+  State<ChatUI> createState() => _ChatUIState();
+}
+
+class _ChatUIState extends State<ChatUI> {
+  /// Auto-scroll the message list to the bottom after the DOM updates.
+  ///
+  /// Mirrors the JS double-rAF trick: schedule after the current render so the
+  /// container has its final height before we set `scrollTop`.
+  void _scrollToBottom() {
+    Timer.run(() {
+      final el = web.document.querySelector('.chat-messages');
+      if (el != null) {
+        el.scrollTop = el.scrollHeight.toDouble();
+      }
+    });
+  }
+
+  @override
   Component build(BuildContext context) {
+    _scrollToBottom();
     return div(classes: 'chat-panel', [
       _header(),
       _messages(),
-      ?extra,
+      ?component.extra,
       _ChatInput(
-        title: title,
-        disabled: loading || inputDisabled,
-        onSend: onSend,
+        title: component.title,
+        disabled: component.loading || component.inputDisabled,
+        onSend: component.onSend,
       ),
     ]);
   }
@@ -90,43 +146,62 @@ class ChatUI extends StatelessComponent {
   Component _header() {
     return div(classes: 'chat-header', [
       div(classes: 'chat-header-top', [
-        h2([.text(title)]),
-        if (headerAction != null)
-          div(classes: 'chat-header-action', [headerAction!]),
+        h2([.text(component.title)]),
+        if (component.headerAction != null)
+          div(classes: 'chat-header-action', [component.headerAction!]),
       ]),
-      if (description != null)
-        span(classes: 'chat-desc', [Component.text(description!)]),
+      if (component.description != null)
+        span(classes: 'chat-desc', [Component.text(component.description!)]),
     ]);
   }
 
   Component _messages() {
     final items = <Component>[];
+    final messages = component.messages;
+    final streamingText = component.streamingText;
+    final streamingReasoning = component.streamingReasoning;
+    final loading = component.loading;
 
     if (messages.isEmpty &&
-        (streamingText == null || streamingText!.isEmpty) &&
+        (streamingText == null || streamingText.isEmpty) &&
+        (streamingReasoning == null || streamingReasoning.isEmpty) &&
         !loading) {
       items.add(_emptyState());
     }
 
     for (final m in messages) {
+      if (m.reasoning != null && m.reasoning!.isNotEmpty) {
+        items.add(_thinkingBlock(m.reasoning!));
+      }
       if (m.text.isEmpty) continue;
       items.add(_messageBubble(m));
     }
 
-    final streaming = streamingText;
-    if (streaming != null && streaming.isNotEmpty) {
+    // Live streaming reasoning indicator (before any text is produced).
+    if (streamingReasoning != null &&
+        streamingReasoning.isNotEmpty &&
+        (streamingText == null || streamingText.isEmpty)) {
+      items.add(_thinkingBlock(streamingReasoning, streaming: true));
+    }
+
+    if (streamingText != null && streamingText.isNotEmpty) {
       items.add(
         div(classes: 'message', [
           div(classes: 'message-role', [.text('model')]),
           div(classes: 'message-text streaming', [
-            if (renderMarkdown) markdownBlock(streaming) else .text(streaming),
+            if (component.renderMarkdown)
+              markdownBlock(streamingText)
+            else
+              .text(streamingText),
             .text('▊'),
           ]),
         ]),
       );
     }
 
-    if (loading && (streaming == null || streaming.isEmpty)) {
+    if (loading &&
+        (streamingText == null || streamingText.isEmpty) &&
+        (streamingReasoning == null || streamingReasoning.isEmpty)) {
       items.add(
         div(classes: 'message', [
           div(classes: 'message-role', [.text('model')]),
@@ -139,10 +214,12 @@ class ChatUI extends StatelessComponent {
   }
 
   Component _emptyState() {
+    final suggestions = component.suggestions;
+    final disabled = component.loading || component.inputDisabled;
     return div(classes: 'empty-state', [
       p([
         .text('Send a message to start a conversation with '),
-        strong([.text(title)]),
+        strong([.text(component.title)]),
       ]),
       if (suggestions.isNotEmpty)
         div(classes: 'suggestions', [
@@ -152,8 +229,8 @@ class ChatUI extends StatelessComponent {
               button(
                 [.text(s)],
                 classes: 'suggestion-chip',
-                disabled: loading || inputDisabled,
-                onClick: () => onSend(s),
+                disabled: disabled,
+                onClick: () => component.onSend(s),
               ),
           ]),
         ]),
@@ -174,11 +251,13 @@ class ChatUI extends StatelessComponent {
     return div(classes: cls, [
       div(classes: 'message-role', [.text(m.role)]),
       div(classes: textCls, [
-        if (renderMarkdown && m.role == 'model')
+        if (component.renderMarkdown && m.role == 'model')
           markdownBlock(m.text)
         else
           .text(m.text),
       ]),
+      if (m.detail != null && m.detail!.isNotEmpty)
+        pre(classes: 'message-detail', [.text(m.detail!)]),
     ]);
   }
 }
@@ -225,6 +304,15 @@ class _ChatInputState extends State<_ChatInput> {
         rows: 2,
         disabled: component.disabled,
         onInput: (value) => _draft = value,
+        events: {
+          'keydown': (event) {
+            final e = event as web.KeyboardEvent;
+            if (e.key == 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              _send();
+            }
+          },
+        },
       ),
       button(
         [.text('Send')],

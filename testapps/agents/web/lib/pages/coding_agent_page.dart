@@ -23,6 +23,10 @@
 ///     middleware reads); denying *responds* with a "not approved" result.
 ///   * `ask_user` pauses to ask a question — the dialog shows the options and
 ///     resumes by *responding* with the chosen answer.
+///
+/// A file-explorer sidebar mirrors the JS layout: it lists the sandboxed
+/// `workspace/` directory (via the `listWorkspaceFiles` flow), refreshing after
+/// each turn, and shows file contents on click (via `readWorkspaceFile`).
 library;
 
 import 'dart:async';
@@ -39,6 +43,32 @@ import 'streaming_chat_page.dart';
 /// Tools that pause for an approve/deny confirmation before running.
 const _approvalTools = {'write_file', 'search_and_replace', 'run_shell'};
 
+/// A file or directory node in the workspace tree.
+class _FileNode {
+  _FileNode({
+    required this.name,
+    required this.path,
+    required this.type,
+    this.children,
+  });
+
+  factory _FileNode.fromJson(Map<String, dynamic> json) => _FileNode(
+    name: json['name'] as String? ?? '',
+    path: json['path'] as String? ?? '',
+    type: json['type'] as String? ?? 'file',
+    children: (json['children'] as List?)
+        ?.map((c) => _FileNode.fromJson((c as Map).cast<String, dynamic>()))
+        .toList(),
+  );
+
+  final String name;
+  final String path;
+  final String type;
+  final List<_FileNode>? children;
+
+  bool get isDirectory => type == 'directory';
+}
+
 class CodingAgentPage extends StatefulComponent {
   const CodingAgentPage({super.key});
 
@@ -49,11 +79,37 @@ class CodingAgentPage extends StatefulComponent {
 class _CodingAgentPageState extends State<CodingAgentPage> {
   late final AgentApi _agent = remoteAgent(url: '$apiBase/api/codingAgent');
 
+  // Flows exposing the sandboxed workspace directory.
+  late final RemoteAction<void, List<_FileNode>, dynamic, dynamic> _listFiles =
+      defineRemoteAction(
+        url: '$apiBase/api/workspace/files',
+        fromResponse: (json) {
+          final files = (json as Map)['files'] as List? ?? const [];
+          return files
+              .map(
+                (f) => _FileNode.fromJson((f as Map).cast<String, dynamic>()),
+              )
+              .toList();
+        },
+      );
+  late final RemoteAction<String, String, dynamic, dynamic> _readFile =
+      defineRemoteAction(
+        url: '$apiBase/api/workspace/file',
+        fromResponse: (json) => (json as Map)['content'] as String? ?? '',
+      );
+
   AgentChat? _chat;
 
   final List<ChatMessage> _messages = [];
   String _streamingText = '';
   bool _loading = false;
+
+  // File explorer state.
+  List<_FileNode> _files = const [];
+  final Set<String> _expandedDirs = {};
+  String? _selectedPath;
+  String _fileContent = '';
+  bool _fileLoading = false;
 
   // Pending interrupts awaiting a user decision, resolved one at a time. Each
   // decision is accumulated into [_restarts] / [_responses]; once every pending
@@ -61,6 +117,40 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
   final List<AgentInterrupt> _pending = [];
   final List<ToolRequestPart> _restarts = [];
   final List<ToolResponsePart> _responses = [];
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshFiles());
+  }
+
+  Future<void> _refreshFiles() async {
+    try {
+      final files = await _listFiles.call(input: null);
+      if (!mounted) return;
+      setState(() => _files = files);
+    } catch (_) {
+      // Silently ignore — the workspace may not exist until the first write.
+    }
+  }
+
+  Future<void> _openFile(String path) async {
+    setState(() {
+      _selectedPath = path;
+      _fileLoading = true;
+      _fileContent = '';
+    });
+    try {
+      final content = await _readFile.call(input: path);
+      if (!mounted) return;
+      setState(() => _fileContent = content);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _fileContent = 'Failed to read file: $e');
+    } finally {
+      if (mounted) setState(() => _fileLoading = false);
+    }
+  }
 
   Future<void> _runTurn(AgentTurn turn) async {
     var accumulated = '';
@@ -115,6 +205,9 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
         ..clear()
         ..addAll(res.interrupts);
     });
+
+    // The agent may have created/edited files this turn — refresh the tree.
+    unawaited(_refreshFiles());
   }
 
   Future<void> _handleSend(String text) async {
@@ -207,7 +300,7 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
   @override
   Component build(BuildContext context) {
     final interrupt = _pending.isNotEmpty ? _pending.first : null;
-    return div(classes: 'page-with-sidebar', [
+    return div(classes: 'coding-agent-layout', [
       ChatUI(
         title: 'Coding Agent',
         description:
@@ -227,9 +320,91 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
         onSend: _handleSend,
         extra: interrupt == null ? null : _interruptDialog(interrupt),
       ),
+      _fileExplorer(),
     ]);
   }
 
+  // ── File explorer sidebar ──────────────────────────────────────────────
+  Component _fileExplorer() {
+    return aside(classes: 'file-explorer', [
+      div(classes: 'file-explorer-header', [
+        h3([.text('📁 Workspace')]),
+        button(
+          [.text('⟳ Refresh')],
+          classes: 'btn-refresh-files',
+          onClick: () => unawaited(_refreshFiles()),
+        ),
+      ]),
+      if (_files.isEmpty)
+        div(classes: 'file-explorer-empty', [.text('Workspace is empty.')])
+      else
+        div(classes: 'file-tree', _fileTree(_files, 0)),
+      if (_selectedPath != null) _fileViewer(),
+    ]);
+  }
+
+  List<Component> _fileTree(List<_FileNode> nodes, int depth) {
+    final items = <Component>[];
+    for (final node in nodes) {
+      final indentPad = 12 + depth * 14;
+      if (node.isDirectory) {
+        final expanded = _expandedDirs.contains(node.path);
+        items.add(
+          button(
+            classes: 'file-tree-item file-tree-dir',
+            styles: Styles(raw: {'padding-left': '${indentPad}px'}),
+            onClick: () => setState(() {
+              if (!_expandedDirs.add(node.path)) {
+                _expandedDirs.remove(node.path);
+              }
+            }),
+            [
+              span(classes: 'file-icon', [.text(expanded ? '📂' : '📁')]),
+              span(classes: 'file-name', [.text(node.name)]),
+            ],
+          ),
+        );
+        if (expanded && node.children != null) {
+          items.addAll(_fileTree(node.children!, depth + 1));
+        }
+      } else {
+        final selected = node.path == _selectedPath;
+        items.add(
+          button(
+            classes: selected ? 'file-tree-item selected' : 'file-tree-item',
+            styles: Styles(raw: {'padding-left': '${indentPad}px'}),
+            onClick: () => unawaited(_openFile(node.path)),
+            [
+              span(classes: 'file-icon', [.text('📄')]),
+              span(classes: 'file-name', [.text(node.name)]),
+            ],
+          ),
+        );
+      }
+    }
+    return items;
+  }
+
+  Component _fileViewer() {
+    return div(classes: 'file-viewer', [
+      div(classes: 'file-viewer-header', [
+        span(classes: 'file-viewer-path', [.text(_selectedPath ?? '')]),
+        button(
+          [.text('✕')],
+          classes: 'file-viewer-close',
+          onClick: () => setState(() {
+            _selectedPath = null;
+            _fileContent = '';
+          }),
+        ),
+      ]),
+      pre(classes: 'file-viewer-content', [
+        .text(_fileLoading ? 'Loading…' : _fileContent),
+      ]),
+    ]);
+  }
+
+  // ── Interrupt dialogs ──────────────────────────────────────────────────
   Component _interruptDialog(AgentInterrupt interrupt) {
     if (interrupt.name == 'ask_user') return _askUserDialog(interrupt);
     return _approvalDialog(interrupt);
@@ -237,15 +412,15 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
 
   Component _approvalDialog(AgentInterrupt interrupt) {
     final isApproval = _approvalTools.contains(interrupt.name);
-    return div(classes: 'interrupt-dialog', [
-      h3([.text('Approval required')]),
-      p([
+    return div(classes: 'approval-dialog', [
+      h3([.text('🔒 Approval required')]),
+      p(classes: 'approval-tool-name', [
         .text('The agent wants to run '),
-        strong([.text(interrupt.name)]),
+        code([.text(interrupt.name)]),
         .text(':'),
       ]),
-      pre([.text(jsonEncode(interrupt.input))]),
-      div(classes: 'interrupt-buttons', [
+      pre(classes: 'approval-code', [.text(jsonEncode(interrupt.input))]),
+      div(classes: 'approval-buttons', [
         button(
           [.text(isApproval ? 'Approve' : 'Allow')],
           classes: 'btn btn-approve',
@@ -266,16 +441,14 @@ class _CodingAgentPageState extends State<CodingAgentPage> {
     final options = input is Map && input['options'] is List
         ? (input['options'] as List).map((o) => o.toString()).toList()
         : <String>[];
-    return div(classes: 'interrupt-dialog', [
-      h3([.text('The agent has a question')]),
-      p([
-        strong([.text(question)]),
-      ]),
-      div(classes: 'interrupt-buttons', [
+    return div(classes: 'ask-user-dialog', [
+      h3([.text('💬 The agent has a question')]),
+      p(classes: 'ask-user-question', [.text(question)]),
+      div(classes: 'ask-user-options', [
         for (final option in options)
           button(
             [.text(option)],
-            classes: 'btn btn-approve',
+            classes: 'ask-user-option',
             onClick: () => _answer(interrupt, option),
           ),
       ]),

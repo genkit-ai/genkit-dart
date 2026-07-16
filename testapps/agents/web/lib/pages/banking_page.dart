@@ -29,6 +29,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
 import '../components/chat_ui.dart';
+import '../components/info_sidebar.dart';
 import 'streaming_chat_page.dart';
 
 class BankingPage extends StatefulComponent {
@@ -203,6 +204,7 @@ class _BankingPageState extends State<BankingPage> {
                 ]),
               ]),
       ),
+      bankingSidebar(),
     ]);
   }
 }

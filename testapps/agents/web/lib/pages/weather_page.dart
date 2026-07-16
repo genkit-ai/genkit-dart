@@ -19,29 +19,33 @@ library;
 
 import 'package:jaspr/jaspr.dart';
 
+import '../components/info_sidebar.dart';
 import 'streaming_chat_page.dart';
 
 class WeatherPage extends StatelessComponent {
   const WeatherPage({this.snapshotId, super.key});
 
-  /// Optional snapshot id from the URL (`/weather/:snapshotId`). The Dart
-  /// sample starts a fresh chat per visit; the JS demo additionally restores
-  /// from this snapshot via `agent.loadChat()`.
+  /// Optional snapshot id from the URL (`/weather/:snapshotId`). When present,
+  /// the session is restored via `agent.loadChat()`.
   final String? snapshotId;
 
   @override
   Component build(BuildContext context) {
-    return const StreamingChatPage(
+    return StreamingChatPage(
       endpoint: '/api/weatherAgent',
       title: 'Weather Agent',
+
       description:
           'Multi-turn chat with tool-calling. Ask about the weather in any '
           'city.',
-      suggestions: [
+      suggestions: const [
         'What is the weather like in London?',
         'Is it sunny in Tokyo right now?',
         'Compare the weather in Paris and New York.',
       ],
+      sidebar: weatherSidebar(),
+      sessionPath: '/weather',
+      snapshotId: snapshotId,
     );
   }
 }

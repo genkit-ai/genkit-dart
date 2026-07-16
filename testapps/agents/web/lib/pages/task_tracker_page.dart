@@ -118,29 +118,48 @@ class _TaskTrackerPageState extends State<TaskTrackerPage> {
     }
   }
 
-  Component _taskList() {
+  List<Map> get _tasks {
     final custom = _custom;
-    if (custom is! Map) {
-      return p(classes: 'artifacts-empty', [.text('No tasks yet.')]);
-    }
-    final tasks = (custom['tasks'] as List?) ?? const [];
+    if (custom is! Map) return const [];
+    return ((custom['tasks'] as List?) ?? const []).cast<Map>();
+  }
+
+  Component _progress() {
+    final tasks = _tasks;
+    if (tasks.isEmpty) return const _Empty();
+    final done = tasks.where((t) => t['done'] == true).length;
+    final pct = tasks.isEmpty ? 0 : (done / tasks.length * 100).round();
+    return div(classes: 'task-progress', [
+      .text('$done of ${tasks.length} done'),
+      div(classes: 'task-progress-bar', [
+        div(
+          classes: 'task-progress-fill',
+          styles: Styles(raw: {'width': '$pct%'}),
+          [],
+        ),
+      ]),
+    ]);
+  }
+
+  Component _taskList() {
+    final tasks = _tasks;
     if (tasks.isEmpty) {
-      return p(classes: 'artifacts-empty', [.text('No tasks yet.')]);
+      return p(classes: 'task-empty', [.text('No tasks yet.')]);
     }
-    return ul([
-      for (final t in tasks.cast<Map>())
-        li([
-          .text(
-            '${(t['done'] == true) ? '✅' : '⬜'} '
-            '#${t['id']} ${t['title']}',
-          ),
+    return ul(classes: 'task-list', [
+      for (final t in tasks)
+        li(classes: t['done'] == true ? 'task-item task-done' : 'task-item', [
+          span(classes: 'task-checkbox', [
+            .text(t['done'] == true ? '✅' : '⬜'),
+          ]),
+          span(classes: 'task-title', [.text('#${t['id']} ${t['title']}')]),
         ]),
     ]);
   }
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'page-with-sidebar', [
+    return div(classes: 'task-tracker-layout', [
       ChatUI(
         title: 'Task Tracker',
         description:
@@ -158,10 +177,61 @@ class _TaskTrackerPageState extends State<TaskTrackerPage> {
         renderMarkdown: true,
         onSend: _handleSend,
       ),
-      aside(classes: 'state-inspector', [
-        h3([.text('✅ Tasks')]),
+      aside(classes: 'task-sidebar', [
+        h3([.text('✅ Task List')]),
+        p(classes: 'task-sidebar-hint', [
+          .text('Lives in the agent\'s custom '),
+          code([.text('state')]),
+          .text('. Updated live via '),
+          code([.text('customPatch')]),
+          .text(' stream chunks.'),
+        ]),
+        _progress(),
         _taskList(),
+        hr(classes: 'task-divider'),
+        h4([.text('📋 How It Works')]),
+        ol(classes: 'task-howto', [
+          li([
+            .text('Tools mutate '),
+            code([.text('ctx.state.custom')]),
+            .text(' on the server.'),
+          ]),
+          li([
+            .text('Each mutation streams a '),
+            code([.text('customPatch')]),
+            .text(' chunk to the client.'),
+          ]),
+          li([
+            code([.text('chunk.custom')]),
+            .text(' updates this panel mid-stream.'),
+          ]),
+        ]),
+        h4([.text('Key APIs')]),
+        pre(classes: 'task-code', [
+          .text('''
+// Seed initial custom state
+final chat = agent.chat(
+  state: SessionState(
+    custom: {'tasks': [], 'nextId': 1},
+  ),
+);
+
+// Live updates during a turn
+await for (final chunk in turn.stream) {
+  if (chunk.custom != null) {
+    setState(() => custom = chunk.custom);
+  }
+}'''),
+        ]),
       ]),
     ]);
   }
+}
+
+/// A blank placeholder used when there is no progress bar to show.
+class _Empty extends StatelessComponent {
+  const _Empty();
+
+  @override
+  Component build(BuildContext context) => span([]);
 }
