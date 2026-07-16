@@ -491,7 +491,8 @@ Map<String, dynamic> _buildPromptMetadata<CustomOptions, Input>(
       if (config.toolChoice != null) 'toolChoice': config.toolChoice,
       if (config.messagesTemplate != null) 'template': config.messagesTemplate,
       if (config.maxTurns != null) 'maxTurns': config.maxTurns,
-      if (config.returnToolRequests != null) 'returnToolRequests': config.returnToolRequests,
+      if (config.returnToolRequests != null)
+        'returnToolRequests': config.returnToolRequests,
       // Surface middleware as `{name, config}` entries, mirroring the JS
       // prompt loader's `metadata.prompt.use`.
       if (config.use != null)
