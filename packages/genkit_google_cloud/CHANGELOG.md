@@ -1,3 +1,10 @@
+## 0.1.2
+
+### Other Changes
+
+ - clarify Firestore project id discovery requirements (#338)
+
+
 ## 0.1.1
 
 ### Features

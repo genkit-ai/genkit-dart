@@ -1,3 +1,10 @@
+## 0.2.2
+
+### Fixes
+
+ - normalize nested models to JSON in generated setters (#337)
+
+
 ## 0.2.1
 
 ### Features

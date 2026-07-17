@@ -8,8 +8,8 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.15.0
-  genkit_chrome: ^0.0.11
+  genkit: ^0.15.1
+  genkit_chrome: ^0.0.12
   markdown: ^7.0.0
   web: ^1.0.0
 

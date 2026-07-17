@@ -1,3 +1,7 @@
+## 0.2.11
+
+ - updated internal dependencies.
+
 ## 0.2.10
 
 ### Features

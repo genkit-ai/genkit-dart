@@ -33,7 +33,7 @@ dev_dependencies:
   dart_flutter_team_lints: ^3.0.0
   flutter_test:
     sdk: flutter
-  schemantic_builder: ^0.1.1
+  schemantic_builder: ^0.1.2
 
 dependency_overrides:
   genkit:
