@@ -138,7 +138,7 @@ base class Group {
   }
 
   set members(List<User> value) {
-    _json['members'] = value.toList();
+    _json['members'] = value.map((e) => e.toJson()).toList();
   }
 
   User? get leader {
@@ -151,7 +151,7 @@ base class Group {
     if (value == null) {
       _json.remove('leader');
     } else {
-      _json['leader'] = value;
+      _json['leader'] = value.toJson();
     }
   }
 
@@ -226,7 +226,7 @@ base class Node {
     if (value == null) {
       _json.remove('children');
     } else {
-      _json['children'] = value.toList();
+      _json['children'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -538,7 +538,7 @@ base class CrossFileParent {
   }
 
   set child(SharedChild value) {
-    _json['child'] = value;
+    _json['child'] = value.toJson();
   }
 
   @override
@@ -776,7 +776,7 @@ base class MapSchema {
     if (value == null) {
       _json.remove('stringToUser');
     } else {
-      _json['stringToUser'] = value;
+      _json['stringToUser'] = value.map((k, v) => MapEntry(k, v.toJson()));
     }
   }
 
@@ -1134,7 +1134,7 @@ base class House {
   }
 
   set location(Location value) {
-    _json['location'] = value;
+    _json['location'] = value.toJson();
   }
 
   @override
@@ -1173,5 +1173,206 @@ base class _HouseTypeFactory extends SchemanticType<House> {
         )
         .value,
     dependencies: [Location.$schema],
+  );
+}
+
+base class ItineraryDay {
+  /// Creates a [ItineraryDay] from a JSON map.
+  factory ItineraryDay.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  ItineraryDay._(this._json);
+
+  ItineraryDay({required int day, required String summary}) {
+    _json = {'day': day, 'summary': summary};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [ItineraryDay].
+  static const SchemanticType<ItineraryDay> $schema =
+      _ItineraryDayTypeFactory();
+
+  int get day {
+    return _json['day'] as int;
+  }
+
+  set day(int value) {
+    _json['day'] = value;
+  }
+
+  String get summary {
+    return _json['summary'] as String;
+  }
+
+  set summary(String value) {
+    _json['summary'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [ItineraryDay] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _ItineraryDayTypeFactory extends SchemanticType<ItineraryDay> {
+  const _ItineraryDayTypeFactory();
+
+  @override
+  ItineraryDay parse(Object? json) {
+    return ItineraryDay._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ItineraryDay',
+    definition: $Schema
+        .object(
+          properties: {'day': $Schema.integer(), 'summary': $Schema.string()},
+          required: ['day', 'summary'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class TripPlan {
+  /// Creates a [TripPlan] from a JSON map.
+  factory TripPlan.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  TripPlan._(this._json);
+
+  TripPlan({
+    required String destination,
+    required List<ItineraryDay> itinerary,
+    List<ItineraryDay>? optionalItinerary,
+    Location? base,
+    Map<String, ItineraryDay>? keyedDays,
+  }) {
+    _json = {
+      'destination': destination,
+      'itinerary': itinerary.map((e) => e.toJson()).toList(),
+      'optionalItinerary': ?optionalItinerary?.map((e) => e.toJson()).toList(),
+      'base': ?base?.toJson(),
+      'keyedDays': ?keyedDays?.map((k, v) => MapEntry(k, v.toJson())),
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [TripPlan].
+  static const SchemanticType<TripPlan> $schema = _TripPlanTypeFactory();
+
+  String get destination {
+    return _json['destination'] as String;
+  }
+
+  set destination(String value) {
+    _json['destination'] = value;
+  }
+
+  List<ItineraryDay> get itinerary {
+    return (_json['itinerary'] as List)
+        .map((e) => ItineraryDay.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set itinerary(List<ItineraryDay> value) {
+    _json['itinerary'] = value.map((e) => e.toJson()).toList();
+  }
+
+  List<ItineraryDay>? get optionalItinerary {
+    return (_json['optionalItinerary'] as List?)
+        ?.map((e) => ItineraryDay.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set optionalItinerary(List<ItineraryDay>? value) {
+    if (value == null) {
+      _json.remove('optionalItinerary');
+    } else {
+      _json['optionalItinerary'] = value.map((e) => e.toJson()).toList();
+    }
+  }
+
+  Location? get base {
+    return _json['base'] == null
+        ? null
+        : Location.fromJson(_json['base'] as Map<String, dynamic>);
+  }
+
+  set base(Location? value) {
+    if (value == null) {
+      _json.remove('base');
+    } else {
+      _json['base'] = value.toJson();
+    }
+  }
+
+  Map<String, ItineraryDay>? get keyedDays {
+    return (_json['keyedDays'] as Map?)?.map<String, ItineraryDay>(
+      (k, v) => MapEntry(
+        k as String,
+        ItineraryDay.fromJson(v as Map<String, dynamic>),
+      ),
+    );
+  }
+
+  set keyedDays(Map<String, ItineraryDay>? value) {
+    if (value == null) {
+      _json.remove('keyedDays');
+    } else {
+      _json['keyedDays'] = value.map((k, v) => MapEntry(k, v.toJson()));
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [TripPlan] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _TripPlanTypeFactory extends SchemanticType<TripPlan> {
+  const _TripPlanTypeFactory();
+
+  @override
+  TripPlan parse(Object? json) {
+    return TripPlan._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TripPlan',
+    definition: $Schema
+        .object(
+          properties: {
+            'destination': $Schema.string(),
+            'itinerary': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ItineraryDay'}),
+            ),
+            'optionalItinerary': $Schema.list(
+              items: $Schema.fromMap({'\$ref': r'#/$defs/ItineraryDay'}),
+            ),
+            'base': $Schema.fromMap({'\$ref': r'#/$defs/Location'}),
+            'keyedDays': $Schema.object(
+              additionalProperties: $Schema.fromMap({
+                '\$ref': r'#/$defs/ItineraryDay',
+              }),
+            ),
+          },
+          required: ['destination', 'itinerary'],
+        )
+        .value,
+    dependencies: [ItineraryDay.$schema, Location.$schema],
   );
 }

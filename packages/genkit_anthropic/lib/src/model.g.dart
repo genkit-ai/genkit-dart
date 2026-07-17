@@ -142,7 +142,7 @@ base class AnthropicOptions {
     if (value == null) {
       _json.remove('thinking');
     } else {
-      _json['thinking'] = value;
+      _json['thinking'] = value.toJson();
     }
   }
 

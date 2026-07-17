@@ -122,7 +122,7 @@ base class Recipe {
   }
 
   set ingredients(List<Ingredient> value) {
-    _json['ingredients'] = value.toList();
+    _json['ingredients'] = value.map((e) => e.toJson()).toList();
   }
 
   int get servings {
@@ -211,7 +211,7 @@ base class AnnotatedRecipe {
   }
 
   set ingredients(List<Ingredient> value) {
-    _json['ingredients'] = value.toList();
+    _json['ingredients'] = value.map((e) => e.toJson()).toList();
   }
 
   int get servings {
@@ -405,7 +405,7 @@ base class NullableFields {
     if (value == null) {
       _json.remove('optionalIngredient');
     } else {
-      _json['optionalIngredient'] = value;
+      _json['optionalIngredient'] = value.toJson();
     }
   }
 
@@ -530,7 +530,7 @@ base class ComplexObject {
     if (value == null) {
       _json.remove('nestedNullable');
     } else {
-      _json['nestedNullable'] = value;
+      _json['nestedNullable'] = value.toJson();
     }
   }
 
@@ -602,7 +602,7 @@ base class Menu {
   }
 
   set recipes(List<Recipe> value) {
-    _json['recipes'] = value.toList();
+    _json['recipes'] = value.map((e) => e.toJson()).toList();
   }
 
   List<Ingredient>? get optionalIngredients {
@@ -615,7 +615,7 @@ base class Menu {
     if (value == null) {
       _json.remove('optionalIngredients');
     } else {
-      _json['optionalIngredients'] = value.toList();
+      _json['optionalIngredients'] = value.map((e) => e.toJson()).toList();
     }
   }
 

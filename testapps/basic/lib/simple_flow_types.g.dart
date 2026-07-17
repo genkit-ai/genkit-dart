@@ -122,7 +122,7 @@ base class Recipe {
   }
 
   set ingredients(List<Ingredient> value) {
-    _json['ingredients'] = value.toList();
+    _json['ingredients'] = value.map((e) => e.toJson()).toList();
   }
 
   int get servings {
