@@ -14,7 +14,6 @@
 
 import 'package:firebase_ai/firebase_ai.dart' as m;
 
-/// Aggregates a list of streaming responses from Firebase AI into a single response.
 m.GenerateContentResponse aggregateResponses(
   List<m.GenerateContentResponse> responses,
 ) {
@@ -33,7 +32,6 @@ m.GenerateContentResponse aggregateResponses(
     }
 
     if (response.candidates.isNotEmpty) {
-      // Firebase AI Candidates don't expose index, assume single candidate.
       final index = 0;
       final state = candidateStates.putIfAbsent(index, _CandidateState.new);
       state.merge(response.candidates.first);
@@ -78,27 +76,50 @@ class _CandidateState {
   }
 
   void _mergeParts(List<m.Part> newParts) {
-    for (final part in newParts) {
-      if (parts.isNotEmpty) {
-        final lastPart = parts.last;
-        if (lastPart is m.TextPart && part is m.TextPart) {
-          // Merge text
-          final newText = lastPart.text + part.text;
-          parts.removeLast();
-          parts.add(m.TextPart(newText)); // Ignore thought stuff for now
-          continue;
-        } else if (lastPart is m.FunctionCall && part is m.FunctionCall) {
-          // Firebase AI currently returns completed tool calls, no need to merge partials manually.
-          // Will replace the last if it's identical ID or name as an edge case,
-          // but generally streaming function calls don't chunk in Firebase AI natively
-          if (part.id == lastPart.id || part.name == lastPart.name) {
-            parts.removeLast();
+  for (final part in newParts) {
+    if (parts.isNotEmpty) {
+      final lastPart = parts.last;
+      if (lastPart is m.TextPart && part is m.TextPart) {
+        final newText = lastPart.text + part.text;
+        parts.removeLast();
+        
+        Map<String, dynamic>? mergedMetadata;
+        if (lastPart.metadata != null || part.metadata != null) {
+          mergedMetadata = {};
+          if (lastPart.metadata != null) {
+            mergedMetadata!.addAll(lastPart.metadata!);
+          }
+          if (part.metadata != null) {
+            mergedMetadata!.addAll(part.metadata!);
           }
         }
+        
+        Map<String, dynamic>? mergedCustom;
+        if (lastPart.custom != null || part.custom != null) {
+          mergedCustom = {};
+          if (lastPart.custom != null) {
+            mergedCustom!.addAll(lastPart.custom!);
+          }
+          if (part.custom != null) {
+            mergedCustom!.addAll(part.custom!);
+          }
+        }
+        
+        parts.add(m.TextPart(
+          newText,
+          metadata: mergedMetadata,
+          custom: mergedCustom,
+        ));
+        continue;
+      } else if (lastPart is m.FunctionCall && part is m.FunctionCall) {
+        if (part.id == lastPart.id || part.name == lastPart.name) {
+          parts.removeLast();
+        }
       }
-      parts.add(part);
     }
+    parts.add(part);
   }
+}
 
   m.Candidate toCandidate() {
     return m.Candidate(
