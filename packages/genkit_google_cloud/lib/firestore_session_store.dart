@@ -348,12 +348,24 @@ bool _isNewerLeaf(
 /// Dart Firestore client has no real-time listener, so
 /// [onSnapshotStateChange] is implemented by polling. Tune the latency via the
 /// `snapshotWatchPollInterval` constructor argument.
+///
+/// ## Project id
+///
+/// The default [Firestore] instance uses Application Default Credentials, but
+/// ADC alone does not always carry a project id. If the client cannot discover
+/// one it throws at read/write time with "Project ID has not been discovered
+/// yet". To avoid this, either set the `GOOGLE_CLOUD_PROJECT` environment
+/// variable (often required even when ADC is present) or pass an explicit
+/// [Firestore] instance configured with a project id to the constructor.
 class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
   /// Creates a Firestore-backed session store.
   ///
   /// - [db]: an explicit [Firestore] instance. Defaults to a new [Firestore]
   ///   (which picks up Application Default Credentials and the
-  ///   `FIRESTORE_EMULATOR_HOST` environment variable).
+  ///   `FIRESTORE_EMULATOR_HOST` environment variable). Note that ADC alone may
+  ///   not carry a project id; set `GOOGLE_CLOUD_PROJECT` or pass an explicit
+  ///   [Firestore] with a project id if you hit "Project ID has not been
+  ///   discovered yet".
   /// - [collection]: the collection where snapshot documents are stored.
   ///   Defaults to `"genkit-sessions"`. Two companion collections are derived
   ///   from it: `"<collection>-pointers"` and `"<collection>-shards"`.

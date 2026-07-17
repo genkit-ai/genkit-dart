@@ -34,6 +34,13 @@ final store = FirestoreSessionStore(
 );
 ```
 
+> **Project id:** the default `Firestore()` uses Application Default
+> Credentials, but ADC alone does not always carry a project id. If the client
+> cannot discover one it throws at read/write time with
+> `Project ID has not been discovered yet`. Set the `GOOGLE_CLOUD_PROJECT`
+> environment variable (often required even when ADC is present) or pass an
+> explicit `Firestore` configured with a project id.
+
 ### Storage layout
 
 For a per-tenant `<prefix>` (see `snapshotPathPrefix`, default `"global"`):
