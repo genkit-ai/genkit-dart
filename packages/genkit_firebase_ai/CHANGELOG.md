@@ -1,3 +1,10 @@
+## 0.1.12
+
+### Features
+
+ - agent & session schema types (1/8) (#310)
+
+
 ## 0.1.11
 
 ### Features

@@ -1,3 +1,10 @@
+## 0.2.1
+
+### Features
+
+ - add serialize to convert typed values to JSON (#332)
+
+
 ## 0.2.0
 
 ### Fixes

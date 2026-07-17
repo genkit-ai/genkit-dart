@@ -1,3 +1,30 @@
+## 0.15.0
+
+### Breaking Changes
+
+ - pass middleware context with GenkitAI to factories (#319)
+
+### Features
+
+ - surface middleware and generate options in prompt loader (#333)
+ - type-safe agent State with schemantic parsing + agent API polish (#330)
+ - HTTP / remote agent client (6/8) (#315)
+ - server-side agent runtime (5/8) (#314)
+ - transport-agnostic client core (4/8) (#313)
+ - dart:io FileSessionStore (3/8) (#312)
+ - session & snapshot storage + JSON Patch (2/8) (#311)
+ - agent & session schema types (1/8) (#310)
+
+### Fixes
+
+ - carry resolved middleware refs on rendered options (#325)
+ - forward init (and context) from reflection runAction to actions (#321)
+
+### Other Changes
+
+ - cross-SDK conformance suite (7/8) (#316)
+
+
 ## 0.14.1
 
 ### Fixes

@@ -1,3 +1,16 @@
+## 0.2.10
+
+### Features
+
+ - agent & session schema types (1/8) (#310)
+ - curated known-model metadata + P0 Gemini 3.x registrations (#320)
+ - support Gemini and multimodal embedders (#261)
+
+### Other Changes
+
+ - model curated Gemini catalog as an enum (#323)
+
+
 ## 0.2.9
 
  - updated internal dependencies.

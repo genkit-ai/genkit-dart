@@ -1,3 +1,10 @@
+## 0.1.10
+
+### Features
+
+ - HTTP / remote agent client (6/8) (#315)
+
+
 ## 0.1.9
 
  - updated internal dependencies.

@@ -1,3 +1,19 @@
+## 0.5.0
+
+### Breaking Changes
+
+ - pass middleware context with GenkitAI to factories (#319)
+
+### Features
+
+ - type-safe agent State with schemantic parsing + agent API polish (#330)
+ - add agents sub-agent delegation middleware (#324)
+
+### Other Changes
+
+ - cross-SDK conformance suite (7/8) (#316)
+
+
 ## 0.4.4
 
  - updated internal dependencies.

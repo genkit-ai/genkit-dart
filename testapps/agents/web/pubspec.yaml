@@ -13,11 +13,11 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.14.0
+  genkit: ^0.15.0
   jaspr: ^0.23.0
   jaspr_router: ^0.8.0
   markdown: ^7.0.0
-  schemantic: ^0.2.0
+  schemantic: ^0.2.1
   web: ^1.0.0
 
 dev_dependencies:

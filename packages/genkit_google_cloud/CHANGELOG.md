@@ -1,3 +1,10 @@
+## 0.1.1
+
+### Features
+
+ - add genkit_google_cloud with a FirestoreSessionStore (#318)
+
+
 ## 0.1.0
 
 - Initial release.

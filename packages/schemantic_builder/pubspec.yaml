@@ -3,7 +3,7 @@ description: A code generator for schemantic that produces type-safe data classe
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 resolution: workspace
-version: 0.1.0
+version: 0.1.1
 environment:
   sdk: ^3.10.0
 
@@ -12,7 +12,7 @@ dependencies:
   build: ^4.0.4
   code_builder: ^4.10.0
   dart_style: ^3.1.4
-  schemantic: ">=0.2.0 <0.2.1"
+  schemantic: ">=0.2.1 <0.2.2"
   source_gen: ^4.2.0
 
 dev_dependencies:

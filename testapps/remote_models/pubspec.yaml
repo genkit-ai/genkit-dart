@@ -7,10 +7,10 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  genkit: ^0.14.1
-  genkit_google_genai: ^0.2.9
-  genkit_openai: ^0.3.5
-  genkit_shelf: ^0.1.9
+  genkit: ^0.15.0
+  genkit_google_genai: ^0.2.10
+  genkit_openai: ^0.3.6
+  genkit_shelf: ^0.1.10
   http: ^1.6.0
   shelf: ^1.4.2
   shelf_router: ^1.1.4

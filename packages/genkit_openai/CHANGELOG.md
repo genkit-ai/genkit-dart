@@ -1,3 +1,7 @@
+## 0.3.6
+
+ - updated internal dependencies.
+
 ## 0.3.5
 
 ### Fixes

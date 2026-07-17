@@ -1,3 +1,14 @@
+## 0.1.1
+
+### Features
+
+ - add serialize to convert typed values to JSON (#332)
+
+### Other Changes
+
+ - add documentation to schemantic_builder entry point (#294)
+
+
 ## 0.1.0
 
 ### Other Changes

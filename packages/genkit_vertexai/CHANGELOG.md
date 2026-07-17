@@ -1,3 +1,15 @@
+## 0.2.10
+
+### Features
+
+ - curated known-model metadata + P0 Gemini 3.x registrations (#320)
+ - support Gemini and multimodal embedders (#261)
+
+### Other Changes
+
+ - model curated Gemini catalog as an enum (#323)
+
+
 ## 0.2.9
 
  - updated internal dependencies.

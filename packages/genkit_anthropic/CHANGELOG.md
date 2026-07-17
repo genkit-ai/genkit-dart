@@ -1,3 +1,10 @@
+## 0.2.10
+
+### Features
+
+ - agent & session schema types (1/8) (#310)
+
+
 ## 0.2.9
 
  - updated internal dependencies.
