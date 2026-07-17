@@ -63,7 +63,7 @@ base class Candidate {
   }
 
   set message(Message value) {
-    _json['message'] = value;
+    _json['message'] = value.toJson();
   }
 
   GenerationUsage? get usage {
@@ -76,7 +76,7 @@ base class Candidate {
     if (value == null) {
       _json.remove('usage');
     } else {
-      _json['usage'] = value;
+      _json['usage'] = value.toJson();
     }
   }
 
@@ -191,7 +191,7 @@ base class Message {
   }
 
   set content(List<Part> value) {
-    _json['content'] = value.toList();
+    _json['content'] = value.map((e) => e.toJson()).toList();
   }
 
   Map<String, dynamic>? get metadata {
@@ -559,7 +559,7 @@ base class MediaPart implements Part {
   }
 
   set media(Media value) {
-    _json['media'] = value;
+    _json['media'] = value.toJson();
   }
 
   Map<String, dynamic>? get data {
@@ -669,7 +669,7 @@ base class ToolRequestPart implements Part {
   }
 
   set toolRequest(ToolRequest value) {
-    _json['toolRequest'] = value;
+    _json['toolRequest'] = value.toJson();
   }
 
   Map<String, dynamic>? get data {
@@ -779,7 +779,7 @@ base class ToolResponsePart implements Part {
   }
 
   set toolResponse(ToolResponse value) {
-    _json['toolResponse'] = value;
+    _json['toolResponse'] = value.toJson();
   }
 
   Map<String, dynamic>? get data {
@@ -1432,7 +1432,7 @@ base class EvalRequest {
   }
 
   set dataset(List<BaseDataPoint> value) {
-    _json['dataset'] = value.toList();
+    _json['dataset'] = value.map((e) => e.toJson()).toList();
   }
 
   String get evalRunId {
@@ -2194,7 +2194,7 @@ base class ModelRequest {
   }
 
   set messages(List<Message> value) {
-    _json['messages'] = value.toList();
+    _json['messages'] = value.map((e) => e.toJson()).toList();
   }
 
   Map<String, dynamic>? get config {
@@ -2219,7 +2219,7 @@ base class ModelRequest {
     if (value == null) {
       _json.remove('tools');
     } else {
-      _json['tools'] = value.toList();
+      _json['tools'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -2245,7 +2245,7 @@ base class ModelRequest {
     if (value == null) {
       _json.remove('output');
     } else {
-      _json['output'] = value;
+      _json['output'] = value.toJson();
     }
   }
 
@@ -2259,7 +2259,7 @@ base class ModelRequest {
     if (value == null) {
       _json.remove('docs');
     } else {
-      _json['docs'] = value.toList();
+      _json['docs'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -2360,7 +2360,7 @@ base class ModelResponse {
     if (value == null) {
       _json.remove('message');
     } else {
-      _json['message'] = value;
+      _json['message'] = value.toJson();
     }
   }
 
@@ -2407,7 +2407,7 @@ base class ModelResponse {
     if (value == null) {
       _json.remove('usage');
     } else {
-      _json['usage'] = value;
+      _json['usage'] = value.toJson();
     }
   }
 
@@ -2445,7 +2445,7 @@ base class ModelResponse {
     if (value == null) {
       _json.remove('request');
     } else {
-      _json['request'] = value;
+      _json['request'] = value.toJson();
     }
   }
 
@@ -2459,7 +2459,7 @@ base class ModelResponse {
     if (value == null) {
       _json.remove('operation');
     } else {
-      _json['operation'] = value;
+      _json['operation'] = value.toJson();
     }
   }
 
@@ -2570,7 +2570,7 @@ base class ModelResponseChunk {
   }
 
   set content(List<Part> value) {
-    _json['content'] = value.toList();
+    _json['content'] = value.map((e) => e.toJson()).toList();
   }
 
   Map<String, dynamic>? get custom {
@@ -2759,7 +2759,7 @@ base class GenerateResponse {
     if (value == null) {
       _json.remove('message');
     } else {
-      _json['message'] = value;
+      _json['message'] = value.toJson();
     }
   }
 
@@ -2809,7 +2809,7 @@ base class GenerateResponse {
     if (value == null) {
       _json.remove('usage');
     } else {
-      _json['usage'] = value;
+      _json['usage'] = value.toJson();
     }
   }
 
@@ -2847,7 +2847,7 @@ base class GenerateResponse {
     if (value == null) {
       _json.remove('request');
     } else {
-      _json['request'] = value;
+      _json['request'] = value.toJson();
     }
   }
 
@@ -2861,7 +2861,7 @@ base class GenerateResponse {
     if (value == null) {
       _json.remove('operation');
     } else {
-      _json['operation'] = value;
+      _json['operation'] = value.toJson();
     }
   }
 
@@ -2875,7 +2875,7 @@ base class GenerateResponse {
     if (value == null) {
       _json.remove('candidates');
     } else {
-      _json['candidates'] = value.toList();
+      _json['candidates'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -2970,7 +2970,7 @@ base class GenerateRequest {
   }
 
   set messages(List<Message> value) {
-    _json['messages'] = value.toList();
+    _json['messages'] = value.map((e) => e.toJson()).toList();
   }
 
   Map<String, dynamic>? get config {
@@ -2995,7 +2995,7 @@ base class GenerateRequest {
     if (value == null) {
       _json.remove('tools');
     } else {
-      _json['tools'] = value.toList();
+      _json['tools'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -3021,7 +3021,7 @@ base class GenerateRequest {
     if (value == null) {
       _json.remove('output');
     } else {
-      _json['output'] = value;
+      _json['output'] = value.toJson();
     }
   }
 
@@ -3035,7 +3035,7 @@ base class GenerateRequest {
     if (value == null) {
       _json.remove('docs');
     } else {
-      _json['docs'] = value.toList();
+      _json['docs'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -3637,7 +3637,7 @@ base class DocumentData {
   }
 
   set content(List<Part> value) {
-    _json['content'] = value.toList();
+    _json['content'] = value.map((e) => e.toJson()).toList();
   }
 
   Map<String, dynamic>? get metadata {
@@ -3756,7 +3756,7 @@ base class GenerateActionOptions {
     if (value == null) {
       _json.remove('docs');
     } else {
-      _json['docs'] = value.toList();
+      _json['docs'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -3767,7 +3767,7 @@ base class GenerateActionOptions {
   }
 
   set messages(List<Message> value) {
-    _json['messages'] = value.toList();
+    _json['messages'] = value.map((e) => e.toJson()).toList();
   }
 
   List<String>? get tools {
@@ -3830,7 +3830,7 @@ base class GenerateActionOptions {
     if (value == null) {
       _json.remove('output');
     } else {
-      _json['output'] = value;
+      _json['output'] = value.toJson();
     }
   }
 
@@ -3846,7 +3846,7 @@ base class GenerateActionOptions {
     if (value == null) {
       _json.remove('resume');
     } else {
-      _json['resume'] = value;
+      _json['resume'] = value.toJson();
     }
   }
 
@@ -3896,7 +3896,7 @@ base class GenerateActionOptions {
     if (value == null) {
       _json.remove('use');
     } else {
-      _json['use'] = value.toList();
+      _json['use'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -3998,7 +3998,7 @@ base class GenerateResumeOptions {
     if (value == null) {
       _json.remove('respond');
     } else {
-      _json['respond'] = value.toList();
+      _json['respond'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -4012,7 +4012,7 @@ base class GenerateResumeOptions {
     if (value == null) {
       _json.remove('restart');
     } else {
-      _json['restart'] = value.toList();
+      _json['restart'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -4247,7 +4247,7 @@ base class EmbedRequest {
   }
 
   set input(List<DocumentData> value) {
-    _json['input'] = value.toList();
+    _json['input'] = value.map((e) => e.toJson()).toList();
   }
 
   Map<String, dynamic>? get options {
@@ -4323,7 +4323,7 @@ base class EmbedResponse {
   }
 
   set embeddings(List<Embedding> value) {
-    _json['embeddings'] = value.toList();
+    _json['embeddings'] = value.map((e) => e.toJson()).toList();
   }
 
   @override
@@ -5406,7 +5406,7 @@ base class AgentInit {
     if (value == null) {
       _json.remove('state');
     } else {
-      _json['state'] = value;
+      _json['state'] = value.toJson();
     }
   }
 
@@ -5486,7 +5486,7 @@ base class AgentInput {
     if (value == null) {
       _json.remove('message');
     } else {
-      _json['message'] = value;
+      _json['message'] = value.toJson();
     }
   }
 
@@ -5500,7 +5500,7 @@ base class AgentInput {
     if (value == null) {
       _json.remove('resume');
     } else {
-      _json['resume'] = value;
+      _json['resume'] = value.toJson();
     }
   }
 
@@ -5571,7 +5571,7 @@ base class AgentResume {
     if (value == null) {
       _json.remove('respond');
     } else {
-      _json['respond'] = value.toList();
+      _json['respond'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -5585,7 +5585,7 @@ base class AgentResume {
     if (value == null) {
       _json.remove('restart');
     } else {
-      _json['restart'] = value.toList();
+      _json['restart'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -5693,7 +5693,7 @@ base class AgentOutput {
     if (value == null) {
       _json.remove('state');
     } else {
-      _json['state'] = value;
+      _json['state'] = value.toJson();
     }
   }
 
@@ -5707,7 +5707,7 @@ base class AgentOutput {
     if (value == null) {
       _json.remove('message');
     } else {
-      _json['message'] = value;
+      _json['message'] = value.toJson();
     }
   }
 
@@ -5721,7 +5721,7 @@ base class AgentOutput {
     if (value == null) {
       _json.remove('artifacts');
     } else {
-      _json['artifacts'] = value.toList();
+      _json['artifacts'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -5747,7 +5747,7 @@ base class AgentOutput {
     if (value == null) {
       _json.remove('error');
     } else {
-      _json['error'] = value;
+      _json['error'] = value.toJson();
     }
   }
 
@@ -5916,7 +5916,7 @@ base class AgentResult {
     if (value == null) {
       _json.remove('message');
     } else {
-      _json['message'] = value;
+      _json['message'] = value.toJson();
     }
   }
 
@@ -5930,7 +5930,7 @@ base class AgentResult {
     if (value == null) {
       _json.remove('artifacts');
     } else {
-      _json['artifacts'] = value.toList();
+      _json['artifacts'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -6022,7 +6022,7 @@ base class AgentStreamChunk {
     if (value == null) {
       _json.remove('modelChunk');
     } else {
-      _json['modelChunk'] = value;
+      _json['modelChunk'] = value.toJson();
     }
   }
 
@@ -6036,7 +6036,7 @@ base class AgentStreamChunk {
     if (value == null) {
       _json.remove('customPatch');
     } else {
-      _json['customPatch'] = value.toList();
+      _json['customPatch'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -6050,7 +6050,7 @@ base class AgentStreamChunk {
     if (value == null) {
       _json.remove('artifact');
     } else {
-      _json['artifact'] = value;
+      _json['artifact'] = value.toJson();
     }
   }
 
@@ -6064,7 +6064,7 @@ base class AgentStreamChunk {
     if (value == null) {
       _json.remove('turnEnd');
     } else {
-      _json['turnEnd'] = value;
+      _json['turnEnd'] = value.toJson();
     }
   }
 
@@ -6447,7 +6447,7 @@ base class Artifact {
   }
 
   set parts(List<Part> value) {
-    _json['parts'] = value.toList();
+    _json['parts'] = value.map((e) => e.toJson()).toList();
   }
 
   Map<String, dynamic>? get metadata {
@@ -6814,7 +6814,7 @@ base class SessionSnapshot {
     if (value == null) {
       _json.remove('error');
     } else {
-      _json['error'] = value;
+      _json['error'] = value.toJson();
     }
   }
 
@@ -6828,7 +6828,7 @@ base class SessionSnapshot {
     if (value == null) {
       _json.remove('state');
     } else {
-      _json['state'] = value;
+      _json['state'] = value.toJson();
     }
   }
 
@@ -6924,7 +6924,7 @@ base class SessionState {
     if (value == null) {
       _json.remove('messages');
     } else {
-      _json['messages'] = value.toList();
+      _json['messages'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -6950,7 +6950,7 @@ base class SessionState {
     if (value == null) {
       _json.remove('artifacts');
     } else {
-      _json['artifacts'] = value.toList();
+      _json['artifacts'] = value.map((e) => e.toJson()).toList();
     }
   }
 

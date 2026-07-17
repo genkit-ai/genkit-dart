@@ -166,6 +166,21 @@ abstract class $House {
   $Location get location;
 }
 
+@Schema()
+abstract class $ItineraryDay {
+  int get day;
+  String get summary;
+}
+
+@Schema()
+abstract class $TripPlan {
+  String get destination;
+  List<$ItineraryDay> get itinerary;
+  List<$ItineraryDay>? get optionalItinerary;
+  $Location? get base;
+  Map<String, $ItineraryDay>? get keyedDays;
+}
+
 void main() {
   group('Integration Tests', () {
     test('User serialization and deserialization', () {
@@ -664,6 +679,74 @@ void main() {
         'color': 'red',
       });
       expect(parsedNull.nullableColor, isNull);
+    });
+  });
+
+  group('Nested-model setter normalization', () {
+    // Regression: generated setters must normalize nested models to plain JSON
+    // (matching the constructor), otherwise toJson() holds model instances
+    // instead of Maps and a later re-parse throws
+    // "type 'X' is not a subtype of Map".
+
+    test('List<Schema> setter stores plain JSON, round-trips', () {
+      final plan = TripPlan(destination: 'Rome', itinerary: []);
+
+      plan.itinerary = [
+        ItineraryDay(day: 1, summary: 'Colosseum'),
+        ItineraryDay(day: 2, summary: 'Vatican'),
+      ];
+
+      // The backing JSON must contain Maps, not ItineraryDay instances.
+      final rawList = plan.toJson()['itinerary'] as List;
+      expect(rawList, everyElement(isA<Map>()));
+      expect((rawList.first as Map)['summary'], 'Colosseum');
+
+      // Re-parsing the serialized JSON must not throw and must be intact.
+      final reparsed = TripPlan.$schema.parse(plan.toJson());
+      expect(reparsed.itinerary.length, 2);
+      expect(reparsed.itinerary[0].day, 1);
+      expect(reparsed.itinerary[1].summary, 'Vatican');
+    });
+
+    test('nullable List<Schema> setter stores plain JSON, round-trips', () {
+      final plan = TripPlan(destination: 'Paris', itinerary: []);
+
+      plan.optionalItinerary = [ItineraryDay(day: 1, summary: 'Louvre')];
+
+      final rawList = plan.toJson()['optionalItinerary'] as List;
+      expect(rawList, everyElement(isA<Map>()));
+
+      final reparsed = TripPlan.$schema.parse(plan.toJson());
+      expect(reparsed.optionalItinerary!.single.summary, 'Louvre');
+
+      // Setting null removes the key.
+      plan.optionalItinerary = null;
+      expect(plan.toJson().containsKey('optionalItinerary'), isFalse);
+    });
+
+    test('single nullable Schema setter stores plain JSON, round-trips', () {
+      final plan = TripPlan(destination: 'Tokyo', itinerary: []);
+
+      plan.base = Location(address: 'Shibuya');
+      expect(plan.toJson()['base'], isA<Map>());
+
+      final reparsed = TripPlan.$schema.parse(plan.toJson());
+      expect(reparsed.base!.address, 'Shibuya');
+
+      plan.base = null;
+      expect(plan.toJson().containsKey('base'), isFalse);
+    });
+
+    test('Map<String, Schema> setter stores plain JSON, round-trips', () {
+      final plan = TripPlan(destination: 'Oslo', itinerary: []);
+
+      plan.keyedDays = {'first': ItineraryDay(day: 1, summary: 'Fjord')};
+
+      final rawMap = plan.toJson()['keyedDays'] as Map;
+      expect(rawMap['first'], isA<Map>());
+
+      final reparsed = TripPlan.$schema.parse(plan.toJson());
+      expect(reparsed.keyedDays!['first']!.summary, 'Fjord');
     });
   });
 }

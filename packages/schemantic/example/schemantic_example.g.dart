@@ -176,7 +176,7 @@ base class User {
     if (value == null) {
       _json.remove('address');
     } else {
-      _json['address'] = value;
+      _json['address'] = value.toJson();
     }
   }
 

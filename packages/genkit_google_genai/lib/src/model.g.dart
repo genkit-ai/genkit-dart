@@ -104,7 +104,7 @@ base class GeminiOptions {
     if (value == null) {
       _json.remove('safetySettings');
     } else {
-      _json['safetySettings'] = value.toList();
+      _json['safetySettings'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -132,7 +132,7 @@ base class GeminiOptions {
     if (value == null) {
       _json.remove('functionCallingConfig');
     } else {
-      _json['functionCallingConfig'] = value;
+      _json['functionCallingConfig'] = value.toJson();
     }
   }
 
@@ -148,7 +148,7 @@ base class GeminiOptions {
     if (value == null) {
       _json.remove('thinkingConfig');
     } else {
-      _json['thinkingConfig'] = value;
+      _json['thinkingConfig'] = value.toJson();
     }
   }
 
@@ -174,7 +174,7 @@ base class GeminiOptions {
     if (value == null) {
       _json.remove('googleSearch');
     } else {
-      _json['googleSearch'] = value;
+      _json['googleSearch'] = value.toJson();
     }
   }
 
@@ -188,7 +188,7 @@ base class GeminiOptions {
     if (value == null) {
       _json.remove('fileSearch');
     } else {
-      _json['fileSearch'] = value;
+      _json['fileSearch'] = value.toJson();
     }
   }
 
@@ -346,7 +346,7 @@ base class GeminiOptions {
     if (value == null) {
       _json.remove('speechConfig');
     } else {
-      _json['speechConfig'] = value;
+      _json['speechConfig'] = value.toJson();
     }
   }
 
@@ -836,7 +836,7 @@ base class GeminiTtsOptions {
     if (value == null) {
       _json.remove('safetySettings');
     } else {
-      _json['safetySettings'] = value.toList();
+      _json['safetySettings'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -864,7 +864,7 @@ base class GeminiTtsOptions {
     if (value == null) {
       _json.remove('functionCallingConfig');
     } else {
-      _json['functionCallingConfig'] = value;
+      _json['functionCallingConfig'] = value.toJson();
     }
   }
 
@@ -880,7 +880,7 @@ base class GeminiTtsOptions {
     if (value == null) {
       _json.remove('thinkingConfig');
     } else {
-      _json['thinkingConfig'] = value;
+      _json['thinkingConfig'] = value.toJson();
     }
   }
 
@@ -906,7 +906,7 @@ base class GeminiTtsOptions {
     if (value == null) {
       _json.remove('googleSearch');
     } else {
-      _json['googleSearch'] = value;
+      _json['googleSearch'] = value.toJson();
     }
   }
 
@@ -920,7 +920,7 @@ base class GeminiTtsOptions {
     if (value == null) {
       _json.remove('fileSearch');
     } else {
-      _json['fileSearch'] = value;
+      _json['fileSearch'] = value.toJson();
     }
   }
 
@@ -1078,7 +1078,7 @@ base class GeminiTtsOptions {
     if (value == null) {
       _json.remove('speechConfig');
     } else {
-      _json['speechConfig'] = value;
+      _json['speechConfig'] = value.toJson();
     }
   }
 
@@ -1182,7 +1182,7 @@ base class SpeechConfig {
     if (value == null) {
       _json.remove('voiceConfig');
     } else {
-      _json['voiceConfig'] = value;
+      _json['voiceConfig'] = value.toJson();
     }
   }
 
@@ -1198,7 +1198,7 @@ base class SpeechConfig {
     if (value == null) {
       _json.remove('multiSpeakerVoiceConfig');
     } else {
-      _json['multiSpeakerVoiceConfig'] = value;
+      _json['multiSpeakerVoiceConfig'] = value.toJson();
     }
   }
 
@@ -1269,7 +1269,7 @@ base class MultiSpeakerVoiceConfig {
   }
 
   set speakerVoiceConfigs(List<SpeakerVoiceConfig> value) {
-    _json['speakerVoiceConfigs'] = value.toList();
+    _json['speakerVoiceConfigs'] = value.map((e) => e.toJson()).toList();
   }
 
   @override
@@ -1344,7 +1344,7 @@ base class SpeakerVoiceConfig {
   }
 
   set voiceConfig(VoiceConfig value) {
-    _json['voiceConfig'] = value;
+    _json['voiceConfig'] = value.toJson();
   }
 
   @override
@@ -1415,7 +1415,7 @@ base class VoiceConfig {
     if (value == null) {
       _json.remove('prebuiltVoiceConfig');
     } else {
-      _json['prebuiltVoiceConfig'] = value;
+      _json['prebuiltVoiceConfig'] = value.toJson();
     }
   }
 

@@ -264,7 +264,7 @@ base class Category {
     if (value == null) {
       _json.remove('subcategories');
     } else {
-      _json['subcategories'] = value.toList();
+      _json['subcategories'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -345,7 +345,7 @@ base class Weapon {
   }
 
   set category(Category value) {
-    _json['category'] = value;
+    _json['category'] = value.toJson();
   }
 
   @override
@@ -436,7 +436,7 @@ base class RpgCharacter {
   }
 
   set weapons(List<Weapon> value) {
-    _json['weapons'] = value.toList();
+    _json['weapons'] = value.map((e) => e.toJson()).toList();
   }
 
   String get classType {

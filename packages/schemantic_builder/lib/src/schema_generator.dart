@@ -701,14 +701,26 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
     if (paramType.isNullable) {
       var valueExpression = 'value';
       if (nonNullableTypeName.isSchema) {
-        valueExpression = 'value';
+        // Normalize the nested model to plain JSON, mirroring the constructor.
+        valueExpression = 'value.toJson()';
       } else if (nonNullableTypeName == 'DateTime') {
         valueExpression = 'value.toIso8601String()';
       } else if (paramType.isDartCoreList) {
         final itemType = (paramType as InterfaceType).typeArguments.first;
         final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
         if (itemTypeName.isSchema) {
-          valueExpression = 'value.toList()';
+          // Normalize each nested model in the list to plain JSON so that
+          // toJson() (and any later re-parse) sees Maps, not model instances.
+          final itemAccess = itemType.isNullable ? 'e?.toJson()' : 'e.toJson()';
+          valueExpression = 'value.map((e) => $itemAccess).toList()';
+        }
+      } else if (paramType.isDartCoreMap) {
+        final valueType = (paramType as InterfaceType).typeArguments[1];
+        final valueTypeName = valueType.getDisplayString().replaceAll('?', '');
+        if (valueTypeName.isSchema) {
+          // Normalize each nested model value in the map to plain JSON.
+          final valAccess = valueType.isNullable ? 'v?.toJson()' : 'v.toJson()';
+          valueExpression = 'value.map((k, v) => MapEntry(k, $valAccess))';
         }
       } else if (paramType.element is EnumElement) {
         valueExpression = 'value.name';
@@ -726,12 +738,26 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       final itemType = (paramType as InterfaceType).typeArguments.first;
       final itemTypeName = itemType.getDisplayString().replaceAll('?', '');
       if (itemTypeName.isSchema) {
-        setterBody = "_json['$jsonFieldName'] = value.toList();";
+        // Normalize each nested model in the list to plain JSON so that
+        // toJson() (and any later re-parse) sees Maps, not model instances.
+        final itemAccess = itemType.isNullable ? 'e?.toJson()' : 'e.toJson()';
+        setterBody =
+            "_json['$jsonFieldName'] = value.map((e) => $itemAccess).toList();";
+      }
+    } else if (paramType.isDartCoreMap) {
+      final valueType = (paramType as InterfaceType).typeArguments[1];
+      final valueTypeName = valueType.getDisplayString().replaceAll('?', '');
+      if (valueTypeName.isSchema) {
+        // Normalize each nested model value in the map to plain JSON.
+        final valAccess = valueType.isNullable ? 'v?.toJson()' : 'v.toJson()';
+        setterBody =
+            "_json['$jsonFieldName'] = "
+            'value.map((k, v) => MapEntry(k, $valAccess));';
       }
     } else if (nonNullableTypeName == 'DateTime') {
       setterBody = "_json['$jsonFieldName'] = value.toIso8601String();";
     } else if (nonNullableTypeName.isSchema) {
-      setterBody = "_json['$jsonFieldName'] = value;";
+      setterBody = "_json['$jsonFieldName'] = value.toJson();";
     }
 
     return Method(

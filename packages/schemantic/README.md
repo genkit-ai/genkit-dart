@@ -23,6 +23,11 @@ dart pub add dev:schemantic_builder
 dart pub add dev:build_runner
 ```
 
+> **Troubleshooting:** if `dart run build_runner build` reports
+> `wrote 0 outputs` and no `.g.dart` files are generated, the most common cause
+> is a missing `schemantic_builder` dev dependency—the code generator lives in
+> that separate package, so without it the build silently does nothing.
+
 ## Usage
 
 ### 1. Basic & Dynamic Types

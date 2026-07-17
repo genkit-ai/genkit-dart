@@ -99,7 +99,7 @@ base class ResourceOutput {
   }
 
   set content(List<Part> value) {
-    _json['content'] = value.toList();
+    _json['content'] = value.map((e) => e.toJson()).toList();
   }
 
   @override
