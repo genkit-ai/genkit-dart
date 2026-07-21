@@ -1,3 +1,10 @@
+## 0.2.12
+
+### Fixes
+
+ - map tool role to "user" for Gemini API compatibility (#340)
+
+
 ## 0.2.11
 
 ### Fixes

@@ -8,7 +8,7 @@ environment:
 
 dependencies:
   genkit: ^0.15.1
-  genkit_google_genai: ^0.2.11
+  genkit_google_genai: ^0.2.12
   schemantic: ^0.2.2
 
 dev_dependencies:

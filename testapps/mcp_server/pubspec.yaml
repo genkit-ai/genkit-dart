@@ -8,7 +8,7 @@ environment:
 
 dependencies:
   genkit: ^0.15.1
-  genkit_mcp: ^0.2.3
+  genkit_mcp: ^0.2.4
   schemantic: ^0.2.2
 
 dev_dependencies:
