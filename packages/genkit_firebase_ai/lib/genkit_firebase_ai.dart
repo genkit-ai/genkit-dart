@@ -419,7 +419,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         } else {
           // Fallback for others
           await session.send(
-            input: fai.Content(msg.role.value, [part]),
+            input: fai.Content(toGeminiRole(msg.role), [part]),
             turnComplete: true,
           );
         }
@@ -431,11 +431,25 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   }
 }
 
+/// Maps a Genkit [Role] to the role string expected by the Gemini API.
+///
+/// Gemini's Content API only understands `user` and `model` roles. Tool
+/// (function response) messages must be sent with the `user` role for
+/// compatibility.
+@visibleForTesting
+String toGeminiRole(Role role) {
+  if (role == Role.model) return 'model';
+  // user, tool and anything else map to 'user'.
+  return 'user';
+}
+
 @visibleForTesting
 Iterable<fai.Content> toGeminiContent(List<Message> messages) {
   return messages.map(
-    (msg) =>
-        fai.Content(msg.role.value, msg.content.map(toGeminiPart).toList()),
+    (msg) => fai.Content(
+      toGeminiRole(msg.role),
+      msg.content.map(toGeminiPart).toList(),
+    ),
   );
 }
 

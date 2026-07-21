@@ -168,6 +168,56 @@ void main() {
     });
   });
 
+  group('toGeminiContent', () {
+    test('maps model role to "model"', () {
+      final contents = toGeminiContent([
+        Message(
+          role: Role.model,
+          content: [TextPart(text: 'hi')],
+        ),
+      ]);
+      expect(contents.single.role, 'model');
+    });
+
+    test('maps user role to "user"', () {
+      final contents = toGeminiContent([
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'hi')],
+        ),
+      ]);
+      expect(contents.single.role, 'user');
+    });
+
+    test('maps tool role to "user" for Gemini compatibility', () {
+      final contents = toGeminiContent([
+        Message(
+          role: Role.tool,
+          content: [
+            ToolResponsePart(
+              toolResponse: ToolResponse(name: 'myTool', output: {'ok': true}),
+            ),
+          ],
+        ),
+      ]);
+      expect(contents.single.role, 'user');
+    });
+  });
+
+  group('toGeminiRole', () {
+    test('model maps to "model"', () {
+      expect(toGeminiRole(Role.model), 'model');
+    });
+
+    test('user maps to "user"', () {
+      expect(toGeminiRole(Role.user), 'user');
+    });
+
+    test('tool maps to "user"', () {
+      expect(toGeminiRole(Role.tool), 'user');
+    });
+  });
+
   group('extractUsage', () {
     test('extracts standard usage', () {
       final usage = gcl.UsageMetadata(
