@@ -428,12 +428,24 @@ gcl.ToolConfig? toGeminiToolConfig(
   );
 }
 
+/// Maps a Genkit [Role] to the role string expected by the Gemini API.
+///
+/// Gemini's Content API only understands `user` and `model` roles. Tool
+/// (function response) messages must be sent with the `user` role for
+/// compatibility.
+@visibleForTesting
+String toGeminiRole(Role role) {
+  if (role == Role.model) return 'model';
+  // user, tool and anything else map to 'user'.
+  return 'user';
+}
+
 @visibleForTesting
 List<gcl.Content> toGeminiContent(List<Message> messages) {
   return messages
       .map(
         (m) => gcl.Content(
-          role: m.role.value,
+          role: toGeminiRole(m.role),
           parts: m.content.map(toGeminiPart).toList(),
         ),
       )
