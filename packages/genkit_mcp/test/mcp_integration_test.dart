@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
+import 'package:mcp_dart/mcp_dart.dart' as mcp;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -40,7 +41,7 @@ final class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
   );
 }
 
-String _resolveStdioServerScript() {
+String _resolveTestScript(String name) {
   var dir = Directory.current;
   while (true) {
     final pubspec = File('${dir.path}${Platform.pathSeparator}pubspec.yaml');
@@ -51,13 +52,10 @@ String _resolveStdioServerScript() {
           '${dir.path}${Platform.pathSeparator}'
           'packages${Platform.pathSeparator}'
           'genkit_mcp${Platform.pathSeparator}'
-          'test${Platform.pathSeparator}'
-          'stdio_test_server.dart',
+          'test${Platform.pathSeparator}$name',
         );
         if (!script.existsSync()) {
-          throw StateError(
-            'Failed to locate stdio test server script at ${script.path}',
-          );
+          throw StateError('Failed to locate test script at ${script.path}');
         }
         return script.path;
       }
@@ -163,7 +161,7 @@ void main() {
   });
 
   test('stdio end-to-end server and client', () async {
-    final serverScript = _resolveStdioServerScript();
+    final serverScript = _resolveTestScript('stdio_test_server.dart');
     final packageConfig = _resolvePackageConfig();
     final client = GenkitMcpClient(
       McpClientOptions(
@@ -201,4 +199,82 @@ void main() {
       await client.close();
     }
   });
+
+  test(
+    'native mcp_dart client interoperates with Genkit HTTP server',
+    () async {
+      final ai = Genkit();
+      ai.defineTool<Map<String, dynamic>, String>(
+        name: 'echo',
+        description: 'echo tool',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: (input, _) async => 'genkit ${input['value']}',
+      );
+      final server = GenkitMcpServer(
+        ai,
+        McpServerOptions(name: 'genkit-test-server', version: '0.0.1'),
+      );
+      final transport = await StreamableHttpServerTransport.bind(
+        address: InternetAddress.loopbackIPv4,
+        port: 0,
+        enableJsonResponse: true,
+      );
+      await server.start(transport);
+
+      final nativeClient = mcp.McpClient(
+        const mcp.Implementation(name: 'mcp-dart-client', version: '0.0.1'),
+      );
+      try {
+        await nativeClient.connect(
+          mcp.StreamableHttpClientTransport(
+            Uri.parse(
+              'http://${transport.address.address}:${transport.port}/mcp',
+            ),
+          ),
+        );
+
+        final tools = await nativeClient.listTools();
+        expect(tools.tools.map((tool) => tool.name), contains('echo'));
+        final result = await nativeClient.callTool(
+          const mcp.CallToolRequest(
+            name: 'echo',
+            arguments: {'value': 'works'},
+          ),
+        );
+        expect((result.content.single as mcp.TextContent).text, 'genkit works');
+      } finally {
+        await nativeClient.close();
+        await server.close();
+      }
+    },
+  );
+
+  test(
+    'Genkit client interoperates with native mcp_dart stdio server',
+    () async {
+      final serverScript = _resolveTestScript(
+        'mcp_dart_stdio_test_server.dart',
+      );
+      final packageConfig = _resolvePackageConfig();
+      final client = GenkitMcpClient(
+        McpClientOptions(
+          name: 'genkit-test-client',
+          mcpServer: McpServerConfig(
+            command: Platform.resolvedExecutable,
+            args: ['--packages=$packageConfig', serverScript],
+          ),
+        ),
+      );
+
+      try {
+        await client.ready();
+        expect(client.serverName, 'mcp-dart-test-server');
+        final tools = await client.getActiveTools(Genkit());
+        expect(tools, hasLength(1));
+        expect(await tools.single.call({'value': 'works'}), 'native works');
+      } finally {
+        await client.close();
+      }
+    },
+  );
 }

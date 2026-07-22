@@ -15,12 +15,14 @@
 import 'dart:async';
 
 import 'package:genkit/genkit.dart';
+import 'package:mcp_dart/mcp_dart.dart' as mcp;
 
 import '../util/common.dart';
 import '../util/convert_messages.dart';
 import '../util/errors.dart';
 import '../util/logging.dart';
 import 'transports/client_transport.dart';
+import 'transports/mcp_dart_transport.dart';
 import 'transports/stdio_transport.dart';
 import 'transports/streamable_http_transport.dart';
 
@@ -116,9 +118,7 @@ class GenkitMcpClient {
   final McpClientOptions options;
 
   McpClientTransport? _transport;
-  StreamSubscription<Map<String, dynamic>>? _subscription;
-  final Map<int, Completer<Map<String, dynamic>>> _pending = {};
-  int _requestId = 0;
+  mcp.McpClient? _client;
   Completer<void> _readyCompleter = Completer<void>();
 
   bool _connected = false;
@@ -127,7 +127,6 @@ class GenkitMcpClient {
   String? _serverName;
   List<McpRoot> _roots;
   final Map<String, _ClientTaskState> _tasks = {};
-  final Set<Object> _cancelledRequests = {};
   final Map<Object, num> _progressCounters = {};
   int _taskCounter = 0;
 
@@ -154,9 +153,8 @@ class GenkitMcpClient {
   }
 
   Future<void> close() async {
-    await _subscription?.cancel();
-    await _transport?.close();
-    _subscription = null;
+    await _client?.close();
+    _client = null;
     _transport = null;
     _connected = false;
   }
@@ -183,7 +181,7 @@ class GenkitMcpClient {
   Future<void> updateRoots(List<McpRoot> roots) async {
     _roots = List.of(roots);
     if (_connected && !_disabled) {
-      await _sendNotification('notifications/roots/list_changed', {});
+      await _client!.sendRootsListChanged();
     }
   }
 
@@ -387,22 +385,170 @@ class GenkitMcpClient {
       _transport =
           options.mcpServer.transport ??
           await _startTransportFromConfig(options.mcpServer);
-      _subscription = _transport!.inbound.listen(
-        _handleInbound,
-        onError: _handleTransportError,
-        onDone: _handleTransportDone,
+      final client = mcp.McpClient(
+        mcp.Implementation(
+          name: options.name,
+          version: options.version ?? '1.0.0',
+        ),
+        options: mcp.McpClientOptions(
+          capabilities: mcp.ClientCapabilities.fromJson(_clientCapabilities()),
+        ),
       );
-      await _initialize();
+      _configureClient(client);
+      _client = client;
+      await client.connect(McpDartClientTransport(_transport!));
+      final serverInfo = client.getServerVersion();
+      if (options.serverName == null && serverInfo != null) {
+        _serverName = serverInfo.name;
+      }
       _connected = true;
       if (_roots.isNotEmpty) {
         await updateRoots(_roots);
       }
       _readyCompleter.complete();
     } catch (e, st) {
-      _error = e.toString();
+      final error = e is mcp.McpError ? _toGenkitException(e) : e;
+      _error = error.toString();
       _disabled = true;
-      _readyCompleter.completeError(e, st);
+      _readyCompleter.completeError(error, st);
     }
+  }
+
+  void _configureClient(mcp.McpClient client) {
+    client.onerror = (error) {
+      mcpLogger.warning('[MCP Client] Protocol error: $error');
+    };
+    client.onclose = () {
+      _connected = false;
+      mcpLogger.info('[MCP Client] Transport closed.');
+    };
+    client.setRequestHandler<mcp.JsonRpcListRootsRequest>(
+      mcp.Method.rootsList,
+      (request, extra) async => mcp.ListRootsResult(
+        roots: _roots
+            .map((root) => mcp.Root(uri: root.uri, name: root.name))
+            .toList(),
+      ),
+      (id, params, meta) => mcp.JsonRpcListRootsRequest(id: id, meta: meta),
+    );
+    client.fallbackNotificationHandler = (notification) async {
+      _dispatchNotification(
+        notification.method,
+        notification.params ?? const {},
+      );
+    };
+
+    _configureSamplingHandler(client);
+    _configureElicitationHandler(client);
+    _configureTaskHandlers(client);
+  }
+
+  void _configureSamplingHandler(mcp.McpClient client) {
+    final handler = options.samplingHandler;
+    if (handler == null) return;
+    client.removeRequestHandler(mcp.Method.samplingCreateMessage);
+    client.setRequestHandler<mcp.JsonRpcCreateMessageRequest>(
+      mcp.Method.samplingCreateMessage,
+      (request, extra) async {
+        final params = _withMeta(request.createParams.toJson(), request.meta);
+        return _respondWithClientTask(
+          params,
+          () async => _samplingResult(await handler(params)),
+          requestType: mcp.Method.samplingCreateMessage,
+        );
+      },
+      (id, params, meta) => mcp.JsonRpcCreateMessageRequest(
+        id: id,
+        createParams: mcp.CreateMessageRequest.fromJson(params ?? const {}),
+        meta: meta,
+      ),
+    );
+  }
+
+  void _configureElicitationHandler(mcp.McpClient client) {
+    final handler = options.elicitationHandler;
+    if (handler == null) return;
+    client.removeRequestHandler(mcp.Method.elicitationCreate);
+    client.setRequestHandler<mcp.JsonRpcElicitRequest>(
+      mcp.Method.elicitationCreate,
+      (request, extra) async {
+        final params = _withMeta(request.elicitParams.toJson(), request.meta);
+        return _respondWithClientTask(
+          params,
+          () async => mcp.ElicitResult.fromJson(await handler(params)),
+          requestType: mcp.Method.elicitationCreate,
+        );
+      },
+      (id, params, meta) => mcp.JsonRpcElicitRequest(
+        id: id,
+        elicitParams: mcp.ElicitRequest.fromJson(params ?? const {}),
+        meta: meta,
+      ),
+    );
+  }
+
+  void _configureTaskHandlers(mcp.McpClient client) {
+    if (options.samplingHandler == null && options.elicitationHandler == null) {
+      return;
+    }
+    client.setRequestHandler<mcp.JsonRpcListTasksRequest>(
+      mcp.Method.tasksList,
+      (request, extra) async => mcp.ListTasksResult(
+        tasks: _listClientTasks().map(mcp.Task.fromJson).toList(),
+      ),
+      (id, params, meta) => mcp.JsonRpcListTasksRequest.fromJson({
+        'id': id,
+        'params': ?params,
+        '_meta': ?meta,
+      }),
+    );
+    client.setRequestHandler<mcp.JsonRpcGetTaskRequest>(
+      mcp.Method.tasksGet,
+      (request, extra) async =>
+          mcp.Task.fromJson(_getClientTask(request.getParams.taskId)),
+      (id, params, meta) => mcp.JsonRpcGetTaskRequest.fromJson({
+        'id': id,
+        'params': params,
+        '_meta': ?meta,
+      }),
+    );
+    client.setRequestHandler<mcp.JsonRpcTaskResultRequest>(
+      mcp.Method.tasksResult,
+      (request, extra) async =>
+          _getClientTaskResult(request.resultParams.taskId),
+      (id, params, meta) => mcp.JsonRpcTaskResultRequest.fromJson({
+        'id': id,
+        'params': params,
+        '_meta': ?meta,
+      }),
+    );
+    client.setRequestHandler<mcp.JsonRpcCancelTaskRequest>(
+      mcp.Method.tasksCancel,
+      (request, extra) async =>
+          mcp.Task.fromJson(_cancelClientTask(request.cancelParams.taskId)),
+      (id, params, meta) => mcp.JsonRpcCancelTaskRequest.fromJson({
+        'id': id,
+        'params': params,
+        '_meta': ?meta,
+      }),
+    );
+  }
+
+  Map<String, dynamic> _withMeta(
+    Map<String, dynamic> params,
+    Map<String, dynamic>? meta,
+  ) {
+    return {...params, '_meta': ?meta};
+  }
+
+  mcp.CreateMessageResult _samplingResult(Map<String, dynamic> result) {
+    final message = result['message'];
+    if (message is Map) {
+      return mcp.CreateMessageResult.fromJson(
+        {...result, ...message.cast<String, dynamic>()}..remove('message'),
+      );
+    }
+    return mcp.CreateMessageResult.fromJson(result);
   }
 
   Future<McpClientTransport> _startTransportFromConfig(
@@ -440,29 +586,6 @@ class GenkitMcpClient {
     );
   }
 
-  Future<void> _initialize() async {
-    final result = await _sendRequest('initialize', {
-      'protocolVersion': '2025-11-25',
-      'capabilities': _clientCapabilities(),
-      'clientInfo': {
-        'name': options.name,
-        'version': options.version ?? '1.0.0',
-      },
-    });
-    final serverInfo = asMap(result['serverInfo']);
-    if (options.serverName == null && serverInfo['name'] is String) {
-      _serverName = serverInfo['name'] as String;
-    }
-    final negotiatedVersion = result['protocolVersion'];
-    if (negotiatedVersion is String &&
-        _transport is StreamableHttpClientTransport) {
-      (_transport as StreamableHttpClientTransport).setProtocolVersion(
-        negotiatedVersion,
-      );
-    }
-    await _sendNotification('notifications/initialized', {});
-  }
-
   Map<String, dynamic> _clientCapabilities() {
     final capabilities = <String, dynamic>{
       'roots': {'listChanged': true},
@@ -487,7 +610,15 @@ class GenkitMcpClient {
     return capabilities;
   }
 
+  mcp.ServerCapabilities? get _serverCapabilities =>
+      _client?.getServerCapabilities();
+
+  bool get _supportsTools => _serverCapabilities?.tools != null;
+  bool get _supportsPrompts => _serverCapabilities?.prompts != null;
+  bool get _supportsResources => _serverCapabilities?.resources != null;
+
   Future<List<Map<String, dynamic>>> _fetchTools() async {
+    if (!_supportsTools) return [];
     final tools = <Map<String, dynamic>>[];
     String? cursor;
     do {
@@ -499,6 +630,7 @@ class GenkitMcpClient {
   }
 
   Future<List<Map<String, dynamic>>> _fetchPrompts() async {
+    if (!_supportsPrompts) return [];
     final prompts = <Map<String, dynamic>>[];
     String? cursor;
     do {
@@ -510,6 +642,7 @@ class GenkitMcpClient {
   }
 
   Future<List<Map<String, dynamic>>> _fetchResources() async {
+    if (!_supportsResources) return [];
     final resources = <Map<String, dynamic>>[];
     String? cursor;
     do {
@@ -620,187 +753,86 @@ class GenkitMcpClient {
     String method,
     Map<String, dynamic>? params,
   ) async {
-    final id = ++_requestId;
-    final completer = Completer<Map<String, dynamic>>();
-    _pending[id] = completer;
-    await _transport!.send({
-      'jsonrpc': '2.0',
-      'id': id,
-      'method': method,
-      'params': ?params,
-    });
-    return completer.future;
+    _assertServerCapability(method);
+    final result = await _client!.request<_RawMcpResult>(
+      mcp.JsonRpcRequest(id: -1, method: method, params: params),
+      _RawMcpResult.fromJson,
+    );
+    return {'result': result.toJson()};
   }
 
-  Future<void> _sendNotification(
-    String method,
-    Map<String, dynamic>? params,
-  ) async {
-    await _transport!.send({
-      'jsonrpc': '2.0',
-      'method': method,
-      'params': ?params,
-    });
-  }
-
-  Future<void> _sendResponse(Object? id, Map<String, dynamic> result) async {
-    if (id == null) return;
-    await _transport!.send({'jsonrpc': '2.0', 'id': id, 'result': result});
-  }
-
-  Future<void> _sendError(Object? id, Map<String, dynamic> error) async {
-    if (id == null) return;
-    await _transport!.send({'jsonrpc': '2.0', 'id': id, 'error': error});
-  }
-
-  void _handleInbound(Map<String, dynamic> message) {
-    final method = message['method'];
-    if (method is String) {
-      _handleRequest(message);
-      return;
-    }
-    final id = message['id'];
-    if (id is! int) return;
-    final completer = _pending.remove(id);
-    if (completer == null) return;
-    if (message['error'] is Map) {
-      completer.completeError(_toRpcException(message['error'] as Map));
-      return;
-    }
-    completer.complete(message);
-  }
-
-  void _handleRequest(Map<String, dynamic> message) {
-    final method = message['method'];
-    final params = asMap(message['params']);
-    try {
-      switch (method) {
-        case 'roots/list':
-          final roots = _roots.map((root) => root.toJson()).toList();
-          _sendResponse(message['id'], {'roots': roots});
-          return;
-        case 'ping':
-          _sendResponse(message['id'], {});
-          return;
-        case 'sampling/createMessage':
-          unawaited(_handleSamplingRequest(message['id'], params));
-          return;
-        case 'elicitation/create':
-          unawaited(_handleElicitationRequest(message['id'], params));
-          return;
-        case 'tasks/list':
-          _sendResponse(message['id'], _listClientTasks());
-          return;
-        case 'tasks/get':
-          _sendResponse(message['id'], _getClientTask(params));
-          return;
-        case 'tasks/result':
-          _sendTaskResult(message['id'], params);
-          return;
-        case 'tasks/cancel':
-          _sendResponse(message['id'], _cancelClientTask(params));
-          return;
-        case 'notifications/cancelled':
-          _handleCancelled(params);
-          _dispatchNotification(method?.toString(), params);
-          return;
-        default:
-          if (method is String && method.startsWith('notifications/')) {
-            _dispatchNotification(method, params);
-            return;
-          }
-          _sendError(message['id'], {
-            'code': -32601,
-            'message': 'Method not found: $method',
-          });
-          return;
-      }
-    } catch (e) {
-      _sendError(message['id'], _toRpcError(e));
+  void _assertServerCapability(String method) {
+    final capabilities = _serverCapabilities;
+    final supported = switch (method) {
+      'logging/setLevel' => capabilities?.logging != null,
+      'prompts/get' || 'prompts/list' => capabilities?.prompts != null,
+      'resources/list' ||
+      'resources/templates/list' ||
+      'resources/read' => capabilities?.resources != null,
+      'resources/subscribe' ||
+      'resources/unsubscribe' => capabilities?.resources?.subscribe ?? false,
+      'tools/call' || 'tools/list' => capabilities?.tools != null,
+      'completion/complete' => capabilities?.completions != null,
+      'tasks/list' ||
+      'tasks/get' ||
+      'tasks/result' ||
+      'tasks/cancel' => capabilities?.tasks != null,
+      _ => true,
+    };
+    if (!supported) {
+      throw mcp.McpError(
+        mcp.ErrorCode.invalidRequest.value,
+        'Server does not advertise the capability required for $method.',
+      );
     }
   }
 
-  Future<void> _handleSamplingRequest(
-    Object? id,
-    Map<String, dynamic> params,
-  ) async {
-    final handler = options.samplingHandler;
-    if (handler == null) {
-      _sendError(id, {
-        'code': -32601,
-        'message': 'Method not found: sampling/createMessage',
-      });
-      return;
-    }
-    await _respondWithClientTask(
-      id,
-      params,
-      handler,
-      requestType: 'sampling/createMessage',
+  GenkitException _toGenkitException(mcp.McpError error) {
+    return GenkitException(
+      error.message,
+      status: error.code >= 100
+          ? StatusCodes.fromHttpStatus(error.code)
+          : StatusCodes.INTERNAL,
+      details: error.data?.toString(),
     );
   }
 
-  Future<void> _handleElicitationRequest(
-    Object? id,
-    Map<String, dynamic> params,
-  ) async {
-    final handler = options.elicitationHandler;
-    if (handler == null) {
-      _sendError(id, {
-        'code': -32601,
-        'message': 'Method not found: elicitation/create',
-      });
-      return;
-    }
-    await _respondWithClientTask(
-      id,
-      params,
-      handler,
-      requestType: 'elicitation/create',
-    );
+  void _dispatchNotification(String method, Map<String, dynamic> params) {
+    options.notificationHandler?.call(method, params);
   }
 
-  Future<void> _respondWithClientTask(
-    Object? id,
+  Future<mcp.BaseResultData> _respondWithClientTask(
     Map<String, dynamic> params,
-    Future<Map<String, dynamic>> Function(Map<String, dynamic>) handler, {
+    Future<mcp.BaseResultData> Function() action, {
     required String requestType,
-  }) async {
-    if (id == null) return;
+  }) {
     final taskMeta = params['task'];
     if (taskMeta is Map) {
       final task = _createClientTask(
         requestType: requestType,
         meta: taskMeta.cast<String, dynamic>(),
         progressToken: _extractProgressToken(params),
-        action: () => handler(params),
+        action: action,
       );
-      _sendResponse(id, {'task': _clientTaskToJson(task)});
-      return;
+      return Future.value(
+        mcp.CreateTaskResult(task: mcp.Task.fromJson(_taskToJson(task))),
+      );
     }
-    try {
-      final result = await handler(params);
-      if (_isCancelled(id)) return;
-      _sendResponse(id, result);
-    } catch (e) {
-      _sendError(id, _toRpcError(e));
-    }
+    return action();
   }
 
   _ClientTaskState _createClientTask({
     required String requestType,
     required Map<String, dynamic> meta,
     required Object? progressToken,
-    required Future<Map<String, dynamic>> Function() action,
+    required Future<mcp.BaseResultData> Function() action,
   }) {
-    final taskId = _nextTaskId();
-    final ttl = (meta['ttl'] is num) ? (meta['ttl'] as num).toInt() : null;
     final task = _ClientTaskState(
-      id: taskId,
+      id: _nextTaskId(),
       requestType: requestType,
-      ttl: ttl,
+      ttl: (meta['ttl'] as num?)?.toInt(),
     );
-    _tasks[taskId] = task;
+    _tasks[task.id] = task;
     unawaited(_notifyTaskStatus(task));
     unawaited(_runClientTask(task, progressToken, action));
     return task;
@@ -809,133 +841,112 @@ class GenkitMcpClient {
   Future<void> _runClientTask(
     _ClientTaskState task,
     Object? progressToken,
-    Future<Map<String, dynamic>> Function() action,
+    Future<mcp.BaseResultData> Function() action,
   ) async {
     await _sendProgress(progressToken, message: 'started');
     try {
       final result = await action();
       if (task.isCancelled) return;
-      task.complete(result);
+      task.complete(result.toJson());
       await _sendProgress(progressToken, message: 'completed');
-    } catch (e) {
+    } catch (error) {
       if (task.isCancelled) return;
-      task.fail(_toRpcError(e));
+      task.fail(toJsonRpcError(error));
       await _sendProgress(progressToken, message: 'failed');
     } finally {
       await _notifyTaskStatus(task);
     }
   }
 
-  Map<String, dynamic> _listClientTasks() {
+  List<Map<String, dynamic>> _listClientTasks() {
     _purgeExpiredTasks();
-    return {'tasks': _tasks.values.map(_clientTaskToJson).toList()};
+    return _tasks.values.map(_taskToJson).toList();
   }
 
-  Map<String, dynamic> _getClientTask(Map<String, dynamic> params) {
+  Map<String, dynamic> _getClientTask(String taskId) {
     _purgeExpiredTasks();
-    final taskId = params['taskId']?.toString();
-    final task = taskId == null ? null : _tasks[taskId];
+    final task = _tasks[taskId];
     if (task == null) {
-      throw GenkitException(
-        '[MCP Client] Task "$taskId" not found.',
-        status: StatusCodes.NOT_FOUND,
+      throw mcp.McpError(
+        mcp.ErrorCode.invalidParams.value,
+        'Task "$taskId" not found.',
       );
     }
-    return _clientTaskToJson(task);
+    return _taskToJson(task);
   }
 
-  void _sendTaskResult(Object? id, Map<String, dynamic> params) {
+  mcp.BaseResultData _getClientTaskResult(String taskId) {
     _purgeExpiredTasks();
-    final taskId = params['taskId']?.toString();
-    final task = taskId == null ? null : _tasks[taskId];
+    final task = _tasks[taskId];
     if (task == null) {
-      _sendError(id, {
-        'code': 404,
-        'message': '[MCP Client] Task "$taskId" not found.',
-      });
-      return;
+      throw mcp.McpError(
+        mcp.ErrorCode.invalidParams.value,
+        'Task "$taskId" not found.',
+      );
     }
-    if (task.status == 'failed' && task.error != null) {
-      _sendError(id, task.error!);
-      return;
+    if (task.status == 'failed') {
+      final error = task.error ?? const <String, dynamic>{};
+      throw mcp.McpError(
+        (error['code'] as num?)?.toInt() ?? mcp.ErrorCode.internalError.value,
+        error['message']?.toString() ?? 'Task failed.',
+        error['data'],
+      );
     }
     if (!task.isCompleted) {
-      _sendError(id, {
-        'code': 409,
-        'message': '[MCP Client] Task "$taskId" not completed yet.',
-      });
-      return;
+      throw mcp.McpError(
+        mcp.ErrorCode.invalidRequest.value,
+        'Task "$taskId" is not completed.',
+      );
     }
-    _sendResponse(id, task.result ?? {});
+    return _RawMcpResult(task.result ?? const {});
   }
 
-  Map<String, dynamic> _cancelClientTask(Map<String, dynamic> params) {
+  Map<String, dynamic> _cancelClientTask(String taskId) {
     _purgeExpiredTasks();
-    final taskId = params['taskId']?.toString();
-    final task = taskId == null ? null : _tasks[taskId];
+    final task = _tasks[taskId];
     if (task == null) {
-      throw GenkitException(
-        '[MCP Client] Task "$taskId" not found.',
-        status: StatusCodes.NOT_FOUND,
+      throw mcp.McpError(
+        mcp.ErrorCode.invalidParams.value,
+        'Task "$taskId" not found.',
       );
     }
     task.cancel('Cancelled by request');
     unawaited(_notifyTaskStatus(task));
-    return _clientTaskToJson(task);
-  }
-
-  void _handleCancelled(Map<String, dynamic> params) {
-    final requestId = params['requestId'] as Object?;
-    if (requestId != null) {
-      _cancelledRequests.add(requestId);
-    }
-  }
-
-  void _dispatchNotification(String? method, Map<String, dynamic> params) {
-    if (method == null) return;
-    options.notificationHandler?.call(method, params);
+    return _taskToJson(task);
   }
 
   Future<void> _sendProgress(
     Object? progressToken, {
     required String message,
   }) async {
-    if (progressToken == null) return;
+    if (progressToken == null || _client == null) return;
     final current = (_progressCounters[progressToken] ?? 0) + 1;
     _progressCounters[progressToken] = current;
-    await _sendNotification('notifications/progress', {
-      'progressToken': progressToken,
-      'progress': current,
-      'message': message,
-    });
-  }
-
-  Future<void> _notifyTaskStatus(_ClientTaskState task) async {
-    await _sendNotification(
-      'notifications/tasks/status',
-      _clientTaskToJson(task),
+    await _client!.notification(
+      mcp.JsonRpcNotification(
+        method: mcp.Method.notificationsProgress,
+        params: {
+          'progressToken': progressToken,
+          'progress': current,
+          'message': message,
+        },
+      ),
     );
   }
 
-  Map<String, dynamic> _toRpcError(Object error) {
-    try {
-      return toJsonRpcError(error);
-    } catch (_) {
-      return {'code': -32603, 'message': error.toString()};
-    }
+  Future<void> _notifyTaskStatus(_ClientTaskState task) async {
+    if (_client == null) return;
+    final value = _taskToJson(task);
+    await _client!.notification(
+      mcp.JsonRpcTaskStatusNotification(
+        statusParams: mcp.TaskStatusNotification.fromJson(value),
+      ),
+    );
   }
 
   void _purgeExpiredTasks() {
     final now = DateTime.now();
-    final expiredIds = <String>[];
-    for (final entry in _tasks.entries) {
-      if (entry.value.isExpired(now)) {
-        expiredIds.add(entry.key);
-      }
-    }
-    for (final id in expiredIds) {
-      _tasks.remove(id);
-    }
+    _tasks.removeWhere((_, task) => task.isExpired(now));
   }
 
   String _nextTaskId() {
@@ -943,47 +954,21 @@ class GenkitMcpClient {
     return '${DateTime.now().microsecondsSinceEpoch}-$_taskCounter';
   }
 
-  Map<String, dynamic> _clientTaskToJson(_ClientTaskState task) {
+  Map<String, dynamic> _taskToJson(_ClientTaskState task) {
     return {
       'taskId': task.id,
       'status': task.status,
       'createdAt': task.createdAt.toIso8601String(),
       'lastUpdatedAt': task.lastUpdatedAt.toIso8601String(),
       'pollInterval': task.pollInterval,
-      'ttl': task.ttl ?? 0,
+      'ttl': task.ttl,
       if (task.statusMessage != null) 'statusMessage': task.statusMessage,
     };
   }
 
-  bool _isCancelled(Object? id) {
-    if (id == null) return false;
-    return _cancelledRequests.remove(id);
-  }
-
   Object? _extractProgressToken(Map<String, dynamic> params) {
     final meta = params['_meta'];
-    if (meta is Map && meta['progressToken'] != null) {
-      return meta['progressToken'];
-    }
-    return null;
-  }
-
-  void _handleTransportError(Object error) {
-    mcpLogger.warning('[MCP Client] Transport error: $error');
-  }
-
-  void _handleTransportDone() {
-    mcpLogger.info('[MCP Client] Transport closed.');
-  }
-
-  GenkitException _toRpcException(Map error) {
-    final message = error['message']?.toString() ?? 'MCP error';
-    final code = error['code'];
-    final status = code is int && code >= 100
-        ? StatusCodes.fromHttpStatus(code)
-        : StatusCodes.INTERNAL;
-    final details = error['data']?.toString();
-    return GenkitException(message, status: status, details: details);
+    return meta is Map ? meta['progressToken'] : null;
   }
 
   int? get cacheTtlMillis => options.cacheTtlMillis;
@@ -1038,7 +1023,9 @@ class GenkitMcpClient {
     final actions = <ActionMetadata>[];
     final index = <String, _McpClientActionDescriptor>{};
 
-    final tools = await _listAll(listTools);
+    final tools = _supportsTools
+        ? await _listAll(listTools)
+        : const <Map<String, dynamic>>[];
     for (final tool in tools) {
       final toolName = tool['name'];
       if (toolName is! String) continue;
@@ -1065,7 +1052,9 @@ class GenkitMcpClient {
       );
     }
 
-    final prompts = await _listAll(listPrompts);
+    final prompts = _supportsPrompts
+        ? await _listAll(listPrompts)
+        : const <Map<String, dynamic>>[];
     for (final prompt in prompts) {
       final promptName = prompt['name'];
       if (promptName is! String) continue;
@@ -1093,7 +1082,9 @@ class GenkitMcpClient {
       );
     }
 
-    final resources = await _listAll(listResources);
+    final resources = _supportsResources
+        ? await _listAll(listResources)
+        : const <Map<String, dynamic>>[];
     for (final resource in resources) {
       final resourceName = resource['name'];
       if (resourceName is! String) continue;
@@ -1121,7 +1112,9 @@ class GenkitMcpClient {
       );
     }
 
-    final templates = await _listAll(listResourceTemplates);
+    final templates = _supportsResources
+        ? await _listAll(listResourceTemplates)
+        : const <Map<String, dynamic>>[];
     for (final template in templates) {
       final templateName = template['name'];
       if (templateName is! String) continue;
@@ -1322,6 +1315,25 @@ class _ClientTaskState {
   void _touch() {
     lastUpdatedAt = DateTime.now();
   }
+}
+
+class _RawMcpResult implements mcp.BaseResultData {
+  final Map<String, dynamic> data;
+
+  const _RawMcpResult(this.data);
+
+  factory _RawMcpResult.fromJson(Map<String, dynamic> json) {
+    return _RawMcpResult(Map<String, dynamic>.from(json));
+  }
+
+  @override
+  Map<String, dynamic>? get meta {
+    final value = data['_meta'];
+    return value is Map ? value.cast<String, dynamic>() : null;
+  }
+
+  @override
+  Map<String, dynamic> toJson() => Map<String, dynamic>.from(data);
 }
 
 class _McpClientActionDescriptor {

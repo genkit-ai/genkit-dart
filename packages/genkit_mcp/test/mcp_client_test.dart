@@ -30,6 +30,11 @@ class FakeClientTransport implements McpClientTransport {
   List<Map<String, dynamic>> resources = [];
   List<Map<String, dynamic>> resourceTemplates = [];
   List<Map<String, dynamic>> roots = [];
+  Map<String, dynamic> capabilities = {
+    'prompts': {},
+    'tools': {},
+    'resources': {},
+  };
 
   Map<String, dynamic> callToolResult = {
     'content': [
@@ -70,7 +75,7 @@ class FakeClientTransport implements McpClientTransport {
     if (method == 'initialize') {
       _respond(message['id'], {
         'protocolVersion': '2025-11-25',
-        'capabilities': {'prompts': {}, 'tools': {}, 'resources': {}},
+        'capabilities': capabilities,
         'serverInfo': {'name': 'fake-server', 'version': '0.0.1'},
       });
       return;
@@ -148,6 +153,37 @@ class FakeClientTransport implements McpClientTransport {
 }
 
 void main() {
+  test('client uses the negotiated server name', () async {
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        mcpServer: McpServerConfig(transport: FakeClientTransport()),
+      ),
+    );
+
+    await client.ready();
+
+    expect(client.serverName, 'fake-server');
+  });
+
+  test('client discovers only advertised server capabilities', () async {
+    final transport = FakeClientTransport()..capabilities = {'tools': {}};
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        mcpServer: McpServerConfig(transport: transport),
+      ),
+    );
+
+    await client.getCachedActions();
+
+    final discoveryMethods = transport.sent
+        .map((message) => message['method'])
+        .whereType<String>()
+        .where((method) => method.endsWith('/list'));
+    expect(discoveryMethods, ['tools/list']);
+  });
+
   test('client lists tools and forwards _meta on calls', () async {
     final transport = FakeClientTransport();
     transport.tools = [
@@ -405,7 +441,7 @@ void main() {
       'jsonrpc': '2.0',
       'id': 100,
       'method': 'sampling/createMessage',
-      'params': {'messages': []},
+      'params': {'messages': [], 'maxTokens': 32},
     });
     transport.pushInbound({
       'jsonrpc': '2.0',
@@ -434,5 +470,63 @@ void main() {
       (entry) => entry['id'] == 101,
     );
     expect(elicitationResponse['result'], isA<Map>());
+  });
+
+  test('client preserves task-augmented sampling lifecycle', () async {
+    final transport = FakeClientTransport();
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        mcpServer: McpServerConfig(transport: transport),
+        samplingHandler: (params) async => {
+          'message': {
+            'role': 'assistant',
+            'content': {'type': 'text', 'text': 'task complete'},
+          },
+          'model': 'test-model',
+        },
+      ),
+    );
+    await client.ready();
+
+    transport.pushInbound({
+      'jsonrpc': '2.0',
+      'id': 200,
+      'method': 'sampling/createMessage',
+      'params': {
+        'messages': [],
+        'maxTokens': 32,
+        'task': {'ttl': 60000},
+      },
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    final createResponse = transport.sent.firstWhere(
+      (entry) => entry['id'] == 200,
+    );
+    final createResult = createResponse['result'] as Map<String, dynamic>;
+    final task = createResult['task'] as Map<String, dynamic>;
+    expect(task['status'], anyOf('working', 'completed'));
+    final taskId = task['taskId'] as String;
+
+    transport.pushInbound({
+      'jsonrpc': '2.0',
+      'id': 201,
+      'method': 'tasks/result',
+      'params': {'taskId': taskId},
+    });
+    await Future<void>.delayed(Duration.zero);
+
+    final resultResponse = transport.sent.firstWhere(
+      (entry) => entry['id'] == 201,
+    );
+    final result = resultResponse['result'] as Map<String, dynamic>;
+    expect(result['model'], 'test-model');
+    expect(
+      transport.sent.any(
+        (entry) => entry['method'] == 'notifications/tasks/status',
+      ),
+      isTrue,
+    );
   });
 }
