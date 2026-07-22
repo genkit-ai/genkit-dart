@@ -49,7 +49,16 @@ Future<_TestServer> _startServer({
 }
 
 Map<String, dynamic> _initializeRequest(int id) {
-  return {'jsonrpc': '2.0', 'id': id, 'method': 'initialize', 'params': {}};
+  return {
+    'jsonrpc': '2.0',
+    'id': id,
+    'method': 'initialize',
+    'params': {
+      'protocolVersion': '2025-11-25',
+      'capabilities': <String, dynamic>{},
+      'clientInfo': {'name': 'test-client', 'version': '0.0.1'},
+    },
+  };
 }
 
 Future<HttpClientResponse> _postJson(
@@ -101,6 +110,15 @@ Future<HttpClientResponse> _delete(
   final request = await client.deleteUrl(url);
   headers?.forEach(request.headers.set);
   return request.close();
+}
+
+Future<void> _markInitialized(HttpClient client, Uri url) async {
+  final response = await _postJson(client, url, {
+    'jsonrpc': '2.0',
+    'method': 'notifications/initialized',
+  });
+  expect(response.statusCode, HttpStatus.accepted);
+  await response.drain();
 }
 
 Future<void> _closeSse(HttpClientResponse response) async {
@@ -441,6 +459,7 @@ void main() {
       );
       expect(initResponse.statusCode, HttpStatus.ok);
       await initResponse.drain();
+      await _markInitialized(client, testServer.url);
 
       final response = await _postJson(client, testServer.url, [
         {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}},
@@ -475,6 +494,7 @@ void main() {
       );
       expect(initResponse.statusCode, HttpStatus.ok);
       await initResponse.drain();
+      await _markInitialized(client, testServer.url);
 
       final responses = await Future.wait([
         _postJson(client, testServer.url, {

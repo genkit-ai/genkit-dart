@@ -117,9 +117,7 @@ class GenkitMcpHost {
           serverName: serverName,
           version: version,
           rawToolResponses: rawToolResponses,
-          notificationHandler: (method, _) {
-            // Caching is handled entirely by the client now.
-          },
+          cacheTtlMillis: cacheTtlMillis,
           mcpServer: McpServerConfig(
             transport: config.transport,
             command: config.command,

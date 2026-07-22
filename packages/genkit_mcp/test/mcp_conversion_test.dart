@@ -16,6 +16,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/src/util/convert_messages.dart';
 import 'package:genkit_mcp/src/util/convert_prompts.dart';
 import 'package:genkit_mcp/src/util/convert_tools.dart';
+import 'package:mcp_dart/mcp_dart.dart' as mcp;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -60,6 +61,27 @@ final class _NullableStringPromptSchema
   );
 }
 
+final class _NamedToolSchema extends SchemanticType<Map<String, dynamic>> {
+  const _NamedToolSchema();
+
+  @override
+  Map<String, dynamic> parse(dynamic input) {
+    return (input as Map).cast<String, dynamic>();
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'NamedToolSchema',
+    definition: {
+      'type': 'object',
+      'properties': {
+        'value': {'type': 'string'},
+      },
+    },
+    dependencies: const [],
+  );
+}
+
 void main() {
   test('prompt arguments enforce string-only properties', () {
     expect(
@@ -94,6 +116,60 @@ void main() {
     final schema = payload['inputSchema'] as Map<String, dynamic>;
     expect(schema[r'$schema'], 'http://json-schema.org/draft-07/schema#');
     expect(schema['type'], 'object');
+  });
+
+  test('tool conversion keeps named object schemas MCP-compatible', () {
+    final tool = Tool<Map<String, dynamic>, Map<String, dynamic>>(
+      name: 'namedSchemaTool',
+      description: 'named schema tool',
+      inputSchema: const _NamedToolSchema(),
+      outputSchema: const _NamedToolSchema(),
+      fn: (input, _) async => input,
+    );
+
+    final payload = toMcpTool(tool);
+    final inputSchema = payload['inputSchema'] as Map<String, dynamic>;
+    final outputSchema = payload['outputSchema'] as Map<String, dynamic>;
+
+    expect(inputSchema['type'], 'object');
+    expect(inputSchema[r'$ref'], r'#/$defs/NamedToolSchema');
+    expect(outputSchema['type'], 'object');
+    expect(() => mcp.Tool.fromJson(payload), returnsNormally);
+  });
+
+  test('tool conversion rejects non-object input schemas', () {
+    final tool = Tool<String, String>(
+      name: 'scalarInputTool',
+      description: 'scalar input tool',
+      inputSchema: .string(),
+      fn: (input, _) async => input,
+    );
+
+    expect(
+      () => toMcpTool(tool),
+      throwsA(
+        predicate(
+          (error) =>
+              error is GenkitException &&
+              error.status == StatusCodes.FAILED_PRECONDITION,
+        ),
+      ),
+    );
+  });
+
+  test('tool conversion omits non-object output schemas', () {
+    final tool = Tool<Map<String, dynamic>, String>(
+      name: 'scalarOutputTool',
+      description: 'scalar output tool',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      outputSchema: .string(),
+      fn: (input, _) async => input.toString(),
+    );
+
+    final payload = toMcpTool(tool);
+
+    expect(payload, isNot(contains('outputSchema')));
+    expect(() => mcp.Tool.fromJson(payload), returnsNormally);
   });
 
   test('tool conversion includes execution.taskSupport by default', () {

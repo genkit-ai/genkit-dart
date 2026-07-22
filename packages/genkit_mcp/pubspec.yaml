@@ -11,6 +11,7 @@ environment:
 dependencies:
   genkit: ^0.15.1
   logging: ^1.3.0
+  mcp_dart: ">=2.2.2 <2.3.0"
   schemantic: ^0.2.2
 
 dev_dependencies:
