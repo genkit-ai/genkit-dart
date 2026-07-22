@@ -149,6 +149,10 @@ class FakeClientTransport implements McpClientTransport {
   void pushInbound(Map<String, dynamic> message) {
     _inboundController.add(message);
   }
+
+  int requestCount(String method) {
+    return sent.where((message) => message['method'] == method).length;
+  }
 }
 
 void main() {
@@ -181,6 +185,64 @@ void main() {
         .whereType<String>()
         .where((method) => method.endsWith('/list'));
     expect(discoveryMethods, ['tools/list']);
+  });
+
+  test('client caches empty action listings', () async {
+    final transport = FakeClientTransport()..capabilities = {'tools': {}};
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        cacheTtlMillis: 60000,
+        mcpServer: McpServerConfig(transport: transport),
+      ),
+    );
+
+    expect(await client.getCachedActions(), isEmpty);
+    expect(await client.getCachedActions(), isEmpty);
+
+    expect(transport.requestCount('tools/list'), 1);
+  });
+
+  test('client invalidates cached actions on list changes', () async {
+    final transport = FakeClientTransport()..capabilities = {'tools': {}};
+    transport.tools = [
+      {
+        'name': 'firstTool',
+        'inputSchema': {'type': 'object'},
+      },
+    ];
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        cacheTtlMillis: 60000,
+        mcpServer: McpServerConfig(transport: transport),
+      ),
+    );
+
+    final initial = await client.getCachedActions();
+    expect(initial.single.name, 'fake-server/firstTool');
+
+    transport.tools = [
+      {
+        'name': 'secondTool',
+        'inputSchema': {'type': 'object'},
+      },
+    ];
+    expect(
+      (await client.getCachedActions()).single.name,
+      endsWith('/firstTool'),
+    );
+    expect(transport.requestCount('tools/list'), 1);
+
+    transport.pushInbound({
+      'jsonrpc': '2.0',
+      'method': 'notifications/tools/list_changed',
+    });
+    await Future<void>.delayed(Duration.zero);
+
+    final refreshed = await client.getCachedActions();
+    expect(refreshed.single.name, 'fake-server/secondTool');
+    expect(transport.requestCount('tools/list'), 2);
   });
 
   test('client lists tools and forwards _meta on calls', () async {

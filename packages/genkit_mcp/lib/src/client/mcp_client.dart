@@ -767,6 +767,11 @@ class GenkitMcpClient {
   }
 
   void _dispatchNotification(String method, Map<String, dynamic> params) {
+    if (method == mcp.Method.notificationsToolsListChanged ||
+        method == mcp.Method.notificationsPromptsListChanged ||
+        method == mcp.Method.notificationsResourcesListChanged) {
+      invalidateCache();
+    }
     options.notificationHandler?.call(method, params);
   }
 
@@ -941,8 +946,7 @@ class GenkitMcpClient {
     final now = DateTime.now();
     if (_shouldUseCache() &&
         _cacheExpiresAt != null &&
-        now.isBefore(_cacheExpiresAt!) &&
-        _cachedActions.isNotEmpty) {
+        now.isBefore(_cacheExpiresAt!)) {
       return _cachedActions;
     }
     if (_inflight != null) return _inflight!;
