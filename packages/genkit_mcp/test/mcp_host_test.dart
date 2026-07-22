@@ -17,7 +17,6 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
-import 'package:genkit_mcp/src/client/transports/client_transport.dart';
 import 'package:test/test.dart';
 
 class FakeHostTransport implements McpClientTransport {

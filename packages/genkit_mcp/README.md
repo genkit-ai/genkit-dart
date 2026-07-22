@@ -121,7 +121,7 @@ void main() async {
 
 ### `McpHostOptionsWithCache` Options
 
-- **`name`**: (required) A name for the MCP host plugin.
+- **`name`**: (required) A name for the MCP host instance.
 - **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for tool/prompt/resource listings.
 - **`version`**: (optional) Version string for this host.
 - **`mcpServers`**: (optional) A map where each key is a namespace for an MCP server, and the value is its `McpServerConfig`.
@@ -132,7 +132,7 @@ void main() async {
 
 ## MCP Client (Single Server)
 
-Connecting to a single MCP server with a client object is an advanced usecase for when you need manual control over the client lifecycle or want to avoid automatic registry integration. To connect to a single MCP server, use `createMcpClient`.
+Connecting to a single MCP server with a client object is an advanced use case for when you need manual control over the client lifecycle or want to avoid automatic registry integration. To connect to a single MCP server, use `createMcpClient`.
 
 Because a standalone client does not automatically register its tools with the Genkit registry, you must fetch the active tools and provide them directly to the `ai.generate` function in order to use them.
 
@@ -172,7 +172,7 @@ void main() async {
 ### `McpClientOptions`
 
 - **`name`**: (required) A unique name for this client instance.
-- **`serverName`**: (optional) Overrides the name used when prefixing tools/resources returned by `getActiveTools()` / `getActiveResources()`.
+- **`serverName`**: (optional) Overrides the name used when prefixing tools, prompts, and resources returned by `getActiveTools()`, `getActivePrompts()`, and `getActiveResources()`.
 - **`version`**: (optional) Version string for this client.
 - **`rawToolResponses`**: (optional) When `true`, tool responses are returned in their raw MCP format. Defaults to `false`.
 - **`mcpServer`**: (required) A `McpServerConfig` with one of the following:
@@ -255,13 +255,12 @@ await server.start(transport);
 
 ## Namespacing
 
-Actions can be namespaced to avoid conflicts (behavior depends on whether you use a host plugin or a single client):
+Actions can be namespaced to avoid conflicts (behavior depends on whether you use a host or a single client):
 
-- **`defineMcpHost` / `McpHostPlugin`**: Actions are exposed as `hostName/serverKey:actionName` (e.g., `my-host/fs:read_file`).
-- **`GenkitMcpClient.getActiveTools()` / `getActiveResources()`**: Actions are named `client.serverName/actionName`.
+- **`defineMcpHost` / `GenkitMcpHost`**: Actions are exposed as `hostName/serverKey:actionName` (e.g., `my-host/fs:read_file`).
+- **`GenkitMcpClient.getActiveTools()` / `getActivePrompts()` / `getActiveResources()`**: Actions are named `client.serverName/actionName`.
   - `client.serverName` defaults to the remote server's `initialize.serverInfo.name` (if provided), otherwise `McpClientOptions.serverName`, otherwise `McpClientOptions.name`.
   - Set `McpClientOptions.serverName` if you want a stable prefix independent of the remote server's self-reported name.
-- **Prompts in `GenkitMcpClient.getActivePrompts()`** keep their original MCP prompt names (no automatic prefixing). If you need strict namespacing across multiple servers, use a `GenkitMcpHost`.
 
 ---
 
@@ -327,6 +326,8 @@ Once the inspector is connected, you can list tools, prompts, and resources, and
 ## Protocol Version
 
 This package implements the MCP specification version **2025-11-25**.
+
+Protocol validation and lifecycle handling are backed by `mcp_dart`. This release supports the `mcp_dart` 2.2 line (`>=2.2.2 <2.3.0`). Support for the MCP 2026-07-28 profile introduced with `mcp_dart` 2.3 requires a separate transport migration.
 
 ---
 
