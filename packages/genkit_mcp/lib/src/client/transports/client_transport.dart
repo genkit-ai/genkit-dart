@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// A custom JSON transport for a Genkit MCP client.
+///
+/// The client owns the transport lifecycle and calls [close] when the MCP
+/// connection closes.
 abstract class McpClientTransport {
+  /// A stream of inbound JSON-RPC messages from the server.
   Stream<Map<String, dynamic>> get inbound;
+
+  /// Sends a JSON-RPC message to the server.
   Future<void> send(Map<String, dynamic> message);
+
+  /// Closes the transport and releases any held resources.
   Future<void> close();
 }

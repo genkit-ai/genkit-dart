@@ -22,8 +22,8 @@ import '../util/convert_messages.dart';
 import '../util/errors.dart';
 import '../util/logging.dart';
 import '../util/mcp_dart_transport.dart';
+import '../util/task_state.dart';
 import 'transports/client_transport.dart';
-import 'transports/stdio_transport.dart';
 import 'transports/streamable_http_transport.dart';
 
 /// Handler for server-initiated `sampling/createMessage` requests.
@@ -117,7 +117,6 @@ class McpClientOptions {
 class GenkitMcpClient {
   final McpClientOptions options;
 
-  McpClientTransport? _transport;
   mcp.McpClient? _client;
   Completer<void> _readyCompleter = Completer<void>();
 
@@ -126,7 +125,7 @@ class GenkitMcpClient {
   String? _error;
   String? _serverName;
   List<McpRoot> _roots;
-  final Map<String, _ClientTaskState> _tasks = {};
+  final Map<String, McpTaskState> _tasks = {};
   final Map<Object, num> _progressCounters = {};
   int _taskCounter = 0;
 
@@ -155,7 +154,6 @@ class GenkitMcpClient {
   Future<void> close() async {
     await _client?.close();
     _client = null;
-    _transport = null;
     _connected = false;
   }
 
@@ -192,7 +190,7 @@ class GenkitMcpClient {
     if (_disabled) return [];
     final tools = await _fetchTools();
     return tools
-        .map((tool) => _createToolAction(ai, tool))
+        .map(_createToolAction)
         .whereType<Tool<Map<String, dynamic>, dynamic>>()
         .toList();
   }
@@ -204,7 +202,7 @@ class GenkitMcpClient {
     if (_disabled) return [];
     final prompts = await _fetchPrompts();
     return prompts
-        .map((prompt) => _createPromptAction(ai, prompt))
+        .map(_createPromptAction)
         .whereType<PromptAction<Map<String, dynamic>>>()
         .toList();
   }
@@ -221,7 +219,7 @@ class GenkitMcpClient {
       orElse: () => const {},
     );
     if (prompt.isEmpty) return null;
-    return _createPromptAction(ai, prompt);
+    return _createPromptAction(prompt);
   }
 
   Future<List<ResourceAction>> getActiveResources(Genkit ai) async {
@@ -229,7 +227,7 @@ class GenkitMcpClient {
     if (_disabled) return [];
     final resources = await _fetchResources();
     return resources
-        .map((resource) => _createResourceAction(ai, resource))
+        .map(_createResourceAction)
         .whereType<ResourceAction>()
         .toList();
   }
@@ -396,9 +394,6 @@ class GenkitMcpClient {
   Future<void> _connect() async {
     if (_connected) return;
     try {
-      _transport =
-          options.mcpServer.transport ??
-          await _startTransportFromConfig(options.mcpServer);
       final client = mcp.McpClient(
         mcp.Implementation(
           name: options.name,
@@ -410,13 +405,7 @@ class GenkitMcpClient {
       );
       _configureClient(client);
       _client = client;
-      await client.connect(
-        McpDartTransport(
-          inbound: _transport!.inbound,
-          send: _transport!.send,
-          close: _transport!.close,
-        ),
-      );
+      await client.connect(await _createTransport(options.mcpServer));
       final serverInfo = client.getServerVersion();
       if (options.serverName == null && serverInfo != null) {
         _serverName = serverInfo.name;
@@ -474,7 +463,6 @@ class GenkitMcpClient {
         return _respondWithClientTask(
           params,
           () async => _samplingResult(await handler(params)),
-          requestType: mcp.Method.samplingCreateMessage,
         );
       },
       (id, params, meta) => mcp.JsonRpcCreateMessageRequest(
@@ -496,7 +484,6 @@ class GenkitMcpClient {
         return _respondWithClientTask(
           params,
           () async => mcp.ElicitResult.fromJson(await handler(params)),
-          requestType: mcp.Method.elicitationCreate,
         );
       },
       (id, params, meta) => mcp.JsonRpcElicitRequest(
@@ -579,11 +566,19 @@ class GenkitMcpClient {
     return mcp.CreateMessageResult.fromJson(result);
   }
 
-  Future<McpClientTransport> _startTransportFromConfig(
-    McpServerConfig config,
-  ) async {
-    if (config.url != null) {
-      return _startHttpTransport(config);
+  Future<mcp.Transport> _createTransport(McpServerConfig config) async {
+    final customTransport = config.transport;
+    if (customTransport != null) {
+      return _adaptTransport(customTransport);
+    }
+    final url = config.url;
+    if (url != null) {
+      final httpTransport = await StreamableHttpClientTransport.connect(
+        url: url,
+        headers: config.headers,
+        timeout: config.timeout,
+      );
+      return _adaptTransport(httpTransport);
     }
     final command = config.command;
     if (command == null) {
@@ -592,25 +587,20 @@ class GenkitMcpClient {
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
-    return StdioClientTransport.start(
-      command: command,
-      args: config.args,
-      environment: config.environment,
+    return mcp.StdioClientTransport(
+      mcp.StdioServerParameters(
+        command: command,
+        args: config.args,
+        environment: config.environment,
+      ),
     );
   }
 
-  Future<McpClientTransport> _startHttpTransport(McpServerConfig config) async {
-    final url = config.url;
-    if (url == null) {
-      throw GenkitException(
-        '[MCP Client] HTTP transport requires a URL.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-    return StreamableHttpClientTransport.connect(
-      url: url,
-      headers: config.headers,
-      timeout: config.timeout,
+  mcp.Transport _adaptTransport(McpClientTransport transport) {
+    return McpDartTransport(
+      inbound: transport.inbound,
+      send: transport.send,
+      close: transport.close,
     );
   }
 
@@ -647,47 +637,23 @@ class GenkitMcpClient {
 
   Future<List<Map<String, dynamic>>> _fetchTools() async {
     if (!_supportsTools) return [];
-    final tools = <Map<String, dynamic>>[];
-    String? cursor;
-    do {
-      final result = await listTools(cursor: cursor);
-      tools.addAll(asListOfMaps(result['tools']));
-      cursor = result['nextCursor'] as String?;
-    } while (cursor != null);
-    return tools;
+    return _listAll('tools', listTools);
   }
 
   Future<List<Map<String, dynamic>>> _fetchPrompts() async {
     if (!_supportsPrompts) return [];
-    final prompts = <Map<String, dynamic>>[];
-    String? cursor;
-    do {
-      final result = await listPrompts(cursor: cursor);
-      prompts.addAll(asListOfMaps(result['prompts']));
-      cursor = result['nextCursor'] as String?;
-    } while (cursor != null);
-    return prompts;
+    return _listAll('prompts', listPrompts);
   }
 
   Future<List<Map<String, dynamic>>> _fetchResources() async {
     if (!_supportsResources) return [];
-    final resources = <Map<String, dynamic>>[];
-    String? cursor;
-    do {
-      final result = await listResources(cursor: cursor);
-      resources.addAll(asListOfMaps(result['resources']));
-      cursor = result['nextCursor'] as String?;
-    } while (cursor != null);
-    do {
-      final templates = await listResourceTemplates(cursor: cursor);
-      resources.addAll(asListOfMaps(templates['resourceTemplates']));
-      cursor = templates['nextCursor'] as String?;
-    } while (cursor != null);
-    return resources;
+    return [
+      ...await _listAll('resources', listResources),
+      ...await _listAll('resourceTemplates', listResourceTemplates),
+    ];
   }
 
   Tool<Map<String, dynamic>, dynamic>? _createToolAction(
-    Genkit ai,
     Map<String, dynamic> tool,
   ) {
     final name = tool['name'];
@@ -715,7 +681,6 @@ class GenkitMcpClient {
   }
 
   PromptAction<Map<String, dynamic>>? _createPromptAction(
-    Genkit ai,
     Map<String, dynamic> prompt,
   ) {
     final name = prompt['name'];
@@ -745,10 +710,7 @@ class GenkitMcpClient {
     );
   }
 
-  ResourceAction? _createResourceAction(
-    Genkit ai,
-    Map<String, dynamic> resource,
-  ) {
+  ResourceAction? _createResourceAction(Map<String, dynamic> resource) {
     final name = resource['name'];
     if (name is! String) return null;
     final description = resource['description']?.toString();
@@ -810,33 +772,29 @@ class GenkitMcpClient {
 
   Future<mcp.BaseResultData> _respondWithClientTask(
     Map<String, dynamic> params,
-    Future<mcp.BaseResultData> Function() action, {
-    required String requestType,
-  }) {
+    Future<mcp.BaseResultData> Function() action,
+  ) {
     final taskMeta = params['task'];
     if (taskMeta is Map) {
       final task = _createClientTask(
-        requestType: requestType,
         meta: taskMeta.cast<String, dynamic>(),
         progressToken: _extractProgressToken(params),
         action: action,
       );
       return Future.value(
-        mcp.CreateTaskResult(task: mcp.Task.fromJson(_taskToJson(task))),
+        mcp.CreateTaskResult(task: mcp.Task.fromJson(task.toJson())),
       );
     }
     return action();
   }
 
-  _ClientTaskState _createClientTask({
-    required String requestType,
+  McpTaskState _createClientTask({
     required Map<String, dynamic> meta,
     required Object? progressToken,
     required Future<mcp.BaseResultData> Function() action,
   }) {
-    final task = _ClientTaskState(
+    final task = McpTaskState(
       id: _nextTaskId(),
-      requestType: requestType,
       ttl: (meta['ttl'] as num?)?.toInt(),
     );
     _tasks[task.id] = task;
@@ -846,7 +804,7 @@ class GenkitMcpClient {
   }
 
   Future<void> _runClientTask(
-    _ClientTaskState task,
+    McpTaskState task,
     Object? progressToken,
     Future<mcp.BaseResultData> Function() action,
   ) async {
@@ -867,7 +825,7 @@ class GenkitMcpClient {
 
   List<Map<String, dynamic>> _listClientTasks() {
     _purgeExpiredTasks();
-    return _tasks.values.map(_taskToJson).toList();
+    return _tasks.values.map((task) => task.toJson()).toList();
   }
 
   Map<String, dynamic> _getClientTask(String taskId) {
@@ -879,7 +837,7 @@ class GenkitMcpClient {
         'Task "$taskId" not found.',
       );
     }
-    return _taskToJson(task);
+    return task.toJson();
   }
 
   mcp.BaseResultData _getClientTaskResult(String taskId) {
@@ -919,7 +877,7 @@ class GenkitMcpClient {
     }
     task.cancel('Cancelled by request');
     unawaited(_notifyTaskStatus(task));
-    return _taskToJson(task);
+    return task.toJson();
   }
 
   Future<void> _sendProgress(
@@ -941,9 +899,9 @@ class GenkitMcpClient {
     );
   }
 
-  Future<void> _notifyTaskStatus(_ClientTaskState task) async {
+  Future<void> _notifyTaskStatus(McpTaskState task) async {
     if (_client == null) return;
-    final value = _taskToJson(task);
+    final value = task.toJson();
     await _client!.notification(
       mcp.JsonRpcTaskStatusNotification(
         statusParams: mcp.TaskStatusNotification.fromJson(value),
@@ -959,18 +917,6 @@ class GenkitMcpClient {
   String _nextTaskId() {
     _taskCounter += 1;
     return '${DateTime.now().microsecondsSinceEpoch}-$_taskCounter';
-  }
-
-  Map<String, dynamic> _taskToJson(_ClientTaskState task) {
-    return {
-      'taskId': task.id,
-      'status': task.status,
-      'createdAt': task.createdAt.toIso8601String(),
-      'lastUpdatedAt': task.lastUpdatedAt.toIso8601String(),
-      'pollInterval': task.pollInterval,
-      'ttl': task.ttl,
-      if (task.statusMessage != null) 'statusMessage': task.statusMessage,
-    };
   }
 
   Object? _extractProgressToken(Map<String, dynamic> params) {
@@ -1014,11 +960,11 @@ class GenkitMcpClient {
 
     switch (descriptor.actionType) {
       case 'tool':
-        return _resolveToolAction(descriptor);
+        return _createToolAction(descriptor.payload);
       case 'executable-prompt':
-        return _resolvePromptAction(descriptor);
+        return _createPromptAction(descriptor.payload);
       case 'resource':
-        return _resolveResourceAction(descriptor);
+        return _createResourceAction(descriptor.payload);
       default:
         return null;
     }
@@ -1031,7 +977,7 @@ class GenkitMcpClient {
     final index = <String, _McpClientActionDescriptor>{};
 
     final tools = _supportsTools
-        ? await _listAll(listTools)
+        ? await _listAll('tools', listTools)
         : const <Map<String, dynamic>>[];
     for (final tool in tools) {
       final toolName = tool['name'];
@@ -1053,14 +999,13 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionName: toolName,
         actionType: 'tool',
         payload: tool,
       );
     }
 
     final prompts = _supportsPrompts
-        ? await _listAll(listPrompts)
+        ? await _listAll('prompts', listPrompts)
         : const <Map<String, dynamic>>[];
     for (final prompt in prompts) {
       final promptName = prompt['name'];
@@ -1083,14 +1028,13 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionName: promptName,
         actionType: 'executable-prompt',
         payload: prompt,
       );
     }
 
     final resources = _supportsResources
-        ? await _listAll(listResources)
+        ? await _listAll('resources', listResources)
         : const <Map<String, dynamic>>[];
     for (final resource in resources) {
       final resourceName = resource['name'];
@@ -1113,14 +1057,13 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionName: resourceName,
         actionType: 'resource',
         payload: resource,
       );
     }
 
     final templates = _supportsResources
-        ? await _listAll(listResourceTemplates)
+        ? await _listAll('resourceTemplates', listResourceTemplates)
         : const <Map<String, dynamic>>[];
     for (final template in templates) {
       final templateName = template['name'];
@@ -1143,7 +1086,6 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionName: templateName,
         actionType: 'resource',
         payload: template,
       );
@@ -1161,94 +1103,6 @@ class GenkitMcpClient {
     return actions;
   }
 
-  Tool<Map<String, dynamic>, dynamic> _resolveToolAction(
-    _McpClientActionDescriptor descriptor,
-  ) {
-    final srvName = serverName;
-    final fullName =
-        '$srvName/${descriptor.actionName}'; // Only for registry uniqueness if needed, but we output DAP specific names
-    final tool = descriptor.payload;
-    final description = tool['description']?.toString() ?? '';
-    final meta = extractMcpMeta(tool);
-    return Tool<Map<String, dynamic>, dynamic>(
-      name: fullName,
-      description: description,
-      inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      outputSchema: .dynamicSchema(),
-      metadata: {
-        if (meta != null) 'mcp': {'_meta': meta},
-      },
-      fn: (input, ctx) async {
-        final result = await callTool(
-          name: descriptor.actionName,
-          arguments: input,
-          meta: extractMcpMeta(ctx.context),
-        );
-        if (options.rawToolResponses) return result;
-        return processToolResult(result);
-      },
-    );
-  }
-
-  PromptAction<Map<String, dynamic>> _resolvePromptAction(
-    _McpClientActionDescriptor descriptor,
-  ) {
-    final srvName = serverName;
-    final fullName = '$srvName/${descriptor.actionName}';
-    final prompt = descriptor.payload;
-    final description = prompt['description']?.toString();
-    final meta = extractMcpMeta(prompt);
-    final args = asListOfMaps(prompt['arguments']);
-    return PromptAction<Map<String, dynamic>>(
-      name: fullName,
-      description: description,
-      inputSchema: promptSchemaFromArgs(args),
-      metadata: {
-        if (meta != null) 'mcp': {'_meta': meta},
-      },
-      fn: (input, ctx) async {
-        final result = await getPromptResult(
-          name: descriptor.actionName,
-          arguments: input,
-          meta: extractMcpMeta(ctx.context),
-        );
-        final messages = asListOfMaps(
-          result['messages'],
-        ).map(fromMcpPromptMessage).toList();
-        return GenerateActionOptions(messages: messages);
-      },
-    );
-  }
-
-  ResourceAction _resolveResourceAction(_McpClientActionDescriptor descriptor) {
-    final srvName = serverName;
-    final fullName = '$srvName/${descriptor.actionName}';
-    final resource = descriptor.payload;
-    final description = resource['description']?.toString();
-    final meta = extractMcpMeta(resource);
-    final uri = resource['uri'] as String?;
-    final template = resource['uriTemplate'] as String?;
-    return ResourceAction(
-      name: fullName,
-      description: description,
-      metadata: {
-        'resource': {'uri': uri, 'template': template},
-        if (meta != null) 'mcp': {'_meta': meta},
-      },
-      matches: createResourceMatcher(uri: uri, template: template),
-      fn: (input, ctx) async {
-        final result = await readResource(
-          uri: input.uri,
-          meta: extractMcpMeta(ctx.context),
-        );
-        final contents = asListOfMaps(
-          result['contents'],
-        ).map(fromMcpResourceContent).toList();
-        return ResourceOutput(content: contents);
-      },
-    );
-  }
-
   bool _shouldUseCache() {
     return cacheTtlMillis == null || cacheTtlMillis! >= 0;
   }
@@ -1259,68 +1113,17 @@ class GenkitMcpClient {
   }
 
   static Future<List<Map<String, dynamic>>> _listAll(
+    String resultKey,
     Future<Map<String, dynamic>> Function({String? cursor}) lister,
   ) async {
     final items = <Map<String, dynamic>>[];
     String? cursor;
     do {
       final result = await lister(cursor: cursor);
-      items.addAll(asListOfMaps(result['tools']));
-      items.addAll(asListOfMaps(result['prompts']));
-      items.addAll(asListOfMaps(result['resources']));
-      items.addAll(asListOfMaps(result['resourceTemplates']));
+      items.addAll(asListOfMaps(result[resultKey]));
       cursor = result['nextCursor'] as String?;
     } while (cursor != null);
     return items;
-  }
-}
-
-class _ClientTaskState {
-  final String id;
-  final String requestType;
-  final DateTime createdAt;
-  DateTime lastUpdatedAt;
-  final int? ttl;
-  final int pollInterval;
-  String status;
-  String? statusMessage;
-  Map<String, dynamic>? result;
-  Map<String, dynamic>? error;
-
-  _ClientTaskState({required this.id, required this.requestType, this.ttl})
-    : createdAt = DateTime.now(),
-      lastUpdatedAt = DateTime.now(),
-      pollInterval = 1000,
-      status = 'working';
-
-  bool get isCompleted => status == 'completed';
-  bool get isCancelled => status == 'cancelled';
-
-  bool isExpired(DateTime now) {
-    if (ttl == null || ttl == 0) return false;
-    return now.difference(createdAt).inMilliseconds > ttl!;
-  }
-
-  void complete(Map<String, dynamic> value) {
-    status = 'completed';
-    result = value;
-    _touch();
-  }
-
-  void fail(Map<String, dynamic> value) {
-    status = 'failed';
-    error = value;
-    _touch();
-  }
-
-  void cancel(String message) {
-    status = 'cancelled';
-    statusMessage = message;
-    _touch();
-  }
-
-  void _touch() {
-    lastUpdatedAt = DateTime.now();
   }
 }
 
@@ -1344,13 +1147,8 @@ class _RawMcpResult implements mcp.BaseResultData {
 }
 
 class _McpClientActionDescriptor {
-  final String actionName;
   final String actionType;
   final Map<String, dynamic> payload;
 
-  _McpClientActionDescriptor({
-    required this.actionName,
-    required this.actionType,
-    required this.payload,
-  });
+  _McpClientActionDescriptor({required this.actionType, required this.payload});
 }

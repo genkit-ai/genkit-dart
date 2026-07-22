@@ -25,7 +25,8 @@ import '../util/convert_tools.dart';
 import '../util/errors.dart';
 import '../util/logging.dart';
 import '../util/mcp_dart_transport.dart';
-import 'transports/stdio_transport.dart';
+import '../util/task_state.dart';
+import 'transports/server_transport.dart';
 
 /// Configuration for a [GenkitMcpServer].
 class McpServerOptions {
@@ -48,13 +49,12 @@ class GenkitMcpServer {
   final List<Tool> _toolActions = [];
   final List<PromptAction> _promptActions = [];
   final List<ResourceAction> _resourceActions = [];
-  final Map<String, _TaskState> _tasks = {};
+  final Map<String, McpTaskState> _tasks = {};
   final Set<String> _resourceSubscriptions = {};
   final Map<Object, num> _progressCounters = {};
   int _taskCounter = 0;
   String? _logLevel;
 
-  McpServerTransport? _transport;
   mcp.McpServer? _mcpServer;
   mcp.McpServer? _directMcpServer;
   _DirectMcpConnection? _directTransport;
@@ -118,12 +118,11 @@ class GenkitMcpServer {
       final taskMeta = params['task'];
       if (taskMeta is Map) {
         final task = _createTask(
-          requestType: mcp.Method.toolsCall,
           meta: taskMeta.cast<String, dynamic>(),
           progressToken: _extractProgressToken(params),
           action: () => _callTool(params),
         );
-        return mcp.CreateTaskResult(task: mcp.Task.fromJson(_taskToJson(task)));
+        return mcp.CreateTaskResult(task: mcp.Task.fromJson(task.toJson()));
       }
       return mcp.CallToolResult.fromJson(await _callTool(params));
     }, mcp.JsonRpcCallToolRequest.fromJson);
@@ -298,17 +297,17 @@ class GenkitMcpServer {
   }
 
   Future<void> start([McpServerTransport? transport]) async {
-    _transport = transport ?? StdioServerTransport();
     await setup();
     final server = _createMcpDartServer();
     _mcpServer = server;
-    await server.connect(
-      McpDartTransport(
-        inbound: _transport!.inbound,
-        send: _transport!.send,
-        close: _transport!.close,
-      ),
-    );
+    final protocolTransport = transport == null
+        ? mcp.StdioServerTransport()
+        : McpDartTransport(
+            inbound: transport.inbound,
+            send: transport.send,
+            close: transport.close,
+          );
+    await server.connect(protocolTransport);
     mcpLogger.fine('[MCP Server] MCP server "${options.name}" started.');
   }
 
@@ -320,7 +319,6 @@ class GenkitMcpServer {
     _directTransport = null;
     _directInitialized = null;
     _directReady = false;
-    _transport = null;
   }
 
   Future<void> notifyToolsChanged() async {
@@ -693,15 +691,14 @@ class GenkitMcpServer {
     return {};
   }
 
-  _TaskState _createTask({
-    required String requestType,
+  McpTaskState _createTask({
     required Map<String, dynamic> meta,
     required Object? progressToken,
     required Future<Map<String, dynamic>> Function() action,
   }) {
     final taskId = _nextTaskId();
     final ttl = (meta['ttl'] is num) ? (meta['ttl'] as num).toInt() : null;
-    final task = _TaskState(id: taskId, requestType: requestType, ttl: ttl);
+    final task = McpTaskState(id: taskId, ttl: ttl);
     _tasks[taskId] = task;
     unawaited(_notifyTaskStatus(task));
     unawaited(_runTask(task, progressToken, action));
@@ -709,7 +706,7 @@ class GenkitMcpServer {
   }
 
   Future<void> _runTask(
-    _TaskState task,
+    McpTaskState task,
     Object? progressToken,
     Future<Map<String, dynamic>> Function() action,
   ) async {
@@ -730,7 +727,7 @@ class GenkitMcpServer {
 
   Map<String, dynamic> _listTasks() {
     _purgeExpiredTasks();
-    return {'tasks': _tasks.values.map(_taskToJson).toList()};
+    return {'tasks': _tasks.values.map((task) => task.toJson()).toList()};
   }
 
   Map<String, dynamic> _getTask(Map<String, dynamic> params) {
@@ -743,7 +740,7 @@ class GenkitMcpServer {
         status: StatusCodes.NOT_FOUND,
       );
     }
-    return _taskToJson(task);
+    return task.toJson();
   }
 
   Map<String, dynamic> _cancelTask(Map<String, dynamic> params) {
@@ -758,7 +755,7 @@ class GenkitMcpServer {
     }
     task.cancel('Cancelled by request');
     unawaited(_notifyTaskStatus(task));
-    return _taskToJson(task);
+    return task.toJson();
   }
 
   Map<String, dynamic> _serverCapabilities() {
@@ -803,8 +800,8 @@ class GenkitMcpServer {
     });
   }
 
-  Future<void> _notifyTaskStatus(_TaskState task) async {
-    await _sendNotification('notifications/tasks/status', _taskToJson(task));
+  Future<void> _notifyTaskStatus(McpTaskState task) async {
+    await _sendNotification('notifications/tasks/status', task.toJson());
   }
 
   bool _shouldLog(String level) {
@@ -844,18 +841,6 @@ class GenkitMcpServer {
   String _nextTaskId() {
     _taskCounter += 1;
     return '${DateTime.now().microsecondsSinceEpoch}-$_taskCounter';
-  }
-
-  Map<String, dynamic> _taskToJson(_TaskState task) {
-    return {
-      'taskId': task.id,
-      'status': task.status,
-      'createdAt': task.createdAt.toIso8601String(),
-      'lastUpdatedAt': task.lastUpdatedAt.toIso8601String(),
-      'pollInterval': task.pollInterval,
-      'ttl': task.ttl ?? 0,
-      if (task.statusMessage != null) 'statusMessage': task.statusMessage,
-    };
   }
 
   Object? _extractProgressToken(Map<String, dynamic> params) {
@@ -918,55 +903,6 @@ class _DirectMcpConnection {
     _pending.clear();
     _cancelled.clear();
     await _inbound.close();
-  }
-}
-
-class _TaskState {
-  final String id;
-  final String requestType;
-  final DateTime createdAt;
-  DateTime lastUpdatedAt;
-  final int? ttl;
-  final int pollInterval;
-  String status;
-  String? statusMessage;
-  Map<String, dynamic>? result;
-  Map<String, dynamic>? error;
-
-  _TaskState({required this.id, required this.requestType, this.ttl})
-    : createdAt = DateTime.now(),
-      lastUpdatedAt = DateTime.now(),
-      pollInterval = 1000,
-      status = 'working';
-
-  bool get isCompleted => status == 'completed';
-  bool get isCancelled => status == 'cancelled';
-
-  bool isExpired(DateTime now) {
-    if (ttl == null || ttl == 0) return false;
-    return now.difference(createdAt).inMilliseconds > ttl!;
-  }
-
-  void complete(Map<String, dynamic> value) {
-    status = 'completed';
-    result = value;
-    _touch();
-  }
-
-  void fail(Map<String, dynamic> value) {
-    status = 'failed';
-    error = value;
-    _touch();
-  }
-
-  void cancel(String message) {
-    status = 'cancelled';
-    statusMessage = message;
-    _touch();
-  }
-
-  void _touch() {
-    lastUpdatedAt = DateTime.now();
   }
 }
 

@@ -290,6 +290,7 @@ void main() {
     final task = _asMap(taskResult['task']);
     final taskId = task['taskId'];
     expect(task['status'], 'working');
+    expect(task, containsPair('ttl', null));
 
     await Future<void>.delayed(const Duration(milliseconds: 10));
     final taskPayload = await _request(
