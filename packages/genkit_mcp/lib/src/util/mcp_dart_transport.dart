@@ -16,19 +16,21 @@ import 'dart:async';
 
 import 'package:mcp_dart/mcp_dart.dart' as mcp;
 
-import 'client_transport.dart';
-
-/// Adapts the existing Genkit transport extension point to `mcp_dart`.
-///
-/// Genkit transports are already active when returned by their factories, so
-/// [start] only attaches the protocol callbacks.
-class McpDartClientTransport implements mcp.Transport {
-  final McpClientTransport delegate;
+/// Adapts a Genkit JSON transport to `mcp_dart`.
+class McpDartTransport implements mcp.Transport {
+  final Stream<Map<String, dynamic>> inbound;
+  final Future<void> Function(Map<String, dynamic> message) _send;
+  final Future<void> Function() _close;
 
   StreamSubscription<Map<String, dynamic>>? _subscription;
   bool _closed = false;
 
-  McpDartClientTransport(this.delegate);
+  McpDartTransport({
+    required this.inbound,
+    required Future<void> Function(Map<String, dynamic> message) send,
+    required Future<void> Function() close,
+  }) : _send = send,
+       _close = close;
 
   @override
   void Function()? onclose;
@@ -47,7 +49,7 @@ class McpDartClientTransport implements mcp.Transport {
     if (_subscription != null) {
       throw StateError('Transport already started.');
     }
-    _subscription = delegate.inbound.listen(
+    _subscription = inbound.listen(
       (message) {
         try {
           onmessage?.call(mcp.JsonRpcMessage.fromJson(message));
@@ -64,7 +66,7 @@ class McpDartClientTransport implements mcp.Transport {
 
   @override
   Future<void> send(mcp.JsonRpcMessage message, {int? relatedRequestId}) {
-    return delegate.send(message.toJson());
+    return _send(message.toJson());
   }
 
   @override
@@ -73,6 +75,6 @@ class McpDartClientTransport implements mcp.Transport {
     _closed = true;
     await _subscription?.cancel();
     _subscription = null;
-    await delegate.close();
+    await _close();
   }
 }

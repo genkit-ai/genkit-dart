@@ -514,7 +514,7 @@ void main() {
     expect(text, contains('bad input'));
   });
 
-  test('MCP server returns 409 when task is not completed', () async {
+  test('MCP server rejects task results before completion', () async {
     final ai = Genkit();
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'delayTool',
@@ -548,7 +548,7 @@ void main() {
       params: {'taskId': taskId},
     );
     final error = _asMap(resultResponse?['error']);
-    expect(error['code'], 409);
+    expect(error['code'], -32600);
   });
 
   test('MCP server sends progress notifications', () async {
@@ -751,7 +751,7 @@ void main() {
     expect(error['code'], -32601);
   });
 
-  test('MCP server maps Genkit errors to HTTP status codes', () async {
+  test('MCP server maps failures to MCP errors', () async {
     final ai = Genkit();
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'boomTool',
@@ -791,7 +791,7 @@ void main() {
       },
     );
     final missingNameError = _asMap(missingName?['error']);
-    expect(missingNameError['code'], 400);
+    expect(missingNameError['code'], -32602);
 
     // Tool execution errors are returned as isError per MCP spec,
     // not as JSON-RPC errors.
@@ -817,7 +817,7 @@ void main() {
       params: {'name': 'nope', 'arguments': {}},
     );
     final toolNotFoundError = _asMap(toolNotFound?['error']);
-    expect(toolNotFoundError['code'], 404);
+    expect(toolNotFoundError['code'], -32602);
 
     final promptError = await _request(
       server,
@@ -829,7 +829,7 @@ void main() {
       },
     );
     final promptErrorMap = _asMap(promptError?['error']);
-    expect(promptErrorMap['code'], 501);
+    expect(promptErrorMap['code'], -32602);
   });
 
   test('MCP server returns isError for non-Genkit tool exceptions', () async {

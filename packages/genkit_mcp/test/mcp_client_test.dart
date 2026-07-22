@@ -294,7 +294,11 @@ void main() {
           'required': ['city'],
         },
       },
-      {'name': 'noSchemaTool', 'description': 'no schema tool'},
+      {
+        'name': 'emptySchemaTool',
+        'description': 'empty schema tool',
+        'inputSchema': {'type': 'object'},
+      },
     ];
 
     final client = GenkitMcpClient(
@@ -318,11 +322,11 @@ void main() {
     final requiredFields = typedJsonSchema['required'] as List?;
     expect(requiredFields, contains('city'));
 
-    // Tool without inputSchema should fall back to Map<String, dynamic>.
-    final noSchemaTool = tools.firstWhere(
-      (t) => t.name.endsWith('/noSchemaTool'),
+    // An empty object inputSchema should map to Map<String, dynamic>.
+    final emptySchemaTool = tools.firstWhere(
+      (t) => t.name.endsWith('/emptySchemaTool'),
     );
-    expect(noSchemaTool.inputSchema, isNotNull);
+    expect(emptySchemaTool.inputSchema, isNotNull);
   });
 
   test('createMcpClient with DAP registers actions in registry', () async {

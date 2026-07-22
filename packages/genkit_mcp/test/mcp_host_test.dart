@@ -255,11 +255,19 @@ void main() {
     final ai = Genkit();
     final transport1 = FakeHostTransport();
     transport1.tools = [
-      {'name': 'tool1', 'description': 'tool 1'},
+      {
+        'name': 'tool1',
+        'description': 'tool 1',
+        'inputSchema': {'type': 'object'},
+      },
     ];
     final transport2 = FakeHostTransport();
     transport2.tools = [
-      {'name': 'tool2', 'description': 'tool 2'},
+      {
+        'name': 'tool2',
+        'description': 'tool 2',
+        'inputSchema': {'type': 'object'},
+      },
     ];
 
     // Use mcpServers map in the constructor (the README pattern).
@@ -298,7 +306,11 @@ void main() {
     final ai = Genkit();
     final transport = FakeHostTransport();
     transport.tools = [
-      {'name': 'testTool', 'description': 'test tool'},
+      {
+        'name': 'testTool',
+        'description': 'test tool',
+        'inputSchema': {'type': 'object'},
+      },
     ];
 
     final host = defineMcpHost(
