@@ -233,6 +233,10 @@ void main() async {
 }
 ```
 
+MCP tool input schemas must have an object root. Non-object output schemas are
+not advertised because MCP structured output schemas are also object-only;
+those tool results are still returned as text content.
+
 ### Streamable HTTP Transport
 
 ```dart
@@ -245,6 +249,9 @@ final transport = await StreamableHttpServerTransport.bind(
 await server.start(transport);
 // Server is now available at http://localhost:3000/mcp
 ```
+
+Each `StreamableHttpServerTransport` instance owns one MCP protocol connection.
+Use a fresh transport/server lifecycle for an independent client.
 
 ### `McpServerOptions`
 
