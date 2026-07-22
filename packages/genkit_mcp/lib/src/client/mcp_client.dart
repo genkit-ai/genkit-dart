@@ -497,7 +497,9 @@ class GenkitMcpClient {
         tasks: _listClientTasks().map(mcp.Task.fromJson).toList(),
       ),
       (id, params, meta) => mcp.JsonRpcListTasksRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksList,
         'params': ?params,
         '_meta': ?meta,
       }),
@@ -507,7 +509,9 @@ class GenkitMcpClient {
       (request, extra) async =>
           mcp.Task.fromJson(_getClientTask(request.getParams.taskId)),
       (id, params, meta) => mcp.JsonRpcGetTaskRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksGet,
         'params': params,
         '_meta': ?meta,
       }),
@@ -517,7 +521,9 @@ class GenkitMcpClient {
       (request, extra) async =>
           _getClientTaskResult(request.resultParams.taskId),
       (id, params, meta) => mcp.JsonRpcTaskResultRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksResult,
         'params': params,
         '_meta': ?meta,
       }),
@@ -527,7 +533,9 @@ class GenkitMcpClient {
       (request, extra) async =>
           mcp.Task.fromJson(_cancelClientTask(request.cancelParams.taskId)),
       (id, params, meta) => mcp.JsonRpcCancelTaskRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksCancel,
         'params': params,
         '_meta': ?meta,
       }),

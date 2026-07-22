@@ -105,7 +105,9 @@ class GenkitMcpServer {
       (request, extra) async =>
           mcp.ListToolsResult.fromJson(await _listTools()),
       (id, params, meta) => mcp.JsonRpcListToolsRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.toolsList,
         'params': ?params,
         '_meta': ?meta,
       }),
@@ -132,7 +134,9 @@ class GenkitMcpServer {
         return mcp.CallToolResult.fromJson(await _callTool(params));
       },
       (id, params, meta) => mcp.JsonRpcCallToolRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.toolsCall,
         'params': params,
         '_meta': ?meta,
       }),
@@ -142,7 +146,9 @@ class GenkitMcpServer {
       (request, extra) async =>
           mcp.ListPromptsResult.fromJson(await _listPrompts()),
       (id, params, meta) => mcp.JsonRpcListPromptsRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.promptsList,
         'params': ?params,
         '_meta': ?meta,
       }),
@@ -155,7 +161,9 @@ class GenkitMcpServer {
         ),
       ),
       (id, params, meta) => mcp.JsonRpcGetPromptRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.promptsGet,
         'params': params,
         '_meta': ?meta,
       }),
@@ -165,7 +173,9 @@ class GenkitMcpServer {
       (request, extra) async =>
           mcp.ListResourcesResult.fromJson(await _listResources()),
       (id, params, meta) => mcp.JsonRpcListResourcesRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.resourcesList,
         'params': ?params,
         '_meta': ?meta,
       }),
@@ -176,7 +186,9 @@ class GenkitMcpServer {
         await _listResourceTemplates(),
       ),
       (id, params, meta) => mcp.JsonRpcListResourceTemplatesRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.resourcesTemplatesList,
         'params': ?params,
         '_meta': ?meta,
       }),
@@ -189,7 +201,9 @@ class GenkitMcpServer {
         ),
       ),
       (id, params, meta) => mcp.JsonRpcReadResourceRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.resourcesRead,
         'params': params,
         '_meta': ?meta,
       }),
@@ -201,7 +215,9 @@ class GenkitMcpServer {
         return const mcp.EmptyResult();
       },
       (id, params, meta) => mcp.JsonRpcSubscribeRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.resourcesSubscribe,
         'params': params,
         '_meta': ?meta,
       }),
@@ -213,7 +229,9 @@ class GenkitMcpServer {
         return const mcp.EmptyResult();
       },
       (id, params, meta) => mcp.JsonRpcUnsubscribeRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.resourcesUnsubscribe,
         'params': params,
         '_meta': ?meta,
       }),
@@ -226,7 +244,9 @@ class GenkitMcpServer {
         ),
       ),
       (id, params, meta) => mcp.JsonRpcCompleteRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.completionComplete,
         'params': params,
         '_meta': ?meta,
       }),
@@ -238,7 +258,9 @@ class GenkitMcpServer {
         return const mcp.EmptyResult();
       },
       (id, params, meta) => mcp.JsonRpcSetLevelRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.loggingSetLevel,
         'params': params,
         '_meta': ?meta,
       }),
@@ -253,7 +275,9 @@ class GenkitMcpServer {
       mcp.Method.tasksList,
       (request, extra) async => mcp.ListTasksResult.fromJson(_listTasks()),
       (id, params, meta) => mcp.JsonRpcListTasksRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksList,
         'params': ?params,
         '_meta': ?meta,
       }),
@@ -263,7 +287,9 @@ class GenkitMcpServer {
       (request, extra) async =>
           mcp.Task.fromJson(_getTask({'taskId': request.getParams.taskId})),
       (id, params, meta) => mcp.JsonRpcGetTaskRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksGet,
         'params': params,
         '_meta': ?meta,
       }),
@@ -272,7 +298,9 @@ class GenkitMcpServer {
       mcp.Method.tasksResult,
       (request, extra) async => _mcpTaskResult(request.resultParams.taskId),
       (id, params, meta) => mcp.JsonRpcTaskResultRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksResult,
         'params': params,
         '_meta': ?meta,
       }),
@@ -283,7 +311,9 @@ class GenkitMcpServer {
         _cancelTask({'taskId': request.cancelParams.taskId}),
       ),
       (id, params, meta) => mcp.JsonRpcCancelTaskRequest.fromJson({
+        'jsonrpc': '2.0',
         'id': id,
+        'method': mcp.Method.tasksCancel,
         'params': params,
         '_meta': ?meta,
       }),
