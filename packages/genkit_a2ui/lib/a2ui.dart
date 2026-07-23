@@ -34,7 +34,14 @@ export 'src/catalog.dart'
         renderCatalogInstructions,
         surfaceIdPlaceholder;
 export 'src/loader.dart' show loadCatalog, resolveCatalog;
-export 'src/parser.dart' show A2uiStreamParser, A2uiValidateMode, ParseResult;
+export 'src/parser.dart'
+    show
+        A2uiStreamParser,
+        A2uiValidateMode,
+        EnvelopeSegment,
+        ParseResult,
+        ParseSegment,
+        ProseSegment;
 export 'src/part.dart'
     show a2uiEnvelopes, a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'

@@ -72,14 +72,20 @@ Future<A2uiCatalog> _readCatalogFile(String file) async {
   } catch (e) {
     throw StateError('loadCatalog(): failed to read catalog file "$file": $e');
   }
+  Object? json;
   try {
-    final json = jsonDecode(raw);
-    return A2uiCatalog.fromJson((json as Map).cast<String, dynamic>());
+    json = jsonDecode(raw);
   } catch (e) {
     throw StateError(
       'loadCatalog(): catalog file "$file" is not valid JSON: $e',
     );
   }
+  if (json is! Map || json['components'] is! List) {
+    throw StateError(
+      'loadCatalog(): catalog file "$file" must have a "components" array.',
+    );
+  }
+  return A2uiCatalog.fromJson(json.cast<String, dynamic>());
 }
 
 /// Resolves a catalog by id from the registry, falling back to the bundled

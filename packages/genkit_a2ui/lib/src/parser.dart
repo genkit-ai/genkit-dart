@@ -55,16 +55,48 @@ final _closeFenceRe = RegExp('```');
 /// Consumes an optional trailing newline after the closing fence.
 final _trailingNewlineRe = RegExp(r'^[ \t]*\r?\n');
 
-/// Result of feeding text to [A2uiStreamParser.push].
-class ParseResult {
-  /// Prose text ready to stream through (never contains A2UI blocks).
+/// A single ordered piece of parsed output: either a run of prose or one
+/// completed A2UI envelope batch. Segments preserve the exact source order, so
+/// prose that appears *after* a block is not reordered ahead of it.
+sealed class ParseSegment {
+  const ParseSegment();
+}
+
+/// A run of prose text (never contains A2UI blocks).
+class ProseSegment extends ParseSegment {
+  /// The prose text.
   final String prose;
 
-  /// Zero or more fully-parsed A2UI envelope batches (one per completed block).
+  /// Creates a [ProseSegment].
+  const ProseSegment(this.prose);
+}
+
+/// A completed batch of A2UI envelopes from a single block.
+class EnvelopeSegment extends ParseSegment {
+  /// The envelopes parsed from the block.
+  final List<A2uiEnvelope> envelopes;
+
+  /// Creates an [EnvelopeSegment].
+  const EnvelopeSegment(this.envelopes);
+}
+
+/// Result of feeding text to [A2uiStreamParser.push].
+class ParseResult {
+  /// Ordered prose/envelope segments exactly as they appear in the source text.
+  /// Prefer this over [prose]/[envelopeBatches] when order between prose and
+  /// blocks matters.
+  final List<ParseSegment> segments;
+
+  /// Convenience: all prose runs concatenated (never contains A2UI blocks).
+  /// Loses the relative order of prose vs. blocks - use [segments] when that
+  /// matters.
+  final String prose;
+
+  /// Convenience: the fully-parsed A2UI envelope batches, in order.
   final List<List<A2uiEnvelope>> envelopeBatches;
 
   /// Creates a [ParseResult].
-  const ParseResult(this.prose, this.envelopeBatches);
+  const ParseResult(this.segments, this.prose, this.envelopeBatches);
 }
 
 /// Incremental A2UI extractor. Create one per model turn, [push] text deltas as
@@ -108,8 +140,16 @@ class A2uiStreamParser {
   }
 
   ParseResult _drain(bool finalPass) {
-    var prose = '';
-    final envelopeBatches = <List<A2uiEnvelope>>[];
+    final segments = <ParseSegment>[];
+    // Accumulates prose across loop iterations so consecutive prose runs (e.g.
+    // when a partial fence is held back) coalesce into a single segment.
+    var proseBuf = '';
+    void flushProse() {
+      if (proseBuf.isNotEmpty) {
+        segments.add(ProseSegment(proseBuf));
+        proseBuf = '';
+      }
+    }
 
     // Loop because a single push may contain multiple prose/block transitions.
     // Each iteration makes progress or returns.
@@ -120,7 +160,7 @@ class A2uiStreamParser {
           // No opening fence (yet). Emit prose, but hold back a tail that could
           // be the start of an incomplete opening fence, unless finalizing.
           if (finalPass) {
-            prose += _buffer;
+            proseBuf += _buffer;
             _buffer = '';
           } else {
             final keep = _maxPartialFence < _buffer.length
@@ -128,14 +168,14 @@ class A2uiStreamParser {
                 : _buffer.length;
             final safeLen = _buffer.length - keep;
             if (safeLen > 0) {
-              prose += _buffer.substring(0, safeLen);
+              proseBuf += _buffer.substring(0, safeLen);
               _buffer = _buffer.substring(safeLen);
             }
           }
           break;
         }
         // Emit prose before the fence, then enter the block.
-        prose += _buffer.substring(0, open.start);
+        proseBuf += _buffer.substring(0, open.start);
         _buffer = _buffer.substring(open.end);
         _inBlock = true;
         _currentSurfaceId = surfaceId();
@@ -148,7 +188,10 @@ class A2uiStreamParser {
         if (finalPass) {
           // Unterminated block at end of stream - try to parse what we have.
           final batch = _finalizeBlock(_buffer);
-          if (batch != null) envelopeBatches.add(batch);
+          if (batch != null) {
+            flushProse();
+            segments.add(EnvelopeSegment(batch));
+          }
           _buffer = '';
           _inBlock = false;
         }
@@ -160,11 +203,27 @@ class A2uiStreamParser {
       _buffer = _buffer.replaceFirst(_trailingNewlineRe, '');
       _inBlock = false;
       final batch = _finalizeBlock(blockText);
-      if (batch != null) envelopeBatches.add(batch);
+      if (batch != null) {
+        // Emit any prose seen before this block first, preserving source order.
+        flushProse();
+        segments.add(EnvelopeSegment(batch));
+      }
       continue;
     }
+    flushProse();
 
-    return ParseResult(prose, envelopeBatches);
+    // Derive the convenience fields from the ordered segments.
+    var prose = '';
+    final envelopeBatches = <List<A2uiEnvelope>>[];
+    for (final seg in segments) {
+      switch (seg) {
+        case ProseSegment(prose: final proseText):
+          prose += proseText;
+        case EnvelopeSegment(:final envelopes):
+          envelopeBatches.add(envelopes);
+      }
+    }
+    return ParseResult(segments, prose, envelopeBatches);
   }
 
   /// Handles a validation failure according to the configured [validate] mode:

@@ -61,7 +61,7 @@ final res = await ai.generate(
 | -------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
 | `catalog`      | `'basic'`  | The id of the catalog describing what the agent may render.                                                   |
 | `instructions` | `'system'` | Where to inject catalog capabilities. `'none'` injects nothing.                                               |
-| `validate`     | `'strict'` | Validate emitted envelopes against the catalog. `'warn'` logs and drops bad blocks; `'off'` skips validation. |
+| `validate`     | `'warn'`   | Validate emitted envelopes against the catalog. `'warn'` logs and drops bad blocks; `'strict'` throws; `'off'` skips checking. |
 | `surfaceId`    | UUID       | A fixed surface id to reuse for every surface (defaults to a fresh UUID per surface).                         |
 | `version`      | `'v0.9'`   | Protocol version stamped on envelopes.                                                                        |
 

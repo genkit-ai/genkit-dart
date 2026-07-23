@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 final sampleText =
@@ -195,6 +196,69 @@ void main() {
       expect(content.any(isA2uiPart), isFalse);
       expect(a2uiEnvelopes(res.message).length, 0);
     });
+
+    test('defaults to validate:warn - drops a bad block, keeps the turn '
+        'alive', () async {
+      // A hallucinated component would throw under strict, killing the turn.
+      // With the warn default the block is dropped and prose survives.
+      final bad = '''oops:
+```a2ui
+[{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
+  { "id": "root", "component": "NotAThing" }
+] } }]
+```
+''';
+      defineReplyModel('m_warn', bad);
+
+      final warnings = <String>[];
+      final sub = Logger.root.onRecord.listen((record) {
+        if (record.level >= Level.WARNING) warnings.add(record.message);
+      });
+      final prevLevel = Logger.root.level;
+      Logger.root.level = Level.ALL;
+      final GenerateResponse res;
+      try {
+        res = await genkit.generate(
+          model: modelRef('m_warn'),
+          system: 'sys',
+          prompt: 'hi',
+          use: [a2ui()],
+        );
+      } finally {
+        Logger.root.level = prevLevel;
+        await sub.cancel();
+      }
+
+      final content = res.message!.content;
+      // No a2ui parts (the bad block was dropped), but prose is preserved.
+      expect(content.any(isA2uiPart), isFalse);
+      final text = content.where((p) => p.isText).map((p) => p.text).join();
+      expect(text, contains('oops'));
+      expect(warnings.any((w) => w.contains('not in catalog')), isTrue);
+    });
+
+    test(
+      'preserves prose ordering around a block in the final message',
+      () async {
+        final mixed =
+            'intro\n${sampleText.replaceFirst('Here is the weather:\n', '')}outro';
+        defineReplyModel('m_order', mixed);
+
+        final res = await genkit.generate(
+          model: modelRef('m_order'),
+          system: 'sys',
+          prompt: 'weather',
+          use: [a2ui(surfaceId: 'sfc')],
+        );
+
+        final content = res.message!.content;
+        // Expect three ordered parts: prose("intro"), a2ui, prose("outro").
+        expect(content.length, 3);
+        expect(content[0].text, contains('intro'));
+        expect(isA2uiPart(content[1]), isTrue);
+        expect(content[2].text, contains('outro'));
+      },
+    );
 
     test('sanitizes inbound a2ui parts into text for the model', () async {
       ModelRequest? seen;

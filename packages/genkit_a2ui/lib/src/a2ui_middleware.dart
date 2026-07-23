@@ -28,6 +28,7 @@
 /// agent's tool loop.
 library;
 
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:genkit/plugin.dart';
@@ -54,10 +55,10 @@ abstract class $A2uiOptions {
   /// if you supply your own instructions).
   String? get instructions;
 
-  /// Validate emitted envelopes against the catalog. `'strict'` (default) throws
-  /// on malformed JSON or unknown components; `'warn'` logs a warning and drops
-  /// the offending block/envelope (keeping the turn alive); `'off'` passes them
-  /// through unchecked.
+  /// Validate emitted envelopes against the catalog. `'warn'` (default) logs a
+  /// warning and drops the offending block/envelope, keeping the rest of the
+  /// turn alive; `'strict'` throws on malformed JSON or unknown components
+  /// (best during development); `'off'` passes them through unchecked.
   String? get validate;
 
   /// Surface id policy. Provide a fixed id to reuse for every surface. Defaults
@@ -106,17 +107,34 @@ GenerateMiddlewareRef<A2uiOptions> a2ui({
   );
 }
 
+/// Resolves the `validate` option into a mode. Defaults to
+/// [A2uiValidateMode.warn] when unset (a malformed block is dropped rather than
+/// killing the whole turn); use `'strict'` during development to surface errors.
 A2uiValidateMode _parseValidateMode(String? value) {
   switch (value) {
-    case 'warn':
-      return A2uiValidateMode.warn;
+    case 'strict':
+      return A2uiValidateMode.strict;
     case 'off':
       return A2uiValidateMode.off;
-    case 'strict':
+    case 'warn':
     case null:
-      return A2uiValidateMode.strict;
+      return A2uiValidateMode.warn;
     default:
       throw ArgumentError('a2ui(): invalid validate mode "$value".');
+  }
+}
+
+/// Resolves the `instructions` option, defaulting to `'system'`. Throws on any
+/// value other than `'system'` or `'none'`.
+String _parseInstructions(String? value) {
+  switch (value) {
+    case 'system':
+    case null:
+      return 'system';
+    case 'none':
+      return 'none';
+    default:
+      throw ArgumentError('a2ui(): invalid instructions mode "$value".');
   }
 }
 
@@ -147,7 +165,7 @@ class A2uiMiddleware extends GenerateMiddleware {
   /// Creates an [A2uiMiddleware].
   A2uiMiddleware(this._registry, [A2uiOptions? config])
     : _catalogId = config?.catalog ?? defaultCatalogId,
-      _instructions = config?.instructions ?? 'system',
+      _instructions = _parseInstructions(config?.instructions),
       _validate = _parseValidateMode(config?.validate),
       _version = config?.version ?? a2uiVersion,
       _fixedSurfaceId = config?.surfaceId;
@@ -256,9 +274,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       final text = part.text;
       if (part.isText && text != null && text != '') {
         final result = parser.push(text);
-        newContent.addAll(
-          _partsFromParse(result.prose, result.envelopeBatches),
-        );
+        newContent.addAll(_partsFromSegments(result.segments));
       } else {
         newContent.add(part);
       }
@@ -291,13 +307,12 @@ class A2uiMiddleware extends GenerateMiddleware {
     final newContent = <Part>[];
     for (final part in message.content) {
       if (part.isText) {
+        // Combine the streamed-push and final-flush segments so ordering
+        // (prose before/after a block) is preserved in the aggregated message.
         final pushed = parser.push(part.text ?? '');
         final flushed = parser.flush();
         newContent.addAll(
-          _partsFromParse(pushed.prose + flushed.prose, [
-            ...pushed.envelopeBatches,
-            ...flushed.envelopeBatches,
-          ]),
+          _partsFromSegments([...pushed.segments, ...flushed.segments]),
         );
       } else {
         newContent.add(part);
@@ -355,12 +370,17 @@ class A2uiMiddleware extends GenerateMiddleware {
   }
 }
 
-/// Turns a prose run + parsed envelope batches into parts, preserving order.
-List<Part> _partsFromParse(String prose, List<List<A2uiEnvelope>> batches) {
+/// Turns ordered parse segments into parts, preserving the exact source order
+/// (so prose after a block stays after it).
+List<Part> _partsFromSegments(List<ParseSegment> segments) {
   final out = <Part>[];
-  if (prose.isNotEmpty) out.add(TextPart(text: prose));
-  for (final batch in batches) {
-    out.add(a2uiPart(batch));
+  for (final seg in segments) {
+    switch (seg) {
+      case ProseSegment(:final prose):
+        if (prose.isNotEmpty) out.add(TextPart(text: prose));
+      case EnvelopeSegment(:final envelopes):
+        out.add(a2uiPart(envelopes));
+    }
   }
   return out;
 }
@@ -375,7 +395,7 @@ String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
       final surfaceId = action['surfaceId'];
       final context = action['context'];
       final ctx = (context is Map && context.isNotEmpty)
-          ? ' context=$context'
+          ? ' context=${jsonEncode(context)}'
           : '';
       lines.add('[UI action "$name" on surface $surfaceId$ctx]');
     } else if (env['createSurface'] is Map) {

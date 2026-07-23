@@ -21,6 +21,8 @@
 /// the agent as the next turn with [actionToMessage].
 library;
 
+import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 
 import 'src/part.dart';
@@ -45,7 +47,7 @@ export 'src/types.dart'
 /// handling by the middleware.
 Message actionToMessage(A2uiClientAction action) {
   final ctx = action.context.isNotEmpty
-      ? ' with context ${action.context}'
+      ? ' with context ${jsonEncode(action.context)}'
       : '';
   final summary =
       'User interacted with the UI (surface "${action.surfaceId}"): '

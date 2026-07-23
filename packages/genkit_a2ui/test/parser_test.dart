@@ -283,5 +283,25 @@ void main() {
       ]);
       expect(result.batches.length, 2);
     });
+
+    test('preserves prose/block order in segments (prose after a block)', () {
+      final parser = A2uiStreamParser(
+        catalog: basicCatalog,
+        surfaceId: fixedId,
+      );
+      final segments = <ParseSegment>[];
+      for (final c in ['intro ', sampleBlock, 'outro']) {
+        segments.addAll(parser.push(c).segments);
+      }
+      segments.addAll(parser.flush().segments);
+
+      // Expect: prose("intro "), envelopes, prose("outro").
+      expect(segments.length, 3);
+      expect(segments[0], isA<ProseSegment>());
+      expect((segments[0] as ProseSegment).prose, contains('intro'));
+      expect(segments[1], isA<EnvelopeSegment>());
+      expect(segments[2], isA<ProseSegment>());
+      expect((segments[2] as ProseSegment).prose, contains('outro'));
+    });
   });
 }
