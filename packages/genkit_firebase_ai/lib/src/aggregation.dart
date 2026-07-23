@@ -82,15 +82,32 @@ class _CandidateState {
       if (parts.isNotEmpty) {
         final lastPart = parts.last;
         if (lastPart is m.TextPart && part is m.TextPart) {
-          // Merge text
           final newText = lastPart.text + part.text;
           parts.removeLast();
-          parts.add(m.TextPart(newText)); // Ignore thought stuff for now
+
+          // Merge metadata using null-aware spread operator
+          final mergedMetadata = lastPart.metadata == null && part.metadata == null
+              ? null
+              : {
+                  ...?lastPart.metadata,
+                  ...?part.metadata,
+                };
+
+          // Merge custom data using null-aware spread operator
+          final mergedCustom = lastPart.custom == null && part.custom == null
+              ? null
+              : {
+                  ...?lastPart.custom,
+                  ...?part.custom,
+                };
+
+          parts.add(m.TextPart(
+            newText,
+            metadata: mergedMetadata,
+            custom: mergedCustom,
+          ));
           continue;
         } else if (lastPart is m.FunctionCall && part is m.FunctionCall) {
-          // Firebase AI currently returns completed tool calls, no need to merge partials manually.
-          // Will replace the last if it's identical ID or name as an edge case,
-          // but generally streaming function calls don't chunk in Firebase AI natively
           if (part.id == lastPart.id || part.name == lastPart.name) {
             parts.removeLast();
           }
