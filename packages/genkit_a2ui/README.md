@@ -71,18 +71,86 @@ intercepts model output (streamed chunks **and** the final message), extracts
 
 ### Catalogs
 
-`catalog` is a **catalog id** resolved from the Genkit registry. The bundled
-`'basic'` catalog is the default and needs no registration. To use your own
-catalog, register it once with `loadCatalog` and reference it by id:
+`catalog` is a **catalog id** resolved from the Genkit registry. The bundled `'basic'` catalog is the default and needs no registration.
+
+To define and use a custom catalog (e.g., matching your own layout elements and design system), you can register it with `loadCatalog` and reference it by id.
+
+#### Catalog Format & Structure
+
+An A2UI catalog describes the list of visual or interactive components that the model is allowed to emit. It consists of:
+- `id`: A globally unique URI identifying the catalog (used as `catalogId` on `createSurface`).
+- `components`: An array of components, where each component contains:
+  - `name`: The component type name, matching the renderer type (e.g. `CustomCard`, `Text`).
+  - `description`: A clear, one-line summary of what the component is and when to use it.
+  - `props`: A compact, model-facing text description of its properties (kept as a simple, human-readable string to minimize system prompt token usage).
+
+#### Option A: Load from a JSON File
+Create a JSON file (e.g., `./my-catalog.json`) following this format:
+
+```json
+{
+  "id": "https://my-app.org/catalogs/custom.json",
+  "components": [
+    {
+      "name": "Banner",
+      "description": "Displays a prominent alert banner at the top of a section.",
+      "props": "title: string (required); severity?: info|warning|error."
+    },
+    {
+      "name": "Text",
+      "description": "Displays a plain or inline-markdown text run.",
+      "props": "text: string (required); variant?: body|caption."
+    }
+  ]
+}
+```
+
+Then register it under a lookup identifier (e.g. `'my-catalog'`) on the server:
 
 ```dart
 import 'package:genkit_a2ui/a2ui.dart';
 
-// Register an in-memory catalog...
-await loadCatalog(ai.registry, id: 'my-catalog', catalog: myCatalog);
-// ...or load one from a JSON file:
-await loadCatalog(ai.registry, id: 'my-catalog', file: './my-catalog.json');
+await loadCatalog(
+  ai.registry,
+  id: 'my-catalog',
+  file: './my-catalog.json',
+);
+```
 
+#### Option B: In-Memory Definition
+You can construct and register an `A2uiCatalog` directly in-memory using pure Dart:
+
+```dart
+import 'package:genkit_a2ui/a2ui.dart';
+
+final myCatalog = A2uiCatalog(
+  id: 'https://my-app.org/catalogs/custom.json',
+  components: [
+    const A2uiCatalogComponent(
+      name: 'Banner',
+      description: 'Displays a prominent alert banner at the top of a section.',
+      props: 'title: string (required); severity?: info|warning|error.',
+    ),
+    const A2uiCatalogComponent(
+      name: 'Text',
+      description: 'Displays a plain or inline-markdown text run.',
+      props: 'text: string (required); variant?: body|caption.',
+    ),
+  ],
+);
+
+await loadCatalog(
+  ai.registry,
+  id: 'my-catalog',
+  catalog: myCatalog,
+);
+```
+
+#### Utilizing the Registered Catalog in Agents
+
+Once registered, reference your catalog lookup id in your `a2ui()` options:
+
+```dart
 final uiAgent = ai.defineAgent(
   name: 'uiAgent',
   model: googleAI.model('gemini-flash-latest'),
@@ -90,8 +158,7 @@ final uiAgent = ai.defineAgent(
 );
 ```
 
-Catalogs live in the registry (value type `a2ui-catalog`) so the middleware can
-resolve them by id.
+Catalogs are stored in the Genkit registry (under the `a2ui-catalog` value type) so the middleware can dynamically resolve them.
 
 ## Client
 
