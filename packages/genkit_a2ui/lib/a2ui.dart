@@ -19,7 +19,13 @@
 /// a one-shot `generate`'s) `use` list. Pair it with `basicCatalog` (or your own
 /// catalog) and render on the client with the `genui` package plus the helpers
 /// in `package:genkit_a2ui/client.dart`.
-library;
+///
+/// The library is named so that dartdoc treats it as the canonical home for the
+/// symbols shared with `package:genkit_a2ui/client.dart`. Without a name that
+/// matches the package, dartdoc cannot break the tie between the two entry
+/// points and emits "ambiguous reexport" warnings for the shared parts/types.
+// ignore: unnecessary_library_name
+library genkit_a2ui;
 
 export 'src/a2ui_middleware.dart'
     show A2uiMiddleware, A2uiOptions, A2uiPlugin, a2ui;
