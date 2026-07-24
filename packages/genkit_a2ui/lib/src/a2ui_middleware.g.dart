@@ -85,18 +85,18 @@ base class A2uiOptions {
     }
   }
 
-  /// Validate emitted envelopes against the catalog. `'strict'` (default) throws
-  /// on malformed JSON or unknown components; `'warn'` logs a warning and drops
-  /// the offending block/envelope (keeping the turn alive); `'off'` passes them
-  /// through unchecked.
+  /// Validate emitted envelopes against the catalog. `'warn'` (default) logs a
+  /// warning and drops the offending block/envelope, keeping the rest of the
+  /// turn alive; `'strict'` throws on malformed JSON or unknown components
+  /// (best during development); `'off'` passes them through unchecked.
   String? get validate {
     return _json['validate'] as String?;
   }
 
-  /// Validate emitted envelopes against the catalog. `'strict'` (default) throws
-  /// on malformed JSON or unknown components; `'warn'` logs a warning and drops
-  /// the offending block/envelope (keeping the turn alive); `'off'` passes them
-  /// through unchecked.
+  /// Validate emitted envelopes against the catalog. `'warn'` (default) logs a
+  /// warning and drops the offending block/envelope, keeping the rest of the
+  /// turn alive; `'strict'` throws on malformed JSON or unknown components
+  /// (best during development); `'off'` passes them through unchecked.
   set validate(String? value) {
     if (value == null) {
       _json.remove('validate');
