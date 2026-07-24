@@ -305,19 +305,20 @@ class A2uiMiddleware extends GenerateMiddleware {
       surfaceId: surfaceId,
     );
     final newContent = <Part>[];
+    // Push every text part through the parser first so a block spanning
+    // multiple text parts stays intact, then flush once at the end to drain
+    // any trailing block. Ordering (prose before/after a block) is preserved.
     for (final part in message.content) {
       if (part.isText) {
-        // Combine the streamed-push and final-flush segments so ordering
-        // (prose before/after a block) is preserved in the aggregated message.
         final pushed = parser.push(part.text ?? '');
-        final flushed = parser.flush();
-        newContent.addAll(
-          _partsFromSegments([...pushed.segments, ...flushed.segments]),
-        );
+        newContent.addAll(_partsFromSegments(pushed.segments));
       } else {
         newContent.add(part);
       }
     }
+    final flushed = parser.flush();
+    newContent.addAll(_partsFromSegments(flushed.segments));
+
     return ModelResponse(
       message: Message(
         role: message.role,

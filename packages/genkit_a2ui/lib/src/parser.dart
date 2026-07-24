@@ -337,9 +337,11 @@ class A2uiStreamParser {
       return 'component list must contain a component id "root".';
     }
     for (final c in components) {
-      if (c is! Map || c['component'] is! String) {
-        return 'every component needs a "component" type name.';
+      if (c is! Map || c['component'] is! String || c['id'] is! String) {
+        return 'every component needs a "component" type name and a string '
+            '"id".';
       }
+
       if (!known.contains(c['component'])) {
         return 'component "${c['component']}" is not in catalog "${catalog.id}".';
       }

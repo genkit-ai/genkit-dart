@@ -84,16 +84,21 @@ class A2uiCatalog {
 
   /// Builds an [A2uiCatalog] from its raw JSON shape.
   factory A2uiCatalog.fromJson(Map<String, dynamic> json) {
-    final rawComponents = (json['components'] as List?) ?? const [];
+    final rawComponents = json['components'];
+    final components = <A2uiCatalogComponent>[];
+    if (rawComponents is List) {
+      for (final c in rawComponents) {
+        // Skip non-map entries defensively rather than throwing on a bad cast.
+        if (c is Map) {
+          components.add(
+            A2uiCatalogComponent.fromJson(c.cast<String, dynamic>()),
+          );
+        }
+      }
+    }
     return A2uiCatalog(
       id: (json['id'] as String?) ?? '',
-      components: rawComponents
-          .map(
-            (c) => A2uiCatalogComponent.fromJson(
-              (c as Map).cast<String, dynamic>(),
-            ),
-          )
-          .toList(),
+      components: components,
     );
   }
 
