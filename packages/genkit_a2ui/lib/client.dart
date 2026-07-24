@@ -16,9 +16,9 @@
 /// agent.
 ///
 /// This library has no server-only dependencies (no `dart:io`). Pull A2UI
-/// envelopes off each streamed chunk with [a2uiEnvelopes] and feed them to your
-/// renderer (e.g. `genui`'s `SurfaceController`). Send surface actions back to
-/// the agent as the next turn with [actionToMessage].
+/// envelopes off each streamed chunk's `content` with [a2uiEnvelopesFromParts]
+/// and feed them to your renderer (e.g. `genui`'s `SurfaceController`). Send
+/// surface actions back to the agent as the next turn with [actionToMessage].
 library;
 
 import 'dart:convert';
@@ -28,8 +28,7 @@ import 'package:genkit/plugin.dart';
 import 'src/part.dart';
 import 'src/types.dart';
 
-export 'src/part.dart'
-    show a2uiEnvelopes, a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
+export 'src/part.dart' show a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'
     show
         A2uiClientAction,

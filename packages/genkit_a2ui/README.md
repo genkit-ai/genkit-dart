@@ -164,8 +164,8 @@ Catalogs are stored in the Genkit registry (under the `a2ui-catalog` value type)
 
 `package:genkit_a2ui/client.dart` is browser/Flutter-safe (no `dart:io`). Consume
 the agent with `remoteAgent` from `package:genkit/client.dart`, pull A2UI
-envelopes off each chunk with `a2uiEnvelopes`, and feed them to a renderer such
-as [`genui`](https://pub.dev/packages/genui):
+envelopes off each chunk's content with `a2uiEnvelopesFromParts`, and feed them
+to a renderer such as [`genui`](https://pub.dev/packages/genui):
 
 ```dart
 import 'package:genkit/client.dart';
@@ -173,9 +173,9 @@ import 'package:genkit_a2ui/client.dart';
 
 final agent = remoteAgent(url: '/api/uiAgent');
 final chat = agent.chat();
-final turn = chat.sendStream('weather in Tokyo');
+final turn = chat.sendStream(text: 'weather in Tokyo');
 await for (final chunk in turn.stream) {
-  final envelopes = a2uiEnvelopes(chunk.modelChunk);
+  final envelopes = a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content);
   if (envelopes.isNotEmpty) {
     // Convert each envelope map to a genui A2uiMessage and hand it to a
     // SurfaceController (see testapps/a2ui for a complete example).
@@ -201,7 +201,7 @@ final message = actionToMessage(
     context: {'city': 'Tokyo'},
   ),
 );
-final turn = chat.sendStream(message);
+final turn = chat.sendStream(message: message);
 ```
 
 The action's `name` is sent as the user message; the full action (including its

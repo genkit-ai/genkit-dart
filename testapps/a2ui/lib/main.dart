@@ -18,10 +18,10 @@
 /// `remoteAgent` from `package:genkit/client.dart`, renders prose in a simple
 /// chat log, and renders each A2UI surface with the `genui` renderer.
 ///
-/// A2UI travels as `data` parts on the agent stream; we pull them off each chunk
-/// with `a2uiEnvelopes` (from `package:genkit_a2ui/client.dart`), convert each
-/// envelope to a genui `A2uiMessage`, and feed it to a `SurfaceController`.
-/// Surface actions (e.g. button presses) are sent back to the agent as the next
+/// A2UI travels as `data` parts on the agent stream; we pull them off each
+/// chunk (via `chunk.raw.modelChunk?.content`) with `a2uiEnvelopesFromParts`
+/// (from `package:genkit_a2ui/client.dart`), convert each envelope to a genui
+/// `A2uiMessage`, and feed it to a `SurfaceController`. Surface actions (e.g. button presses) are sent back to the agent as the next
 /// turn.
 library;
 
@@ -187,7 +187,9 @@ class _ChatPageState extends State<ChatPage> {
           setState(() => prose!.text += chunk.text);
           _scrollToBottom();
         }
-        for (final envelope in a2uiEnvelopes(chunk.raw.modelChunk)) {
+        for (final envelope in a2uiEnvelopesFromParts(
+          chunk.raw.modelChunk?.content,
+        )) {
           _handleEnvelope(envelope);
         }
       }

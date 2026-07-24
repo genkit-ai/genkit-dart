@@ -177,7 +177,7 @@ void main() {
       expect(textPart!.text, contains('Here is the weather'));
       expect(uiPart, isNotNull);
 
-      final envelopes = a2uiEnvelopes(res.message);
+      final envelopes = a2uiEnvelopesFromParts(res.message!.content);
       expect(envelopes.length, 2);
       expect((envelopes[0]['createSurface'] as Map)['surfaceId'], 'sfc');
     });
@@ -194,7 +194,7 @@ void main() {
 
       final content = res.message!.content;
       expect(content.any(isA2uiPart), isFalse);
-      expect(a2uiEnvelopes(res.message).length, 0);
+      expect(a2uiEnvelopesFromParts(res.message!.content).length, 0);
     });
 
     test('defaults to validate:warn - drops a bad block, keeps the turn '
@@ -343,7 +343,7 @@ void main() {
               .where((p) => p.isText)
               .map((p) => p.text ?? '')
               .join();
-          streamedEnvelopes.addAll(a2uiEnvelopes(chunk));
+          streamedEnvelopes.addAll(a2uiEnvelopesFromParts(chunk.content));
         },
       );
 
@@ -353,7 +353,7 @@ void main() {
       expect(streamedEnvelopes.length, 2);
 
       // The final message and the stream agree on the surface id.
-      final finalEnvelopes = a2uiEnvelopes(res.message);
+      final finalEnvelopes = a2uiEnvelopesFromParts(res.message!.content);
       final streamedCreate = streamedEnvelopes.firstWhere(
         (e) => e['createSurface'] != null,
       );

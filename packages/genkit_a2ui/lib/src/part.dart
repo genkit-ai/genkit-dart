@@ -16,8 +16,10 @@
 /// whose `data` is an object `{ envelopes }` wrapping an array of A2UI
 /// envelopes, tagged with [a2uiMimeType].
 ///
-/// These helpers operate on plain Genkit [Part]s (and part-shaped JSON maps), so
-/// they are safe to use on both the server and the client (including Flutter).
+/// These helpers operate on plain Genkit [Part]s, so they are safe to use on
+/// both the server and the client (including Flutter). To pull envelopes off an
+/// agent stream, pass the chunk's parts:
+/// `a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content)`.
 library;
 
 import 'package:genkit/plugin.dart';
@@ -52,34 +54,27 @@ bool isA2uiPart(Part part) {
 
 /// Extracts all A2UI envelopes carried by the given [parts].
 ///
+/// This is the single entry point for reading envelopes off any part-carrying
+/// value: pass a message's, chunk's, or response's `content`. For example, to
+/// consume an agent stream:
+///
+/// ```dart
+/// await for (final chunk in turn.stream) {
+///   final envelopes = a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content);
+/// }
+/// ```
+///
+/// [parts] is nullable purely for call-site convenience (a chunk's content can
+/// be `null`); a `null` list is treated as empty.
+///
 /// Returns `[]` for content that carries no a2ui parts (e.g. plain prose).
-List<A2uiEnvelope> a2uiEnvelopesFromParts(List<Part> parts) {
+List<A2uiEnvelope> a2uiEnvelopesFromParts(List<Part>? parts) {
   final out = <A2uiEnvelope>[];
-  for (final part in parts) {
+  for (final part in parts ?? const <Part>[]) {
     if (isA2uiPart(part)) {
       final envelopes = _envelopesOf(part.data);
       if (envelopes != null) out.addAll(envelopes);
     }
   }
   return out;
-}
-
-/// Extracts all A2UI envelopes from a [Message], a [ModelResponseChunk], or a
-/// [ModelResponse]'s message.
-///
-/// Returns `[]` for anything that carries no a2ui parts.
-List<A2uiEnvelope> a2uiEnvelopes(Object? value) {
-  switch (value) {
-    case Message m:
-      return a2uiEnvelopesFromParts(m.content);
-    case ModelResponseChunk c:
-      return a2uiEnvelopesFromParts(c.content);
-    case ModelResponse r:
-      final content = r.message?.content;
-      return content == null ? [] : a2uiEnvelopesFromParts(content);
-    case Part p:
-      return a2uiEnvelopesFromParts([p]);
-    default:
-      return [];
-  }
 }

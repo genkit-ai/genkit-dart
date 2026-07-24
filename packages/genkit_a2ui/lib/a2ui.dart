@@ -48,8 +48,7 @@ export 'src/parser.dart'
         ParseResult,
         ParseSegment,
         ProseSegment;
-export 'src/part.dart'
-    show a2uiEnvelopes, a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
+export 'src/part.dart' show a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'
     show
         A2uiClientAction,

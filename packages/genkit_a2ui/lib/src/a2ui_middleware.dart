@@ -345,7 +345,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       for (final part in message.content) {
         if (isA2uiPart(part)) {
           msgChanged = true;
-          final text = _summarizeA2uiPart(a2uiEnvelopes(part));
+          final text = _summarizeA2uiPart(a2uiEnvelopesFromParts([part]));
           if (text.isNotEmpty) content.add(TextPart(text: text));
         } else {
           content.add(part);

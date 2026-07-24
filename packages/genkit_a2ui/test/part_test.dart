@@ -69,12 +69,17 @@ void main() {
     });
   });
 
-  group('a2uiEnvelopes', () {
+  group('a2uiEnvelopesFromParts', () {
     test('extracts envelopes from a single a2ui part', () {
-      expect(a2uiEnvelopes(a2uiPart([sampleEnvelope])), [sampleEnvelope]);
+      expect(
+        a2uiEnvelopesFromParts([
+          a2uiPart([sampleEnvelope]),
+        ]),
+        [sampleEnvelope],
+      );
     });
 
-    test('extracts envelopes from a message', () {
+    test('extracts envelopes from a message\'s content', () {
       final message = Message(
         role: Role.model,
         content: [
@@ -82,53 +87,24 @@ void main() {
           a2uiPart([sampleEnvelope]),
         ],
       );
-      expect(a2uiEnvelopes(message), [sampleEnvelope]);
+      expect(a2uiEnvelopesFromParts(message.content), [sampleEnvelope]);
     });
 
-    test('extracts envelopes from a model response chunk', () {
-      final chunk = ModelResponseChunk(
-        role: Role.model,
-        content: [
-          a2uiPart([sampleEnvelope]),
-        ],
-      );
-      expect(a2uiEnvelopes(chunk), [sampleEnvelope]);
-    });
-
-    test('extracts envelopes from a model response', () {
-      final response = ModelResponse(
-        finishReason: FinishReason.stop,
-        message: Message(
-          role: Role.model,
-          content: [
-            a2uiPart([sampleEnvelope]),
-          ],
-        ),
-      );
-      expect(a2uiEnvelopes(response), [sampleEnvelope]);
-    });
-
-    test('returns [] for prose / non-a2ui content', () {
-      final message = Message(
-        role: Role.model,
-        content: [TextPart(text: 'hi')],
-      );
-      expect(a2uiEnvelopes(message), isEmpty);
-      expect(a2uiEnvelopes(TextPart(text: 'hi')), isEmpty);
-    });
-
-    test('returns [] for null / unrecognized inputs', () {
-      expect(a2uiEnvelopes(null), isEmpty);
-      expect(a2uiEnvelopes('nope'), isEmpty);
-    });
-
-    test('a2uiEnvelopesFromParts collects across parts', () {
+    test('collects across multiple parts', () {
       final parts = <Part>[
         TextPart(text: 'hi'),
         a2uiPart([sampleEnvelope]),
         a2uiPart([sampleEnvelope]),
       ];
       expect(a2uiEnvelopesFromParts(parts), [sampleEnvelope, sampleEnvelope]);
+    });
+
+    test('returns [] for prose / non-a2ui content', () {
+      expect(a2uiEnvelopesFromParts([TextPart(text: 'hi')]), isEmpty);
+    });
+
+    test('returns [] for empty content', () {
+      expect(a2uiEnvelopesFromParts([]), isEmpty);
     });
   });
 }
