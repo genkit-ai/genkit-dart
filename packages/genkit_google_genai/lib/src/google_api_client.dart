@@ -199,4 +199,10 @@ class _NonClosingClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) =>
       _inner.send(request);
+
+  @override
+  void close() {
+    // Intentional no-op: the inner client is caller-owned and must survive
+    // the per-call close() in the list/embed/generate paths.
+  }
 }
