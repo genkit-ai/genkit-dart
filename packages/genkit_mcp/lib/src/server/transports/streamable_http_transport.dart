@@ -16,28 +16,27 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:mcp_dart/mcp_dart.dart' as mcp;
+
 import '../../util/logging.dart';
 import 'server_transport.dart';
 
 /// Streamable HTTP transport for MCP servers.
 ///
-/// Implements the MCP Streamable HTTP transport specification (2025-11-25),
-/// supporting both SSE streaming and JSON response modes.
+/// Implements the MCP Streamable HTTP transport specification, supporting
+/// MCP 2026-07-28 stateless requests and legacy initialization-based clients.
 ///
-/// **DNS Rebinding Protection:**
-/// The MCP specification requires servers to validate the `Origin` header
-/// on all incoming connections to prevent DNS rebinding attacks. To enable
-/// this protection, configure [allowedOrigins] and/or [allowedHosts] when
-/// calling [bind]. When configured, requests with invalid `Origin` or `Host`
-/// headers will be rejected with HTTP 403. When not configured, no header
-/// validation is performed (matching the default behaviour of the TypeScript
-/// MCP SDK). For production deployments, you **should** set [allowedOrigins].
+/// DNS rebinding protection and JSON-RPC batch rejection are enabled by
+/// default. Loopback hosts are allowed automatically; non-loopback deployments
+/// should configure [allowedHosts] and [allowedOrigins].
 class StreamableHttpServerTransport implements McpServerTransport {
   final HttpServer _server;
   final String endpointPath;
   final String? Function()? sessionIdGenerator;
   final void Function(String sessionId)? onSessionInitialized;
   final bool enableJsonResponse;
+  final bool enableDnsRebindingProtection;
+  final bool rejectBatchJsonRpcPayloads;
   final List<String>? allowedHosts;
   final List<String>? allowedOrigins;
 
@@ -45,6 +44,8 @@ class StreamableHttpServerTransport implements McpServerTransport {
       StreamController.broadcast();
   final Map<Object, _StreamState> _requestStreams = {};
   _StreamState? _standaloneStream;
+  mcp.StreamableHTTPServerTransport? _mcpDartTransport;
+  bool _useMcpDartTransport = false;
   String? _sessionId;
   bool _initialized = false;
   bool _closed = false;
@@ -55,6 +56,8 @@ class StreamableHttpServerTransport implements McpServerTransport {
     required this.sessionIdGenerator,
     required this.onSessionInitialized,
     required this.enableJsonResponse,
+    required this.enableDnsRebindingProtection,
+    required this.rejectBatchJsonRpcPayloads,
     required this.allowedHosts,
     required this.allowedOrigins,
   }) {
@@ -63,11 +66,15 @@ class StreamableHttpServerTransport implements McpServerTransport {
 
   /// Binds an HTTP server and returns a new transport instance.
   ///
+  /// - [enableDnsRebindingProtection]: Validates `Host` and `Origin` headers.
+  ///   This defaults to `true`, with localhost and loopback addresses allowed.
   /// - [allowedOrigins]: When set, requests whose `Origin` header is present
   ///   but not in this list are rejected with HTTP 403. Recommended for
   ///   production deployments to prevent DNS rebinding attacks.
   /// - [allowedHosts]: When set, requests whose `Host` header does not match
   ///   any entry in this list are rejected with HTTP 403.
+  /// - [rejectBatchJsonRpcPayloads]: Rejects JSON-RPC batches as required by
+  ///   Streamable HTTP. Set to `false` only for legacy compatibility.
   static Future<StreamableHttpServerTransport> bind({
     required InternetAddress address,
     required int port,
@@ -75,6 +82,8 @@ class StreamableHttpServerTransport implements McpServerTransport {
     String? Function()? sessionIdGenerator,
     void Function(String sessionId)? onSessionInitialized,
     bool enableJsonResponse = false,
+    bool enableDnsRebindingProtection = true,
+    bool rejectBatchJsonRpcPayloads = true,
     List<String>? allowedHosts,
     List<String>? allowedOrigins,
   }) async {
@@ -85,6 +94,8 @@ class StreamableHttpServerTransport implements McpServerTransport {
       sessionIdGenerator: sessionIdGenerator,
       onSessionInitialized: onSessionInitialized,
       enableJsonResponse: enableJsonResponse,
+      enableDnsRebindingProtection: enableDnsRebindingProtection,
+      rejectBatchJsonRpcPayloads: rejectBatchJsonRpcPayloads,
       allowedHosts: allowedHosts,
       allowedOrigins: allowedOrigins,
     );
@@ -92,6 +103,28 @@ class StreamableHttpServerTransport implements McpServerTransport {
 
   int get port => _server.port;
   InternetAddress get address => _server.address;
+
+  /// Returns the protocol-aware `mcp_dart` transport used by
+  /// Genkit MCP servers.
+  ///
+  /// The JSON transport API remains available for custom integrations and
+  /// backwards compatibility. Genkit's server uses this transport so HTTP
+  /// headers, request-scoped streams, and stateless cancellation reach
+  /// `mcp_dart` without being flattened into body-only messages.
+  mcp.Transport get mcpDartTransport {
+    _useMcpDartTransport = true;
+    return _mcpDartTransport ??= mcp.StreamableHTTPServerTransport(
+      options: mcp.StreamableHTTPServerTransportOptions(
+        sessionIdGenerator: sessionIdGenerator,
+        onsessioninitialized: onSessionInitialized,
+        enableJsonResponse: enableJsonResponse,
+        enableDnsRebindingProtection: enableDnsRebindingProtection,
+        allowedHosts: allowedHosts?.toSet(),
+        allowedOrigins: allowedOrigins?.toSet(),
+        rejectBatchJsonRpcPayloads: rejectBatchJsonRpcPayloads,
+      ),
+    );
+  }
 
   @override
   Stream<Map<String, dynamic>> get inbound => _inboundController.stream;
@@ -130,8 +163,18 @@ class StreamableHttpServerTransport implements McpServerTransport {
   }
 
   @override
-  Future<void> close() async {
+  Future<void> close() => _close(closeProtocolTransport: true);
+
+  /// Closes the bound HTTP listener after the MCP protocol has already closed
+  /// its delegated transport.
+  Future<void> closeListener() => _close(closeProtocolTransport: false);
+
+  Future<void> _close({required bool closeProtocolTransport}) async {
+    if (_closed) return;
     _closed = true;
+    if (closeProtocolTransport && _useMcpDartTransport) {
+      await _mcpDartTransport?.close();
+    }
     await _inboundController.close();
     await _closeResponse(_standaloneStream?.response);
     for (final stream in _requestStreams.values.toList()) {
@@ -146,6 +189,11 @@ class StreamableHttpServerTransport implements McpServerTransport {
     if (request.uri.path != endpointPath) {
       request.response.statusCode = HttpStatus.notFound;
       await request.response.close();
+      return;
+    }
+
+    if (_useMcpDartTransport) {
+      await _mcpDartTransport!.handleRequest(request);
       return;
     }
 
@@ -359,6 +407,15 @@ class StreamableHttpServerTransport implements McpServerTransport {
       return null;
     }
     if (decoded is List) {
+      if (rejectBatchJsonRpcPayloads) {
+        await _writeJsonError(
+          response,
+          HttpStatus.badRequest,
+          -32600,
+          'Invalid Request: JSON-RPC batch payloads are not supported',
+        );
+        return null;
+      }
       final messages = <Map<String, dynamic>>[];
       for (final entry in decoded) {
         if (entry is Map) {
@@ -388,37 +445,74 @@ class StreamableHttpServerTransport implements McpServerTransport {
   }
 
   bool _validateHeaders(HttpRequest request) {
-    if (allowedHosts != null && allowedHosts!.isNotEmpty) {
-      final hostHeader = request.headers.value(HttpHeaders.hostHeader);
-      if (hostHeader == null || !allowedHosts!.contains(hostHeader)) {
-        unawaited(
-          _writeJsonError(
-            request.response,
-            HttpStatus.forbidden,
-            -32600,
-            'Invalid Host header: $hostHeader',
-          ),
-        );
-        return false;
-      }
+    if (!enableDnsRebindingProtection) return true;
+
+    final hostHeader = request.headers.value(HttpHeaders.hostHeader);
+    final allowedHostSet = (allowedHosts?.isNotEmpty ?? false)
+        ? allowedHosts!.map(_normalizeHost).toSet()
+        : const {'localhost', '127.0.0.1', '::1'};
+    if (hostHeader == null ||
+        !allowedHostSet.contains(_normalizeHost(hostHeader))) {
+      unawaited(
+        _writeJsonError(
+          request.response,
+          HttpStatus.forbidden,
+          -32600,
+          'Invalid Host header: $hostHeader',
+        ),
+      );
+      return false;
     }
 
-    if (allowedOrigins != null && allowedOrigins!.isNotEmpty) {
-      final originHeader = request.headers.value('origin');
-      if (originHeader != null && !allowedOrigins!.contains(originHeader)) {
-        unawaited(
-          _writeJsonError(
-            request.response,
-            HttpStatus.forbidden,
-            -32600,
-            'Invalid Origin header: $originHeader',
-          ),
-        );
-        return false;
-      }
+    final originHeader = request.headers.value('origin');
+    if (originHeader == null) return true;
+    final allowedOriginSet = allowedOrigins
+        ?.map(_normalizeOrigin)
+        .whereType<String>()
+        .toSet();
+    final normalizedOrigin = _normalizeOrigin(originHeader);
+    final originAllowed = allowedOriginSet?.isNotEmpty == true
+        ? normalizedOrigin != null &&
+              allowedOriginSet!.contains(normalizedOrigin)
+        : normalizedOrigin != null &&
+              allowedHostSet.contains(_normalizeHost(normalizedOrigin));
+    if (!originAllowed) {
+      unawaited(
+        _writeJsonError(
+          request.response,
+          HttpStatus.forbidden,
+          -32600,
+          'Invalid Origin header: $originHeader',
+        ),
+      );
+      return false;
     }
 
     return true;
+  }
+
+  String _normalizeHost(String hostOrOrigin) {
+    final value = hostOrOrigin.trim().toLowerCase();
+    final uri = value.contains('://') ? Uri.tryParse(value) : null;
+    if (uri != null && uri.host.isNotEmpty) return uri.host;
+    if (value.startsWith('[')) {
+      final bracket = value.indexOf(']');
+      if (bracket > 1) return value.substring(1, bracket);
+    }
+    final firstColon = value.indexOf(':');
+    if (firstColon != -1 && firstColon == value.lastIndexOf(':')) {
+      return value.substring(0, firstColon);
+    }
+    return value;
+  }
+
+  String? _normalizeOrigin(String origin) {
+    final uri = Uri.tryParse(origin.trim());
+    if (uri == null || uri.scheme.isEmpty || uri.host.isEmpty) return null;
+    final host = _normalizeHost(uri.host);
+    final serializedHost = host.contains(':') ? '[$host]' : host;
+    final port = uri.hasPort ? ':${uri.port}' : '';
+    return '${uri.scheme.toLowerCase()}://$serializedHost$port';
   }
 
   bool _validateSession(HttpRequest request, {required bool allowMissing}) {

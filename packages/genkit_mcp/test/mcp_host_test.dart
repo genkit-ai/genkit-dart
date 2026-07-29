@@ -28,6 +28,7 @@ class FakeHostTransport implements McpClientTransport {
   List<Map<String, dynamic>> resources = [];
   List<Map<String, dynamic>> resourceTemplates = [];
   List<Map<String, dynamic>> roots = [];
+  bool failSends = false;
 
   Map<String, dynamic> callToolResult = {
     'content': [
@@ -53,7 +54,18 @@ class FakeHostTransport implements McpClientTransport {
 
   @override
   Future<void> send(Map<String, dynamic> message) async {
+    if (failSends) {
+      throw StateError('send failed');
+    }
     final method = message['method'];
+    if (method == 'server/discover') {
+      _inboundController.add({
+        'jsonrpc': '2.0',
+        'id': message['id'],
+        'error': {'code': -32601, 'message': 'Method not found'},
+      });
+      return;
+    }
     if (method == 'initialize') {
       _respond(message['id'], {
         'protocolVersion': '2025-11-25',
@@ -206,6 +218,37 @@ void main() {
     tools = await host.getActiveTools(ai);
     names = tools.map((tool) => tool.name).toList()..sort();
     expect(names, ['server2/testTool2']);
+  });
+
+  test('host clears its error state after a successful retry', () async {
+    final ai = Genkit();
+    final host = GenkitMcpHost(const McpHostOptions(name: 'test-host'));
+    final transport = FakeHostTransport()
+      ..tools = [
+        {
+          'name': 'testTool',
+          'inputSchema': {'type': 'object'},
+        },
+      ];
+
+    await host.connect('server1', McpServerConfig(transport: transport));
+    final client = host.getClient('server1')!;
+    await client.ready();
+
+    transport.failSends = true;
+    await host.reconnect('server1');
+    expect(client.disabled, isTrue);
+    expect(client.error, isNotNull);
+
+    transport.failSends = false;
+    await host.enable('server1');
+
+    expect(client.disabled, isFalse);
+    expect(client.error, isNull);
+    expect((await host.getActiveTools(ai)).map((tool) => tool.name), [
+      'server1/testTool',
+    ]);
+    await host.close();
   });
 
   test('host updates roots', () async {

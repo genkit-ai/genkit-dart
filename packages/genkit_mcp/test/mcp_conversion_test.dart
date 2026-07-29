@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_mcp/src/util/common.dart';
 import 'package:genkit_mcp/src/util/convert_messages.dart';
 import 'package:genkit_mcp/src/util/convert_prompts.dart';
 import 'package:genkit_mcp/src/util/convert_tools.dart';
@@ -83,6 +84,30 @@ final class _NamedToolSchema extends SchemanticType<Map<String, dynamic>> {
 }
 
 void main() {
+  test('tool result processing prefers structured content', () {
+    expect(
+      processToolResult({
+        'content': [
+          {'type': 'text', 'text': 'legacy fallback'},
+        ],
+        'structuredContent': ['native', 42],
+      }),
+      ['native', 42],
+    );
+  });
+
+  test('tool result processing preserves explicit structured null', () {
+    expect(
+      processToolResult({
+        'content': [
+          {'type': 'text', 'text': 'null'},
+        ],
+        'structuredContent': null,
+      }),
+      isNull,
+    );
+  });
+
   test('prompt arguments enforce string-only properties', () {
     expect(
       () => toMcpPromptArguments(_BadPromptSchema()),

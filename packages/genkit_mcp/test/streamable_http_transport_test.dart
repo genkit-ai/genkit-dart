@@ -32,6 +32,8 @@ class _TestServer {
 Future<_TestServer> _startServer({
   bool enableJsonResponse = false,
   String? sessionId,
+  bool enableDnsRebindingProtection = true,
+  bool rejectBatchJsonRpcPayloads = true,
 }) async {
   final ai = Genkit();
   final server = GenkitMcpServer(
@@ -42,6 +44,8 @@ Future<_TestServer> _startServer({
     address: InternetAddress.loopbackIPv4,
     port: 0,
     enableJsonResponse: enableJsonResponse,
+    enableDnsRebindingProtection: enableDnsRebindingProtection,
+    rejectBatchJsonRpcPayloads: rejectBatchJsonRpcPayloads,
     sessionIdGenerator: sessionId == null ? null : () => sessionId,
   );
   await server.start(transport);
@@ -131,6 +135,28 @@ Future<void> _closeSse(HttpClientResponse response) async {
 }
 
 void main() {
+  test('rejects non-loopback Host headers by default', () async {
+    final testServer = await _startServer(enableJsonResponse: true);
+    final client = HttpClient();
+    try {
+      final response = await _postJson(
+        client,
+        testServer.url,
+        _initializeRequest(1),
+        headers: {'host': 'attacker.example'},
+      );
+
+      expect(response.statusCode, HttpStatus.forbidden);
+      expect(
+        await response.transform(utf8.decoder).join(),
+        contains('DNS rebinding protection'),
+      );
+    } finally {
+      client.close(force: true);
+      await testServer.server.close();
+    }
+  });
+
   test('rejects invalid protocol version header', () async {
     final testServer = await _startServer(enableJsonResponse: true);
     final client = HttpClient();
@@ -146,7 +172,10 @@ void main() {
       final body = await response.transform(utf8.decoder).join();
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
-      expect(error['message'], contains('Unsupported MCP-Protocol-Version'));
+      expect(
+        error['message'].toString().toLowerCase(),
+        contains('unsupported protocol version'),
+      );
     } finally {
       client.close(force: true);
       await testServer.server.close();
@@ -197,7 +226,7 @@ void main() {
       final body = await response.transform(utf8.decoder).join();
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
-      expect(error['message'], contains('Missing MCP-Session-Id'));
+      expect(error['message'], contains('Mcp-Session-Id header is required'));
     } finally {
       client.close(force: true);
       await testServer.server.close();
@@ -237,7 +266,7 @@ void main() {
     }
   });
 
-  test('GET rejects concurrent SSE streams', () async {
+  test('GET supports concurrent SSE streams', () async {
     final testServer = await _startServer(
       enableJsonResponse: true,
       sessionId: 'session-1',
@@ -254,21 +283,27 @@ void main() {
       expect(sessionId, 'session-1');
       await initResponse.drain();
 
-      final first = await _getSse(
+      final firstPending = _getSse(
         client,
         testServer.url,
         headers: {'mcp-session-id': sessionId!},
       );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await testServer.server.notifyToolsChanged();
+      final first = await firstPending.timeout(const Duration(seconds: 2));
       expect(first.statusCode, HttpStatus.ok);
 
-      final second = await _getSse(
+      final secondPending = _getSse(
         client,
         testServer.url,
         headers: {'mcp-session-id': sessionId},
       );
-      expect(second.statusCode, HttpStatus.conflict);
-      await second.drain();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await testServer.server.notifyToolsChanged();
+      final second = await secondPending.timeout(const Duration(seconds: 2));
+      expect(second.statusCode, HttpStatus.ok);
 
+      await _closeSse(second);
       await _closeSse(first);
     } finally {
       client.close(force: true);
@@ -420,14 +455,14 @@ void main() {
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
       expect(error['code'], -32600);
-      expect(error['message'], contains('payload must be an object or array'));
+      expect(error['message'], contains('JSON-RPC message object'));
     } finally {
       client.close(force: true);
       await testServer.server.close();
     }
   });
 
-  test('POST rejects invalid batch entries', () async {
+  test('POST rejects JSON-RPC batches by default', () async {
     final testServer = await _startServer(enableJsonResponse: true);
     final client = HttpClient();
     try {
@@ -441,15 +476,18 @@ void main() {
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
       expect(error['code'], -32600);
-      expect(error['message'], contains('batch entries must be objects'));
+      expect(error['message'].toString().toLowerCase(), contains('batch'));
     } finally {
       client.close(force: true);
       await testServer.server.close();
     }
   });
 
-  test('supports JSON-RPC batch requests', () async {
-    final testServer = await _startServer(enableJsonResponse: true);
+  test('can allow legacy JSON-RPC batch requests explicitly', () async {
+    final testServer = await _startServer(
+      enableJsonResponse: true,
+      rejectBatchJsonRpcPayloads: false,
+    );
     final client = HttpClient();
     try {
       final initResponse = await _postJson(

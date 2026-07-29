@@ -46,6 +46,11 @@ class McpHostOptions {
 /// [McpHostOptions] with an additional [cacheTtlMillis] for the
 /// registry plugin created by `defineMcpHost`.
 class McpHostOptionsWithCache extends McpHostOptions {
+  /// Cache TTL for remote action listings.
+  ///
+  /// Positive values override server hints, negative values disable caching,
+  /// and `null` or zero uses the MCP 2026-07-28 server `ttlMs` hint when
+  /// available, falling back to three seconds.
   final int? cacheTtlMillis;
 
   const McpHostOptionsWithCache({
@@ -192,8 +197,9 @@ class GenkitMcpHost {
     );
     try {
       await client.enable();
+      _clientStates.remove(serverName);
     } catch (e) {
-      client.disable();
+      await client.disable();
       _setError(
         serverName,
         message: '[MCP Host] Error reenabling server $serverName',
@@ -213,8 +219,9 @@ class GenkitMcpHost {
     );
     try {
       await client.restart();
+      _clientStates.remove(serverName);
     } catch (e) {
-      client.disable();
+      await client.disable();
       _setError(
         serverName,
         message: '[MCP Host] Error restarting server $serverName',

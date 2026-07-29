@@ -24,7 +24,6 @@ import '../util/logging.dart';
 import '../util/mcp_dart_transport.dart';
 import '../util/task_state.dart';
 import 'transports/client_transport.dart';
-import 'transports/streamable_http_transport.dart';
 
 /// Handler for server-initiated `sampling/createMessage` requests.
 typedef McpSamplingHandler =
@@ -94,7 +93,11 @@ class McpClientOptions {
   final McpElicitationHandler? elicitationHandler;
   final McpNotificationHandler? notificationHandler;
 
-  /// Cache TTL for the registry plugin/DAP.
+  /// Cache TTL for remote action listings.
+  ///
+  /// Positive values override server hints, negative values disable caching,
+  /// and `null` or zero uses the MCP 2026-07-28 server `ttlMs` hint when
+  /// available, falling back to three seconds.
   final int? cacheTtlMillis;
 
   const McpClientOptions({
@@ -127,6 +130,13 @@ class GenkitMcpClient {
   List<McpRoot> _roots;
   final Map<String, McpTaskState> _tasks = {};
   final Map<Object, num> _progressCounters = {};
+  final Set<String> _requestedResourceSubscriptions = {};
+  final Set<mcp.McpSubscription> _openingSubscriptions = {};
+  _ClientSubscription? _resourceSubscription;
+  Future<void> _resourceSubscriptionMutation = Future<void>.value();
+  _ClientSubscription? _listChangeSubscription;
+  mcp.LoggingLevel? _statelessLogLevel;
+  bool _subscriptionsClosing = false;
   int _taskCounter = 0;
 
   GenkitMcpClient(this.options)
@@ -135,7 +145,7 @@ class GenkitMcpClient {
     if (_disabled) {
       _readyCompleter.complete();
     } else {
-      _connect();
+      unawaited(_connect());
     }
   }
 
@@ -143,6 +153,10 @@ class GenkitMcpClient {
   bool get enabled => !_disabled;
   String? get error => _error;
   String get serverName => _serverName ?? options.serverName ?? options.name;
+
+  /// The MCP protocol version negotiated with the server.
+  String? get protocolVersion => _client?.getProtocolVersion();
+
   List<McpRoot> get roots => List.unmodifiable(_roots);
 
   bool isEnabled() => !_disabled;
@@ -152,6 +166,7 @@ class GenkitMcpClient {
   }
 
   Future<void> close() async {
+    await _closeSubscriptions();
     await _client?.close();
     _client = null;
     _connected = false;
@@ -162,23 +177,33 @@ class GenkitMcpClient {
     await close();
   }
 
+  /// Enables this client and completes once the connection is ready.
+  ///
+  /// Throws when the connection attempt fails.
   Future<void> enable() async {
     if (!_disabled) return;
     _disabled = false;
+    _subscriptionsClosing = false;
     _readyCompleter = Completer<void>();
-    _connect();
+    await _connect();
+    await ready();
   }
 
+  /// Reconnects this client and completes once the new connection is ready.
+  ///
+  /// Throws when the connection attempt fails.
   Future<void> restart() async {
     await close();
     _disabled = false;
+    _subscriptionsClosing = false;
     _readyCompleter = Completer<void>();
-    _connect();
+    await _connect();
+    await ready();
   }
 
   Future<void> updateRoots(List<McpRoot> roots) async {
     _roots = List.of(roots);
-    if (_connected && !_disabled) {
+    if (_connected && !_disabled && !_usesStatelessProtocol) {
       await _client!.sendRootsListChanged();
     }
   }
@@ -249,6 +274,7 @@ class GenkitMcpClient {
     }
     return (await _client!.callTool(
       mcp.CallToolRequest(name: name, arguments: arguments ?? const {}),
+      options: _requestOptions,
     )).toJson();
   }
 
@@ -269,6 +295,7 @@ class GenkitMcpClient {
     }
     return (await _client!.getPrompt(
       mcp.GetPromptRequest.fromJson(params),
+      _requestOptions,
     )).toJson();
   }
 
@@ -283,24 +310,28 @@ class GenkitMcpClient {
     }
     return (await _client!.readResource(
       mcp.ReadResourceRequest(uri: uri),
+      _requestOptions,
     )).toJson();
   }
 
   Future<Map<String, dynamic>> listTools({String? cursor}) async {
     return (await _client!.listTools(
       params: cursor == null ? null : mcp.ListToolsRequest(cursor: cursor),
+      options: _requestOptions,
     )).toJson();
   }
 
   Future<Map<String, dynamic>> listPrompts({String? cursor}) async {
     return (await _client!.listPrompts(
       params: cursor == null ? null : mcp.ListPromptsRequest(cursor: cursor),
+      options: _requestOptions,
     )).toJson();
   }
 
   Future<Map<String, dynamic>> listResources({String? cursor}) async {
     return (await _client!.listResources(
       params: cursor == null ? null : mcp.ListResourcesRequest(cursor: cursor),
+      options: _requestOptions,
     )).toJson();
   }
 
@@ -309,6 +340,7 @@ class GenkitMcpClient {
       params: cursor == null
           ? null
           : mcp.ListResourceTemplatesRequest(cursor: cursor),
+      options: _requestOptions,
     )).toJson();
   }
 
@@ -331,6 +363,7 @@ class GenkitMcpClient {
     }
     return (await _client!.complete(
       mcp.CompleteRequest.fromJson(params),
+      _requestOptions,
     )).toJson();
   }
 
@@ -339,12 +372,28 @@ class GenkitMcpClient {
     Object? meta,
     Map<String, dynamic>? task,
   }) async {
+    if (_usesStatelessProtocol) {
+      return _mutateResourceSubscriptions(() async {
+        final added = _requestedResourceSubscriptions.add(uri);
+        if (!added && _resourceSubscription != null) return {};
+        try {
+          await _replaceResourceSubscription();
+          return {};
+        } catch (_) {
+          if (added) {
+            _requestedResourceSubscriptions.remove(uri);
+          }
+          rethrow;
+        }
+      });
+    }
     final params = <String, dynamic>{'uri': uri, '_meta': ?meta, 'task': ?task};
     if (meta != null || task != null) {
       return _sendRawRequest(mcp.Method.resourcesSubscribe, params);
     }
     return (await _client!.subscribeResource(
       mcp.SubscribeRequest(uri: uri),
+      _requestOptions,
     )).toJson();
   }
 
@@ -353,23 +402,50 @@ class GenkitMcpClient {
     Object? meta,
     Map<String, dynamic>? task,
   }) async {
+    if (_usesStatelessProtocol) {
+      return _mutateResourceSubscriptions(() async {
+        final removed = _requestedResourceSubscriptions.remove(uri);
+        if (!removed) return {};
+        try {
+          await _replaceResourceSubscription();
+          return {};
+        } catch (_) {
+          _requestedResourceSubscriptions.add(uri);
+          rethrow;
+        }
+      });
+    }
     final params = <String, dynamic>{'uri': uri, '_meta': ?meta, 'task': ?task};
     if (meta != null || task != null) {
       return _sendRawRequest(mcp.Method.resourcesUnsubscribe, params);
     }
     return (await _client!.unsubscribeResource(
       mcp.UnsubscribeRequest(uri: uri),
+      _requestOptions,
     )).toJson();
   }
 
   Future<Map<String, dynamic>> setLogLevel(String level) async {
-    return (await _client!.setLoggingLevel(
-      mcp.LoggingLevel.values.byName(level),
-    )).toJson();
+    final logLevel = mcp.LoggingLevel.values.byName(level);
+    if (_usesStatelessProtocol) {
+      _statelessLogLevel = logLevel;
+      return {};
+    }
+    return (await _client!.setLoggingLevel(logLevel, _requestOptions)).toJson();
   }
 
   Future<Map<String, dynamic>> ping() async {
-    return (await _client!.ping()).toJson();
+    if (_usesStatelessProtocol) {
+      final discovery = _client!.discoverServer();
+      final timeout = _effectiveTimeout;
+      if (timeout == null) {
+        await discovery;
+      } else {
+        await discovery.timeout(timeout);
+      }
+      return {};
+    }
+    return (await _client!.ping(_requestOptions)).toJson();
   }
 
   Future<Map<String, dynamic>> listTasks({String? cursor}) async {
@@ -393,19 +469,28 @@ class GenkitMcpClient {
 
   Future<void> _connect() async {
     if (_connected) return;
+    mcp.McpClient? client;
     try {
-      final client = mcp.McpClient(
+      client = mcp.McpClient(
         mcp.Implementation(
           name: options.name,
           version: options.version ?? '1.0.0',
         ),
         options: mcp.McpClientOptions(
           capabilities: mcp.ClientCapabilities.fromJson(_clientCapabilities()),
+          legacyDiscoveryTimeout:
+              _effectiveTimeout ?? const Duration(seconds: 5),
         ),
       );
       _configureClient(client);
       _client = client;
-      await client.connect(await _createTransport(options.mcpServer));
+      final connect = client.connect(await _createTransport(options.mcpServer));
+      final timeout = _effectiveTimeout;
+      if (timeout == null) {
+        await connect;
+      } else {
+        await connect.timeout(timeout);
+      }
       final serverInfo = client.getServerVersion();
       if (options.serverName == null && serverInfo != null) {
         _serverName = serverInfo.name;
@@ -414,12 +499,32 @@ class GenkitMcpClient {
       if (_roots.isNotEmpty) {
         await updateRoots(_roots);
       }
-      _readyCompleter.complete();
+      if (_usesStatelessProtocol) {
+        await _startListChangeSubscription();
+      }
+      _error = null;
+      if (!_readyCompleter.isCompleted) {
+        _readyCompleter.complete();
+      }
     } catch (e, st) {
+      _connected = false;
+      await _closeSubscriptions();
+      try {
+        await client?.close();
+      } catch (closeError) {
+        mcpLogger.warning(
+          '[MCP Client] Failed to close after connection error: $closeError',
+        );
+      }
+      if (identical(_client, client)) {
+        _client = null;
+      }
       final error = e is mcp.McpError ? _toGenkitException(e) : e;
       _error = error.toString();
       _disabled = true;
-      _readyCompleter.completeError(error, st);
+      if (!_readyCompleter.isCompleted) {
+        _readyCompleter.completeError(error, st);
+      }
     }
   }
 
@@ -452,6 +557,286 @@ class GenkitMcpClient {
     _configureTaskHandlers(client);
   }
 
+  bool get _usesStatelessProtocol {
+    final version = protocolVersion;
+    return version != null && mcp.isStatelessProtocolVersion(version);
+  }
+
+  mcp.RequestOptions? get _requestOptions {
+    final timeout = _effectiveTimeout;
+    final logLevel = _statelessLogLevel;
+    if (timeout == null && logLevel == null) return null;
+    return mcp.RequestOptions(timeout: timeout, logLevel: logLevel);
+  }
+
+  Duration? get _effectiveTimeout {
+    final configured = options.mcpServer.timeout;
+    if (configured != null) return configured;
+    final transport = options.mcpServer.transport;
+    if (transport is McpDartClientTransport) {
+      return (transport as McpDartClientTransport).requestTimeout;
+    }
+    return null;
+  }
+
+  Future<void> _startListChangeSubscription() async {
+    final capabilities = _serverCapabilities;
+    final filter = mcp.SubscriptionFilter(
+      toolsListChanged: capabilities?.tools?.listChanged == true ? true : null,
+      promptsListChanged: capabilities?.prompts?.listChanged == true
+          ? true
+          : null,
+      resourcesListChanged: capabilities?.resources?.listChanged == true
+          ? true
+          : null,
+    );
+    if (filter.toJson().isEmpty) return;
+    final subscription = await _openSubscription(filter);
+    _listChangeSubscription = subscription;
+    _watchListChangeSubscription(subscription, filter);
+    _logMissingListChangeAcknowledgments(
+      requested: filter,
+      acknowledged: subscription.acknowledged,
+    );
+  }
+
+  Future<_ClientSubscription> _openSubscription(
+    mcp.SubscriptionFilter filter,
+  ) async {
+    if (_subscriptionsClosing) {
+      throw StateError('MCP client is closing.');
+    }
+    final subscription = _client!.listenSubscriptions(
+      mcp.SubscriptionsListenRequest(notifications: filter),
+    );
+    _openingSubscriptions.add(subscription);
+    final notifications = subscription.notifications.listen(
+      (notification) {
+        _dispatchNotification(
+          notification.method,
+          notification.params ?? const {},
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        mcpLogger.warning('[MCP Client] Subscription error: $error');
+      },
+    );
+    try {
+      final acknowledgment = subscription.acknowledged;
+      final timeout = _effectiveTimeout;
+      final acknowledged =
+          (await (timeout == null
+                  ? acknowledgment
+                  : acknowledgment.timeout(timeout)))
+              .notifications;
+      return _ClientSubscription(subscription, notifications, acknowledged);
+    } catch (_) {
+      subscription.cancel();
+      await notifications.cancel();
+      rethrow;
+    } finally {
+      _openingSubscriptions.remove(subscription);
+    }
+  }
+
+  Future<void> _closeSubscriptions() async {
+    _subscriptionsClosing = true;
+    for (final subscription in _openingSubscriptions.toList()) {
+      subscription.cancel(StateError('MCP client is closing.'));
+    }
+    try {
+      await _resourceSubscriptionMutation;
+    } catch (_) {
+      // A failed mutation has already been reported to its caller.
+    }
+    final subscriptions = <_ClientSubscription>{
+      ?_listChangeSubscription,
+      ?_resourceSubscription,
+    };
+    _listChangeSubscription = null;
+    _resourceSubscription = null;
+    _requestedResourceSubscriptions.clear();
+    for (final subscription in subscriptions) {
+      await _closeSubscription(subscription);
+    }
+  }
+
+  Future<void> _closeSubscription(_ClientSubscription subscription) async {
+    if (!subscription.cancelled) {
+      subscription.cancelled = true;
+      subscription.subscription.cancel();
+    }
+    await _disposeSubscriptionStreams(subscription);
+    try {
+      await subscription.subscription.done;
+    } catch (_) {
+      // The connection may have closed before local cancellation completed.
+    }
+  }
+
+  Future<void> _disposeSubscriptionStreams(_ClientSubscription subscription) {
+    return subscription.cleanupFuture ??= () async {
+      await subscription.notifications.cancel();
+      await subscription.acknowledgmentChanges?.cancel();
+    }();
+  }
+
+  Future<Map<String, dynamic>> _mutateResourceSubscriptions(
+    Future<Map<String, dynamic>> Function() operation,
+  ) {
+    if (_subscriptionsClosing) {
+      return Future.error(StateError('MCP client is closing.'));
+    }
+    final result = Completer<Map<String, dynamic>>();
+    _resourceSubscriptionMutation = _resourceSubscriptionMutation
+        .catchError((Object _, StackTrace _) {})
+        .then<void>((_) async {
+          try {
+            result.complete(await operation());
+          } catch (error, stackTrace) {
+            result.completeError(error, stackTrace);
+          }
+        });
+    return result.future;
+  }
+
+  Future<void> _replaceResourceSubscription() async {
+    final uris = _requestedResourceSubscriptions.toList()..sort();
+    if (uris.isEmpty) {
+      final previous = _resourceSubscription;
+      _resourceSubscription = null;
+      if (previous != null) {
+        await _closeSubscription(previous);
+      }
+      return;
+    }
+
+    final next = await _openSubscription(
+      mcp.SubscriptionFilter(resourceSubscriptions: uris),
+    );
+    final acknowledged = next.acknowledged.resourceSubscriptions ?? const [];
+    final missing = uris.where((uri) => !acknowledged.contains(uri)).toList();
+    if (missing.isNotEmpty) {
+      await _closeSubscription(next);
+      throw mcp.McpError(
+        mcp.ErrorCode.methodNotFound.value,
+        'Server did not acknowledge resource subscriptions for '
+        '${missing.join(', ')}.',
+      );
+    }
+
+    final previous = _resourceSubscription;
+    _resourceSubscription = next;
+    _watchResourceSubscription(next);
+    if (previous != null) {
+      await _closeSubscription(previous);
+    }
+  }
+
+  void _watchResourceSubscription(_ClientSubscription subscription) {
+    subscription.acknowledgmentChanges = subscription
+        .subscription
+        .acknowledgmentChanges
+        .listen(
+          (acknowledgment) {
+            final acknowledged = acknowledgment.notifications;
+            subscription.acknowledged = acknowledged;
+            if (!identical(_resourceSubscription, subscription)) return;
+            final accepted = acknowledged.resourceSubscriptions ?? const [];
+            final missing = _requestedResourceSubscriptions
+                .where((uri) => !accepted.contains(uri))
+                .toList();
+            if (missing.isEmpty) return;
+            _resourceSubscription = null;
+            mcpLogger.warning(
+              '[MCP Client] Replayed resource subscription no longer '
+              'acknowledges: ${missing.join(', ')}',
+            );
+            unawaited(_closeSubscription(subscription));
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            mcpLogger.warning(
+              '[MCP Client] Subscription acknowledgment error: $error',
+            );
+          },
+        );
+    _watchSubscriptionDone(subscription, () {
+      if (identical(_resourceSubscription, subscription)) {
+        _resourceSubscription = null;
+      }
+    });
+  }
+
+  void _watchListChangeSubscription(
+    _ClientSubscription subscription,
+    mcp.SubscriptionFilter requested,
+  ) {
+    subscription.acknowledgmentChanges = subscription
+        .subscription
+        .acknowledgmentChanges
+        .listen(
+          (acknowledgment) {
+            subscription.acknowledged = acknowledgment.notifications;
+            _logMissingListChangeAcknowledgments(
+              requested: requested,
+              acknowledged: acknowledgment.notifications,
+            );
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            mcpLogger.warning(
+              '[MCP Client] Subscription acknowledgment error: $error',
+            );
+          },
+        );
+    _watchSubscriptionDone(subscription, () {
+      if (identical(_listChangeSubscription, subscription)) {
+        _listChangeSubscription = null;
+      }
+    });
+  }
+
+  void _watchSubscriptionDone(
+    _ClientSubscription subscription,
+    void Function() onDone,
+  ) {
+    unawaited(
+      subscription.subscription.done.then<void>(
+        (_) {
+          onDone();
+          unawaited(_disposeSubscriptionStreams(subscription));
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          onDone();
+          mcpLogger.warning('[MCP Client] Subscription closed: $error');
+          unawaited(_disposeSubscriptionStreams(subscription));
+        },
+      ),
+    );
+  }
+
+  void _logMissingListChangeAcknowledgments({
+    required mcp.SubscriptionFilter requested,
+    required mcp.SubscriptionFilter acknowledged,
+  }) {
+    final missing = <String>[
+      if (requested.toolsListChanged == true &&
+          acknowledged.toolsListChanged != true)
+        'tools',
+      if (requested.promptsListChanged == true &&
+          acknowledged.promptsListChanged != true)
+        'prompts',
+      if (requested.resourcesListChanged == true &&
+          acknowledged.resourcesListChanged != true)
+        'resources',
+    ];
+    if (missing.isNotEmpty) {
+      mcpLogger.warning(
+        '[MCP Client] Server did not acknowledge list-change '
+        'subscriptions for: ${missing.join(', ')}',
+      );
+    }
+  }
+
   void _configureSamplingHandler(mcp.McpClient client) {
     final handler = options.samplingHandler;
     if (handler == null) return;
@@ -480,17 +865,32 @@ class GenkitMcpClient {
     client.setRequestHandler<mcp.JsonRpcElicitRequest>(
       mcp.Method.elicitationCreate,
       (request, extra) async {
-        final params = _withMeta(request.elicitParams.toJson(), request.meta);
+        final protocolVersion =
+            request.meta?[mcp.McpMetaKey.protocolVersion] as String? ??
+            client.getProtocolVersion();
+        final params = _withMeta(
+          request.elicitParams.toJson(protocolVersion: protocolVersion),
+          request.meta,
+        );
         return _respondWithClientTask(
           params,
           () async => mcp.ElicitResult.fromJson(await handler(params)),
         );
       },
-      (id, params, meta) => mcp.JsonRpcElicitRequest(
-        id: id,
-        elicitParams: mcp.ElicitRequest.fromJson(params ?? const {}),
-        meta: meta,
-      ),
+      (id, params, meta) {
+        final protocolVersion =
+            meta?[mcp.McpMetaKey.protocolVersion] as String? ??
+            client.getProtocolVersion();
+        return mcp.JsonRpcElicitRequest(
+          id: id,
+          elicitParams: mcp.ElicitRequest.fromJson(
+            params ?? const {},
+            protocolVersion: protocolVersion,
+          ),
+          meta: meta,
+          protocolVersion: protocolVersion,
+        );
+      },
     );
   }
 
@@ -569,16 +969,22 @@ class GenkitMcpClient {
   Future<mcp.Transport> _createTransport(McpServerConfig config) async {
     final customTransport = config.transport;
     if (customTransport != null) {
+      if (customTransport is McpDartClientTransport) {
+        return (customTransport as McpDartClientTransport).mcpDartTransport;
+      }
       return _adaptTransport(customTransport);
     }
     final url = config.url;
     if (url != null) {
-      final httpTransport = await StreamableHttpClientTransport.connect(
-        url: url,
-        headers: config.headers,
-        timeout: config.timeout,
+      return mcp.StreamableHttpClientTransport(
+        url,
+        opts: mcp.StreamableHttpClientTransportOptions(
+          requestInit: {
+            if (config.headers != null)
+              'headers': <String, dynamic>{...config.headers!},
+          },
+        ),
       );
-      return _adaptTransport(httpTransport);
     }
     final command = config.command;
     if (command == null) {
@@ -752,6 +1158,7 @@ class GenkitMcpClient {
     final result = await _client!.request<_RawMcpResult>(
       mcp.JsonRpcRequest(id: -1, method: method, params: params),
       _RawMcpResult.fromJson,
+      _requestOptions,
     );
     return result.toJson();
   }
@@ -825,6 +1232,9 @@ class GenkitMcpClient {
       await _sendProgress(progressToken, message: 'failed');
     } finally {
       await _notifyTaskStatus(task);
+      if (progressToken != null) {
+        _progressCounters.remove(progressToken);
+      }
     }
   }
 
@@ -934,27 +1344,40 @@ class GenkitMcpClient {
   final Map<String, _McpClientActionDescriptor> _actionIndex = {};
   List<ActionMetadata> _cachedActions = [];
   DateTime? _cacheExpiresAt;
-  Future<List<ActionMetadata>>? _inflight;
+  int _cacheGeneration = 0;
+  _ActionCacheBuild? _inflight;
 
   void invalidateCache() {
+    _cacheGeneration += 1;
     _cachedActions = [];
     _cacheExpiresAt = null;
     _actionIndex.clear();
   }
 
   Future<List<ActionMetadata>> getCachedActions() async {
-    final now = DateTime.now();
-    if (_shouldUseCache() &&
-        _cacheExpiresAt != null &&
-        now.isBefore(_cacheExpiresAt!)) {
-      return _cachedActions;
-    }
-    if (_inflight != null) return _inflight!;
-    _inflight = _buildCache();
-    try {
-      return await _inflight!;
-    } finally {
-      _inflight = null;
+    while (true) {
+      final now = DateTime.now();
+      if (_shouldUseCache() &&
+          _cacheExpiresAt != null &&
+          now.isBefore(_cacheExpiresAt!)) {
+        return _cachedActions;
+      }
+
+      final generation = _cacheGeneration;
+      var build = _inflight;
+      if (build == null || build.generation != generation) {
+        build = _ActionCacheBuild(generation, _buildCache(generation));
+        _inflight = build;
+      }
+
+      try {
+        final actions = await build.future;
+        if (generation == _cacheGeneration) return actions;
+      } finally {
+        if (identical(_inflight, build)) {
+          _inflight = null;
+        }
+      }
     }
   }
 
@@ -974,14 +1397,24 @@ class GenkitMcpClient {
     }
   }
 
-  Future<List<ActionMetadata>> _buildCache() async {
+  Future<List<ActionMetadata>> _buildCache(int generation) async {
     await ready();
     if (disabled) return [];
     final actions = <ActionMetadata>[];
     final index = <String, _McpClientActionDescriptor>{};
+    int? serverTtlMillis;
+
+    void observeCacheMetadata(Map<String, dynamic> result) {
+      final value = result['ttlMs'];
+      if (value is! num || value < 0) return;
+      final ttl = value.toInt();
+      if (serverTtlMillis == null || ttl < serverTtlMillis!) {
+        serverTtlMillis = ttl;
+      }
+    }
 
     final tools = _supportsTools
-        ? await _listAll('tools', listTools)
+        ? await _listAll('tools', listTools, onPage: observeCacheMetadata)
         : const <Map<String, dynamic>>[];
     for (final tool in tools) {
       final toolName = tool['name'];
@@ -1009,7 +1442,7 @@ class GenkitMcpClient {
     }
 
     final prompts = _supportsPrompts
-        ? await _listAll('prompts', listPrompts)
+        ? await _listAll('prompts', listPrompts, onPage: observeCacheMetadata)
         : const <Map<String, dynamic>>[];
     for (final prompt in prompts) {
       final promptName = prompt['name'];
@@ -1038,7 +1471,11 @@ class GenkitMcpClient {
     }
 
     final resources = _supportsResources
-        ? await _listAll('resources', listResources)
+        ? await _listAll(
+            'resources',
+            listResources,
+            onPage: observeCacheMetadata,
+          )
         : const <Map<String, dynamic>>[];
     for (final resource in resources) {
       final resourceName = resource['name'];
@@ -1067,7 +1504,11 @@ class GenkitMcpClient {
     }
 
     final templates = _supportsResources
-        ? await _listAll('resourceTemplates', listResourceTemplates)
+        ? await _listAll(
+            'resourceTemplates',
+            listResourceTemplates,
+            onPage: observeCacheMetadata,
+          )
         : const <Map<String, dynamic>>[];
     for (final template in templates) {
       final templateName = template['name'];
@@ -1095,14 +1536,19 @@ class GenkitMcpClient {
       );
     }
 
+    if (generation != _cacheGeneration) return actions;
+
     _actionIndex
       ..clear()
       ..addAll(index);
     _cachedActions = actions;
-    if (_shouldUseCache()) {
+    final effectiveTtl = _effectiveCacheTtlMillis(serverTtlMillis);
+    if (_shouldUseCache() && effectiveTtl > 0) {
       _cacheExpiresAt = DateTime.now().add(
-        Duration(milliseconds: _effectiveCacheTtlMillis()),
+        Duration(milliseconds: effectiveTtl),
       );
+    } else {
+      _cacheExpiresAt = null;
     }
     return actions;
   }
@@ -1111,24 +1557,42 @@ class GenkitMcpClient {
     return cacheTtlMillis == null || cacheTtlMillis! >= 0;
   }
 
-  int _effectiveCacheTtlMillis() {
-    if (cacheTtlMillis == null || cacheTtlMillis == 0) return 3000;
-    return cacheTtlMillis!.abs();
+  int _effectiveCacheTtlMillis(int? serverTtlMillis) {
+    final configured = cacheTtlMillis;
+    if (configured != null && configured != 0) return configured.abs();
+    if (_usesStatelessProtocol && serverTtlMillis != null) {
+      return serverTtlMillis;
+    }
+    return 3000;
   }
 
   static Future<List<Map<String, dynamic>>> _listAll(
     String resultKey,
-    Future<Map<String, dynamic>> Function({String? cursor}) lister,
-  ) async {
+    Future<Map<String, dynamic>> Function({String? cursor}) lister, {
+    void Function(Map<String, dynamic> result)? onPage,
+  }) async {
     final items = <Map<String, dynamic>>[];
     String? cursor;
     do {
       final result = await lister(cursor: cursor);
+      onPage?.call(result);
       items.addAll(asListOfMaps(result[resultKey]));
       cursor = result['nextCursor'] as String?;
     } while (cursor != null);
     return items;
   }
+}
+
+class _ClientSubscription {
+  final mcp.McpSubscription subscription;
+  final StreamSubscription<mcp.JsonRpcNotification> notifications;
+  mcp.SubscriptionFilter acknowledged;
+  StreamSubscription<mcp.SubscriptionsAcknowledgedNotification>?
+  acknowledgmentChanges;
+  Future<void>? cleanupFuture;
+  bool cancelled = false;
+
+  _ClientSubscription(this.subscription, this.notifications, this.acknowledged);
 }
 
 class _RawMcpResult implements mcp.BaseResultData {
@@ -1155,4 +1619,11 @@ class _McpClientActionDescriptor {
   final Map<String, dynamic> payload;
 
   _McpClientActionDescriptor({required this.actionType, required this.payload});
+}
+
+class _ActionCacheBuild {
+  final int generation;
+  final Future<List<ActionMetadata>> future;
+
+  _ActionCacheBuild(this.generation, this.future);
 }

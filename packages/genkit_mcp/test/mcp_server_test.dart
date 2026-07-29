@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
+import 'package:mcp_dart/mcp_dart.dart' as mcp;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -122,6 +123,95 @@ class _FakeServerTransport implements McpServerTransport {
 }
 
 void main() {
+  test('direct handler supports MCP 2026-07-28 stateless requests', () async {
+    final ai = Genkit();
+    ai.defineTool<Map<String, dynamic>, String>(
+      name: 'latestTool',
+      description: 'latest tool',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      fn: (_, _) async => 'latest',
+    );
+    final server = _createServer(ai);
+    final meta = mcp.buildProtocolRequestMeta(
+      protocolVersion: mcp.stableProtocolVersion,
+      clientInfo: const mcp.Implementation(
+        name: 'latest-client',
+        version: '0.0.1',
+      ),
+      clientCapabilities: const mcp.ClientCapabilities(),
+    );
+
+    final discovery = await _request(
+      server,
+      mcp.Method.serverDiscover,
+      id: 1,
+      params: {'_meta': meta},
+    );
+    final discoveryResult = _asMap(discovery?['result']);
+    expect(
+      _asList(discoveryResult['supportedVersions']),
+      contains(mcp.stableProtocolVersion),
+    );
+
+    final tools = await _request(
+      server,
+      mcp.Method.toolsList,
+      id: 2,
+      params: {'_meta': meta},
+    );
+    final toolList = _asList(_asMap(tools?['result'])['tools']);
+    expect(_asMap(toolList.single)['name'], 'latestTool');
+    expect(_asMap(tools?['result'])['ttlMs'], 3000);
+    expect(_asMap(tools?['result'])['cacheScope'], mcp.CacheScope.private);
+
+    await server.close();
+  });
+
+  test('latest tools expose and return scalar structured JSON', () async {
+    final ai = Genkit();
+    ai.defineTool<Map<String, dynamic>, String>(
+      name: 'scalarTool',
+      description: 'scalar tool',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      outputSchema: .string(),
+      fn: (_, _) async => 'structured value',
+    );
+    final server = _createServer(ai);
+    final meta = mcp.buildProtocolRequestMeta(
+      protocolVersion: mcp.stableProtocolVersion,
+      clientInfo: const mcp.Implementation(
+        name: 'latest-client',
+        version: '0.0.1',
+      ),
+      clientCapabilities: const mcp.ClientCapabilities(),
+    );
+
+    final tools = await _request(
+      server,
+      mcp.Method.toolsList,
+      id: 1,
+      params: {'_meta': meta},
+    );
+    final toolList = _asList(_asMap(tools?['result'])['tools']);
+    final outputSchema = _asMap(_asMap(toolList.single)['outputSchema']);
+    expect(outputSchema['type'], 'string');
+
+    final response = await _request(
+      server,
+      mcp.Method.toolsCall,
+      id: 2,
+      params: {
+        'name': 'scalarTool',
+        'arguments': <String, dynamic>{},
+        '_meta': meta,
+      },
+    );
+    final result = _asMap(response?['result']);
+    expect(result['structuredContent'], 'structured value');
+
+    await server.close();
+  });
+
   test('MCP server lists and executes actions', () async {
     final ai = Genkit();
     ai.defineTool<Map<String, dynamic>, String>(
@@ -187,6 +277,7 @@ void main() {
     final toolContent = _asList(toolCallResult['content']);
     final toolFirst = _asMap(toolContent.first);
     expect(toolFirst['text'], 'yep {"foo":"bar"}');
+    expect(toolCallResult, isNot(contains('structuredContent')));
 
     final prompts = await _request(server, 'prompts/list', id: 4, params: {});
     final promptsResult = _asMap(prompts?['result']);

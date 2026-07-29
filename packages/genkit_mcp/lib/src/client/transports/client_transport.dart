@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:mcp_dart/mcp_dart.dart' as mcp;
+
 /// A custom JSON transport for a Genkit MCP client.
 ///
 /// The client owns the transport lifecycle and calls [close] when the MCP
@@ -25,4 +27,15 @@ abstract class McpClientTransport {
 
   /// Closes the transport and releases any held resources.
   Future<void> close();
+}
+
+/// Internal bridge for transports already backed by an `mcp_dart` transport.
+///
+/// Keeping this separate from [McpClientTransport] preserves compatibility for
+/// existing custom JSON transports while allowing protocol-aware transports to
+/// retain HTTP headers, cancellation, and replay behavior end to end.
+abstract interface class McpDartClientTransport {
+  mcp.Transport get mcpDartTransport;
+
+  Duration? get requestTimeout;
 }

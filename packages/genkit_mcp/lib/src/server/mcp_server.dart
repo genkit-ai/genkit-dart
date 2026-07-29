@@ -27,6 +27,7 @@ import '../util/logging.dart';
 import '../util/mcp_dart_transport.dart';
 import '../util/task_state.dart';
 import 'transports/server_transport.dart';
+import 'transports/streamable_http_transport.dart';
 
 /// Configuration for a [GenkitMcpServer].
 class McpServerOptions {
@@ -42,32 +43,67 @@ class McpServerOptions {
 /// An MCP server that exposes Genkit tools, prompts, and resources
 /// over the Model Context Protocol.
 class GenkitMcpServer {
+  static final Object _requestExtraZoneKey = Object();
+  static final Object _notJsonValue = Object();
+  static const int _actionListCacheTtlMillis = 3000;
+
   final Genkit ai;
   final McpServerOptions options;
 
   bool _actionsResolved = false;
+  int _actionsGeneration = 0;
+  Future<void>? _setupInFlight;
   final List<Tool> _toolActions = [];
   final List<PromptAction> _promptActions = [];
   final List<ResourceAction> _resourceActions = [];
   final Map<String, McpTaskState> _tasks = {};
   final Set<String> _resourceSubscriptions = {};
+  final Set<_ServerSubscription> _serverSubscriptions = {};
   final Map<Object, num> _progressCounters = {};
   int _taskCounter = 0;
   String? _logLevel;
+  final Map<mcp.Protocol, bool> _statelessProtocols = {};
 
   mcp.McpServer? _mcpServer;
   mcp.McpServer? _directMcpServer;
   _DirectMcpConnection? _directTransport;
   Completer<void>? _directInitialized;
   bool _directReady = false;
+  StreamableHttpServerTransport? _httpTransport;
+  final Map<mcp.McpServer, McpServerTransport> _customTransports = {};
 
   GenkitMcpServer(this.ai, this.options);
 
   Future<void> setup() async {
     if (_actionsResolved) return;
-    _toolActions.clear();
-    _promptActions.clear();
-    _resourceActions.clear();
+    final inFlight = _setupInFlight;
+    if (inFlight != null) {
+      await inFlight;
+      if (!_actionsResolved) {
+        await setup();
+      }
+      return;
+    }
+
+    final operation = _resolveActions();
+    _setupInFlight = operation;
+    try {
+      await operation;
+    } finally {
+      if (identical(_setupInFlight, operation)) {
+        _setupInFlight = null;
+      }
+    }
+    if (!_actionsResolved) {
+      await setup();
+    }
+  }
+
+  Future<void> _resolveActions() async {
+    final generation = _actionsGeneration;
+    final tools = <Tool>[];
+    final prompts = <PromptAction>[];
+    final resources = <ResourceAction>[];
 
     final actions = await ai.registry.listActions();
     for (final action in actions) {
@@ -77,15 +113,24 @@ class GenkitMcpServer {
       );
       if (resolved == null) continue;
       if (resolved.actionType == 'tool') {
-        _toolActions.add(resolved as Tool);
+        tools.add(resolved as Tool);
       } else if (resolved.actionType == 'executable-prompt') {
-        _promptActions.add(resolved as PromptAction);
+        prompts.add(resolved as PromptAction);
       } else if (resolved.actionType == 'resource') {
-        _resourceActions.add(resolved as ResourceAction);
+        resources.add(resolved as ResourceAction);
       }
     }
 
-    _actionsResolved = true;
+    _toolActions
+      ..clear()
+      ..addAll(tools);
+    _promptActions
+      ..clear()
+      ..addAll(prompts);
+    _resourceActions
+      ..clear()
+      ..addAll(resources);
+    _actionsResolved = generation == _actionsGeneration;
   }
 
   mcp.McpServer _createMcpDartServer() {
@@ -106,8 +151,9 @@ class GenkitMcpServer {
     _setMcpHandler<mcp.JsonRpcListToolsRequest>(
       protocol,
       mcp.Method.toolsList,
-      (request, extra) async =>
-          mcp.ListToolsResult.fromJson(await _listTools()),
+      (request, extra) async => mcp.ListToolsResult.fromJson(
+        await _listTools(protocolVersion: extra.protocolVersion),
+      ),
       mcp.JsonRpcListToolsRequest.fromJson,
     );
     _setMcpHandler<mcp.JsonRpcCallToolRequest>(protocol, mcp.Method.toolsCall, (
@@ -120,17 +166,21 @@ class GenkitMcpServer {
         final task = _createTask(
           meta: taskMeta.cast<String, dynamic>(),
           progressToken: _extractProgressToken(params),
-          action: () => _callTool(params),
+          action: () =>
+              _callTool(params, protocolVersion: extra.protocolVersion),
         );
         return mcp.CreateTaskResult(task: mcp.Task.fromJson(task.toJson()));
       }
-      return mcp.CallToolResult.fromJson(await _callTool(params));
+      return mcp.CallToolResult.fromJson(
+        await _callTool(params, protocolVersion: extra.protocolVersion),
+      );
     }, mcp.JsonRpcCallToolRequest.fromJson);
     _setMcpHandler<mcp.JsonRpcListPromptsRequest>(
       protocol,
       mcp.Method.promptsList,
-      (request, extra) async =>
-          mcp.ListPromptsResult.fromJson(await _listPrompts()),
+      (request, extra) async => mcp.ListPromptsResult.fromJson(
+        await _listPrompts(protocolVersion: extra.protocolVersion),
+      ),
       mcp.JsonRpcListPromptsRequest.fromJson,
     );
     _setMcpHandler<mcp.JsonRpcGetPromptRequest>(
@@ -146,15 +196,16 @@ class GenkitMcpServer {
     _setMcpHandler<mcp.JsonRpcListResourcesRequest>(
       protocol,
       mcp.Method.resourcesList,
-      (request, extra) async =>
-          mcp.ListResourcesResult.fromJson(await _listResources()),
+      (request, extra) async => mcp.ListResourcesResult.fromJson(
+        await _listResources(protocolVersion: extra.protocolVersion),
+      ),
       mcp.JsonRpcListResourcesRequest.fromJson,
     );
     _setMcpHandler<mcp.JsonRpcListResourceTemplatesRequest>(
       protocol,
       mcp.Method.resourcesTemplatesList,
       (request, extra) async => mcp.ListResourceTemplatesResult.fromJson(
-        await _listResourceTemplates(),
+        await _listResourceTemplates(protocolVersion: extra.protocolVersion),
       ),
       mcp.JsonRpcListResourceTemplatesRequest.fromJson,
     );
@@ -185,6 +236,27 @@ class GenkitMcpServer {
         return const mcp.EmptyResult();
       },
       mcp.JsonRpcUnsubscribeRequest.fromJson,
+    );
+    _setMcpHandler<mcp.JsonRpcSubscriptionsListenRequest>(
+      protocol,
+      mcp.Method.subscriptionsListen,
+      (request, extra) async {
+        final acknowledged = request.listenParams.notifications.acknowledgedBy(
+          protocol.getCapabilities(),
+        );
+        await extra.sendSubscriptionAcknowledged(acknowledged);
+        final subscription = _ServerSubscription(acknowledged, extra);
+        _serverSubscriptions.add(subscription);
+        try {
+          if (!extra.signal.aborted) {
+            await extra.signal.onAbort.first;
+          }
+        } finally {
+          _serverSubscriptions.remove(subscription);
+        }
+        return mcp.SubscriptionsListenResult(subscriptionId: request.id);
+      },
+      mcp.JsonRpcSubscriptionsListenRequest.fromJson,
     );
     _setMcpHandler<mcp.JsonRpcCompleteRequest>(
       protocol,
@@ -250,15 +322,32 @@ class GenkitMcpServer {
     handler,
     Request Function(Map<String, dynamic> json) fromJson,
   ) {
+    Future<mcp.BaseResultData> mapGenkitErrors(
+      Request request,
+      mcp.RequestHandlerExtra extra,
+    ) async {
+      try {
+        final protocolVersion = extra.protocolVersion;
+        _statelessProtocols[protocol] =
+            protocolVersion != null &&
+            mcp.isStatelessProtocolVersion(protocolVersion);
+        return await runZoned(
+          () => handler(request, extra),
+          zoneValues: {_requestExtraZoneKey: extra},
+        );
+      } on GenkitException catch (error) {
+        throw mcp.McpError(mcp.ErrorCode.invalidParams.value, error.message);
+      }
+    }
+
     protocol.setRequestHandler<Request>(
       method,
-      handler,
+      mapGenkitErrors,
       (id, params, meta) => fromJson({
         'jsonrpc': '2.0',
         'id': id,
         'method': method,
-        'params': ?params,
-        '_meta': ?meta,
+        'params': {...?params, '_meta': ?meta},
       }),
     );
   }
@@ -300,8 +389,16 @@ class GenkitMcpServer {
     await setup();
     final server = _createMcpDartServer();
     _mcpServer = server;
+    _httpTransport = transport is StreamableHttpServerTransport
+        ? transport
+        : null;
+    if (transport != null && transport is! StreamableHttpServerTransport) {
+      _customTransports[server] = transport;
+    }
     final protocolTransport = transport == null
         ? mcp.StdioServerTransport()
+        : transport is StreamableHttpServerTransport
+        ? transport.mcpDartTransport
         : McpDartTransport(
             inbound: transport.inbound,
             send: transport.send,
@@ -313,29 +410,43 @@ class GenkitMcpServer {
 
   Future<void> close() async {
     await _mcpServer?.close();
+    await _httpTransport?.closeListener();
     await _directMcpServer?.close();
     _mcpServer = null;
+    _httpTransport = null;
     _directMcpServer = null;
     _directTransport = null;
     _directInitialized = null;
     _directReady = false;
+    _serverSubscriptions.clear();
+    _statelessProtocols.clear();
+    _customTransports.clear();
   }
 
   Future<void> notifyToolsChanged() async {
+    _invalidateActions();
     await _sendNotification('notifications/tools/list_changed', {});
   }
 
   Future<void> notifyPromptsChanged() async {
+    _invalidateActions();
     await _sendNotification('notifications/prompts/list_changed', {});
   }
 
   Future<void> notifyResourcesChanged() async {
+    _invalidateActions();
     await _sendNotification('notifications/resources/list_changed', {});
   }
 
   Future<void> notifyResourceUpdated(String uri, {Object? meta}) async {
-    if (_resourceSubscriptions.isEmpty ||
-        !_resourceSubscriptions.contains(uri)) {
+    final notification = mcp.JsonRpcNotification(
+      method: mcp.Method.notificationsResourcesUpdated,
+      params: {'uri': uri},
+    );
+    final hasStatelessSubscriber = _serverSubscriptions.any(
+      (subscription) => subscription.filter.allowsNotification(notification),
+    );
+    if (!hasStatelessSubscriber && !_resourceSubscriptions.contains(uri)) {
       return;
     }
     await _sendNotification('notifications/resources/updated', {
@@ -364,10 +475,14 @@ class GenkitMcpServer {
     if (method is! String) return null;
 
     await _ensureDirectServer();
+    final usesStatelessProtocol = _usesStatelessDirectProtocol(request);
     if (method == mcp.Method.notificationsInitialized && _directReady) {
       return null;
     }
-    if (method != mcp.Method.initialize && !_directReady) {
+    if (method != mcp.Method.initialize &&
+        method != mcp.Method.serverDiscover &&
+        !usesStatelessProtocol &&
+        !_directReady) {
       await _initializeDirectServer();
     }
 
@@ -382,6 +497,15 @@ class GenkitMcpServer {
       await _directInitialized!.future;
     }
     return response;
+  }
+
+  bool _usesStatelessDirectProtocol(Map<String, dynamic> request) {
+    final params = request['params'];
+    if (params is! Map) return false;
+    final meta = params['_meta'];
+    if (meta is! Map) return false;
+    final version = meta[mcp.McpMetaKey.protocolVersion];
+    return version is String && mcp.isStatelessProtocolVersion(version);
   }
 
   Future<void> _ensureDirectServer() async {
@@ -439,12 +563,28 @@ class GenkitMcpServer {
     };
   }
 
-  Future<Map<String, dynamic>> _listTools() async {
+  Future<Map<String, dynamic>> _listTools({String? protocolVersion}) async {
     await setup();
-    return {'tools': _toolActions.map(toMcpTool).toList()};
+    final supportsArbitraryOutput =
+        protocolVersion != null &&
+        mcp.isStatelessProtocolVersion(protocolVersion);
+    return {
+      'tools': _toolActions
+          .map(
+            (tool) => toMcpTool(
+              tool,
+              allowNonObjectOutputSchema: supportsArbitraryOutput,
+            ),
+          )
+          .toList(),
+      ..._actionListCacheMetadata(protocolVersion),
+    };
   }
 
-  Future<Map<String, dynamic>> _callTool(Map<String, dynamic> params) async {
+  Future<Map<String, dynamic>> _callTool(
+    Map<String, dynamic> params, {
+    String? protocolVersion,
+  }) async {
     await setup();
     final name = params['name'];
     if (name is! String) {
@@ -472,8 +612,13 @@ class GenkitMcpServer {
           {'type': 'text', 'text': text},
         ],
       };
-      if (output is Map) {
-        response['structuredContent'] = output;
+      final structuredOutput = _toJsonValue(output);
+      final supportsArbitraryStructuredContent =
+          protocolVersion != null &&
+          mcp.isStatelessProtocolVersion(protocolVersion);
+      if (!identical(structuredOutput, _notJsonValue) &&
+          (supportsArbitraryStructuredContent || structuredOutput is Map)) {
+        response['structuredContent'] = structuredOutput;
       }
       return response;
     } catch (e) {
@@ -489,7 +634,7 @@ class GenkitMcpServer {
     }
   }
 
-  Future<Map<String, dynamic>> _listPrompts() async {
+  Future<Map<String, dynamic>> _listPrompts({String? protocolVersion}) async {
     await setup();
     final prompts = _promptActions.map((prompt) {
       final args = toMcpPromptArguments(prompt.inputSchema);
@@ -502,7 +647,7 @@ class GenkitMcpServer {
         ...?metaEntry,
       };
     }).toList();
-    return {'prompts': prompts};
+    return {'prompts': prompts, ..._actionListCacheMetadata(protocolVersion)};
   }
 
   Future<Map<String, dynamic>> _getPrompt(Map<String, dynamic> params) async {
@@ -530,7 +675,7 @@ class GenkitMcpServer {
     };
   }
 
-  Future<Map<String, dynamic>> _listResources() async {
+  Future<Map<String, dynamic>> _listResources({String? protocolVersion}) async {
     await setup();
     final resources = _resourceActions
         .map((resource) {
@@ -550,10 +695,15 @@ class GenkitMcpServer {
         })
         .whereType<Map<String, dynamic>>()
         .toList();
-    return {'resources': resources};
+    return {
+      'resources': resources,
+      ..._actionListCacheMetadata(protocolVersion),
+    };
   }
 
-  Future<Map<String, dynamic>> _listResourceTemplates() async {
+  Future<Map<String, dynamic>> _listResourceTemplates({
+    String? protocolVersion,
+  }) async {
     await setup();
     final templates = _resourceActions
         .map((resource) {
@@ -573,7 +723,10 @@ class GenkitMcpServer {
         })
         .whereType<Map<String, dynamic>>()
         .toList();
-    return {'resourceTemplates': templates};
+    return {
+      'resourceTemplates': templates,
+      ..._actionListCacheMetadata(protocolVersion),
+    };
   }
 
   Future<Map<String, dynamic>> _readResource(
@@ -722,6 +875,9 @@ class GenkitMcpServer {
       await _sendProgress(progressToken, message: 'failed');
     } finally {
       await _notifyTaskStatus(task);
+      if (progressToken != null) {
+        _progressCounters.remove(progressToken);
+      }
     }
   }
 
@@ -779,11 +935,83 @@ class GenkitMcpServer {
     String method,
     Map<String, dynamic> params,
   ) async {
-    final server = _mcpServer;
-    if (server == null) return;
-    await server.server.notification(
-      mcp.JsonRpcNotification(method: method, params: params),
+    final servers = <mcp.McpServer>{?_mcpServer, ?_directMcpServer};
+    if (servers.isEmpty && _serverSubscriptions.isEmpty) return;
+    final notification = mcp.JsonRpcNotification(
+      method: method,
+      params: params,
     );
+    final subscriptions = _serverSubscriptions
+        .where(
+          (subscription) =>
+              subscription.filter.allowsNotification(notification),
+        )
+        .toList();
+    if (subscriptions.isNotEmpty) {
+      await Future.wait(
+        subscriptions.map(
+          (subscription) =>
+              subscription.extra.sendSubscriptionNotification(notification),
+        ),
+      );
+    }
+
+    var legacyServers = servers
+        .where((server) => _statelessProtocols[server.server] != true)
+        .toList();
+    if (method == mcp.Method.notificationsResourcesUpdated) {
+      final uri = params['uri'];
+      if (uri is! String || !_resourceSubscriptions.contains(uri)) {
+        legacyServers = const [];
+      }
+    }
+    if (_isSubscriptionNotification(method)) {
+      await Future.wait(
+        legacyServers.map(
+          (server) => _sendGlobalNotification(server, notification),
+        ),
+      );
+      return;
+    }
+
+    final requestExtra =
+        Zone.current[_requestExtraZoneKey] as mcp.RequestHandlerExtra?;
+    if (requestExtra?.protocolVersion case final String protocolVersion
+        when mcp.isStatelessProtocolVersion(protocolVersion)) {
+      await requestExtra!.sendNotification(notification);
+    }
+    await Future.wait(
+      legacyServers.map(
+        (server) => _sendGlobalNotification(server, notification),
+      ),
+    );
+  }
+
+  Future<void> _sendGlobalNotification(
+    mcp.McpServer server,
+    mcp.JsonRpcNotification notification,
+  ) {
+    final customTransport = _customTransports[server];
+    if (customTransport != null) {
+      return customTransport.send(notification.toJson());
+    }
+    return server.server.notification(notification);
+  }
+
+  void _invalidateActions() {
+    _actionsGeneration += 1;
+    _actionsResolved = false;
+  }
+
+  Map<String, dynamic> _actionListCacheMetadata(String? protocolVersion) {
+    if (protocolVersion == null ||
+        !mcp.isStatelessProtocolVersion(protocolVersion)) {
+      return const {};
+    }
+    return const {
+      'ttlMs': _actionListCacheTtlMillis,
+      'cacheScope': mcp.CacheScope.private,
+    };
   }
 
   Future<void> _sendProgress(
@@ -805,7 +1033,11 @@ class GenkitMcpServer {
   }
 
   bool _shouldLog(String level) {
-    final configured = _logLevel;
+    final requestExtra =
+        Zone.current[_requestExtraZoneKey] as mcp.RequestHandlerExtra?;
+    final requestLogLevel =
+        requestExtra?.meta?[mcp.McpMetaKey.logLevel] as String?;
+    final configured = requestLogLevel ?? _logLevel;
     if (configured == null) return true;
     return _logSeverity(level) >= _logSeverity(configured);
   }
@@ -823,6 +1055,14 @@ class GenkitMcpServer {
     ];
     final index = order.indexOf(level);
     return index == -1 ? order.length : index;
+  }
+
+  bool _isSubscriptionNotification(String method) {
+    return method == mcp.Method.notificationsToolsListChanged ||
+        method == mcp.Method.notificationsPromptsListChanged ||
+        method == mcp.Method.notificationsResourcesListChanged ||
+        method == mcp.Method.notificationsResourcesUpdated ||
+        method == mcp.Method.notificationsTasks;
   }
 
   void _purgeExpiredTasks() {
@@ -850,6 +1090,21 @@ class GenkitMcpServer {
     }
     return null;
   }
+
+  Object? _toJsonValue(Object? value) {
+    try {
+      return jsonDecode(jsonEncode(value));
+    } catch (_) {
+      return _notJsonValue;
+    }
+  }
+}
+
+class _ServerSubscription {
+  final mcp.SubscriptionFilter filter;
+  final mcp.RequestHandlerExtra extra;
+
+  const _ServerSubscription(this.filter, this.extra);
 }
 
 class _DirectMcpConnection {
