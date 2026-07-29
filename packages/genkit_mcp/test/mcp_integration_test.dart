@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ignore_for_file: unnecessary_ignore
+
 import 'dart:async';
 import 'dart:io';
 
@@ -321,6 +323,8 @@ void main() {
       'http://${serverTransport.address.address}:'
       '${serverTransport.port}/mcp',
     );
+    // This test intentionally covers the deprecated compatibility wrapper.
+    // ignore: deprecated_member_use_from_same_package
     final clientTransport = await StreamableHttpClientTransport.connect(
       url: url,
       timeout: const Duration(seconds: 5),
