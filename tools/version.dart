@@ -514,8 +514,12 @@ class VersionApplier {
     if (!await versionFile.exists()) return;
 
     final content = await versionFile.readAsString();
+    // Match a top-level version constant, optionally with a type annotation
+    // (e.g. `const String genkitVersion = '...';`). Group 2 captures the
+    // opening quote and is reused as a backreference (\2) for the closing
+    // quote so the two always match.
     final constRegex = RegExp(
-      r'''^(const\s+\w*[Vv]ersion\s*=\s*)(['"])[^'"]*(['"])(\s*;)''',
+      r'''^(const\s+[^=]*[Vv]ersion\s*=\s*)(['"])[^'"]*\2(\s*;)''',
       multiLine: true,
     );
 
@@ -529,7 +533,7 @@ class VersionApplier {
 
     final updated = content.replaceFirstMapped(
       constRegex,
-      (m) => '${m[1]}${m[2]}$newVersion${m[3]}${m[4]}',
+      (m) => '${m[1]}${m[2]}$newVersion${m[2]}${m[3]}',
     );
     if (updated != content) {
       print('Updating ${p.relative(versionFile.path)} to $newVersion...');
