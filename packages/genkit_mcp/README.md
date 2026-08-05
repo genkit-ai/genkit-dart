@@ -351,9 +351,7 @@ Protocol validation, negotiation, and transport handling are backed by
 `server/discover` and automatically fall back to the 2025-11-25 initialization
 lifecycle when discovery is unavailable. Streamable HTTP preserves the
 protocol-version and method headers required by the latest specification.
-The older exported `StreamableHttpClientTransport` remains as a deprecated
-compatibility wrapper over the same native transport; new code should configure
-`McpServerConfig(url: ...)` directly.
+To connect over Streamable HTTP, configure `McpServerConfig(url: ...)`.
 
 In MCP 2026-07-28, list-change and resource-update notifications use
 `subscriptions/listen`, and log levels are carried in request metadata. The
