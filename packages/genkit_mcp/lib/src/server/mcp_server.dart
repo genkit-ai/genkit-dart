@@ -68,6 +68,7 @@ class GenkitMcpServer {
   mcp.McpServer? _directMcpServer;
   _DirectMcpConnection? _directTransport;
   Completer<void>? _directInitialized;
+  Future<void>? _directServerInFlight;
   bool _directReady = false;
   StreamableHttpServerTransport? _httpTransport;
   final Map<mcp.McpServer, McpServerTransport> _customTransports = {};
@@ -510,6 +511,24 @@ class GenkitMcpServer {
 
   Future<void> _ensureDirectServer() async {
     if (_directMcpServer != null) return;
+    final inFlight = _directServerInFlight;
+    if (inFlight != null) {
+      await inFlight;
+      return;
+    }
+
+    final operation = _bootstrapDirectServer();
+    _directServerInFlight = operation;
+    try {
+      await operation;
+    } finally {
+      if (identical(_directServerInFlight, operation)) {
+        _directServerInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _bootstrapDirectServer() async {
     await setup();
     final transport = _DirectMcpConnection();
     final server = _createMcpDartServer();

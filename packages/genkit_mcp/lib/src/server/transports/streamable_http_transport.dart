@@ -562,7 +562,8 @@ class StreamableHttpServerTransport implements McpServerTransport {
     if (versionHeader == null) {
       return allowMissing;
     }
-    if (versionHeader != '2025-11-25') {
+    if (versionHeader != '2025-11-25' &&
+        !mcp.isStatelessProtocolVersion(versionHeader)) {
       unawaited(
         _writeJsonError(
           request.response,
