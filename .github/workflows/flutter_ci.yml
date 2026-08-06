@@ -27,12 +27,9 @@ jobs:
       - name: Bootstrap Workspace
         run: melos bootstrap
 
-      - name: Run Code Generation
-        run: melos run build-gen
-
       - name: Run genkit_firebase_ai build_runner
         working-directory: packages/genkit_firebase_ai
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: Run genkit_firebase_ai Tests
         working-directory: packages/genkit_firebase_ai
@@ -44,7 +41,7 @@ jobs:
 
       - name: "testapps/firebase_ai: build_runner"
         working-directory: testapps/firebase_ai
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: "testapps/firebase_ai: Ensure firebase_options.dart exists"
         working-directory: testapps/firebase_ai
