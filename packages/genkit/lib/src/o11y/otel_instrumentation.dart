@@ -130,15 +130,21 @@ class OtelInstrumentation implements Instrumentation {
 }
 
 /// Creates the built-in OpenTelemetry [Instrumentation] used by the Genkit
-/// Developer UI.
+/// Developer UI, or `null` when there is no collector to export to.
 ///
-/// This configures the OTLP collector exporter (when `GENKIT_TELEMETRY_SERVER`
-/// is set) and routes Genkit's spans through the returned tracer provider, so
-/// traces reach the collector even if another global tracer provider is already
-/// registered. Falls back to the global tracer provider when no collector is
-/// configured.
-Instrumentation genkitDevInstrumentation() =>
-    OtelInstrumentation(tracerProvider: configureCollectorExporter());
+/// This configures the OTLP collector exporter and, when a collector is
+/// available (i.e. `GENKIT_TELEMETRY_SERVER` is set), returns an
+/// [OtelInstrumentation] that routes Genkit's spans through the returned tracer
+/// provider, so traces reach the collector even if another global tracer
+/// provider is already registered.
+///
+/// Returns `null` when no collector is configured, so callers can skip
+/// auto-instrumenting Genkit entirely.
+Instrumentation? genkitDevInstrumentation() {
+  final provider = configureCollectorExporter();
+  if (provider == null) return null;
+  return OtelInstrumentation(tracerProvider: provider);
+}
 
 /// A [SpanContext] backed by an OpenTelemetry span.
 class _OtelSpanContext implements SpanContext {

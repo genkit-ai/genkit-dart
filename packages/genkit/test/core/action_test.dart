@@ -42,8 +42,10 @@ void main() {
   group('Action', () {
     setUp(() {
       exporter.reset();
-      // Actions rely on a configured instrumentation to emit spans.
-      configureInstrumentation(genkitDevInstrumentation());
+      // Actions rely on a configured instrumentation to emit spans. Route
+      // through the provider registered above (the dev factory only
+      // auto-configures when a collector is set).
+      configureInstrumentation(OtelInstrumentation(tracerProvider: provider));
     });
 
     tearDown(() {

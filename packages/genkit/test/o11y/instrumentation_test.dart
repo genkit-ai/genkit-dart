@@ -179,9 +179,10 @@ void main() {
       provider = sdk.TracerProviderBase(processors: [processor]);
       api.registerGlobalTracerProvider(provider);
 
-      // Explicitly enable the built-in OTel instrumentation (in production this
-      // is only auto-injected in the dev environment).
-      configureInstrumentation(genkitDevInstrumentation());
+      // Explicitly enable the built-in OTel instrumentation, routing through the
+      // provider registered above. (`genkitDevInstrumentation()` is only
+      // auto-injected in dev when a collector is configured.)
+      configureInstrumentation(OtelInstrumentation(tracerProvider: provider));
 
       genkit = Genkit();
     });

@@ -105,11 +105,16 @@ final class Genkit extends GenkitAI {
     if (isDevEnv ?? utils.isDevEnv) {
       // In the dev environment, auto-inject the built-in OpenTelemetry
       // instrumentation (unless it is already configured) so the Developer UI
-      // receives traces. The factory also wires up the collector exporter and
-      // routes Genkit's spans through its tracer provider. In production, Genkit
-      // is not instrumented unless the user configures a provider.
+      // receives traces. The factory wires up the collector exporter and routes
+      // Genkit's spans through its tracer provider; it returns null (and we do
+      // not instrument) when no collector is configured
+      // (`GENKIT_TELEMETRY_SERVER` unset). In production, Genkit is not
+      // instrumented unless the user configures a provider.
       if (!isInstrumentedBy<OtelInstrumentation>()) {
-        configureInstrumentation(genkitDevInstrumentation());
+        final devInstrumentation = genkitDevInstrumentation();
+        if (devInstrumentation != null) {
+          configureInstrumentation(devInstrumentation);
+        }
       }
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
