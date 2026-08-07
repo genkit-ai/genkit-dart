@@ -46,7 +46,6 @@ import 'o11y/instrumentation.dart'
     show configureInstrumentation, isInstrumentedBy;
 import 'o11y/otel_instrumentation.dart'
     show OtelInstrumentation, genkitDevInstrumentation;
-import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
 import 'types.dart';
 import 'utils.dart' as utils;
 
@@ -104,12 +103,11 @@ final class Genkit extends GenkitAI {
     configureFormats(registry);
 
     if (isDevEnv ?? utils.isDevEnv) {
-      // In the dev environment, wire up the collector exporter (which registers
-      // the real SDK tracer provider) and auto-inject the built-in
-      // OpenTelemetry instrumentation, unless it is already configured, so the
-      // Developer UI receives traces. In production, Genkit is not instrumented
-      // unless the user configures a provider.
-      configureCollectorExporter();
+      // In the dev environment, auto-inject the built-in OpenTelemetry
+      // instrumentation (unless it is already configured) so the Developer UI
+      // receives traces. The factory also wires up the collector exporter and
+      // routes Genkit's spans through its tracer provider. In production, Genkit
+      // is not instrumented unless the user configures a provider.
       if (!isInstrumentedBy<OtelInstrumentation>()) {
         configureInstrumentation(genkitDevInstrumentation());
       }

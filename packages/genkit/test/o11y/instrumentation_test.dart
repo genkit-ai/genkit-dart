@@ -237,4 +237,42 @@ void main() {
       },
     );
   });
+
+  group('OtelInstrumentation provider routing', () {
+    test('routes spans through the injected tracer provider', () async {
+      // Give the instrumentation an explicit provider and assert spans land
+      // there, proving Genkit routes through the injected provider instance
+      // rather than depending on the global tracer provider.
+      final localExporter = TextExporter();
+      final localProcessor = sdk.SimpleSpanProcessor(localExporter);
+      final localProvider = sdk.TracerProviderBase(
+        processors: [localProcessor],
+      );
+
+      final instrumentation = OtelInstrumentation(
+        tracerProvider: localProvider,
+      );
+
+      await instrumentation.runInNewSpan<void>(
+        const SpanMetadata(name: 'injected'),
+        (_) async {},
+      );
+
+      localProcessor.forceFlush();
+
+      expect(
+        localExporter.spans.map((s) => s.name),
+        contains('injected'),
+        reason: 'span should be exported via the injected provider',
+      );
+      // The injected provider mints real (non-zero) ids.
+      final span = localExporter.spans.firstWhere((s) => s.name == 'injected');
+      expect(
+        span.spanContext.traceId.toString(),
+        isNot('00000000000000000000000000000000'),
+      );
+
+      localProvider.shutdown();
+    });
+  });
 }

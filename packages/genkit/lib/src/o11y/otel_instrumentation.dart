@@ -18,6 +18,7 @@ import 'dart:convert';
 import 'package:opentelemetry/api.dart' as api;
 
 import 'instrumentation_api.dart';
+import 'otlp_http_exporter.dart' show configureCollectorExporter;
 
 /// Zone key under which the OpenTelemetry [api.Context] is propagated.
 const _otelContextKey = #api.context;
@@ -28,20 +29,25 @@ const _otelContextKey = #api.context;
 /// `genkit:`. This is the same behavior Genkit has historically had, and is
 /// auto-injected in the dev environment so the Developer UI works out of the box.
 class OtelInstrumentation implements Instrumentation {
-  final api.Tracer? _tracerOverride;
+  final api.TracerProvider? _tracerProvider;
   api.Tracer? _cachedTracer;
 
-  OtelInstrumentation({api.Tracer? tracer}) : _tracerOverride = tracer;
+  /// Creates an instrumentation that emits spans via [tracerProvider].
+  ///
+  /// When [tracerProvider] is `null`, the global tracer provider is used as a
+  /// fallback. Prefer passing an explicit provider (e.g. the one returned by
+  /// `configureCollectorExporter`) so Genkit's traces are routed correctly even
+  /// if a global tracer provider was registered elsewhere.
+  OtelInstrumentation({api.TracerProvider? tracerProvider})
+    : _tracerProvider = tracerProvider;
 
   /// Resolves the tracer lazily on first use.
   ///
-  /// The global tracer provider is only replaced with a real SDK-backed
-  /// provider when the collector exporter is configured (see
-  /// `configureCollectorExporter`). Resolving eagerly in the constructor would
-  /// capture the default no-op provider (which mints all-zero span contexts) if
-  /// this instrumentation is constructed before the exporter is wired up.
+  /// Binding to the provider instance (rather than always reading
+  /// `api.globalTracerProvider`) ensures Genkit's spans reach the configured
+  /// collector even when a different global tracer provider is registered.
   api.Tracer get _tracer => _cachedTracer ??=
-      _tracerOverride ?? api.globalTracerProvider.getTracer('genkit-dart');
+      (_tracerProvider ?? api.globalTracerProvider).getTracer('genkit-dart');
 
   @override
   Future<O> runInNewSpan<O>(
@@ -125,7 +131,14 @@ class OtelInstrumentation implements Instrumentation {
 
 /// Creates the built-in OpenTelemetry [Instrumentation] used by the Genkit
 /// Developer UI.
-Instrumentation genkitDevInstrumentation() => OtelInstrumentation();
+///
+/// This configures the OTLP collector exporter (when `GENKIT_TELEMETRY_SERVER`
+/// is set) and routes Genkit's spans through the returned tracer provider, so
+/// traces reach the collector even if another global tracer provider is already
+/// registered. Falls back to the global tracer provider when no collector is
+/// configured.
+Instrumentation genkitDevInstrumentation() =>
+    OtelInstrumentation(tracerProvider: configureCollectorExporter());
 
 /// A [SpanContext] backed by an OpenTelemetry span.
 class _OtelSpanContext implements SpanContext {
