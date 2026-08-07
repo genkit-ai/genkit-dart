@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/src/core/action.dart';
+import 'package:genkit/telemetry.dart';
 import 'package:opentelemetry/api.dart' as api;
 import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:schemantic/schemantic.dart';
@@ -39,9 +40,16 @@ void main() {
   api.registerGlobalTracerProvider(provider);
 
   group('Action', () {
-    setUp(exporter.reset);
+    setUp(() {
+      exporter.reset();
+      // Actions rely on a configured instrumentation to emit spans.
+      configureInstrumentation(genkitDevInstrumentation());
+    });
 
-    tearDown(processor.forceFlush);
+    tearDown(() {
+      processor.forceFlush();
+      resetInstrumentation();
+    });
 
     test('should start and end a span when run', () async {
       final action = Action(
