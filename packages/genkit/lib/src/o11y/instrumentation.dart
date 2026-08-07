@@ -78,7 +78,11 @@ Future<Output> runInNewSpan<Input, Output>(
     attributes: attributes ?? const {},
   );
 
-  if (_instrumentations.isEmpty) {
+  // Snapshot the providers up front so that mutations to [_instrumentations]
+  // (e.g. configureInstrumentation/resetInstrumentation) during asynchronous
+  // gaps cannot cause a RangeError or an inconsistent middleware chain.
+  final instrumentations = List<Instrumentation>.of(_instrumentations);
+  if (instrumentations.isEmpty) {
     return _runWithSpan(const _NoopSpanContext(), fn);
   }
 
@@ -88,10 +92,10 @@ Future<Output> runInNewSpan<Input, Output>(
   final spans = <SpanContext>[];
 
   Future<Output> build(int index) {
-    if (index == _instrumentations.length) {
+    if (index == instrumentations.length) {
       return _runWithSpan(_CompositeSpanContext(spans), fn);
     }
-    return _instrumentations[index].runInNewSpan(metadata, (span) {
+    return instrumentations[index].runInNewSpan(metadata, (span) {
       spans.add(span);
       return build(index + 1);
     });
