@@ -365,5 +365,172 @@ void main() {
         (streamedCreate['createSurface'] as Map)['surfaceId'],
       );
     });
+
+    test('flushes the withheld prose tail to the stream at end of turn', () async {
+      // The parser holds back up to a partial-opening-fence tail on every push,
+      // so without a final flush the last few chars of trailing prose would
+      // never reach the streaming consumer. Stream a short prose turn one char
+      // at a time and assert the streamed deltas reconstruct the full text.
+      const full = 'short';
+      genkit.defineModel(
+        name: 'm_flush_prose',
+        fn: (req, ctx) async {
+          if (ctx.streamingRequested) {
+            for (final ch in full.split('')) {
+              ctx.sendChunk(
+                ModelResponseChunk(
+                  role: Role.model,
+                  content: [TextPart(text: ch)],
+                ),
+              );
+            }
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: full)],
+            ),
+          );
+        },
+      );
+
+      var streamedProse = '';
+      await genkit.generate(
+        model: modelRef('m_flush_prose'),
+        prompt: 'hi',
+        use: [a2ui()],
+        onChunk: (chunk) {
+          streamedProse += chunk.content
+              .where((p) => p.isText)
+              .map((p) => p.text ?? '')
+              .join();
+        },
+      );
+
+      expect(streamedProse, full);
+    });
+
+    test('flushes an unterminated trailing block to the stream at end of '
+        'turn', () async {
+      // A block whose closing fence never arrives on the stream should still be
+      // recovered on flush and reach the streaming consumer.
+      final unterminated =
+          '''
+```a2ui
+[
+  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${basicCatalog.id}" } },
+  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
+    { "id": "root", "component": "Text", "text": "hi" }
+  ] } }
+]''';
+      genkit.defineModel(
+        name: 'm_flush_block',
+        fn: (req, ctx) async {
+          if (ctx.streamingRequested) {
+            ctx.sendChunk(
+              ModelResponseChunk(
+                role: Role.model,
+                content: [TextPart(text: unterminated)],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: unterminated)],
+            ),
+          );
+        },
+      );
+
+      final streamedEnvelopes = <A2uiEnvelope>[];
+      await genkit.generate(
+        model: modelRef('m_flush_block'),
+        prompt: 'weather',
+        use: [a2ui()],
+        onChunk: (chunk) {
+          streamedEnvelopes.addAll(a2uiEnvelopesFromParts(chunk.content));
+        },
+      );
+
+      expect(
+        streamedEnvelopes.any((e) => e['updateComponents'] != null),
+        isTrue,
+        reason: 'the unterminated block should reach the stream after flush',
+      );
+    });
+
+    test(
+      'keeps distinct action lines when sanitizing inbound a2ui parts',
+      () async {
+        ModelRequest? seen;
+        defineReplyModel('m_actions', 'ok', onRequest: (r) => seen = r);
+
+        A2uiEnvelope action(String name) => {
+          'action': {
+            'name': name,
+            'surfaceId': 's1',
+            'sourceComponentId': 'btn',
+            'timestamp': 't',
+          },
+        };
+
+        // Two identical actions plus a distinct one, all in a single part.
+        final actionsPart = DataPart(
+          data: {
+            'envelopes': [
+              action('refresh'),
+              action('refresh'),
+              action('close'),
+            ],
+          },
+          metadata: {'mimeType': a2uiMimeType},
+        );
+
+        await genkit.generate(
+          model: modelRef('m_actions'),
+          messages: [
+            Message(role: Role.user, content: [actionsPart]),
+          ],
+          use: [a2ui()],
+        );
+
+        final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
+        final joined = userMsg.content.map((p) => p.text ?? '').join(' ');
+        // Two "refresh" occurrences preserved (not deduped) + one "close".
+        expect('refresh'.allMatches(joined).length, 2);
+        expect(joined, contains('close'));
+      },
+    );
+
+    test('keeps message content non-empty when a summary is empty', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_empty', 'ok', onRequest: (r) => seen = r);
+
+      // An envelope shape the summarizer does not recognize yields no summary
+      // text; the sole a2ui part must not leave the message content empty.
+      final unknownPart = DataPart(
+        data: {
+          'envelopes': [
+            {'somethingUnknown': true},
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+
+      await genkit.generate(
+        model: modelRef('m_empty'),
+        messages: [
+          Message(role: Role.user, content: [unknownPart]),
+        ],
+        use: [a2ui()],
+      );
+
+      final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
+      expect(userMsg.content, isNotEmpty);
+      expect(userMsg.content.any((p) => (p.text ?? '').isNotEmpty), isTrue);
+    });
   });
 }

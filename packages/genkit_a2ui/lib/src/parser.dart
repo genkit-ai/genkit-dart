@@ -49,8 +49,12 @@ final _openFenceRe = RegExp(r'```[ \t]*a2ui[ \t]*\r?\n', caseSensitive: false);
 /// The longest prefix of an opening fence, used to hold back a partial fence.
 const _maxPartialFence = 8; // '```a2ui\n'.length
 
-/// Closing fence: ``` anywhere.
-final _closeFenceRe = RegExp('```');
+/// Closing fence: ``` at the start of a line (optionally indented). Anchoring
+/// to line start (mirroring [_openFenceRe]) matters: A2UI `Text` values "may use
+/// inline Markdown", so the JSON payload can legitimately contain a ``` fence
+/// inside a string. A bare ``` would match that and truncate the block mid-JSON,
+/// dropping the whole surface.
+final _closeFenceRe = RegExp(r'(^|\n)[ \t]*```');
 
 /// Consumes an optional trailing newline after the closing fence.
 final _trailingNewlineRe = RegExp(r'^[ \t]*\r?\n');
@@ -266,13 +270,40 @@ class A2uiStreamParser {
     }
     if (out.isEmpty) return null;
 
-    // Guarantee the block opens with a `createSurface`, so the client always
-    // has a surface before any update targets it. Models often emit only
-    // `updateComponents`/`updateDataModel` on a follow-up (e.g. a "refresh")
-    // turn; without this the renderer would drop those updates as "surface not
-    // found". Idempotent re-creation is fine - it resets the surface.
     final hasCreate = out.any((e) => e['createSurface'] != null);
-    if (!hasCreate) {
+    if (hasCreate) {
+      // A full-surface render. Enforce the "must contain a root" protocol rule.
+      final err = _validateRoot(out);
+      if (err != null) return _reject(err);
+      return out;
+    }
+
+    // Update-only batch. Two cases:
+    //
+    //  1. The model targeted the *placeholder* (or omitted the id), so
+    //     `_normalizeEnvelope` swapped in our freshly-minted `surface`. That's a
+    //     fresh render the model forgot to `createSurface` for - synthesize one
+    //     so the client has a surface before the updates land, and enforce the
+    //     root rule as for any full render.
+    //
+    //  2. The updates target an *explicit, pre-existing* surface id (one the
+    //     model learned from a prior turn, e.g. via a summarized action). That's
+    //     a genuine incremental update: do NOT synthesize a `createSurface`
+    //     (that would reset the surface to empty and drop the update as "surface
+    //     not found" if ids disagreed), and do NOT require a `root`.
+    final targetId =
+        out
+            .map(_envelopeSurfaceId)
+            .firstWhere((id) => id != null, orElse: () => null) ??
+        surface;
+    final isFreshRender = targetId == surface;
+
+    if (isFreshRender) {
+      final err = _validateRoot(out);
+      if (err != null) return _reject(err);
+      // Guarantee the block opens with a `createSurface`, so the client always
+      // has a surface before any update targets it. Idempotent re-creation is
+      // fine - it resets the surface.
       out.insert(0, {
         'version': version,
         'createSurface': {'surfaceId': surface, 'catalogId': catalog?.id ?? ''},
@@ -325,6 +356,12 @@ class A2uiStreamParser {
 
   /// Ensures every component references a known catalog component. Returns an
   /// error message describing the first problem found, or `null` if valid.
+  ///
+  /// This checks component *type names* against the catalog only. It
+  /// intentionally does NOT enforce the "must contain a root" protocol rule -
+  /// that applies only to full-surface renders and is enforced at the batch
+  /// level in [_finalizeBlock] (an incremental update to an existing surface may
+  /// legitimately patch a subtree without re-declaring `root`).
   String? _validateComponents(Object? components) {
     final catalog = this.catalog;
     if (catalog == null) return null;
@@ -332,10 +369,6 @@ class A2uiStreamParser {
       return 'updateComponents.components must be an array.';
     }
     final known = catalog.components.map((c) => c.name).toSet();
-    final hasRoot = components.any((c) => c is Map && c['id'] == 'root');
-    if (!hasRoot) {
-      return 'component list must contain a component id "root".';
-    }
     for (final c in components) {
       if (c is! Map || c['component'] is! String || c['id'] is! String) {
         return 'every component needs a "component" type name and a string '
@@ -348,4 +381,44 @@ class A2uiStreamParser {
     }
     return null;
   }
+
+  /// Enforces the "RE-RENDER THE WHOLE SURFACE" protocol rule for full-surface
+  /// renders: any `updateComponents` in the batch must contain a component with
+  /// `id: "root"`. Returns an error message, or `null` if valid. Unlike
+  /// [_validateComponents] this is a protocol check, not a catalog check, so it
+  /// runs regardless of whether a catalog is configured.
+  String? _validateRoot(List<A2uiEnvelope> envelopes) {
+    for (final e in envelopes) {
+      final uc = e['updateComponents'];
+      if (uc is Map && uc['components'] is List) {
+        final hasRoot = (uc['components'] as List).any(
+          (c) => c is Map && c['id'] == 'root',
+        );
+        if (!hasRoot) {
+          return 'component list must contain a component id "root".';
+        }
+      }
+    }
+    return null;
+  }
+}
+
+/// Reads the surface id an envelope targets, regardless of its variant. Used to
+/// decide whether an update-only batch targets the freshly-minted surface (a
+/// fresh render the model forgot to `createSurface` for) or an explicit existing
+/// one (a genuine incremental update).
+String? _envelopeSurfaceId(A2uiEnvelope e) {
+  for (final key in const [
+    'createSurface',
+    'updateComponents',
+    'updateDataModel',
+    'deleteSurface',
+  ]) {
+    final payload = e[key];
+    if (payload is Map) {
+      final id = payload['surfaceId'];
+      if (id is String) return id;
+    }
+  }
+  return null;
 }

@@ -162,6 +162,13 @@ class A2uiMiddleware extends GenerateMiddleware {
   final String _version;
   final String? _fixedSurfaceId;
 
+  // Memoizes the rendered catalog instructions. `renderCatalogInstructions`
+  // (including the 58-name icon list) is a pure function of the catalog, but the
+  // middleware's `model` hook runs once per raw model call - i.e. more than once
+  // per turn in a tool loop - so cache the last result keyed by catalog identity.
+  A2uiCatalog? _instructionsCatalog;
+  String? _instructionsText;
+
   /// Creates an [A2uiMiddleware].
   A2uiMiddleware(this._registry, [A2uiOptions? config])
     : _catalogId = config?.catalog ?? defaultCatalogId,
@@ -171,6 +178,15 @@ class A2uiMiddleware extends GenerateMiddleware {
       _fixedSurfaceId = config?.surfaceId;
 
   String _nextSurfaceId() => _fixedSurfaceId ?? _uuidV4();
+
+  /// Renders (and caches) the catalog instructions for [catalog].
+  String _renderInstructions(A2uiCatalog catalog) {
+    if (!identical(_instructionsCatalog, catalog)) {
+      _instructionsCatalog = catalog;
+      _instructionsText = renderCatalogInstructions(catalog);
+    }
+    return _instructionsText!;
+  }
 
   @override
   Future<ModelResponse> model(
@@ -203,8 +219,9 @@ class A2uiMiddleware extends GenerateMiddleware {
     // 2) Wrap the streaming callback so streamed text is split into prose
     //    deltas + whole a2ui parts as blocks complete.
     var wrappedCtx = ctx;
+    A2uiStreamParser? streamParser;
     if (ctx.streamingRequested) {
-      final streamParser = A2uiStreamParser(
+      streamParser = A2uiStreamParser(
         catalog: catalog,
         validate: _validate,
         version: _version,
@@ -213,7 +230,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       wrappedCtx = (
         streamingRequested: ctx.streamingRequested,
         sendChunk: (chunk) {
-          final transformed = _transformChunk(chunk, streamParser);
+          final transformed = _transformChunk(chunk, streamParser!);
           if (transformed != null) ctx.sendChunk(transformed);
         },
         context: ctx.context,
@@ -222,16 +239,29 @@ class A2uiMiddleware extends GenerateMiddleware {
       );
     }
 
-    // 3) Run downstream model, then transform the final message. The final
-    //    parse replays the same surface ids the stream minted.
+    // 3) Run downstream model, then flush the stream parser so the last withheld
+    //    prose tail (the parser holds back up to a partial opening fence) and any
+    //    unterminated trailing block still reach the streaming consumer. Without
+    //    this, clients that render purely from stream deltas would show truncated
+    //    prose / miss a final block (the aggregated message recovers it, but the
+    //    stream would not).
     final response = await next(newRequest, wrappedCtx);
+    if (streamParser != null) {
+      final tail = _partsFromSegments(streamParser.flush().segments);
+      if (tail.isNotEmpty) {
+        ctx.sendChunk(ModelResponseChunk(role: Role.model, content: tail));
+      }
+    }
+
+    // 4) Transform the final message. The final parse replays the same surface
+    //    ids the stream minted.
     surfaceIds.reset();
     return _transformResponse(response, catalog, surfaceIds.replayNext);
   }
 
   /// Appends A2UI instructions to (or creates) the system message.
   ModelRequest _injectInstructions(ModelRequest req, A2uiCatalog catalog) {
-    final text = renderCatalogInstructions(catalog);
+    final text = _renderInstructions(catalog);
     final messages = List<Message>.from(req.messages);
     final sysIdx = messages.indexWhere((m) => m.role == Role.system);
     if (sysIdx >= 0) {
@@ -353,6 +383,10 @@ class A2uiMiddleware extends GenerateMiddleware {
       }
       if (!msgChanged) return message;
       changed = true;
+      // Some providers reject a message with empty content. If sanitizing an
+      // a2ui-only message summarized to nothing (e.g. an envelope shape this
+      // doesn't recognize), keep the message non-empty with a neutral marker.
+      if (content.isEmpty) content.add(TextPart(text: '[UI interaction]'));
       return Message(
         role: message.role,
         content: content,
@@ -406,12 +440,26 @@ String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
         env['updateDataModel'] != null ||
         env['deleteSurface'] != null) {
       // Prior assistant surface content - summarize as a rendered surface.
-      lines.add('[rendered UI surface]');
+      lines.add(_renderedSurfaceLine);
     }
   }
-  // Collapse repeated "[rendered UI surface]" lines from one assistant turn.
-  return {...lines}.join(' ');
+  // Collapse consecutive "[rendered UI surface]" sentinels (a single surface is
+  // often described by several envelopes) without deduping distinct action
+  // lines - two identical actions in one message are meaningfully distinct.
+  final collapsed = <String>[];
+  for (final line in lines) {
+    if (line == _renderedSurfaceLine &&
+        collapsed.isNotEmpty &&
+        collapsed.last == _renderedSurfaceLine) {
+      continue;
+    }
+    collapsed.add(line);
+  }
+  return collapsed.join(' ');
 }
+
+/// Sentinel summary line for a rendered (non-action) a2ui surface.
+const String _renderedSurfaceLine = '[rendered UI surface]';
 
 /// Wraps a surface-id factory so a single model turn's streamed parse and its
 /// final-message parse mint the *same* surface ids.
