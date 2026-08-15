@@ -107,10 +107,11 @@ class FilesystemMiddleware extends GenerateMiddleware {
   FilesystemMiddleware(this.rootDirectory);
 
   String _resolvePath(String relativePath) {
-    // Normalize and resolve the path
-    final resolved = p.canonicalize(p.join(rootDirectory, relativePath));
-    // Check if the path is within the root path
-    if (!p.isWithin(rootDirectory, resolved) && resolved != rootDirectory) {
+    // Canonicalize both sides so Windows drive-letter / on-disk casing
+    // (G:\Study vs g:\study) and non-canonical roots (a/b/../b) compare equal.
+    final root = p.canonicalize(rootDirectory);
+    final resolved = p.canonicalize(p.join(root, relativePath));
+    if (!p.isWithin(root, resolved) && resolved != root) {
       throw Exception('Access denied: Path is outside of root directory.');
     }
     return resolved;
