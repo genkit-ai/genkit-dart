@@ -522,7 +522,7 @@ void main() {
           log.add('tool:exec');
           if (toolCallCount == 0) {
             toolCallCount++;
-            ctx.interrupt('PLZ_RESTART');
+            return .interrupt('PLZ_RESTART');
           }
           return .response('bar');
         },
@@ -762,9 +762,7 @@ void main() {
         genkit.defineTool(
           name: 'interruptTool',
           description: 'interrupts',
-          fn: (input, ctx) async {
-            throw ToolInterruptException('interrupt');
-          },
+          fn: (input, ctx) async => .interrupt('interrupt'),
         );
 
         final response1 = await genkit.generate(

@@ -72,7 +72,7 @@ final transferMoney = ai.defineTool(
     // Enforce approval inside the tool so the model cannot be talked into
     // skipping it. Restarting with `transferApproved: true` clears this gate.
     if (input.amount > transferApprovalThreshold && !approved) {
-      ctx.interrupt({
+      return .interrupt({
         'message':
             'Transfer of \$${input.amount} to ${input.toAccount} requires '
             'your approval.',

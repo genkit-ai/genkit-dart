@@ -242,7 +242,7 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
       SchemanticType.string(),
       SchemanticType.dynamicSchema(),
     ),
-    fn: (input, ctx) async => ctx.interrupt(),
+    fn: (input, ctx) async => .interrupt(),
   );
 
   // restartTool pauses on first call and succeeds when resumed (the restart
@@ -257,7 +257,7 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
     fn: (input, ctx) async {
       final resumed = ctx.resumed;
       if (resumed == null) {
-        ctx.interrupt({'requiresConfirmation': true});
+        return .interrupt({'requiresConfirmation': true});
       }
       final action = input['action'];
       return .response({'result': 'confirmed: $action'});

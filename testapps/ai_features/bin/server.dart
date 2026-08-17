@@ -71,7 +71,9 @@ void main(List<String> args) async {
 
       // trigger an interrupt to confirm if amount > $100
       if (resumedStatus != 'APPROVED' && input.amount > 10000) {
-        ctx.interrupt({'message': 'Please confirm sending an amount > \$100.'});
+        return .interrupt({
+          'message': 'Please confirm sending an amount > \$100.',
+        });
       }
 
       // complete the transaction if not interrupted
@@ -125,7 +127,7 @@ void main(List<String> args) async {
     inputSchema: AskQuestionInput.$schema,
     fn: (input, ctx) async {
       // Just interrupt immediately since it's an interactive question
-      ctx.interrupt(input);
+      return .interrupt(input);
     },
   );
 
@@ -172,14 +174,15 @@ void main(List<String> args) async {
   final command = args[0];
   if (command == 'transfer') {
     final flow = await ai.registry.lookupAction(
-      'flow',
+      .flow,
       'transferFlowWithRestart',
     );
     final response = await flow!.run('Transfer \$150 to account 123');
     print('Final response: $response');
   } else if (command == 'trivia') {
-    final flow = await ai.registry.lookupAction('flow', 'transferFlowManual');
+    final flow = await ai.registry.lookupAction(.flow, 'transferFlowManual');
     final response = await flow!.run(null);
+
     print('Final response: $response');
   } else {
     print('Unknown command. Use "transfer" or "trivia".');

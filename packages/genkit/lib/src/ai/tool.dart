@@ -47,6 +47,10 @@ class ToolFnArgs<Input> {
   /// Prefer returning `.interrupt(data)` from your tool function instead. This
   /// throwing form remains available for cases where you are several helper
   /// calls deep and cannot easily return a [ToolResult].
+  @Deprecated(
+    'Return `.interrupt(data)` from your tool function instead. '
+    'This throwing form will be removed in a future release.',
+  )
   Never interrupt([dynamic data]) {
     setCustomMetadataAttributes({'interrupt': data ?? true});
     throw ToolInterruptException(data ?? true);
@@ -160,11 +164,18 @@ class Tool<Input, Output>
          // it is registered and resolved under `ActionType.tool` (`tool.v2`).
          metadata: {...?metadata, 'type': ActionType.tool.value},
          actionType: .tool,
-         fn: (input, ctx) {
+         fn: (input, ctx) async {
            if (input == null && inputSchema != null && null is! Input) {
              throw ArgumentError('Tool "$name" requires a non-null input.');
            }
-           return Future.value(fn(input as Input, ToolFnArgs(ctx)));
+           final result = await fn(input as Input, ToolFnArgs(ctx));
+           // Record the interrupt on the tool's telemetry span so traces match
+           // the (deprecated) throwing `ToolFnArgs.interrupt` form. This runs
+           // inside the tool's span (see `Action.run` -> `runInNewSpan`).
+           if (result is ToolInterruptResult<Output>) {
+             setCustomMetadataAttributes({'interrupt': result.data ?? true});
+           }
+           return result;
          },
        );
 }

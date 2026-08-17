@@ -56,7 +56,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     outputSchema: .string(),
     fn: (input, context) async {
       // Interrupt execution to get user input
-      context.interrupt(input.question);
+      return .interrupt(input.question);
     },
   );
 

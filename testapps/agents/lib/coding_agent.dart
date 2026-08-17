@@ -88,7 +88,7 @@ final askUser = ai.defineTool(
       'decision. Provide a clear question and 2-5 suggested options. The user '
       'can pick one of the options or write their own answer.',
   inputSchema: AskUserInput.$schema,
-  fn: (input, ctx) async => ctx.interrupt(),
+  fn: (input, ctx) async => .interrupt(),
 );
 
 final runShell = ai.defineTool(
@@ -133,7 +133,7 @@ final runShell = ai.defineTool(
         // Interrupt — the client shows the command + reason and asks for
         // approval. If approved, the tool is restarted with
         // { tool-approved: true }.
-        ctx.interrupt({
+        return .interrupt({
           'command': input.command,
           'reason': verdict.reason,
           'verdict': 'risky',
