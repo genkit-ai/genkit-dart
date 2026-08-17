@@ -21,7 +21,73 @@ import '../o11y/instrumentation.dart';
 
 const _genkitContextKey = #genkitContext;
 
+/// Well-known action type identifiers used as the `actionType` of an [Action]
+/// and as the first segment of its registry key (`/$actionType/$name`).
+///
+/// This is a string-backed, open "enum" (following the same pattern as `Role`).
+/// The known constants below give type-safe names and autocomplete, while
+/// custom types remain expressible via the unnamed constructor, e.g.
+/// `ActionType('my-custom-type')`.
+extension type const ActionType(String value) {
+  /// A model action.
+  static const ActionType model = ActionType('model');
+
+  /// A bidirectional (streaming) model action.
+  static const ActionType bidiModel = ActionType('bidi-model');
+
+  /// A flow action.
+  static const ActionType flow = ActionType('flow');
+
+  /// An embedder action.
+  static const ActionType embedder = ActionType('embedder');
+
+  /// An evaluator action.
+  static const ActionType evaluator = ActionType('evaluator');
+
+  /// A resource action.
+  static const ActionType resource = ActionType('resource');
+
+  /// An executable prompt action.
+  static const ActionType executablePrompt = ActionType('executable-prompt');
+
+  /// A prompt template action.
+  static const ActionType promptTemplate = ActionType('promptTemplate');
+
+  /// A dotprompt action.
+  static const ActionType dotprompt = ActionType('dotprompt');
+
+  /// An agent action.
+  static const ActionType agent = ActionType('agent');
+
+  /// An agent snapshot data action.
+  static const ActionType agentSnapshot = ActionType('agent-snapshot');
+
+  /// An agent abort action.
+  static const ActionType agentAbort = ActionType('agent-abort');
+
+  /// A dynamic action provider.
+  static const ActionType dynamicActionProvider = ActionType(
+    'dynamic-action-provider',
+  );
+
+  /// A utility action (e.g. the built-in `generate` action).
+  static const ActionType util = ActionType('util');
+
+  /// The default action type for actions that don't specify one.
+  static const ActionType custom = ActionType('custom');
+
+  /// The action type for tools.
+  ///
+  /// Its wire value is `tool.v2`: every Genkit Dart tool implements the
+  /// multipart ("v2") tool contract (its function returns a `ToolResult` that
+  /// serializes to `{output, content?, metadata?}`), so tools are registered
+  /// and resolved under `tool.v2`. External consumers such as the Dev UI use
+  /// this to render/run tools as multipart.
+  static const ActionType tool = ActionType('tool.v2');
+}
+
 typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
+
 typedef TraceStartCallback =
     void Function({required String traceId, required String spanId});
 
@@ -70,7 +136,7 @@ class RunResult<Output> {
 class ActionMetadata<Input, Output, Chunk, Init> {
   final String name;
   final String? description;
-  final String actionType;
+  final ActionType actionType;
   final SchemanticType<Input>? inputSchema;
   final SchemanticType<Output>? outputSchema;
   final SchemanticType<Chunk>? streamSchema;
@@ -79,8 +145,9 @@ class ActionMetadata<Input, Output, Chunk, Init> {
 
   ActionMetadata({
     required this.name,
-    this.actionType = 'custom', // Default or required?
+    this.actionType = ActionType.custom,
     this.description,
+
     this.inputSchema,
     this.outputSchema,
     this.streamSchema,
@@ -199,7 +266,7 @@ class Action<Input, Output, Chunk, Init>
             init: init,
           ));
         },
-        actionType: actionType,
+        actionType: actionType.value,
         input: input,
       );
       return RunResult<Output>(

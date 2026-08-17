@@ -116,7 +116,7 @@ void main() {
           description: 'Get the weather for a location',
           inputSchema: WeatherInputSchema.$schema,
           fn: (input, ctx) async {
-            return {'temperature': 72, 'condition': 'sunny'};
+            return .response({'temperature': 72, 'condition': 'sunny'});
           },
         );
 

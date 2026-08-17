@@ -81,9 +81,11 @@ final transferMoney = ai.defineTool(
       });
     }
 
-    return TransferMoneyOutput(
-      success: true,
-      transactionId: 'txn-${DateTime.now().millisecondsSinceEpoch}',
+    return .response(
+      TransferMoneyOutput(
+        success: true,
+        transactionId: 'txn-${DateTime.now().millisecondsSinceEpoch}',
+      ),
     );
   },
 );

@@ -116,7 +116,7 @@ void main() {
         description: 'Multiplies two numbers',
         inputSchema: CalculatorInput.$schema,
         outputSchema: .integer(),
-        fn: (CalculatorInput input, _) async => input.a * input.b,
+        fn: (CalculatorInput input, _) async => .response(input.a * input.b),
       );
 
       final response = await ai.generate(

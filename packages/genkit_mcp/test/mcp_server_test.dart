@@ -128,7 +128,7 @@ void main() {
       name: 'testTool',
       description: 'test tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (input, _) async => 'yep ${jsonEncode(input)}',
+      fn: (input, _) async => .response('yep ${jsonEncode(input)}'),
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'testPrompt',
@@ -249,7 +249,7 @@ void main() {
       name: 'taskTool',
       description: 'task tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => 'done',
+      fn: (_, _) async => .response('done'),
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'enumPrompt',
@@ -404,7 +404,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
-        return 'done';
+        return .response('done');
       },
     );
 
@@ -522,7 +522,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
-        return 'done';
+        return .response('done');
       },
     );
 
@@ -559,7 +559,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        return 'done';
+        return .response('done');
       },
     );
 
@@ -597,7 +597,7 @@ void main() {
       name: 'fastTool',
       description: 'fast tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => 'done',
+      fn: (_, _) async => .response('done'),
     );
 
     final server = _createServer(ai);
@@ -636,7 +636,7 @@ void main() {
       name: 'echoTool',
       description: 'echo tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => 'ok',
+      fn: (_, _) async => .response('ok'),
     );
     final server = _createServer(ai);
 
@@ -869,7 +869,7 @@ void main() {
       description: 'map tool',
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async {
-        return {'ok': true, 'input': input};
+        return .response({'ok': true, 'input': input});
       },
     );
     final server = _createServer(ai);
@@ -900,7 +900,7 @@ void main() {
       name: 'weirdTool',
       description: 'weird tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => _Unencodable(),
+      fn: (_, _) async => .response(_Unencodable()),
     );
     final server = _createServer(ai);
 

@@ -23,7 +23,7 @@ class Evaluator<CustomOptions>
     super.metadata,
     required String description,
   }) : super(
-         actionType: 'evaluator',
+         actionType: .evaluator,
          inputSchema: EvalRequest.$schema,
          description: description,
          outputSchema: .list(EvalFnResponse.$schema),

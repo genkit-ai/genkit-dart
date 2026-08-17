@@ -14,6 +14,8 @@
 
 import 'dart:async';
 
+import 'package:schemantic/schemantic.dart';
+
 import '../core/action.dart';
 import '../o11y/instrumentation.dart';
 import '../types.dart';
@@ -41,31 +43,128 @@ class ToolFnArgs<Input> {
   dynamic get resumed => toolRequest?.metadata?['resumed'];
 
   /// Interrupts the generation loop with optional [data].
+  ///
+  /// Prefer returning `.interrupt(data)` from your tool function instead. This
+  /// throwing form remains available for cases where you are several helper
+  /// calls deep and cannot easily return a [ToolResult].
   Never interrupt([dynamic data]) {
     setCustomMetadataAttributes({'interrupt': data ?? true});
     throw ToolInterruptException(data ?? true);
   }
 }
 
-/// A function that implements a tool.
-typedef ToolFn<Input, Output> =
-    Future<Output> Function(Input input, ToolFnArgs<Input> context);
+/// The result returned by a tool's implementation function.
+///
+/// Construct with the dot-shorthand factories:
+/// - `return .response(output)` for a normal result.
+/// - `return .response(output, parts: [...])` for a multipart result (images,
+///   media, etc.).
+/// - `return .interrupt(data)` to interrupt the generation loop.
+sealed class ToolResult<Output> {
+  const ToolResult._();
 
-class Tool<Input, Output> extends Action<Input, Output, void, void> {
+  /// A normal tool response with structured [output] and optional multipart
+  /// [parts] (images, media, etc.) and [metadata].
+  factory ToolResult.response(
+    Output output, {
+    List<Part>? parts,
+    Map<String, dynamic>? metadata,
+  }) = ToolResponseResult<Output>;
+
+  /// Interrupts the generation loop, bubbling the tool request back to the
+  /// caller with the optional [data] payload.
+  factory ToolResult.interrupt([Object? data]) = ToolInterruptResult<Output>;
+
+  /// Serializes this result to the multipart `tool.v2` shape
+  /// (`{output, content?, metadata?}` or `{interrupt}`). Used at the reflection
+  /// boundary so the Dev UI can render tool results.
+  Map<String, dynamic> toJson();
+}
+
+/// A normal tool response carrying structured [output] and optional multipart
+/// [parts] and [metadata].
+final class ToolResponseResult<Output> extends ToolResult<Output> {
+  /// The structured output of the tool.
+  final Output output;
+
+  /// Optional multipart content (images, media, etc.) returned alongside the
+  /// structured [output].
+  final List<Part>? parts;
+
+  /// Optional metadata attached to the resulting tool response part.
+  final Map<String, dynamic>? metadata;
+
+  const ToolResponseResult(this.output, {this.parts, this.metadata})
+    : super._();
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'output': output,
+      if (parts != null) 'content': parts!.map((p) => p.toJson()).toList(),
+      if (metadata != null) 'metadata': metadata,
+    };
+  }
+}
+
+/// An interrupt result that bubbles the tool request back to the caller with an
+/// optional [data] payload.
+final class ToolInterruptResult<Output> extends ToolResult<Output> {
+  /// The interrupt data payload.
+  final Object? data;
+
+  const ToolInterruptResult([this.data]) : super._();
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {'interrupt': data ?? true};
+  }
+}
+
+/// A function that implements a tool.
+///
+/// Returns a [ToolResult]: `.response(output)` for a normal result (optionally
+/// with multipart `parts`) or `.interrupt(data)` to interrupt the generation
+/// loop. Both synchronous and asynchronous bodies are supported via [FutureOr].
+typedef ToolFn<Input, Output> =
+    FutureOr<ToolResult<Output>> Function(
+      Input input,
+      ToolFnArgs<Input> context,
+    );
+
+class Tool<Input, Output>
+    extends Action<Input, ToolResult<Output>, void, void> {
+  /// The user-declared output schema (the schema of `Output`, not
+  /// [ToolResult]). Used to build the model-facing tool definition.
+  final SchemanticType<Output>? toolOutputSchema;
+
+  /// The underlying tool implementation function.
+  final ToolFn<Input, Output> toolFn;
+
+  // Uses an explicit super call (not super parameters) because the base `fn`
+  // is wrapped here, which is incompatible with super-parameter forwarding.
+  // ignore: use_super_parameters
   Tool({
-    required super.name,
-    required super.description,
+    required String name,
+    required String description,
     required ToolFn<Input, Output> fn,
-    super.inputSchema,
-    super.outputSchema,
-    super.metadata,
-  }) : super(
+    SchemanticType<Input>? inputSchema,
+    this.toolOutputSchema,
+    Map<String, dynamic>? metadata,
+  }) : toolFn = fn,
+       super(
+         name: name,
+         description: description,
+         inputSchema: inputSchema,
+         // Every Genkit Dart tool implements the multipart ("v2") contract, so
+         // it is registered and resolved under `ActionType.tool` (`tool.v2`).
+         metadata: {...?metadata, 'type': ActionType.tool.value},
+         actionType: .tool,
          fn: (input, ctx) {
            if (input == null && inputSchema != null && null is! Input) {
              throw ArgumentError('Tool "$name" requires a non-null input.');
            }
-           return fn(input as Input, ToolFnArgs(ctx));
+           return Future.value(fn(input as Input, ToolFnArgs(ctx)));
          },
-         actionType: 'tool',
        );
 }

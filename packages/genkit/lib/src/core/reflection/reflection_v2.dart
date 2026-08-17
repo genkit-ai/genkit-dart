@@ -23,6 +23,7 @@ import '../../ai/model.dart';
 import '../../schema.dart';
 import '../../types.dart';
 import '../../utils.dart';
+import '../action.dart';
 import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v2');
@@ -205,7 +206,7 @@ class ReflectionServerV2 {
     final actions = await registry.listActions();
     final convertedActions = <String, dynamic>{};
     for (final action in actions) {
-      final key = getKey(action.actionType, action.name);
+      final key = getKey(action.actionType.value, action.name);
       convertedActions[key] = {
         'key': key,
         'name': action.name,
@@ -284,7 +285,7 @@ class ReflectionServerV2 {
       return;
     }
 
-    final action = await registry.lookupAction(parts[1], parts[2]);
+    final action = await registry.lookupAction(ActionType(parts[1]), parts[2]);
     if (action == null) {
       _sendError(id, 404, 'action $key not found');
       return;

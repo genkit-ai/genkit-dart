@@ -77,7 +77,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           tool1Called = true;
-          return 'tool 1 output';
+          return .response('tool 1 output');
         },
       );
 
@@ -87,7 +87,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           tool2Called = true;
-          return 'tool 2 output';
+          return .response('tool 2 output');
         },
       );
 
@@ -141,7 +141,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           directToolCalled = true;
-          return 'direct output';
+          return .response('direct output');
         },
       );
 
@@ -203,7 +203,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           registeredToolCalled = true;
-          return 'reg output';
+          return .response('reg output');
         },
       );
 
@@ -213,7 +213,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
           directToolCalled = true;
-          return 'direct output';
+          return .response('direct output');
         },
       );
 
@@ -261,7 +261,7 @@ void main() {
           inputSchema: TestToolInput.$schema,
           fn: (input, context) async {
             toolCalled = true;
-            return 'tool output';
+            return .response('tool output');
           },
         );
 
@@ -307,7 +307,7 @@ void main() {
         description: 'A test tool',
         inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
-          return 'tool output';
+          return .response('tool output');
         },
       );
 
@@ -383,7 +383,7 @@ void main() {
         name: 'my-dap',
         listActionsFn: () => [
           ActionMetadata(
-            actionType: 'tool',
+            actionType: .tool,
             name: 'weatherTool',
             description: 'get weather',
             inputSchema: TestToolInput.$schema,
@@ -396,8 +396,8 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              outputSchema: .dynamicSchema(),
-              fn: (input, context) async => 'sunny',
+              toolOutputSchema: .dynamicSchema(),
+              fn: (input, context) async => .response('sunny'),
             );
           }
           return null;
@@ -447,7 +447,7 @@ void main() {
         name: 'my-dap',
         listActionsFn: () => [
           ActionMetadata(
-            actionType: 'tool',
+            actionType: .tool,
             name: 'weatherTool',
             description: 'get weather',
             inputSchema: TestToolInput.$schema,
@@ -460,8 +460,8 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              outputSchema: .dynamicSchema(),
-              fn: (input, context) async => 'sunny',
+              toolOutputSchema: .dynamicSchema(),
+              fn: (input, context) async => .response('sunny'),
             );
           }
           return null;
@@ -511,7 +511,7 @@ void main() {
         name: 'my-dap',
         listActionsFn: () => [
           ActionMetadata(
-            actionType: 'tool',
+            actionType: .tool,
             name: 'weatherTool',
             description: 'get weather',
             inputSchema: TestToolInput.$schema,
@@ -524,8 +524,8 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              outputSchema: .dynamicSchema(),
-              fn: (input, context) async => 'sunny explicit',
+              toolOutputSchema: .dynamicSchema(),
+              fn: (input, context) async => .response('sunny explicit'),
             );
           }
           return null;
@@ -577,7 +577,7 @@ void main() {
           name: 'my-dap',
           listActionsFn: () => [
             ActionMetadata(
-              actionType: 'tool',
+              actionType: .tool,
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
@@ -590,8 +590,9 @@ void main() {
                 name: 'weatherTool',
                 description: 'get weather',
                 inputSchema: TestToolInput.$schema,
-                outputSchema: .dynamicSchema(),
-                fn: (input, context) async => 'sunny explicit prefix',
+                toolOutputSchema: .dynamicSchema(),
+                fn: (input, context) async =>
+                    .response('sunny explicit prefix'),
               );
             }
             return null;
@@ -644,14 +645,14 @@ void main() {
         name: 'my-dap',
         listActionsFn: () => [
           ActionMetadata(
-            actionType: 'tool',
+            actionType: .tool,
             name: 'wea/weatherTool',
             description: 'get weather',
             inputSchema: TestToolInput.$schema,
             outputSchema: .dynamicSchema(),
           ),
           ActionMetadata(
-            actionType: 'tool',
+            actionType: .tool,
             name: 'other/timeTool',
             description: 'get time',
             inputSchema: TestToolInput.$schema,
@@ -664,8 +665,8 @@ void main() {
               name: 'wea/weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              outputSchema: .dynamicSchema(),
-              fn: (input, context) async => 'sunny prefix wildcard',
+              toolOutputSchema: .dynamicSchema(),
+              fn: (input, context) async => .response('sunny prefix wildcard'),
             );
           }
           return null;

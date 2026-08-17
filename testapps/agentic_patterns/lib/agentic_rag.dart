@@ -61,7 +61,7 @@ Flow<AgenticRagInput, String, void, void> defineAgenticRagFlow(
           .where((item) => item.toLowerCase().contains(query))
           .toList();
 
-      return results;
+      return .response(results);
     },
   );
 

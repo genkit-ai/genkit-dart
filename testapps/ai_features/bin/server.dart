@@ -61,9 +61,11 @@ void main(List<String> args) async {
 
       // if the user rejected the transaction
       if (resumedStatus == 'REJECTED') {
-        return TransferMoneyOutput(
-          status: 'REJECTED',
-          message: 'The user rejected the transaction.',
+        return .response(
+          TransferMoneyOutput(
+            status: 'REJECTED',
+            message: 'The user rejected the transaction.',
+          ),
         );
       }
 
@@ -73,9 +75,12 @@ void main(List<String> args) async {
       }
 
       // complete the transaction if not interrupted
-      return TransferMoneyOutput(
-        status: 'COMPLETED',
-        message: 'Transferred \$${input.amount / 100} to ${input.toAccountId}',
+      return .response(
+        TransferMoneyOutput(
+          status: 'COMPLETED',
+          message:
+              'Transferred \$${input.amount / 100} to ${input.toAccountId}',
+        ),
       );
     },
   );

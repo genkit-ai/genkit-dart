@@ -25,7 +25,7 @@ void main() async {
     inputSchema: .string(),
     outputSchema: Person.schema,
     fn: (name, _) async {
-      return Person(firstName: name, lastName: 'Example');
+      return .response(Person(firstName: name, lastName: 'Example'));
     },
   );
 
@@ -74,7 +74,7 @@ void main() async {
   }
 
   print('\n--- Running Tool ---');
-  final person = await personTool('Bob');
+  final person = (await personTool('Bob') as ToolResponseResult<Person>).output;
   print('Tool result: ${person.firstName} ${person.lastName}');
 
   print('\n--- JSON Schema for Flow ---');

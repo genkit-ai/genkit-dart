@@ -51,7 +51,7 @@ class Embedder<CustomOptions>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'embedder',
+         actionType: .embedder,
          inputSchema: EmbedRequest.$schema,
          outputSchema: EmbedResponse.$schema,
        ) {
@@ -81,7 +81,7 @@ ActionMetadata embedderMetadata(
   return ActionMetadata(
     name: name,
     description: name,
-    actionType: 'embedder',
+    actionType: .embedder,
     metadata: {
       'label': name,
       'description': name,

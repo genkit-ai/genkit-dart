@@ -192,7 +192,7 @@ final class Genkit extends GenkitAI {
       description: description,
       fn: fn,
       inputSchema: inputSchema,
-      outputSchema: outputSchema,
+      toolOutputSchema: outputSchema,
     );
     registry.register(tool);
     return tool;

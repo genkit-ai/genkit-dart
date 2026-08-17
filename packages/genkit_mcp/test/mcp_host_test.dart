@@ -282,12 +282,12 @@ void main() {
 
     // Also verify registry integration.
     final dap =
-        await ai.registry.lookupAction('dynamic-action-provider', 'multi-host')
+        await ai.registry.lookupAction(.dynamicActionProvider, 'multi-host')
             as DynamicActionProvider;
     final dapActions = await dap.listActions();
     final mcpNames =
         dapActions
-            .where((a) => a.actionType == 'tool')
+            .where((a) => a.actionType == ActionType.tool)
             .map((a) => a.name)
             .toList()
           ..sort();
@@ -311,7 +311,7 @@ void main() {
     await host.getClient('server1')?.ready();
 
     final dap =
-        await ai.registry.lookupAction('dynamic-action-provider', 'mcp-host')
+        await ai.registry.lookupAction(.dynamicActionProvider, 'mcp-host')
             as DynamicActionProvider;
     final actions = await dap.listActions();
     final hasTool = actions.any((action) => action.name == 'server1/testTool');
@@ -320,6 +320,6 @@ void main() {
     final resolved = await dap.getAction('server1/testTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
-    expect(result, 'ok');
+    expect((result as ToolResponseResult).output, 'ok');
   });
 }

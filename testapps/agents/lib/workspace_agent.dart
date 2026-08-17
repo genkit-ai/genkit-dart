@@ -61,7 +61,7 @@ final writeArtifact = ai.defineTool(
         parts: [TextPart(text: input.content)],
       ),
     ]);
-    return 'Wrote artifact "${input.name}".';
+    return .response('Wrote artifact "${input.name}".');
   },
 );
 
@@ -74,9 +74,9 @@ final readArtifact = ai.defineTool(
     final session = ai.currentSession()!;
     final artifact = session.getArtifacts().where((a) => a.name == input.name);
     if (artifact.isEmpty) {
-      return 'Artifact "${input.name}" not found.';
+      return .response('Artifact "${input.name}" not found.');
     }
-    return artifact.first.parts.map((p) => p.text ?? '').join();
+    return .response(artifact.first.parts.map((p) => p.text ?? '').join());
   },
 );
 

@@ -29,7 +29,7 @@ class _KitMiddleware extends GenerateMiddleware {
     Tool<void, String>(
       name: 'kit_tool',
       description: 'A tool contributed by the kit middleware.',
-      fn: (input, ctx) async => 'ok',
+      fn: (input, ctx) async => .response('ok'),
     ),
   ];
 

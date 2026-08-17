@@ -41,7 +41,7 @@ Future<void> main() async {
     description: 'Greets a user by name.',
     inputSchema: GreetInput.$schema,
     fn: (input, _) async {
-      return 'Hello, ${input.name}!';
+      return .response('Hello, ${input.name}!');
     },
   );
 
@@ -89,7 +89,7 @@ Future<void> main() async {
     inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       await Future<void>.delayed(const Duration(milliseconds: 120));
-      return 'slow: ${input['value'] ?? ''}';
+      return .response('slow: ${input['value'] ?? ''}');
     },
   );
 

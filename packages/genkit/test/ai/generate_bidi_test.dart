@@ -46,7 +46,7 @@ void main() {
         description: 'Get weather',
         inputSchema: MyToolInput.$schema,
         fn: (input, context) async {
-          return 'Sunny in ${input.location}';
+          return .response('Sunny in ${input.location}');
         },
       );
 

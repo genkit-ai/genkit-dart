@@ -482,15 +482,25 @@ gcl.Part toGeminiPart(Part p) {
     );
   }
   if (p.isToolResponse) {
+    final tr = p.toolResponse!;
+    // Multipart tool content (images, media, etc.) becomes function-response
+    // parts, mirroring the Genkit JS converter.
+    final contentParts = tr.content
+        ?.map((c) => toGeminiPart(Part.fromJson(c as Map<String, dynamic>)))
+        .map((part) => part.toJson())
+        .toList();
     return gcl.Part(
-      functionResponse: gcl.FunctionResponse(
-        id: p.toolResponse!.ref ?? '',
-        name: _toGeminiToolName(p.toolResponse!.name),
-        response: {'output': p.toolResponse!.output},
-      ),
+      functionResponse: gcl.FunctionResponse.fromJson({
+        'id': tr.ref ?? '',
+        'name': _toGeminiToolName(tr.name),
+        'response': {'output': tr.output},
+        'parts': ?contentParts,
+      }),
+
       thoughtSignature: thoughtSignature,
     );
   }
+
   if (p.isMedia) {
     final media = p.media;
     if (media!.url.startsWith('data:')) {

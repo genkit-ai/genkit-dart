@@ -154,16 +154,16 @@ final runShell = ai.defineTool(
         workingDirectory: workspaceDir,
         environment: {'HOME': workspaceDir, 'USERPROFILE': workspaceDir},
       );
-      return RunShellOutput(
-        stdout: result.stdout.toString(),
-        stderr: result.stderr.toString(),
-        exitCode: result.exitCode,
+      return .response(
+        RunShellOutput(
+          stdout: result.stdout.toString(),
+          stderr: result.stderr.toString(),
+          exitCode: result.exitCode,
+        ),
       );
     } catch (e) {
-      return RunShellOutput(
-        stdout: '',
-        stderr: 'Command failed: $e',
-        exitCode: 1,
+      return .response(
+        RunShellOutput(stdout: '', stderr: 'Command failed: $e', exitCode: 1),
       );
     }
   },

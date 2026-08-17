@@ -176,7 +176,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, ctx) async {
           log.add('tool:exec');
-          return 'bar';
+          return .response('bar');
         },
       );
 
@@ -415,7 +415,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, ctx) async {
           log.add('tool:exec');
-          return 'injected-result';
+          return .response('injected-result');
         },
       );
 
@@ -524,7 +524,7 @@ void main() {
             toolCallCount++;
             ctx.interrupt('PLZ_RESTART');
           }
-          return 'bar';
+          return .response('bar');
         },
       );
 
@@ -682,7 +682,7 @@ void main() {
         genkit.defineTool(
           name: 'myTool',
           description: 'a tool',
-          fn: (input, ctx) async => 'tool output',
+          fn: (input, ctx) async => .response('tool output'),
         );
 
         final capturedOptions = <GenerateActionOptions>[];
@@ -866,7 +866,7 @@ void main() {
           );
 
           final generateAction = (await genkit.registry.lookupAction(
-            'util',
+            .util,
             'generate',
           ))!;
 

@@ -89,7 +89,7 @@ void main() {
         description: 'A test tool',
         inputSchema: .map(.string(), .dynamicSchema()),
         fn: (input, context) async {
-          return 'tool output';
+          return .response('tool output');
         },
       );
 
@@ -184,7 +184,7 @@ void main() {
           description: 'Dummy tool',
           inputSchema: .map(.string(), .dynamicSchema()),
           fn: (input, context) async {
-            return 'tool output';
+            return .response('tool output');
           },
         );
 

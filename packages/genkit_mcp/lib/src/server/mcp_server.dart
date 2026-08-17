@@ -71,11 +71,11 @@ class GenkitMcpServer {
         action.name,
       );
       if (resolved == null) continue;
-      if (resolved.actionType == 'tool') {
+      if (resolved.actionType == .tool) {
         _toolActions.add(resolved as Tool);
-      } else if (resolved.actionType == 'executable-prompt') {
+      } else if (resolved.actionType == .executablePrompt) {
         _promptActions.add(resolved as PromptAction);
-      } else if (resolved.actionType == 'resource') {
+      } else if (resolved.actionType == .resource) {
         _resourceActions.add(resolved as ResourceAction);
       }
     }
@@ -259,8 +259,16 @@ class GenkitMcpServer {
     final input = params['arguments'];
     try {
       final result = await tool.runRaw(input);
-      final output = result.result;
+      // Tool functions return a ToolResult; unwrap it to the raw output (or
+      // the interrupt payload) before serializing for the MCP client.
+      final toolResult = result.result;
+      final output = switch (toolResult) {
+        ToolResponseResult(:final output) => output,
+        ToolInterruptResult(:final data) => {'interrupt': data ?? true},
+      };
+
       final text = _stringifyToolOutput(output);
+
       final response = <String, dynamic>{
         'content': [
           {'type': 'text', 'text': text},

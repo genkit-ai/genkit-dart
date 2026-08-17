@@ -214,7 +214,7 @@ void main() {
         name: toolSafe,
         description: 'Safe',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (_, _) async => 'SafeOutput',
+        fn: (_, _) async => .response('SafeOutput'),
       );
       genkit.defineTool(
         name: toolInterrupt,
@@ -401,7 +401,7 @@ void main() {
             toolCallCount++;
             context.interrupt('CONFIRM_ME');
           }
-          return 'ToolExecuted';
+          return .response('ToolExecuted');
         },
       );
 
@@ -511,7 +511,7 @@ void main() {
             toolCallCount++;
             context.interrupt('CONFIRM_ME');
           }
-          return 'ToolExecuted';
+          return .response('ToolExecuted');
         },
       );
 
@@ -589,7 +589,7 @@ void main() {
           if (resumed is! Map || resumed['approved'] != true) {
             context.interrupt('NEEDS_APPROVAL');
           }
-          return 'Metadata: ${context.toolRequest?.metadata}';
+          return .response('Metadata: ${context.toolRequest?.metadata}');
         },
       );
 

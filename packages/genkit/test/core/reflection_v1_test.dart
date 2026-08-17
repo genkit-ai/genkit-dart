@@ -72,7 +72,7 @@ void main() {
     setUp(() async {
       registry = Registry();
       final testAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         inputSchema: .string(),
         outputSchema: .string(),
         streamSchema: .string(),
@@ -172,7 +172,7 @@ void main() {
     test('POST /api/runAction forwards init to the action handler', () async {
       Object? receivedInit;
       final initAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         inputSchema: .string(),
         outputSchema: .string(),
         initSchema: .map(.string(), .string()),
@@ -205,7 +205,7 @@ void main() {
       var invoked = false;
       Object? receivedInit = 'sentinel';
       final initAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         inputSchema: .string(),
         outputSchema: .string(),
         // A non-nullable init schema. A missing init must NOT be validated

@@ -108,8 +108,9 @@ This is a test skill.
       final useSkillTool = tools.firstWhere((t) => t.name == 'use_skill');
 
       final output = await useSkillTool.runRaw({'skillName': 'test_skill'});
-      expect(output.result, contains('description: A test description.'));
-      expect(output.result, contains('This is a test skill.'));
+      final content = (output.result as ToolResponseResult).output;
+      expect(content, contains('description: A test description.'));
+      expect(content, contains('This is a test skill.'));
     });
 
     test('should work via plugin registration', () async {

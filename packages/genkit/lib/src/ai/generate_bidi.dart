@@ -73,7 +73,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   String? system,
 }) async {
   final model =
-      await registry.lookupAction('bidi-model', modelName) as BidiModel?;
+      await registry.lookupAction(.bidiModel, modelName) as BidiModel?;
   if (model == null) {
     throw GenkitException(
       'Bidi Model $modelName not found',
@@ -85,7 +85,8 @@ Future<GenerateBidiSession> runGenerateBidi(
   var toolActions = <Tool>[];
   if (tools != null) {
     for (var toolName in tools) {
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
+      final tool = await registry.lookupAction(.tool, toolName) as Tool?;
+
       if (tool != null) {
         toolActions.add(tool);
         toolDefs.add(toToolDefinition(tool));
@@ -143,16 +144,23 @@ Future<GenerateBidiSession> runGenerateBidi(
             );
 
             try {
-              final output = await tool.runRaw(toolRequest.toolRequest.input);
-              toolResponses.add(
-                ToolResponsePart(
-                  toolResponse: ToolResponse(
-                    ref: toolRequest.toolRequest.ref,
-                    name: toolRequest.toolRequest.name,
-                    output: output.result,
-                  ),
+              final result = (await tool.runRaw(
+                toolRequest.toolRequest.input,
+              )).result;
+              final response = switch (result) {
+                ToolInterruptResult(:final data) => ToolResponse(
+                  ref: toolRequest.toolRequest.ref,
+                  name: toolRequest.toolRequest.name,
+                  output: {'interrupt': data ?? true},
                 ),
-              );
+                ToolResponseResult(:final output, :final parts) => ToolResponse(
+                  ref: toolRequest.toolRequest.ref,
+                  name: toolRequest.toolRequest.name,
+                  output: output,
+                  content: parts?.map((p) => p.toJson()).toList(),
+                ),
+              };
+              toolResponses.add(ToolResponsePart(toolResponse: response));
             } catch (e) {
               toolResponses.add(
                 ToolResponsePart(

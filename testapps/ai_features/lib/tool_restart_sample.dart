@@ -45,7 +45,9 @@ Future<void> main(List<String> args) async {
       if (!isApproved) {
         ctx.interrupt(input);
       }
-      return 'Successfully transferred funds! Details: ${input.details}';
+      return .response(
+        'Successfully transferred funds! Details: ${input.details}',
+      );
     },
   );
 
