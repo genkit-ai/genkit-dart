@@ -43,10 +43,6 @@ class ToolFnArgs<Input> {
   dynamic get resumed => toolRequest?.metadata?['resumed'];
 
   /// Interrupts the generation loop with optional [data].
-  ///
-  /// Prefer returning `.interrupt(data)` from your tool function instead. This
-  /// throwing form remains available for cases where you are several helper
-  /// calls deep and cannot easily return a [ToolResult].
   @Deprecated(
     'Return `.interrupt(data)` from your tool function instead. '
     'This throwing form will be removed in a future release.',
