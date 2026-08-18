@@ -469,6 +469,12 @@ class VersionApplier {
       await pubspecFile.writeAsString(pubspecContent);
 
       if (newVersion != null) {
+        // Keep the genkit package's Dart version constant
+        // (lib/src/version.dart) in sync with the pubspec version so runtime
+        // code that reports the version (headers, reflection, etc.) matches
+        // what was published. No-op for other packages.
+        await _updateVersionDart(pkg, newVersion);
+
         // Extract commits to build Changelog
         final latestTag = await git.getLatestTag(pkg.name);
         final commitMessages = await git.getCommitsSince(latestTag, pkg.path);
@@ -492,6 +498,47 @@ class VersionApplier {
     }
 
     return modifiedPackages;
+  }
+
+  /// Rewrites the `genkit` package's Dart version constant
+  /// (lib/src/version.dart) to match [newVersion].
+  ///
+  /// Only the `genkit` package carries this constant (`genkitVersion`), which
+  /// is reported at runtime via request headers and reflection, so it must
+  /// stay in sync with the published pubspec version. Other packages have no
+  /// such file and are intentionally skipped.
+  Future<void> _updateVersionDart(Package pkg, Version newVersion) async {
+    if (pkg.name != 'genkit') return;
+
+    final versionFile = File(p.join(pkg.path, 'lib', 'src', 'version.dart'));
+    if (!await versionFile.exists()) return;
+
+    final content = await versionFile.readAsString();
+    // Match a top-level version constant, optionally with a type annotation
+    // (e.g. `const String genkitVersion = '...';`). Group 2 captures the
+    // opening quote and is reused as a backreference (\2) for the closing
+    // quote so the two always match.
+    final constRegex = RegExp(
+      r'''^(const\s+[^=]*[Vv]ersion\s*=\s*)(['"])[^'"]*\2(\s*;)''',
+      multiLine: true,
+    );
+
+    if (!constRegex.hasMatch(content)) {
+      print(
+        'Warning: ${p.relative(versionFile.path)} exists but no version '
+        'constant was found. Skipping.',
+      );
+      return;
+    }
+
+    final updated = content.replaceFirstMapped(
+      constRegex,
+      (m) => '${m[1]}${m[2]}$newVersion${m[2]}${m[3]}',
+    );
+    if (updated != content) {
+      print('Updating ${p.relative(versionFile.path)} to $newVersion...');
+      await versionFile.writeAsString(updated);
+    }
   }
 
   String _buildChangelogEntry(Version version, List<String> commitMessages) {
@@ -703,6 +750,15 @@ void main(List<String> args) async {
     await Process.run('git', ['add', p.join(pkg.path, 'pubspec.yaml')]);
     if (bumps.containsKey(pkgName)) {
       await Process.run('git', ['add', p.join(pkg.path, 'CHANGELOG.md')]);
+      // The genkit package keeps a Dart version constant in sync; stage it too.
+      if (pkgName == 'genkit') {
+        final versionDart = File(
+          p.join(pkg.path, 'lib', 'src', 'version.dart'),
+        );
+        if (await versionDart.exists()) {
+          await Process.run('git', ['add', versionDart.path]);
+        }
+      }
     }
   }
 
