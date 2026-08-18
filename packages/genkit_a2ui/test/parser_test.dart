@@ -389,5 +389,38 @@ void main() {
       expect(segments[2], isA<ProseSegment>());
       expect((segments[2] as ProseSegment).prose, contains('outro'));
     });
+
+    test('preserves open-ended top-level envelope keys', () {
+      final parser = A2uiStreamParser(
+        catalog: basicCatalog,
+        surfaceId: fixedId,
+      );
+      // The A2UI spec is open-ended: future/unknown top-level keys alongside a
+      // known envelope variant must survive normalization (only `version` is
+      // stamped), for parity with the other SDKs.
+      final block =
+          '''
+```a2ui
+[
+  {
+    "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${basicCatalog.id}" },
+    "traceId": "abc-123",
+    "extra": { "nested": true }
+  },
+  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
+    { "id": "root", "component": "Text", "text": "hi" }
+  ] } }
+]
+```
+''';
+      final result = collect(parser, [block]);
+      expect(result.batches.length, 1);
+      final createEnv = result.batches[0].firstWhere(
+        (e) => e['createSurface'] != null,
+      );
+      expect(createEnv['traceId'], 'abc-123');
+      expect(createEnv['extra'], {'nested': true});
+      expect(createEnv['version'], isNotNull);
+    });
   });
 }

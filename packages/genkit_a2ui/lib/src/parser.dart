@@ -330,9 +330,13 @@ class A2uiStreamParser {
       }
     }
 
+    // Preserve any open-ended top-level keys the envelope carries (the A2UI
+    // spec allows future fields to be added), only stamping/overriding
+    // `version`. `swapSurfaceId` mutates the payload in place, so the spread
+    // already reflects the swapped surface id.
     if (e['createSurface'] != null) {
       swapSurfaceId(e['createSurface']);
-      return {'version': envVersion, 'createSurface': e['createSurface']};
+      return {...e, 'version': envVersion};
     }
     if (e['updateComponents'] != null) {
       swapSurfaceId(e['updateComponents']);
@@ -341,15 +345,15 @@ class A2uiStreamParser {
         final err = _validateComponents(components);
         if (err != null) return _reject(err);
       }
-      return {'version': envVersion, 'updateComponents': e['updateComponents']};
+      return {...e, 'version': envVersion};
     }
     if (e['updateDataModel'] != null) {
       swapSurfaceId(e['updateDataModel']);
-      return {'version': envVersion, 'updateDataModel': e['updateDataModel']};
+      return {...e, 'version': envVersion};
     }
     if (e['deleteSurface'] != null) {
       swapSurfaceId(e['deleteSurface']);
-      return {'version': envVersion, 'deleteSurface': e['deleteSurface']};
+      return {...e, 'version': envVersion};
     }
     return _reject('unknown envelope type (keys: ${e.keys.join(', ')}).');
   }

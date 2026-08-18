@@ -138,6 +138,20 @@ String _parseInstructions(String? value) {
   }
 }
 
+/// Resolves the `version` option, defaulting to [a2uiVersion]. Throws on any
+/// value outside [supportedA2uiVersions] so an unsupported protocol version
+/// fails fast rather than silently stamping envelopes the renderer can't read.
+String _parseVersion(String? value) {
+  if (value == null) return a2uiVersion;
+  if (!supportedA2uiVersions.contains(value)) {
+    throw ArgumentError(
+      'a2ui(): unsupported version "$value" '
+      '(supported: ${supportedA2uiVersions.join(', ')}).',
+    );
+  }
+  return value;
+}
+
 final _rng = Random();
 
 /// Generates a random v4 UUID string.
@@ -174,7 +188,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     : _catalogId = config?.catalog ?? defaultCatalogId,
       _instructions = _parseInstructions(config?.instructions),
       _validate = _parseValidateMode(config?.validate),
-      _version = config?.version ?? a2uiVersion,
+      _version = _parseVersion(config?.version),
       _fixedSurfaceId = config?.surfaceId;
 
   String _nextSurfaceId() => _fixedSurfaceId ?? _uuidV4();

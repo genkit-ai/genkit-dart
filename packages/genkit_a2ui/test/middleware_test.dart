@@ -532,5 +532,29 @@ void main() {
       expect(userMsg.content, isNotEmpty);
       expect(userMsg.content.any((p) => (p.text ?? '').isNotEmpty), isTrue);
     });
+
+    test('accepts a supported version', () async {
+      defineReplyModel('m_ver_ok', 'ok');
+      // A supported version must construct the middleware without throwing.
+      await genkit.generate(
+        model: modelRef('m_ver_ok'),
+        prompt: 'hi',
+        use: [a2ui(version: a2uiVersion)],
+      );
+    });
+
+    test('rejects an unsupported version', () async {
+      defineReplyModel('m_ver_bad', 'ok');
+      // An unsupported version must fail fast rather than silently stamping
+      // envelopes the renderer can't interpret.
+      await expectLater(
+        genkit.generate(
+          model: modelRef('m_ver_bad'),
+          prompt: 'hi',
+          use: [a2ui(version: 'v0.1')],
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
   });
 }

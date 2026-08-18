@@ -164,6 +164,10 @@ class _ChatPageState extends State<ChatPage> {
 
   /// Sends a rendered surface's action back to the agent as the next turn.
   Future<void> _onSurfaceSubmit(dynamic message) async {
+    // Guard against re-entrancy: a button press mid-stream would otherwise
+    // start a second concurrent turn, interleaving the streams and letting one
+    // turn's completion flip `_busy` off while the other is still running.
+    if (_busy) return;
     final action = _actionFromSubmit(message);
     if (action == null) return;
     setState(() {

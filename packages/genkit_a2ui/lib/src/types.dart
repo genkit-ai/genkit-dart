@@ -32,6 +32,12 @@ const String a2uiMimeType = 'application/a2ui+json';
 /// The default A2UI protocol version stamped on emitted envelopes.
 const String a2uiVersion = 'v0.9';
 
+/// The set of A2UI protocol versions this package supports. The `a2ui()`
+/// middleware validates a configured `version` against this set so an
+/// unsupported value fails fast rather than silently emitting envelopes the
+/// renderer can't interpret.
+const Set<String> supportedA2uiVersions = {a2uiVersion};
+
 /// The catalog id of the A2UI "Basic Catalog" (v0.9). Surfaces created with the
 /// basic catalog reference this id, and the client renderer registers a catalog
 /// under the same id.
