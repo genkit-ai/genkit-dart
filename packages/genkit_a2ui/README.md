@@ -1,3 +1,5 @@
+[![Pub](https://img.shields.io/pub/v/genkit_a2ui.svg)](https://pub.dev/packages/genkit_a2ui)
+
 # genkit_a2ui
 
 A Genkit Dart plugin that brings [A2UI](https://a2ui.org/) ("Agent to UI"), a
@@ -7,6 +9,10 @@ An A2UI-enabled agent can stream more than prose. It streams rich, interactive U
 **surfaces** (cards, lists, forms, buttons) that a client renders incrementally
 as the model responds. The whole server-side integration is a single model
 middleware: add `a2ui()` to an agent's `use` list and nothing else changes.
+
+[Documentation](https://genkit.dev) • [API Reference](https://pub.dev/packages/genkit_a2ui) • [A2UI Specification](https://a2ui.org/)
+
+![An A2UI weather card rendered by a Flutter genui client.](https://raw.githubusercontent.com/genkit-ai/genkit-dart/main/packages/genkit_a2ui/doc/a2ui.png)
 
 > Status: experimental.
 
@@ -42,12 +48,12 @@ import 'package:genkit_a2ui/a2ui.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 
 final ai = Genkit(
-  plugins: [GoogleGenerativeAI(), A2uiPlugin()],
+  plugins: [googleAI(), A2uiPlugin()],
 );
 
 final uiAgent = ai.defineAgent(
   name: 'uiAgent',
-  model: googleAI.model('gemini-flash-latest'),
+  model: googleAI.gemini('gemini-flash-latest'),
   system: 'You help users. Render UI when it is clearer than prose.',
   use: [a2ui()], // <- A2UI support (defaults to the bundled 'basic' catalog)
 );
@@ -57,7 +63,7 @@ It works the same on a one-shot `generate`:
 
 ```dart
 final res = await ai.generate(
-  model: googleAI.model('gemini-flash-latest'),
+  model: googleAI.gemini('gemini-flash-latest'),
   prompt: 'Show me the weather in Tokyo',
   use: [a2ui()],
 );
@@ -94,9 +100,10 @@ await for (final chunk in turn.stream) {
 }
 ```
 
-> See [`testapps/a2ui`](../../testapps/a2ui) for a complete, runnable sample: a
-> shelf server hosting the agent, plus a Flutter client that renders surfaces
-> with `genui`.
+> See
+> [`testapps/a2ui`](https://github.com/genkit-ai/genkit-dart/tree/main/testapps/a2ui)
+> for a complete, runnable sample: a shelf server hosting the agent, plus a
+> Flutter client that renders surfaces with `genui`.
 
 ## Options
 
@@ -159,7 +166,8 @@ final catalog = BasicCatalogItems.asCatalog().copyWith(catalogId: basicCatalogId
 Note that both `genkit_a2ui` and `genui` export a `basicCatalogId` symbol with
 different values. You want the plugin's, so hide genui's with
 `import 'package:genui/genui.dart' hide basicCatalogId;`. See
-[`testapps/a2ui`](../../testapps/a2ui) for the full wiring.
+[`testapps/a2ui`](https://github.com/genkit-ai/genkit-dart/tree/main/testapps/a2ui)
+for the full wiring.
 
 ## Custom catalogs
 
@@ -255,7 +263,7 @@ Once registered, reference the lookup id in your `a2ui()` options:
 ```dart
 final uiAgent = ai.defineAgent(
   name: 'uiAgent',
-  model: googleAI.model('gemini-flash-latest'),
+  model: googleAI.gemini('gemini-flash-latest'),
   use: [a2ui(catalog: 'my-catalog')],
 );
 ```
