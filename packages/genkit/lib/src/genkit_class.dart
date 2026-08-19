@@ -198,6 +198,64 @@ final class Genkit extends GenkitAI {
     return tool;
   }
 
+  /// Defines and registers an interrupt.
+  ///
+  /// Interrupts are special tools that always halt the generation loop and
+  /// return control back to the caller. They make it simpler to implement
+  /// "human-in-the-loop" and out-of-band processing patterns that require
+  /// waiting on external actions to complete.
+  ///
+  /// When the model calls an interrupt, the request bubbles back to the caller
+  /// instead of executing any logic. You can then resume generation by
+  /// supplying `interruptRespond` (to provide an answer) on a follow-up [generate] call.
+  ///
+  /// Example:
+  /// ```dart
+  /// final confirm = ai.defineInterrupt(
+  ///   name: 'confirmAction',
+  ///   description: 'Asks the user to confirm before proceeding.',
+  ///   inputSchema: SchemanticType.map(
+  ///     SchemanticType.string(),
+  ///     SchemanticType.dynamicSchema(),
+  ///   ),
+  /// );
+  /// ```
+  Tool<Input, Output> defineInterrupt<Input, Output>({
+    required String name,
+    required String description,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    Map<String, dynamic>? metadata,
+
+    /// Optional data attached to the `interrupt` metadata of the generated tool
+    /// request. Receives the tool input and may return a value or a future.
+    /// When omitted, the interrupt metadata defaults to `true`.
+    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    requestMetadata,
+  }) {
+    final tool = Tool<Input, Output>(
+      name: name,
+      description: description,
+      inputSchema: inputSchema,
+      toolOutputSchema: outputSchema,
+      metadata: {
+        ...?metadata,
+        'tool': {
+          ...?(metadata?['tool'] as Map<String, dynamic>?),
+          'restartable': false,
+        },
+      },
+      fn: (input, ctx) async {
+        final data = requestMetadata == null
+            ? null
+            : await requestMetadata(input, ctx);
+        return ToolResult.interrupt(data);
+      },
+    );
+    registry.register(tool);
+    return tool;
+  }
+
   /// Defines an executable prompt with Handlebars template support.
   ///
   /// The prompt is registered in the registry and can be looked up by name.
