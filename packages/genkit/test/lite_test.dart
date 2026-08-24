@@ -49,6 +49,62 @@ void main() {
     expect(response.text, '{"result": "success"}');
   });
 
+  test('lite generate with outputSchema delivers constrained json request '
+      'to the model', () async {
+    ModelRequest? captured;
+    final model = Model<void>(
+      name: 'constrainedTestModel',
+      fn: (request, context) async {
+        captured = request;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: '{"result": "ok"}')],
+          ),
+        );
+      },
+    );
+
+    await lite.generate(model: model, prompt: 'Hello', outputSchema: .string());
+
+    expect(captured, isNotNull);
+    expect(captured!.output?.format, 'json');
+    expect(captured!.output?.constrained, isTrue);
+    expect(captured!.output?.schema, isNotNull);
+  });
+
+  test('lite generate with custom outputInstructions injects them into '
+      'the prompt', () async {
+    ModelRequest? captured;
+    final model = Model<void>(
+      name: 'instructionsTestModel',
+      fn: (request, context) async {
+        captured = request;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: '{"result": "ok"}')],
+          ),
+        );
+      },
+    );
+
+    await lite.generate(
+      model: model,
+      prompt: 'Hello',
+      outputSchema: .string(),
+      outputInstructions: 'Respond in JSON matching the schema.',
+    );
+
+    final allText = captured!.messages
+        .expand((m) => m.content)
+        .map((p) => p.toJson()['text'] ?? '')
+        .join('\n');
+    expect(allText, contains('Respond in JSON matching the schema.'));
+  });
+
   test('lite generate prepends system message before prompt', () async {
     ModelRequest? captured;
     final model = Model<void>(
