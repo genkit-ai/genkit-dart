@@ -263,4 +263,17 @@ abstract final class GenkitConverter {
       _ => FinishReason.unknown,
     };
   }
+
+  /// Map OpenAI token usage to Genkit [GenerationUsage].
+  static GenerationUsage? mapUsage(sdk.Usage? usage) {
+    if (usage == null) return null;
+    return GenerationUsage(
+      inputTokens: usage.promptTokens.toDouble(),
+      outputTokens: usage.completionTokens?.toDouble(),
+      totalTokens: usage.totalTokens.toDouble(),
+      thoughtsTokens: usage.completionTokensDetails?.reasoningTokens
+          ?.toDouble(),
+      cachedContentTokens: usage.promptTokensDetails?.cachedTokens?.toDouble(),
+    );
+  }
 }

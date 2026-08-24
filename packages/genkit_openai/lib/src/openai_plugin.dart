@@ -298,7 +298,10 @@ class OpenAIPlugin extends GenkitPlugin {
     })
     ctx,
   ) async {
-    final stream = client.chat.completions.createStream(request);
+    final streamRequest = request.copyWith(
+      streamOptions: const sdk.StreamOptions(includeUsage: true),
+    );
+    final stream = client.chat.completions.createStream(streamRequest);
     final accumulator = sdk.ChatStreamAccumulator();
 
     try {
@@ -328,6 +331,7 @@ class OpenAIPlugin extends GenkitPlugin {
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
       message: message,
+      usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),
     );
   }
@@ -349,6 +353,7 @@ class OpenAIPlugin extends GenkitPlugin {
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
       message: message,
+      usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),
     );
   }
