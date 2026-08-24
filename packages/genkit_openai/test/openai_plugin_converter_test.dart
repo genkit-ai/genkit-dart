@@ -277,29 +277,27 @@ void main() {
     });
 
     test('converts JSON content', () {
-      final message =
-          ChatMessage.assistant(content: '{"name": "Test", "age": 25}')
-              as AssistantMessage;
+      final message = ChatMessage.assistant(
+        content: '{"name": "Test", "age": 25}',
+      ) as AssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.role, Role.model);
       expect(genkitMessage.text, '{"name": "Test", "age": 25}');
     });
 
     test('converts message with tool calls', () {
-      final message =
-          ChatMessage.assistant(
-                content: '{"result": "ok"}',
-                toolCalls: [
-                  ToolCall.functionCall(
-                    id: 'call_123',
-                    call: FunctionCall(
-                      name: 'getWeather',
-                      arguments: '{"location": "NYC"}',
-                    ),
-                  ),
-                ],
-              )
-              as AssistantMessage;
+      final message = ChatMessage.assistant(
+        content: '{"result": "ok"}',
+        toolCalls: [
+          ToolCall.functionCall(
+            id: 'call_123',
+            call: FunctionCall(
+              name: 'getWeather',
+              arguments: '{"location": "NYC"}',
+            ),
+          ),
+        ],
+      ) as AssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.text, '{"result": "ok"}');
       final toolParts = genkitMessage.content
@@ -367,6 +365,27 @@ void main() {
 
     test('null usage maps to null', () {
       expect(GenkitConverter.mapUsage(null), isNull);
+    });
+  });
+
+  group('GenkitConverter.toOpenAITool schema guards', () {
+    test('non-object input schema throws INVALID_ARGUMENT', () {
+      expect(
+        () => GenkitConverter.toOpenAITool(
+          ToolDefinition(
+            name: 'echo',
+            description: 'Echoes the input',
+            inputSchema: {'type': 'string'},
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('echo'), contains('object')),
+          ),
+        ),
+      );
     });
   });
 }
