@@ -100,7 +100,8 @@ void main() {
 
     final allText = captured!.messages
         .expand((m) => m.content)
-        .map((p) => p.toJson()['text'] ?? '')
+        .where((p) => p.isText)
+        .map((p) => p.text!)
         .join('\n');
     expect(allText, contains('Respond in JSON matching the schema.'));
   });
