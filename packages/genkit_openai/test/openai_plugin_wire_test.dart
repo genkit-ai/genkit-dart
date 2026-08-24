@@ -137,6 +137,21 @@ void main() {
       },
     );
 
+    test('no tools requested leaves the tools key off the wire', () async {
+      // Core hands the plugin a non-null (possibly empty) tools list; some
+      // OpenAI-compatible providers reject "tools": [].
+      final captured = <Map<String, dynamic>>[];
+      final ai = Genkit(
+        plugins: [openAI(apiKey: 'test-key', httpClient: wireClient(captured))],
+      );
+
+      await ai.generate(model: openAI.model('o4-mini'), prompt: 'Say hello.');
+
+      expect(captured.first.containsKey('tools'), isFalse);
+
+      await ai.shutdown();
+    });
+
     test('tools reach the wire for standard GPT models', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = Genkit(

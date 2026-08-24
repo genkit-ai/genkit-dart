@@ -222,6 +222,11 @@ class OpenAIPlugin extends GenkitPlugin {
         );
 
         try {
+          // Some OpenAI-compatible providers reject an empty tools array.
+          final tools = modelRequest.tools
+              ?.map(GenkitConverter.toOpenAITool)
+              .toList();
+
           final isJsonMode = chat.isJsonStructuredOutput(
             modelRequest.output?.format,
             modelRequest.output?.contentType,
@@ -235,12 +240,7 @@ class OpenAIPlugin extends GenkitPlugin {
               modelRequest.messages,
               options.visualDetailLevel,
             ),
-            // Passed through even when supports.tools is false: a model that
-            // truly lacks tool support should error loudly from the API, not
-            // silently lose its tools.
-            tools: modelRequest.tools
-                ?.map(GenkitConverter.toOpenAITool)
-                .toList(),
+            tools: (tools == null || tools.isEmpty) ? null : tools,
             temperature: options.temperature,
             topP: options.topP,
             maxCompletionTokens: options.maxTokens,
