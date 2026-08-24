@@ -104,6 +104,39 @@ void main() {
       await ai.shutdown();
     });
 
+    test(
+      'tools reach the wire even when model metadata says tools unsupported',
+      () async {
+        // chatgpt-4o-latest advertises tools: false via the heuristics.
+        // The request builder must not gate on that metadata: passing tools
+        // through unconditionally is what keeps misdeclared models loud
+        // instead of silently degraded (bug #357's second layer).
+        final captured = <Map<String, dynamic>>[];
+        final ai = Genkit(
+          plugins: [
+            openAI(apiKey: 'test-key', httpClient: wireClient(captured)),
+          ],
+        );
+        ai.defineTool(
+          name: 'getWeather',
+          description: 'Get the weather for a location',
+          fn: (input, ctx) async => {'temperature': 72},
+        );
+
+        expect(supportsTools('chatgpt-4o-latest'), isFalse);
+
+        await ai.generate(
+          model: openAI.model('chatgpt-4o-latest'),
+          prompt: 'What is the weather in Boston?',
+          toolNames: ['getWeather'],
+        );
+
+        expect(captured.first.containsKey('tools'), isTrue);
+
+        await ai.shutdown();
+      },
+    );
+
     test('tools reach the wire for standard GPT models', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = Genkit(
