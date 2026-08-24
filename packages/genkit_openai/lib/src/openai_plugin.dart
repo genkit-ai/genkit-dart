@@ -222,9 +222,6 @@ class OpenAIPlugin extends GenkitPlugin {
         );
 
         try {
-          final supports = modelInfo.supports;
-          final supportsTools = supports?['tools'] == true;
-
           final isJsonMode = chat.isJsonStructuredOutput(
             modelRequest.output?.format,
             modelRequest.output?.contentType,
@@ -238,9 +235,12 @@ class OpenAIPlugin extends GenkitPlugin {
               modelRequest.messages,
               options.visualDetailLevel,
             ),
-            tools: supportsTools
-                ? modelRequest.tools?.map(GenkitConverter.toOpenAITool).toList()
-                : null,
+            // Passed through even when supports.tools is false: a model that
+            // truly lacks tool support should error loudly from the API, not
+            // silently lose its tools.
+            tools: modelRequest.tools
+                ?.map(GenkitConverter.toOpenAITool)
+                .toList(),
             temperature: options.temperature,
             topP: options.topP,
             maxCompletionTokens: options.maxTokens,

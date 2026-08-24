@@ -69,17 +69,22 @@ class _DefaultModelCapabilities extends _ModelCapabilities {
 }
 
 /// O-series reasoning models override key capability defaults.
+///
+/// Tools are not overridden: o-series models support tool calling; they
+/// only reject the system role.
 class _OSeriesModelCapabilities extends _DefaultModelCapabilities {
   const _OSeriesModelCapabilities(super.modelId);
 
   @override
-  bool get supportsTools => false;
-
-  @override
   bool get supportsSystemRole => false;
 
+  // o3-mini, o1-mini, and o1-preview (incl. dated variants) are text-only;
+  // the rest of the o-series accepts images.
   @override
-  bool get supportsMedia => true;
+  bool get supportsMedia =>
+      !id.startsWith('o3-mini') &&
+      !id.startsWith('o1-mini') &&
+      !id.startsWith('o1-preview');
 }
 
 bool _supportsToolsByHeuristics(String id) {
