@@ -1,0 +1,51 @@
+name: a2ui_sample
+description: "A2UI (Agent-to-UI) sample: a shelf server hosting an A2UI-enabled Genkit agent, plus a Flutter client that renders surfaces with genui."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  a2ui_core: ^0.1.0
+  genui: ^0.10.1
+  genkit:
+    path: ../../packages/genkit
+  genkit_a2ui:
+    path: ../../packages/genkit_a2ui
+  genkit_google_genai:
+    path: ../../packages/genkit_google_genai
+  genkit_shelf:
+    path: ../../packages/genkit_shelf
+  schemantic:
+    path: ../../packages/schemantic
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+  shelf_cors_headers: ^0.1.5
+
+dependency_overrides:
+  genkit:
+    path: ../../packages/genkit
+  genkit_a2ui:
+    path: ../../packages/genkit_a2ui
+  genkit_google_genai:
+    path: ../../packages/genkit_google_genai
+  genkit_shelf:
+    path: ../../packages/genkit_shelf
+  schemantic:
+    path: ../../packages/schemantic
+  schemantic_builder:
+    path: ../../packages/schemantic_builder
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.0
+  schemantic_builder: ^0.1.2
+
+flutter:
+  uses-material-design: true
