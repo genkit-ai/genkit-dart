@@ -49,7 +49,7 @@ ai.defineTool(
   description: 'Get the weather for a location',
   inputSchema: WeatherToolInput.$schema,
   fn: (input, context) async {
-    return 'The weather in ${input.location} is 75 and sunny.';
+    return .response('The weather in ${input.location} is 75 and sunny.');
   },
 );
 
