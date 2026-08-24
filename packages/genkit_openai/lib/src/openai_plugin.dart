@@ -37,6 +37,9 @@ class OpenAIPlugin extends GenkitPlugin {
   final OpenAIApiKeyProvider? apiKeyProvider;
 
   /// Custom base URL for OpenAI-compatible APIs (e.g. Groq, DeepSeek).
+  ///
+  /// Streaming requests always send `stream_options.include_usage`; endpoints
+  /// that reject unknown stream options will refuse streaming calls.
   final String? baseUrl;
 
   /// Additional models to register beyond those discovered from the API.

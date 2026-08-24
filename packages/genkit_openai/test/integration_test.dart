@@ -242,6 +242,8 @@ void main() {
       );
       await for (final _ in stream) {}
       final result = await stream.onResult;
+      expect(result.usage?.inputTokens, greaterThan(0));
+      expect(result.usage?.outputTokens, greaterThan(0));
       expect(result.usage?.totalTokens, greaterThan(0));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
