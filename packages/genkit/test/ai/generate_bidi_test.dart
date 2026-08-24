@@ -154,5 +154,99 @@ void main() {
 
       expect(chunks.first.text, 'SYS V');
     });
+
+    // Interrupts are unary-only: a live bidi session has no resume path, so both
+    // the returned `.interrupt(...)` and the deprecated throwing
+    // `ctx.interrupt(...)` forms must fail the session (surface an error on the
+    // stream) and must NOT answer the model with a tool message.
+    for (final variant in ['returned', 'throwing']) {
+      test('interrupt ($variant form) fails the session and does not '
+          'answer the model', () async {
+        final toolName = 'confirm_$variant';
+        final modelName = 'interruptBidiModel_$variant';
+        var modelSawToolMessage = false;
+
+        genkit.defineTool<MyToolInput, String>(
+          name: toolName,
+          description: 'Requires confirmation',
+          inputSchema: MyToolInput.$schema,
+          fn: (input, context) async {
+            if (variant == 'returned') {
+              return .interrupt({'requiresConfirmation': true});
+            }
+            // Deprecated throwing form.
+            context.interrupt({'requiresConfirmation': true});
+          },
+        );
+
+        genkit.defineBidiModel(
+          name: modelName,
+          fn: (input, context) async {
+            await for (final request in input) {
+              final msg = request.messages.first;
+              if (msg.role == Role.tool) {
+                // The bug being guarded against: an interrupt should never come
+                // back to the model as a tool response.
+                modelSawToolMessage = true;
+                context.sendChunk(
+                  ModelResponseChunk(content: [TextPart(text: 'kept going')]),
+                );
+              } else {
+                context.sendChunk(
+                  ModelResponseChunk(
+                    content: [
+                      ToolRequestPart(
+                        toolRequest: ToolRequest(
+                          name: toolName,
+                          input: {'location': 'London'},
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            }
+            return ModelResponse(finishReason: FinishReason.stop);
+          },
+        );
+
+        final session = await genkit.generateBidi(
+          model: modelName,
+          toolNames: [toolName],
+        );
+
+        Object? streamError;
+        final done = Completer<void>();
+        session.stream.listen(
+          (_) {},
+          onError: (Object e) {
+            streamError = e;
+            if (!done.isCompleted) done.complete();
+          },
+          onDone: () {
+            if (!done.isCompleted) done.complete();
+          },
+        );
+
+        session.send('please confirm');
+        await done.future.timeout(Duration(seconds: 2));
+        await session.close();
+
+        expect(
+          streamError,
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.UNIMPLEMENTED,
+          ),
+          reason: 'interrupts must fail a bidi session',
+        );
+        expect(
+          modelSawToolMessage,
+          isFalse,
+          reason: 'the model must not receive a tool answer for an interrupt',
+        );
+      });
+    }
   });
 }

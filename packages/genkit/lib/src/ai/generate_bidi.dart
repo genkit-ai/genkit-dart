@@ -144,46 +144,30 @@ Future<GenerateBidiSession> runGenerateBidi(
               ),
             );
 
+            // Interrupts (human-in-the-loop) require handing control back to the
+            // caller, which a live bidi session cannot do: the model is waiting
+            // on a function response and there is no resume path. Both the
+            // returned `.interrupt(...)` and the deprecated throwing
+            // `ctx.interrupt(...)` forms must fail the session loudly rather
+            // than answer the model, so this throw lives OUTSIDE the try/catch
+            // below (which would otherwise turn it into an `Error: ...` tool
+            // response and keep the session going).
+            GenkitException bidiInterruptUnsupported() => GenkitException(
+              'Tool "${toolRequest.toolRequest.name}" attempted to interrupt '
+              'during a live (bidi) session. Interrupts are not supported by '
+              'generateBidi; use a unary generate() call for human-in-the-loop '
+              'tools.',
+              status: StatusCodes.UNIMPLEMENTED,
+            );
+
+            final ToolResult result;
             try {
-              final result = (await tool.runRaw(
+              result = (await tool.runRaw(
                 toolRequest.toolRequest.input,
               )).result;
-              switch (result) {
-                case ToolInterruptResult():
-                  // Interrupts (human-in-the-loop) require handing control back
-                  // to the caller, which a live bidi session cannot do: the
-                  // model is waiting on a function response and there is no
-                  // resume path. Surface this loudly instead of feeding the
-                  // model a bogus `{interrupt: true}` tool answer.
-                  throw GenkitException(
-                    'Tool "${toolRequest.toolRequest.name}" attempted to '
-                    'interrupt during a live (bidi) session. Interrupts are '
-                    'not supported by generateBidi; use a unary generate() '
-                    'call for human-in-the-loop tools.',
-                    status: StatusCodes.UNIMPLEMENTED,
-                  );
-                case ToolResponseResult(
-                  :final output,
-                  :final parts,
-                  :final metadata,
-                ):
-                  toolResponses.add(
-                    ToolResponsePart(
-                      toolResponse: ToolResponse(
-                        ref: toolRequest.toolRequest.ref,
-                        name: toolRequest.toolRequest.name,
-                        output: output,
-                        content: parts?.map((p) => p.toJson()).toList(),
-                      ),
-                      metadata: metadata,
-                    ),
-                  );
-              }
             } on ToolInterruptException {
-              // The deprecated throwing interrupt form reaches here; treat it
-              // the same as a returned interrupt so both spellings behave
-              // consistently in bidi.
-              rethrow;
+              // Deprecated throwing interrupt form.
+              throw bidiInterruptUnsupported();
             } catch (e) {
               toolResponses.add(
                 ToolResponsePart(
@@ -194,6 +178,28 @@ Future<GenerateBidiSession> runGenerateBidi(
                   ),
                 ),
               );
+              continue;
+            }
+
+            switch (result) {
+              case ToolInterruptResult():
+                throw bidiInterruptUnsupported();
+              case ToolResponseResult(
+                :final output,
+                :final parts,
+                :final metadata,
+              ):
+                toolResponses.add(
+                  ToolResponsePart(
+                    toolResponse: ToolResponse(
+                      ref: toolRequest.toolRequest.ref,
+                      name: toolRequest.toolRequest.name,
+                      output: output,
+                      content: parts?.map((p) => p.toJson()).toList(),
+                    ),
+                    metadata: metadata,
+                  ),
+                );
             }
           }
           _logger.fine('toolResponses: $toolResponses');
