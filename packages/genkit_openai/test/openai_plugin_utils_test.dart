@@ -28,7 +28,6 @@ void main() {
     test('oSeriesModelInfo sets correct supports', () {
       final info = oSeriesModelInfo('o1');
       expect(info.supports?['multiturn'], true);
-      // O-series models support tool calling (JS and Go plugins agree).
       expect(info.supports?['tools'], true);
       expect(info.supports?['systemRole'], false);
       expect(info.supports?['media'], true);
@@ -83,8 +82,10 @@ void main() {
 
       // Non-tool models
       expect(supportsTools('o1'), true);
-      expect(supportsTools('o1-mini'), true);
       expect(supportsTools('o3-mini'), true);
+      // o1-mini and o1-preview predate function calling.
+      expect(supportsTools('o1-mini'), false);
+      expect(supportsTools('o1-preview'), false);
       expect(supportsTools('chatgpt-4o-latest'), false);
       expect(supportsTools('chatgpt-5-latest'), false);
       expect(supportsTools('gpt-3.5-turbo-instruct'), false);

@@ -69,11 +69,14 @@ class _DefaultModelCapabilities extends _ModelCapabilities {
 }
 
 /// O-series reasoning models override key capability defaults.
-///
-/// Tools are not overridden: o-series models support tool calling; they
-/// only reject the system role.
 class _OSeriesModelCapabilities extends _DefaultModelCapabilities {
   const _OSeriesModelCapabilities(super.modelId);
+
+  // o1-mini and o1-preview predate function calling on the chat API;
+  // every later o-series model supports tools.
+  @override
+  bool get supportsTools =>
+      !id.startsWith('o1-mini') && !id.startsWith('o1-preview');
 
   @override
   bool get supportsSystemRole => false;
