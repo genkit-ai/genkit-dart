@@ -222,7 +222,6 @@ class OpenAIPlugin extends GenkitPlugin {
         );
 
         try {
-          // Some OpenAI-compatible providers reject an empty tools array.
           final tools = modelRequest.tools
               ?.map(GenkitConverter.toOpenAITool)
               .toList();
@@ -240,6 +239,7 @@ class OpenAIPlugin extends GenkitPlugin {
               modelRequest.messages,
               options.visualDetailLevel,
             ),
+            // Some OpenAI-compatible providers reject an empty tools array.
             tools: (tools == null || tools.isEmpty) ? null : tools,
             temperature: options.temperature,
             topP: options.topP,

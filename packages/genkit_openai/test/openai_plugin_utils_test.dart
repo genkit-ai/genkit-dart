@@ -56,6 +56,7 @@ void main() {
       expect(supportsVision('gpt-4-vision'), true);
       expect(supportsVision('gpt-4-vision-preview'), true);
       expect(supportsVision('o1'), true);
+      expect(supportsVision('o1-mini'), false);
       expect(supportsVision('o1-preview'), false);
       expect(supportsVision('o3'), true);
       expect(supportsVision('o3-mini'), false);
@@ -83,7 +84,7 @@ void main() {
       // Non-tool models
       expect(supportsTools('o1'), true);
       expect(supportsTools('o3-mini'), true);
-      // o1-mini and o1-preview predate function calling.
+      // o1-mini and o1-preview never had function calling.
       expect(supportsTools('o1-mini'), false);
       expect(supportsTools('o1-preview'), false);
       expect(supportsTools('chatgpt-4o-latest'), false);

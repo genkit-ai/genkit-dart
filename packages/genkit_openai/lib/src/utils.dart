@@ -72,8 +72,8 @@ class _DefaultModelCapabilities extends _ModelCapabilities {
 class _OSeriesModelCapabilities extends _DefaultModelCapabilities {
   const _OSeriesModelCapabilities(super.modelId);
 
-  // o1-mini and o1-preview predate function calling on the chat API;
-  // every later o-series model supports tools.
+  // o1-mini and o1-preview never had function calling on the chat API;
+  // every other o-series model supports tools.
   @override
   bool get supportsTools =>
       !id.startsWith('o1-mini') && !id.startsWith('o1-preview');
