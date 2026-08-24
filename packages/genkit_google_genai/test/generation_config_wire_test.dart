@@ -144,5 +144,32 @@ void main() {
       );
       expect(config, isNot(contains('responseJsonSchema')));
     });
+
+    test('TTS model JSON-mode unconstrained request sends no '
+        'responseJsonSchema', () async {
+      final config = await _generationConfigOnTheWire(
+        model: 'gemini-2.5-flash-preview-tts',
+        output: OutputConfig(
+          format: 'json',
+          schema: _schema,
+          constrained: false,
+        ),
+      );
+      expect(config['responseMimeType'], 'application/json');
+      expect(config, isNot(contains('responseJsonSchema')));
+    });
+
+    test('TTS model JSON-mode constrained request sends the '
+        'schema', () async {
+      final config = await _generationConfigOnTheWire(
+        model: 'gemini-2.5-flash-preview-tts',
+        output: OutputConfig(
+          format: 'json',
+          schema: _schema,
+          constrained: true,
+        ),
+      );
+      expect(config['responseJsonSchema'], _schema);
+    });
   });
 }
