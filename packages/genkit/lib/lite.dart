@@ -25,6 +25,7 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
+import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
 import 'src/ai/generate_middleware.dart';
 import 'src/ai/generate_types.dart';
@@ -88,6 +89,7 @@ Future<GenerateResponseHelper> generate<C>({
   }
 
   final registry = Registry();
+  configureFormats(registry);
   registry.register(model);
   tools?.forEach(registry.register);
   GenerateActionOutputConfig? outputConfig;
