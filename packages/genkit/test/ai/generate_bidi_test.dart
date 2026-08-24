@@ -174,9 +174,10 @@ void main() {
             if (variant == 'returned') {
               return .interrupt({'requiresConfirmation': true});
             }
-            // Deprecated throwing form (intentionally exercised here).
-            // ignore: deprecated_member_use_from_same_package
-            context.interrupt({'requiresConfirmation': true});
+            // The deprecated throwing form (`context.interrupt(...)`) throws a
+            // ToolInterruptException; throw it directly to exercise the same
+            // code path without depending on the deprecated API.
+            throw ToolInterruptException({'requiresConfirmation': true});
           },
         );
 
