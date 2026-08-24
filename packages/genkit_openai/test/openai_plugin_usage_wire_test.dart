@@ -141,8 +141,16 @@ void main() {
         model: openAI.model('gpt-4o'),
         prompt: 'Say hello.',
       );
-      await for (final _ in stream) {}
+      final chunks = <GenerateResponseChunk>[];
+      await for (final chunk in stream) {
+        chunks.add(chunk);
+      }
       final result = await stream.onResult;
+
+      // The terminal usage frame has an empty choices array and must not
+      // surface as a content chunk.
+      expect(chunks, hasLength(1));
+      expect(chunks.single.text, 'Hello');
 
       expect(result.usage, isNotNull);
       expect(result.usage?.inputTokens, 15);

@@ -25,122 +25,106 @@ void main() {
   final apiKey = Platform.environment['OPENAI_API_KEY'];
 
   group('Integration Tests', () {
-    test(
-      'generates text with GPT-4o',
-      () async {
-        if (apiKey == null || apiKey.isEmpty) {
-          fail(
-            'OPENAI_API_KEY environment variable must be set to run integration tests',
-          );
-        }
-
-        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
-
-        final response = await ai.generate(
-          model: openAI.model('gpt-4o'),
-          prompt: 'Say "hello" and nothing else.',
+    test('generates text with GPT-4o', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
         );
+      }
 
-        expect(response.text, isNotEmpty);
-        expect(response.text.toLowerCase(), contains('hello'));
-      },
-      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
-    );
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
-    test(
-      'generates text with custom options',
-      () async {
-        if (apiKey == null || apiKey.isEmpty) {
-          fail(
-            'OPENAI_API_KEY environment variable must be set to run integration tests',
-          );
-        }
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Say "hello" and nothing else.',
+      );
 
-        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+      expect(response.text, isNotEmpty);
+      expect(response.text.toLowerCase(), contains('hello'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
-        final response = await ai.generate(
-          model: openAI.model('gpt-4o'),
-          prompt: 'Write a haiku about Dart.',
-          config: OpenAIChatOptions(temperature: 0.7, maxTokens: 100),
+    test('generates text with custom options', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
         );
+      }
 
-        expect(response.text, isNotEmpty);
-        expect(response.text.length, lessThan(200));
-      },
-      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
-    );
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
-    test(
-      'streaming generation',
-      () async {
-        if (apiKey == null || apiKey.isEmpty) {
-          fail(
-            'OPENAI_API_KEY environment variable must be set to run integration tests',
-          );
-        }
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Write a haiku about Dart.',
+        config: OpenAIChatOptions(temperature: 0.7, maxTokens: 100),
+      );
 
-        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+      expect(response.text, isNotEmpty);
+      expect(response.text.length, lessThan(200));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
-        final chunks = <GenerateResponseChunk>[];
-        await for (final chunk in ai.generateStream(
-          model: openAI.model('gpt-4o'),
-          prompt: 'Count from 1 to 5.',
-        )) {
-          chunks.add(chunk);
-        }
-
-        expect(chunks.length, greaterThan(0));
-        final fullText = chunks
-            .expand((c) => c.content)
-            .where((p) => p.isText)
-            .map((p) => p.text!)
-            .join('');
-        expect(fullText.toLowerCase(), contains('1'));
-      },
-      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
-    );
-
-    test(
-      'tool calling',
-      () async {
-        if (apiKey == null || apiKey.isEmpty) {
-          fail(
-            'OPENAI_API_KEY environment variable must be set to run integration tests',
-          );
-        }
-
-        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
-
-        ai.defineTool(
-          name: 'getWeather',
-          description: 'Get the weather for a location',
-          inputSchema: WeatherInputSchema.$schema,
-          fn: (input, ctx) async {
-            return {'temperature': 72, 'condition': 'sunny'};
-          },
+    test('streaming generation', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
         );
+      }
 
-        final response = await ai.generate(
-          model: openAI.model('gpt-4o'),
-          prompt: 'What\'s the weather in Boston?',
-          toolNames: ['getWeather'],
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final chunks = <GenerateResponseChunk>[];
+      await for (final chunk in ai.generateStream(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Count from 1 to 5.',
+      )) {
+        chunks.add(chunk);
+      }
+
+      expect(chunks.length, greaterThan(0));
+      final fullText = chunks
+          .expand((c) => c.content)
+          .where((p) => p.isText)
+          .map((p) => p.text!)
+          .join('');
+      expect(fullText.toLowerCase(), contains('1'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('tool calling', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
         );
+      }
 
-        // Note: This test verifies that tools can be called successfully.
-        // However, GPT-4o may choose to answer directly without calling the tool
-        // since it has general knowledge about typical weather patterns.
-        // The important thing is that the request succeeds and we get a response.
-        expect(response.message, isNotNull);
-        expect(response.message!.content, isNotEmpty);
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
-        // Verify the response has either text or tool requests (both are valid)
-        final hasContent = response.message!.content.any(
-          (p) => p.isText || p.isToolRequest,
-        );
-        expect(hasContent, isTrue);
-      },
-      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
-    );
+      ai.defineTool(
+        name: 'getWeather',
+        description: 'Get the weather for a location',
+        inputSchema: WeatherInputSchema.$schema,
+        fn: (input, ctx) async {
+          return {'temperature': 72, 'condition': 'sunny'};
+        },
+      );
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'What\'s the weather in Boston?',
+        toolNames: ['getWeather'],
+      );
+
+      // Note: This test verifies that tools can be called successfully.
+      // However, GPT-4o may choose to answer directly without calling the tool
+      // since it has general knowledge about typical weather patterns.
+      // The important thing is that the request succeeds and we get a response.
+      expect(response.message, isNotNull);
+      expect(response.message!.content, isNotEmpty);
+
+      // Verify the response has either text or tool requests (both are valid)
+      final hasContent = response.message!.content.any(
+        (p) => p.isText || p.isToolRequest,
+      );
+      expect(hasContent, isTrue);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
     group('Structured output', () {
       test(
@@ -199,75 +183,67 @@ void main() {
       );
     });
 
-    test(
-      'multi-turn conversation',
-      () async {
-        if (apiKey == null || apiKey.isEmpty) {
-          fail(
-            'OPENAI_API_KEY environment variable must be set to run integration tests',
-          );
-        }
-
-        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
-
-        final response1 = await ai.generate(
-          model: openAI.model('gpt-4o'),
-          prompt: 'My name is Alice.',
+    test('multi-turn conversation', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
         );
+      }
 
-        final response2 = await ai.generate(
-          model: openAI.model('gpt-4o'),
-          messages: [
-            Message(
-              role: Role.user,
-              content: [TextPart(text: 'My name is Alice.')],
-            ),
-            Message(
-              role: Role.model,
-              content: [TextPart(text: response1.text)],
-            ),
-            Message(
-              role: Role.user,
-              content: [TextPart(text: 'What is my name?')],
-            ),
-          ],
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final response1 = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'My name is Alice.',
+      );
+
+      final response2 = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'My name is Alice.')],
+          ),
+          Message(
+            role: Role.model,
+            content: [TextPart(text: response1.text)],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'What is my name?')],
+          ),
+        ],
+      );
+
+      expect(response2.text, isNotEmpty);
+      expect(response2.text.toLowerCase(), contains('alice'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('reports token usage for non-streaming and streaming', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
         );
+      }
 
-        expect(response2.text, isNotEmpty);
-        expect(response2.text.toLowerCase(), contains('alice'));
-      },
-      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
-    );
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
-    test(
-      'reports token usage for non-streaming and streaming',
-      () async {
-        if (apiKey == null || apiKey.isEmpty) {
-          fail(
-            'OPENAI_API_KEY environment variable must be set to run integration tests',
-          );
-        }
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Say hello.',
+      );
+      expect(response.usage?.inputTokens, greaterThan(0));
+      expect(response.usage?.outputTokens, greaterThan(0));
+      expect(response.usage?.totalTokens, greaterThan(0));
 
-        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
-
-        final response = await ai.generate(
-          model: openAI.model('gpt-4o'),
-          prompt: 'Say hello.',
-        );
-        expect(response.usage?.inputTokens, greaterThan(0));
-        expect(response.usage?.outputTokens, greaterThan(0));
-        expect(response.usage?.totalTokens, greaterThan(0));
-
-        final stream = ai.generateStream(
-          model: openAI.model('gpt-4o'),
-          prompt: 'Say hello.',
-        );
-        await for (final _ in stream) {}
-        final result = await stream.onResult;
-        expect(result.usage?.totalTokens, greaterThan(0));
-      },
-      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
-    );
+      final stream = ai.generateStream(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Say hello.',
+      );
+      await for (final _ in stream) {}
+      final result = await stream.onResult;
+      expect(result.usage?.totalTokens, greaterThan(0));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
 
