@@ -135,11 +135,9 @@ typedef ToolFn<Input, Output> =
 class Tool<Input, Output>
     extends Action<Input, ToolResult<Output>, void, void> {
   /// The user-declared output schema (the schema of `Output`, not
-  /// [ToolResult]). Used to build the model-facing tool definition.
+  /// [ToolResult]). Used to build the model-facing tool definition and the
+  /// action manifest (see [manifestOutputSchema]).
   final SchemanticType<Output>? toolOutputSchema;
-
-  /// The underlying tool implementation function.
-  final ToolFn<Input, Output> toolFn;
 
   // Uses an explicit super call (not super parameters) because the base `fn`
   // is wrapped here, which is incompatible with super-parameter forwarding.
@@ -151,8 +149,7 @@ class Tool<Input, Output>
     SchemanticType<Input>? inputSchema,
     this.toolOutputSchema,
     Map<String, dynamic>? metadata,
-  }) : toolFn = fn,
-       super(
+  }) : super(
          name: name,
          description: description,
          inputSchema: inputSchema,
@@ -174,4 +171,11 @@ class Tool<Input, Output>
            return result;
          },
        );
+
+  // A tool's base `outputSchema` describes the wrapper `ToolResult<Output>`,
+  // not the user-declared `Output`. Surface the declared schema so action
+  // manifests (Dev UI, reflection) and MCP `tools/list` advertise the shape
+  // callers actually receive.
+  @override
+  SchemanticType? get manifestOutputSchema => toolOutputSchema;
 }

@@ -183,6 +183,14 @@ class Action<Input, Output, Chunk, Init>
     super.metadata,
   });
 
+  /// The output schema surfaced when building action manifests (Dev UI,
+  /// reflection) and tool definitions.
+  ///
+  /// Defaults to [outputSchema]. Subclasses such as `Tool` override this to
+  /// expose the user-declared output schema instead of an internal wrapper
+  /// type (for example `ToolResult<Output>`).
+  SchemanticType? get manifestOutputSchema => outputSchema;
+
   @override
   String toString() {
     return 'Action(name: $name, actionType: $actionType)';

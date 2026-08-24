@@ -252,5 +252,140 @@ void main() {
         expect(interruptMeta, {'requiresConfirmation': true});
       },
     );
+
+    test(
+      'multipart content and metadata survive an interrupt + resume turn',
+      () async {
+        // A turn where one tool returns multipart content and another
+        // interrupts. On resume, the multipart tool response must reach the
+        // model exactly as it would on the straight-through path.
+        Map<String, dynamic>? capturedToolMessage;
+        genkit.defineModel(
+          name: 'mixedModel',
+          fn: (request, context) async {
+            if (request.messages.last.role == .tool) {
+              capturedToolMessage = request.messages.last.toJson();
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'done')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      ref: 'shot',
+                      name: 'screenshot',
+                      input: {},
+                    ),
+                  ),
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      ref: 'confirm',
+                      name: 'confirmTransfer',
+                      input: {},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool<Map<String, dynamic>, Map<String, dynamic>>(
+          name: 'screenshot',
+          description: 'takes a screenshot',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (input, ctx) async => .response(
+            {'result': 'captured'},
+            parts: [
+              MediaPart(
+                media: Media(
+                  contentType: 'image/png',
+                  url: 'data:image/png;base64,abc',
+                ),
+              ),
+            ],
+            metadata: {'source': 'camera'},
+          ),
+        );
+
+        genkit.defineInterrupt<Map<String, dynamic>, String>(
+          name: 'confirmTransfer',
+          description: 'asks for confirmation',
+          inputSchema: .map(.string(), .dynamicSchema()),
+        );
+
+        final interrupted = await genkit.generate(
+          model: modelRef('mixedModel'),
+          prompt: 'go',
+          toolNames: ['screenshot', 'confirmTransfer'],
+        );
+        expect(interrupted.finishReason, FinishReason.interrupted);
+
+        // Resume by answering the interrupt; the completed screenshot's
+        // content/metadata must be preserved into the resumed tool message.
+        await genkit.generate(
+          model: modelRef('mixedModel'),
+          messages: interrupted.messages,
+          toolNames: ['screenshot', 'confirmTransfer'],
+          interruptRespond: [
+            InterruptResponse(interrupted.interrupts.first, 'ok'),
+          ],
+        );
+
+        final content = capturedToolMessage!['content'] as List;
+        final screenshotResponse = content
+            .map((c) => (c as Map<String, dynamic>)['toolResponse'] as Map)
+            .firstWhere((r) => r['name'] == 'screenshot');
+        expect(screenshotResponse['output'], {'result': 'captured'});
+        expect(screenshotResponse['content'], hasLength(1));
+        final part = (screenshotResponse['content'] as List).first as Map;
+        expect(part['media'], isNotNull);
+      },
+    );
+  });
+
+  group('defineInterrupt', () {
+    late Genkit genkit;
+
+    setUp(() {
+      genkit = Genkit(isDevEnv: false);
+    });
+
+    tearDown(() async {
+      await genkit.shutdown();
+    });
+
+    test('accepts a map-literal tool metadata without throwing', () {
+      // `metadata['tool']` is a `Map<dynamic, dynamic>` from a literal; the
+      // definition must not throw a TypeError merging it.
+      final tool = genkit.defineInterrupt<Map<String, dynamic>, String>(
+        name: 'confirm',
+        description: 'confirms',
+        metadata: {
+          'tool': {'custom': 'value'},
+        },
+      );
+      final toolMeta = tool.metadata['tool'] as Map<String, dynamic>;
+      expect(toolMeta['custom'], 'value');
+      expect(toolMeta['restartable'], false);
+    });
+
+    test('ignores a non-map tool metadata value', () {
+      final tool = genkit.defineInterrupt<Map<String, dynamic>, String>(
+        name: 'confirm2',
+        description: 'confirms',
+        metadata: {'tool': 'not-a-map'},
+      );
+      final toolMeta = tool.metadata['tool'] as Map<String, dynamic>;
+      expect(toolMeta['restartable'], false);
+    });
   });
 }

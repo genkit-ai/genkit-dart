@@ -190,9 +190,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'model') return _createModel(name);
-    if (actionType == 'bidi-model') return _createBidiModel(name);
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == .model) return _createModel(name);
+    if (actionType == .bidiModel) return _createBidiModel(name);
     return null;
   }
 
@@ -523,6 +523,18 @@ fai.Part toGeminiPart(Part p) {
   }
   if (p.isToolResponse) {
     final toolResponse = p.toolResponse!;
+    // Firebase AI function responses carry a structured map only, so multipart
+    // tool content (images, media, etc.) cannot be represented here. Warn so
+    // authors of multipart tools can discover the parts are dropped for this
+    // provider rather than failing silently.
+    if (toolResponse.content?.isNotEmpty ?? false) {
+      _logger.warning(
+        'Tool "${toolResponse.name}" returned multipart content, but Firebase '
+        'AI function responses only support structured output. Dropping '
+        '${toolResponse.content!.length} content part(s); only the structured '
+        'output is sent.',
+      );
+    }
     return fai.FunctionResponse(
       toolResponse.name,
       {'result': toolResponse.output},

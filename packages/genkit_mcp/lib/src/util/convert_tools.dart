@@ -32,8 +32,10 @@ Map<String, dynamic> toMcpTool(Tool tool) {
           r'$schema': 'http://json-schema.org/draft-07/schema#',
           'type': 'object',
         },
-    if (tool.outputSchema != null)
-      'outputSchema': _toJsonSchema(tool.outputSchema),
+    // A tool's base `outputSchema` describes the `ToolResult` wrapper, so use
+    // the user-declared output schema (`toolOutputSchema`) for `tools/list`.
+    if (tool.toolOutputSchema != null)
+      'outputSchema': _toJsonSchema(tool.toolOutputSchema),
     'execution': execution,
     'annotations': ?annotations,
     ...?metaEntry,

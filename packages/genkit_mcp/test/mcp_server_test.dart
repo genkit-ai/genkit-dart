@@ -918,4 +918,70 @@ void main() {
     final responseEntry = _asMap(responseContent.first);
     expect(responseEntry['text'], 'unencodable');
   });
+
+  test('MCP server maps multipart tool content to MCP blocks', () async {
+    final ai = Genkit();
+    ai.defineTool<Map<String, dynamic>, Map<String, dynamic>>(
+      name: 'screenshot',
+      description: 'takes a screenshot',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      fn: (_, _) async => .response(
+        {'result': 'captured'},
+        parts: [
+          MediaPart(
+            media: Media(
+              contentType: 'image/png',
+              url: 'data:image/png;base64,AAAA',
+            ),
+          ),
+        ],
+      ),
+    );
+    final server = _createServer(ai);
+
+    final response = await _request(
+      server,
+      'tools/call',
+      id: 1,
+      params: {
+        'name': 'screenshot',
+        'arguments': {'foo': 'bar'},
+      },
+    );
+    final responseResult = _asMap(response?['result']);
+    final responseContent = _asList(responseResult['content']);
+    // A text block for the structured output plus an image block for the media.
+    expect(responseContent, hasLength(2));
+    expect(_asMap(responseContent[0])['type'], 'text');
+    final imageBlock = _asMap(responseContent[1]);
+    expect(imageBlock['type'], 'image');
+    expect(imageBlock['mimeType'], 'image/png');
+    expect(imageBlock['data'], 'AAAA');
+    expect(responseResult['structuredContent'], {'result': 'captured'});
+  });
+
+  test('MCP server surfaces tool interrupts as isError', () async {
+    final ai = Genkit();
+    ai.defineInterrupt<Map<String, dynamic>, String>(
+      name: 'confirm',
+      description: 'needs confirmation',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      requestMetadata: (_, _) => {'requiresConfirmation': true},
+    );
+    final server = _createServer(ai);
+
+    final response = await _request(
+      server,
+      'tools/call',
+      id: 1,
+      params: {
+        'name': 'confirm',
+        'arguments': {'foo': 'bar'},
+      },
+    );
+    final responseResult = _asMap(response?['result']);
+    expect(responseResult['isError'], isTrue);
+    final structured = _asMap(responseResult['structuredContent']);
+    expect(structured['interrupt'], {'requiresConfirmation': true});
+  });
 }

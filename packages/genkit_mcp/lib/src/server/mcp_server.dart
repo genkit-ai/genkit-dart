@@ -18,6 +18,7 @@ import 'dart:convert';
 import 'package:genkit/genkit.dart';
 
 import '../util/common.dart';
+import '../util/convert_messages.dart';
 import '../util/convert_prompts.dart';
 import '../util/convert_resources.dart';
 import '../util/convert_tools.dart';
@@ -259,25 +260,37 @@ class GenkitMcpServer {
     final input = params['arguments'];
     try {
       final result = await tool.runRaw(input);
-      // Tool functions return a ToolResult; unwrap it to the raw output (or
-      // the interrupt payload) before serializing for the MCP client.
+      // Tool functions return a ToolResult; unwrap it to build the MCP reply.
       final toolResult = result.result;
-      final output = switch (toolResult) {
-        ToolResponseResult(:final output) => output,
-        ToolInterruptResult(:final data) => {'interrupt': data ?? true},
-      };
 
-      final text = _stringifyToolOutput(output);
-
-      final response = <String, dynamic>{
-        'content': [
-          {'type': 'text', 'text': text},
-        ],
-      };
-      if (output is Map || output is List) {
-        response['structuredContent'] = output;
+      switch (toolResult) {
+        case ToolInterruptResult(:final data):
+          // An interrupt is a human-in-the-loop pause, not a real answer. A
+          // remote MCP client has no resume path, so surface it as an error
+          // rather than a successful result so the pause is discoverable.
+          final payload = {'interrupt': data ?? true};
+          return {
+            'content': [
+              {'type': 'text', 'text': _stringifyToolOutput(payload)},
+            ],
+            'structuredContent': payload,
+            'isError': true,
+          };
+        case ToolResponseResult(:final output, :final parts):
+          // Multipart tool content (images, media, etc.) becomes MCP content
+          // blocks alongside the structured output, so nothing is dropped at
+          // this boundary.
+          final response = <String, dynamic>{
+            'content': toMcpToolResultContent(
+              output: output,
+              content: parts?.map((p) => p.toJson()).toList(),
+            ),
+          };
+          if (output is Map || output is List) {
+            response['structuredContent'] = output;
+          }
+          return response;
       }
-      return response;
     } catch (e) {
       // Tool execution errors (input validation, business logic, etc.)
       // are returned as isError per MCP spec, so that models can

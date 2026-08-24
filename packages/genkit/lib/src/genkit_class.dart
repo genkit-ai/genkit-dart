@@ -241,7 +241,11 @@ final class Genkit extends GenkitAI {
       metadata: {
         ...?metadata,
         'tool': {
-          ...?(metadata?['tool'] as Map<String, dynamic>?),
+          // `metadata['tool']` is user-supplied; only spread it when it is
+          // actually a map (it may be absent, a `Map<dynamic, dynamic>` from a
+          // literal, or an unrelated value), otherwise ignore it.
+          if (metadata?['tool'] is Map)
+            ...(metadata!['tool'] as Map).cast<String, dynamic>(),
           'restartable': false,
         },
       },

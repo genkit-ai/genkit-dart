@@ -101,7 +101,7 @@ class Registry {
           if (_actions.containsKey(key)) {
             return _actions[key];
           }
-          final action = plugin.resolve(actionType.value, resolvedActionName);
+          final action = plugin.resolve(actionType, resolvedActionName);
           if (action != null) {
             register(action);
             return action;
@@ -158,7 +158,7 @@ class _ListActionsCachingPluginAdapter extends GenkitPlugin {
   Future<List<Action>> init() => _plugin.init();
 
   @override
-  Action? resolve(String actionType, String name) =>
+  Action? resolve(ActionType actionType, String name) =>
       _plugin.resolve(actionType, name);
 
   @override

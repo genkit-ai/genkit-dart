@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:logging/logging.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../ai/generate_middleware.dart';
@@ -215,8 +216,8 @@ class ReflectionServerV2 {
         'metadata': action.metadata,
         if (action.inputSchema != null)
           'inputSchema': toJsonSchema(type: action.inputSchema),
-        if (action.outputSchema != null)
-          'outputSchema': toJsonSchema(type: action.outputSchema),
+        if (_manifestOutputSchema(action) != null)
+          'outputSchema': toJsonSchema(type: _manifestOutputSchema(action)),
         if (action.initSchema != null)
           'initSchema': toJsonSchema(type: action.initSchema),
       };
@@ -374,4 +375,16 @@ class ReflectionServerV2 {
       _inputStreams.remove(id);
     }
   }
+}
+
+/// Returns the schema to advertise as an action's output schema in the
+/// manifest.
+///
+/// For [Action]s this is [Action.manifestOutputSchema], which lets tools
+/// surface their user-declared output schema instead of the internal
+/// `ToolResult` wrapper. Plain [ActionMetadata] falls back to
+/// [ActionMetadata.outputSchema].
+SchemanticType? _manifestOutputSchema(ActionMetadata action) {
+  if (action is Action) return action.manifestOutputSchema;
+  return action.outputSchema;
 }

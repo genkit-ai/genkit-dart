@@ -37,7 +37,13 @@ abstract class GenkitPlugin {
   }
 
   /// Called to resolve an action by name.
-  Action? resolve(String actionType, String name) {
+  ///
+  /// [actionType] is the typed action kind being resolved (for example
+  /// [ActionType.model] or [ActionType.tool]). Compare it against the
+  /// [ActionType] constants rather than raw strings, since the underlying
+  /// wire value can differ from the constant name (for example
+  /// `ActionType.tool` serializes to `tool.v2`).
+  Action? resolve(ActionType actionType, String name) {
     return null;
   }
 
@@ -47,7 +53,7 @@ abstract class GenkitPlugin {
   }
 
   Model model(String name) {
-    final m = resolve('model', name);
+    final m = resolve(.model, name);
     if (m == null || m is! Model) {
       throw GenkitException(
         'Model $name not found',

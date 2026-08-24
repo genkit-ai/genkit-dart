@@ -42,7 +42,7 @@ class TestPlugin extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
+  Action? resolve(ActionType actionType, String name) {
     if (resolvedAction != null && resolvedAction!.name == name) {
       return resolvedAction;
     }
@@ -409,7 +409,7 @@ class _FailingPlugin extends GenkitPlugin {
   Future<List<Action>> init() => _plugin.init();
 
   @override
-  Action? resolve(String actionType, String name) =>
+  Action? resolve(ActionType actionType, String name) =>
       _plugin.resolve(actionType, name);
 
   @override

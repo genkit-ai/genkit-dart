@@ -33,7 +33,7 @@ void main() {
   group('known model resolution', () {
     for (final model in vertexAiKnownGeminiModels) {
       test('${model.id} resolves with curated metadata', () {
-        final action = plugin().resolve('model', model.id);
+        final action = plugin().resolve(.model, model.id);
 
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
@@ -47,7 +47,7 @@ void main() {
     }
 
     test('unknown model falls back to common metadata', () {
-      final action = plugin().resolve('model', 'gemini-unknown-model');
+      final action = plugin().resolve(.model, 'gemini-unknown-model');
 
       expect(action, isNotNull);
       final info = modelInfoOf(action!);

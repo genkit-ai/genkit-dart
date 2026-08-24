@@ -23,6 +23,7 @@ import '../schema_extensions.dart';
 import '../types.dart';
 import 'generate.dart';
 import 'generate_types.dart';
+import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
 
@@ -147,20 +148,42 @@ Future<GenerateBidiSession> runGenerateBidi(
               final result = (await tool.runRaw(
                 toolRequest.toolRequest.input,
               )).result;
-              final response = switch (result) {
-                ToolInterruptResult(:final data) => ToolResponse(
-                  ref: toolRequest.toolRequest.ref,
-                  name: toolRequest.toolRequest.name,
-                  output: {'interrupt': data ?? true},
-                ),
-                ToolResponseResult(:final output, :final parts) => ToolResponse(
-                  ref: toolRequest.toolRequest.ref,
-                  name: toolRequest.toolRequest.name,
-                  output: output,
-                  content: parts?.map((p) => p.toJson()).toList(),
-                ),
-              };
-              toolResponses.add(ToolResponsePart(toolResponse: response));
+              switch (result) {
+                case ToolInterruptResult():
+                  // Interrupts (human-in-the-loop) require handing control back
+                  // to the caller, which a live bidi session cannot do: the
+                  // model is waiting on a function response and there is no
+                  // resume path. Surface this loudly instead of feeding the
+                  // model a bogus `{interrupt: true}` tool answer.
+                  throw GenkitException(
+                    'Tool "${toolRequest.toolRequest.name}" attempted to '
+                    'interrupt during a live (bidi) session. Interrupts are '
+                    'not supported by generateBidi; use a unary generate() '
+                    'call for human-in-the-loop tools.',
+                    status: StatusCodes.UNIMPLEMENTED,
+                  );
+                case ToolResponseResult(
+                  :final output,
+                  :final parts,
+                  :final metadata,
+                ):
+                  toolResponses.add(
+                    ToolResponsePart(
+                      toolResponse: ToolResponse(
+                        ref: toolRequest.toolRequest.ref,
+                        name: toolRequest.toolRequest.name,
+                        output: output,
+                        content: parts?.map((p) => p.toJson()).toList(),
+                      ),
+                      metadata: metadata,
+                    ),
+                  );
+              }
+            } on ToolInterruptException {
+              // The deprecated throwing interrupt form reaches here; treat it
+              // the same as a returned interrupt so both spellings behave
+              // consistently in bidi.
+              rethrow;
             } catch (e) {
               toolResponses.add(
                 ToolResponsePart(
