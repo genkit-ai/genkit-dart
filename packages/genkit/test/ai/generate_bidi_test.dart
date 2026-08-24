@@ -174,7 +174,8 @@ void main() {
             if (variant == 'returned') {
               return .interrupt({'requiresConfirmation': true});
             }
-            // Deprecated throwing form.
+            // Deprecated throwing form (intentionally exercised here).
+            // ignore: deprecated_member_use_from_same_package
             context.interrupt({'requiresConfirmation': true});
           },
         );
