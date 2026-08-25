@@ -391,16 +391,15 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
   if (safetySettings == null) return null;
   final settings = <gcl.SafetySetting>[];
   for (final s in safetySettings) {
-    if (s.category == null || s.category == 'HARM_CATEGORY_UNSPECIFIED') {
+    final category = s.category;
+    if (category == null || category == 'HARM_CATEGORY_UNSPECIFIED') {
       logger.warning(
         'Dropping safety setting with unset or UNSPECIFIED category: '
         'the API rejects HARM_CATEGORY_UNSPECIFIED.',
       );
       continue;
     }
-    settings.add(
-      gcl.SafetySetting(category: s.category, threshold: s.threshold),
-    );
+    settings.add(gcl.SafetySetting(category: category, threshold: s.threshold));
   }
   return settings;
 }
