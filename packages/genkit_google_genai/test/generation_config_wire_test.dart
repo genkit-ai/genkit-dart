@@ -44,7 +44,7 @@ class _WirePlugin extends GoogleGenAiPluginImpl {
                 'content': {
                   'role': 'model',
                   'parts': [
-                    {'text': 'ok'},
+                    {'text': '"ok"'},
                   ],
                 },
                 'finishReason': 'STOP',
@@ -68,6 +68,7 @@ const _schema = {
 
 Future<Map<String, dynamic>> _generationConfigOnTheWire({
   OutputConfig? output,
+  Map<String, dynamic>? config,
   String model = 'gemini-2.0-flash',
 }) async {
   final captured = <Map<String, dynamic>>[];
@@ -81,6 +82,7 @@ Future<Map<String, dynamic>> _generationConfigOnTheWire({
           content: [TextPart(text: 'hello')],
         ),
       ],
+      config: config,
       output: output,
     ),
   );
@@ -170,6 +172,48 @@ void main() {
         ),
       );
       expect(config['responseJsonSchema'], _schema);
+    });
+
+    test('non-JSON mode passes a user-configured responseMimeType '
+        'through', () async {
+      final config = await _generationConfigOnTheWire(
+        config: {'responseMimeType': 'text/x-foo'},
+        output: OutputConfig(format: 'text'),
+      );
+      expect(config['responseMimeType'], 'text/x-foo');
+    });
+
+    test('contentType application/json alone selects JSON mode and sends '
+        'the schema', () async {
+      final config = await _generationConfigOnTheWire(
+        output: OutputConfig(
+          contentType: 'application/json',
+          schema: _schema,
+          constrained: true,
+        ),
+      );
+      expect(config['responseMimeType'], 'application/json');
+      expect(config['responseJsonSchema'], _schema);
+    });
+
+    test('full Genkit generate with outputSchema sends schema and '
+        'application/json', () async {
+      final captured = <Map<String, dynamic>>[];
+      final ai = Genkit(
+        plugins: [_WirePlugin(captured)],
+        promptDir: null,
+        isDevEnv: false,
+      );
+      addTearDown(ai.shutdown);
+      await ai.generate(
+        model: modelRef('googleai/gemini-2.0-flash'),
+        prompt: 'hello',
+        outputSchema: .string(),
+      );
+      final config = (captured.single['generationConfig'] as Map)
+          .cast<String, dynamic>();
+      expect(config['responseMimeType'], 'application/json');
+      expect(config['responseJsonSchema'], isNotNull);
     });
   });
 }
