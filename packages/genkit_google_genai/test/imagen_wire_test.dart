@@ -210,6 +210,50 @@ void main() {
       expect(_instance(request), isNot(contains('image')));
     });
 
+    test('a non-base64 data URI is decoded before it is sent as the instance '
+        'image', () async {
+      final (request, _) = await _predict(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              TextPart(text: 'make it a watercolor'),
+              MediaPart(
+                media: Media(
+                  url: 'data:image/svg+xml,%3Csvg%2F%3E',
+                  contentType: 'image/svg+xml',
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      expect(_instance(request)['image'], {
+        'bytesBase64Encoded': base64Encode(utf8.encode('<svg/>')),
+      });
+    });
+
+    test('an undecodable data URI is skipped rather than sent as the instance '
+        'image', () async {
+      final (request, _) = await _predict(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              TextPart(text: 'make it a watercolor'),
+              MediaPart(
+                media: Media(
+                  url: 'data:image/svg+xml;utf8,<svg/>',
+                  contentType: 'image/svg+xml',
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      expect(_instance(request), isNot(contains('image')));
+    });
+
     test('an empty prompt is rejected before any request is made', () async {
       final captured = <http.Request>[];
       final plugin = _WirePlugin(captured);
@@ -307,6 +351,23 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('a non-string mimeType falls back to image/png', () async {
+      final plugin = _WirePlugin(
+        [],
+        response: {
+          'predictions': [
+            {'bytesBase64Encoded': 'aaaa', 'mimeType': 123},
+          ],
+        },
+      );
+      final action =
+          plugin.resolve('model', 'imagen-4.0-generate-001') as Model;
+      final response = await action(_request());
+      final media = response.message!.content.single.media!;
+      expect(media.url, 'data:image/png;base64,aaaa');
+      expect(media.contentType, 'image/png');
     });
 
     test('a prediction without image bytes throws', () async {

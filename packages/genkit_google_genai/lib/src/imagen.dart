@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
@@ -207,6 +209,10 @@ String extractImagenPrompt(ModelRequest request) {
 
 /// Extracts the base image for image editing from the last message: the first
 /// data-URI media part carrying either no metadata `type` or type `base`.
+///
+/// The payload is re-encoded as base64 whatever encoding the data URI used.
+/// Media that cannot be sent as inline bytes, including remote URLs and
+/// malformed data URIs, is skipped.
 @visibleForTesting
 Map<String, String>? extractImagenImage(ModelRequest request) {
   final last = request.messages.lastOrNull;
@@ -215,10 +221,9 @@ Map<String, String>? extractImagenImage(ModelRequest request) {
     if (!part.isMedia) continue;
     final type = part.metadata?['type'];
     if (type != null && type != 'base') continue;
-    final url = part.media!.url;
-    final separator = url.indexOf(',');
-    if (!url.startsWith('data:') || separator == -1) continue;
-    return {'bytesBase64Encoded': url.substring(separator + 1)};
+    final data = Uri.tryParse(part.media!.url)?.data;
+    if (data == null) continue;
+    return {'bytesBase64Encoded': base64Encode(data.contentAsBytes())};
   }
   return null;
 }
@@ -238,14 +243,16 @@ Map<String, dynamic> toImagenParameters(ImagenOptions options) {
 
 @visibleForTesting
 MediaPart fromImagenPrediction(Object? prediction) {
-  final b64Data = prediction is Map ? prediction['bytesBase64Encoded'] : null;
+  final fields = prediction is Map ? prediction : const <Object?, Object?>{};
+  final b64Data = fields['bytesBase64Encoded'];
   if (b64Data is! String || b64Data.isEmpty) {
     throw GenkitException(
       'Imagen prediction did not include image bytes.',
       status: StatusCodes.INTERNAL,
     );
   }
-  final mimeType = (prediction as Map)['mimeType'] as String? ?? 'image/png';
+  final rawMimeType = fields['mimeType'];
+  final mimeType = rawMimeType is String ? rawMimeType : 'image/png';
   return MediaPart(
     media: Media(url: 'data:$mimeType;base64,$b64Data', contentType: mimeType),
   );
