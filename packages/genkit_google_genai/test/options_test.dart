@@ -198,7 +198,10 @@ void main() {
       await model.call(
         ModelRequest(
           messages: [
-            Message(role: Role.user, content: [TextPart(text: 'hi')]),
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hi')],
+            ),
           ],
           config: {
             'safetySettings': [
