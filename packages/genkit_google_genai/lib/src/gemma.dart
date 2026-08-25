@@ -16,25 +16,18 @@ import 'package:genkit/plugin.dart';
 
 import 'model.dart';
 
-final commonGemmaModelInfo = ModelInfo(
+final gemmaModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
     'media': true,
     'tools': true,
     'toolChoice': true,
-    'systemRole': true,
+    'systemRole': false,
     'constrained': 'no-tools',
   },
 );
 
-final gemma3ModelInfo = ModelInfo(
-  supports: {...?commonGemmaModelInfo.supports, 'systemRole': false},
-);
-
 bool isGemmaModelName(String name) => name.startsWith('gemma-');
-
-bool isGemma3ModelName(String name) =>
-    name.startsWith('gemma-3-') || name.startsWith('gemma-3n-');
 
 /// Strips parts that the Gemma API rejects in history: reasoning parts
 /// and any text/tool parts whose metadata carries a `thoughtSignature`.
@@ -57,11 +50,38 @@ List<Message> stripReasoningParts(List<Message> messages) {
       .toList();
 }
 
-/// Maps a [GemmaOptions] config to its [GeminiOptions] equivalent so the
-/// shared `toGeminiSettings`/`toGeminiTools`/etc. helpers can be reused.
-/// Every Gemma field has an identical Gemini twin; the only schema-level
-/// difference is the tighter `temperature` cap on Gemma.
+/// Returns [messages] with [system]'s content prepended to the first user
+/// message. When no user message exists, a new user message carrying the
+/// system content is inserted at the front.
+List<Message> foldSystemMessage(Message system, List<Message> messages) {
+  final index = messages.indexWhere((m) => m.role == Role.user);
+  if (index == -1) {
+    return [Message(role: Role.user, content: system.content), ...messages];
+  }
+  final target = messages[index];
+  return [
+    ...messages.sublist(0, index),
+    Message(
+      role: Role.user,
+      content: [...system.content, ...target.content],
+      metadata: target.metadata,
+    ),
+    ...messages.sublist(index + 1),
+  ];
+}
+
+/// Maps a [GemmaOptions] config to its [GeminiOptions] equivalent.
+///
+/// Throws a [GenkitException] with `INVALID_ARGUMENT` when `temperature` is
+/// outside the 0.0-1.0 range the Gemma API accepts.
 GeminiOptions gemmaToGeminiOptions(GemmaOptions o) {
+  final temperature = o.temperature;
+  if (temperature != null && (temperature < 0.0 || temperature > 1.0)) {
+    throw GenkitException(
+      'Gemma models accept temperature between 0.0 and 1.0, got $temperature.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
   return GeminiOptions(
     apiKey: o.apiKey,
     safetySettings: o.safetySettings,

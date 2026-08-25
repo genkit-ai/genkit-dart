@@ -38,7 +38,10 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   String get name => 'googleai';
 
   @override
-  final Map<String, ModelInfo> knownModels = knownGeminiModels;
+final Map<String, ModelInfo> knownModels = knownGeminiModels;
+
+  @override
+  bool get servesGemmaModels => true;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
@@ -75,15 +78,13 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
                     model.name!.startsWith('models/gemma-'));
           })
           .map((model) {
-final bareName = model.name!.split('/').last;
+            final bareName = model.name!.split('/').last;
             discoveredNames.add(bareName);
             if (isGemmaModelName(bareName)) {
               return modelMetadata(
                 '$name/$bareName',
                 customOptions: GemmaOptions.$schema,
-                modelInfo: isGemma3ModelName(bareName)
-                    ? gemma3ModelInfo
-                    : commonGemmaModelInfo,
+modelInfo: gemmaModelInfo,
               );
             }
             final isTts = bareName.contains('-tts');

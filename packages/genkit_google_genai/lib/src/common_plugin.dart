@@ -49,6 +49,10 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// capabilities for known models.
   Map<String, ModelInfo> get knownModels => const {};
 
+  /// Whether `gemma-*` model names resolve with Gemma-specific handling
+  /// (Gemma options schema, system-message folding, reasoning strip).
+  bool get servesGemmaModels => false;
+
   /// Returns the capability metadata for [modelName], falling back to
   /// [commonModelInfo] for names not in [knownModels].
   ModelInfo modelInfoFor(String modelName) =>
@@ -59,7 +63,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     SchemanticType customOptions, {
     ModelInfo? modelInfo,
   }) {
-    final isGemma = isGemmaModelName(modelName);
+    final isGemma = servesGemmaModels && isGemmaModelName(modelName);
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
@@ -122,9 +126,12 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           final nonSystemMessages = req.messages
               .where((m) => m.role != Role.system)
               .toList();
-          final messages = isGemma
+          var messages = isGemma
               ? stripReasoningParts(nonSystemMessages)
               : nonSystemMessages;
+          if (isGemma && systemMessage != null) {
+            messages = foldSystemMessage(systemMessage, messages);
+          }
 
           if (isGemma && messages.isEmpty) {
             throw GenkitException(
@@ -141,7 +148,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             safetySettings: safetySettings?.isEmpty ?? true
                 ? null
                 : safetySettings,
-            systemInstruction: systemMessage == null
+            systemInstruction: systemMessage == null || isGemma
                 ? null
                 : gcl.Content(
                     parts: systemMessage.content.map(toGeminiPart).toList(),
@@ -220,13 +227,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return createEmbedder(name);
     }
     if (actionType == 'model') {
-      if (isGemmaModelName(name)) {
+      if (servesGemmaModels && isGemmaModelName(name)) {
         return createModel(
           name,
           GemmaOptions.$schema,
-          modelInfo: isGemma3ModelName(name)
-              ? gemma3ModelInfo
-              : commonGemmaModelInfo,
+          modelInfo: gemmaModelInfo,
         );
       }
       if (name.contains('-tts')) {
