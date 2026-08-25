@@ -18,11 +18,14 @@ import 'package:openai_dart/openai_dart.dart'
     show
         AssistantMessage,
         ChatMessage,
+        CompletionTokensDetails,
         ContentPart,
         FunctionCall,
+        PromptTokensDetails,
         SystemMessage,
         ToolCall,
         ToolMessage,
+        Usage,
         UserMessage;
 import 'package:test/test.dart';
 
@@ -330,6 +333,40 @@ void main() {
     test('maps unknown', () {
       expect(GenkitConverter.mapFinishReason('unknown'), FinishReason.unknown);
       expect(GenkitConverter.mapFinishReason(null), FinishReason.unknown);
+    });
+  });
+  group('GenkitConverter.mapUsage', () {
+    test('maps all fields including details', () {
+      final usage = GenkitConverter.mapUsage(
+        const Usage(
+          promptTokens: 15,
+          completionTokens: 7,
+          totalTokens: 22,
+          promptTokensDetails: PromptTokensDetails(cachedTokens: 5),
+          completionTokensDetails: CompletionTokensDetails(reasoningTokens: 3),
+        ),
+      );
+
+      expect(usage?.inputTokens, 15);
+      expect(usage?.outputTokens, 7);
+      expect(usage?.totalTokens, 22);
+      expect(usage?.cachedContentTokens, 5);
+      expect(usage?.thoughtsTokens, 3);
+    });
+
+    test('nullable fields stay null', () {
+      final usage = GenkitConverter.mapUsage(
+        const Usage(promptTokens: 15, totalTokens: 15),
+      );
+
+      expect(usage?.inputTokens, 15);
+      expect(usage?.outputTokens, isNull);
+      expect(usage?.thoughtsTokens, isNull);
+      expect(usage?.cachedContentTokens, isNull);
+    });
+
+    test('null usage maps to null', () {
+      expect(GenkitConverter.mapUsage(null), isNull);
     });
   });
 }

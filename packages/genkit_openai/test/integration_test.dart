@@ -255,6 +255,34 @@ void main() {
       expect(response2.text, isNotEmpty);
       expect(response2.text.toLowerCase(), contains('alice'));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('reports token usage for non-streaming and streaming', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Say hello.',
+      );
+      expect(response.usage?.inputTokens, greaterThan(0));
+      expect(response.usage?.outputTokens, greaterThan(0));
+      expect(response.usage?.totalTokens, greaterThan(0));
+
+      final stream = ai.generateStream(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Say hello.',
+      );
+      await for (final _ in stream) {}
+      final result = await stream.onResult;
+      expect(result.usage?.inputTokens, greaterThan(0));
+      expect(result.usage?.outputTokens, greaterThan(0));
+      expect(result.usage?.totalTokens, greaterThan(0));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
 
