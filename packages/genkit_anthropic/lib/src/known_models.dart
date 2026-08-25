@@ -14,25 +14,31 @@
 
 import 'package:genkit/plugin.dart';
 
-/// Capabilities every Claude model has: multiturn chat, vision (media input),
-/// tool calling with tool choice, a system role, and text output.
-final baseClaudeSupports = Map<String, dynamic>.unmodifiable({
+// A const map literal rejects duplicate keys, so 'output' cannot be spread in
+// from the base tier and then overridden.
+const _claudeSupportsCore = <String, dynamic>{
   'multiturn': true,
   'media': true,
   'tools': true,
   'toolChoice': true,
   'systemRole': true,
-  'output': List<String>.unmodifiable(['text']),
-});
+};
+
+/// Capabilities every Claude model has: multiturn chat, vision (media input),
+/// tool calling with tool choice, a system role, and text output.
+const baseClaudeSupports = <String, dynamic>{
+  ..._claudeSupportsCore,
+  'output': ['text'],
+};
 
 /// [baseClaudeSupports] plus JSON output and native constrained generation.
 ///
 /// Only models on Anthropic's Structured Outputs list may claim `constrained`.
-final structuredClaudeSupports = Map<String, dynamic>.unmodifiable({
-  ...baseClaudeSupports,
-  'output': List<String>.unmodifiable(['text', 'json']),
+const structuredClaudeSupports = <String, dynamic>{
+  ..._claudeSupportsCore,
+  'output': ['text', 'json'],
   'constrained': true,
-});
+};
 
 /// Claude models the Anthropic plugin curates capability metadata for.
 ///
