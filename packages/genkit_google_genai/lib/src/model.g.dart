@@ -499,7 +499,7 @@ base class GemmaOptions {
     if (value == null) {
       _json.remove('safetySettings');
     } else {
-      _json['safetySettings'] = value.toList();
+      _json['safetySettings'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -527,7 +527,7 @@ base class GemmaOptions {
     if (value == null) {
       _json.remove('functionCallingConfig');
     } else {
-      _json['functionCallingConfig'] = value;
+      _json['functionCallingConfig'] = value.toJson();
     }
   }
 
@@ -543,7 +543,7 @@ base class GemmaOptions {
     if (value == null) {
       _json.remove('thinkingConfig');
     } else {
-      _json['thinkingConfig'] = value;
+      _json['thinkingConfig'] = value.toJson();
     }
   }
 
@@ -569,7 +569,7 @@ base class GemmaOptions {
     if (value == null) {
       _json.remove('googleSearch');
     } else {
-      _json['googleSearch'] = value;
+      _json['googleSearch'] = value.toJson();
     }
   }
 
@@ -583,7 +583,7 @@ base class GemmaOptions {
     if (value == null) {
       _json.remove('fileSearch');
     } else {
-      _json['fileSearch'] = value;
+      _json['fileSearch'] = value.toJson();
     }
   }
 
@@ -741,7 +741,7 @@ base class GemmaOptions {
     if (value == null) {
       _json.remove('speechConfig');
     } else {
-      _json['speechConfig'] = value;
+      _json['speechConfig'] = value.toJson();
     }
   }
 
