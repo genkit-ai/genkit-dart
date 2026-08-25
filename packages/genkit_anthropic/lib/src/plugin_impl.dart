@@ -351,7 +351,8 @@ sdk.InputMessage toAnthropicMessage(Message m) {
       : sdk.InputMessage.assistantBlocks(blocks);
 }
 
-final _base64DataUrl = RegExp(r'^data:([^;,]*);base64,(.+)$');
+const _base64Marker = ';base64';
+final _whitespace = RegExp(r'\s');
 
 List<sdk.InputContentBlock> _convertMediaFromJson(
   String url,
@@ -359,8 +360,14 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
 ) {
   final declaredMime = contentType?.toLowerCase();
   if (url.startsWith('data:')) {
-    final match = _base64DataUrl.firstMatch(url);
-    if (match == null) {
+    final comma = url.indexOf(',');
+    final header = comma < 0
+        ? ''
+        : url.substring('data:'.length, comma).toLowerCase();
+    final base64Data = comma < 0
+        ? ''
+        : url.substring(comma + 1).replaceAll(_whitespace, '');
+    if (!header.endsWith(_base64Marker) || base64Data.isEmpty) {
       final preview = url.length > 64 ? '${url.substring(0, 64)}...' : url;
       throw GenkitException(
         'Invalid media data URL for Anthropic: expected '
@@ -368,9 +375,11 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
-    final urlMime = match.group(1)!.toLowerCase();
+    final urlMime = header
+        .substring(0, header.length - _base64Marker.length)
+        .split(';')
+        .first;
     final mimeType = urlMime.isNotEmpty ? urlMime : declaredMime;
-    final base64Data = match.group(2)!;
     if (mimeType == 'application/pdf') {
       return [
         sdk.InputContentBlock.document(

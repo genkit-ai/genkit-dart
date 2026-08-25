@@ -196,6 +196,37 @@ void main() {
       expect(source.data, '/9j/4AAQSkZJRg==');
     });
 
+    test('should ignore media type parameters in a data URL', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:image/png;charset=utf-8;base64,AAAA'),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.png);
+      expect(source.data, 'AAAA');
+    });
+
+    test('should strip whitespace from a wrapped base64 payload', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:application/pdf;base64,JVBERi0x\nLjQ='),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.Base64PdfSource;
+      expect(source.data, 'JVBERi0xLjQ=');
+    });
+
     test('should throw INVALID_ARGUMENT for a data URL without a comma', () {
       final input = Message(
         role: Role.user,
