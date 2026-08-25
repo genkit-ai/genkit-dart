@@ -127,6 +127,99 @@ void main() {
       expect(blocks.first, isA<sdk.ImageInputBlock>());
     });
 
+    test('should map PDF data URI to a base64 document block', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:application/pdf;base64,JVBERi0xLjQ=',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final blocks = result.blocks;
+      expect(blocks.length, 1);
+      final block = blocks.first as sdk.DocumentInputBlock;
+      final source = block.source as sdk.Base64PdfSource;
+      expect(source.data, 'JVBERi0xLjQ=');
+    });
+
+    test('should map PDF data URI without contentType to a document block', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:application/pdf;base64,JVBERi0xLjQ='),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.Base64PdfSource;
+      expect(source.data, 'JVBERi0xLjQ=');
+    });
+
+    test('should map remote PDF URL to a URL document source', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/paper.pdf',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.UrlPdfSource;
+      expect(source.url, 'https://example.com/paper.pdf');
+    });
+
+    test('should take image media type from the data URI', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.jpeg);
+      expect(source.data, '/9j/4AAQSkZJRg==');
+    });
+
+    test('should throw INVALID_ARGUMENT for unsupported media types', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:text/plain;base64,aGVsbG8=',
+              contentType: 'text/plain',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.INVALID_ARGUMENT,
+          ),
+        ),
+      );
+    });
+
     test('should filter ReasoningPart from input', () {
       final input = Message(
         role: Role.user,
