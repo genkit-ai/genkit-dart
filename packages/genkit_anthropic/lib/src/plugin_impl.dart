@@ -358,7 +358,17 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
   if (url.startsWith('data:')) {
     final commaIdx = url.indexOf(',');
     final base64Data = url.substring(commaIdx + 1);
-    final mimeType = contentType ?? 'image/png';
+    final urlMime = commaIdx < 0
+        ? ''
+        : url.substring('data:'.length, commaIdx).split(';').first;
+    final mimeType = urlMime.isNotEmpty ? urlMime : contentType;
+    if (mimeType == 'application/pdf') {
+      return [
+        sdk.InputContentBlock.document(
+          sdk.DocumentSource.base64Pdf(base64Data),
+        ),
+      ];
+    }
     return [
       sdk.InputContentBlock.image(
         sdk.ImageSource.base64(
@@ -367,17 +377,25 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
         ),
       ),
     ];
-  } else {
-    return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
   }
+  if (contentType == 'application/pdf') {
+    return [sdk.InputContentBlock.document(sdk.DocumentSource.url(url))];
+  }
+  return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
 }
 
-sdk.ImageMediaType _mapImageMediaType(String mimeType) {
+sdk.ImageMediaType _mapImageMediaType(String? mimeType) {
   return switch (mimeType) {
     'image/jpeg' || 'image/jpg' => sdk.ImageMediaType.jpeg,
+    'image/png' => sdk.ImageMediaType.png,
     'image/gif' => sdk.ImageMediaType.gif,
     'image/webp' => sdk.ImageMediaType.webp,
-    _ => sdk.ImageMediaType.png,
+    _ => throw GenkitException(
+      'Unsupported media type for Anthropic: ${mimeType ?? '(none)'}. '
+      'Supported: image/jpeg, image/png, image/gif, image/webp, '
+      'application/pdf.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    ),
   };
 }
 
