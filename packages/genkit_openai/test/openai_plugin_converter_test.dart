@@ -369,6 +369,26 @@ void main() {
   });
 
   group('GenkitConverter.toOpenAITool schema guards', () {
+    test('schema without a type key is defaulted to object', () {
+      final result = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'echo',
+          description: 'Echoes the input',
+          inputSchema: {
+            'properties': {
+              'text': {'type': 'string'},
+            },
+          },
+        ),
+      );
+      expect(result.function.parameters, {
+        'type': 'object',
+        'properties': {
+          'text': {'type': 'string'},
+        },
+      });
+    });
+
     test('non-object input schema throws INVALID_ARGUMENT', () {
       expect(
         () => GenkitConverter.toOpenAITool(
