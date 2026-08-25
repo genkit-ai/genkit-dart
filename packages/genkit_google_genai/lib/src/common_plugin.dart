@@ -538,6 +538,11 @@ String toGeminiRole(Role role) {
   return 'user';
 }
 
+/// Whether [name] (bare or resource-prefixed) names an embedding model:
+/// any name containing `embedding`, such as `text-embedding-004`,
+/// `gemini-embedding-2`, or `multimodalembedding`.
+bool isEmbedderModelName(String name) => name.contains('embedding');
+
 @visibleForTesting
 List<gcl.Content> toGeminiContent(List<Message> messages) {
   return messages
@@ -550,7 +555,7 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
       .toList();
 }
 
-@visibleForTesting
+@internal
 gcl.Part toGeminiPart(Part p) {
   final thoughtSignature = p.metadata?['thoughtSignature'] != null
       ? p.metadata!['thoughtSignature'] as String

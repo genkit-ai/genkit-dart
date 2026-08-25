@@ -95,8 +95,11 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           .where(
             (model) =>
                 model.name != null &&
-                (model.name!.startsWith('models/text-embedding-') ||
-                    model.name!.startsWith('models/embedding-')),
+                isEmbedderModelName(model.name!) &&
+                (model.supportedGenerationMethods ?? []).contains(
+                  'embedContent',
+                ) &&
+                !(model.description?.contains('deprecated') ?? false),
           )
           .map((model) {
             return embedderMetadata('$name/${model.name!.split('/').last}');
@@ -123,13 +126,11 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
               ? TextEmbedderOptions.fromJson(req.options!)
               : null;
 
-          if (req.input.length == 1) {
-            final doc = req.input.first;
-            final text = doc.content
-                .where((p) => p.isText)
-                .map((p) => p.text)
-                .join('\n');
-            final content = gcl.Content(parts: [gcl.Part(text: text)]);
+          final futures = req.input.map((doc) async {
+            final content = gcl.Content(
+              role: 'user',
+              parts: doc.content.map(toGeminiPart).toList(),
+            );
             final res = await service.embedContent(
               gcl.EmbedContentRequest(
                 content: content,
@@ -139,30 +140,10 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
               ),
               model: 'models/$embedderName',
             );
-            return EmbedResponse(
-              embeddings: [Embedding(embedding: res.embedding?.values ?? [])],
-            );
-          } else {
-            final futures = req.input.map((doc) async {
-              final text = doc.content
-                  .where((p) => p.isText)
-                  .map((p) => p.text)
-                  .join('\n');
-              final content = gcl.Content(parts: [gcl.Part(text: text)]);
-              final res = await service.embedContent(
-                gcl.EmbedContentRequest(
-                  content: content,
-                  outputDimensionality: options?.outputDimensionality,
-                  taskType: options?.taskType,
-                  title: options?.title,
-                ),
-                model: 'models/$embedderName',
-              );
-              return Embedding(embedding: res.embedding?.values ?? []);
-            });
-            final embeddings = await Future.wait(futures);
-            return EmbedResponse(embeddings: embeddings);
-          }
+            return Embedding(embedding: res.embedding?.values ?? []);
+          });
+          final embeddings = await Future.wait(futures);
+          return EmbedResponse(embeddings: embeddings);
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
