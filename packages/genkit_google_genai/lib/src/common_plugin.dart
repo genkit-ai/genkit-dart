@@ -78,6 +78,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             options,
             req.output?.schema,
             isJsonMode,
+            constrained: req.output?.constrained ?? false,
           );
           safetySettings = toGeminiSafetySettings(options.safetySettings);
           tools = toGeminiTools(
@@ -95,6 +96,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             options,
             req.output?.schema,
             isJsonMode,
+            constrained: req.output?.constrained ?? false,
           );
           safetySettings = toGeminiSafetySettings(options.safetySettings);
           tools = toGeminiTools(
@@ -260,8 +262,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 gcl.GenerationConfig toGeminiSettings(
   GeminiOptions options,
   Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences?.isEmpty ?? true
@@ -273,8 +276,10 @@ gcl.GenerationConfig toGeminiSettings(
     topK: options.topK,
     responseMimeType: isJsonMode
         ? 'application/json'
-        : (options.responseMimeType ?? ''),
-    responseJsonSchema: outputSchema,
+        : (options.responseMimeType?.isEmpty ?? true
+              ? null
+              : options.responseMimeType),
+    responseJsonSchema: constrained && isJsonMode ? outputSchema : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
@@ -297,8 +302,9 @@ gcl.GenerationConfig toGeminiSettings(
 gcl.GenerationConfig toGeminiTtsSettings(
   GeminiTtsOptions options,
   Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences?.isEmpty ?? true
@@ -313,7 +319,7 @@ gcl.GenerationConfig toGeminiTtsSettings(
         : (options.responseMimeType?.isEmpty ?? true
               ? null
               : options.responseMimeType),
-    responseJsonSchema: outputSchema,
+    responseJsonSchema: constrained && isJsonMode ? outputSchema : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
