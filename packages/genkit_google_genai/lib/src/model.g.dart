@@ -49,6 +49,7 @@ base class GeminiOptions {
     double? presencePenalty,
     double? frequencyPenalty,
     int? seed,
+    ImageConfig? imageConfig,
     SpeechConfig? speechConfig,
   }) {
     _json = {
@@ -72,6 +73,7 @@ base class GeminiOptions {
       'presencePenalty': ?presencePenalty,
       'frequencyPenalty': ?frequencyPenalty,
       'seed': ?seed,
+      'imageConfig': ?imageConfig?.toJson(),
       'speechConfig': ?speechConfig?.toJson(),
     };
   }
@@ -336,6 +338,20 @@ base class GeminiOptions {
     }
   }
 
+  ImageConfig? get imageConfig {
+    return _json['imageConfig'] == null
+        ? null
+        : ImageConfig.fromJson(_json['imageConfig'] as Map<String, dynamic>);
+  }
+
+  set imageConfig(ImageConfig? value) {
+    if (value == null) {
+      _json.remove('imageConfig');
+    } else {
+      _json['imageConfig'] = value.toJson();
+    }
+  }
+
   SpeechConfig? get speechConfig {
     return _json['speechConfig'] == null
         ? null
@@ -401,6 +417,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
             'presencePenalty': $Schema.number(),
             'frequencyPenalty': $Schema.number(),
             'seed': $Schema.integer(),
+            'imageConfig': $Schema.fromMap({'\$ref': r'#/$defs/ImageConfig'}),
             'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
           },
         )
@@ -411,6 +428,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       ThinkingConfig.$schema,
       GoogleSearch.$schema,
       FileSearch.$schema,
+      ImageConfig.$schema,
       SpeechConfig.$schema,
     ],
   );
@@ -1146,6 +1164,97 @@ base class _GeminiTtsOptionsTypeFactory
       FileSearch.$schema,
       SpeechConfig.$schema,
     ],
+  );
+}
+
+base class ImageConfig {
+  /// Creates a [ImageConfig] from a JSON map.
+  factory ImageConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  ImageConfig._(this._json);
+
+  ImageConfig({String? aspectRatio, String? imageSize}) {
+    _json = {'aspectRatio': ?aspectRatio, 'imageSize': ?imageSize};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [ImageConfig].
+  static const SchemanticType<ImageConfig> $schema = _ImageConfigTypeFactory();
+
+  String? get aspectRatio {
+    return _json['aspectRatio'] as String?;
+  }
+
+  set aspectRatio(String? value) {
+    if (value == null) {
+      _json.remove('aspectRatio');
+    } else {
+      _json['aspectRatio'] = value;
+    }
+  }
+
+  String? get imageSize {
+    return _json['imageSize'] as String?;
+  }
+
+  set imageSize(String? value) {
+    if (value == null) {
+      _json.remove('imageSize');
+    } else {
+      _json['imageSize'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [ImageConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _ImageConfigTypeFactory extends SchemanticType<ImageConfig> {
+  const _ImageConfigTypeFactory();
+
+  @override
+  ImageConfig parse(Object? json) {
+    return ImageConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ImageConfig',
+    definition: $Schema
+        .object(
+          properties: {
+            'aspectRatio': $Schema.string(
+              enumValues: [
+                '1:1',
+                '1:4',
+                '1:8',
+                '2:3',
+                '3:2',
+                '3:4',
+                '4:1',
+                '4:3',
+                '4:5',
+                '5:4',
+                '8:1',
+                '9:16',
+                '16:9',
+                '21:9',
+              ],
+            ),
+            'imageSize': $Schema.string(enumValues: ['1K', '2K', '4K']),
+          },
+        )
+        .value,
+    dependencies: [],
   );
 }
 
