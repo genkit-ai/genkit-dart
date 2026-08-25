@@ -369,4 +369,45 @@ void main() {
       expect(GenkitConverter.mapUsage(null), isNull);
     });
   });
+
+  group('GenkitConverter.toOpenAITool schema guards', () {
+    test('schema without a type key is defaulted to object', () {
+      final result = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'echo',
+          description: 'Echoes the input',
+          inputSchema: {
+            'properties': {
+              'text': {'type': 'string'},
+            },
+          },
+        ),
+      );
+      expect(result.function.parameters, {
+        'type': 'object',
+        'properties': {
+          'text': {'type': 'string'},
+        },
+      });
+    });
+
+    test('non-object input schema throws INVALID_ARGUMENT', () {
+      expect(
+        () => GenkitConverter.toOpenAITool(
+          ToolDefinition(
+            name: 'echo',
+            description: 'Echoes the input',
+            inputSchema: {'type': 'string'},
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('echo'), contains('object')),
+          ),
+        ),
+      );
+    });
+  });
 }
