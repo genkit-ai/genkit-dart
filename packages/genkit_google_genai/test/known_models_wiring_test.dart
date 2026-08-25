@@ -107,6 +107,32 @@ void main() {
       expect(info['stage'], 'stable');
     });
 
+    test('lists discovered gemma models with gemma metadata alongside the '
+        'curated catalog', () async {
+      final client = MockHttpClient(
+        modelsResponse:
+            '{"models": ['
+            '{"name": "models/gemma-3-4b-it"}, '
+            '{"name": "models/gemini-3.5-flash"}]}',
+      );
+      final actions = await plugin(client: client).list();
+      final names = actions.map((a) => a.name).toList();
+
+      expect(names, contains('googleai/gemma-3-4b-it'));
+      expect(names.toSet().length, names.length);
+      for (final model in KnownGeminiModel.values) {
+        expect(names, contains('googleai/${model.id}'));
+      }
+
+      final gemma = actions.firstWhere(
+        (a) => a.name == 'googleai/gemma-3-4b-it',
+      );
+      final info = (gemma.metadata['model'] as Map).cast<String, dynamic>();
+      final supports = (info['supports'] as Map).cast<String, dynamic>();
+      expect(supports['systemRole'], isFalse);
+      expect(supports['constrained'], 'no-tools');
+    });
+
     test('appends curated models missing from discovery', () async {
       final actions = await plugin().list();
       final names = actions.map((a) => a.name).toList();
