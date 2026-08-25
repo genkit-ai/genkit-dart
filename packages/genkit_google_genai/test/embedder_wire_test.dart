@@ -109,6 +109,11 @@ void main() {
         'description': 'A deprecated embedding model.',
         'supportedGenerationMethods': ['embedContent'],
       },
+      {
+        'name': 'models/text-embedding-003',
+        'description': 'Deprecated: use gemini-embedding-001 instead.',
+        'supportedGenerationMethods': ['embedContent'],
+      },
     ];
 
     test('routes gemini-embedding-* to the embedder path, not the model '
@@ -142,14 +147,18 @@ void main() {
       expect(models, isNot(contains('googleai/embedding-gecko-001')));
     });
 
-    test('drops deprecated embedders', () async {
-      final actions = await _discoveryPlugin(discovered).list();
+    test(
+      'drops deprecated embedders whatever the description casing',
+      () async {
+        final actions = await _discoveryPlugin(discovered).list();
 
-      final embedders = actions
-          .where((a) => a.actionType == 'embedder')
-          .map((a) => a.name);
-      expect(embedders, isNot(contains('googleai/embedding-001')));
-    });
+        final embedders = actions
+            .where((a) => a.actionType == 'embedder')
+            .map((a) => a.name);
+        expect(embedders, isNot(contains('googleai/embedding-001')));
+        expect(embedders, isNot(contains('googleai/text-embedding-003')));
+      },
+    );
   });
 
   group('embedContent on the wire', () {
@@ -247,6 +256,34 @@ void main() {
       });
       expect(response.result.embeddings, hasLength(2));
     });
+
+    test(
+      'rejects a document with no content before any request goes out',
+      () async {
+        final captured = <Map<String, dynamic>>[];
+        final plugin = _EmbedWirePlugin(captured, <Uri>[]);
+        final embedder =
+            plugin.resolve('embedder', 'gemini-embedding-2')!
+                as _EmbedderAction;
+
+        await expectLater(
+          embedder.run(
+            EmbedRequest(
+              input: [
+                DocumentData(content: [TextPart(text: 'first')]),
+                DocumentData(content: []),
+              ],
+            ),
+          ),
+          throwsA(
+            isA<GenkitException>()
+                .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+                .having((e) => e.message, 'message', contains('index 1')),
+          ),
+        );
+        expect(captured, isEmpty);
+      },
+    );
 
     test('still forwards embedder options on media requests', () async {
       final captured = <Map<String, dynamic>>[];

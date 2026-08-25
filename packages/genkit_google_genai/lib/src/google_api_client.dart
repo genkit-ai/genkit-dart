@@ -100,7 +100,8 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
                 (model.supportedGenerationMethods ?? []).contains(
                   'embedContent',
                 ) &&
-                !(model.description?.contains('deprecated') ?? false),
+                !(model.description?.toLowerCase().contains('deprecated') ??
+                    false),
           )
           .map((model) {
             return embedderMetadata('$name/${model.name!.split('/').last}');
@@ -141,6 +142,15 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           final options = req.options != null
               ? TextEmbedderOptions.fromJson(req.options!)
               : null;
+
+          for (final (index, doc) in req.input.indexed) {
+            if (doc.content.isEmpty) {
+              throw GenkitException(
+                'Cannot embed the document at index $index: it has no content.',
+                status: StatusCodes.INVALID_ARGUMENT,
+              );
+            }
+          }
 
           final futures = req.input.map((doc) async {
             final content = gcl.Content(
