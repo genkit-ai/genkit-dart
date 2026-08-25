@@ -351,17 +351,26 @@ sdk.InputMessage toAnthropicMessage(Message m) {
       : sdk.InputMessage.assistantBlocks(blocks);
 }
 
+final _base64DataUrl = RegExp(r'^data:([^;,]*);base64,(.+)$');
+
 List<sdk.InputContentBlock> _convertMediaFromJson(
   String url,
   String? contentType,
 ) {
+  final declaredMime = contentType?.toLowerCase();
   if (url.startsWith('data:')) {
-    final commaIdx = url.indexOf(',');
-    final base64Data = url.substring(commaIdx + 1);
-    final urlMime = commaIdx < 0
-        ? ''
-        : url.substring('data:'.length, commaIdx).split(';').first;
-    final mimeType = urlMime.isNotEmpty ? urlMime : contentType;
+    final match = _base64DataUrl.firstMatch(url);
+    if (match == null) {
+      final preview = url.length > 64 ? '${url.substring(0, 64)}...' : url;
+      throw GenkitException(
+        'Invalid media data URL for Anthropic: expected '
+        '"data:<mime>;base64,<data>", got "$preview".',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    final urlMime = match.group(1)!.toLowerCase();
+    final mimeType = urlMime.isNotEmpty ? urlMime : declaredMime;
+    final base64Data = match.group(2)!;
     if (mimeType == 'application/pdf') {
       return [
         sdk.InputContentBlock.document(
@@ -373,18 +382,21 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
       sdk.InputContentBlock.image(
         sdk.ImageSource.base64(
           data: base64Data,
-          mediaType: _mapImageMediaType(mimeType),
+          mediaType: _requireImageMediaType(mimeType),
         ),
       ),
     ];
   }
-  if (contentType == 'application/pdf') {
+  if (declaredMime == 'application/pdf') {
     return [sdk.InputContentBlock.document(sdk.DocumentSource.url(url))];
+  }
+  if (declaredMime != null) {
+    _requireImageMediaType(declaredMime);
   }
   return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
 }
 
-sdk.ImageMediaType _mapImageMediaType(String? mimeType) {
+sdk.ImageMediaType _requireImageMediaType(String? mimeType) {
   return switch (mimeType) {
     'image/jpeg' || 'image/jpg' => sdk.ImageMediaType.jpeg,
     'image/png' => sdk.ImageMediaType.png,
