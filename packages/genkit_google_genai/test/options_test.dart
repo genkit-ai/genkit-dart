@@ -85,6 +85,53 @@ void main() {
       expect(settings!.first.category, 'HARM_CATEGORY_DANGEROUS_CONTENT');
       expect(settings.first.threshold, 'BLOCK_ONLY_HIGH');
     });
+
+    test('returns null for null input', () {
+      expect(toGeminiSafetySettings(null), isNull);
+    });
+
+    test('returns empty list for empty input', () {
+      expect(toGeminiSafetySettings([]), isEmpty);
+    });
+
+    test('drops an entry with unset category', () {
+      final settings = toGeminiSafetySettings([
+        SafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
+        SafetySettings(
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_LOW_AND_ABOVE',
+        ),
+      ]);
+
+      expect(settings, hasLength(1));
+      expect(settings!.first.category, 'HARM_CATEGORY_HARASSMENT');
+    });
+
+    test('drops an entry with explicit HARM_CATEGORY_UNSPECIFIED', () {
+      final settings = toGeminiSafetySettings([
+        SafetySettings(
+          category: 'HARM_CATEGORY_UNSPECIFIED',
+          threshold: 'BLOCK_ONLY_HIGH',
+        ),
+      ]);
+
+      expect(settings, isEmpty);
+    });
+
+    test('drops an entry with neither category nor threshold', () {
+      expect(toGeminiSafetySettings([SafetySettings()]), isEmpty);
+    });
+
+    test('omits threshold from the wire body when unset', () {
+      final settings = toGeminiSafetySettings([
+        SafetySettings(category: 'HARM_CATEGORY_HATE_SPEECH'),
+      ]);
+
+      expect(settings, hasLength(1));
+      expect(settings!.first.toJson(), {
+        'category': 'HARM_CATEGORY_HATE_SPEECH',
+      });
+    });
   });
 
   group('toGeminiTools', () {
