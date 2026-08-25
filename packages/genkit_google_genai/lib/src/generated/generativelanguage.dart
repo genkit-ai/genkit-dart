@@ -1769,7 +1769,7 @@ extension type ContentEmbedding._(Map<String, Object?> _data) {
 
   set values(List<double>? value) => _data['values'] = value;
 
-  /// This field stores the soft tokens tensor frame shape (e.g. `[1, 1, 256, 2048]`).
+  /// This field stores the soft tokens tensor frame shape (e.g. [1, 1, 256, 2048]).
   List<int>? get shape {
     final v = _data['shape'];
     if (v == null) return null;
@@ -3127,10 +3127,12 @@ extension type Tool._(Map<String, Object?> _data) {
     List<FunctionDeclaration>? functionDeclarations,
     GoogleSearch? googleSearch,
     CodeExecution? codeExecution,
+    FileSearch? fileSearch,
   }) : this._({
          'functionDeclarations': ?functionDeclarations,
          'googleSearch': ?googleSearch,
          'codeExecution': ?codeExecution,
+         'fileSearch': ?fileSearch,
        });
 
   Tool.fromJson(Map<String, dynamic> json) : this._(json);
@@ -3160,6 +3162,51 @@ extension type Tool._(Map<String, Object?> _data) {
   }
 
   set codeExecution(CodeExecution? value) => _data['codeExecution'] = value;
+  FileSearch? get fileSearch {
+    final v = _data['fileSearch'];
+    if (v == null) return null;
+    return FileSearch._(v as Map<String, Object?>);
+  }
+
+  set fileSearch(FileSearch? value) => _data['fileSearch'] = value;
+}
+
+extension type FileSearch._(Map<String, Object?> _data) {
+  FileSearch({
+    List<String>? fileSearchStoreNames,
+    String? metadataFilter,
+    int? topK,
+  }) : this._({
+         'fileSearchStoreNames': ?fileSearchStoreNames,
+         'metadataFilter': ?metadataFilter,
+         'topK': ?topK,
+       });
+
+  FileSearch.fromJson(Map<String, dynamic> json) : this._(json);
+  Map<String, dynamic> toJson() => _data as Map<String, dynamic>;
+
+  List<String>? get fileSearchStoreNames {
+    final v = _data['fileSearchStoreNames'];
+    if (v == null) return null;
+    return (v as List).cast<String>();
+  }
+
+  set fileSearchStoreNames(List<String>? value) =>
+      _data['fileSearchStoreNames'] = value;
+  String? get metadataFilter {
+    final v = _data['metadataFilter'];
+    if (v == null) return null;
+    return v as String;
+  }
+
+  set metadataFilter(String? value) => _data['metadataFilter'] = value;
+  int? get topK {
+    final v = _data['topK'];
+    if (v == null) return null;
+    return v as int;
+  }
+
+  set topK(int? value) => _data['topK'] = value;
 }
 
 extension type ToolConfig._(Map<String, Object?> _data) {

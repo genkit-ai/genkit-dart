@@ -84,6 +84,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
+            fileSearch: options.fileSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
@@ -101,6 +102,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
+            fileSearch: options.fileSearch,
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         }
@@ -279,6 +281,7 @@ gcl.GenerationConfig toGeminiSettings(
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
     logprobs: options.logprobs,
+    seed: options.seed,
     responseModalities: options.responseModalities?.isEmpty ?? true
         ? null
         : options.responseModalities!.map((m) => m.toUpperCase()).toList(),
@@ -318,6 +321,7 @@ gcl.GenerationConfig toGeminiTtsSettings(
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
     logprobs: options.logprobs,
+    seed: options.seed,
     responseModalities: options.responseModalities?.isEmpty ?? true
         ? null
         : options.responseModalities!.map((m) => m.toUpperCase()).toList(),
@@ -410,11 +414,14 @@ List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
   GoogleSearch? googleSearch,
+  FileSearch? fileSearch,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
+    if (fileSearch != null)
+      gcl.Tool(fileSearch: gcl.FileSearch.fromJson(fileSearch.toJson())),
   ];
 }
 

@@ -93,6 +93,15 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
     },
     'googleSearch': {'\$ref': 'GoogleSearch'},
     'codeExecution': {'\$ref': 'CodeExecution'},
+    'fileSearch': {'\$ref': 'FileSearch'},
+  },
+  'FileSearch': {
+    'fileSearchStoreNames': {
+      'type': 'array',
+      'items': {'type': 'string'},
+    },
+    'metadataFilter': {'type': 'string'},
+    'topK': {'type': 'integer'},
   },
   'ToolConfig': {
     'functionCallingConfig': {'\$ref': 'FunctionCallingConfig'},
