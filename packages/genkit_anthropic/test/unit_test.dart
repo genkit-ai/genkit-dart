@@ -196,6 +196,156 @@ void main() {
       expect(source.data, '/9j/4AAQSkZJRg==');
     });
 
+    test('should throw INVALID_ARGUMENT for a data URL without a comma', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:application/pdf',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.INVALID_ARGUMENT,
+          ),
+        ),
+      );
+    });
+
+    test('should throw INVALID_ARGUMENT for a non-base64 data URL', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:application/pdf,%25PDF-1.4',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.INVALID_ARGUMENT,
+          ),
+        ),
+      );
+    });
+
+    test('should throw INVALID_ARGUMENT for a remote URL with unsupported '
+        'contentType', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/notes.txt',
+              contentType: 'text/plain',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.INVALID_ARGUMENT,
+          ),
+        ),
+      );
+    });
+
+    test('should map remote URL without contentType to an image URL block', () {
+      final input = Message(
+        role: Role.user,
+        content: [MediaPart(media: Media(url: 'https://example.com/picture'))],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.UrlImageSource;
+      expect(source.url, 'https://example.com/picture');
+    });
+
+    test('should prefer the data URL mime over contentType', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+              contentType: 'image/png',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.jpeg);
+    });
+
+    test('should treat media types case-insensitively', () {
+      final pdfInput = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/paper.pdf',
+              contentType: 'Application/PDF',
+            ),
+          ),
+        ],
+      );
+      final pdfBlock =
+          toAnthropicMessage(pdfInput).blocks.single as sdk.DocumentInputBlock;
+      expect(pdfBlock.source, isA<sdk.UrlPdfSource>());
+
+      final imageInput = Message(
+        role: Role.user,
+        content: [
+          MediaPart(media: Media(url: 'data:IMAGE/JPEG;base64,/9j/4AAQ=')),
+        ],
+      );
+      final imageBlock =
+          toAnthropicMessage(imageInput).blocks.single as sdk.ImageInputBlock;
+      expect(
+        (imageBlock.source as sdk.Base64ImageSource).mediaType,
+        sdk.ImageMediaType.jpeg,
+      );
+    });
+
+    for (final (mime, expected) in [
+      ('image/png', sdk.ImageMediaType.png),
+      ('image/jpeg', sdk.ImageMediaType.jpeg),
+      ('image/jpg', sdk.ImageMediaType.jpeg),
+      ('image/gif', sdk.ImageMediaType.gif),
+      ('image/webp', sdk.ImageMediaType.webp),
+    ]) {
+      test('should map $mime data URI to ${expected.name} media type', () {
+        final input = Message(
+          role: Role.user,
+          content: [MediaPart(media: Media(url: 'data:$mime;base64,AAAA'))],
+        );
+        final result = toAnthropicMessage(input);
+        final block = result.blocks.single as sdk.ImageInputBlock;
+        expect((block.source as sdk.Base64ImageSource).mediaType, expected);
+      });
+    }
+
     test('should throw INVALID_ARGUMENT for unsupported media types', () {
       final input = Message(
         role: Role.user,
