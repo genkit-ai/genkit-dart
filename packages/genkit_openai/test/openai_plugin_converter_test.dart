@@ -277,27 +277,29 @@ void main() {
     });
 
     test('converts JSON content', () {
-      final message = ChatMessage.assistant(
-        content: '{"name": "Test", "age": 25}',
-      ) as AssistantMessage;
+      final message =
+          ChatMessage.assistant(content: '{"name": "Test", "age": 25}')
+              as AssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.role, Role.model);
       expect(genkitMessage.text, '{"name": "Test", "age": 25}');
     });
 
     test('converts message with tool calls', () {
-      final message = ChatMessage.assistant(
-        content: '{"result": "ok"}',
-        toolCalls: [
-          ToolCall.functionCall(
-            id: 'call_123',
-            call: FunctionCall(
-              name: 'getWeather',
-              arguments: '{"location": "NYC"}',
-            ),
-          ),
-        ],
-      ) as AssistantMessage;
+      final message =
+          ChatMessage.assistant(
+                content: '{"result": "ok"}',
+                toolCalls: [
+                  ToolCall.functionCall(
+                    id: 'call_123',
+                    call: FunctionCall(
+                      name: 'getWeather',
+                      arguments: '{"location": "NYC"}',
+                    ),
+                  ),
+                ],
+              )
+              as AssistantMessage;
       final genkitMessage = GenkitConverter.fromOpenAIAssistantMessage(message);
       expect(genkitMessage.text, '{"result": "ok"}');
       final toolParts = genkitMessage.content
