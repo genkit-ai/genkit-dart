@@ -421,7 +421,13 @@ List<gcl.Tool> toGeminiTools(
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
     if (fileSearch != null)
-      gcl.Tool(fileSearch: gcl.FileSearch.fromJson(fileSearch.toJson())),
+      gcl.Tool(
+        fileSearch: gcl.FileSearch(
+          fileSearchStoreNames: fileSearch.fileSearchStoreNames,
+          metadataFilter: fileSearch.metadataFilter,
+          topK: fileSearch.topK,
+        ),
+      ),
   ];
 }
 

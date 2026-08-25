@@ -309,6 +309,26 @@ void main() {
       ]);
     });
 
+    test('omits fileSearch fields left null in config', () async {
+      final body = await _captureRequestBody(
+        config: {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+            'metadataFilter': null,
+            'topK': null,
+          },
+        },
+      );
+
+      expect(body['tools'], [
+        {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+          },
+        },
+      ]);
+    });
+
     test('omits tools when config has no fileSearch', () async {
       final body = await _captureRequestBody(config: {'temperature': 0.5});
 
