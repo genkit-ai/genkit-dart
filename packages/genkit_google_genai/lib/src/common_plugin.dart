@@ -126,16 +126,18 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           final nonSystemMessages = req.messages
               .where((m) => m.role != Role.system)
               .toList();
-          var messages = isGemma
-              ? stripReasoningParts(nonSystemMessages)
-              : nonSystemMessages;
-          if (isGemma && systemMessage != null) {
-            messages = foldSystemMessage(systemMessage, messages);
+          var messages = nonSystemMessages;
+          if (isGemma) {
+            if (systemMessage != null) {
+              messages = foldSystemMessage(systemMessage, messages);
+            }
+            messages = stripReasoningParts(messages);
           }
 
           if (isGemma && messages.isEmpty) {
             throw GenkitException(
-              'No valid messages found for the model request.',
+              'Gemma request is empty: no message content remained after '
+              'reasoning parts were stripped from the history.',
               status: StatusCodes.INVALID_ARGUMENT,
             );
           }

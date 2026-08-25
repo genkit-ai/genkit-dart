@@ -107,6 +107,33 @@ void main() {
       ]);
     });
 
+    test('strips reasoning parts from a folded system message', () async {
+      final body = await _onTheWire(
+        model: 'gemma-3-4b-it',
+        messages: [
+          Message(
+            role: Role.system,
+            content: [
+              ReasoningPart(reasoning: 'thinking...'),
+              TextPart(text: 'signed', metadata: {'thoughtSignature': 'sig'}),
+              TextPart(text: 'be terse'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+      );
+      expect(body, isNot(contains('systemInstruction')));
+      final contents = _contentsOf(body);
+      expect(contents, hasLength(1));
+      expect(_partsOf(contents.first).map((p) => p['text']), [
+        'be terse',
+        'hello',
+      ]);
+    });
+
     test('full ai.generate with system prompt folds it on the wire', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = Genkit(
@@ -191,6 +218,35 @@ void main() {
       final generationConfig = (body['generationConfig'] as Map)
           .cast<String, dynamic>();
       expect(generationConfig['temperature'], 0.9);
+    });
+
+    test('rejects a request whose history strips to empty with a message '
+        'naming the cause', () async {
+      final captured = <Map<String, dynamic>>[];
+      final plugin = _WirePlugin(captured);
+      final action = plugin.resolve('model', 'gemma-3-4b-it')!;
+      await expectLater(
+        () => action.run(
+          ModelRequest(
+            messages: [
+              Message(
+                role: Role.model,
+                content: [ReasoningPart(reasoning: 'thinking...')],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('reasoning parts were stripped'),
+              ),
+        ),
+      );
+      expect(captured, isEmpty);
     });
 
     test('rejects temperature above 1.0 before any request is sent', () async {

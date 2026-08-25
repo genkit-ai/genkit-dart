@@ -38,7 +38,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   String get name => 'googleai';
 
   @override
-final Map<String, ModelInfo> knownModels = knownGeminiModels;
+  final Map<String, ModelInfo> knownModels = knownGeminiModels;
 
   @override
   bool get servesGemmaModels => true;
@@ -84,7 +84,7 @@ final Map<String, ModelInfo> knownModels = knownGeminiModels;
               return modelMetadata(
                 '$name/$bareName',
                 customOptions: GemmaOptions.$schema,
-modelInfo: gemmaModelInfo,
+                modelInfo: gemmaModelInfo,
               );
             }
             final isTts = bareName.contains('-tts');
