@@ -222,8 +222,9 @@ class OpenAIPlugin extends GenkitPlugin {
         );
 
         try {
-          final supports = modelInfo.supports;
-          final supportsTools = supports?['tools'] == true;
+          final tools = modelRequest.tools
+              ?.map(GenkitConverter.toOpenAITool)
+              .toList();
 
           final isJsonMode = chat.isJsonStructuredOutput(
             modelRequest.output?.format,
@@ -238,9 +239,8 @@ class OpenAIPlugin extends GenkitPlugin {
               modelRequest.messages,
               options.visualDetailLevel,
             ),
-            tools: supportsTools
-                ? modelRequest.tools?.map(GenkitConverter.toOpenAITool).toList()
-                : null,
+            // Some OpenAI-compatible providers reject an empty tools array.
+            tools: (tools == null || tools.isEmpty) ? null : tools,
             temperature: options.temperature,
             topP: options.topP,
             maxCompletionTokens: options.maxTokens,
