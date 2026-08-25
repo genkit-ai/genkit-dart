@@ -65,6 +65,18 @@ void main() {
       expect(settings.thinkingConfig!.thinkingLevel, 'HIGH');
     });
 
+    test('maps seed', () {
+      final settings = toGeminiSettings(GeminiOptions(seed: 42), null, false);
+
+      expect(settings.seed, 42);
+    });
+
+    test('omits seed when unset', () {
+      final settings = toGeminiSettings(GeminiOptions(), null, false);
+
+      expect(settings.toJson(), isNot(contains('seed')));
+    });
+
     test('maps response modalities', () {
       final options = GeminiOptions(
         responseModalities: ['TEXT', 'audio', 'IMAGE'],
@@ -220,6 +232,26 @@ void main() {
     });
   });
 
+  group('generation config request body', () {
+    test('sends seed inside generationConfig', () async {
+      final body = await _captureRequestBody(config: {'seed': 42});
+
+      expect((body['generationConfig'] as Map)['seed'], 42);
+    });
+
+    test('omits seed when config has none', () async {
+      final body = await _captureRequestBody(config: {'temperature': 0.5});
+
+      expect(body['generationConfig'] as Map, isNot(contains('seed')));
+    });
+
+    test('sends seed inside generationConfig on the TTS path', () async {
+      final body = await _captureRequestBody(config: {'seed': 11}, tts: true);
+
+      expect((body['generationConfig'] as Map)['seed'], 11);
+    });
+  });
+
   group('toGeminiTools', () {
     test('maps code execution', () {
       final options = GeminiOptions(codeExecution: true);
@@ -235,6 +267,91 @@ void main() {
 
       expect(tools, hasLength(1));
       expect(tools.first.googleSearch, isNotNull);
+    });
+
+    test('maps file search with all fields passed through', () {
+      final options = GeminiOptions(
+        fileSearch: FileSearch(
+          fileSearchStoreNames: ['fileSearchStores/my-store'],
+          metadataFilter: 'author=jane',
+          topK: 3,
+        ),
+      );
+      final tools = toGeminiTools(null, fileSearch: options.fileSearch);
+
+      expect(tools, hasLength(1));
+      expect(tools.first.fileSearch?.toJson(), {
+        'fileSearchStoreNames': ['fileSearchStores/my-store'],
+        'metadataFilter': 'author=jane',
+        'topK': 3,
+      });
+    });
+  });
+
+  group('tools request body', () {
+    test('sends the fileSearch tool', () async {
+      final body = await _captureRequestBody(
+        config: {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+            'topK': 5,
+          },
+        },
+      );
+
+      expect(body['tools'], [
+        {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+            'topK': 5,
+          },
+        },
+      ]);
+    });
+
+    test('omits fileSearch fields left null in config', () async {
+      final body = await _captureRequestBody(
+        config: {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+            'metadataFilter': null,
+            'topK': null,
+          },
+        },
+      );
+
+      expect(body['tools'], [
+        {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+          },
+        },
+      ]);
+    });
+
+    test('omits tools when config has no fileSearch', () async {
+      final body = await _captureRequestBody(config: {'temperature': 0.5});
+
+      expect(body, isNot(contains('tools')));
+    });
+
+    test('sends the fileSearch tool on the TTS path', () async {
+      final body = await _captureRequestBody(
+        config: {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+          },
+        },
+        tts: true,
+      );
+
+      expect(body['tools'], [
+        {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+          },
+        },
+      ]);
     });
   });
 
@@ -283,7 +400,63 @@ void main() {
       expect(settings.temperature, 0.5);
       expect(settings.responseMimeType, 'audio/mp3');
     });
+
+    test('maps seed', () {
+      final settings = toGeminiTtsSettings(
+        GeminiTtsOptions(seed: 7),
+        null,
+        false,
+      );
+
+      expect(settings.seed, 7);
+    });
   });
+}
+
+Future<Map<String, dynamic>> _captureRequestBody({
+  Map<String, dynamic>? config,
+  bool tts = false,
+}) async {
+  Map<String, dynamic>? capturedBody;
+  final plugin = StubClientPlugin((request) async {
+    capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+    return http.Response(
+      jsonEncode({
+        'candidates': [
+          {
+            'content': {
+              'role': 'model',
+              'parts': [
+                {'text': 'ok'},
+              ],
+            },
+            'finishReason': 'STOP',
+          },
+        ],
+      }),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
+
+  final model = tts
+      ? plugin.createModel(
+          'gemini-2.5-flash-preview-tts',
+          GeminiTtsOptions.$schema,
+        )
+      : plugin.createModel('gemini-2.5-flash', GeminiOptions.$schema);
+  await model.call(
+    ModelRequest(
+      messages: [
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'hi')],
+        ),
+      ],
+      config: config,
+    ),
+  );
+  return capturedBody!;
 }
 
 class StubClientPlugin extends GoogleGenAiPluginImpl {

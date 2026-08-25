@@ -121,7 +121,24 @@ abstract class $FunctionCallingConfig {
 
 @Schema()
 abstract class $FileSearch {
-  List<String>? get fileSearchStoreNames;
+  @Field(
+    description:
+        'The names of the fileSearchStores to retrieve from. '
+        'Example: fileSearchStores/my-file-search-store-123',
+  )
+  List<String> get fileSearchStoreNames;
+
+  @StringField(
+    description:
+        'Metadata filter to apply to the semantic retrieval documents '
+        'and chunks.',
+  )
+  String? get metadataFilter;
+
+  @IntegerField(
+    description: 'The number of semantic retrieval chunks to retrieve.',
+  )
+  int? get topK;
 }
 
 @Schema()

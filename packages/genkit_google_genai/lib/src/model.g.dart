@@ -699,8 +699,16 @@ base class FileSearch {
 
   FileSearch._(this._json);
 
-  FileSearch({List<String>? fileSearchStoreNames}) {
-    _json = {'fileSearchStoreNames': ?fileSearchStoreNames};
+  FileSearch({
+    required List<String> fileSearchStoreNames,
+    String? metadataFilter,
+    int? topK,
+  }) {
+    _json = {
+      'fileSearchStoreNames': fileSearchStoreNames,
+      'metadataFilter': ?metadataFilter,
+      'topK': ?topK,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -708,15 +716,35 @@ base class FileSearch {
   /// The JSON schema and type descriptor for [FileSearch].
   static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
 
-  List<String>? get fileSearchStoreNames {
-    return (_json['fileSearchStoreNames'] as List?)?.cast<String>();
+  List<String> get fileSearchStoreNames {
+    return (_json['fileSearchStoreNames'] as List).cast<String>();
   }
 
-  set fileSearchStoreNames(List<String>? value) {
+  set fileSearchStoreNames(List<String> value) {
+    _json['fileSearchStoreNames'] = value;
+  }
+
+  String? get metadataFilter {
+    return _json['metadataFilter'] as String?;
+  }
+
+  set metadataFilter(String? value) {
     if (value == null) {
-      _json.remove('fileSearchStoreNames');
+      _json.remove('metadataFilter');
     } else {
-      _json['fileSearchStoreNames'] = value;
+      _json['metadataFilter'] = value;
+    }
+  }
+
+  int? get topK {
+    return _json['topK'] as int?;
+  }
+
+  set topK(int? value) {
+    if (value == null) {
+      _json.remove('topK');
+    } else {
+      _json['topK'] = value;
     }
   }
 
@@ -745,8 +773,21 @@ base class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
     definition: $Schema
         .object(
           properties: {
-            'fileSearchStoreNames': $Schema.list(items: $Schema.string()),
+            'fileSearchStoreNames': $Schema.list(
+              description:
+                  'The names of the fileSearchStores to retrieve from. Example: fileSearchStores/my-file-search-store-123',
+              items: $Schema.string(),
+            ),
+            'metadataFilter': $Schema.string(
+              description:
+                  'Metadata filter to apply to the semantic retrieval documents and chunks.',
+            ),
+            'topK': $Schema.integer(
+              description:
+                  'The number of semantic retrieval chunks to retrieve.',
+            ),
           },
+          required: ['fileSearchStoreNames'],
         )
         .value,
     dependencies: [],
