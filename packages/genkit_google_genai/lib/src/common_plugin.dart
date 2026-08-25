@@ -389,11 +389,11 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
   List<SafetySettings>? safetySettings,
 ) {
   return safetySettings
-      ?.map(
-        (s) => gcl.SafetySetting(
-          category: s.category ?? 'HARM_CATEGORY_UNSPECIFIED',
-          threshold: s.threshold ?? 'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
-        ),
+      ?.where(
+        (s) => s.category != null && s.category != 'HARM_CATEGORY_UNSPECIFIED',
+      )
+      .map(
+        (s) => gcl.SafetySetting(category: s.category, threshold: s.threshold),
       )
       .toList();
 }
