@@ -18,6 +18,7 @@ import 'package:meta/meta.dart';
 
 import 'api_client.dart';
 import 'common_plugin.dart';
+import 'gemma.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'known_models.dart';
 import 'model.dart';
@@ -38,6 +39,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
 
   @override
   final Map<String, ModelInfo> knownModels = knownGeminiModels;
+
+  @override
+  bool get servesGemmaModels => true;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
@@ -70,11 +74,19 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       final models = (modelsResponse.models ?? [])
           .where((model) {
             return model.name != null &&
-                model.name!.startsWith('models/gemini-');
+                (model.name!.startsWith('models/gemini-') ||
+                    model.name!.startsWith('models/gemma-'));
           })
           .map((model) {
             final bareName = model.name!.split('/').last;
             discoveredNames.add(bareName);
+            if (isGemma4ModelName(bareName)) {
+              return modelMetadata(
+                '$name/$bareName',
+                customOptions: GemmaOptions.$schema,
+                modelInfo: gemmaModelInfo,
+              );
+            }
             final isTts = bareName.contains('-tts');
             return modelMetadata(
               '$name/$bareName',

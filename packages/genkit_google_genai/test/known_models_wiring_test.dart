@@ -107,6 +107,48 @@ void main() {
       expect(info['stage'], 'stable');
     });
 
+    test(
+      'lists discovered gemma models alongside the curated catalog',
+      () async {
+        final client = MockHttpClient(
+          modelsResponse:
+              '{"models": ['
+              '{"name": "models/gemma-3-4b-it"}, '
+              '{"name": "models/gemma-4-26b-a4b-it"}, '
+              '{"name": "models/gemini-3.5-flash"}]}',
+        );
+        final actions = await plugin(client: client).list();
+        final names = actions.map((a) => a.name).toList();
+
+        expect(names, contains('googleai/gemma-3-4b-it'));
+        expect(names, contains('googleai/gemma-4-26b-a4b-it'));
+        expect(names.toSet().length, names.length);
+        for (final model in KnownGeminiModel.values) {
+          expect(names, contains('googleai/${model.id}'));
+        }
+
+        final gemma4 = actions.firstWhere(
+          (a) => a.name == 'googleai/gemma-4-26b-a4b-it',
+        );
+        final gemma4Info = (gemma4.metadata['model'] as Map)
+            .cast<String, dynamic>();
+        final gemma4Supports = (gemma4Info['supports'] as Map)
+            .cast<String, dynamic>();
+        expect(gemma4Supports['systemRole'], isTrue);
+        expect(gemma4Supports['constrained'], 'no-tools');
+
+        final gemma3 = actions.firstWhere(
+          (a) => a.name == 'googleai/gemma-3-4b-it',
+        );
+        final gemma3Info = (gemma3.metadata['model'] as Map)
+            .cast<String, dynamic>();
+        final gemma3Supports = (gemma3Info['supports'] as Map)
+            .cast<String, dynamic>();
+        expect(gemma3Supports['systemRole'], isTrue);
+        expect(gemma3Supports['constrained'], isTrue);
+      },
+    );
+
     test('appends curated models missing from discovery', () async {
       final actions = await plugin().list();
       final names = actions.map((a) => a.name).toList();

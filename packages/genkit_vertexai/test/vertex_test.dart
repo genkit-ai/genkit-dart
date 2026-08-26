@@ -73,5 +73,37 @@ void main() {
         'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-2.5-pro:generateContent',
       );
     });
+
+    test('gemma model names resolve as plain Gemini models', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'global',
+        authClient: mockClient,
+      );
+
+      final model = plugin.resolve('model', 'gemma-3-4b-it') as Action;
+      final modelMeta = (model.metadata['model'] as Map)
+          .cast<String, dynamic>();
+      final supports = (modelMeta['supports'] as Map).cast<String, dynamic>();
+      expect(supports['systemRole'], isTrue);
+
+      await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.system,
+              content: [TextPart(text: 'be terse')],
+            ),
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+        ),
+      );
+
+      expect(mockClient.lastBody, contains('systemInstruction'));
+    });
   });
 }

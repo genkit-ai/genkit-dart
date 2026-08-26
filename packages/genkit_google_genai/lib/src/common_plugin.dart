@@ -21,6 +21,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'aggregation.dart';
 import 'api_client.dart';
+import 'gemma.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'model.dart';
 
@@ -48,16 +49,25 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// capabilities for known models.
   Map<String, ModelInfo> get knownModels => const {};
 
+  /// Whether `gemma-4-*` model names resolve with Gemma-specific handling
+  /// (Gemma options schema and reasoning strip).
+  bool get servesGemmaModels => false;
+
   /// Returns the capability metadata for [modelName], falling back to
   /// [commonModelInfo] for names not in [knownModels].
   ModelInfo modelInfoFor(String modelName) =>
       knownModels[modelName] ?? commonModelInfo;
 
-  Model createModel(String modelName, SchemanticType customOptions) {
+  Model createModel(
+    String modelName,
+    SchemanticType customOptions, {
+    ModelInfo? modelInfo,
+  }) {
+    final isGemma = servesGemmaModels && isGemma4ModelName(modelName);
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
-      metadata: {'model': modelInfoFor(modelName).toJson()},
+      metadata: {'model': (modelInfo ?? modelInfoFor(modelName)).toJson()},
       fn: (req, ctx) async {
         gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
@@ -88,9 +98,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           );
           toolConfig = toGeminiToolConfig(options.functionCallingConfig);
         } else {
-          final options = req.config == null
-              ? GeminiOptions()
-              : GeminiOptions.$schema.parse(req.config!);
+          final options = isGemma
+              ? gemmaToGeminiOptions(GemmaOptions.fromJson(req.config ?? {}))
+              : GeminiOptions.fromJson(req.config ?? {});
           apiKey = options.apiKey;
           generationConfig = toGeminiSettings(
             options,
@@ -113,9 +123,24 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
-          final messages = req.messages
+          final nonSystemMessages = req.messages
               .where((m) => m.role != Role.system)
               .toList();
+          var messages = nonSystemMessages;
+          if (isGemma) {
+            messages = stripReasoningParts(messages);
+          }
+          final effectiveSystemMessage = isGemma && systemMessage != null
+              ? stripReasoningParts([systemMessage]).firstOrNull
+              : systemMessage;
+
+          if (isGemma && messages.isEmpty) {
+            throw GenkitException(
+              'Gemma request is empty: no message content remained after '
+              'reasoning parts were stripped from the history.',
+              status: StatusCodes.INVALID_ARGUMENT,
+            );
+          }
 
           final generateRequest = gcl.GenerateContentRequest(
             contents: toGeminiContent(messages),
@@ -125,11 +150,16 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             safetySettings: safetySettings?.isEmpty ?? true
                 ? null
                 : safetySettings,
-            systemInstruction: systemMessage == null
+            systemInstruction: effectiveSystemMessage == null
                 ? null
                 : gcl.Content(
-                    parts: systemMessage.content.map(toGeminiPart).toList(),
-                    role: 'system',
+                    parts: effectiveSystemMessage.content
+                        .map(toGeminiPart)
+                        .toList(),
+                    // The Gemini API accepts a dedicated `systemInstruction`
+                    // object whose role can be left unset. This is required
+                    // for Gemma 4; `role: system` is not a valid Content role.
+                    role: isGemma ? null : 'system',
                   ),
           );
 
@@ -204,6 +234,13 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return createEmbedder(name);
     }
     if (actionType == 'model') {
+      if (servesGemmaModels && isGemma4ModelName(name)) {
+        return createModel(
+          name,
+          GemmaOptions.$schema,
+          modelInfo: gemmaModelInfo,
+        );
+      }
       if (name.contains('-tts')) {
         return createModel(name, GeminiTtsOptions.$schema);
       }
