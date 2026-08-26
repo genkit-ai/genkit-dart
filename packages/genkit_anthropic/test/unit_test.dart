@@ -180,6 +180,24 @@ void main() {
       expect(source.url, 'https://example.com/paper.pdf');
     });
 
+    test('should strip media type parameters from PDF contentType', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/paper.pdf',
+              contentType: 'application/pdf; charset=utf-8',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.UrlPdfSource;
+      expect(source.url, 'https://example.com/paper.pdf');
+    });
+
     test('should take image media type from the data URI', () {
       final input = Message(
         role: Role.user,
@@ -202,6 +220,26 @@ void main() {
         content: [
           MediaPart(
             media: Media(url: 'data:image/png;charset=utf-8;base64,AAAA'),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.png);
+      expect(source.data, 'AAAA');
+    });
+
+    test('should use parameter-stripped contentType when data URL has no '
+        'media type', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:;base64,AAAA',
+              contentType: 'image/png; charset=utf-8',
+            ),
           ),
         ],
       );

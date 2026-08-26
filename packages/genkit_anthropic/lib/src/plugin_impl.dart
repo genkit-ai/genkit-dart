@@ -358,7 +358,7 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
   String url,
   String? contentType,
 ) {
-  final declaredMime = contentType?.toLowerCase();
+  final declaredMime = _cleanMimeType(contentType);
   if (url.startsWith('data:')) {
     final comma = url.indexOf(',');
     final header = comma < 0
@@ -375,11 +375,10 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
-    final urlMime = header
-        .substring(0, header.length - _base64Marker.length)
-        .split(';')
-        .first;
-    final mimeType = urlMime.isNotEmpty ? urlMime : declaredMime;
+    final urlMime = _cleanMimeType(
+      header.substring(0, header.length - _base64Marker.length),
+    );
+    final mimeType = urlMime ?? declaredMime;
     if (mimeType == 'application/pdf') {
       return [
         sdk.InputContentBlock.document(
@@ -403,6 +402,11 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
     _requireImageMediaType(declaredMime);
   }
   return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
+}
+
+String? _cleanMimeType(String? contentType) {
+  final mimeType = contentType?.split(';').first.trim().toLowerCase();
+  return mimeType?.isEmpty ?? true ? null : mimeType;
 }
 
 sdk.ImageMediaType _requireImageMediaType(String? mimeType) {
