@@ -51,7 +51,7 @@ Future<Map<String, dynamic>> _requestOnTheWire({
   });
   final plugin = AnthropicPluginImpl(apiKey: 'test-key', httpClient: client);
   addTearDown(plugin.close);
-  final action = plugin.resolve('model', model) as Model;
+  final action = plugin.resolve(.model, model) as Model;
 
   await action(
     ModelRequest(

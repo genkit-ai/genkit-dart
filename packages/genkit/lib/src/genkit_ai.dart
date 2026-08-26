@@ -104,6 +104,7 @@ base class GenkitAI {
   Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
     String? system,
     String? prompt,
+    List<Part>? promptParts,
     List<Message>? messages,
     ModelRef<CustomOptions>? model,
     CustomOptions? config,
@@ -176,6 +177,7 @@ base class GenkitAI {
       resolved.registry,
       system: system,
       prompt: prompt,
+      promptParts: promptParts,
       messages: messages,
       model: model,
       config: config,
@@ -235,6 +237,7 @@ base class GenkitAI {
   generateStream<CustomOptions, Output>({
     String? system,
     String? prompt,
+    List<Part>? promptParts,
     List<Message>? messages,
     ModelRef<CustomOptions>? model,
     CustomOptions? config,
@@ -264,6 +267,7 @@ base class GenkitAI {
     generate(
           system: system,
           prompt: prompt,
+          promptParts: promptParts,
           messages: messages,
           model: model,
           config: config,

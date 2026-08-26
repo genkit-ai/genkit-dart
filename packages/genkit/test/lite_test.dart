@@ -139,6 +139,43 @@ void main() {
     expect(captured!.messages[1].content[0].toJson()['text'], 'Hello');
   });
 
+  test('lite generate builds a user message from promptParts', () async {
+    ModelRequest? captured;
+    final model = Model<void>(
+      name: 'promptPartsTestModel',
+      fn: (request, context) async {
+        captured = request;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: 'ok')],
+          ),
+        );
+      },
+    );
+
+    await lite.generate(
+      model: model,
+      promptParts: [
+        TextPart(text: 'Describe this image:'),
+        MediaPart(media: Media(url: 'data:image/png;base64,abc123')),
+      ],
+    );
+
+    expect(captured, isNotNull);
+    expect(captured!.messages.length, 1);
+    expect(captured!.messages[0].role, Role.user);
+    expect(captured!.messages[0].content.length, 2);
+    expect(
+      captured!.messages[0].content[0].toJson()['text'],
+      'Describe this image:',
+    );
+    expect(captured!.messages[0].content[1].toJson()['media'], {
+      'url': 'data:image/png;base64,abc123',
+    });
+  });
+
   test('lite generateStream with outputSchema does not throw', () async {
     final model = Model<void>(
       name: 'testModelStream',
