@@ -394,14 +394,20 @@ Map<String, Object?>? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
 List<gcl.SafetySetting>? toGeminiSafetySettings(
   List<SafetySettings>? safetySettings,
 ) {
-  return safetySettings
-      ?.map(
-        (s) => gcl.SafetySetting(
-          category: s.category ?? 'HARM_CATEGORY_UNSPECIFIED',
-          threshold: s.threshold ?? 'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
-        ),
-      )
-      .toList();
+  if (safetySettings == null) return null;
+  final settings = <gcl.SafetySetting>[];
+  for (final s in safetySettings) {
+    final category = s.category;
+    if (category == null || category == 'HARM_CATEGORY_UNSPECIFIED') {
+      logger.warning(
+        'Dropping safety setting with unset or UNSPECIFIED category: '
+        'the API rejects HARM_CATEGORY_UNSPECIFIED.',
+      );
+      continue;
+    }
+    settings.add(gcl.SafetySetting(category: category, threshold: s.threshold));
+  }
+  return settings;
 }
 
 @visibleForTesting

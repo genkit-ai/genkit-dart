@@ -14,22 +14,53 @@
 
 import 'package:genkit/plugin.dart';
 
+// A const map literal rejects duplicate keys, so 'output' cannot be spread in
+// from the base tier and then overridden.
+const _claudeSupportsCore = <String, dynamic>{
+  'multiturn': true,
+  'media': true,
+  'tools': true,
+  'toolChoice': true,
+  'systemRole': true,
+};
+
+/// Capabilities every Claude model has: multiturn chat, vision (media input),
+/// tool calling with tool choice, a system role, and text output.
+const baseClaudeSupports = <String, dynamic>{
+  ..._claudeSupportsCore,
+  'output': ['text'],
+};
+
+/// [baseClaudeSupports] plus JSON output and native constrained generation.
+///
+/// Only models on Anthropic's Structured Outputs list may claim `constrained`.
+const structuredClaudeSupports = <String, dynamic>{
+  ..._claudeSupportsCore,
+  'output': ['text', 'json'],
+  'constrained': true,
+};
+
 /// Claude models the Anthropic plugin curates capability metadata for.
 ///
 /// Each value pairs a bare model [id] (no plugin prefix) with a display
-/// [label]; [info] builds the shared Claude capability preset. Other model
-/// names still resolve dynamically via the plugin's `commonModelInfo`
+/// [label]; [info] picks the capability tier via [structuredOutputs]. Other
+/// model names still resolve dynamically via the plugin's `commonModelInfo`
 /// fallback, so this enum only enriches the names listed here.
 enum KnownClaudeModel {
   fable5('claude-fable-5', 'Claude Fable 5'),
+  opus5('claude-opus-5', 'Claude Opus 5'),
   opus48('claude-opus-4-8', 'Claude Opus 4.8'),
   opus47('claude-opus-4-7', 'Claude Opus 4.7'),
+  opus46('claude-opus-4-6', 'Claude Opus 4.6'),
+  opus45('claude-opus-4-5', 'Claude Opus 4.5'),
   sonnet5('claude-sonnet-5', 'Claude Sonnet 5'),
   sonnet46('claude-sonnet-4-6', 'Claude Sonnet 4.6'),
   sonnet45('claude-sonnet-4-5', 'Claude Sonnet 4.5'),
   haiku45('claude-haiku-4-5', 'Claude Haiku 4.5');
 
-  const KnownClaudeModel(this.id, this.label);
+  // The base tier currently has no curated member.
+  // ignore: unused_element_parameter
+  const KnownClaudeModel(this.id, this.label, {this.structuredOutputs = true});
 
   /// Bare model name (no plugin prefix).
   final String id;
@@ -37,22 +68,14 @@ enum KnownClaudeModel {
   /// Human-readable label surfaced in listings.
   final String label;
 
-  /// The capability profile shared by every current Claude model: multiturn
-  /// chat, vision (media input), tool calling with tool choice, a system role,
-  /// and native constrained generation. Mirrors the single `defaultClaudeOpts`
-  /// profile the Go plugin applies to every Claude model.
+  /// Whether the model is on Anthropic's Structured Outputs list and may
+  /// claim native constrained generation and JSON output.
+  final bool structuredOutputs;
+
+  /// Capability metadata registered for this model.
   ModelInfo get info => ModelInfo(
     label: label,
-    // Unmodifiable: curated entries are shared across every resolution of the
-    // model, so accidental mutation through action metadata must fail loudly.
-    supports: Map.unmodifiable({
-      'multiturn': true,
-      'media': true,
-      'tools': true,
-      'toolChoice': true,
-      'systemRole': true,
-      'constrained': true,
-    }),
+    supports: structuredOutputs ? structuredClaudeSupports : baseClaudeSupports,
     stage: 'stable',
   );
 }

@@ -73,7 +73,7 @@ Future<Map<String, dynamic>> _generationConfigOnTheWire({
 }) async {
   final captured = <Map<String, dynamic>>[];
   final plugin = _WirePlugin(captured);
-  final action = plugin.resolve('model', model) as Model;
+  final action = plugin.resolve(ActionType.model, model) as Model;
   await action(
     ModelRequest(
       messages: [

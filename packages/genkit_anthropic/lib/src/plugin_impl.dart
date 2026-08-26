@@ -27,18 +27,9 @@ import 'model.dart';
 
 final _logger = Logger('genkit_anthropic');
 
-/// Default model capabilities shared by all Anthropic Claude models.
-final commonModelInfo = ModelInfo(
-  supports: {
-    'multiturn': true,
-    'media': true,
-    'tools': true,
-    'toolChoice': true, // Anthropic supports tool choice
-    'systemRole': true,
-    'constrained':
-        true, // Supports JSON schema (via tool/constrained mode usually, or just prompt)
-  },
-);
+/// Fallback capabilities for Claude models resolved by name without a curated
+/// entry.
+final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
 
 /// Core Genkit plugin implementation for Anthropic Claude models.
 ///
@@ -363,25 +354,57 @@ sdk.InputMessage toAnthropicMessage(Message m) {
       : sdk.InputMessage.assistantBlocks(blocks);
 }
 
+const _base64Marker = ';base64';
+final _whitespace = RegExp(r'\s');
+
 List<sdk.InputContentBlock> _convertMediaFromJson(
   String url,
   String? contentType,
 ) {
+  final declaredMime = _cleanMimeType(contentType);
   if (url.startsWith('data:')) {
-    final commaIdx = url.indexOf(',');
-    final base64Data = url.substring(commaIdx + 1);
-    final mimeType = contentType ?? 'image/png';
+    final comma = url.indexOf(',');
+    final header = comma < 0
+        ? ''
+        : url.substring('data:'.length, comma).toLowerCase();
+    final base64Data = comma < 0
+        ? ''
+        : url.substring(comma + 1).replaceAll(_whitespace, '');
+    if (!header.endsWith(_base64Marker) || base64Data.isEmpty) {
+      final preview = url.length > 64 ? '${url.substring(0, 64)}...' : url;
+      throw GenkitException(
+        'Invalid media data URL for Anthropic: expected '
+        '"data:<mime>;base64,<data>", got "$preview".',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    final urlMime = _cleanMimeType(
+      header.substring(0, header.length - _base64Marker.length),
+    );
+    final mimeType = urlMime ?? declaredMime;
+    if (mimeType == 'application/pdf') {
+      return [
+        sdk.InputContentBlock.document(
+          sdk.DocumentSource.base64Pdf(base64Data),
+        ),
+      ];
+    }
     return [
       sdk.InputContentBlock.image(
         sdk.ImageSource.base64(
           data: base64Data,
-          mediaType: _mapImageMediaType(mimeType),
+          mediaType: _requireImageMediaType(mimeType),
         ),
       ),
     ];
-  } else {
-    return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
   }
+  if (declaredMime == 'application/pdf') {
+    return [sdk.InputContentBlock.document(sdk.DocumentSource.url(url))];
+  }
+  if (declaredMime != null) {
+    _requireImageMediaType(declaredMime);
+  }
+  return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
 }
 
 /// Maps a Genkit image [Media] to an Anthropic [sdk.ToolResultContent] image.
@@ -399,17 +422,28 @@ sdk.ToolResultContent? _toAnthropicToolResultImage(Media media) {
   return sdk.ToolResultContent.image(
     sdk.ImageSource.base64(
       data: base64Data,
-      mediaType: _mapImageMediaType(mimeType),
+      mediaType: _requireImageMediaType(mimeType),
     ),
   );
 }
 
-sdk.ImageMediaType _mapImageMediaType(String mimeType) {
+String? _cleanMimeType(String? contentType) {
+  final mimeType = contentType?.split(';').first.trim().toLowerCase();
+  return mimeType?.isEmpty ?? true ? null : mimeType;
+}
+
+sdk.ImageMediaType _requireImageMediaType(String? mimeType) {
   return switch (mimeType) {
     'image/jpeg' || 'image/jpg' => sdk.ImageMediaType.jpeg,
+    'image/png' => sdk.ImageMediaType.png,
     'image/gif' => sdk.ImageMediaType.gif,
     'image/webp' => sdk.ImageMediaType.webp,
-    _ => sdk.ImageMediaType.png,
+    _ => throw GenkitException(
+      'Unsupported media type for Anthropic: ${mimeType ?? '(none)'}. '
+      'Supported: image/jpeg, image/png, image/gif, image/webp, '
+      'application/pdf.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    ),
   };
 }
 
