@@ -29,8 +29,8 @@ final gemmaModelInfo = ModelInfo(
 
 bool isGemma4ModelName(String name) => name.startsWith('gemma-4-');
 
-/// Strips parts that the Gemma API rejects in history: reasoning parts
-/// and any text/tool parts whose metadata carries a `thoughtSignature`.
+/// Strips what the Gemma API rejects in history: reasoning parts are
+/// dropped, and `thoughtSignature` metadata is removed from other parts.
 /// Messages that become empty after filtering are dropped.
 List<Message> stripReasoningParts(List<Message> messages) {
   return messages
@@ -38,16 +38,29 @@ List<Message> stripReasoningParts(List<Message> messages) {
         (m) => Message(
           role: m.role,
           content: m.content
-              .where(
-                (p) =>
-                    !p.isReasoning && p.metadata?['thoughtSignature'] == null,
-              )
+              .where((p) => !p.isReasoning)
+              .map(_withoutThoughtSignature)
               .toList(),
           metadata: m.metadata,
         ),
       )
       .where((m) => m.content.isNotEmpty)
       .toList();
+}
+
+Part _withoutThoughtSignature(Part p) {
+  final metadata = p.metadata;
+  if (metadata == null || !metadata.containsKey('thoughtSignature')) {
+    return p;
+  }
+  final stripped = {...metadata}..remove('thoughtSignature');
+  final json = {...p.toJson()};
+  if (stripped.isEmpty) {
+    json.remove('metadata');
+  } else {
+    json['metadata'] = stripped;
+  }
+  return Part.fromJson(json);
 }
 
 /// Maps a [GemmaOptions] config to its [GeminiOptions] equivalent.

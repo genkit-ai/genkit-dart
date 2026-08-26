@@ -128,7 +128,14 @@ void main() {
       );
       final systemInstruction = _systemInstructionOf(body);
       expect(systemInstruction, isNot(contains('role')));
-      expect(_partsOf(systemInstruction).map((p) => p['text']), ['be terse']);
+      expect(_partsOf(systemInstruction).map((p) => p['text']), [
+        'signed',
+        'be terse',
+      ]);
+      expect(
+        _partsOf(systemInstruction).every((p) => p['thoughtSignature'] == null),
+        isTrue,
+      );
       final contents = _contentsOf(body);
       expect(contents, hasLength(1));
       expect(_partsOf(contents.first).map((p) => p['text']), ['hello']);
@@ -178,8 +185,8 @@ void main() {
       expect(_contentsOf(body), hasLength(1));
     });
 
-    test('strips reasoning and thoughtSignature parts from multi-turn '
-        'history', () async {
+    test('strips reasoning parts and thoughtSignatures from multi-turn '
+        'history, keeping signed parts', () async {
       final body = await _onTheWire(
         model: 'gemma-4-26b-a4b-it',
         messages: [
@@ -204,9 +211,53 @@ void main() {
       final contents = _contentsOf(body);
       expect(contents, hasLength(3));
       final modelParts = _partsOf(contents[1]);
-      expect(modelParts.map((p) => p['text']), ['answer']);
+      expect(modelParts.map((p) => p['text']), ['signed', 'answer']);
       expect(modelParts.every((p) => p['thought'] == null), isTrue);
       expect(modelParts.every((p) => p['thoughtSignature'] == null), isTrue);
+    });
+
+    test('keeps a signed functionCall paired with its functionResponse, '
+        'with no thoughtSignature on the wire', () async {
+      final body = await _onTheWire(
+        model: 'gemma-4-26b-a4b-it',
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'question')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              ToolRequestPart(
+                toolRequest: ToolRequest(name: 'lookup', input: {'q': 'x'}),
+                metadata: {'thoughtSignature': 'sig'},
+              ),
+            ],
+          ),
+          Message(
+            role: Role.tool,
+            content: [
+              ToolResponsePart(
+                toolResponse: ToolResponse(
+                  name: 'lookup',
+                  output: {'answer': 42},
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      final contents = _contentsOf(body);
+      expect(contents, hasLength(3));
+      final functionCall = (_partsOf(contents[1]).single['functionCall'] as Map)
+          .cast<String, dynamic>();
+      expect(functionCall['name'], 'lookup');
+      expect(functionCall['args'], {'q': 'x'});
+      final functionResponse =
+          (_partsOf(contents[2]).single['functionResponse'] as Map)
+              .cast<String, dynamic>();
+      expect(functionResponse['name'], 'lookup');
+      expect(jsonEncode(body), isNot(contains('thoughtSignature')));
     });
 
     test('passes in-range temperature through to generationConfig', () async {

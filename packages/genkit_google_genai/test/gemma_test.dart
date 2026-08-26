@@ -155,19 +155,56 @@ void main() {
       expect(stripped.first.content.first.text, 'answer');
     });
 
-    test('drops parts whose metadata carries thoughtSignature', () {
+    test('keeps signed parts, removing only their thoughtSignature', () {
+      final originalMetadata = {'thoughtSignature': 'sig', 'other': 'kept'};
       final messages = [
         Message(
           role: Role.model,
           content: [
-            TextPart(text: 'hidden', metadata: {'thoughtSignature': 'sig'}),
-            TextPart(text: 'visible'),
+            TextPart(text: 'signed', metadata: originalMetadata),
+            TextPart(text: 'plain'),
           ],
         ),
       ];
       final stripped = stripReasoningParts(messages);
-      expect(stripped.first.content, hasLength(1));
-      expect(stripped.first.content.first.text, 'visible');
+      expect(stripped.first.content, hasLength(2));
+      final signed = stripped.first.content.first;
+      expect(signed.text, 'signed');
+      expect(signed.metadata, {'other': 'kept'});
+      expect(stripped.first.content[1].text, 'plain');
+      expect(originalMetadata, {'thoughtSignature': 'sig', 'other': 'kept'});
+    });
+
+    test('drops metadata entirely when thoughtSignature was its only key', () {
+      final messages = [
+        Message(
+          role: Role.model,
+          content: [
+            TextPart(text: 'signed', metadata: {'thoughtSignature': 'sig'}),
+          ],
+        ),
+      ];
+      final stripped = stripReasoningParts(messages);
+      expect(stripped.first.content.single.text, 'signed');
+      expect(stripped.first.content.single.metadata, isNull);
+    });
+
+    test('keeps a signed tool request part, removing its thoughtSignature', () {
+      final messages = [
+        Message(
+          role: Role.model,
+          content: [
+            ToolRequestPart(
+              toolRequest: ToolRequest(name: 'lookup', input: {'q': 'x'}),
+              metadata: {'thoughtSignature': 'sig'},
+            ),
+          ],
+        ),
+      ];
+      final stripped = stripReasoningParts(messages);
+      final part = stripped.first.content.single;
+      expect(part.toolRequest?.name, 'lookup');
+      expect(part.metadata, isNull);
     });
 
     test('drops messages that become empty', () {
