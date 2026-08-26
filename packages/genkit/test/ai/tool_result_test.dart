@@ -66,14 +66,14 @@ void main() {
       expect(result.hasResponse, isTrue);
       expect(result.hasInterrupt, isFalse);
       expect(result.output, 'hello');
-      expect(() => result.interrupt, throwsStateError);
+      expect(() => result.interruptData, throwsStateError);
     });
 
     test('interrupt result exposes data via convenience getters', () {
       final result = ToolResult.interrupt({'confirm': true});
       expect(result.hasInterrupt, isTrue);
       expect(result.hasResponse, isFalse);
-      expect(result.interrupt, {'confirm': true});
+      expect(result.interruptData, {'confirm': true});
       expect(() => result.output, throwsStateError);
     });
   });

@@ -86,10 +86,10 @@ sealed class ToolResult<Output> {
 
   /// Whether this is a [ToolInterruptResult] that halted the generation loop.
   ///
-  /// Use this to guard [interrupt] before reading it:
+  /// Use this to guard [interruptData] before reading it:
   /// ```dart
   /// final result = await myTool(input);
-  /// if (result.hasInterrupt) print(result.interrupt);
+  /// if (result.hasInterrupt) print(result.interruptData);
   /// ```
   bool get hasInterrupt => this is ToolInterruptResult<Output>;
 
@@ -112,12 +112,16 @@ sealed class ToolResult<Output> {
   /// Throws a [StateError] when this result is a [ToolResponseResult]. Check
   /// [hasInterrupt] first, or pattern-match on [ToolInterruptResult], when a
   /// normal response is possible.
-  Object? get interrupt {
+  ///
+  /// Named `interruptData` (rather than `interrupt`) to avoid colliding with
+  /// the [ToolResult.interrupt] factory constructor, which would otherwise
+  /// break `return .interrupt(...)` dot-shorthands in tool functions.
+  Object? get interruptData {
     final self = this;
     if (self is ToolInterruptResult<Output>) return self.data;
     throw StateError(
-      'ToolResult.interrupt was read on a response result. Check hasInterrupt '
-      'first, or pattern-match on ToolInterruptResult.',
+      'ToolResult.interruptData was read on a response result. Check '
+      'hasInterrupt first, or pattern-match on ToolInterruptResult.',
     );
   }
 
