@@ -78,18 +78,29 @@ final response = await ai.generate(
 print(response.text);
 ```
 
-### Thinking (Claude 3.7+)
+### Thinking
 
 ```dart
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-5'),
   prompt: 'Solve this 24 game: 2, 3, 10, 10',
-  config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
+  config: AnthropicOptions(
+    // Uses the model's compatible default thinking mode.
+    thinking: ThinkingConfig(),
+    outputConfig: AnthropicOutputConfig(effort: 'high'),
+  ),
 );
 
 // The thinking content is available in the message parts
 print(response.message?.content);
 ```
+
+An omitted thinking type resolves to the model's own default: Claude 4.6 and
+newer default to `adaptive`, while Claude 4.5 models default to `enabled`,
+which uses a manual token budget. You can also select a mode explicitly with
+`ThinkingConfig(type: 'enabled', budgetTokens: 2048)`. For model names outside
+the curated catalog, set `thinking.type` explicitly so the plugin does not
+guess an incompatible mode.
 
 ### Structured Output
 

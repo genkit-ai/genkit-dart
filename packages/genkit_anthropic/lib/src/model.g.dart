@@ -36,6 +36,7 @@ base class AnthropicOptions {
     int? topK,
     List<String>? stopSequences,
     ThinkingConfig? thinking,
+    AnthropicOutputConfig? outputConfig,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -45,6 +46,7 @@ base class AnthropicOptions {
       'topK': ?topK,
       'stopSequences': ?stopSequences,
       'thinking': ?thinking?.toJson(),
+      'outputConfig': ?outputConfig?.toJson(),
     };
   }
 
@@ -146,6 +148,24 @@ base class AnthropicOptions {
     }
   }
 
+  /// Anthropic-specific output behavior configuration.
+  AnthropicOutputConfig? get outputConfig {
+    return _json['outputConfig'] == null
+        ? null
+        : AnthropicOutputConfig.fromJson(
+            _json['outputConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  /// Anthropic-specific output behavior configuration.
+  set outputConfig(AnthropicOutputConfig? value) {
+    if (value == null) {
+      _json.remove('outputConfig');
+    } else {
+      _json['outputConfig'] = value.toJson();
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -197,10 +217,13 @@ base class _AnthropicOptionsTypeFactory
             ),
             'stopSequences': $Schema.list(items: $Schema.string()),
             'thinking': $Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
+            'outputConfig': $Schema.fromMap({
+              '\$ref': r'#/$defs/AnthropicOutputConfig',
+            }),
           },
         )
         .value,
-    dependencies: [ThinkingConfig.$schema],
+    dependencies: [ThinkingConfig.$schema, AnthropicOutputConfig.$schema],
   );
 }
 
@@ -280,6 +303,74 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
               description:
                   'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
               minimum: 1024,
+            ),
+          },
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+/// Configuration for Anthropic output behavior.
+base class AnthropicOutputConfig {
+  /// Creates a [AnthropicOutputConfig] from a JSON map.
+  factory AnthropicOutputConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  AnthropicOutputConfig._(this._json);
+
+  AnthropicOutputConfig({String? effort}) {
+    _json = {'effort': ?effort};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [AnthropicOutputConfig].
+  static const SchemanticType<AnthropicOutputConfig> $schema =
+      _AnthropicOutputConfigTypeFactory();
+
+  String? get effort {
+    return _json['effort'] as String?;
+  }
+
+  set effort(String? value) {
+    if (value == null) {
+      _json.remove('effort');
+    } else {
+      _json['effort'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [AnthropicOutputConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _AnthropicOutputConfigTypeFactory
+    extends SchemanticType<AnthropicOutputConfig> {
+  const _AnthropicOutputConfigTypeFactory();
+
+  @override
+  AnthropicOutputConfig parse(Object? json) {
+    return AnthropicOutputConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'AnthropicOutputConfig',
+    definition: $Schema
+        .object(
+          properties: {
+            'effort': $Schema.string(
+              description:
+                  'Controls the effort Claude spends on the response, trading off response depth against latency and token usage.',
+              enumValues: ['low', 'medium', 'high', 'xhigh', 'max'],
             ),
           },
         )

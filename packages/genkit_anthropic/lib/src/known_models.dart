@@ -47,26 +47,43 @@ const structuredClaudeSupports = <String, dynamic>{
 /// model names still resolve dynamically via the plugin's `commonModelInfo`
 /// fallback, so this enum only enriches the names listed here.
 enum KnownClaudeModel {
-  fable5('claude-fable-5', 'Claude Fable 5'),
-  opus5('claude-opus-5', 'Claude Opus 5'),
-  opus48('claude-opus-4-8', 'Claude Opus 4.8'),
-  opus47('claude-opus-4-7', 'Claude Opus 4.7'),
-  opus46('claude-opus-4-6', 'Claude Opus 4.6'),
-  opus45('claude-opus-4-5', 'Claude Opus 4.5'),
-  sonnet5('claude-sonnet-5', 'Claude Sonnet 5'),
-  sonnet46('claude-sonnet-4-6', 'Claude Sonnet 4.6'),
-  sonnet45('claude-sonnet-4-5', 'Claude Sonnet 4.5'),
-  haiku45('claude-haiku-4-5', 'Claude Haiku 4.5');
+  fable5('claude-fable-5', 'Claude Fable 5', ClaudeThinkingMode.adaptive),
+  opus5('claude-opus-5', 'Claude Opus 5', ClaudeThinkingMode.adaptive),
+  opus48('claude-opus-4-8', 'Claude Opus 4.8', ClaudeThinkingMode.adaptive),
+  opus47('claude-opus-4-7', 'Claude Opus 4.7', ClaudeThinkingMode.adaptive),
+  opus46('claude-opus-4-6', 'Claude Opus 4.6', ClaudeThinkingMode.adaptive),
+  opus45('claude-opus-4-5', 'Claude Opus 4.5', ClaudeThinkingMode.enabled),
+  sonnet5('claude-sonnet-5', 'Claude Sonnet 5', ClaudeThinkingMode.adaptive),
+  sonnet46(
+    'claude-sonnet-4-6',
+    'Claude Sonnet 4.6',
+    ClaudeThinkingMode.adaptive,
+  ),
+  sonnet45(
+    'claude-sonnet-4-5',
+    'Claude Sonnet 4.5',
+    ClaudeThinkingMode.enabled,
+  ),
+  haiku45('claude-haiku-4-5', 'Claude Haiku 4.5', ClaudeThinkingMode.enabled);
 
   // The base tier currently has no curated member.
-  // ignore: unused_element_parameter
-  const KnownClaudeModel(this.id, this.label, {this.structuredOutputs = true});
+  const KnownClaudeModel(
+    this.id,
+    this.label,
+    this.defaultThinkingMode, {
+    // ignore: unused_element_parameter
+    this.structuredOutputs = true,
+  });
 
   /// Bare model name (no plugin prefix).
   final String id;
 
   /// Human-readable label surfaced in listings.
   final String label;
+
+  /// Thinking mode used when a request supplies a thinking configuration but
+  /// does not select a mode explicitly.
+  final ClaudeThinkingMode defaultThinkingMode;
 
   /// Whether the model is on Anthropic's Structured Outputs list and may
   /// claim native constrained generation and JSON output.
@@ -79,6 +96,23 @@ enum KnownClaudeModel {
     stage: 'stable',
   );
 }
+
+/// Thinking modes that can be safely selected by default for curated models.
+enum ClaudeThinkingMode { enabled, adaptive }
+
+final _datedSuffixRegExp = RegExp(r'-\d{8}$');
+
+/// Returns the curated alias for [modelName], removing a dated snapshot suffix.
+String claudeModelAlias(String modelName) =>
+    modelName.replaceFirst(_datedSuffixRegExp, '');
+
+final _knownClaudeModelsById = <String, KnownClaudeModel>{
+  for (final model in KnownClaudeModel.values) model.id: model,
+};
+
+/// Returns the curated model matching [modelName], including dated snapshots.
+KnownClaudeModel? knownClaudeModelFor(String modelName) =>
+    _knownClaudeModelsById[claudeModelAlias(modelName)];
 
 /// Curated capability metadata for known Claude models, keyed by bare model
 /// name (no plugin prefix).
