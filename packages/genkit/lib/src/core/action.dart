@@ -18,6 +18,7 @@ import 'package:schemantic/schemantic.dart';
 
 import '../exception.dart';
 import '../o11y/instrumentation.dart';
+import 'cancellation.dart';
 
 const _genkitContextKey = #genkitContext;
 
@@ -97,6 +98,11 @@ typedef ActionFnArg<Chunk, Input, Init> = ({
   Map<String, dynamic>? context,
   Stream<Input>? inputStream,
   Init? init,
+
+  /// A read-only cancellation token the action body should observe to abort
+  /// cooperatively. Always present; defaults to [CancellationToken.none] when
+  /// the caller supplied no token.
+  CancellationToken cancel,
 });
 
 typedef ActionFn<Input, Output, Chunk, Init> =
@@ -203,12 +209,16 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     Init? init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
     return (await run(
       input,
       onChunk: onChunk,
       context: context,
+      inputStream: inputStream,
+      init: init,
       onTraceStart: onTraceStart,
+      cancel: cancel,
     )).result;
   }
 
@@ -219,12 +229,14 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     dynamic init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
     return await run(
       inputSchema != null ? inputSchema!.parse(input) : input as Input?,
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
+      cancel: cancel,
       // Skip validation when no init was supplied. `init` is optional on the
       // first request (e.g. an agent's fresh session sends no init), so a null
       // value must pass through untouched rather than be validated against a
@@ -244,7 +256,11 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     Init? init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
+    final cancelToken = cancel ?? CancellationToken.none;
+    // Bail before doing any work if the caller's token is already cancelled.
+    cancelToken.throwIfCancelled();
     if (inputStream == null) {
       final internalInputController = StreamController<Input>();
       inputStream = internalInputController.stream;
@@ -272,6 +288,7 @@ class Action<Input, Output, Chunk, Init>
             context: executionContext,
             inputStream: inputStream,
             init: init,
+            cancel: cancelToken,
           ));
         },
         actionType: actionType.value,
@@ -296,6 +313,7 @@ class Action<Input, Output, Chunk, Init>
     Map<String, dynamic>? context,
     Stream<Input>? inputStream,
     Init? init,
+    CancellationToken? cancel,
   }) {
     final streamController = StreamController<Chunk>();
     final actionStream = ActionStream<Chunk, Output>(streamController.stream);
@@ -305,6 +323,7 @@ class Action<Input, Output, Chunk, Init>
           context: context,
           inputStream: inputStream,
           init: init,
+          cancel: cancel,
           onChunk: (chunk) {
             if (!streamController.isClosed) {
               streamController.add(chunk);
@@ -333,6 +352,7 @@ class Action<Input, Output, Chunk, Init>
     StreamingCallback<Chunk>? onChunk,
     Map<String, dynamic>? context,
     Init? init,
+    CancellationToken? cancel,
   }) {
     StreamController<Input>? internalInputController;
     if (inputStream == null) {
@@ -359,6 +379,7 @@ class Action<Input, Output, Chunk, Init>
           context: context,
           inputStream: inputStream,
           init: init,
+          cancel: cancel,
         )
         .then((result) {
           bidiStream.setResult(result.result);

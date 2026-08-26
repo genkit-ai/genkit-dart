@@ -313,7 +313,7 @@ void main() {
       'send() bails before dispatching when the token is cancelled',
       () async {
         final transport = _FakeTransport([], supportsRun: true);
-        final token = CancellationToken()..cancel();
+        final token = (CancellationController()..cancel()).token;
         final chat = AgentApi(transport).chat();
         final res = await chat.send(text: 'hi', cancel: token);
         expect(res.finishReason, AgentFinishReason.aborted);
@@ -326,7 +326,7 @@ void main() {
       'sendStream() bails with an empty stream when the token is cancelled',
       () async {
         final transport = _FakeTransport([]);
-        final token = CancellationToken()..cancel();
+        final token = (CancellationController()..cancel()).token;
         final chat = AgentApi(transport).chat();
         final turn = chat.sendStream(text: 'hi', cancel: token);
         final chunks = <AgentChunk>[];
@@ -460,36 +460,37 @@ void main() {
 
   group('CancellationToken.onCancel', () {
     test('fires registered callbacks on cancel', () {
-      final token = CancellationToken();
+      final controller = CancellationController();
+      final token = controller.token;
       var fired = 0;
       token.onCancel(() => fired++);
       token.onCancel(() => fired++);
       expect(fired, 0);
-      token.cancel();
+      controller.cancel();
       expect(fired, 2);
     });
 
     test('only fires once even if cancel is called repeatedly', () {
-      final token = CancellationToken();
+      final controller = CancellationController();
       var fired = 0;
-      token.onCancel(() => fired++);
-      token
+      controller.token.onCancel(() => fired++);
+      controller
         ..cancel()
         ..cancel();
       expect(fired, 1);
     });
 
     test('the disposer unregisters the callback', () {
-      final token = CancellationToken();
+      final controller = CancellationController();
       var fired = 0;
-      final dispose = token.onCancel(() => fired++);
+      final dispose = controller.token.onCancel(() => fired++);
       dispose();
-      token.cancel();
+      controller.cancel();
       expect(fired, 0);
     });
 
     test('runs the callback synchronously if already cancelled', () {
-      final token = CancellationToken()..cancel();
+      final token = (CancellationController()..cancel()).token;
       var fired = 0;
       final dispose = token.onCancel(() => fired++);
       expect(fired, 1);

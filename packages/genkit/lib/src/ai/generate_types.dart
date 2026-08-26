@@ -90,25 +90,33 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
         raw: _response.raw,
         request: _response.request, // This uses ModelResponse.request
         operation: _response.operation,
-        candidates: [
-          Candidate(
-            index: 0,
-            message: _response.message!,
-            finishReason: _response.finishReason,
-            finishMessage: _response.finishMessage,
-            usage: _response.usage,
-            custom: _response.custom,
-          ),
-        ],
+        // Only build a candidate when a message is present. An aborted response
+        // (`finishReason: aborted`) carries no message, so there is no candidate
+        // to report.
+        candidates: _response.message == null
+            ? null
+            : [
+                Candidate(
+                  index: 0,
+                  message: _response.message!,
+                  finishReason: _response.finishReason,
+                  finishMessage: _response.finishMessage,
+                  usage: _response.usage,
+                  custom: _response.custom,
+                ),
+              ],
       );
 
   /// The full history of the conversation, including the request messages and
   /// the final model response.
   ///
   /// This is useful for continuing the conversation in multi-turn scenarios.
+  /// When the response has no message (e.g. an aborted turn), only the request
+  /// history is returned, so callers can attempt to resume from the last good
+  /// state.
   List<Message> get messages => [
     ...(_request?.messages ?? _response.request?.messages ?? []),
-    _response.message!,
+    if (_response.message != null) _response.message!,
   ];
 
   ModelResponse get modelResponse => _response;

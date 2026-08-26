@@ -304,6 +304,7 @@ void main() {
           inputStream: null,
           init: null,
           context: null,
+          cancel: CancellationToken.none,
         ),
       );
 
@@ -344,6 +345,7 @@ void main() {
           inputStream: null,
           init: null,
           context: null,
+          cancel: CancellationToken.none,
         ),
       );
 
@@ -418,6 +420,7 @@ void main() {
           inputStream: null,
           init: null,
           context: null,
+          cancel: CancellationToken.none,
         ),
       );
 
@@ -450,6 +453,7 @@ void main() {
           inputStream: null,
           init: null,
           context: null,
+          cancel: CancellationToken.none,
         ),
       );
 

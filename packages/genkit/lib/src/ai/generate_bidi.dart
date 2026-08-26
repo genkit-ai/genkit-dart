@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:logging/logging.dart';
 
 import '../core/action.dart';
+import '../core/cancellation.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../schema_extensions.dart';
@@ -72,6 +73,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   dynamic config,
   List<String>? tools,
   String? system,
+  CancellationToken? cancel,
 }) async {
   final model =
       await registry.lookupAction(.bidiModel, modelName) as BidiModel?;
@@ -109,7 +111,11 @@ Future<GenerateBidiSession> runGenerateBidi(
     tools: toolDefs,
   );
 
-  final session = model.streamBidi(init: initRequest);
+  final session = model.streamBidi(init: initRequest, cancel: cancel);
+  // Close the input side of the session when cancellation is requested so no
+  // further turns can be sent; the model's own `cancel` handling stops the
+  // in-flight turn.
+  cancel?.onCancel(() => unawaited(session.close()));
 
   final outputController = StreamController<GenerateResponseChunk>();
   final previousChunks = <ModelResponseChunk>[];
@@ -164,6 +170,7 @@ Future<GenerateBidiSession> runGenerateBidi(
             try {
               result = (await tool.runRaw(
                 toolRequest.toolRequest.input,
+                cancel: cancel,
               )).result;
             } on ToolInterruptException {
               // Deprecated throwing interrupt form.

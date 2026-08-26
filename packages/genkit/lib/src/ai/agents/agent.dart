@@ -390,8 +390,26 @@ class SessionRunner<State> {
       );
 
       try {
-        await runInNewSpan('runTurn-${turnIndex + 1}', (_) async {
+        final aborted = await runInNewSpan('runTurn-${turnIndex + 1}', (
+          _,
+        ) async {
           final turnResult = await fn(input, turnContext);
+
+          // The generate loop now resolves (rather than throws) on a
+          // cooperative cancel, so a returned turn can still be an abort. Mirror
+          // the catch-path handling: record `aborted`, skip the `completed`
+          // snapshot (the abort path already persisted `aborted`, and the
+          // abort-aware mutator would skip a late `completed` write anyway), and
+          // stop processing further inputs.
+          if (cancel?.isCancelled ?? false) {
+            lastTurnFinishReason = AgentFinishReason.aborted;
+            lastTurnError = null;
+            _notifyEndTurn(
+              _lastSnapshot?.snapshotId,
+              AgentFinishReason.aborted,
+            );
+            return true;
+          }
 
           final finishReason = turnResult?.finishReason;
           lastTurnFinishReason = finishReason;
@@ -408,8 +426,9 @@ class SessionRunner<State> {
           _lastGoodFinishReason = finishReason;
 
           _notifyEndTurn(snapshotId, finishReason);
-          return 0;
+          return false;
         }, input: input);
+        if (aborted) break;
         turnIndex++;
       } catch (e) {
         // An aborted turn rejects out of `generate` and lands here. Treat it as
@@ -857,23 +876,24 @@ final class _InProcessTransport extends AgentTransport {
 
   BidiActionStream<AgentStreamChunk, AgentOutput, AgentInput> _startBidi(
     AgentInput input,
-    AgentInit init, [
+    AgentInit init, {
     Map<String, dynamic>? context,
-  ]) {
-    final bidi = primaryAction.streamBidi(init: init, context: context);
+    CancellationToken? cancel,
+  }) {
+    final bidi = primaryAction.streamBidi(
+      init: init,
+      context: context,
+      cancel: cancel,
+    );
     bidi.send(input);
     bidi.close();
     return bidi;
   }
 
-  // NOTE: [cancel] is accepted to satisfy the [AgentTransport] contract but is
-  // not threaded into `generate` on the in-process transport today, so it does
-  // not stop an in-flight model call for an *attached* turn. Cooperative
-  // cancellation currently only takes effect on the detached path: `abort`
-  // flips the persisted snapshot to `aborted`, and a detached worker observing
-  // that (via `SnapshotChangeNotifier`) cancels its own turn. Aborting an
-  // attached in-process turn is therefore effectively persist-only. Threading
-  // cancellation through `generate` to cancel attached turns is future work.
+  // [cancel] is threaded into the agent action's `generate` call (via
+  // `streamBidi`), so aborting an attached in-process turn cooperatively stops
+  // the in-flight model call. The detached path additionally observes the
+  // persisted `aborted` status via `SnapshotChangeNotifier`.
   @override
   TurnStream runTurn(
     AgentInput input,
@@ -881,12 +901,10 @@ final class _InProcessTransport extends AgentTransport {
     required CancellationToken cancel,
     Map<String, dynamic>? context,
   }) {
-    final bidi = _startBidi(input, init, context);
+    final bidi = _startBidi(input, init, context: context, cancel: cancel);
     return (stream: bidi, output: bidi.onResult);
   }
 
-  // See [runTurn]: [cancel] is not wired into `generate` here, so aborting an
-  // attached in-process turn is persist-only (does not stop the model).
   @override
   Future<AgentOutput>? run(
     AgentInput input,
@@ -894,7 +912,7 @@ final class _InProcessTransport extends AgentTransport {
     required CancellationToken cancel,
     Map<String, dynamic>? context,
   }) {
-    return _startBidi(input, init, context).onResult;
+    return _startBidi(input, init, context: context, cancel: cancel).onResult;
   }
 
   @override
@@ -1111,7 +1129,13 @@ Agent<State> defineCustomAgent<State>(
 
           String? detachedSnapshotId;
           final detachCompleter = Completer<void>();
-          final cancelToken = CancellationToken();
+          // Own a controller for this turn (cancelled on detach-abort or when
+          // the persisted snapshot flips to `aborted`) and link the ambient
+          // transport token to it, so an attached `runTurn(cancel:)` also
+          // cooperatively stops this turn's `generate`.
+          final cancelController = CancellationController();
+          ctx.cancel.onCancel(cancelController.cancel);
+          final cancelToken = cancelController.token;
           void Function()? unsubscribe;
           // Background heartbeat timer for the detached snapshot. Started in
           // `onDetach`, cleared when the flow settles (or on abort).
@@ -1190,7 +1214,7 @@ Agent<State> defineCustomAgent<State>(
                     .onSnapshotStateChange(snapshotId, (snap) {
                       if (snap.status?.value == 'aborted') {
                         stopHeartbeat();
-                        cancelToken.cancel();
+                        cancelController.cancel();
                         localUnsubscribe?.call();
                       }
                     }, context: ctx.context);
@@ -1569,6 +1593,7 @@ Agent<State> definePromptAgent<State>(
         context: options.context,
         inputStream: null,
         init: null,
+        cancel: options.cancel ?? CancellationToken.none,
       ));
 
       // Keep everything that is NOT a prompt-template message.
