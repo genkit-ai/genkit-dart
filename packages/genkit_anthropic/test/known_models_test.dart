@@ -80,6 +80,15 @@ void main() {
       expect(info.containsKey('stage'), isFalse);
     });
 
+    test('fallback metadata does not claim constrained generation', () {
+      final action = plugin().resolve('model', 'claude-unknown-model');
+
+      final supports = (modelInfoOf(action!)['supports'] as Map)
+          .cast<String, dynamic>();
+      expect(supports.containsKey('constrained'), isFalse);
+      expect(supports['output'], ['text']);
+    });
+
     test('non-model action types do not resolve', () {
       expect(plugin().resolve('embedder', 'claude-opus-4-8'), isNull);
     });
@@ -172,7 +181,7 @@ void main() {
   });
 
   group('KnownClaudeModel', () {
-    test('info carries the label, stable stage, and shared supports', () {
+    test('info carries the label, stable stage, and tiered supports', () {
       for (final model in KnownClaudeModel.values) {
         final info = model.info;
         expect(info.label, model.label);
@@ -183,27 +192,50 @@ void main() {
           'tools': true,
           'toolChoice': true,
           'systemRole': true,
-          'constrained': true,
+          if (model.structuredOutputs) ...{
+            'output': ['text', 'json'],
+            'constrained': true,
+          } else
+            'output': ['text'],
         });
       }
     });
 
-    test('supports map is unmodifiable', () {
+    test('every curated model is on the structured tier', () {
+      for (final model in KnownClaudeModel.values) {
+        expect(model.structuredOutputs, isTrue, reason: model.id);
+        expect(model.info.supports, structuredClaudeSupports);
+      }
+    });
+
+    test('base tier advertises no constrained generation', () {
+      expect(baseClaudeSupports.containsKey('constrained'), isFalse);
+      expect(baseClaudeSupports['output'], ['text']);
+    });
+
+    test('supports maps are unmodifiable on both tiers', () {
       expect(
-        () => KnownClaudeModel.opus48.info.supports!['multiturn'] = false,
+        () => structuredClaudeSupports['multiturn'] = false,
+        throwsUnsupportedError,
+      );
+      expect(
+        () => baseClaudeSupports['multiturn'] = false,
         throwsUnsupportedError,
       );
     });
   });
 
   group('knownClaudeModels', () {
-    test('exposes the curated bare model names', () {
+    test('curates exactly the supported model catalog', () {
       expect(
         knownClaudeModels.keys,
-        containsAll([
+        unorderedEquals([
           'claude-fable-5',
+          'claude-opus-5',
           'claude-opus-4-8',
           'claude-opus-4-7',
+          'claude-opus-4-6',
+          'claude-opus-4-5',
           'claude-sonnet-5',
           'claude-sonnet-4-6',
           'claude-sonnet-4-5',

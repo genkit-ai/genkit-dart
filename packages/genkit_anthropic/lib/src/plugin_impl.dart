@@ -27,18 +27,9 @@ import 'model.dart';
 
 final _logger = Logger('genkit_anthropic');
 
-/// Default model capabilities shared by all Anthropic Claude models.
-final commonModelInfo = ModelInfo(
-  supports: {
-    'multiturn': true,
-    'media': true,
-    'tools': true,
-    'toolChoice': true, // Anthropic supports tool choice
-    'systemRole': true,
-    'constrained':
-        true, // Supports JSON schema (via tool/constrained mode usually, or just prompt)
-  },
-);
+/// Fallback capabilities for Claude models resolved by name without a curated
+/// entry.
+final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
 
 /// Core Genkit plugin implementation for Anthropic Claude models.
 ///
