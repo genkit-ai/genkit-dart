@@ -12,8 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
+import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_google_genai/src/api_client.dart';
 import 'package:genkit_google_genai/src/common_plugin.dart';
+import 'package:genkit_google_genai/src/google_api_client.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -85,6 +93,131 @@ void main() {
       expect(settings!.first.category, 'HARM_CATEGORY_DANGEROUS_CONTENT');
       expect(settings.first.threshold, 'BLOCK_ONLY_HIGH');
     });
+
+    test('returns null for null input', () {
+      expect(toGeminiSafetySettings(null), isNull);
+    });
+
+    test('returns empty list for empty input', () {
+      expect(toGeminiSafetySettings([]), isEmpty);
+    });
+
+    test('drops an entry with unset category', () {
+      final settings = toGeminiSafetySettings([
+        SafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
+        SafetySettings(
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_LOW_AND_ABOVE',
+        ),
+      ]);
+
+      expect(settings, hasLength(1));
+      expect(settings!.first.category, 'HARM_CATEGORY_HARASSMENT');
+    });
+
+    test('drops an entry with explicit HARM_CATEGORY_UNSPECIFIED', () {
+      final settings = toGeminiSafetySettings([
+        SafetySettings(
+          category: 'HARM_CATEGORY_UNSPECIFIED',
+          threshold: 'BLOCK_ONLY_HIGH',
+        ),
+      ]);
+
+      expect(settings, isEmpty);
+    });
+
+    test('drops an entry with neither category nor threshold', () {
+      expect(toGeminiSafetySettings([SafetySettings()]), isEmpty);
+    });
+
+    test('omits threshold from the wire body when unset', () {
+      final settings = toGeminiSafetySettings([
+        SafetySettings(category: 'HARM_CATEGORY_HATE_SPEECH'),
+      ]);
+
+      expect(settings, hasLength(1));
+      expect(settings!.first.toJson(), {
+        'category': 'HARM_CATEGORY_HATE_SPEECH',
+      });
+    });
+
+    test('warns once per dropped entry, kept entries stay silent', () {
+      final records = <LogRecord>[];
+      final subscription = Logger.root.onRecord.listen(records.add);
+      addTearDown(subscription.cancel);
+
+      toGeminiSafetySettings([
+        SafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
+        SafetySettings(
+          category: 'HARM_CATEGORY_UNSPECIFIED',
+          threshold: 'BLOCK_ONLY_HIGH',
+        ),
+        SafetySettings(
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_LOW_AND_ABOVE',
+        ),
+      ]);
+
+      expect(records, hasLength(2));
+      for (final record in records) {
+        expect(record.level, Level.WARNING);
+        expect(record.loggerName, 'genkit_google_genai');
+        expect(record.message, contains('category'));
+      }
+    });
+  });
+
+  group('safety settings request body', () {
+    test('omits safetySettings key when every entry is dropped', () async {
+      Map<String, dynamic>? capturedBody;
+      final plugin = StubClientPlugin((request) async {
+        capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'role': 'model',
+                  'parts': [
+                    {'text': 'ok'},
+                  ],
+                },
+                'finishReason': 'STOP',
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final model = plugin.createModel(
+        'gemini-2.5-flash',
+        GeminiOptions.$schema,
+      );
+      await model.call(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hi')],
+            ),
+          ],
+          config: {
+            'safetySettings': [
+              {
+                'category': 'HARM_CATEGORY_UNSPECIFIED',
+                'threshold': 'BLOCK_ONLY_HIGH',
+              },
+              {'threshold': 'BLOCK_ONLY_HIGH'},
+            ],
+          },
+        ),
+      );
+
+      expect(capturedBody, isNotNull);
+      expect(capturedBody, isNot(contains('safetySettings')));
+    });
   });
 
   group('toGeminiTools', () {
@@ -151,4 +284,20 @@ void main() {
       expect(settings.responseMimeType, 'audio/mp3');
     });
   });
+}
+
+class StubClientPlugin extends GoogleGenAiPluginImpl {
+  StubClientPlugin(this.handler);
+
+  final Future<http.Response> Function(http.Request) handler;
+
+  @override
+  Future<GenerativeLanguageBaseClient> getApiClient([
+    String? requestApiKey,
+  ]) async {
+    return GenerativeLanguageBaseClient(
+      baseUrl: 'https://test.invalid/',
+      client: MockClient(handler),
+    );
+  }
 }
