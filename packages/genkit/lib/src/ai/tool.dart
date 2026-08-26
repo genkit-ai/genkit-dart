@@ -75,6 +75,52 @@ sealed class ToolResult<Output> {
   /// caller with the optional [data] payload.
   factory ToolResult.interrupt([Object? data]) = ToolInterruptResult<Output>;
 
+  /// Whether this is a normal [ToolResponseResult] carrying structured output.
+  ///
+  /// Use this to guard [output] before reading it:
+  /// ```dart
+  /// final result = await myTool(input);
+  /// if (result.hasResponse) print(result.output);
+  /// ```
+  bool get hasResponse => this is ToolResponseResult<Output>;
+
+  /// Whether this is a [ToolInterruptResult] that halted the generation loop.
+  ///
+  /// Use this to guard [interrupt] before reading it:
+  /// ```dart
+  /// final result = await myTool(input);
+  /// if (result.hasInterrupt) print(result.interrupt);
+  /// ```
+  bool get hasInterrupt => this is ToolInterruptResult<Output>;
+
+  /// The structured output of a normal tool response.
+  ///
+  /// Throws a [StateError] when this result is a [ToolInterruptResult]. Check
+  /// [hasResponse] first, or pattern-match on [ToolResponseResult], when an
+  /// interrupt is possible.
+  Output get output {
+    final self = this;
+    if (self is ToolResponseResult<Output>) return self.output;
+    throw StateError(
+      'ToolResult.output was read on an interrupt result. Check hasResponse '
+      'first, or pattern-match on ToolResponseResult.',
+    );
+  }
+
+  /// The interrupt data payload of an interrupt result.
+  ///
+  /// Throws a [StateError] when this result is a [ToolResponseResult]. Check
+  /// [hasInterrupt] first, or pattern-match on [ToolInterruptResult], when a
+  /// normal response is possible.
+  Object? get interrupt {
+    final self = this;
+    if (self is ToolInterruptResult<Output>) return self.data;
+    throw StateError(
+      'ToolResult.interrupt was read on a response result. Check hasInterrupt '
+      'first, or pattern-match on ToolInterruptResult.',
+    );
+  }
+
   /// Serializes this result to the multipart `tool.v2` shape
   /// (`{output, content?, metadata?}` or `{interrupt}`). Used at the reflection
   /// boundary so the Dev UI can render tool results.
@@ -85,6 +131,7 @@ sealed class ToolResult<Output> {
 /// [parts] and [metadata].
 final class ToolResponseResult<Output> extends ToolResult<Output> {
   /// The structured output of the tool.
+  @override
   final Output output;
 
   /// Optional multipart content (images, media, etc.) returned alongside the

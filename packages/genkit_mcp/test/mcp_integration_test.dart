@@ -142,7 +142,7 @@ void main() {
     final tools = await client.getActiveTools(Genkit());
     expect(tools, hasLength(1));
     final toolResult = await tools.first.call({'foo': 'bar'});
-    expect((toolResult as ToolResponseResult).output, 'yep bar');
+    expect(toolResult.output, 'yep bar');
 
     final prompts = await client.getActivePrompts(Genkit());
     expect(prompts, hasLength(1));
@@ -181,7 +181,7 @@ void main() {
       final tools = await client.getActiveTools(Genkit());
       expect(tools, hasLength(1));
       final toolResult = await tools.first.call({'foo': 'bar'});
-      expect((toolResult as ToolResponseResult).output, 'yep bar');
+      expect(toolResult.output, 'yep bar');
 
       final prompts = await client.getActivePrompts(Genkit());
       expect(prompts, hasLength(1));

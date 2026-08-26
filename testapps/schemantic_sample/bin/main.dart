@@ -74,7 +74,7 @@ void main() async {
   }
 
   print('\n--- Running Tool ---');
-  final person = (await personTool('Bob') as ToolResponseResult<Person>).output;
+  final person = (await personTool('Bob')).output;
   print('Tool result: ${person.firstName} ${person.lastName}');
 
   print('\n--- JSON Schema for Flow ---');

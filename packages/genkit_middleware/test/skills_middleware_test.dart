@@ -108,7 +108,7 @@ This is a test skill.
       final useSkillTool = tools.firstWhere((t) => t.name == 'use_skill');
 
       final output = await useSkillTool.runRaw({'skillName': 'test_skill'});
-      final content = (output.result as ToolResponseResult).output;
+      final content = output.result.output;
       expect(content, contains('description: A test description.'));
       expect(content, contains('This is a test skill.'));
     });

@@ -185,10 +185,7 @@ void main() {
         },
       },
     );
-    expect(
-      (result as ToolResponseResult).output,
-      'yep {"foo":"bar"}{"soMeta":true}',
-    );
+    expect(result.output, 'yep {"foo":"bar"}{"soMeta":true}');
   });
 
   test('client converts prompts and resources', () async {
@@ -340,7 +337,7 @@ void main() {
     final resolved = await dap.getAction('my-server/regTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
-    expect((result as ToolResponseResult).output, 'ok');
+    expect(result.output, 'ok');
   });
 
   test('rawToolResponses returns unprocessed MCP result', () async {
@@ -368,8 +365,7 @@ void main() {
     await client.ready();
 
     final tools = await client.getActiveTools(Genkit());
-    final result =
-        ((await tools.first.call({'foo': 'bar'})) as ToolResponseResult).output;
+    final result = (await tools.first.call({'foo': 'bar'})).output;
 
     // With rawToolResponses=true, the raw MCP map (with 'content' array)
 

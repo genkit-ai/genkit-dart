@@ -320,6 +320,6 @@ void main() {
     final resolved = await dap.getAction('server1/testTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
-    expect((result as ToolResponseResult).output, 'ok');
+    expect(result.output, 'ok');
   });
 }

@@ -60,6 +60,22 @@ void main() {
     test('.interrupt with no data serializes to interrupt: true', () {
       expect(ToolResult.interrupt().toJson(), {'interrupt': true});
     });
+
+    test('response result exposes output via convenience getters', () {
+      final result = ToolResult.response('hello');
+      expect(result.hasResponse, isTrue);
+      expect(result.hasInterrupt, isFalse);
+      expect(result.output, 'hello');
+      expect(() => result.interrupt, throwsStateError);
+    });
+
+    test('interrupt result exposes data via convenience getters', () {
+      final result = ToolResult.interrupt({'confirm': true});
+      expect(result.hasInterrupt, isTrue);
+      expect(result.hasResponse, isFalse);
+      expect(result.interrupt, {'confirm': true});
+      expect(() => result.output, throwsStateError);
+    });
   });
 
   group('defineTool with ToolResult', () {
