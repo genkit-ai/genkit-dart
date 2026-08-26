@@ -145,7 +145,7 @@ class ActionMetadata<Input, Output, Chunk, Init> {
 
   ActionMetadata({
     required this.name,
-    this.actionType = ActionType.custom,
+    this.actionType = .custom,
     this.description,
 
     this.inputSchema,

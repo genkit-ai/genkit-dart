@@ -58,7 +58,7 @@ void main() {
   group('known model resolution', () {
     for (final model in KnownClaudeModel.values) {
       test('${model.id} resolves with curated metadata', () {
-        final action = plugin().resolve(ActionType.model, model.id);
+        final action = plugin().resolve(.model, model.id);
 
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
@@ -72,7 +72,7 @@ void main() {
     }
 
     test('unknown model falls back to common metadata', () {
-      final action = plugin().resolve(ActionType.model, 'claude-unknown-model');
+      final action = plugin().resolve(.model, 'claude-unknown-model');
 
       expect(action, isNotNull);
       final info = modelInfoOf(action!);
@@ -81,7 +81,7 @@ void main() {
     });
 
     test('fallback metadata does not claim constrained generation', () {
-      final action = plugin().resolve(ActionType.model, 'claude-unknown-model');
+      final action = plugin().resolve(.model, 'claude-unknown-model');
 
       final supports = (modelInfoOf(action!)['supports'] as Map)
           .cast<String, dynamic>();
@@ -90,7 +90,7 @@ void main() {
     });
 
     test('non-model action types do not resolve', () {
-      expect(plugin().resolve(ActionType.embedder, 'claude-opus-4-8'), isNull);
+      expect(plugin().resolve(.embedder, 'claude-opus-4-8'), isNull);
     });
   });
 

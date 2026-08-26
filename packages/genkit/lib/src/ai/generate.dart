@@ -176,7 +176,7 @@ _resolveTools(
             final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
             final actions = await dap.listActions();
             for (final action in actions) {
-              if (action.actionType == ActionType.tool &&
+              if (action.actionType == .tool &&
                   (prefix.isEmpty || action.name.startsWith(prefix))) {
                 final fullAction = await dap.getAction(action.name);
                 if (fullAction != null && fullAction is Tool) {

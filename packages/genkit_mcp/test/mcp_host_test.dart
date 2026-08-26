@@ -287,7 +287,7 @@ void main() {
     final dapActions = await dap.listActions();
     final mcpNames =
         dapActions
-            .where((a) => a.actionType == ActionType.tool)
+            .where((a) => a.actionType == .tool)
             .map((a) => a.name)
             .toList()
           ..sort();
