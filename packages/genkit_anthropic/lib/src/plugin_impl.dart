@@ -70,13 +70,10 @@ class AnthropicPluginImpl extends GenkitPlugin {
     knownClaudeModels,
   );
 
-  static final _datedSuffixRegExp = RegExp(r'-\d{8}$');
-
   /// Strips a trailing dated-snapshot suffix (e.g.
   /// `claude-haiku-4-5-20251001` -> `claude-haiku-4-5`) so dated ids returned
   /// by the models endpoint map onto the curated aliases.
-  static String _aliasOf(String modelName) =>
-      modelName.replaceFirst(_datedSuffixRegExp, '');
+  static String _aliasOf(String modelName) => claudeModelAlias(modelName);
 
   /// Returns the capability metadata for [modelName], matching by exact name
   /// first and then by dated-snapshot alias, falling back to [commonModelInfo]
@@ -269,7 +266,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
       };
     }
 
-    final thinking = _mapThinkingConfig(options.thinking);
+    final thinking = _mapThinkingConfig(options.thinking, modelName);
+    final outputConfig = _mapOutputConfig(options.outputConfig);
 
     return sdk.MessageCreateRequest(
       model: modelName,
@@ -283,6 +281,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
       tools: tools.isNotEmpty ? tools : null,
       toolChoice: toolChoice,
       thinking: thinking,
+      outputConfig: outputConfig,
     );
   }
 
@@ -503,14 +502,52 @@ Map<String, dynamic> _extractOutput(Map<String, dynamic> input) {
   return input;
 }
 
-sdk.ThinkingConfig? _mapThinkingConfig(ThinkingConfig? config) {
+sdk.ThinkingConfig? _mapThinkingConfig(
+  ThinkingConfig? config,
+  String modelName,
+) {
   if (config == null) return null;
-  return switch (config.type ?? 'enabled') {
+
+  final type =
+      config.type ?? knownClaudeModelFor(modelName)?.defaultThinkingMode.name;
+  if (type == null) {
+    throw GenkitException(
+      'Set thinking.type explicitly for unknown Anthropic model "$modelName".',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
+  return switch (type) {
     'disabled' => sdk.ThinkingConfig.disabled(),
     'adaptive' => sdk.ThinkingConfig.adaptive(),
     // 1024 is the minimum budget_tokens required by the Anthropic API.
-    _ => sdk.ThinkingConfig.enabled(budgetTokens: config.budgetTokens ?? 1024),
+    'enabled' => sdk.ThinkingConfig.enabled(
+      budgetTokens: config.budgetTokens ?? 1024,
+    ),
+    _ => throw GenkitException(
+      'Unsupported Anthropic thinking type "$type".',
+      status: StatusCodes.INVALID_ARGUMENT,
+    ),
   };
+}
+
+sdk.OutputConfig? _mapOutputConfig(AnthropicOutputConfig? config) {
+  final effort = config?.effort;
+  if (effort == null) return null;
+
+  return sdk.OutputConfig(
+    effort: switch (effort) {
+      'low' => sdk.EffortLevel.low,
+      'medium' => sdk.EffortLevel.medium,
+      'high' => sdk.EffortLevel.high,
+      'xhigh' => sdk.EffortLevel.xhigh,
+      'max' => sdk.EffortLevel.max,
+      _ => throw GenkitException(
+        'Unsupported Anthropic output effort "$effort".',
+        status: StatusCodes.INVALID_ARGUMENT,
+      ),
+    },
+  );
 }
 
 /// Emits streaming chunks for content deltas and throws on error events.

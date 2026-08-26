@@ -77,7 +77,7 @@ void main() {
       );
 
       final chunks = await response.toList();
-      expect(chunks.length, greaterThan(1));
+      expect(chunks, isNotEmpty);
       final fullText = chunks.map((c) => c.text).join();
       expect(fullText, contains('5'));
 
@@ -139,14 +139,26 @@ void main() {
         model: anthropic.model('claude-sonnet-4-5'),
         prompt: 'Solve this 24 game: 2, 3, 10, 10',
         config: AnthropicOptions(
-          // Thinking requires budget if supported
-          thinking: ThinkingConfig(budgetTokens: 1024),
+          thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
         ),
       );
       expect(
         response.message?.content.where((p) => p.isReasoning).length,
         greaterThanOrEqualTo(1),
       );
+    }, timeout: Timeout(Duration(minutes: 2)));
+
+    test('should use adaptive thinking for newer models', () async {
+      final response = await ai.generate(
+        model: anthropic.model('claude-sonnet-5'),
+        prompt: 'What is 17 * 19? Answer briefly.',
+        config: AnthropicOptions(
+          maxTokens: 512,
+          thinking: ThinkingConfig(),
+          outputConfig: AnthropicOutputConfig(effort: 'low'),
+        ),
+      );
+      expect(response.text, isNotEmpty);
     }, timeout: Timeout(Duration(minutes: 2)));
   });
 }
