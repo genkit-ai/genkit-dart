@@ -49,8 +49,8 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// capabilities for known models.
   Map<String, ModelInfo> get knownModels => const {};
 
-  /// Whether `gemma-*` model names resolve with Gemma-specific handling
-  /// (Gemma options schema, system-message folding, reasoning strip).
+  /// Whether `gemma-4-*` model names resolve with Gemma-specific handling
+  /// (Gemma options schema and reasoning strip).
   bool get servesGemmaModels => false;
 
   /// Returns the capability metadata for [modelName], falling back to
@@ -63,7 +63,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     SchemanticType customOptions, {
     ModelInfo? modelInfo,
   }) {
-    final isGemma = servesGemmaModels && isGemmaModelName(modelName);
+    final isGemma = servesGemmaModels && isGemma4ModelName(modelName);
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
@@ -128,11 +128,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
               .toList();
           var messages = nonSystemMessages;
           if (isGemma) {
-            if (systemMessage != null) {
-              messages = foldSystemMessage(systemMessage, messages);
-            }
             messages = stripReasoningParts(messages);
           }
+          final effectiveSystemMessage = isGemma && systemMessage != null
+              ? stripReasoningParts([systemMessage]).firstOrNull
+              : systemMessage;
 
           if (isGemma && messages.isEmpty) {
             throw GenkitException(
@@ -150,11 +150,16 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             safetySettings: safetySettings?.isEmpty ?? true
                 ? null
                 : safetySettings,
-            systemInstruction: systemMessage == null || isGemma
+            systemInstruction: effectiveSystemMessage == null
                 ? null
                 : gcl.Content(
-                    parts: systemMessage.content.map(toGeminiPart).toList(),
-                    role: 'system',
+                    parts: effectiveSystemMessage.content
+                        .map(toGeminiPart)
+                        .toList(),
+                    // The Gemini API accepts a dedicated `systemInstruction`
+                    // object whose role can be left unset. This is required
+                    // for Gemma 4; `role: system` is not a valid Content role.
+                    role: isGemma ? null : 'system',
                   ),
           );
 
@@ -229,7 +234,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return createEmbedder(name);
     }
     if (actionType == 'model') {
-      if (servesGemmaModels && isGemmaModelName(name)) {
+      if (servesGemmaModels && isGemma4ModelName(name)) {
         return createModel(
           name,
           GemmaOptions.$schema,

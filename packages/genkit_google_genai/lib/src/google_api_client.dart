@@ -80,7 +80,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           .map((model) {
             final bareName = model.name!.split('/').last;
             discoveredNames.add(bareName);
-            if (isGemmaModelName(bareName)) {
+            if (isGemma4ModelName(bareName)) {
               return modelMetadata(
                 '$name/$bareName',
                 customOptions: GemmaOptions.$schema,

@@ -22,12 +22,12 @@ final gemmaModelInfo = ModelInfo(
     'media': true,
     'tools': true,
     'toolChoice': true,
-    'systemRole': false,
+    'systemRole': true,
     'constrained': 'no-tools',
   },
 );
 
-bool isGemmaModelName(String name) => name.startsWith('gemma-');
+bool isGemma4ModelName(String name) => name.startsWith('gemma-4-');
 
 /// Strips parts that the Gemma API rejects in history: reasoning parts
 /// and any text/tool parts whose metadata carries a `thoughtSignature`.
@@ -48,26 +48,6 @@ List<Message> stripReasoningParts(List<Message> messages) {
       )
       .where((m) => m.content.isNotEmpty)
       .toList();
-}
-
-/// Returns [messages] with [system]'s content prepended to the first user
-/// message. When no user message exists, a new user message carrying the
-/// system content is inserted at the front.
-List<Message> foldSystemMessage(Message system, List<Message> messages) {
-  final index = messages.indexWhere((m) => m.role == Role.user);
-  if (index == -1) {
-    return [Message(role: Role.user, content: system.content), ...messages];
-  }
-  final target = messages[index];
-  return [
-    ...messages.sublist(0, index),
-    Message(
-      role: Role.user,
-      content: [...system.content, ...target.content],
-      metadata: target.metadata,
-    ),
-    ...messages.sublist(index + 1),
-  ];
 }
 
 /// Maps a [GemmaOptions] config to its [GeminiOptions] equivalent.

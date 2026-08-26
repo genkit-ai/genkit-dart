@@ -80,12 +80,14 @@ List<Map<String, dynamic>> _partsOf(Map<String, dynamic> content) =>
         .map((p) => (p as Map).cast<String, dynamic>())
         .toList();
 
+Map<String, dynamic> _systemInstructionOf(Map<String, dynamic> body) =>
+    (body['systemInstruction'] as Map).cast<String, dynamic>();
+
 void main() {
   group('gemma requests on the wire', () {
-    test('folds the system message into the first user turn and sends no '
-        'systemInstruction', () async {
+    test('sends the system message as a native systemInstruction', () async {
       final body = await _onTheWire(
-        model: 'gemma-3-4b-it',
+        model: 'gemma-4-26b-a4b-it',
         messages: [
           Message(
             role: Role.system,
@@ -97,19 +99,18 @@ void main() {
           ),
         ],
       );
-      expect(body, isNot(contains('systemInstruction')));
+      final systemInstruction = _systemInstructionOf(body);
+      expect(systemInstruction, isNot(contains('role')));
+      expect(_partsOf(systemInstruction).map((p) => p['text']), ['be terse']);
       final contents = _contentsOf(body);
       expect(contents, hasLength(1));
       expect(contents.first['role'], 'user');
-      expect(_partsOf(contents.first).map((p) => p['text']), [
-        'be terse',
-        'hello',
-      ]);
+      expect(_partsOf(contents.first).map((p) => p['text']), ['hello']);
     });
 
-    test('strips reasoning parts from a folded system message', () async {
+    test('strips reasoning parts from systemInstruction', () async {
       final body = await _onTheWire(
-        model: 'gemma-3-4b-it',
+        model: 'gemma-4-26b-a4b-it',
         messages: [
           Message(
             role: Role.system,
@@ -125,35 +126,39 @@ void main() {
           ),
         ],
       );
-      expect(body, isNot(contains('systemInstruction')));
+      final systemInstruction = _systemInstructionOf(body);
+      expect(systemInstruction, isNot(contains('role')));
+      expect(_partsOf(systemInstruction).map((p) => p['text']), ['be terse']);
       final contents = _contentsOf(body);
       expect(contents, hasLength(1));
-      expect(_partsOf(contents.first).map((p) => p['text']), [
-        'be terse',
-        'hello',
-      ]);
+      expect(_partsOf(contents.first).map((p) => p['text']), ['hello']);
     });
 
-    test('full ai.generate with system prompt folds it on the wire', () async {
-      final captured = <Map<String, dynamic>>[];
-      final ai = Genkit(
-        plugins: [_WirePlugin(captured)],
-        promptDir: null,
-        isDevEnv: false,
-      );
-      addTearDown(ai.shutdown);
-      await ai.generate(
-        model: modelRef('googleai/gemma-3-4b-it'),
-        system: 'be terse',
-        prompt: 'hello',
-      );
-      final body = captured.single;
-      expect(body, isNot(contains('systemInstruction')));
-      final texts = _contentsOf(
-        body,
-      ).expand(_partsOf).map((p) => p['text']).toList();
-      expect(texts, ['be terse', 'hello']);
-    });
+    test(
+      'full ai.generate with system prompt sends systemInstruction',
+      () async {
+        final captured = <Map<String, dynamic>>[];
+        final ai = Genkit(
+          plugins: [_WirePlugin(captured)],
+          promptDir: null,
+          isDevEnv: false,
+        );
+        addTearDown(ai.shutdown);
+        await ai.generate(
+          model: modelRef('googleai/gemma-4-26b-a4b-it'),
+          system: 'be terse',
+          prompt: 'hello',
+        );
+        final body = captured.single;
+        final systemInstruction = _systemInstructionOf(body);
+        expect(systemInstruction, isNot(contains('role')));
+        expect(_partsOf(systemInstruction).map((p) => p['text']), ['be terse']);
+        final texts = _contentsOf(
+          body,
+        ).expand(_partsOf).map((p) => p['text']).toList();
+        expect(texts, ['hello']);
+      },
+    );
 
     test('gemini models keep systemInstruction on the wire', () async {
       final body = await _onTheWire(
@@ -176,7 +181,7 @@ void main() {
     test('strips reasoning and thoughtSignature parts from multi-turn '
         'history', () async {
       final body = await _onTheWire(
-        model: 'gemma-3-4b-it',
+        model: 'gemma-4-26b-a4b-it',
         messages: [
           Message(
             role: Role.user,
@@ -206,7 +211,7 @@ void main() {
 
     test('passes in-range temperature through to generationConfig', () async {
       final body = await _onTheWire(
-        model: 'gemma-3-4b-it',
+        model: 'gemma-4-26b-a4b-it',
         messages: [
           Message(
             role: Role.user,
@@ -224,7 +229,7 @@ void main() {
         'naming the cause', () async {
       final captured = <Map<String, dynamic>>[];
       final plugin = _WirePlugin(captured);
-      final action = plugin.resolve('model', 'gemma-3-4b-it')!;
+      final action = plugin.resolve('model', 'gemma-4-26b-a4b-it')!;
       await expectLater(
         () => action.run(
           ModelRequest(
@@ -252,7 +257,7 @@ void main() {
     test('rejects temperature above 1.0 before any request is sent', () async {
       final captured = <Map<String, dynamic>>[];
       final plugin = _WirePlugin(captured);
-      final action = plugin.resolve('model', 'gemma-3-4b-it')!;
+      final action = plugin.resolve('model', 'gemma-4-26b-a4b-it')!;
       await expectLater(
         () => action.run(
           ModelRequest(

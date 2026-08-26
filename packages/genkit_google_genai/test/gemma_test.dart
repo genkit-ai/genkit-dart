@@ -117,12 +117,13 @@ void main() {
   });
 
   group('model family predicates', () {
-    test('isGemmaModelName', () {
-      expect(isGemmaModelName('gemma-3-1b-it'), isTrue);
-      expect(isGemmaModelName('gemma-3n-e4b-it'), isTrue);
-      expect(isGemmaModelName('gemma-4-31b-it'), isTrue);
-      expect(isGemmaModelName('gemini-2.5-pro'), isFalse);
-      expect(isGemmaModelName('text-embedding-004'), isFalse);
+    test('isGemma4ModelName', () {
+      expect(isGemma4ModelName('gemma-4-26b-a4b-it'), isTrue);
+      expect(isGemma4ModelName('gemma-4-31b-it'), isTrue);
+      expect(isGemma4ModelName('gemma-3-1b-it'), isFalse);
+      expect(isGemma4ModelName('gemma-3n-e4b-it'), isFalse);
+      expect(isGemma4ModelName('gemini-2.5-pro'), isFalse);
+      expect(isGemma4ModelName('text-embedding-004'), isFalse);
     });
   });
 
@@ -187,50 +188,10 @@ void main() {
     });
   });
 
-  group('foldSystemMessage', () {
-    final system = Message(
-      role: Role.system,
-      content: [TextPart(text: 'be terse')],
-    );
-
-    test('prepends system content to the first user message', () {
-      final folded = foldSystemMessage(system, [
-        Message(
-          role: Role.user,
-          content: [TextPart(text: 'hello')],
-        ),
-        Message(
-          role: Role.model,
-          content: [TextPart(text: 'hi')],
-        ),
-        Message(
-          role: Role.user,
-          content: [TextPart(text: 'again')],
-        ),
-      ]);
-      expect(folded, hasLength(3));
-      expect(folded.first.role, Role.user);
-      expect(folded.first.content.map((p) => p.text), ['be terse', 'hello']);
-      expect(folded[2].content.single.text, 'again');
-    });
-
-    test('inserts a user message when none exists', () {
-      final folded = foldSystemMessage(system, [
-        Message(
-          role: Role.model,
-          content: [TextPart(text: 'hi')],
-        ),
-      ]);
-      expect(folded, hasLength(2));
-      expect(folded.first.role, Role.user);
-      expect(folded.first.content.single.text, 'be terse');
-    });
-  });
-
   group('plugin handle', () {
     test('googleAI.gemma returns a ModelRef with GemmaOptions schema', () {
-      final ref = googleAI.gemma('gemma-3-1b-it');
-      expect(ref.name, 'googleai/gemma-3-1b-it');
+      final ref = googleAI.gemma('gemma-4-26b-a4b-it');
+      expect(ref.name, 'googleai/gemma-4-26b-a4b-it');
       expect(ref.customOptions, same(GemmaOptions.$schema));
     });
   });
@@ -245,22 +206,20 @@ void main() {
       return model['supports'] as Map<String, dynamic>?;
     }
 
-    test('gemma models advertise systemRole: false', () {
-      for (final name in const [
-        'gemma-3-1b-it',
-        'gemma-3-4b-it',
-        'gemma-3-12b-it',
-        'gemma-3-27b-it',
-        'gemma-3n-e4b-it',
-        'gemma-4-26b-a4b-it',
-        'gemma-4-31b-it',
-      ]) {
-        expect(supportsOf(name)?['systemRole'], isFalse, reason: name);
+    test('gemma 4 models advertise systemRole: true', () {
+      for (final name in const ['gemma-4-26b-a4b-it', 'gemma-4-31b-it']) {
+        expect(supportsOf(name)?['systemRole'], isTrue, reason: name);
       }
     });
 
-    test('gemma models advertise constrained: no-tools', () {
-      expect(supportsOf('gemma-3-1b-it')?['constrained'], 'no-tools');
+    test('gemma 4 models advertise constrained: no-tools', () {
+      expect(supportsOf('gemma-4-26b-a4b-it')?['constrained'], 'no-tools');
+    });
+
+    test('gemma 3 model names are not special-cased', () {
+      final supports = supportsOf('gemma-3-4b-it');
+      expect(supports?['systemRole'], isTrue);
+      expect(supports?['constrained'], isTrue);
     });
   });
 }
