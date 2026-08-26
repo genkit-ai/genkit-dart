@@ -54,10 +54,11 @@ flowchart LR
 ### Supported MCP Features (High-level)
 
 - **As an MCP server** (`GenkitMcpServer`)
-  - Tools, prompts, resources (including templates and subscribe/unsubscribe)
+  - Tools, prompts, resources, and resource templates
+  - List-change and resource-update subscriptions
   - Completions (`completion/complete`)
-  - Logging (`logging/setLevel`)
-  - Tasks (`tasks/*`) and progress notifications
+  - Request-scoped logging in MCP 2026-07-28
+  - Legacy logging (`logging/setLevel`), tasks (`tasks/*`), and progress notifications
 - **As an MCP client** (`GenkitMcpClient` / `GenkitMcpHost`)
   - Connect over stdio or Streamable HTTP
   - Discover and call tools, prompts, and resources from remote servers
@@ -121,8 +122,8 @@ void main() async {
 
 ### `McpHostOptionsWithCache` Options
 
-- **`name`**: (required) A name for the MCP host plugin.
-- **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for tool/prompt/resource listings.
+- **`name`**: (required) A name for the MCP host instance.
+- **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for tool/prompt/resource listings. A positive value overrides server hints, a negative value disables caching, and `null` or `0` uses the MCP 2026-07-28 server `ttlMs` hint when available, otherwise falling back to 3 seconds.
 - **`version`**: (optional) Version string for this host.
 - **`mcpServers`**: (optional) A map where each key is a namespace for an MCP server, and the value is its `McpServerConfig`.
 - **`rawToolResponses`**: (optional) When `true`, tool responses are returned in their raw MCP format.
@@ -132,7 +133,7 @@ void main() async {
 
 ## MCP Client (Single Server)
 
-Connecting to a single MCP server with a client object is an advanced usecase for when you need manual control over the client lifecycle or want to avoid automatic registry integration. To connect to a single MCP server, use `createMcpClient`.
+Connecting to a single MCP server with a client object is an advanced use case for when you need manual control over the client lifecycle or want to avoid automatic registry integration. To connect to a single MCP server, use `createMcpClient`.
 
 Because a standalone client does not automatically register its tools with the Genkit registry, you must fetch the active tools and provide them directly to the `ai.generate` function in order to use them.
 
@@ -172,7 +173,7 @@ void main() async {
 ### `McpClientOptions`
 
 - **`name`**: (required) A unique name for this client instance.
-- **`serverName`**: (optional) Overrides the name used when prefixing tools/resources returned by `getActiveTools()` / `getActiveResources()`.
+- **`serverName`**: (optional) Overrides the name used when prefixing tools, prompts, and resources returned by `getActiveTools()`, `getActivePrompts()`, and `getActiveResources()`.
 - **`version`**: (optional) Version string for this client.
 - **`rawToolResponses`**: (optional) When `true`, tool responses are returned in their raw MCP format. Defaults to `false`.
 - **`mcpServer`**: (required) A `McpServerConfig` with one of the following:
@@ -182,7 +183,7 @@ void main() async {
 - **`samplingHandler`**: (optional) Handler for server-initiated sampling requests.
 - **`elicitationHandler`**: (optional) Handler for server-initiated elicitation requests.
 - **`notificationHandler`**: (optional) Handler for server notifications.
-- **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for remote actions.
+- **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for remote actions. A positive value overrides server hints, a negative value disables caching, and `null` or `0` uses the MCP 2026-07-28 server `ttlMs` hint when available, otherwise falling back to 3 seconds.
 
 ---
 
@@ -233,6 +234,12 @@ void main() async {
 }
 ```
 
+MCP tool input schemas must have an object root. MCP 2026-07-28 clients receive
+arbitrary JSON output schemas and structured results, including arrays, scalar
+values, and explicit `null`. For MCP 2025-11-25 compatibility, non-object
+output schemas are omitted and non-object results remain available through text
+content.
+
 ### Streamable HTTP Transport
 
 ```dart
@@ -246,6 +253,15 @@ await server.start(transport);
 // Server is now available at http://localhost:3000/mcp
 ```
 
+Each `StreamableHttpServerTransport` instance owns one MCP protocol connection.
+Use a fresh transport/server lifecycle for an independent client.
+
+DNS rebinding protection and JSON-RPC batch rejection are enabled by default.
+Loopback hosts (`localhost`, `127.0.0.1`, and `::1`) work without additional
+configuration. A non-loopback deployment must supply `allowedHosts` and should
+supply `allowedOrigins`. Set `rejectBatchJsonRpcPayloads: false` only when a
+legacy client explicitly requires JSON-RPC batches.
+
 ### `McpServerOptions`
 
 - **`name`**: (required) The name your server will advertise to MCP clients.
@@ -255,26 +271,27 @@ await server.start(transport);
 
 ## Namespacing
 
-Actions can be namespaced to avoid conflicts (behavior depends on whether you use a host plugin or a single client):
+Actions can be namespaced to avoid conflicts (behavior depends on whether you use a host or a single client):
 
-- **`defineMcpHost` / `McpHostPlugin`**: Actions are exposed as `hostName/serverKey:actionName` (e.g., `my-host/fs:read_file`).
-- **`GenkitMcpClient.getActiveTools()` / `getActiveResources()`**: Actions are named `client.serverName/actionName`.
+- **`defineMcpHost` / `GenkitMcpHost`**: Actions are exposed as `hostName/serverKey:actionName` (e.g., `my-host/fs:read_file`).
+- **`GenkitMcpClient.getActiveTools()` / `getActivePrompts()` / `getActiveResources()`**: Actions are named `client.serverName/actionName`.
   - `client.serverName` defaults to the remote server's `initialize.serverInfo.name` (if provided), otherwise `McpClientOptions.serverName`, otherwise `McpClientOptions.name`.
   - Set `McpClientOptions.serverName` if you want a stable prefix independent of the remote server's self-reported name.
-- **Prompts in `GenkitMcpClient.getActivePrompts()`** keep their original MCP prompt names (no automatic prefixing). If you need strict namespacing across multiple servers, use a `GenkitMcpHost`.
 
 ---
 
 ## Tool Responses
 
-MCP tools return a `content` array as opposed to a structured response like most Genkit tools. The plugin attempts to parse and coerce returned content:
+MCP tools return a `content` array and can also return `structuredContent`. The
+plugin processes results in this order:
 
-1. If **all** `content` parts are text, they are concatenated into a single string.
+1. If the result contains `isError: true`, the processed value is returned as `{'error': '<text>'}`.
+2. If `structuredContent` is present, its JSON value is returned directly, including an explicit `null`.
+3. If **all** `content` parts are text, they are concatenated into a single string.
    - If the concatenated text *looks like JSON* (starts with `{` or `[` after left-trimming), the client tries `jsonDecode(...)` and returns the decoded object/list on success.
    - Otherwise the concatenated text is returned as a `String`.
-2. If `content` has exactly one **non-text** part, that part map is returned (e.g. an image/audio block).
-3. If `content` has multiple or mixed parts, the raw MCP result map is returned.
-4. If the MCP result contains `isError: true`, the processed value is returned as `{'error': '<text>'}`.
+4. If `content` has exactly one **non-text** part, that part map is returned (e.g. an image/audio block).
+5. If `content` has multiple or mixed parts, the raw MCP result map is returned.
 
 Set `rawToolResponses: true` in client options to skip this processing and receive raw MCP responses.
 
@@ -326,7 +343,25 @@ Once the inspector is connected, you can list tools, prompts, and resources, and
 
 ## Protocol Version
 
-This package implements the MCP specification version **2025-11-25**.
+This package supports MCP **2026-07-28** and retains compatibility with
+initialization-based MCP **2025-11-25** servers and clients.
+
+Protocol validation, negotiation, and transport handling are backed by
+`mcp_dart` 2.3. Clients prefer the stateless 2026-07-28 protocol through
+`server/discover` and automatically fall back to the 2025-11-25 initialization
+lifecycle when discovery is unavailable. Streamable HTTP preserves the
+protocol-version and method headers required by the latest specification.
+To connect over Streamable HTTP, configure `McpServerConfig(url: ...)`.
+
+In MCP 2026-07-28, list-change and resource-update notifications use
+`subscriptions/listen`, and log levels are carried in request metadata. The
+public `GenkitMcpClient` APIs adapt these automatically. The legacy
+`resources/subscribe`, `resources/unsubscribe`, `logging/setLevel`, and
+`tasks/*` methods remain available when a 2025-11-25 connection is negotiated.
+Latest-protocol action listings also honor the server's `ttlMs` cache hint.
+A positive `cacheTtlMillis` overrides that hint, a negative value disables
+caching, and `null` or `0` uses the hint with a 3-second fallback when it is
+absent.
 
 ---
 

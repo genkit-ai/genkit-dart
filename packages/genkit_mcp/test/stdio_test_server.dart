@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:async';
-import 'dart:io';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
-import 'package:genkit_mcp/src/server/transports/stdio_transport.dart';
 import 'package:schemantic/schemantic.dart';
 
 final class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
@@ -76,18 +72,5 @@ Future<void> main() async {
     ai,
     McpServerOptions(name: 'test-server', version: '0.0.1'),
   );
-  await server.start(StdioServerTransport());
-
-  final completer = Completer<void>();
-  void handleSignal(ProcessSignal _) {
-    if (!completer.isCompleted) {
-      completer.complete();
-    }
-  }
-
-  ProcessSignal.sigterm.watch().listen(handleSignal);
-  ProcessSignal.sigint.watch().listen(handleSignal);
-
-  await completer.future;
-  await server.close();
+  await server.start();
 }

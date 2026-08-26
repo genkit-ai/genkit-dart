@@ -15,10 +15,23 @@
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
-Map<String, dynamic> toMcpTool(Tool tool) {
+Map<String, dynamic> toMcpTool(
+  Tool tool, {
+  bool allowNonObjectOutputSchema = false,
+}) {
   final meta = _extractMcpMeta(tool.metadata);
   final metaEntry = meta == null ? null : {'_meta': meta};
   final annotations = _extractMcpAnnotations(tool.metadata);
+  final inputSchema = _toMcpObjectSchema(tool.inputSchema);
+  if (tool.inputSchema != null && inputSchema == null) {
+    throw GenkitException(
+      'MCP tool "${tool.name}" input schema must have root type "object".',
+      status: StatusCodes.FAILED_PRECONDITION,
+    );
+  }
+  final outputSchema = allowNonObjectOutputSchema
+      ? _toMcpSchema(tool.outputSchema)
+      : _toMcpObjectSchema(tool.outputSchema);
   // Allow per-tool override via metadata; default to 'optional' so that
   // task-augmented requests are accepted by the server.
   final execution =
@@ -27,20 +40,32 @@ Map<String, dynamic> toMcpTool(Tool tool) {
     'name': tool.name,
     'description': tool.description ?? '',
     'inputSchema':
-        _toJsonSchema(tool.inputSchema) ??
+        inputSchema ??
         {
           r'$schema': 'http://json-schema.org/draft-07/schema#',
           'type': 'object',
         },
-    if (tool.outputSchema != null)
-      'outputSchema': _toJsonSchema(tool.outputSchema),
+    'outputSchema': ?outputSchema,
     'execution': execution,
     'annotations': ?annotations,
     ...?metaEntry,
   };
 }
 
-Map<String, dynamic>? _toJsonSchema(SchemanticType? type) {
+Map<String, dynamic>? _toMcpObjectSchema(SchemanticType? type) {
+  if (type == null) return null;
+  final schema = type.jsonSchema(useRefs: true);
+  if (schema['type'] != 'object') {
+    if (type.schemaMetadata?.definition['type'] != 'object') return null;
+    // Named Schemantic schemas use a root $ref. MCP additionally requires the
+    // root `type` field to be present on tool schemas.
+    schema['type'] = 'object';
+  }
+  schema[r'$schema'] = 'http://json-schema.org/draft-07/schema#';
+  return schema;
+}
+
+Map<String, dynamic>? _toMcpSchema(SchemanticType? type) {
   if (type == null) return null;
   final schema = type.jsonSchema(useRefs: true);
   schema[r'$schema'] = 'http://json-schema.org/draft-07/schema#';
