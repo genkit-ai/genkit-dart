@@ -7,7 +7,6 @@ Build production-ready AI-powered applications in Dart with a unified interface 
 [Documentation](https://genkit.dev) • [API Reference](https://pub.dev/packages/genkit) • [Discord](https://discord.gg/qXt5zzQKpc)
 
 ---
-kick ci
 
 ## Installation
 
