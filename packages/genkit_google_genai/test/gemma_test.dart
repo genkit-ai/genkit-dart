@@ -81,6 +81,17 @@ void main() {
       expect(mapped.toJson().keys.toSet(), sample.keys.toSet());
     });
 
+    test('returns options backed by a map independent of the request '
+        'config', () {
+      final config = <String, dynamic>{'topK': 3};
+      final mapped = gemmaToGeminiOptions(GemmaOptions.fromJson(config));
+
+      mapped.topK = 99;
+
+      expect(config['topK'], 3);
+      expect(mapped.topK, 99);
+    });
+
     test('passes temperature at the cap through', () {
       final mapped = gemmaToGeminiOptions(
         GemmaOptions.fromJson({'temperature': 1.0}),
