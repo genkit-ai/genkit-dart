@@ -142,8 +142,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType != 'model') return null;
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType != .model) return null;
     return _createModel(name);
   }
 
@@ -324,10 +324,22 @@ sdk.InputMessage toAnthropicMessage(Message m) {
       ];
     } else if (p.isToolResponse) {
       final res = p.toolResponse!;
+      // Multipart tool content (images, media, etc.) travels alongside the
+      // structured output. Anthropic tool_result blocks accept text and image
+      // content, so map any image media parts to image content and keep the
+      // structured output as text.
+      final content = <sdk.ToolResultContent>[
+        sdk.ToolResultContent.text(jsonEncode(res.output)),
+        ...?res.content
+            ?.map((c) => Part.fromJson((c as Map).cast<String, dynamic>()))
+            .where((part) => part.isMedia)
+            .map((part) => _toAnthropicToolResultImage(part.media!))
+            .nonNulls,
+      ];
       return [
         sdk.InputContentBlock.toolResult(
           toolUseId: res.ref ?? '',
-          content: [sdk.ToolResultContent.text(jsonEncode(res.output))],
+          content: content,
         ),
       ];
     } else if (p.isMedia) {
@@ -393,6 +405,26 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
     _requireImageMediaType(declaredMime);
   }
   return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
+}
+
+/// Maps a Genkit image [Media] to an Anthropic [sdk.ToolResultContent] image.
+///
+/// Returns null for non-image or non-data URLs, since Anthropic tool_result
+/// image content only supports base64-encoded image sources.
+sdk.ToolResultContent? _toAnthropicToolResultImage(Media media) {
+  final contentType = media.contentType ?? '';
+  if (!media.url.startsWith('data:')) return null;
+  if (contentType.isNotEmpty && !contentType.startsWith('image/')) return null;
+  final commaIdx = media.url.indexOf(',');
+  if (commaIdx < 0) return null;
+  final base64Data = media.url.substring(commaIdx + 1);
+  final mimeType = contentType.isEmpty ? 'image/png' : contentType;
+  return sdk.ToolResultContent.image(
+    sdk.ImageSource.base64(
+      data: base64Data,
+      mediaType: _requireImageMediaType(mimeType),
+    ),
+  );
 }
 
 String? _cleanMimeType(String? contentType) {

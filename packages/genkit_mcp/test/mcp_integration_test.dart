@@ -92,7 +92,7 @@ void main() {
       name: 'testTool',
       description: 'test tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (input, _) async => 'yep ${input['foo']}',
+      fn: (input, _) async => .response('yep ${input['foo']}'),
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'testPrompt',
@@ -142,7 +142,7 @@ void main() {
     final tools = await client.getActiveTools(Genkit());
     expect(tools, hasLength(1));
     final toolResult = await tools.first.call({'foo': 'bar'});
-    expect(toolResult, 'yep bar');
+    expect(toolResult.output, 'yep bar');
 
     final prompts = await client.getActivePrompts(Genkit());
     expect(prompts, hasLength(1));
@@ -181,7 +181,7 @@ void main() {
       final tools = await client.getActiveTools(Genkit());
       expect(tools, hasLength(1));
       final toolResult = await tools.first.call({'foo': 'bar'});
-      expect(toolResult, 'yep bar');
+      expect(toolResult.output, 'yep bar');
 
       final prompts = await client.getActivePrompts(Genkit());
       expect(prompts, hasLength(1));

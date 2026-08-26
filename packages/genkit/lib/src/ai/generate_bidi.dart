@@ -23,6 +23,7 @@ import '../schema_extensions.dart';
 import '../types.dart';
 import 'generate.dart';
 import 'generate_types.dart';
+import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
 
@@ -73,7 +74,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   String? system,
 }) async {
   final model =
-      await registry.lookupAction('bidi-model', modelName) as BidiModel?;
+      await registry.lookupAction(.bidiModel, modelName) as BidiModel?;
   if (model == null) {
     throw GenkitException(
       'Bidi Model $modelName not found',
@@ -85,7 +86,8 @@ Future<GenerateBidiSession> runGenerateBidi(
   var toolActions = <Tool>[];
   if (tools != null) {
     for (var toolName in tools) {
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
+      final tool = await registry.lookupAction(.tool, toolName) as Tool?;
+
       if (tool != null) {
         toolActions.add(tool);
         toolDefs.add(toToolDefinition(tool));
@@ -142,17 +144,30 @@ Future<GenerateBidiSession> runGenerateBidi(
               ),
             );
 
+            // Interrupts (human-in-the-loop) require handing control back to the
+            // caller, which a live bidi session cannot do: the model is waiting
+            // on a function response and there is no resume path. Both the
+            // returned `.interrupt(...)` and the deprecated throwing
+            // `ctx.interrupt(...)` forms must fail the session loudly rather
+            // than answer the model, so this throw lives OUTSIDE the try/catch
+            // below (which would otherwise turn it into an `Error: ...` tool
+            // response and keep the session going).
+            GenkitException bidiInterruptUnsupported() => GenkitException(
+              'Tool "${toolRequest.toolRequest.name}" attempted to interrupt '
+              'during a live (bidi) session. Interrupts are not supported by '
+              'generateBidi; use a unary generate() call for human-in-the-loop '
+              'tools.',
+              status: StatusCodes.UNIMPLEMENTED,
+            );
+
+            final ToolResult result;
             try {
-              final output = await tool.runRaw(toolRequest.toolRequest.input);
-              toolResponses.add(
-                ToolResponsePart(
-                  toolResponse: ToolResponse(
-                    ref: toolRequest.toolRequest.ref,
-                    name: toolRequest.toolRequest.name,
-                    output: output.result,
-                  ),
-                ),
-              );
+              result = (await tool.runRaw(
+                toolRequest.toolRequest.input,
+              )).result;
+            } on ToolInterruptException {
+              // Deprecated throwing interrupt form.
+              throw bidiInterruptUnsupported();
             } catch (e) {
               toolResponses.add(
                 ToolResponsePart(
@@ -163,6 +178,28 @@ Future<GenerateBidiSession> runGenerateBidi(
                   ),
                 ),
               );
+              continue;
+            }
+
+            switch (result) {
+              case ToolInterruptResult():
+                throw bidiInterruptUnsupported();
+              case ToolResponseResult(
+                :final output,
+                :final parts,
+                :final metadata,
+              ):
+                toolResponses.add(
+                  ToolResponsePart(
+                    toolResponse: ToolResponse(
+                      ref: toolRequest.toolRequest.ref,
+                      name: toolRequest.toolRequest.name,
+                      output: output,
+                      content: parts?.map((p) => p.toJson()).toList(),
+                    ),
+                    metadata: metadata,
+                  ),
+                );
             }
           }
           _logger.fine('toolResponses: $toolResponses');

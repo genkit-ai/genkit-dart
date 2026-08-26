@@ -199,11 +199,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Embedder createEmbedder(String embedderName);
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'embedder') {
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == .embedder) {
       return createEmbedder(name);
     }
-    if (actionType == 'model') {
+    if (actionType == .model) {
       if (name.contains('-tts')) {
         return createModel(name, GeminiTtsOptions.$schema);
       }
@@ -494,15 +494,32 @@ gcl.Part toGeminiPart(Part p) {
     );
   }
   if (p.isToolResponse) {
+    final tr = p.toolResponse!;
+    // Multipart tool content (images, media, etc.) becomes function-response
+    // parts. Gemini's FunctionResponse.parts only supports inline/file data
+    // (see js-genai `FunctionResponsePart`), so we map media parts to their
+    // `inlineData`/`fileData` shape and skip parts that cannot be represented
+    // there (e.g. text) which would otherwise be rejected by the API. The
+    // structured result still travels in `response.output`.
+    final contentParts = tr.content
+        ?.map((c) => Part.fromJson(c as Map<String, dynamic>))
+        .where((part) => part.isMedia)
+        .map((part) => toGeminiPart(part).toJson())
+        .toList();
     return gcl.Part(
-      functionResponse: gcl.FunctionResponse(
-        id: p.toolResponse!.ref ?? '',
-        name: _toGeminiToolName(p.toolResponse!.name),
-        response: {'output': p.toolResponse!.output},
-      ),
+      functionResponse: gcl.FunctionResponse.fromJson({
+        'id': tr.ref ?? '',
+        'name': _toGeminiToolName(tr.name),
+        'response': {'output': tr.output},
+        'parts': ?(contentParts == null || contentParts.isEmpty
+            ? null
+            : contentParts),
+      }),
+
       thoughtSignature: thoughtSignature,
     );
   }
+
   if (p.isMedia) {
     final media = p.media;
     if (media!.url.startsWith('data:')) {

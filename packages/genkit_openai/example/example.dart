@@ -129,7 +129,7 @@ Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (modelName, _) async {
       final action = await ai.registry.lookupAction(
-        'model',
+        .model,
         'openai/$modelName',
       );
 
@@ -155,7 +155,7 @@ Flow<String, String, void, void> defineModelListFlow(Genkit ai) {
     fn: (_, _) async {
       final actions = await ai.registry.listActions();
       final models = actions
-          .where((a) => a.actionType == 'model')
+          .where((a) => a.actionType == .model)
           .map((a) => a.name)
           .toList();
 
@@ -294,11 +294,13 @@ void main() {
           : tempCelsius.toDouble();
       final conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'];
 
-      return WeatherToolOutput(
-        temperature: temperature,
-        condition: conditions[random.nextInt(conditions.length)],
-        unit: unit,
-        humidity: 50 + random.nextInt(30),
+      return .response(
+        WeatherToolOutput(
+          temperature: temperature,
+          condition: conditions[random.nextInt(conditions.length)],
+          unit: unit,
+          humidity: 50 + random.nextInt(30),
+        ),
       );
     },
   );

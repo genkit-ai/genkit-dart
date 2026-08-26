@@ -43,9 +43,11 @@ Future<void> main(List<String> args) async {
     fn: (input, ctx) async {
       // Check if context has approval flag to simulate state or auth passing
       if (!isApproved) {
-        ctx.interrupt(input);
+        return .interrupt(input);
       }
-      return 'Successfully transferred funds! Details: ${input.details}';
+      return .response(
+        'Successfully transferred funds! Details: ${input.details}',
+      );
     },
   );
 

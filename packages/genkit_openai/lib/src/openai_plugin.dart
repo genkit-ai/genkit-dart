@@ -198,8 +198,8 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'model') {
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == .model) {
       return _createModel(name, null);
     }
     return null;

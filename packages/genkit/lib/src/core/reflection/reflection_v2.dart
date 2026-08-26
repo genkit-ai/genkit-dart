@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:logging/logging.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../ai/generate_middleware.dart';
@@ -23,6 +24,7 @@ import '../../ai/model.dart';
 import '../../schema.dart';
 import '../../types.dart';
 import '../../utils.dart';
+import '../action.dart';
 import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v2');
@@ -205,7 +207,7 @@ class ReflectionServerV2 {
     final actions = await registry.listActions();
     final convertedActions = <String, dynamic>{};
     for (final action in actions) {
-      final key = getKey(action.actionType, action.name);
+      final key = getKey(action.actionType.value, action.name);
       convertedActions[key] = {
         'key': key,
         'name': action.name,
@@ -214,8 +216,8 @@ class ReflectionServerV2 {
         'metadata': action.metadata,
         if (action.inputSchema != null)
           'inputSchema': toJsonSchema(type: action.inputSchema),
-        if (action.outputSchema != null)
-          'outputSchema': toJsonSchema(type: action.outputSchema),
+        if (_manifestOutputSchema(action) != null)
+          'outputSchema': toJsonSchema(type: _manifestOutputSchema(action)),
         if (action.initSchema != null)
           'initSchema': toJsonSchema(type: action.initSchema),
       };
@@ -284,7 +286,7 @@ class ReflectionServerV2 {
       return;
     }
 
-    final action = await registry.lookupAction(parts[1], parts[2]);
+    final action = await registry.lookupAction(ActionType(parts[1]), parts[2]);
     if (action == null) {
       _sendError(id, 404, 'action $key not found');
       return;
@@ -373,4 +375,16 @@ class ReflectionServerV2 {
       _inputStreams.remove(id);
     }
   }
+}
+
+/// Returns the schema to advertise as an action's output schema in the
+/// manifest.
+///
+/// For [Action]s this is [Action.manifestOutputSchema], which lets tools
+/// surface their user-declared output schema instead of the internal
+/// `ToolResult` wrapper. Plain [ActionMetadata] falls back to
+/// [ActionMetadata.outputSchema].
+SchemanticType? _manifestOutputSchema(ActionMetadata action) {
+  if (action is Action) return action.manifestOutputSchema;
+  return action.outputSchema;
 }

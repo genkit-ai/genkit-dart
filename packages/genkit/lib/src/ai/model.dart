@@ -59,7 +59,7 @@ class Model<CustomOptions>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'model',
+         actionType: .model,
          inputSchema: ModelRequest.$schema,
          outputSchema: ModelResponse.$schema,
          streamSchema: ModelResponseChunk.$schema,
@@ -91,7 +91,7 @@ ActionMetadata modelMetadata(
   return ActionMetadata(
     name: name,
     description: name,
-    actionType: 'model',
+    actionType: .model,
     metadata: {
       'label': name,
       'description': name,
@@ -150,7 +150,7 @@ class BidiModel<CustomOptions>
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'bidi-model',
+         actionType: .bidiModel,
          inputSchema: ModelRequest.$schema,
          initSchema: ModelRequest.$schema,
          outputSchema: ModelResponse.$schema,

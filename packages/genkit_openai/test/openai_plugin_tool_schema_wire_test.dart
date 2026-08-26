@@ -79,7 +79,7 @@ void main() {
       ai.defineTool(
         name: 'getWeather',
         description: 'Get the weather for a location',
-        fn: (input, ctx) async => {'temperature': 72},
+        fn: (input, ctx) async => .response({'temperature': 72}),
       );
 
       await ai.generate(
@@ -111,7 +111,7 @@ void main() {
           description: 'Echoes the input',
           inputSchema: .string(),
           outputSchema: .string(),
-          fn: (input, ctx) async => input,
+          fn: (input, ctx) async => .response(input),
         );
 
         await expectLater(
@@ -152,7 +152,7 @@ void main() {
         description: 'Returns the current time',
         fn: (input, ctx) async {
           toolRan = true;
-          return {'time': '12:00'};
+          return .response({'time': '12:00'});
         },
       );
 

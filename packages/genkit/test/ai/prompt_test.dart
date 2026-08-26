@@ -116,7 +116,7 @@ void main() {
 
       definePromptAction(registry, dpRegistry, config);
 
-      final action = await registry.lookupAction('executable-prompt', 'greet');
+      final action = await registry.lookupAction(.executablePrompt, 'greet');
       expect(action, isNotNull);
       expect(action, isA<PromptAction>());
     });
@@ -133,7 +133,7 @@ void main() {
       expect(ep.ref.name, equals('greet.formal'));
 
       final action = await registry.lookupAction(
-        'executable-prompt',
+        .executablePrompt,
         'greet.formal',
       );
       expect(action, isNotNull);
@@ -150,7 +150,7 @@ void main() {
 
       definePromptAction(registry, dpRegistry, config);
 
-      final action = await registry.lookupAction('executable-prompt', 'greet');
+      final action = await registry.lookupAction(.executablePrompt, 'greet');
       expect(action, isNotNull);
       final pa = action as PromptAction;
       expect(pa.metadata['type'], equals('prompt'));
@@ -940,7 +940,7 @@ void main() {
         PromptConfig(name: 'test', prompt: 'Hello {{name}}'),
       );
 
-      final action = await registry.lookupAction('executable-prompt', 'test');
+      final action = await registry.lookupAction(.executablePrompt, 'test');
       expect(action, isNotNull);
 
       // Invoke via the action
@@ -1270,7 +1270,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final action = await registry.lookupAction('executable-prompt', 'hello');
+      final action = await registry.lookupAction(.executablePrompt, 'hello');
       expect(action, isNotNull);
       expect(action, isA<PromptAction>());
     });
@@ -1287,10 +1287,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final action = await registry.lookupAction(
-        'executable-prompt',
-        'greeting',
-      );
+      final action = await registry.lookupAction(.executablePrompt, 'greeting');
       expect(action, isNotNull);
       final pa = action as PromptAction;
       expect(
@@ -1310,11 +1307,11 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final defaultAction = await registry.lookupAction(
-        'executable-prompt',
+        .executablePrompt,
         'greeting',
       );
       final formalAction = await registry.lookupAction(
-        'executable-prompt',
+        .executablePrompt,
         'greeting.formal',
       );
 
@@ -1336,16 +1333,13 @@ Hello {{name}}!
 
       // The partial should not be registered as a prompt action
       final partialAction = await registry.lookupAction(
-        'executable-prompt',
+        .executablePrompt,
         'header',
       );
       expect(partialAction, isNull);
 
       // But the main prompt should be registered
-      final pageAction = await registry.lookupAction(
-        'executable-prompt',
-        'page',
-      );
+      final pageAction = await registry.lookupAction(.executablePrompt, 'page');
       expect(pageAction, isNotNull);
     });
 
@@ -1359,7 +1353,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final action = await registry.lookupAction(
-        'executable-prompt',
+        .executablePrompt,
         'sub/nested',
       );
       expect(action, isNotNull);
@@ -1382,7 +1376,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path, ns: 'myapp');
 
       final action = await registry.lookupAction(
-        'executable-prompt',
+        .executablePrompt,
         'myapp/hello',
       );
       expect(action, isNotNull);
@@ -1395,9 +1389,9 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      expect(await registry.lookupAction('executable-prompt', 'a'), isNotNull);
-      expect(await registry.lookupAction('executable-prompt', 'b'), isNotNull);
-      expect(await registry.lookupAction('executable-prompt', 'c'), isNotNull);
+      expect(await registry.lookupAction(.executablePrompt, 'a'), isNotNull);
+      expect(await registry.lookupAction(.executablePrompt, 'b'), isNotNull);
+      expect(await registry.lookupAction(.executablePrompt, 'c'), isNotNull);
     });
 
     test('ignores non-prompt files', () async {
@@ -1414,13 +1408,10 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       // Only the .prompt file should be loaded
-      final action = await registry.lookupAction('executable-prompt', 'hello');
+      final action = await registry.lookupAction(.executablePrompt, 'hello');
       expect(action, isNotNull);
 
-      final mdAction = await registry.lookupAction(
-        'executable-prompt',
-        'readme',
-      );
+      final mdAction = await registry.lookupAction(.executablePrompt, 'readme');
       expect(mdAction, isNull);
     });
 
@@ -1438,7 +1429,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final action =
-          await registry.lookupAction('executable-prompt', 'greet')
+          await registry.lookupAction(.executablePrompt, 'greet')
               as PromptAction;
       expect(
         action.inputSchema,
@@ -1478,7 +1469,7 @@ Write about {{topic}}.
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final action =
-          await registry.lookupAction('executable-prompt', 'jsoninput')
+          await registry.lookupAction(.executablePrompt, 'jsoninput')
               as PromptAction;
       expect(action.inputSchema, isNotNull);
       final jsonSchema = action.inputSchema!.jsonSchema();
@@ -1506,7 +1497,7 @@ Write about {{topic}}.
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final action =
-          await registry.lookupAction('executable-prompt', 'notype')
+          await registry.lookupAction(.executablePrompt, 'notype')
               as PromptAction;
       final jsonSchema = action.inputSchema!.jsonSchema();
       expect(jsonSchema['properties'], contains('topic'));
@@ -1531,8 +1522,7 @@ Hello {{name}}.
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final action =
-          await registry.lookupAction('executable-prompt', 'opt')
-              as PromptAction;
+          await registry.lookupAction(.executablePrompt, 'opt') as PromptAction;
       // A prompt may be invoked with no input; parsing null must not throw.
       expect(() => action.inputSchema!.parse(null), returnsNormally);
       expect(action.inputSchema!.parse(null), isEmpty);
@@ -1552,7 +1542,7 @@ Classify: {{text}}
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'classify');
+      final ep = await registry.lookupAction(.executablePrompt, 'classify');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'text': 'hello',
       });
@@ -1592,7 +1582,7 @@ Ship to {{address.city}}.
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final action =
-          await registry.lookupAction('executable-prompt', 'shipto')
+          await registry.lookupAction(.executablePrompt, 'shipto')
               as PromptAction;
       final jsonSchema = action.inputSchema!.jsonSchema();
       final addressSchema = (jsonSchema['properties'] as Map)['address'] as Map;
@@ -1614,7 +1604,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'retrying');
+      final ep = await registry.lookupAction(.executablePrompt, 'retrying');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });
@@ -1638,7 +1628,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'retrying');
+      final ep = await registry.lookupAction(.executablePrompt, 'retrying');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });
@@ -1665,7 +1655,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final action =
-          await registry.lookupAction('executable-prompt', 'retrying')
+          await registry.lookupAction(.executablePrompt, 'retrying')
               as PromptAction;
       final promptMeta = action.metadata['prompt'] as Map<String, dynamic>;
 
@@ -1699,7 +1689,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'mixed');
+      final ep = await registry.lookupAction(.executablePrompt, 'mixed');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });
@@ -1719,7 +1709,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'choosy');
+      final ep = await registry.lookupAction(.executablePrompt, 'choosy');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });
@@ -1738,7 +1728,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'looped');
+      final ep = await registry.lookupAction(.executablePrompt, 'looped');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });
@@ -1757,7 +1747,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'noreturn');
+      final ep = await registry.lookupAction(.executablePrompt, 'noreturn');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });
@@ -1772,7 +1762,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'bare');
+      final ep = await registry.lookupAction(.executablePrompt, 'bare');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });
@@ -1854,7 +1844,7 @@ Hello {{name}}!
 
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
-      final ep = await registry.lookupAction('executable-prompt', 'plain');
+      final ep = await registry.lookupAction(.executablePrompt, 'plain');
       final options = await (ep as PromptAction).executablePrompt!.render({
         'name': 'World',
       });

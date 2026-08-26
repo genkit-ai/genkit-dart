@@ -49,8 +49,8 @@ class Registry {
     _plugins.add(_ListActionsCachingPluginAdapter(plugin));
   }
 
-  String _getKey(String actionType, String name) {
-    return '/$actionType/$name';
+  String _getKey(String type, String name) {
+    return '/$type/$name';
   }
 
   void registerValue(String type, String name, dynamic value) {
@@ -81,12 +81,12 @@ class Registry {
   }
 
   void register(Action action) {
-    final key = _getKey(action.actionType, action.name);
+    final key = _getKey(action.actionType.value, action.name);
     _actions[key] = action;
   }
 
-  Future<Action?> lookupAction(String actionType, String name) async {
-    final key = _getKey(actionType, name);
+  Future<Action?> lookupAction(ActionType actionType, String name) async {
+    final key = _getKey(actionType.value, name);
     if (_actions.containsKey(key)) {
       return _actions[key];
     }
@@ -116,7 +116,7 @@ class Registry {
     await _ensureAllPluginsInitialized();
     final allActions = <String, ActionMetadata>{};
     for (final action in _actions.values) {
-      final key = _getKey(action.actionType, action.name);
+      final key = _getKey(action.actionType.value, action.name);
       allActions[key] = action;
     }
 
@@ -124,7 +124,7 @@ class Registry {
       try {
         final pluginActions = await plugin.list();
         for (final action in pluginActions) {
-          final key = _getKey(action.actionType, action.name);
+          final key = _getKey(action.actionType.value, action.name);
           if (!allActions.containsKey(key)) {
             allActions[key] = action;
           }
@@ -158,7 +158,7 @@ class _ListActionsCachingPluginAdapter extends GenkitPlugin {
   Future<List<Action>> init() => _plugin.init();
 
   @override
-  Action? resolve(String actionType, String name) =>
+  Action? resolve(ActionType actionType, String name) =>
       _plugin.resolve(actionType, name);
 
   @override

@@ -128,7 +128,7 @@ void main() {
       name: 'testTool',
       description: 'test tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (input, _) async => 'yep ${jsonEncode(input)}',
+      fn: (input, _) async => .response('yep ${jsonEncode(input)}'),
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'testPrompt',
@@ -249,7 +249,7 @@ void main() {
       name: 'taskTool',
       description: 'task tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => 'done',
+      fn: (_, _) async => .response('done'),
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'enumPrompt',
@@ -404,7 +404,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
-        return 'done';
+        return .response('done');
       },
     );
 
@@ -522,7 +522,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
-        return 'done';
+        return .response('done');
       },
     );
 
@@ -559,7 +559,7 @@ void main() {
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        return 'done';
+        return .response('done');
       },
     );
 
@@ -597,7 +597,7 @@ void main() {
       name: 'fastTool',
       description: 'fast tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => 'done',
+      fn: (_, _) async => .response('done'),
     );
 
     final server = _createServer(ai);
@@ -636,7 +636,7 @@ void main() {
       name: 'echoTool',
       description: 'echo tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => 'ok',
+      fn: (_, _) async => .response('ok'),
     );
     final server = _createServer(ai);
 
@@ -869,7 +869,7 @@ void main() {
       description: 'map tool',
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (input, _) async {
-        return {'ok': true, 'input': input};
+        return .response({'ok': true, 'input': input});
       },
     );
     final server = _createServer(ai);
@@ -900,7 +900,7 @@ void main() {
       name: 'weirdTool',
       description: 'weird tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (_, _) async => _Unencodable(),
+      fn: (_, _) async => .response(_Unencodable()),
     );
     final server = _createServer(ai);
 
@@ -917,5 +917,71 @@ void main() {
     final responseContent = _asList(responseResult['content']);
     final responseEntry = _asMap(responseContent.first);
     expect(responseEntry['text'], 'unencodable');
+  });
+
+  test('MCP server maps multipart tool content to MCP blocks', () async {
+    final ai = Genkit();
+    ai.defineTool<Map<String, dynamic>, Map<String, dynamic>>(
+      name: 'screenshot',
+      description: 'takes a screenshot',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      fn: (_, _) async => .response(
+        {'result': 'captured'},
+        parts: [
+          MediaPart(
+            media: Media(
+              contentType: 'image/png',
+              url: 'data:image/png;base64,AAAA',
+            ),
+          ),
+        ],
+      ),
+    );
+    final server = _createServer(ai);
+
+    final response = await _request(
+      server,
+      'tools/call',
+      id: 1,
+      params: {
+        'name': 'screenshot',
+        'arguments': {'foo': 'bar'},
+      },
+    );
+    final responseResult = _asMap(response?['result']);
+    final responseContent = _asList(responseResult['content']);
+    // A text block for the structured output plus an image block for the media.
+    expect(responseContent, hasLength(2));
+    expect(_asMap(responseContent[0])['type'], 'text');
+    final imageBlock = _asMap(responseContent[1]);
+    expect(imageBlock['type'], 'image');
+    expect(imageBlock['mimeType'], 'image/png');
+    expect(imageBlock['data'], 'AAAA');
+    expect(responseResult['structuredContent'], {'result': 'captured'});
+  });
+
+  test('MCP server surfaces tool interrupts as isError', () async {
+    final ai = Genkit();
+    ai.defineInterrupt<Map<String, dynamic>, String>(
+      name: 'confirm',
+      description: 'needs confirmation',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      requestMetadata: (_, _) => {'requiresConfirmation': true},
+    );
+    final server = _createServer(ai);
+
+    final response = await _request(
+      server,
+      'tools/call',
+      id: 1,
+      params: {
+        'name': 'confirm',
+        'arguments': {'foo': 'bar'},
+      },
+    );
+    final responseResult = _asMap(response?['result']);
+    expect(responseResult['isError'], isTrue);
+    final structured = _asMap(responseResult['structuredContent']);
+    expect(structured['interrupt'], {'requiresConfirmation': true});
   });
 }

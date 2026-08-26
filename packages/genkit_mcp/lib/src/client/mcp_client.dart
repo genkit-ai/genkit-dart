@@ -537,7 +537,7 @@ class GenkitMcpClient {
       name: '$serverName/$name',
       description: description,
       inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      outputSchema: .dynamicSchema(),
+      toolOutputSchema: .dynamicSchema(),
       metadata: {
         if (meta != null) 'mcp': {'_meta': meta},
       },
@@ -547,8 +547,9 @@ class GenkitMcpClient {
           arguments: input,
           meta: extractMcpMeta(ctx.context),
         );
-        if (options.rawToolResponses) return result;
-        return processToolResult(result);
+        // Behavior unchanged; only wrapped in .response() for the new signature.
+        if (options.rawToolResponses) return .response(result);
+        return .response(processToolResult(result));
       },
     );
   }
@@ -1020,16 +1021,13 @@ class GenkitMcpClient {
     final descriptor = _actionIndex[actionName];
     if (descriptor == null) return null;
 
-    switch (descriptor.actionType) {
-      case 'tool':
-        return _resolveToolAction(descriptor);
-      case 'executable-prompt':
-        return _resolvePromptAction(descriptor);
-      case 'resource':
-        return _resolveResourceAction(descriptor);
-      default:
-        return null;
+    final type = descriptor.actionType;
+    if (type == .tool) return _resolveToolAction(descriptor);
+    if (type == .executablePrompt) {
+      return _resolvePromptAction(descriptor);
     }
+    if (type == .resource) return _resolveResourceAction(descriptor);
+    return null;
   }
 
   Future<List<ActionMetadata>> _buildCache() async {
@@ -1047,7 +1045,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'tool',
+          actionType: .tool,
           description: tool['description']?.toString(),
           inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
           outputSchema: .dynamicSchema(),
@@ -1060,7 +1058,7 @@ class GenkitMcpClient {
       );
       index[fullName] = _McpClientActionDescriptor(
         actionName: toolName,
-        actionType: 'tool',
+        actionType: .tool,
         payload: tool,
       );
     }
@@ -1075,7 +1073,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'executable-prompt',
+          actionType: .executablePrompt,
           description: prompt['description']?.toString(),
           inputSchema: promptSchemaFromArgs(args),
           outputSchema: GenerateActionOptions.$schema,
@@ -1088,7 +1086,7 @@ class GenkitMcpClient {
       );
       index[fullName] = _McpClientActionDescriptor(
         actionName: promptName,
-        actionType: 'executable-prompt',
+        actionType: .executablePrompt,
         payload: prompt,
       );
     }
@@ -1104,7 +1102,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'resource',
+          actionType: .resource,
           description: resource['description']?.toString(),
           inputSchema: ResourceInput.$schema,
           outputSchema: ResourceOutput.$schema,
@@ -1116,7 +1114,7 @@ class GenkitMcpClient {
       );
       index[fullName] = _McpClientActionDescriptor(
         actionName: resourceName,
-        actionType: 'resource',
+        actionType: .resource,
         payload: resource,
       );
     }
@@ -1132,7 +1130,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'resource',
+          actionType: .resource,
           description: template['description']?.toString(),
           inputSchema: ResourceInput.$schema,
           outputSchema: ResourceOutput.$schema,
@@ -1144,7 +1142,7 @@ class GenkitMcpClient {
       );
       index[fullName] = _McpClientActionDescriptor(
         actionName: templateName,
-        actionType: 'resource',
+        actionType: .resource,
         payload: template,
       );
     }
@@ -1174,7 +1172,7 @@ class GenkitMcpClient {
       name: fullName,
       description: description,
       inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      outputSchema: .dynamicSchema(),
+      toolOutputSchema: .dynamicSchema(),
       metadata: {
         if (meta != null) 'mcp': {'_meta': meta},
       },
@@ -1184,8 +1182,9 @@ class GenkitMcpClient {
           arguments: input,
           meta: extractMcpMeta(ctx.context),
         );
-        if (options.rawToolResponses) return result;
-        return processToolResult(result);
+        // Behavior unchanged; only wrapped in .response() for the new signature.
+        if (options.rawToolResponses) return .response(result);
+        return .response(processToolResult(result));
       },
     );
   }
@@ -1326,7 +1325,7 @@ class _ClientTaskState {
 
 class _McpClientActionDescriptor {
   final String actionName;
-  final String actionType;
+  final ActionType actionType;
   final Map<String, dynamic> payload;
 
   _McpClientActionDescriptor({

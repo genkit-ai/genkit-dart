@@ -87,7 +87,7 @@ void main() {
     final tool = ai.defineTool<Map<String, dynamic>, String>(
       name: 'plainTool',
       description: 'plain tool',
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final payload = toMcpTool(tool);
@@ -102,7 +102,7 @@ void main() {
       name: 'defaultTaskTool',
       description: 'default task tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final payload = toMcpTool(tool);
@@ -121,7 +121,7 @@ void main() {
           'execution': {'taskSupport': 'forbidden'},
         },
       },
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final payload = toMcpTool(forbiddenTool);
@@ -137,7 +137,7 @@ void main() {
           'execution': {'taskSupport': 'required'},
         },
       },
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final requiredPayload = toMcpTool(requiredTool);

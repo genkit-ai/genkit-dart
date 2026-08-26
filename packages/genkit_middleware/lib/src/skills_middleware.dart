@@ -143,7 +143,7 @@ class SkillsMiddleware extends GenerateMiddleware {
         name: 'use_skill',
         description: 'Use a skill by its name.',
         inputSchema: UseSkillInput.$schema,
-        outputSchema: .string(),
+        toolOutputSchema: .string(),
         fn: (input, _) async {
           await _ensureSkillsScanned();
           final skillName = input.skillName;
@@ -156,7 +156,7 @@ class SkillsMiddleware extends GenerateMiddleware {
 
           try {
             final content = await File(info.path).readAsString();
-            return content;
+            return .response(content);
           } catch (e) {
             _logger.severe('Failed to read skill content "$skillName"', e);
             throw Exception('Failed to read skill "$skillName": $e');

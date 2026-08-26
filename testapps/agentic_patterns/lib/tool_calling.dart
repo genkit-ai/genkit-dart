@@ -39,7 +39,7 @@ Flow<ToolCallingInput, String, void, void> defineToolCallingFlow(
     outputSchema: .string(),
     fn: (input, _) async {
       // In a real app, you would call a weather API here.
-      return 'The weather in ${input.location} is 75°F and sunny.';
+      return .response('The weather in ${input.location} is 75°F and sunny.');
     },
   );
 

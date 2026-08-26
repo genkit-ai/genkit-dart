@@ -27,7 +27,7 @@ class DynamicActionProvider
     this.getActionFn,
     super.metadata,
   }) : super(
-         actionType: 'dynamic-action-provider',
+         actionType: .dynamicActionProvider,
          fn: (input, context) async {
            // TODO: implement when spec is finalized.
            return {};

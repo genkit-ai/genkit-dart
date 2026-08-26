@@ -81,7 +81,7 @@ void main() {
 
       // Check if the flow is registered in the registry
       final retrievedAction = await genkit.registry.lookupAction(
-        'flow',
+        .flow,
         flowName,
       );
       expect(retrievedAction, isNotNull);
@@ -99,7 +99,7 @@ void main() {
       final tool = genkit.defineTool(
         name: toolName,
         description: toolDescription,
-        fn: (String input, context) async => 'output: $input',
+        fn: (String input, context) async => .response('output: $input'),
       );
 
       // Check if the returned tool is correct
@@ -107,11 +107,13 @@ void main() {
       expect(tool.name, toolName);
       expect(tool.description, toolDescription);
 
-      // Check if the tool is registered in the registry
+      // Check if the tool is registered in the registry. Tools are registered
+      // under the `tool.v2` action type.
       final retrievedAction = await genkit.registry.lookupAction(
-        'tool',
+        .tool,
         toolName,
       );
+
       expect(retrievedAction, isNotNull);
       expect(retrievedAction, isA<Tool>());
       expect(retrievedAction!.name, toolName);
@@ -195,7 +197,7 @@ void main() {
         description: 'A test tool',
         inputSchema: TestToolInput.$schema,
         fn: (input, context) async {
-          return 'Hello, ${input.name}!';
+          return .response('Hello, ${input.name}!');
         },
       );
 

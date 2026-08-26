@@ -56,9 +56,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (input, context) async {
-          context.interrupt('CONFIRM_ME');
-        },
+        fn: (input, context) async => .interrupt('CONFIRM_ME'),
       );
 
       final response = await genkit.generate(
@@ -125,9 +123,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (input, context) async {
-          context.interrupt('CONFIRM_ME');
-        },
+        fn: (input, context) async => .interrupt('CONFIRM_ME'),
       );
 
       final response1 = await genkit.generate(
@@ -214,13 +210,13 @@ void main() {
         name: toolSafe,
         description: 'Safe',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (_, _) async => 'SafeOutput',
+        fn: (_, _) async => .response('SafeOutput'),
       );
       genkit.defineTool(
         name: toolInterrupt,
         description: 'Interrupted',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (_, c) async => c.interrupt('STOP'),
+        fn: (_, c) async => .interrupt('STOP'),
       );
 
       final response = await genkit.generate(
@@ -286,9 +282,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (input, context) async {
-          context.interrupt('CONFIRM_ME');
-        },
+        fn: (input, context) async => .interrupt('CONFIRM_ME'),
       );
 
       // 1. Initial Call
@@ -399,9 +393,9 @@ void main() {
         fn: (input, context) async {
           if (toolCallCount == 0) {
             toolCallCount++;
-            context.interrupt('CONFIRM_ME');
+            return .interrupt('CONFIRM_ME');
           }
-          return 'ToolExecuted';
+          return .response('ToolExecuted');
         },
       );
 
@@ -509,9 +503,9 @@ void main() {
         fn: (input, context) async {
           if (toolCallCount == 0) {
             toolCallCount++;
-            context.interrupt('CONFIRM_ME');
+            return .interrupt('CONFIRM_ME');
           }
-          return 'ToolExecuted';
+          return .response('ToolExecuted');
         },
       );
 
@@ -587,9 +581,9 @@ void main() {
           capturedMetadata = context.toolRequest?.metadata ?? {};
           final resumed = context.resumed;
           if (resumed is! Map || resumed['approved'] != true) {
-            context.interrupt('NEEDS_APPROVAL');
+            return .interrupt('NEEDS_APPROVAL');
           }
-          return 'Metadata: ${context.toolRequest?.metadata}';
+          return .response('Metadata: ${context.toolRequest?.metadata}');
         },
       );
 

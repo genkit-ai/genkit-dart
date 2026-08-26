@@ -108,7 +108,7 @@ final weatherTool = ai.defineTool(
   inputSchema: WeatherInput.$schema,
   fn: (input, _) async {
     // Call your weather API here
-    return 'Weather in ${input.location}: 72°F and sunny';
+    return .response('Weather in ${input.location}: 72°F and sunny');
   },
 );
 
@@ -172,7 +172,7 @@ Interrupts allow a flow or model to pause execution and wait for external input 
 
 #### Triggering an Interrupt
 
-To trigger an interrupt, call `context.interrupt()` within a tool definition:
+To trigger an interrupt, return `.interrupt(...)` from a tool definition:
 
 ```dart
 @Schema()
@@ -187,7 +187,7 @@ final askUser = ai.defineTool(
   description: 'Ask the user a clarifying question.',
   inputSchema: AskUserInput.$schema,
   fn: (input, context) async {
-    context.interrupt(input.question);
+    return .interrupt(input.question);
   },
 );
 ```
@@ -238,9 +238,9 @@ final confirmAction = ai.defineTool(
     // Access the resumed payload passed via `restart`
     final resumed = context.resumed;
     if (resumed is! Map || resumed['approved'] != true) {
-      context.interrupt('Approval required');
+      return .interrupt('Approval required');
     }
-    return 'Action confirmed';
+    return .response('Action confirmed');
   },
 );
 

@@ -66,7 +66,7 @@ ai.defineTool(
   description: 'Multiplies two numbers',
   inputSchema: CalculatorInput.$schema,
   outputSchema: .integer(),
-  fn: (input, context) async => input.a * input.b,
+  fn: (input, context) async => .response(input.a * input.b),
 );
 
 final response = await ai.generate(

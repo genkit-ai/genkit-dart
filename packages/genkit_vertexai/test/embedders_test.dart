@@ -23,7 +23,7 @@ import 'test_http_client.dart';
 typedef _EmbedderAction = Action<EmbedRequest, EmbedResponse, void, void>;
 
 _EmbedderAction _resolveEmbedder(VertexAiPluginImpl plugin, String name) {
-  return plugin.resolve('embedder', name)! as _EmbedderAction;
+  return plugin.resolve(.embedder, name)! as _EmbedderAction;
 }
 
 void main() {

@@ -200,7 +200,7 @@ class AgentsMiddleware extends GenerateMiddleware {
   Future<Action?> _resolveAgent(String name) async {
     final cached = _agentCache[name];
     if (cached != null) return cached;
-    final action = await _ai.registry.lookupAction('agent', name);
+    final action = await _ai.registry.lookupAction(.agent, name);
     if (action != null) {
       _agentCache[name] = action;
     }
@@ -212,14 +212,14 @@ class AgentsMiddleware extends GenerateMiddleware {
     if (cached != null) return cached;
 
     // Try the agent action first.
-    final agentAction = await _ai.registry.lookupAction('agent', name);
+    final agentAction = await _ai.registry.lookupAction(.agent, name);
     var desc = agentAction?.description;
 
     // Fallback: `defineAgent` stores the description on the executable-prompt
     // action (the agent action itself carries no description).
     if (desc == null || desc.isEmpty) {
       final promptAction = await _ai.registry.lookupAction(
-        'executable-prompt',
+        .executablePrompt,
         name,
       );
       desc = promptAction?.description;
@@ -242,8 +242,9 @@ class AgentsMiddleware extends GenerateMiddleware {
         name: toolName,
         description: 'Delegates a task to the "$agentName" sub-agent.',
         inputSchema: DelegateInput.$schema,
-        outputSchema: AgentDelegationResult.$schema,
-        fn: (input, _) => _delegate(agentName, input.task),
+        toolOutputSchema: AgentDelegationResult.$schema,
+        fn: (input, _) async =>
+            .response(await _delegate(agentName, input.task)),
       );
     }).toList();
   }

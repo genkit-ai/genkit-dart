@@ -44,8 +44,8 @@ class ChromeAIPlugin extends GenkitPlugin {
   }
 
   @override
-  ChromeModel? resolve(String actionType, String name) {
-    if (actionType == 'model' && name == 'gemini-nano') {
+  ChromeModel? resolve(ActionType actionType, String name) {
+    if (actionType == .model && name == 'gemini-nano') {
       return ChromeModel();
     }
     return null;

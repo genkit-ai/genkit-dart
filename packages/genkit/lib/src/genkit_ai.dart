@@ -309,7 +309,7 @@ base class GenkitAI {
     required List<DocumentData> documents,
     CustomOptions? options,
   }) async {
-    final action = await registry.lookupAction('embedder', embedder.name);
+    final action = await registry.lookupAction(.embedder, embedder.name);
     if (action == null) {
       throw GenkitException(
         'Embedder ${embedder.name} not found',

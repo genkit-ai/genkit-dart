@@ -521,7 +521,7 @@ class PromptAction<Input>
     Map<String, dynamic>? metadata,
   }) : _executablePrompt = executablePrompt,
        super(
-         actionType: 'executable-prompt',
+         actionType: .executablePrompt,
          outputSchema: GenerateActionOptions.$schema,
          metadata: _promptActionMetadata(description, metadata),
          fn: (input, ctx) async {
@@ -570,7 +570,7 @@ Future<ExecutablePrompt> lookupPrompt(
   String? variant,
 }) async {
   final lookupName = variant != null ? '$name.$variant' : name;
-  final action = await registry.lookupAction('executable-prompt', lookupName);
+  final action = await registry.lookupAction(.executablePrompt, lookupName);
   if (action != null && action is PromptAction) {
     final ep = action.executablePrompt;
     if (ep != null) return ep;

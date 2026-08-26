@@ -32,7 +32,12 @@ import 'tool.dart';
 
 const _defaultMaxTurns = 5;
 
-typedef _ToolStatus = ({Object? output, ToolInterruptException? interrupt});
+typedef _ToolStatus = ({
+  Object? output,
+  List<dynamic>? content,
+  Map<String, dynamic>? metadata,
+  ToolInterruptException? interrupt,
+});
 
 typedef GenerateAction =
     Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>;
@@ -40,7 +45,7 @@ typedef GenerateAction =
 /// Defines the utility 'generate' action.
 GenerateAction defineGenerateAction(Registry registry) {
   return Action(
-    actionType: 'util',
+    actionType: .util,
     name: 'generate',
     inputSchema: GenerateActionOptions.$schema,
     outputSchema: ModelResponse.$schema,
@@ -70,8 +75,8 @@ ToolDefinition toToolDefinition(Tool tool) {
     inputSchema: tool.inputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.inputSchema)
         : null,
-    outputSchema: tool.outputSchema?.jsonSchema != null
-        ? toJsonSchema(type: tool.outputSchema)
+    outputSchema: tool.toolOutputSchema?.jsonSchema != null
+        ? toJsonSchema(type: tool.toolOutputSchema)
         : null,
   );
 }
@@ -163,10 +168,7 @@ _resolveTools(
           actionMatcher = actionMatcher.substring('tool/'.length);
         }
         final dap =
-            await currentRegistry.lookupAction(
-                  'dynamic-action-provider',
-                  dapName,
-                )
+            await currentRegistry.lookupAction(.dynamicActionProvider, dapName)
                 as DynamicActionProvider?;
 
         if (dap != null) {
@@ -174,7 +176,7 @@ _resolveTools(
             final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
             final actions = await dap.listActions();
             for (final action in actions) {
-              if (action.actionType == 'tool' &&
+              if (action.actionType == .tool &&
                   (prefix.isEmpty || action.name.startsWith(prefix))) {
                 final fullAction = await dap.getAction(action.name);
                 if (fullAction != null && fullAction is Tool) {
@@ -197,8 +199,8 @@ _resolveTools(
       }
 
       activeToolNames.add(toolName);
-      final tool =
-          await currentRegistry.lookupAction('tool', toolName) as Tool?;
+      final tool = await currentRegistry.lookupAction(.tool, toolName) as Tool?;
+
       if (tool != null) {
         toolDefs.add(toToolDefinition(tool));
       }
@@ -249,7 +251,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   }
 
   final modelName = options.model!;
-  final model = await registry.lookupAction('model', modelName) as Model?;
+  final model = await registry.lookupAction(.model, modelName) as Model?;
   if (model == null) {
     throw GenkitException(
       'Model $modelName not found',
@@ -455,7 +457,7 @@ Future<GenerateResponseHelper> runGenerateAction(
       return _runGenerateAction(registry, options, ctx, middleware: middleware);
     },
     input: options,
-    actionType: 'util',
+    actionType: ActionType.util.value,
   );
 }
 
@@ -800,8 +802,15 @@ _resolveResume(
     final req = part.toolRequestPart!.toolRequest;
     final meta = part.metadata ?? {};
 
-    // Resolve output
+    // Resolve output plus any multipart content/metadata that was preserved
+    // from the tool that completed before the turn was interrupted (see
+    // `_buildInterruptedResponse`), so the response reaching the model matches
+    // the straight-through path.
     dynamic output = meta['pendingOutput'];
+    var content = (meta['pendingContent'] as List?)?.toList();
+    var responseMetadata = (meta['pendingMetadata'] as Map?)
+        ?.cast<String, dynamic>();
+
     if (output == null) {
       final match = resumeRespond.firstWhere(
         (r) => r.toolResponse.ref == req.ref && r.toolResponse.name == req.name,
@@ -811,6 +820,8 @@ _resolveResume(
       );
       if (match.toolResponse.name.isNotEmpty) {
         output = match.toolResponse.output;
+        content ??= match.toolResponse.content?.toList();
+        responseMetadata ??= match.metadata;
       }
     }
 
@@ -827,7 +838,9 @@ _resolveResume(
           ref: req.ref,
           name: req.name,
           output: output,
+          content: content,
         ),
+        metadata: responseMetadata,
       ),
     );
 
@@ -886,7 +899,12 @@ ModelResponse _buildInterruptedResponse(
       if (status?.interrupt != null) {
         meta['interrupt'] = status!.interrupt!.interrupt;
       } else if (status?.output != null) {
+        // Preserve the completed tool's output plus any multipart content and
+        // metadata so that, on resume, the tool response reaching the model is
+        // identical to the straight-through path (see `_resolveResume`).
         meta['pendingOutput'] = status!.output;
+        if (status.content != null) meta['pendingContent'] = status.content;
+        if (status.metadata != null) meta['pendingMetadata'] = status.metadata;
       }
       newContent.add(
         ToolRequestPart(
@@ -944,8 +962,9 @@ _executeTools(
 
   for (final toolRequest in toolRequests) {
     final tool =
-        await registry.lookupAction('tool', toolRequest.toolRequest.name)
+        await registry.lookupAction(.tool, toolRequest.toolRequest.name)
             as Tool?;
+
     if (tool == null) {
       throw GenkitException(
         'Tool ${toolRequest.toolRequest.name} not found',
@@ -958,14 +977,27 @@ _executeTools(
       ActionFnArg<void, dynamic, void> c,
     ) async {
       _recordResumedMetadata(c.context);
-      final out = await tool.runRaw(req.toolRequest.input, context: c.context);
-      return ToolResponsePart(
-        toolResponse: ToolResponse(
-          ref: req.toolRequest.ref,
-          name: req.toolRequest.name,
-          output: out.result,
-        ),
-      );
+      final result = (await tool.runRaw(
+        req.toolRequest.input,
+        context: c.context,
+      )).result;
+
+      switch (result) {
+        case ToolInterruptResult(:final data):
+          // Reuse the existing interrupt machinery: bubble the request back to
+          // the caller as a thrown interrupt.
+          throw ToolInterruptException(data ?? true);
+        case ToolResponseResult(:final output, :final parts, :final metadata):
+          return ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: req.toolRequest.ref,
+              name: req.toolRequest.name,
+              output: output,
+              content: parts?.map((p) => p.toJson()).toList(),
+            ),
+            metadata: metadata,
+          );
+      }
     }
 
     final composedTool =
@@ -988,12 +1020,17 @@ _executeTools(
         zoneValues: {ToolRequestPart: toolRequest},
       );
       toolResponses.add(toolResponsePart);
-      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          (output: toolResponsePart.toolResponse.output, interrupt: null);
+      toolStatus[toolRequest.toolRequest.ref ??
+          toolRequest.toolRequest.name] = (
+        output: toolResponsePart.toolResponse.output,
+        content: toolResponsePart.toolResponse.content,
+        metadata: toolResponsePart.metadata,
+        interrupt: null,
+      );
     } on ToolInterruptException catch (e) {
       interrupted = true;
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          (output: null, interrupt: e);
+          (output: null, content: null, metadata: null, interrupt: e);
     } catch (e) {
       toolResponses.add(
         ToolResponsePart(

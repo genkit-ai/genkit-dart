@@ -1,0 +1,407 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:genkit/genkit.dart';
+import 'package:schemantic/schemantic.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('ToolResult', () {
+    test('.response constructs a ToolResponseResult', () {
+      final result = ToolResult.response('hello');
+      expect(result, isA<ToolResponseResult<String>>());
+      final response = result as ToolResponseResult<String>;
+      expect(response.output, 'hello');
+      expect(response.parts, isNull);
+      expect(response.metadata, isNull);
+    });
+
+    test('.response carries multipart parts and metadata', () {
+      final result = ToolResult.response(
+        {'result': 'captured'},
+        parts: [
+          MediaPart(
+            media: Media(contentType: 'image/png', url: 'data:image/png;xyz'),
+          ),
+        ],
+        metadata: {'source': 'test'},
+      );
+      final response = result as ToolResponseResult;
+      expect(response.parts, hasLength(1));
+      expect(response.metadata, {'source': 'test'});
+
+      final json = response.toJson();
+      expect(json['output'], {'result': 'captured'});
+      expect(json['content'], hasLength(1));
+      expect(json['metadata'], {'source': 'test'});
+    });
+
+    test('.interrupt constructs a ToolInterruptResult', () {
+      final result = ToolResult.interrupt({'requiresConfirmation': true});
+      expect(result, isA<ToolInterruptResult>());
+      final interrupt = result as ToolInterruptResult;
+      expect(interrupt.data, {'requiresConfirmation': true});
+      expect(interrupt.toJson(), {
+        'interrupt': {'requiresConfirmation': true},
+      });
+    });
+
+    test('.interrupt with no data serializes to interrupt: true', () {
+      expect(ToolResult.interrupt().toJson(), {'interrupt': true});
+    });
+
+    test('response result exposes output via convenience getters', () {
+      final result = ToolResult.response('hello');
+      expect(result.hasResponse, isTrue);
+      expect(result.hasInterrupt, isFalse);
+      expect(result.output, 'hello');
+      expect(() => result.interruptData, throwsStateError);
+    });
+
+    test('interrupt result exposes data via convenience getters', () {
+      final result = ToolResult.interrupt({'confirm': true});
+      expect(result.hasInterrupt, isTrue);
+      expect(result.hasResponse, isFalse);
+      expect(result.interruptData, {'confirm': true});
+      expect(() => result.output, throwsStateError);
+    });
+  });
+
+  group('defineTool with ToolResult', () {
+    late Genkit genkit;
+
+    setUp(() {
+      genkit = Genkit(isDevEnv: false);
+    });
+
+    tearDown(() async {
+      await genkit.shutdown();
+    });
+
+    test('registers the tool under /tool.v2/ only', () async {
+      genkit.defineTool<Map<String, dynamic>, String>(
+        name: 'echo',
+        description: 'echoes',
+        inputSchema: SchemanticType.map(
+          SchemanticType.string(),
+          SchemanticType.dynamicSchema(),
+        ),
+        fn: (input, ctx) async => .response('ok'),
+      );
+
+      // Every Dart tool implements the multipart contract, so it lives under
+      // the single `tool.v2` action type (no legacy `tool` registration).
+      final v2 = await genkit.registry.lookupAction(.tool, 'echo');
+      final legacy = await genkit.registry.lookupAction(
+        ActionType('tool'),
+        'echo',
+      );
+      expect(v2, isNotNull);
+      expect(legacy, isNull);
+      expect(v2!.actionType, 'tool.v2');
+      expect(v2.metadata['type'], 'tool.v2');
+    });
+
+    test('a returned .response flows through the generate loop', () async {
+      genkit.defineModel(
+        name: 'toolModel',
+        fn: (request, context) async {
+          if (request.messages.last.role == Role.tool) {
+            final toolResponse =
+                request.messages.last.content.first.toolResponse!;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'got: ${toolResponse.output}')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: 'greet', input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool<Map<String, dynamic>, String>(
+        name: 'greet',
+        description: 'greets',
+        inputSchema: SchemanticType.map(
+          SchemanticType.string(),
+          SchemanticType.dynamicSchema(),
+        ),
+        fn: (input, ctx) async => .response('hello world'),
+      );
+
+      final response = await genkit.generate(
+        model: modelRef('toolModel'),
+        prompt: 'hi',
+        toolNames: ['greet'],
+      );
+
+      expect(response.text, 'got: hello world');
+    });
+
+    test('multipart .response populates ToolResponse.content', () async {
+      Map<String, dynamic>? capturedToolMessage;
+      genkit.defineModel(
+        name: 'multipartModel',
+        fn: (request, context) async {
+          if (request.messages.last.role == Role.tool) {
+            capturedToolMessage = request.messages.last.toJson();
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'done')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: 'screenshot', input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool<Map<String, dynamic>, Map<String, dynamic>>(
+        name: 'screenshot',
+        description: 'takes a screenshot',
+        inputSchema: SchemanticType.map(
+          SchemanticType.string(),
+          SchemanticType.dynamicSchema(),
+        ),
+        fn: (input, ctx) async => .response(
+          {'result': 'captured'},
+          parts: [
+            MediaPart(
+              media: Media(
+                contentType: 'image/png',
+                url: 'data:image/png;base64,abc',
+              ),
+            ),
+          ],
+        ),
+      );
+
+      await genkit.generate(
+        model: modelRef('multipartModel'),
+        prompt: 'capture',
+        toolNames: ['screenshot'],
+      );
+
+      final content = capturedToolMessage!['content'] as List;
+      final toolResponse =
+          (content.first as Map<String, dynamic>)['toolResponse']
+              as Map<String, dynamic>;
+      expect(toolResponse['output'], {'result': 'captured'});
+      expect(toolResponse['content'], hasLength(1));
+      final part = (toolResponse['content'] as List).first as Map;
+      expect(part['media'], isNotNull);
+    });
+
+    test(
+      'returned .interrupt behaves like ctx.interrupt (finishReason)',
+      () async {
+        genkit.defineModel(
+          name: 'interruptModel',
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(name: 'needsApproval', input: {}),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool<Map<String, dynamic>, String>(
+          name: 'needsApproval',
+          description: 'requires approval',
+          inputSchema: SchemanticType.map(
+            SchemanticType.string(),
+            SchemanticType.dynamicSchema(),
+          ),
+          fn: (input, ctx) async => .interrupt({'requiresConfirmation': true}),
+        );
+
+        final response = await genkit.generate(
+          model: modelRef('interruptModel'),
+          prompt: 'go',
+          toolNames: ['needsApproval'],
+        );
+
+        expect(response.finishReason, FinishReason.interrupted);
+        expect(response.interrupts, hasLength(1));
+        final interruptMeta = response.interrupts.first.metadata!['interrupt'];
+        expect(interruptMeta, {'requiresConfirmation': true});
+      },
+    );
+
+    test(
+      'multipart content and metadata survive an interrupt + resume turn',
+      () async {
+        // A turn where one tool returns multipart content and another
+        // interrupts. On resume, the multipart tool response must reach the
+        // model exactly as it would on the straight-through path.
+        Map<String, dynamic>? capturedToolMessage;
+        genkit.defineModel(
+          name: 'mixedModel',
+          fn: (request, context) async {
+            if (request.messages.last.role == .tool) {
+              capturedToolMessage = request.messages.last.toJson();
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'done')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      ref: 'shot',
+                      name: 'screenshot',
+                      input: {},
+                    ),
+                  ),
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      ref: 'confirm',
+                      name: 'confirmTransfer',
+                      input: {},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool<Map<String, dynamic>, Map<String, dynamic>>(
+          name: 'screenshot',
+          description: 'takes a screenshot',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (input, ctx) async => .response(
+            {'result': 'captured'},
+            parts: [
+              MediaPart(
+                media: Media(
+                  contentType: 'image/png',
+                  url: 'data:image/png;base64,abc',
+                ),
+              ),
+            ],
+            metadata: {'source': 'camera'},
+          ),
+        );
+
+        genkit.defineInterrupt<Map<String, dynamic>, String>(
+          name: 'confirmTransfer',
+          description: 'asks for confirmation',
+          inputSchema: .map(.string(), .dynamicSchema()),
+        );
+
+        final interrupted = await genkit.generate(
+          model: modelRef('mixedModel'),
+          prompt: 'go',
+          toolNames: ['screenshot', 'confirmTransfer'],
+        );
+        expect(interrupted.finishReason, FinishReason.interrupted);
+
+        // Resume by answering the interrupt; the completed screenshot's
+        // content/metadata must be preserved into the resumed tool message.
+        await genkit.generate(
+          model: modelRef('mixedModel'),
+          messages: interrupted.messages,
+          toolNames: ['screenshot', 'confirmTransfer'],
+          interruptRespond: [
+            InterruptResponse(interrupted.interrupts.first, 'ok'),
+          ],
+        );
+
+        final content = capturedToolMessage!['content'] as List;
+        final screenshotResponse = content
+            .map((c) => (c as Map<String, dynamic>)['toolResponse'] as Map)
+            .firstWhere((r) => r['name'] == 'screenshot');
+        expect(screenshotResponse['output'], {'result': 'captured'});
+        expect(screenshotResponse['content'], hasLength(1));
+        final part = (screenshotResponse['content'] as List).first as Map;
+        expect(part['media'], isNotNull);
+      },
+    );
+  });
+
+  group('defineInterrupt', () {
+    late Genkit genkit;
+
+    setUp(() {
+      genkit = Genkit(isDevEnv: false);
+    });
+
+    tearDown(() async {
+      await genkit.shutdown();
+    });
+
+    test('accepts a map-literal tool metadata without throwing', () {
+      // `metadata['tool']` is a `Map<dynamic, dynamic>` from a literal; the
+      // definition must not throw a TypeError merging it.
+      final tool = genkit.defineInterrupt<Map<String, dynamic>, String>(
+        name: 'confirm',
+        description: 'confirms',
+        metadata: {
+          'tool': {'custom': 'value'},
+        },
+      );
+      final toolMeta = tool.metadata['tool'] as Map<String, dynamic>;
+      expect(toolMeta['custom'], 'value');
+      expect(toolMeta['restartable'], false);
+    });
+
+    test('ignores a non-map tool metadata value', () {
+      final tool = genkit.defineInterrupt<Map<String, dynamic>, String>(
+        name: 'confirm2',
+        description: 'confirms',
+        metadata: {'tool': 'not-a-map'},
+      );
+      final toolMeta = tool.metadata['tool'] as Map<String, dynamic>;
+      expect(toolMeta['restartable'], false);
+    });
+  });
+}
