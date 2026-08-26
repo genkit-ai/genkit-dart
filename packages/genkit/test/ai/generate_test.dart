@@ -1242,6 +1242,27 @@ void main() {
           throwsA(isA<ArgumentError>()),
         );
       });
+
+      test('throws when promptParts is empty', () async {
+        const modelName = 'promptPartsEmptyModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await expectLater(
+          () => genkit.generate(model: modelRef(modelName), promptParts: []),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
     });
   });
 }

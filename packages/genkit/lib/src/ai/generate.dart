@@ -653,6 +653,9 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   if (prompt != null && promptParts != null) {
     throw ArgumentError('Cannot set both prompt and promptParts.');
   }
+  if (promptParts != null && promptParts.isEmpty) {
+    throw ArgumentError('promptParts must not be empty.');
+  }
 
   GenerateResumeOptions? resolvedResume;
   if (resume != null || restart != null) {
