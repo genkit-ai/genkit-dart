@@ -623,6 +623,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   Registry registry, {
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   ModelRef<CustomOptions>? model,
   CustomOptions? config,
@@ -641,8 +642,16 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   /// List of tool requests to restart during an interrupted generation session.
   List<ToolRequestPart>? restart,
 }) async {
-  if (messages == null && prompt == null && system == null) {
-    throw ArgumentError('system, prompt, or messages must be provided');
+  if (messages == null &&
+      prompt == null &&
+      promptParts == null &&
+      system == null) {
+    throw ArgumentError(
+      'system, prompt, promptParts, or messages must be provided',
+    );
+  }
+  if (prompt != null && promptParts != null) {
+    throw ArgumentError('Cannot set both prompt and promptParts.');
   }
 
   GenerateResumeOptions? resolvedResume;
@@ -688,6 +697,9 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
         content: [TextPart(text: prompt)],
       ),
     );
+  }
+  if (promptParts != null) {
+    resolvedMessages.add(Message(role: Role.user, content: promptParts));
   }
 
   var resolvedModelName = model?.name;

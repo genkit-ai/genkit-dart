@@ -1104,5 +1104,144 @@ void main() {
         );
       });
     });
+
+    group('promptParts parameter', () {
+      test('builds a user message from the provided parts', () async {
+        const modelName = 'promptPartsModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          promptParts: [
+            TextPart(text: 'Describe this image:'),
+            MediaPart(media: Media(url: 'data:image/png;base64,abc123')),
+          ],
+        );
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 1);
+        expect(captured!.messages[0].role, Role.user);
+        expect(captured!.messages[0].content.length, 2);
+        expect(
+          captured!.messages[0].content[0].toJson()['text'],
+          'Describe this image:',
+        );
+        expect(captured!.messages[0].content[1].toJson()['media'], {
+          'url': 'data:image/png;base64,abc123',
+        });
+      });
+
+      test('orders as system -> messages -> promptParts', () async {
+        const modelName = 'promptPartsOrderModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef(modelName),
+          system: 'sys',
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'past-u')],
+            ),
+          ],
+          promptParts: [TextPart(text: 'now')],
+        );
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 3);
+        expect(captured!.messages[0].role, Role.system);
+        expect(captured!.messages[1].role, Role.user);
+        expect(captured!.messages[1].content[0].toJson()['text'], 'past-u');
+        expect(captured!.messages[2].role, Role.user);
+        expect(captured!.messages[2].content[0].toJson()['text'], 'now');
+      });
+
+      test('flows through generateStream', () async {
+        const modelName = 'promptPartsStreamModel';
+        ModelRequest? captured;
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            captured = request;
+            context.sendChunk(
+              ModelResponseChunk(content: [TextPart(text: 'hi')]),
+            );
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'hi')],
+              ),
+            );
+          },
+        );
+
+        final stream = genkit.generateStream(
+          model: modelRef(modelName),
+          promptParts: [TextPart(text: 'streamed parts')],
+        );
+        await stream.toList();
+        await stream.onResult;
+
+        expect(captured, isNotNull);
+        expect(captured!.messages.length, 1);
+        expect(captured!.messages[0].role, Role.user);
+        expect(
+          captured!.messages[0].content[0].toJson()['text'],
+          'streamed parts',
+        );
+      });
+
+      test('throws when both prompt and promptParts are provided', () async {
+        const modelName = 'promptPartsConflictModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await expectLater(
+          () => genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'a',
+            promptParts: [TextPart(text: 'b')],
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+    });
   });
 }
