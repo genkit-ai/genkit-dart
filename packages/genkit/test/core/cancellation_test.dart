@@ -89,7 +89,7 @@ void main() {
     }) {
       return Action<String, String, void, void>(
         name: 'echo',
-        actionType: 'custom',
+        actionType: .custom,
         fn: (input, ctx) async {
           if (onRun != null) await onRun(ctx);
           ctx.cancel.throwIfCancelled();
@@ -130,7 +130,7 @@ void main() {
       CancellationToken? seen;
       final action = Action<String, String, void, void>(
         name: 'peek',
-        actionType: 'custom',
+        actionType: .custom,
         fn: (input, ctx) async {
           seen = ctx.cancel;
           return input!;
@@ -145,7 +145,7 @@ void main() {
       var torndown = false;
       final action = Action<String, String, void, void>(
         name: 'teardown',
-        actionType: 'custom',
+        actionType: .custom,
         fn: (input, ctx) async {
           ctx.cancel.onCancel(() => torndown = true);
           controller.cancel();

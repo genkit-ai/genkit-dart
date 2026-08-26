@@ -1134,7 +1134,10 @@ Agent<State> defineCustomAgent<State>(
           // transport token to it, so an attached `runTurn(cancel:)` also
           // cooperatively stops this turn's `generate`.
           final cancelController = CancellationController();
-          ctx.cancel.onCancel(cancelController.cancel);
+          // Capture the disposer so a reused, long-lived `ctx.cancel` token
+          // doesn't accumulate one stranded listener (pinning this turn's
+          // controller and closure) per turn. Disposed when the flow settles.
+          final unlinkCancel = ctx.cancel.onCancel(cancelController.cancel);
           final cancelToken = cancelController.token;
           void Function()? unsubscribe;
           // Background heartbeat timer for the detached snapshot. Started in
@@ -1299,6 +1302,7 @@ Agent<State> defineCustomAgent<State>(
               // The turn has settled (the snapshot reached a terminal status),
               // so stop refreshing its heartbeat.
               stopHeartbeat();
+              unlinkCancel();
               unsubscribe?.call();
               offArtifactAdded();
               offArtifactUpdated();

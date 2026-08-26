@@ -114,8 +114,13 @@ Future<GenerateBidiSession> runGenerateBidi(
   final session = model.streamBidi(init: initRequest, cancel: cancel);
   // Close the input side of the session when cancellation is requested so no
   // further turns can be sent; the model's own `cancel` handling stops the
-  // in-flight turn.
-  cancel?.onCancel(() => unawaited(session.close()));
+  // in-flight turn. Capture the disposer and drop it once the session settles
+  // so a reused, long-lived `cancel` token doesn't leak this closure (and the
+  // session it pins) across sessions.
+  final unsubscribe = cancel?.onCancel(() => unawaited(session.close()));
+  if (unsubscribe != null) {
+    unawaited(session.onResult.whenComplete(unsubscribe));
+  }
 
   final outputController = StreamController<GenerateResponseChunk>();
   final previousChunks = <ModelResponseChunk>[];

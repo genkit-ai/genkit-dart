@@ -221,7 +221,7 @@ void main() {
         name: 'noop',
         description: 'noop',
         fn: (input, ctx) async {
-          return 'ok';
+          return .response('ok');
         },
       );
 
@@ -265,7 +265,7 @@ void main() {
         genkit.defineTool(
           name: 'noop',
           description: 'noop',
-          fn: (input, ctx) async => 'ok',
+          fn: (input, ctx) async => .response('ok'),
         );
 
         final res = await genkit.generate(

@@ -70,6 +70,11 @@ final class CancellationToken {
   /// leaking per-operation handlers. If the token is already cancelled,
   /// [callback] runs synchronously and the returned disposer is a no-op.
   void Function() onCancel(void Function() callback) {
+    // `none` never cancels, so its listener list would only ever grow. Return
+    // a no-op disposer immediately instead of stranding the callback.
+    if (identical(this, none)) {
+      return () {};
+    }
     if (_completer.isCompleted) {
       callback();
       return () {};
