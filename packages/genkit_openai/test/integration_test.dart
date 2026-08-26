@@ -126,6 +126,43 @@ void main() {
       expect(hasContent, isTrue);
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
+    test('o-series tool calling executes the tool', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      var toolRan = false;
+      ai.defineTool(
+        name: 'getWeather',
+        description: 'Get the weather for a location',
+        inputSchema: WeatherInputSchema.$schema,
+        fn: (input, ctx) async {
+          toolRan = true;
+          return {'temperature': 72, 'condition': 'sunny'};
+        },
+      );
+
+      final response = await ai.generate(
+        model: openAI.model('o4-mini'),
+        prompt: 'Use the getWeather tool to find the weather in Boston.',
+        toolNames: ['getWeather'],
+      );
+
+      expect(response.message, isNotNull);
+      // Unlike the tolerant gpt-4o test above, this asserts the tool actually
+      // executed: with tools silently stripped (bug #357) o-series models
+      // hallucinate a JSON tool call as plain text and the tool never runs.
+      expect(
+        toolRan,
+        isTrue,
+        reason: 'getWeather must actually execute for o4-mini',
+      );
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
     group('Structured output', () {
       test(
         'non-streaming: outputSchema parses response to schema type',
@@ -217,6 +254,34 @@ void main() {
 
       expect(response2.text, isNotEmpty);
       expect(response2.text.toLowerCase(), contains('alice'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('reports token usage for non-streaming and streaming', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Say hello.',
+      );
+      expect(response.usage?.inputTokens, greaterThan(0));
+      expect(response.usage?.outputTokens, greaterThan(0));
+      expect(response.usage?.totalTokens, greaterThan(0));
+
+      final stream = ai.generateStream(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Say hello.',
+      );
+      await for (final _ in stream) {}
+      final result = await stream.onResult;
+      expect(result.usage?.inputTokens, greaterThan(0));
+      expect(result.usage?.outputTokens, greaterThan(0));
+      expect(result.usage?.totalTokens, greaterThan(0));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }

@@ -220,6 +220,14 @@ abstract final class GenkitConverter {
     } else if (!parameters.containsKey('type')) {
       // Ensure the schema has a type field
       parameters = {'type': 'object', ...parameters};
+    } else if (parameters['type'] != 'object') {
+      // OpenAI only accepts object-typed tool parameter schemas.
+      throw GenkitException(
+        'OpenAI requires tool parameters to be an object schema; tool '
+        '"${tool.name}" declares type "${parameters['type']}". '
+        'Wrap the input in an object schema.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
     }
 
     return sdk.Tool.function(
@@ -277,5 +285,18 @@ abstract final class GenkitConverter {
       'tool_calls' => FinishReason.stop,
       _ => FinishReason.unknown,
     };
+  }
+
+  /// Map OpenAI token usage to Genkit [GenerationUsage].
+  static GenerationUsage? mapUsage(sdk.Usage? usage) {
+    if (usage == null) return null;
+    return GenerationUsage(
+      inputTokens: usage.promptTokens.toDouble(),
+      outputTokens: usage.completionTokens?.toDouble(),
+      totalTokens: usage.totalTokens.toDouble(),
+      thoughtsTokens: usage.completionTokensDetails?.reasoningTokens
+          ?.toDouble(),
+      cachedContentTokens: usage.promptTokensDetails?.cachedTokens?.toDouble(),
+    );
   }
 }

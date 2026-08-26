@@ -12,13 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
+import 'known_models.dart';
 import 'model.dart';
+
+final _logger = Logger('genkit_anthropic');
 
 /// Default model capabilities shared by all Anthropic Claude models.
 final commonModelInfo = ModelInfo(
@@ -37,6 +44,7 @@ final commonModelInfo = ModelInfo(
 ///
 /// Automatically discovers available models from the Anthropic API and
 /// registers them in the Genkit action registry.
+@visibleForTesting
 class AnthropicPluginImpl extends GenkitPlugin {
   /// The static API key used to authenticate requests.
   final String? apiKey;
@@ -47,13 +55,45 @@ class AnthropicPluginImpl extends GenkitPlugin {
   /// Custom base URL for the Anthropic API.
   final String? baseUrl;
 
+  /// Optional HTTP client used for every request. Useful for proxies,
+  /// instrumentation, or injecting a mock transport in tests.
+  final http.Client? httpClient;
+
   sdk.AnthropicClient? _client;
 
   /// Creates an [AnthropicPluginImpl].
-  AnthropicPluginImpl({this.apiKey, this.headers, this.baseUrl});
+  AnthropicPluginImpl({
+    this.apiKey,
+    this.headers,
+    this.baseUrl,
+    this.httpClient,
+  });
 
   @override
   String get name => 'anthropic';
+
+  /// Curated per-model capability metadata, keyed by bare model name.
+  ///
+  /// Names absent here still resolve; they fall back to [commonModelInfo].
+  final Map<String, ModelInfo> knownModels = UnmodifiableMapView(
+    knownClaudeModels,
+  );
+
+  static final _datedSuffixRegExp = RegExp(r'-\d{8}$');
+
+  /// Strips a trailing dated-snapshot suffix (e.g.
+  /// `claude-haiku-4-5-20251001` -> `claude-haiku-4-5`) so dated ids returned
+  /// by the models endpoint map onto the curated aliases.
+  static String _aliasOf(String modelName) =>
+      modelName.replaceFirst(_datedSuffixRegExp, '');
+
+  /// Returns the capability metadata for [modelName], matching by exact name
+  /// first and then by dated-snapshot alias, falling back to [commonModelInfo]
+  /// for names not in [knownModels].
+  ModelInfo modelInfoFor(String modelName) =>
+      knownModels[modelName] ??
+      knownModels[_aliasOf(modelName)] ??
+      commonModelInfo;
 
   sdk.AnthropicClient get client {
     if (_client != null) return _client!;
@@ -62,31 +102,51 @@ class AnthropicPluginImpl extends GenkitPlugin {
         apiKey!,
         defaultHeaders: headers,
         baseUrl: baseUrl,
+        httpClient: httpClient,
       );
     }
     final config = sdk.AnthropicConfig.fromEnvironment();
     return _client = sdk.AnthropicClient(
       config: config.copyWith(defaultHeaders: headers, baseUrl: baseUrl),
+      httpClient: httpClient,
     );
   }
 
+  ActionMetadata _curatedMetadata(String name, ModelInfo info) => modelMetadata(
+    'anthropic/$name',
+    customOptions: AnthropicOptions.$schema,
+    modelInfo: info,
+  );
+
   @override
   Future<List<ActionMetadata>> list() async {
-    // Attempt to list models from the API if available, otherwise return manual list.
+    // Attempt to enrich the curated catalog with dynamically discovered
+    // models; fall back to the curated catalog alone if listing fails.
     try {
       final response = await client.models.list();
-      return response.data
-          .map(
-            (m) => modelMetadata(
-              'anthropic/${m.id}',
-              customOptions: AnthropicOptions.$schema,
-            ),
-          )
+      final discovered = response.data
+          .map((m) => _curatedMetadata(m.id, modelInfoFor(m.id)))
           .toList();
+      // Curated aliases already covered by discovery. The endpoint may return
+      // dated snapshot ids (e.g. `claude-haiku-4-5-20251001`), so match on the
+      // alias to both enrich (above) and dedup against the curated catalog.
+      final coveredAliases = response.data.map((m) => _aliasOf(m.id)).toSet();
+
+      // Curated models are listed even when discovery omits them.
+      final curated = knownModels.entries
+          .where((entry) => !coveredAliases.contains(entry.key))
+          .map((entry) => _curatedMetadata(entry.key, entry.value));
+
+      return [...discovered, ...curated];
     } catch (e, s) {
-      // Fallback or empty if listing fails/not supported as expected
-      print('Failed to list Anthropic models: $e\n$s');
-      return [];
+      // The sibling plugins rethrow here; this plugin degrades gracefully
+      // instead, advertising the curated catalog so known models stay listable
+      // when discovery is unavailable (e.g. offline).
+      _logger.warning('Failed to list Anthropic models: $e', e, s);
+      return [
+        for (final entry in knownModels.entries)
+          _curatedMetadata(entry.key, entry.value),
+      ];
     }
   }
 
@@ -104,7 +164,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
     return Model(
       name: 'anthropic/$modelName',
       customOptions: AnthropicOptions.$schema,
-      metadata: {'model': commonModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
         final options = req!.config == null
             ? AnthropicOptions()
@@ -115,6 +175,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
                 options.apiKey!,
                 defaultHeaders: headers,
                 baseUrl: baseUrl,
+                httpClient: httpClient,
               )
             : client;
 

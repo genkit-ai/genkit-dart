@@ -37,6 +37,9 @@ class OpenAIPlugin extends GenkitPlugin {
   final OpenAIApiKeyProvider? apiKeyProvider;
 
   /// Custom base URL for OpenAI-compatible APIs (e.g. Groq, DeepSeek).
+  ///
+  /// Streaming requests always send `stream_options.include_usage`; endpoints
+  /// that reject unknown stream options will refuse streaming calls.
   final String? baseUrl;
 
   /// Additional models to register beyond those discovered from the API.
@@ -222,8 +225,9 @@ class OpenAIPlugin extends GenkitPlugin {
         );
 
         try {
-          final supports = modelInfo.supports;
-          final supportsTools = supports?['tools'] == true;
+          final tools = modelRequest.tools
+              ?.map(GenkitConverter.toOpenAITool)
+              .toList();
 
           final isJsonMode = chat.isJsonStructuredOutput(
             modelRequest.output?.format,
@@ -238,9 +242,8 @@ class OpenAIPlugin extends GenkitPlugin {
               modelRequest.messages,
               options.visualDetailLevel,
             ),
-            tools: supportsTools
-                ? modelRequest.tools?.map(GenkitConverter.toOpenAITool).toList()
-                : null,
+            // Some OpenAI-compatible providers reject an empty tools array.
+            tools: (tools == null || tools.isEmpty) ? null : tools,
             temperature: options.temperature,
             topP: options.topP,
             maxCompletionTokens: options.maxTokens,
@@ -298,7 +301,10 @@ class OpenAIPlugin extends GenkitPlugin {
     })
     ctx,
   ) async {
-    final stream = client.chat.completions.createStream(request);
+    final streamRequest = request.copyWith(
+      streamOptions: const sdk.StreamOptions(includeUsage: true),
+    );
+    final stream = client.chat.completions.createStream(streamRequest);
     final accumulator = sdk.ChatStreamAccumulator();
 
     try {
@@ -328,6 +334,7 @@ class OpenAIPlugin extends GenkitPlugin {
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
       message: message,
+      usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),
     );
   }
@@ -349,6 +356,7 @@ class OpenAIPlugin extends GenkitPlugin {
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
       message: message,
+      usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),
     );
   }
