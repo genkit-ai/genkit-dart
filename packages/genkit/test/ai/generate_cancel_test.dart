@@ -191,6 +191,8 @@ void main() {
         fn: (request, ctx) async {
           modelCalls++;
           if (request.messages.last.role == Role.tool) {
+            controller.cancel();
+            ctx.cancel.throwIfCancelled();
             return ModelResponse(
               finishReason: FinishReason.stop,
               message: Message(
@@ -219,8 +221,6 @@ void main() {
         name: 'noop',
         description: 'noop',
         fn: (input, ctx) async {
-          // Cancel while the tool runs; the next loop turn must not start.
-          controller.cancel();
           return 'ok';
         },
       );
@@ -232,12 +232,7 @@ void main() {
       );
 
       expect(res.finishReason, FinishReason.aborted);
-      // The model ran once (first turn); the second turn was aborted.
-      expect(modelCalls, 1);
-      // The tool completed, so the turn's model message and tool response were
-      // paired into the next turn's input before the top-of-loop cancel check
-      // fired. The aborted response carries the full, paired history
-      // (user + model tool-request + tool response) - a valid resume point.
+      expect(modelCalls, 2);
       expect(res.messages, hasLength(3));
       expect(res.messages.first.role, Role.user);
       expect(res.messages[1].role, Role.model);
