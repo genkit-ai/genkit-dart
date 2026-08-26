@@ -239,6 +239,57 @@ void main() {
       expect(res.messages.last.role, Role.tool);
     });
 
+    test('a generic tool error during cancellation aborts instead of being '
+        'swallowed as a tool failure', () async {
+      final controller = CancellationController();
+      var modelCalls = 0;
+
+      genkit.defineModel(
+        name: 'm',
+        fn: (request, ctx) async {
+          modelCalls++;
+          // Always request the tool. If the generic tool error were swallowed
+          // into an error tool response, the loop would call the model again.
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: 'boom', input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'boom',
+        description: 'boom',
+        fn: (input, ctx) async {
+          // Simulate a plugin that reacts to cancellation by tearing down its
+          // transport, surfacing a generic error (e.g. SocketException) rather
+          // than a CancelledException.
+          controller.cancel();
+          throw StateError('client closed');
+        },
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('m'),
+        prompt: 'go',
+        cancel: controller.token,
+      );
+
+      expect(res.finishReason, FinishReason.aborted);
+      // The model ran exactly once: the generic tool error propagated as a
+      // cancellation and stopped the loop rather than triggering another turn.
+      expect(modelCalls, 1);
+      expect(res.messages, hasLength(1));
+      expect(res.messages.first.role, Role.user);
+    });
+
     test(
       'exceeding maxTurns returns an aborted response with history',
       () async {

@@ -291,11 +291,10 @@ final aborted = await ai.generate(
 if (aborted.finishReason == FinishReason.aborted) {
   print('Cancelled: ${aborted.finishMessage}');
 
-  // Resume: reuse the preserved history with a brand-new token.
+  // Resume: reuse the preserved history.
   final resumed = await ai.generate(
     model: googleAI.gemini('gemini-flash-latest'),
     messages: aborted.messages, // last-good conversation state
-    cancel: CancellationController().token,
   );
   print(resumed.text);
 }

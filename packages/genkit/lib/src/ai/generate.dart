@@ -1148,6 +1148,13 @@ _executeTools(
       // response (which would let the loop continue as if the tool "failed").
       rethrow;
     } catch (e) {
+      if (cancelToken.isCancelled) {
+        // A generic failure (e.g. a closed HTTP client throwing
+        // SocketException) raised during cancellation must still propagate as a
+        // cancellation rather than be recorded as a tool error that lets the
+        // loop continue.
+        throw CancelledException(reason: cancelToken.reason);
+      }
       toolResponses.add(
         ToolResponsePart(
           toolResponse: ToolResponse(
