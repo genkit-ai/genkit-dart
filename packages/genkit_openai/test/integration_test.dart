@@ -142,7 +142,7 @@ void main() {
         inputSchema: WeatherInputSchema.$schema,
         fn: (input, ctx) async {
           toolRan = true;
-          return {'temperature': 72, 'condition': 'sunny'};
+          return .response({'temperature': 72, 'condition': 'sunny'});
         },
       );
 

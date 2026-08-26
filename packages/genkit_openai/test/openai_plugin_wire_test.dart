@@ -78,7 +78,7 @@ void main() {
       ai.defineTool(
         name: 'getWeather',
         description: 'Get the weather for a location',
-        fn: (input, ctx) async => {'temperature': 72},
+        fn: (input, ctx) async => .response({'temperature': 72}),
       );
 
       await ai.generate(
@@ -120,7 +120,7 @@ void main() {
         ai.defineTool(
           name: 'getWeather',
           description: 'Get the weather for a location',
-          fn: (input, ctx) async => {'temperature': 72},
+          fn: (input, ctx) async => .response({'temperature': 72}),
         );
 
         expect(supportsTools('chatgpt-4o-latest'), isFalse);
@@ -160,7 +160,7 @@ void main() {
       ai.defineTool(
         name: 'getWeather',
         description: 'Get the weather for a location',
-        fn: (input, ctx) async => {'temperature': 72},
+        fn: (input, ctx) async => .response({'temperature': 72}),
       );
 
       await ai.generate(
