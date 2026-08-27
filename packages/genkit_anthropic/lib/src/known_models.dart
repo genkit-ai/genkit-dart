@@ -35,14 +35,15 @@ const baseClaudeSupports = <String, dynamic>{
   'output': ['text'],
 };
 
-/// [baseClaudeSupports] plus JSON output and constrained generation.
+/// [baseClaudeSupports] plus JSON output and constrained generation, served by
+/// the forced `return_output` tool.
 ///
-/// "Native" here is the forced `return_output` tool
-/// (`plugin_impl.dart:252-262`), not Anthropic's own Structured Outputs
-/// feature - genkit_anthropic does not use that API yet (#402). Claimed only
-/// for curated names: a forced `tool_choice` is not accepted by every Claude
-/// model, so `commonModelInfo` keeps the uncurated fallback on
-/// [baseClaudeSupports] and lets core simulate.
+/// The tier for the stable API surface, where Anthropic's own Structured
+/// Outputs feature is not available and the schema has to travel as a tool the
+/// model is forced to call. Claimed only for curated names: a forced
+/// `tool_choice` is not accepted by every Claude model, so `commonModelInfo`
+/// keeps the uncurated fallback on [baseClaudeSupports] and lets core
+/// simulate.
 ///
 /// `'no-tools'` rather than `true`, because the trick pins `tool_choice` to
 /// `return_output`, and a request that also carries the caller's own tools
@@ -54,6 +55,19 @@ const structuredClaudeSupports = <String, dynamic>{
   ..._claudeSupportsCore,
   'output': ['text', 'json'],
   'constrained': 'no-tools',
+};
+
+/// [structuredClaudeSupports] with the constraint claimed unconditionally.
+///
+/// The tier for the beta surface, where the schema goes over as
+/// `output_config.format` - Anthropic's own Structured Outputs feature. That
+/// path pins no `tool_choice` and adds no tool, so the caller's own tools stay
+/// reachable and the claim needs no `'no-tools'` qualifier: this is the
+/// narrowing the forced-tool tier was always standing in for.
+const nativeStructuredClaudeSupports = <String, dynamic>{
+  ..._claudeSupportsCore,
+  'output': ['text', 'json'],
+  'constrained': true,
 };
 
 /// Claude models the Anthropic plugin curates capability metadata for.
@@ -105,10 +119,23 @@ enum KnownClaudeModel {
   /// claim native constrained generation and JSON output.
   final bool structuredOutputs;
 
-  /// Capability metadata registered for this model.
-  ModelInfo get info => ModelInfo(
+  /// Capability metadata registered for this model on the stable surface.
+  ModelInfo get info => infoFor(beta: false);
+
+  /// Capability metadata registered for this model on the given API surface.
+  ///
+  /// The mechanism decides the claim, and the mechanism depends on the
+  /// surface: `output_config.format` exists only on beta, so only there can a
+  /// model on Anthropic's Structured Outputs list claim `constrained: true`.
+  /// On stable the same model is served by the forced tool, which is
+  /// `'no-tools'`.
+  ModelInfo infoFor({required bool beta}) => ModelInfo(
     label: label,
-    supports: structuredOutputs ? structuredClaudeSupports : baseClaudeSupports,
+    supports: switch ((structuredOutputs, beta)) {
+      (false, _) => baseClaudeSupports,
+      (true, false) => structuredClaudeSupports,
+      (true, true) => nativeStructuredClaudeSupports,
+    },
     stage: 'stable',
   );
 }

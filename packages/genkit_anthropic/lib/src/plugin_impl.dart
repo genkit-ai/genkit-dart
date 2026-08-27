@@ -46,6 +46,26 @@ StatusCodes _statusForHttpCode(int code) => code == _overloadedStatusCode
     ? StatusCodes.UNAVAILABLE
     : StatusCodes.fromHttpStatus(code);
 
+/// Beta features requested when a request resolves to the beta API surface.
+///
+/// Sent as the `anthropic-beta` header. Mirrors the list the Genkit JS plugin
+/// enables by default; a request can replace it via `AnthropicOptions.betas`.
+const defaultAnthropicBetas = <String>[
+  'files-api-2025-04-14',
+  'effort-2025-11-24',
+  'structured-outputs-2025-11-13',
+  'task-budgets-2026-03-13',
+];
+
+/// Resolves whether a request runs against the beta API surface.
+///
+/// The request's own `apiVersion` wins, then the plugin default, else stable.
+@visibleForTesting
+bool resolveBetaEnabled(String? requestApiVersion, String? pluginApiVersion) {
+  final selected = requestApiVersion ?? pluginApiVersion;
+  return selected == 'beta';
+}
+
 /// Core Genkit plugin implementation for Anthropic Claude models.
 ///
 /// Automatically discovers available models from the Anthropic API and
@@ -65,6 +85,11 @@ class AnthropicPluginImpl extends GenkitPlugin {
   /// instrumentation, or injecting a mock transport in tests.
   final http.Client? httpClient;
 
+  /// Default Anthropic API surface (`'stable'` or `'beta'`) for every request.
+  ///
+  /// A request's own `apiVersion` overrides this. Defaults to stable.
+  final String? apiVersion;
+
   sdk.AnthropicClient? _client;
 
   /// Creates an [AnthropicPluginImpl].
@@ -73,6 +98,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
     this.headers,
     this.baseUrl,
     this.httpClient,
+    this.apiVersion,
   });
 
   @override
@@ -90,13 +116,30 @@ class AnthropicPluginImpl extends GenkitPlugin {
   /// by the models endpoint map onto the curated aliases.
   static String _aliasOf(String modelName) => claudeModelAlias(modelName);
 
+  /// Whether this plugin's requests default to the beta API surface.
+  bool get _betaByDefault => apiVersion == 'beta';
+
   /// Returns the capability metadata for [modelName], matching by exact name
   /// first and then by dated-snapshot alias, falling back to [commonModelInfo]
   /// for names not in [knownModels].
-  ModelInfo modelInfoFor(String modelName) =>
-      knownModels[modelName] ??
-      knownModels[_aliasOf(modelName)] ??
-      commonModelInfo;
+  ///
+  /// The claim follows the surface this plugin defaults to, because the
+  /// mechanism does: on beta a curated model is served by
+  /// `output_config.format` and claims `constrained: true`, on stable by the
+  /// forced `return_output` tool and claims `'no-tools'`.
+  ///
+  /// The plugin's default, not the request's: core reads this to decide
+  /// whether to simulate, and it reads it before the request's own config is
+  /// in hand. A request that overrides `apiVersion` to beta is therefore
+  /// judged by the stable claim - simulated where the native path would have
+  /// served it, which costs a longer prompt. The reverse override is the one
+  /// that cannot be absorbed quietly, and `_assertToolOutputAllowed` says so.
+  ModelInfo modelInfoFor(String modelName) {
+    final curated =
+        knownClaudeModelFor(modelName) ??
+        knownClaudeModelFor(_aliasOf(modelName));
+    return curated?.infoFor(beta: _betaByDefault) ?? commonModelInfo;
+  }
 
   sdk.AnthropicClient get client {
     if (_client != null) return _client!;
@@ -136,9 +179,13 @@ class AnthropicPluginImpl extends GenkitPlugin {
       final coveredAliases = response.data.map((m) => _aliasOf(m.id)).toSet();
 
       // Curated models are listed even when discovery omits them.
-      final curated = knownModels.entries
-          .where((entry) => !coveredAliases.contains(entry.key))
-          .map((entry) => _curatedMetadata(entry.key, entry.value));
+      // Through `modelInfoFor`, not the map's own values: the claim depends
+      // on the surface this plugin defaults to, and a listing that disagreed
+      // with what `resolve` registers would have the Dev UI describing a
+      // model the plugin does not serve.
+      final curated = knownModels.keys
+          .where((name) => !coveredAliases.contains(name))
+          .map((name) => _curatedMetadata(name, modelInfoFor(name)));
 
       return [...discovered, ...curated];
     } catch (e, s) {
@@ -147,8 +194,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
       // when discovery is unavailable (e.g. offline).
       _logger.warning('Failed to list Anthropic models: $e', e, s);
       return [
-        for (final entry in knownModels.entries)
-          _curatedMetadata(entry.key, entry.value),
+        for (final name in knownModels.keys)
+          _curatedMetadata(name, modelInfoFor(name)),
       ];
     }
   }
@@ -183,10 +230,23 @@ class AnthropicPluginImpl extends GenkitPlugin {
             : client;
 
         try {
-          final createRequest = _buildCreateRequest(req, modelName, options);
+          final beta = resolveBetaEnabled(options.apiVersion, apiVersion);
+          final createRequest = _buildCreateRequest(
+            req,
+            modelName,
+            options,
+            beta: beta,
+          );
+          // Empty on the stable surface, which suppresses the header entirely.
+          final betas = beta
+              ? (options.betas ?? defaultAnthropicBetas)
+              : const <String>[];
 
           if (ctx.streamingRequested) {
-            final stream = requestClient.messages.createStream(createRequest);
+            final stream = requestClient.messages.createStream(
+              createRequest,
+              betas: betas,
+            );
             final accumulator = sdk.MessageStreamAccumulator();
             await for (final event in stream) {
               accumulator.add(event);
@@ -199,7 +259,10 @@ class AnthropicPluginImpl extends GenkitPlugin {
               usage: mapUsage(message.usage),
             );
           } else {
-            final response = await requestClient.messages.create(createRequest);
+            final response = await requestClient.messages.create(
+              createRequest,
+              betas: betas,
+            );
             return ModelResponse(
               finishReason: mapFinishReason(response.stopReason),
               message: fromAnthropicMessage(response),
@@ -234,8 +297,9 @@ class AnthropicPluginImpl extends GenkitPlugin {
   sdk.MessageCreateRequest _buildCreateRequest(
     ModelRequest req,
     String modelName,
-    AnthropicOptions options,
-  ) {
+    AnthropicOptions options, {
+    required bool beta,
+  }) {
     final systemMessage = req.messages
         .where((m) => m.role == Role.system)
         .firstOrNull;
@@ -258,37 +322,56 @@ class AnthropicPluginImpl extends GenkitPlugin {
         req.tools?.map(toAnthropicTool).toList() ?? <sdk.ToolDefinition>[];
 
     sdk.ToolChoice? toolChoice;
+    sdk.JsonOutputFormat? outputFormat;
 
     if (req.output?.schema != null) {
       final schema = Map<String, dynamic>.from(req.output!.schema!);
-      if (!schema.containsKey('type')) {
-        schema['type'] = 'object';
-      }
-      const toolName = 'return_output';
-      tools.add(
-        sdk.ToolDefinition.custom(
-          sdk.Tool(
-            name: toolName,
-            description: 'Return the structured output.',
-            inputSchema: sdk.InputSchema.fromJson(schema),
+
+      if (_supportsNativeStructuredOutput(modelName, beta: beta)) {
+        // Native structured output needs no forced tool, so it composes with
+        // manual thinking - unlike the fallback below. The schema goes over
+        // as-authored; adding a `type` here would collide with a `$ref` root.
+        outputFormat = sdk.JsonOutputFormat(schema: _toAnthropicSchema(schema));
+      } else {
+        // Outside beta there is no `output_config.format`, so the schema is
+        // served by a tool the model is forced to call.
+        //
+        // Forced only for a request that asked to be constrained: with
+        // `constrained: false` the caller opted out of the mechanism and core
+        // stripped nothing, so the tool is offered rather than pinned - and
+        // the two restrictions below, which are restrictions on pinning, do
+        // not apply.
+        final pinsOutputTool = req.output?.constrained == true;
+        if (pinsOutputTool) {
+          _assertToolOutputAllowed(req, modelName, options);
+        }
+        // Anthropic's tool input schemas must declare an object type.
+        if (!schema.containsKey('type')) {
+          schema['type'] = 'object';
+        }
+        const toolName = 'return_output';
+        tools.add(
+          sdk.ToolDefinition.custom(
+            sdk.Tool(
+              name: toolName,
+              description: 'Return the structured output.',
+              inputSchema: sdk.InputSchema.fromJson(schema),
+            ),
           ),
-        ),
-      );
-      toolChoice = sdk.ToolChoice.tool(toolName);
+        );
+        if (pinsOutputTool) {
+          toolChoice = sdk.ToolChoice.tool(toolName);
+        }
+      }
     }
 
     // The forced `return_output` tool is the whole mechanism behind the
-    // `constrained` claim, so it outranks the caller's `toolChoice` - but only
-    // for a request that asked to be constrained. There, core routed the
-    // schema here because the model claims native support, and honouring a
-    // `none` would leave the model neither the tool nor the instructions core
-    // stripped. With `constrained: false` the caller opted out of that
-    // mechanism and nothing was stripped, so their `toolChoice` is theirs to
-    // keep; the tool is still offered, just not forced.
-    final constrainedNatively =
-        req.output?.schema != null && req.output?.constrained == true;
-    if (req.toolChoice != null && !constrainedNatively) {
-      toolChoice = switch (req.toolChoice) {
+    // `constrained` claim on the fallback path, so it outranks the caller's
+    // `toolChoice`: honouring a `none` there would leave the model neither the
+    // tool nor the instructions core stripped. Nothing is forced on the native
+    // path or for an unconstrained request, and then the caller's choice
+    // stands.
+    if (req.toolChoice != null && toolChoice == null) {      toolChoice = switch (req.toolChoice) {
         'auto' => sdk.ToolChoice.auto(),
         'any' => sdk.ToolChoice.any(),
         'none' => sdk.ToolChoice.none(),
@@ -297,7 +380,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
     }
 
     final thinking = _mapThinkingConfig(options.thinking, modelName);
-    final outputConfig = _mapOutputConfig(options.outputConfig);
+    final outputConfig = _mapOutputConfig(options.outputConfig, outputFormat);
 
     return sdk.MessageCreateRequest(
       model: modelName,
@@ -655,12 +738,9 @@ Map<String, dynamic> _extractOutput(Map<String, dynamic> input) {
   return input;
 }
 
-sdk.ThinkingConfig? _mapThinkingConfig(
-  ThinkingConfig? config,
-  String modelName,
-) {
-  if (config == null) return null;
-
+/// Resolves the effective thinking type, applying the curated per-model default
+/// when the request does not name one.
+String _resolveThinkingType(ThinkingConfig config, String modelName) {
   final type =
       config.type ?? knownClaudeModelFor(modelName)?.defaultThinkingMode.name;
   if (type == null) {
@@ -669,6 +749,16 @@ sdk.ThinkingConfig? _mapThinkingConfig(
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
+  return type;
+}
+
+sdk.ThinkingConfig? _mapThinkingConfig(
+  ThinkingConfig? config,
+  String modelName,
+) {
+  if (config == null) return null;
+
+  final type = _resolveThinkingType(config, modelName);
 
   return switch (type) {
     'disabled' => sdk.ThinkingConfig.disabled(),
@@ -684,11 +774,103 @@ sdk.ThinkingConfig? _mapThinkingConfig(
   };
 }
 
-sdk.OutputConfig? _mapOutputConfig(AnthropicOutputConfig? config) {
+/// Whether the schema can travel as `output_config.format` for this request.
+///
+/// Two conditions, and both are load-bearing. The feature is beta-gated
+/// (`structured-outputs-2025-11-13`), so a stable request has no such field to
+/// put it in. And it is a per-model list, which only a curated entry can speak
+/// for: an uncurated name gets no claim either way, which is why
+/// `commonModelInfo` withholds `constrained` and lets core simulate rather
+/// than betting the request on a guess.
+bool _supportsNativeStructuredOutput(String modelName, {required bool beta}) =>
+    beta && (knownClaudeModelFor(modelName)?.structuredOutputs ?? false);
+
+/// Rewrites a Genkit JSON schema into the shape Anthropic accepts.
+///
+/// Anthropic rejects `$schema` and requires `additionalProperties: false` on
+/// every object, including ones nested under `$defs`.
+Map<String, dynamic> _toAnthropicSchema(Map<String, dynamic> schema) {
+  final out = <String, dynamic>{};
+  for (final entry in schema.entries) {
+    if (entry.key == r'$schema') continue;
+    out[entry.key] = _normalizeSchemaValue(entry.value);
+  }
+  // A `$ref` node may not carry sibling constraints; Anthropic rejects the
+  // combination outright. Named Genkit schemas arrive as a bare `$ref` plus
+  // `$defs`, and the recursion above has already closed the definitions.
+  if (out.containsKey(r'$ref')) return out;
+
+  // A hand-written schema may describe an object through its keywords alone.
+  // Anthropic needs the type spelled out before it will accept the closed
+  // marker below, so infer it the way the tool fallback does.
+  if (!out.containsKey('type') &&
+      (out.containsKey('properties') || out.containsKey('required'))) {
+    out['type'] = 'object';
+  }
+  if (out['type'] == 'object') {
+    out['additionalProperties'] = false;
+  }
+  return out;
+}
+
+Object? _normalizeSchemaValue(Object? value) => switch (value) {
+  final Map<String, dynamic> map => _toAnthropicSchema(map),
+  final Map map => _toAnthropicSchema(map.cast<String, dynamic>()),
+  final List list => list.map(_normalizeSchemaValue).toList(),
+  _ => value,
+};
+
+/// Guards the tool-based structured-output fallback against manual thinking.
+///
+/// The fallback forces `tool_choice`, which Anthropic rejects when extended
+/// thinking is on. Native structured output has no such conflict, so the fix is
+/// to move to a model that supports it rather than to drop thinking.
+void _assertToolOutputAllowed(
+  ModelRequest req,
+  String modelName,
+  AnthropicOptions options,
+) {
+  // Core keeps the caller's tools away from this path by simulating for a
+  // model that claims `'no-tools'` - unless the request talked its way here by
+  // overriding `apiVersion` to stable, after core read a `constrained: true`
+  // claim that only holds on beta. Forcing `return_output` then would leave
+  // the caller's tools on the wire and unreachable, and the tool loop would
+  // silently never fire.
+  if (req.tools?.isNotEmpty ?? false) {
+    throw GenkitException(
+      'Structured output with tools needs the beta API for "$modelName": the '
+      'stable surface serves the schema with a forced tool call, which the '
+      "request's own tools could then never reach. Drop the request's "
+      'apiVersion override, or ask for structured output without tools.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
+  final thinking = options.thinking;
+  if (thinking == null) return;
+  // Resolve through the same path the wire uses, so a bare ThinkingConfig()
+  // that defaults to manual on a 4.5-era model is caught too.
+  if (_resolveThinkingType(thinking, modelName) != 'enabled') return;
+
+  throw GenkitException(
+    'Structured output with manual thinking is not supported for '
+    '"$modelName": it needs a forced tool call, which Anthropic rejects '
+    'alongside extended thinking. Use a model with native structured output '
+    'support, or set thinking.type to "adaptive" or "disabled".',
+    status: StatusCodes.INVALID_ARGUMENT,
+  );
+}
+
+sdk.OutputConfig? _mapOutputConfig(
+  AnthropicOutputConfig? config,
+  sdk.JsonOutputFormat? format,
+) {
   final effort = config?.effort;
-  if (effort == null) return null;
+  if (effort == null && format == null) return null;
+  if (effort == null) return sdk.OutputConfig(format: format);
 
   return sdk.OutputConfig(
+    format: format,
     effort: switch (effort) {
       'low' => sdk.EffortLevel.low,
       'medium' => sdk.EffortLevel.medium,

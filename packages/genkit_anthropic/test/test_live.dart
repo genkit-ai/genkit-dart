@@ -169,6 +169,39 @@ void main() {
         expect(finalResponse.output!.age, 25);
       });
 
+      test('generates structured output natively over the beta API', () async {
+        // The native `output_config.format` path: no forced tool, so the
+        // schema composes with manual thinking, which the fallback cannot do -
+        // Anthropic rejects a forced tool_choice alongside extended thinking.
+        final response = await ai.generate(
+          model: anthropic.model('claude-sonnet-4-5'),
+          prompt: 'Generate a person named John Doe, age 30',
+          outputSchema: Person.$schema,
+          config: AnthropicOptions(
+            apiVersion: 'beta',
+            thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+          ),
+        );
+
+        expect(response.output, isNotNull);
+        expect(response.output!.name, 'John Doe');
+        expect(response.output!.age, 30);
+      }, timeout: Timeout(Duration(minutes: 2)));
+
+      test('streams native structured output over the beta API', () async {
+        final response = ai.generateStream(
+          model: anthropic.model('claude-sonnet-4-5'),
+          prompt: 'Generate a person named Jane Doe, age 25',
+          outputSchema: Person.$schema,
+          config: AnthropicOptions(apiVersion: 'beta'),
+        );
+
+        final finalResponse = await response.onResult;
+        expect(finalResponse.output, isNotNull);
+        expect(finalResponse.output!.name, 'Jane Doe');
+        expect(finalResponse.output!.age, 25);
+      }, timeout: Timeout(Duration(minutes: 2)));
+
       test('should use tools', () async {
         final tool = ai.defineTool(
           name: 'calculator',

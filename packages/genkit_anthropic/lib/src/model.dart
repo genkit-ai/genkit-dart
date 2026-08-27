@@ -22,6 +22,22 @@ abstract class $AnthropicOptions {
   /// Custom API key to use for this specific request. Overrides plugin config.
   String? get apiKey;
 
+  @StringField(
+    enumValues: ['stable', 'beta'],
+    description:
+        'Which Anthropic API surface to use for this request. '
+        'The beta surface also serves every stable feature. '
+        'Overrides the plugin-level default, which is "stable".',
+  )
+  String? get apiVersion;
+
+  /// Beta feature names sent in the `anthropic-beta` header.
+  ///
+  /// Only used when the request resolves to the beta API. Replaces the
+  /// plugin's curated default list rather than adding to it, so a new beta can
+  /// be opted into without waiting for a plugin release.
+  List<String>? get betas;
+
   @IntegerField(
     minimum: 1,
     description: 'The maximum number of tokens to generate before stopping.',

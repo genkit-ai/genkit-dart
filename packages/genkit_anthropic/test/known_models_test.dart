@@ -211,6 +211,48 @@ void main() {
       }
     });
 
+    test('the claim follows the surface, and so the mechanism', () {
+      // Beta serves the schema as `output_config.format`, which pins no
+      // tool_choice, so the `'no-tools'` qualifier the forced tool needed
+      // falls away. This is the narrowing #453 left to this change.
+      final model = KnownClaudeModel.sonnet45;
+
+      expect(
+        model.infoFor(beta: false).supports!['constrained'],
+        'no-tools',
+      );
+      expect(model.infoFor(beta: true).supports!['constrained'], isTrue);
+      expect(model.info.supports, model.infoFor(beta: false).supports);
+    });
+
+    test('a plugin on beta claims the native tier', () {
+      expect(
+        AnthropicPluginImpl(
+          apiKey: 'k',
+          apiVersion: 'beta',
+        ).modelInfoFor('claude-sonnet-4-5').supports!['constrained'],
+        isTrue,
+      );
+      expect(
+        AnthropicPluginImpl(
+          apiKey: 'k',
+        ).modelInfoFor('claude-sonnet-4-5').supports!['constrained'],
+        'no-tools',
+      );
+    });
+
+    test('an uncurated name claims nothing on either surface', () {
+      // Neither mechanism can be vouched for: the Structured Outputs list is
+      // per-model, and a forced tool_choice is not accepted by every Claude.
+      for (final version in [null, 'beta']) {
+        final info = AnthropicPluginImpl(
+          apiKey: 'k',
+          apiVersion: version,
+        ).modelInfoFor('claude-future-model');
+        expect(info.supports!.containsKey('constrained'), isFalse);
+      }
+    });
+
     test('base tier advertises no constrained generation', () {
       expect(baseClaudeSupports.containsKey('constrained'), isFalse);
       expect(baseClaudeSupports['output'], ['text']);
