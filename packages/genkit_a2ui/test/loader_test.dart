@@ -44,7 +44,7 @@ void main() {
   group('loadCatalog', () {
     test('registers an in-memory catalog under its id', () async {
       final result = await loadCatalog(
-        genkit.registry,
+        genkit,
         id: 'my-catalog',
         catalog: custom,
       );
@@ -56,7 +56,7 @@ void main() {
       'defaults the catalog id to the registration id when absent',
       () async {
         final result = await loadCatalog(
-          genkit.registry,
+          genkit,
           id: 'anon',
           catalog: A2uiCatalog(id: '', components: custom.components),
         );
@@ -66,7 +66,7 @@ void main() {
 
     test('throws when neither catalog nor file is provided', () async {
       await expectLater(
-        loadCatalog(genkit.registry, id: 'x'),
+        loadCatalog(genkit, id: 'x'),
         throwsA(
           isA<ArgumentError>().having(
             (e) => e.message,
@@ -92,7 +92,7 @@ void main() {
         final file = File('${dir.path}/catalog.json');
         await file.writeAsString(jsonEncode(custom.toJson()));
         final result = await loadCatalog(
-          genkit.registry,
+          genkit,
           id: 'my-catalog',
           file: file.path,
         );
@@ -102,7 +102,7 @@ void main() {
 
       test('throws on a missing file', () async {
         await expectLater(
-          loadCatalog(genkit.registry, id: 'x', file: '${dir.path}/nope.json'),
+          loadCatalog(genkit, id: 'x', file: '${dir.path}/nope.json'),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -117,7 +117,7 @@ void main() {
         final file = File('${dir.path}/bad.json');
         await file.writeAsString('{not json}');
         await expectLater(
-          loadCatalog(genkit.registry, id: 'x', file: file.path),
+          loadCatalog(genkit, id: 'x', file: file.path),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -132,7 +132,7 @@ void main() {
         final file = File('${dir.path}/no-components.json');
         await file.writeAsString(jsonEncode({'id': 'x'}));
         await expectLater(
-          loadCatalog(genkit.registry, id: 'x', file: file.path),
+          loadCatalog(genkit, id: 'x', file: file.path),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -147,7 +147,7 @@ void main() {
 
   group('resolveCatalog', () {
     test('resolves a registered catalog by id', () async {
-      await loadCatalog(genkit.registry, id: 'my-catalog', catalog: custom);
+      await loadCatalog(genkit, id: 'my-catalog', catalog: custom);
       final resolved = resolveCatalog(genkit.registry, 'my-catalog');
       expect(resolved.id, 'my-catalog');
     });
