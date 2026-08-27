@@ -458,17 +458,15 @@ String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
 
   void flushSurface() {
     if (pendingSurface.isEmpty) return;
-    // Rewrite concrete surface ids back to the placeholder the model originally
-    // wrote (the middleware swapped in a real id on the way out). Replaying the
-    // real id would let the model copy it into a fresh `createSurface`, and the
-    // parser passes an explicit pre-existing id through unchanged - so a brand
-    // new answer would reuse (and overwrite, in place) the prior surface instead
-    // of rendering a new one. Using the placeholder makes the parser mint a
-    // fresh id per turn, so each turn is a distinct surface.
-    final placeheld = pendingSurface
-        .map(_withPlaceholderSurfaceId)
-        .toList(growable: false);
-    out.add('```a2ui\n${JsonEncoder.withIndent('  ').convert(placeheld)}\n```');
+    // Keep the real surface ids verbatim. The model may not reuse them for a
+    // NEW surface: the parser forces a fresh id onto every `createSurface`
+    // block (see `_finalizeBlock`), so a copied id can't overwrite a prior
+    // surface. Keeping the real ids lets the model correlate a replayed action
+    // (`[UI action ... on surface <id>]`) with the surface it targeted - which
+    // matters when several surfaces are on screen at once.
+    out.add(
+      '```a2ui\n${JsonEncoder.withIndent('  ').convert(pendingSurface)}\n```',
+    );
     pendingSurface.clear();
   }
 
@@ -495,32 +493,9 @@ String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
   return out.join('\n');
 }
 
-/// Returns a copy of [env] with any concrete `surfaceId` replaced by the
-/// [surfaceIdPlaceholder]. Used when reconstructing prior surfaces for history
-/// so a replayed surface reads exactly as the model first wrote it (with the
-/// placeholder), and the parser mints a fresh id for it on the next turn rather
-/// than the model copying a real id and reusing the old surface.
-A2uiEnvelope _withPlaceholderSurfaceId(A2uiEnvelope env) {
-  final copy = <String, dynamic>{...env};
-  for (final key in const [
-    'createSurface',
-    'updateComponents',
-    'updateDataModel',
-    'deleteSurface',
-  ]) {
-    final payload = copy[key];
-    if (payload is Map && payload['surfaceId'] is String) {
-      copy[key] = <String, dynamic>{
-        ...payload.cast<String, dynamic>(),
-        'surfaceId': surfaceIdPlaceholder,
-      };
-    }
-  }
-  return copy;
-}
-
 /// Wraps a surface-id factory so a single model turn's streamed parse and its
 /// final-message parse mint the *same* surface ids.
+
 class _ReplayableSurfaceIds {
   final String Function() _base;
   final List<String> _generated = [];

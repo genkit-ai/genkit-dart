@@ -272,7 +272,18 @@ class A2uiStreamParser {
 
     final hasCreate = out.any((e) => e['createSurface'] != null);
     if (hasCreate) {
-      // A full-surface render. Enforce the "must contain a root" protocol rule.
+      // A full-surface render. `createSurface` means "new surface" by
+      // definition, so the id the model wrote is never authoritative - force
+      // every envelope in this block onto the freshly-minted [surface] id, even
+      // if the model copied a real id from replayed history (which would
+      // otherwise reuse and overwrite that prior surface in place). This is the
+      // single chokepoint that guarantees a distinct surface per render, so
+      // history can keep real ids verbatim (needed to correlate actions with
+      // their surface) without risking id reuse.
+      for (final e in out) {
+        _forceSurfaceId(e, surface);
+      }
+      // Enforce the "must contain a root" protocol rule.
       final err = _validateRoot(out);
       if (err != null) return _reject(err);
       return out;
@@ -310,6 +321,24 @@ class A2uiStreamParser {
       });
     }
     return out;
+  }
+
+  /// Overwrites the `surfaceId` of whichever payload [env] carries with
+  /// [surface], unconditionally (unlike the placeholder-only swap in
+  /// [_normalizeEnvelope]). Used to force every envelope in a
+  /// `createSurface`-bearing block onto a single freshly-minted id.
+  void _forceSurfaceId(A2uiEnvelope env, String surface) {
+    for (final key in const [
+      'createSurface',
+      'updateComponents',
+      'updateDataModel',
+      'deleteSurface',
+    ]) {
+      final payload = env[key];
+      if (payload is Map) {
+        (payload as Map<String, dynamic>)['surfaceId'] = surface;
+      }
+    }
   }
 
   /// Validates a single envelope, substitutes the real surface id for the
