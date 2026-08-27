@@ -35,7 +35,18 @@ import 'src/core/action.dart';
 import 'src/core/registry.dart';
 import 'src/types.dart';
 
+export 'src/ai/generate_types.dart'
+    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
 export 'src/ai/remote_model.dart' show remoteModel;
+export 'src/ai/tool.dart'
+    show
+        Interrupt,
+        Tool,
+        ToolFn,
+        ToolFnArgs,
+        ToolInterruptResult,
+        ToolResponseResult,
+        ToolResult;
 export 'src/schema_extensions.dart';
 export 'src/types.dart';
 

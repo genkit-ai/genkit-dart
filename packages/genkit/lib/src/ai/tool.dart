@@ -230,3 +230,77 @@ class Tool<Input, Output>
   @override
   SchemanticType? get manifestOutputSchema => toolOutputSchema;
 }
+
+/// A special kind of [Tool] that always interrupts the generation loop.
+///
+/// Interrupts make it simpler to implement "human-in-the-loop" and
+/// out-of-band processing patterns that require waiting on external actions
+/// to complete. When the model calls an interrupt, the tool request bubbles
+/// back to the caller (with `finishReason == interrupted`) instead of
+/// executing any logic. You can then resume generation on a follow-up
+/// `generate` call by supplying `interruptRespond` to provide an answer.
+///
+/// A pure interrupt can only be responded to, never restarted: its body always
+/// interrupts, so restarting it (via `interruptRestart`) would just interrupt
+/// again, forever. That is why its `tool` metadata carries `restartable: false`.
+/// If you need a tool that interrupts once and then runs to completion when
+/// resumed, use a regular [Tool] whose function returns `.interrupt(...)`
+/// conditionally (for example, based on `ctx.resumed`).
+///
+/// This is the unregistered constructor form (the analog of [Tool]); it can be
+/// passed directly to `generate`/`generateStream` via the `tools:` parameter,
+/// including with the lightweight `lite.dart` API. To define and register an
+/// interrupt on a full `Genkit` instance, use `defineInterrupt`.
+///
+/// Example:
+/// ```dart
+/// final confirm = Interrupt<Map<String, dynamic>, String>(
+///   name: 'confirmAction',
+///   description: 'Asks the user to confirm before proceeding.',
+///   inputSchema: SchemanticType.map(
+///     SchemanticType.string(),
+///     SchemanticType.dynamicSchema(),
+///   ),
+/// );
+/// ```
+final class Interrupt<Input, Output> extends Tool<Input, Output> {
+  // Uses an explicit super call (not super parameters) because the base `fn`
+  // and `metadata` are synthesized here, which is incompatible with
+  // super-parameter forwarding.
+  // ignore: use_super_parameters
+  Interrupt({
+    required String name,
+    required String description,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    Map<String, dynamic>? metadata,
+
+    /// Optional data attached to the `interrupt` metadata of the generated tool
+    /// request. Receives the tool input and may return a value or a future.
+    /// When omitted, the interrupt metadata defaults to `true`.
+    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    requestMetadata,
+  }) : super(
+         name: name,
+         description: description,
+         inputSchema: inputSchema,
+         toolOutputSchema: outputSchema,
+         metadata: {
+           ...?metadata,
+           'tool': {
+             // `metadata['tool']` is user-supplied; only spread it when it is
+             // actually a map (it may be absent, a `Map<dynamic, dynamic>` from
+             // a literal, or an unrelated value), otherwise ignore it.
+             if (metadata?['tool'] is Map)
+               ...(metadata!['tool'] as Map).cast<String, dynamic>(),
+             'restartable': false,
+           },
+         },
+         fn: (input, ctx) async {
+           final data = requestMetadata == null
+               ? null
+               : await requestMetadata(input, ctx);
+           return ToolResult.interrupt(data);
+         },
+       );
+}

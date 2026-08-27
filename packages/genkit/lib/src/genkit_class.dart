@@ -220,7 +220,7 @@ final class Genkit extends GenkitAI {
   ///   ),
   /// );
   /// ```
-  Tool<Input, Output> defineInterrupt<Input, Output>({
+  Interrupt<Input, Output> defineInterrupt<Input, Output>({
     required String name,
     required String description,
     SchemanticType<Input>? inputSchema,
@@ -233,31 +233,16 @@ final class Genkit extends GenkitAI {
     FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
     requestMetadata,
   }) {
-    final tool = Tool<Input, Output>(
+    final interrupt = Interrupt<Input, Output>(
       name: name,
       description: description,
       inputSchema: inputSchema,
-      toolOutputSchema: outputSchema,
-      metadata: {
-        ...?metadata,
-        'tool': {
-          // `metadata['tool']` is user-supplied; only spread it when it is
-          // actually a map (it may be absent, a `Map<dynamic, dynamic>` from a
-          // literal, or an unrelated value), otherwise ignore it.
-          if (metadata?['tool'] is Map)
-            ...(metadata!['tool'] as Map).cast<String, dynamic>(),
-          'restartable': false,
-        },
-      },
-      fn: (input, ctx) async {
-        final data = requestMetadata == null
-            ? null
-            : await requestMetadata(input, ctx);
-        return ToolResult.interrupt(data);
-      },
+      outputSchema: outputSchema,
+      metadata: metadata,
+      requestMetadata: requestMetadata,
     );
-    registry.register(tool);
-    return tool;
+    registry.register(interrupt);
+    return interrupt;
   }
 
   /// Defines an executable prompt with Handlebars template support.
