@@ -434,46 +434,87 @@ List<Part> _partsFromSegments(List<ParseSegment> segments) {
   return out;
 }
 
-/// Summarizes a list of a2ui envelopes / actions into a short text string.
+/// Converts a list of a2ui envelopes from an inbound message part back into
+/// model-readable text - the inverse of the outbound block-to-part transform.
+///
+/// The two envelope kinds are handled differently on purpose:
+///
+/// - Assistant-authored surface envelopes (`createSurface`, `updateComponents`,
+///   `updateDataModel`, `deleteSurface`) are reconstructed as the canonical
+///   `a2ui` fenced block the model originally emitted. Replaying a prior turn's
+///   surface as history therefore shows the model its own UI output in the exact
+///   format it is asked to produce, reinforcing correct behavior. (Summarizing
+///   it to a sentinel like `[rendered UI surface]` instead taught the model to
+///   emit that literal string in place of a real block.)
+/// - Client-synthesized `action` envelopes never had a block form, so they
+///   become a short text summary the model can reason about.
+///
+/// Consecutive surface envelopes are grouped into a single block (one surface is
+/// usually several envelopes: create + update(s)). Unknown envelope shapes are
+/// dropped; the caller keeps the message non-empty when everything drops.
 String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
-  final lines = <String>[];
+  final out = <String>[];
+  final pendingSurface = <A2uiEnvelope>[];
+
+  void flushSurface() {
+    if (pendingSurface.isEmpty) return;
+    // Rewrite concrete surface ids back to the placeholder the model originally
+    // wrote (the middleware swapped in a real id on the way out). Replaying the
+    // real id would let the model copy it into a fresh `createSurface`, and the
+    // parser passes an explicit pre-existing id through unchanged - so a brand
+    // new answer would reuse (and overwrite, in place) the prior surface instead
+    // of rendering a new one. Using the placeholder makes the parser mint a
+    // fresh id per turn, so each turn is a distinct surface.
+    final placeheld = pendingSurface
+        .map(_withPlaceholderSurfaceId)
+        .toList(growable: false);
+    out.add('```a2ui\n${JsonEncoder.withIndent('  ').convert(placeheld)}\n```');
+    pendingSurface.clear();
+  }
+
   for (final env in envelopes) {
     final action = env['action'];
     if (action is Map) {
+      // Emit any buffered surface block before the action, preserving order.
+      flushSurface();
       final name = action['name'];
       final surfaceId = action['surfaceId'];
       final context = action['context'];
       final ctx = (context is Map && context.isNotEmpty)
           ? ' context=${jsonEncode(context)}'
           : '';
-      lines.add('[UI action "$name" on surface $surfaceId$ctx]');
-    } else if (env['createSurface'] is Map) {
-      final surfaceId = (env['createSurface'] as Map)['surfaceId'];
-      lines.add('[UI surface $surfaceId created]');
-    } else if (env['updateComponents'] != null ||
+      out.add('[UI action "$name" on surface $surfaceId$ctx]');
+    } else if (env['createSurface'] != null ||
+        env['updateComponents'] != null ||
         env['updateDataModel'] != null ||
         env['deleteSurface'] != null) {
-      // Prior assistant surface content - summarize as a rendered surface.
-      lines.add(_renderedSurfaceLine);
+      pendingSurface.add(env);
     }
   }
-  // Collapse consecutive "[rendered UI surface]" sentinels (a single surface is
-  // often described by several envelopes) without deduping distinct action
-  // lines - two identical actions in one message are meaningfully distinct.
-  final collapsed = <String>[];
-  for (final line in lines) {
-    if (line == _renderedSurfaceLine &&
-        collapsed.isNotEmpty &&
-        collapsed.last == _renderedSurfaceLine) {
-      continue;
-    }
-    collapsed.add(line);
-  }
-  return collapsed.join(' ');
+  flushSurface();
+  return out.join('\n');
 }
 
-/// Sentinel summary line for a rendered (non-action) a2ui surface.
-const String _renderedSurfaceLine = '[rendered UI surface]';
+/// Returns a copy of [env] with any concrete `surfaceId` replaced by the
+/// [surfaceIdPlaceholder]. Used when reconstructing prior surfaces for history
+/// so a replayed surface reads exactly as the model first wrote it (with the
+/// placeholder), and the parser mints a fresh id for it on the next turn rather
+/// than the model copying a real id and reusing the old surface.
+A2uiEnvelope _withPlaceholderSurfaceId(A2uiEnvelope env) {
+  final copy = <String, dynamic>{...env};
+  for (final key in const [
+    'createSurface',
+    'updateComponents',
+    'updateDataModel',
+    'deleteSurface',
+  ]) {
+    final payload = copy[key];
+    if (payload is Map && payload['surfaceId'] is String) {
+      copy[key] = {...payload, 'surfaceId': surfaceIdPlaceholder};
+    }
+  }
+  return copy;
+}
 
 /// Wraps a surface-id factory so a single model turn's streamed parse and its
 /// final-message parse mint the *same* surface ids.
