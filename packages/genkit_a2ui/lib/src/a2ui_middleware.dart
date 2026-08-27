@@ -510,7 +510,10 @@ A2uiEnvelope _withPlaceholderSurfaceId(A2uiEnvelope env) {
   ]) {
     final payload = copy[key];
     if (payload is Map && payload['surfaceId'] is String) {
-      copy[key] = {...payload, 'surfaceId': surfaceIdPlaceholder};
+      copy[key] = <String, dynamic>{
+        ...payload.cast<String, dynamic>(),
+        'surfaceId': surfaceIdPlaceholder,
+      };
     }
   }
   return copy;
