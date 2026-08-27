@@ -26,6 +26,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:genkit/genkit.dart';
 import 'package:genkit/plugin.dart';
 
 import 'catalog.dart';
@@ -36,7 +37,7 @@ import 'catalog.dart';
 /// Returns the registered catalog (with its `id` set to the catalog's own id if
 /// present, otherwise the given [id]).
 Future<A2uiCatalog> loadCatalog(
-  Registry registry, {
+  Genkit ai, {
   required String id,
   A2uiCatalog? catalog,
   String? file,
@@ -60,7 +61,7 @@ Future<A2uiCatalog> loadCatalog(
     id: resolved.id.isNotEmpty ? resolved.id : id,
     components: resolved.components,
   );
-  registry.registerValue(a2uiCatalogValueType, id, registered);
+  ai.registry.registerValue(a2uiCatalogValueType, id, registered);
   return registered;
 }
 
@@ -96,7 +97,7 @@ A2uiCatalog resolveCatalog(Registry registry, String id) {
   if (id == defaultCatalogId) return basicCatalog;
   throw StateError(
     'a2ui(): no catalog registered under id "$id". '
-    'Register one with loadCatalog(registry, id: "$id", catalog: ...) or use '
+    'Register one with loadCatalog(ai, id: "$id", catalog: ...) or use '
     'the default "$defaultCatalogId" catalog.',
   );
 }

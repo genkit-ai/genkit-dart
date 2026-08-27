@@ -96,7 +96,7 @@ void main() {
 
     test('resolves a custom catalog registered by id', () async {
       await loadCatalog(
-        genkit.registry,
+        genkit,
         id: 'my-catalog',
         catalog: const A2uiCatalog(
           id: 'my-catalog',

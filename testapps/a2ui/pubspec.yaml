@@ -12,6 +12,10 @@ dependencies:
     sdk: flutter
   a2ui_core: ^0.1.0
   genui: ^0.10.1
+  # Used by the custom `Gauge` catalog item (lib/gauge.dart) to build its prop
+  # schema with `S`/`Schema`. genui depends on the same package.
+  json_schema_builder: ^0.1.3
+
   genkit:
     path: ../../packages/genkit
   genkit_a2ui:
@@ -20,6 +24,8 @@ dependencies:
     path: ../../packages/genkit_google_genai
   genkit_shelf:
     path: ../../packages/genkit_shelf
+  genkit_middleware:
+    path: ../../packages/genkit_middleware
   schemantic:
     path: ../../packages/schemantic
   shelf: ^1.4.0
@@ -35,6 +41,8 @@ dependency_overrides:
     path: ../../packages/genkit_google_genai
   genkit_shelf:
     path: ../../packages/genkit_shelf
+  genkit_middleware:
+    path: ../../packages/genkit_middleware
   schemantic:
     path: ../../packages/schemantic
   schemantic_builder:

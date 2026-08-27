@@ -51,14 +51,14 @@ base class A2uiOptions {
 
   /// The id of the catalog describing what the agent may render. Defaults to
   /// `'basic'` (the bundled basic catalog). Register additional catalogs with
-  /// `loadCatalog(registry, id: ..., catalog: ...)` and reference them by id.
+  /// `loadCatalog(ai, id: ..., catalog: ...)` and reference them by id.
   String? get catalog {
     return _json['catalog'] as String?;
   }
 
   /// The id of the catalog describing what the agent may render. Defaults to
   /// `'basic'` (the bundled basic catalog). Register additional catalogs with
-  /// `loadCatalog(registry, id: ..., catalog: ...)` and reference them by id.
+  /// `loadCatalog(ai, id: ..., catalog: ...)` and reference them by id.
   set catalog(String? value) {
     if (value == null) {
       _json.remove('catalog');
