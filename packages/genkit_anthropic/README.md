@@ -122,3 +122,36 @@ final response = await ai.generate(
 final person = response.output; // Typed Person object
 print('Name: ${person.name}, Age: ${person.age}');
 ```
+
+Models on Anthropic's Structured Outputs list are sent the schema natively, so
+structured output composes with extended thinking. Other models fall back to a
+tool the model is forced to call; that fallback cannot be combined with manual
+thinking, and the plugin reports an `INVALID_ARGUMENT` error rather than letting
+the API reject the request.
+
+### Stable and beta APIs
+
+Requests go to Anthropic's stable API by default. Set `apiVersion` to `'beta'`
+to reach beta-gated features, either for a single request or for every request:
+
+```dart
+// Per request.
+final response = await ai.generate(
+  model: anthropic.model('claude-sonnet-4-5'),
+  prompt: 'Hello',
+  config: AnthropicOptions(apiVersion: 'beta'),
+);
+
+// Or as the plugin-wide default; a request's own apiVersion still wins.
+final ai = Genkit(plugins: [anthropic(apiVersion: 'beta')]);
+```
+
+Beta requests send a curated `anthropic-beta` feature list. To opt into a beta
+the plugin does not know about yet, set `betas` to replace that list:
+
+```dart
+config: AnthropicOptions(
+  apiVersion: 'beta',
+  betas: ['some-new-beta-2026-01-01'],
+),
+```
