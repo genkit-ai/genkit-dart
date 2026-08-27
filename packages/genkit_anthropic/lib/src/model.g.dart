@@ -30,6 +30,8 @@ base class AnthropicOptions {
 
   AnthropicOptions({
     String? apiKey,
+    String? apiVersion,
+    List<String>? betas,
     int? maxTokens,
     double? temperature,
     double? topP,
@@ -40,6 +42,8 @@ base class AnthropicOptions {
   }) {
     _json = {
       'apiKey': ?apiKey,
+      'apiVersion': ?apiVersion,
+      'betas': ?betas,
       'maxTokens': ?maxTokens,
       'temperature': ?temperature,
       'topP': ?topP,
@@ -67,6 +71,40 @@ base class AnthropicOptions {
       _json.remove('apiKey');
     } else {
       _json['apiKey'] = value;
+    }
+  }
+
+  String? get apiVersion {
+    return _json['apiVersion'] as String?;
+  }
+
+  set apiVersion(String? value) {
+    if (value == null) {
+      _json.remove('apiVersion');
+    } else {
+      _json['apiVersion'] = value;
+    }
+  }
+
+  /// Beta feature names sent in the `anthropic-beta` header.
+  ///
+  /// Only used when the request resolves to the beta API. Replaces the
+  /// plugin's curated default list rather than adding to it, so a new beta can
+  /// be opted into without waiting for a plugin release.
+  List<String>? get betas {
+    return (_json['betas'] as List?)?.cast<String>();
+  }
+
+  /// Beta feature names sent in the `anthropic-beta` header.
+  ///
+  /// Only used when the request resolves to the beta API. Replaces the
+  /// plugin's curated default list rather than adding to it, so a new beta can
+  /// be opted into without waiting for a plugin release.
+  set betas(List<String>? value) {
+    if (value == null) {
+      _json.remove('betas');
+    } else {
+      _json['betas'] = value;
     }
   }
 
@@ -193,6 +231,12 @@ base class _AnthropicOptionsTypeFactory
         .object(
           properties: {
             'apiKey': $Schema.string(),
+            'apiVersion': $Schema.string(
+              description:
+                  'Which Anthropic API surface to use for this request. The beta surface also serves every stable feature. Overrides the plugin-level default, which is "stable".',
+              enumValues: ['stable', 'beta'],
+            ),
+            'betas': $Schema.list(items: $Schema.string()),
             'maxTokens': $Schema.integer(
               description:
                   'The maximum number of tokens to generate before stopping.',
