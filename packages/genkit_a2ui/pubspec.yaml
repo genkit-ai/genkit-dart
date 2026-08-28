@@ -2,7 +2,7 @@ name: genkit_a2ui
 description: >-
   A2UI (Agent-to-UI) streaming UI protocol support for Genkit Dart, provided as
   model middleware.
-version: 0.0.1
+version: 0.2.0
 resolution: workspace
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
