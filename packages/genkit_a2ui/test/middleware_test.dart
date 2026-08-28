@@ -476,7 +476,7 @@ void main() {
       // the reconstructed surface block and the action line (correlation).
       final modelMsg = seen!.messages.firstWhere((m) => m.role == Role.model);
       final modelText = modelMsg.content.map((p) => p.text ?? '').join('\n');
-      expect(modelText, contains('"surfaceId": "s1"'));
+      expect(modelText, contains('"surfaceId":"s1"'));
       final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
       final userText = userMsg.content.map((p) => p.text ?? '').join('\n');
       expect(userText, contains('on surface s1'));

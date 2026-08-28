@@ -464,9 +464,17 @@ String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
     // surface. Keeping the real ids lets the model correlate a replayed action
     // (`[UI action ... on surface <id>]`) with the surface it targeted - which
     // matters when several surfaces are on screen at once.
-    out.add(
-      '```a2ui\n${JsonEncoder.withIndent('  ').convert(pendingSurface)}\n```',
-    );
+    //
+    // Encode compactly (not pretty-printed): fewer tokens, and it collapses the
+    // payload to a single line so the block is exactly three lines (open fence,
+    // JSON, close fence). Because JSON escapes any newline inside a string as
+    // `\n`, an A2UI `Text` value containing a fenced code sample can't put a
+    // literal ``` at the start of a line, so it can never prematurely close this
+    // block (the parser's close fence is line-anchored). The block text can
+    // still contain ``` characters mid-line; a fully robust emitter would use a
+    // variable-length fence, but that also requires the parser's fixed
+    // three-backtick open fence to become count-aware, so it is deferred.
+    out.add('```a2ui\n${jsonEncode(pendingSurface)}\n```');
     pendingSurface.clear();
   }
 
