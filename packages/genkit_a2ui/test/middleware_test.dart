@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:logging/logging.dart';
@@ -300,6 +302,227 @@ void main() {
       final joined = userMsg.content.map((p) => p.text ?? '').join(' ');
       expect(joined, contains('UI action "refresh"'));
       expect(joined, contains('Tokyo'));
+    });
+
+    test('replays a prior assistant surface as a fenced a2ui block, not a '
+        'sentinel', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_replay', 'ok', onRequest: (r) => seen = r);
+
+      // A prior assistant turn that rendered a surface: create + update.
+      final surfacePart = DataPart(
+        data: {
+          'envelopes': [
+            {
+              'createSurface': {
+                'surfaceId': 's1',
+                'catalogId': basicCatalog.id,
+              },
+              'version': 'v0.9',
+            },
+            {
+              'updateComponents': {
+                'surfaceId': 's1',
+                'components': [
+                  {'id': 'root', 'component': 'Text', 'text': 'hi'},
+                ],
+              },
+              'version': 'v0.9',
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+
+      await genkit.generate(
+        model: modelRef('m_replay'),
+        messages: [
+          Message(
+            role: Role.model,
+            content: [
+              TextPart(text: 'Here you go:'),
+              surfacePart,
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'thanks')],
+          ),
+        ],
+        use: [a2ui()],
+      );
+
+      final modelMsg = seen!.messages.firstWhere((m) => m.role == Role.model);
+      // The a2ui part is gone (the model converter never sees the mime type)...
+      expect(modelMsg.content.any(isA2uiPart), isFalse);
+      final joined = modelMsg.content.map((p) => p.text ?? '').join('\n');
+      // ...replaced by the canonical fenced block the model originally emitted,
+      // NOT the old `[rendered UI surface]` sentinel that poisoned the model.
+      expect(joined, isNot(contains('[rendered UI surface]')));
+      expect(joined, isNot(contains('[UI surface')));
+      expect(joined, contains('```a2ui'));
+      expect(joined, contains('createSurface'));
+      expect(joined, contains('updateComponents'));
+      expect(joined, contains('Here you go:'));
+
+      // The reconstructed block round-trips: parsing it yields the envelopes.
+      final block = joined.substring(
+        joined.indexOf('```a2ui') + '```a2ui'.length,
+        joined.lastIndexOf('```'),
+      );
+      final decoded = jsonDecode(block.trim()) as List;
+      expect(decoded.length, 2);
+      expect((decoded[0] as Map)['createSurface'], isNotNull);
+
+      // The real surface id is kept verbatim (NOT scrubbed to a placeholder),
+      // so a replayed action `[UI action ... on surface s1]` can still be
+      // correlated with this surface. Reuse is prevented at the parser instead:
+      // `createSurface` always mints a fresh id (see the distinct-id test).
+      final create = (decoded[0] as Map)['createSurface'] as Map;
+      final update = (decoded[1] as Map)['updateComponents'] as Map;
+      expect(create['surfaceId'], 's1');
+      expect(update['surfaceId'], 's1');
+    });
+
+    test('a new render never reuses a surface id copied from history', () async {
+      // Regression for the "new answer overwrites the prior surface in place"
+      // bug: history keeps real ids (for action correlation), so the model can
+      // copy an old id into a fresh `createSurface`. The parser must still mint
+      // a distinct id for that new render.
+      ModelRequest? seen;
+
+      // A model whose reply copies the prior surface's real id (`s1`) into a
+      // brand-new createSurface - exactly what a model does after seeing `s1`
+      // in replayed history.
+      genkit.defineModel(
+        name: 'm_reuse',
+        fn: (req, ctx) async {
+          seen = req;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                TextPart(
+                  text:
+                      '''Here you go:
+```a2ui
+[
+  { "createSurface": { "surfaceId": "s1", "catalogId": "${basicCatalog.id}" } },
+  { "updateComponents": { "surfaceId": "s1", "components": [
+    { "id": "root", "component": "Text", "text": "new" }
+  ] } }
+]
+```
+''',
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Prior assistant surface `s1` + an action on it, replayed as history.
+      final priorSurface = DataPart(
+        data: {
+          'envelopes': [
+            {
+              'createSurface': {
+                'surfaceId': 's1',
+                'catalogId': basicCatalog.id,
+              },
+            },
+            {
+              'updateComponents': {
+                'surfaceId': 's1',
+                'components': [
+                  {'id': 'root', 'component': 'Text', 'text': 'old'},
+                ],
+              },
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+      final actionOnS1 = DataPart(
+        data: {
+          'envelopes': [
+            {
+              'action': {'name': 'refresh', 'surfaceId': 's1'},
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('m_reuse'),
+        messages: [
+          Message(role: Role.model, content: [priorSurface]),
+          Message(role: Role.user, content: [actionOnS1]),
+        ],
+        use: [a2ui(surfaceId: 'sfc-new')],
+      );
+
+      // The new render is minted onto the fixed id `sfc-new`, NOT the copied
+      // `s1`, so it can't overwrite the prior surface.
+      final envelopes = a2uiEnvelopesFromParts(res.message!.content);
+      final create = envelopes.firstWhere((e) => e['createSurface'] != null);
+      expect((create['createSurface'] as Map)['surfaceId'], 'sfc-new');
+      final update = envelopes.firstWhere((e) => e['updateComponents'] != null);
+      expect((update['updateComponents'] as Map)['surfaceId'], 'sfc-new');
+
+      // Meanwhile, the sanitized history the model saw kept the real id on both
+      // the reconstructed surface block and the action line (correlation).
+      final modelMsg = seen!.messages.firstWhere((m) => m.role == Role.model);
+      final modelText = modelMsg.content.map((p) => p.text ?? '').join('\n');
+      expect(modelText, contains('"surfaceId":"s1"'));
+      final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
+      final userText = userMsg.content.map((p) => p.text ?? '').join('\n');
+      expect(userText, contains('on surface s1'));
+    });
+
+    test('groups consecutive surface envelopes into one block but splits '
+        'around an action', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_mixed', 'ok', onRequest: (r) => seen = r);
+
+      final mixedPart = DataPart(
+        data: {
+          'envelopes': [
+            {
+              'createSurface': {
+                'surfaceId': 's1',
+                'catalogId': basicCatalog.id,
+              },
+            },
+            {
+              'updateComponents': {'surfaceId': 's1', 'components': []},
+            },
+            {
+              'action': {'name': 'refresh', 'surfaceId': 's1'},
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+
+      await genkit.generate(
+        model: modelRef('m_mixed'),
+        messages: [
+          Message(role: Role.user, content: [mixedPart]),
+        ],
+        use: [a2ui()],
+      );
+
+      final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
+      final joined = userMsg.content.map((p) => p.text ?? '').join('\n');
+      // Exactly one fenced block (the two surface envelopes grouped together)...
+      expect('```a2ui'.allMatches(joined).length, 1);
+      // ...plus the action rendered as a text summary after it.
+      expect(joined, contains('UI action "refresh"'));
+      // The block precedes the action line (source order preserved).
+      expect(joined.indexOf('```a2ui'), lessThan(joined.indexOf('UI action')));
     });
 
     test('transforms streamed chunks and mints a matching final id', () async {
