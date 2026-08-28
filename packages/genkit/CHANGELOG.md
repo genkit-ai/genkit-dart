@@ -1,3 +1,19 @@
+## 0.16.0-rc.1
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Features
+
+ - add promptParts parameter to generate functions (#398)
+
+### Fixes
+
+ - register formatters in lite.generate (#377)
+ - sync genkit Dart version constant with pubspec version (#343)
+
+
 ## 0.15.1
 
 ### Fixes

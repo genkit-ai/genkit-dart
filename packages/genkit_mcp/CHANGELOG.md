@@ -1,3 +1,10 @@
+## 0.3.0-rc.1
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+
 ## 0.2.4
 
  - updated internal dependencies.

@@ -1,3 +1,19 @@
+## 0.3.0-rc.1
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Features
+
+ - wire curated Gemini catalog into googleai plugin (#329)
+
+### Fixes
+
+ - drop safety settings with unset category instead of sending UNSPECIFIED (#392)
+ - gate responseJsonSchema on constrained JSON mode (#375)
+
+
 ## 0.2.12
 
 ### Fixes

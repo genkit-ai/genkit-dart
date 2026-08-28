@@ -1,3 +1,21 @@
+## 0.3.0-rc.1
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Features
+
+ - add promptParts parameter to generate functions (#398)
+ - extend curated catalog to the JS/Go union with two-tier capability profiles (#391)
+ - curated known-model metadata for Claude models (#322)
+
+### Fixes
+
+ - handle model-specific thinking defaults (#396)
+ - send PDF media as document blocks, not image/png (#390)
+
+
 ## 0.2.11
 
 ### Fixes
