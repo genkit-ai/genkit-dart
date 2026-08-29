@@ -316,7 +316,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     final newContent = <Part>[];
     for (final part in chunk.content) {
       final text = part.text;
-      if (part.isText && text != null && text != '') {
+      if (part.isText && text != null && text.isNotEmpty) {
         final result = parser.push(text);
         newContent.addAll(_partsFromSegments(result.segments));
       } else {
@@ -359,7 +359,7 @@ class A2uiMiddleware extends GenerateMiddleware {
 
     for (final part in message.content) {
       final text = part.text;
-      if (part.isText && text != null && text != '') {
+      if (part.isText && text != null && text.isNotEmpty) {
         // Push WITHOUT flushing between consecutive text parts so an a2ui block
         // that spans several adjacent text parts is stitched back together. The
         // model's final message is not guaranteed to coalesce adjacent text:
