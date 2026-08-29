@@ -349,19 +349,39 @@ class A2uiMiddleware extends GenerateMiddleware {
       surfaceId: surfaceId,
     );
     final newContent = <Part>[];
-    // Push every text part through the parser first so a block spanning
-    // multiple text parts stays intact, then flush once at the end to drain
-    // any trailing block. Ordering (prose before/after a block) is preserved.
+
+    // Drains whatever the parser is still holding (a withheld prose tail, or an
+    // unterminated trailing block) and appends it. Called at every non-text
+    // boundary and once at the end.
+    void flushHeld() {
+      newContent.addAll(_partsFromSegments(parser.flush().segments));
+    }
+
     for (final part in message.content) {
-      if (part.isText) {
-        final pushed = parser.push(part.text ?? '');
-        newContent.addAll(_partsFromSegments(pushed.segments));
+      final text = part.text;
+      if (part.isText && text != null && text != '') {
+        // Push WITHOUT flushing between consecutive text parts so an a2ui block
+        // that spans several adjacent text parts is stitched back together. The
+        // model's final message is not guaranteed to coalesce adjacent text:
+        // the Gemini plugin, for instance, aggregates a turn into many separate
+        // text parts (fence, JSON body split many ways, close fence, then a
+        // trailing empty-text part carrying the thought signature), so a
+        // per-part flush would reset the parser mid-block and leak the whole
+        // surface back out as raw prose. This mirrors the streaming path, which
+        // shares one parser across all chunks and flushes only once at the end.
+        newContent.addAll(_partsFromSegments(parser.push(text).segments));
       } else {
+        // A non-text part (e.g. a toolRequest) or an empty-text part (e.g. the
+        // trailing thought-signature carrier) is a boundary: flush any held
+        // tail so it lands before this part, preserving order. This is what a
+        // tool-calling turn [text("Checking the weather."), toolRequest] relies
+        // on so the prose is not reordered behind the toolRequest. Then carry
+        // the part through untouched so its metadata survives.
+        flushHeld();
         newContent.add(part);
       }
     }
-    final flushed = parser.flush();
-    newContent.addAll(_partsFromSegments(flushed.segments));
+    flushHeld();
 
     return ModelResponse(
       message: Message(
