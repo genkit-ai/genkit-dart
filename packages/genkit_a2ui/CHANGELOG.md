@@ -1,3 +1,10 @@
+## 0.2.1-rc.2
+
+### Fixes
+
+ - stitch a2ui blocks split across multiple text parts (#404)
+
+
 ## 0.2.1-rc.1
 
 ### Features
