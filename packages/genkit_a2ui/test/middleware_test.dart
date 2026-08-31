@@ -184,6 +184,140 @@ void main() {
       expect((envelopes[0]['createSurface'] as Map)['surfaceId'], 'sfc');
     });
 
+    test('stitches a block split across many final-message text parts', () async {
+      // The aggregated final message is not guaranteed to coalesce adjacent
+      // text: the Gemini plugin splits a turn into many text parts (fence, JSON
+      // body split many ways, close fence, then a trailing empty-text part
+      // carrying the thought signature). _transformResponse must stitch a block
+      // spanning several parts into a single a2ui data part rather than flushing
+      // per part and leaking the whole surface back out as raw prose. The
+      // trailing empty-text part (a boundary) must survive with its metadata.
+      genkit.defineModel(
+        name: 'm_split',
+        fn: (req, ctx) async {
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                TextPart(text: 'Here is the weather:\n\n``'),
+                TextPart(
+                  text: '`a2ui\n[{"createSurface":{"surfaceId":"SURFACE_ID",',
+                ),
+                TextPart(text: '"catalogId":"${basicCatalog.id}"}},'),
+                TextPart(
+                  text: '{"updateComponents":{"surfaceId":"SURFACE_ID",',
+                ),
+                TextPart(
+                  text: '"components":[{"id":"root","component":"Text",',
+                ),
+                TextPart(text: '"text":"hi"}]}}]\n``'),
+                TextPart(text: '`'),
+                // A trailing empty-text part that only carries metadata (e.g. a
+                // thought signature).
+                TextPart(text: '', metadata: {'signature': 'thought-sig-xyz'}),
+              ],
+            ),
+          );
+        },
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('m_split'),
+        system: 'sys',
+        prompt: 'weather',
+        use: [a2ui(surfaceId: 'sfc')],
+      );
+
+      final out = res.message!.content;
+
+      // The block spread over many parts is stitched into exactly two envelopes
+      // on a single a2ui data part.
+      final envelopes = a2uiEnvelopesFromParts(out);
+      expect(envelopes.length, 2);
+      expect((envelopes[0]['createSurface'] as Map)['surfaceId'], 'sfc');
+
+      // No text part should still contain the raw fence: the JSON must have been
+      // parsed out, not leaked back as prose.
+      final joinedText = out
+          .where((p) => p.isText)
+          .map((p) => p.text ?? '')
+          .join();
+      expect(joinedText, isNot(contains('a2ui')));
+      expect(joinedText, isNot(contains('createSurface')));
+
+      // The leading prose survives (the parser may hold back a few chars that
+      // could begin a fence, splitting it across parts, so assert on the join).
+      expect(
+        joinedText,
+        contains('Here is the weather'),
+        reason: 'expected the leading prose to be preserved',
+      );
+
+      // The trailing signature part is carried through untouched.
+      expect(
+        out.any((p) => p.metadata?['signature'] == 'thought-sig-xyz'),
+        isTrue,
+        reason: 'expected the trailing thought-signature part to survive',
+      );
+    });
+
+    test('flushes the held tail before a non-text part in the final '
+        'message', () async {
+      // The parser withholds a prose tail on push (up to a partial opening
+      // fence). A non-text part (here a MediaPart) is a boundary: the held tail
+      // must be flushed BEFORE it so prose is not reordered behind the part.
+      // The trailing text ends in backticks so the parser holds it back,
+      // exercising the boundary flush rather than an end-of-message flush.
+      genkit.defineModel(
+        name: 'm_media_order',
+        fn: (req, ctx) async {
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                TextPart(text: 'Here is an image: ``'),
+                MediaPart(
+                  media: Media(
+                    contentType: 'image/png',
+                    url: 'data:image/png;base64,AAAA',
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('m_media_order'),
+        system: 'sys',
+        prompt: 'image',
+        use: [a2ui()],
+      );
+
+      final out = res.message!.content;
+      final mediaIdx = out.indexWhere((p) => p.isMedia);
+      expect(mediaIdx, isNonNegative);
+
+      // Every text part precedes the media part: the withheld prose tail was
+      // flushed at the boundary, not after the media part.
+      final lastTextIdx = out.lastIndexWhere((p) => p.isText);
+      expect(
+        lastTextIdx,
+        lessThan(mediaIdx),
+        reason: 'prose (incl. the withheld tail) must stay before the media',
+      );
+
+      // The full prose survives intact across the split text parts.
+      final joinedText = out
+          .where((p) => p.isText)
+          .map((p) => p.text ?? '')
+          .join();
+      expect(joinedText, 'Here is an image: ``');
+    });
+
     test('leaves plain prose responses untouched (no a2ui parts)', () async {
       defineReplyModel('m7', 'just chatting');
 
