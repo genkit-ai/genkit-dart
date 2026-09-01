@@ -213,6 +213,47 @@ final response = await ai.generate(
 );
 ```
 
+### Text to Speech
+
+Speech models are referenced with `speechModel()` rather than `model()`, take
+`OpenAISpeechOptions`, and answer with a single audio media part whose `url` is
+a base64 `data:` URL:
+
+```dart
+final response = await ai.generate(
+  model: openAI.speechModel('gpt-4o-mini-tts'),
+  prompt: 'Genkit is an amazing AI framework.',
+  config: OpenAISpeechOptions(
+    voice: 'sage',
+    instructions: 'Speak in a calm, warm tone.',
+  ),
+);
+
+final media = response.media!;            // contentType: audio/mpeg
+final bytes = base64Decode(media.url.split(',').last);
+await File('speech.mp3').writeAsBytes(bytes);
+```
+
+`tts-1` and `tts-1-hd` also accept `speed`. `gpt-4o-mini-tts` rejects it, so the
+plugin drops the field for that model; `instructions` is only honored there.
+
+Speech models are detected by name (`*tts*`). For an OpenAI-compatible provider
+whose speech model is named differently, declare media output when registering
+it and the plugin will route it to `/audio/speech`:
+
+```dart
+openAI(
+  name: 'voicecorp',
+  baseUrl: 'https://api.voicecorp.example/v1',
+  models: [
+    CustomModelDefinition(
+      name: 'voicebox-1',
+      info: ModelInfo(supports: {'output': ['media']}),
+    ),
+  ],
+)
+```
+
 ## Options
 
 The `OpenAIChatOptions` class supports the following options:
@@ -227,6 +268,14 @@ The `OpenAIChatOptions` class supports the following options:
 - `user` (String?) - User identifier for abuse detection
 - `jsonMode` (bool?) - Enable JSON mode
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
+- `version` (String?) - Model version override
+
+The `OpenAISpeechOptions` class supports the following options:
+
+- `voice` (String?) - Voice name, e.g. `'alloy'`, `'sage'`, `'coral'` (defaults to `'alloy'`). Free-form, so new OpenAI voices work without a plugin update
+- `instructions` (String?) - Tone and delivery guidance (`gpt-4o-mini-tts` only)
+- `speed` (double?, 0.25-4.0) - Playback speed (not supported by `gpt-4o-mini-tts`)
+- `responseFormat` (String?, 'mp3'|'opus'|'aac'|'flac'|'wav'|'pcm') - Audio container (defaults to `'mp3'`)
 - `version` (String?) - Model version override
 
 ## Custom Headers

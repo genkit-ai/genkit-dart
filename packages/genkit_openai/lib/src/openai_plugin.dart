@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
+import 'speech.dart' as speech;
 
 /// Core Genkit plugin implementation for OpenAI-compatible APIs.
 ///
@@ -86,7 +89,17 @@ class OpenAIPlugin extends GenkitPlugin {
       try {
         final availableModelIds = await _fetchAvailableModels();
 
+        final registered = <String>{};
+
         for (final modelId in availableModelIds) {
+          if (speech.isSpeechModel(modelId)) {
+            registered.add(modelId);
+            actions.add(
+              _createSpeechModel(modelId, speech.speechModelInfo(modelId)),
+            );
+            continue;
+          }
+
           final modelType = getModelType(modelId);
 
           if (modelType != 'chat' && modelType != 'unknown') {
@@ -95,6 +108,16 @@ class OpenAIPlugin extends GenkitPlugin {
 
           final info = modelInfoFor(modelId);
           actions.add(_createModel(modelId, info));
+        }
+
+        // Speech models are not always advertised by GET /models, so register
+        // the known ones regardless.
+        for (final modelId in speech.knownSpeechModels) {
+          if (registered.add(modelId)) {
+            actions.add(
+              _createSpeechModel(modelId, speech.speechModelInfo(modelId)),
+            );
+          }
         }
       } catch (e) {
         throw GenkitException(
@@ -106,7 +129,12 @@ class OpenAIPlugin extends GenkitPlugin {
 
     // Register custom models
     for (final model in customModels) {
-      actions.add(_createModel(model.name, model.info));
+      if (speech.isSpeechModel(model.name) ||
+          speech.declaresMediaOutput(model.info)) {
+        actions.add(_createSpeechModel(model.name, model.info));
+      } else {
+        actions.add(_createModel(model.name, model.info));
+      }
     }
 
     return actions;
@@ -172,7 +200,15 @@ class OpenAIPlugin extends GenkitPlugin {
       final modelMetadataList =
           <ActionMetadata<dynamic, dynamic, dynamic, dynamic>>[];
 
+      final listed = <String>{};
+
       for (final modelId in modelIds) {
+        if (speech.isSpeechModel(modelId)) {
+          listed.add(modelId);
+          modelMetadataList.add(_speechModelMetadata(modelId));
+          continue;
+        }
+
         final modelType = getModelType(modelId);
         if (modelType != 'chat' && modelType != 'unknown') {
           continue;
@@ -185,6 +221,12 @@ class OpenAIPlugin extends GenkitPlugin {
             customOptions: chat.chatModelOptionsSchema(),
           ),
         );
+      }
+
+      for (final modelId in speech.knownSpeechModels) {
+        if (listed.add(modelId)) {
+          modelMetadataList.add(_speechModelMetadata(modelId));
+        }
       }
 
       return modelMetadataList;
@@ -200,9 +242,33 @@ class OpenAIPlugin extends GenkitPlugin {
   @override
   Action? resolve(ActionType actionType, String name) {
     if (actionType == .model) {
-      return _createModel(name, null);
+      final info = _customModelInfo(name);
+      if (speech.isSpeechModel(name) || speech.declaresMediaOutput(info)) {
+        return _createSpeechModel(name, info);
+      }
+      return _createModel(name, info);
     }
     return null;
+  }
+
+  /// Metadata for [modelName] if the caller registered it as a custom model.
+  ModelInfo? _customModelInfo(String modelName) {
+    for (final model in customModels) {
+      if (model.name == modelName) {
+        return model.info;
+      }
+    }
+    return null;
+  }
+
+  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _speechModelMetadata(
+    String modelId,
+  ) {
+    return modelMetadata(
+      '$_pluginName/$modelId',
+      modelInfo: speech.speechModelInfo(modelId),
+      customOptions: speech.speechModelOptionsSchema(),
+    );
   }
 
   Model _createModel(String modelName, ModelInfo? info) {
@@ -360,6 +426,118 @@ class OpenAIPlugin extends GenkitPlugin {
       raw: response.toJson(),
     );
   }
+
+  /// Builds a text-to-speech model action.
+  ///
+  /// Speech models take the prompt text and return a single audio
+  /// [MediaPart] holding a base64 data URL. Streaming is not supported by the
+  /// `/audio/speech` endpoint, so streaming requests are ignored.
+  Model _createSpeechModel(String modelName, ModelInfo? info) {
+    final modelInfo = info ?? speech.speechModelInfo(modelName);
+
+    return Model(
+      name: '$_pluginName/$modelName',
+      customOptions: speech.speechModelOptionsSchema(),
+      metadata: {'model': modelInfo.toJson()},
+      fn: (req, ctx) async {
+        final modelRequest = req!;
+        final options = speech.parseSpeechModelOptions(modelRequest.config);
+        final input = _speechInputText(modelRequest);
+
+        final resolvedConfig = await _resolveClientConfig();
+        final client = sdk.OpenAIClient.withApiKey(
+          resolvedConfig.apiKey,
+          baseUrl: resolvedConfig.baseUrl,
+          defaultHeaders: resolvedConfig.headers,
+          httpClient: httpClient,
+        );
+
+        try {
+          final format =
+              options.responseFormat ?? speech.defaultSpeechResponseFormat;
+          final resolvedModel = options.version ?? modelName;
+
+          final body = _SpeechRequestBody(
+            model: resolvedModel,
+            input: input,
+            voiceName: options.voice ?? speech.defaultSpeechVoice,
+            instructions: options.instructions,
+            responseFormat: options.responseFormat == null
+                ? null
+                : sdk.SpeechResponseFormat.fromJson(format),
+            // gpt-4o-mini-tts rejects `speed` outright.
+            speed: speech.speechModelRejectsSpeed(resolvedModel)
+                ? null
+                : options.speed,
+          );
+
+          final bytes = await client.audio.speech.create(body);
+          final contentType =
+              speech.speechResponseFormatMediaTypes[format] ?? 'audio/mpeg';
+
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                MediaPart(
+                  media: Media(
+                    contentType: contentType,
+                    url: 'data:$contentType;base64,${base64Encode(bytes)}',
+                  ),
+                ),
+              ],
+            ),
+          );
+        } catch (e, stackTrace) {
+          if (e is GenkitException) {
+            rethrow;
+          }
+
+          StatusCodes? status;
+          String? details;
+
+          if (e is sdk.ApiException) {
+            status = StatusCodes.fromHttpStatus(e.statusCode);
+            details = e.body?.toString();
+          }
+
+          throw GenkitException(
+            'OpenAI API error: $e',
+            status: status,
+            details: details ?? e.toString(),
+            underlyingException: e,
+            stackTrace: stackTrace,
+          );
+        } finally {
+          if (httpClient == null) {
+            client.close();
+          }
+        }
+      },
+    );
+  }
+
+  /// Extracts the text to synthesize: the first message only, matching the
+  /// JS plugin's `toTTSRequest`.
+  String _speechInputText(ModelRequest request) {
+    if (request.messages.isEmpty) {
+      throw GenkitException(
+        'Speech models require a prompt, but no messages were provided.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    final text = request.messages.first.text;
+    if (text.trim().isEmpty) {
+      throw GenkitException(
+        'Speech models require non-empty prompt text.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    return text;
+  }
 }
 
 final class _ResolvedClientConfig {
@@ -372,4 +550,35 @@ final class _ResolvedClientConfig {
     required this.baseUrl,
     required this.headers,
   });
+}
+
+/// Request body for `/audio/speech`.
+///
+/// The SDK's [sdk.SpeechRequest] caps `voice` at six legacy values and has no
+/// `instructions` field, which is the whole point of `gpt-4o-mini-tts`.
+/// The SDK's speech resource only ever calls `toJson()` on the request, so
+/// overriding it here buys full API fidelity while keeping every call on the
+/// SDK's transport (auth, retries, error mapping).
+final class _SpeechRequestBody extends sdk.SpeechRequest {
+  _SpeechRequestBody({
+    required super.model,
+    required super.input,
+    required this.voiceName,
+    this.instructions,
+    super.responseFormat,
+    super.speed,
+  }) : super(voice: sdk.SpeechVoice.alloy); // Placeholder; replaced in toJson.
+
+  /// Free-form voice name, unconstrained by [sdk.SpeechVoice].
+  final String voiceName;
+
+  /// Tone and delivery guidance for `gpt-4o-mini-tts`.
+  final String? instructions;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'voice': voiceName,
+    if (instructions != null) 'instructions': instructions,
+  };
 }
