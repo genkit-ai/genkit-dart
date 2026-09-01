@@ -366,6 +366,175 @@ void main() {
       expect(String.fromCharCodes(bytes.sublist(0, 4)), 'RIFF');
       expect(String.fromCharCodes(bytes.sublist(8, 12)), 'WAVE');
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('speech round trip: tts-1 then whisper-1', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // No audio fixtures live in this repo, so the transcription input is
+      // generated on the fly by the speech model.
+      const sentence = 'The quick brown fox jumps over the lazy dog.';
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final spoken = await ai.generate(
+        model: openAI.speechModel('tts-1'),
+        prompt: sentence,
+        config: OpenAISpeechOptions(voice: 'nova'),
+      );
+      expect(spoken.media, isNotNull);
+
+      final heard = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [MediaPart(media: spoken.media!)],
+        config: OpenAITranscriptionOptions(language: 'en'),
+      );
+
+      expect(heard.text.toLowerCase(), contains('quick brown fox'));
+      expect(heard.text.toLowerCase(), contains('lazy dog'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('whisper-1 translates non-English audio to English', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final spoken = await ai.generate(
+        model: openAI.speechModel('tts-1'),
+        prompt: 'El zorro marron rapido salta sobre el perro perezoso.',
+        config: OpenAISpeechOptions(voice: 'nova'),
+      );
+
+      final translated = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [MediaPart(media: spoken.media!)],
+        config: OpenAITranscriptionOptions(translate: true),
+      );
+
+      expect(translated.text.toLowerCase(), contains('fox'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('srt response format returns subtitle markup', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // The SDK path could not do this at all: its create() always
+      // JSON-decodes the body.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final spoken = await ai.generate(
+        model: openAI.speechModel('tts-1'),
+        prompt: 'Genkit Dart now listens.',
+      );
+
+      final subtitles = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [MediaPart(media: spoken.media!)],
+        config: OpenAITranscriptionOptions(responseFormat: 'srt'),
+      );
+
+      expect(subtitles.text, contains('-->'));
+      expect(subtitles.text.trim(), startsWith('1'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('verbose_json accepts repeated timestamp granularities', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // timestamp_granularities is sent as repeated form fields. No mock can
+      // prove OpenAI accepts that encoding, so it is checked here.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final spoken = await ai.generate(
+        model: openAI.speechModel('tts-1'),
+        prompt: 'Genkit Dart now listens.',
+      );
+
+      final verbose = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [MediaPart(media: spoken.media!)],
+        config: OpenAITranscriptionOptions(
+          responseFormat: 'verbose_json',
+          timestampGranularities: ['word', 'segment'],
+        ),
+      );
+
+      expect(verbose.text.toLowerCase(), contains('listens'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('gpt-4o-transcribe accepts chunking strategy and include', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // chunking_strategy and include[] are encoded by hand as form fields,
+      // the same risk class as timestamp_granularities. Only the live API can
+      // confirm the encoding. This is also the only live coverage of the
+      // gpt-4o-transcribe family, whose constraints differ from whisper-1.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final spoken = await ai.generate(
+        model: openAI.speechModel('tts-1'),
+        prompt: 'Genkit Dart handles long audio.',
+      );
+
+      final heard = await ai.generate(
+        model: openAI.transcriptionModel('gpt-4o-transcribe'),
+        promptParts: [MediaPart(media: spoken.media!)],
+        config: OpenAITranscriptionOptions(
+          chunkingStrategy: 'auto',
+          include: ['logprobs'],
+        ),
+      );
+
+      expect(heard.text.toLowerCase(), contains('long audio'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('an object chunking strategy is accepted', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // The object form is JSON-encoded into the form field; verifies the
+      // server parses it rather than treating it as a literal string.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final spoken = await ai.generate(
+        model: openAI.speechModel('tts-1'),
+        prompt: 'Server side chunking works.',
+      );
+
+      final heard = await ai.generate(
+        model: openAI.transcriptionModel('gpt-4o-mini-transcribe'),
+        promptParts: [MediaPart(media: spoken.media!)],
+        config: OpenAITranscriptionOptions(
+          chunkingStrategy: {
+            'type': 'server_vad',
+            'prefix_padding_ms': 300,
+            'silence_duration_ms': 400,
+            'threshold': 0.5,
+          },
+        ),
+      );
+
+      expect(heard.text.toLowerCase(), contains('chunking'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
 
