@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+ - add text-to-speech support (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`) via `openAI.speechModel()`
+
 ## 0.4.0-rc.2
 
  - updated internal dependencies.
