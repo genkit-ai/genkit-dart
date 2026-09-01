@@ -13,15 +13,8 @@
 // limitations under the License.
 
 import 'dart:io' as io;
-import 'package:opentelemetry/api.dart' as api;
-import 'exporter_impl.dart';
 
-/// Configures the OTLP collector exporter when `GENKIT_TELEMETRY_SERVER` is set
-/// and returns the backing tracer provider (or `null` if not configured).
-api.TracerProvider? configureCollectorExporter() {
-  final telemetryServer = io.Platform.environment['GENKIT_TELEMETRY_SERVER'];
-  if (telemetryServer != null) {
-    return setupExporter(telemetryServer);
-  }
-  return null;
-}
+/// The Genkit telemetry server base URL from `GENKIT_TELEMETRY_SERVER`, or
+/// `null` when it is not set.
+String? genkitTelemetryServerUrl() =>
+    io.Platform.environment['GENKIT_TELEMETRY_SERVER'];

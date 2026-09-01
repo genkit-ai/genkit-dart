@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:opentelemetry/api.dart' as api;
-
-/// No-op on unsupported platforms; always returns `null`.
-api.TracerProvider? configureCollectorExporter() {
-  // Unimplemented
-  return null;
-}
+/// The Genkit telemetry server base URL, or `null` when telemetry is not
+/// configured. No-op on unsupported platforms.
+String? genkitTelemetryServerUrl() => null;

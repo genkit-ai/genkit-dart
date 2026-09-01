@@ -14,9 +14,8 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/telemetry.dart';
-import 'package:opentelemetry/api.dart' as api;
-import 'package:opentelemetry/sdk.dart' as sdk;
 import 'package:test/test.dart';
+
 import '../test_util.dart';
 
 /// A record of a span opened by [_FakeInstrumentation].
@@ -166,31 +165,17 @@ void main() {
     });
   });
 
-  group('OtelInstrumentation with nested spans', () {
-    late sdk.TracerProviderBase provider;
-    late TextExporter exporter;
-    late sdk.SimpleSpanProcessor processor;
+  group('DirectHttpInstrumentation with nested spans', () {
+    late RecordingSpanSink sink;
     late Genkit genkit;
 
     setUp(() {
-      // Set up an in-memory exporter to capture spans.
-      exporter = TextExporter();
-      processor = sdk.SimpleSpanProcessor(exporter);
-      provider = sdk.TracerProviderBase(processors: [processor]);
-      api.registerGlobalTracerProvider(provider);
-
-      // Explicitly enable the built-in OTel instrumentation, routing through the
-      // provider registered above. (`genkitDevInstrumentation()` is only
-      // auto-injected in dev when a collector is configured.)
-      configureInstrumentation(OtelInstrumentation(tracerProvider: provider));
-
+      sink = RecordingSpanSink();
+      configureInstrumentation(DirectHttpInstrumentation(sink));
       genkit = Genkit();
     });
 
-    tearDown(() {
-      resetInstrumentation();
-      provider.shutdown();
-    });
+    tearDown(resetInstrumentation);
 
     test(
       'should create nested spans with correct parent-child relationship',
@@ -211,69 +196,67 @@ void main() {
 
         await parentFlow('World');
 
-        // Force flush to ensure spans are exported.
-        processor.forceFlush();
+        // Two finished spans (each also had a start export).
+        expect(sink.finished.length, 2);
 
-        final spans = exporter.spans;
-        expect(spans.length, 2);
-
-        final parentSpan = spans.firstWhere((s) => s.name == 'parentFlow');
-        final childSpan = spans.firstWhere((s) => s.name == 'childFlow');
+        final parentSpan = sink.byName('parentFlow');
+        final childSpan = sink.byName('childFlow');
 
         // Verify the parent-child relationship.
-        expect(childSpan.parentSpanId, parentSpan.spanContext.spanId);
-        expect(parentSpan.parentSpanId.isValid, isFalse);
+        expect(childSpan.parentSpanId, parentSpan.spanId);
+        expect(parentSpan.parentSpanId, isNull);
 
-        // The span ids surfaced to callers must be real (non-zero). This guards
-        // against the tracer being resolved eagerly against the no-op global
-        // provider before the real SDK provider is registered.
-        expect(
-          parentSpan.spanContext.traceId.toString(),
-          isNot('00000000000000000000000000000000'),
-        );
-        expect(
-          parentSpan.spanContext.spanId.toString(),
-          isNot('0000000000000000'),
-        );
+        // Both spans share the same trace.
+        expect(childSpan.traceId, parentSpan.traceId);
+
+        // The span ids surfaced to callers must be real (non-zero).
+        expect(parentSpan.traceId, isNot('0' * 32));
+        expect(parentSpan.spanId, isNot('0' * 16));
       },
     );
   });
 
-  group('OtelInstrumentation provider routing', () {
-    test('routes spans through the injected tracer provider', () async {
-      // Give the instrumentation an explicit provider and assert spans land
-      // there, proving Genkit routes through the injected provider instance
-      // rather than depending on the global tracer provider.
-      final localExporter = TextExporter();
-      final localProcessor = sdk.SimpleSpanProcessor(localExporter);
-      final localProvider = sdk.TracerProviderBase(
-        processors: [localProcessor],
-      );
-
-      final instrumentation = OtelInstrumentation(
-        tracerProvider: localProvider,
-      );
+  group('DirectHttpInstrumentation span export', () {
+    test('exports the span on start and again on end', () async {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
 
       await instrumentation.runInNewSpan<void>(
         const SpanMetadata(name: 'injected'),
         (_) async {},
       );
 
-      localProcessor.forceFlush();
+      // Two exports: a start snapshot (unfinished) then the finished span.
+      final injected = sink.spans.where((s) => s.name == 'injected').toList();
+      expect(injected.length, 2);
 
-      expect(
-        localExporter.spans.map((s) => s.name),
-        contains('injected'),
-        reason: 'span should be exported via the injected provider',
-      );
-      // The injected provider mints real (non-zero) ids.
-      final span = localExporter.spans.firstWhere((s) => s.name == 'injected');
-      expect(
-        span.spanContext.traceId.toString(),
-        isNot('00000000000000000000000000000000'),
+      final start = injected.first;
+      expect(start.endTimeUnixNano, 0);
+      expect(start.status.code, GenkitStatusCode.unset);
+      expect(start.attributes.containsKey('genkit:output'), isFalse);
+
+      final end = injected.last;
+      expect(end.endTimeUnixNano, greaterThan(0));
+      expect(end.traceId, isNot('0' * 32));
+      expect(end.spanId, isNot('0' * 16));
+      expect(end.status.code, GenkitStatusCode.ok);
+    });
+
+    test('records error status when the operation throws', () async {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
+
+      await expectLater(
+        instrumentation.runInNewSpan<void>(
+          const SpanMetadata(name: 'boom'),
+          (_) async => throw StateError('nope'),
+        ),
+        throwsA(isA<StateError>()),
       );
 
-      localProvider.shutdown();
+      final span = sink.byName('boom');
+      expect(span.status.code, GenkitStatusCode.error);
+      expect(span.status.message, contains('nope'));
     });
   });
 }

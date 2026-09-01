@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'telemetry/telemetry_stub.dart'
-    if (dart.library.io) 'telemetry/telemetry_io.dart'
-    if (dart.library.js_interop) 'telemetry/telemetry_web.dart';
+/// Platform-specific resolution of the Genkit telemetry server URL.
+///
+/// Reads `GENKIT_TELEMETRY_SERVER` from the process environment on IO targets
+/// and from the compile-time environment on web; returns `null` elsewhere.
+library;
+
+export 'telemetry_stub.dart'
+    if (dart.library.io) 'telemetry_io.dart'
+    if (dart.library.js_interop) 'telemetry_web.dart';
