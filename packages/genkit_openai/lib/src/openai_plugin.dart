@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
@@ -26,6 +28,7 @@ import 'embed.dart' as embed;
 import 'known_embedders.dart'
     show compatEmbedderInfo, embedderInfoFor, knownEmbedderModels;
 import 'known_models.dart' show compatModelInfo;
+import 'speech.dart' as speech;
 
 final _logger = Logger('genkit_openai');
 
@@ -109,7 +112,15 @@ class OpenAIPlugin extends GenkitPlugin {
   /// any id, so nothing is lost by staying offline here.
   @override
   Future<List<Action>> init() async => [
-    for (final model in customModels) _createModel(model.name, model.info),
+    for (final model in customModels)
+      // A custom speech model has to be routed here as well as in resolve():
+      // the registry prefers an eager registration, so a name registered as
+      // chat would never reach resolve() to be corrected.
+      if (speech.isSpeechModel(model.name) ||
+          speech.declaresMediaOutput(model.info))
+        _createSpeechModel(model.name, model.info)
+      else
+        _createModel(model.name, model.info),
   ];
 
   /// Fetch available model IDs from OpenAI API
@@ -201,6 +212,7 @@ class OpenAIPlugin extends GenkitPlugin {
   list() async {
     final discovered = <String>{};
     final discoveredEmbedders = <String>{};
+    final discoveredSpeech = <String>{};
 
     // Key resolution is inside the try on purpose: an apiKeyProvider that
     // throws must degrade like any other discovery failure, not take the
@@ -210,6 +222,10 @@ class OpenAIPlugin extends GenkitPlugin {
       final config = await _resolveClientConfigOrNull();
       if (config != null) {
         for (final modelId in await _fetchAvailableModels(config)) {
+          if (speech.isSpeechModel(modelId)) {
+            discoveredSpeech.add(modelId);
+            continue;
+          }
           final modelType = getModelType(modelId);
           if (modelType == 'embedding') {
             discoveredEmbedders.add(modelId);
@@ -239,6 +255,20 @@ class OpenAIPlugin extends GenkitPlugin {
     // host will 404 on. Compat backends are left with whatever `GET /models`
     // reports plus their own `models:`, and - as ever - resolve() still serves
     // any id named explicitly, so nothing becomes unreachable.
+    final infoOverrides = {
+      for (final model in customModels)
+        if (model.info != null) model.name: model.info!,
+    };
+
+    final customSpeech = customModels
+        .where(
+          (m) =>
+              speech.isSpeechModel(m.name) ||
+              speech.declaresMediaOutput(m.info),
+        )
+        .map((m) => m.name)
+        .toSet();
+
     final ids = <String>{
       ...discovered,
       if (baseUrl == null) ...knownChatModels,
@@ -252,10 +282,21 @@ class OpenAIPlugin extends GenkitPlugin {
       if (baseUrl == null) ...knownEmbedderModels,
     };
 
-    final infoOverrides = {
-      for (final model in customModels)
-        if (model.info != null) model.name: model.info!,
+    // The curated speech ids are withheld from a compat host for the same
+    // reason the chat catalog is: `GET /models` rarely lists them, but that is
+    // no reason to offer a Groq-shaped backend three OpenAI ids it will 404 on.
+    final speechIds = <String>{
+      ...discoveredSpeech,
+      if (baseUrl == null) ...speech.knownSpeechModels,
+      ...customSpeech,
     };
+
+    // A model belongs to exactly one listing. Discovery does not know about a
+    // caller's `models:` declaration, so a custom speech model the host also
+    // advertises would otherwise be listed twice - once with the chat options
+    // schema and once with the speech one - and which a consumer saw would
+    // come down to ordering.
+    ids.removeAll(speechIds);
 
     return [
       for (final id in ids)
@@ -264,6 +305,7 @@ class OpenAIPlugin extends GenkitPlugin {
           modelInfo: infoOverrides[id] ?? _infoFor(id),
           customOptions: chat.chatModelOptionsSchema(),
         ),
+      for (final id in speechIds) _speechModelMetadata(id, infoOverrides[id]),
       for (final id in embedderIds) _embedderMetadata(id),
     ];
   }
@@ -315,12 +357,37 @@ class OpenAIPlugin extends GenkitPlugin {
   @override
   Action? resolve(ActionType actionType, String name) {
     if (actionType == .model) {
-      return _createModel(name, null);
+      final info = _customModelInfo(name);
+      if (speech.isSpeechModel(name) || speech.declaresMediaOutput(info)) {
+        return _createSpeechModel(name, info);
+      }
+      return _createModel(name, info);
     }
     if (actionType == .embedder) {
       return _createEmbedder(name);
     }
     return null;
+  }
+
+  /// Metadata for [modelName] if the caller registered it as a custom model.
+  ModelInfo? _customModelInfo(String modelName) {
+    for (final model in customModels) {
+      if (model.name == modelName) {
+        return model.info;
+      }
+    }
+    return null;
+  }
+
+  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _speechModelMetadata(
+    String modelId, [
+    ModelInfo? info,
+  ]) {
+    return modelMetadata(
+      '$_pluginName/$modelId',
+      modelInfo: info ?? speech.speechModelInfo(modelId),
+      customOptions: speech.speechModelOptionsSchema(),
+    );
   }
 
   /// Builds the embedder [embedderName] against `POST /v1/embeddings`.
@@ -552,6 +619,138 @@ class OpenAIPlugin extends GenkitPlugin {
       raw: response.toJson(),
     );
   }
+
+  /// Builds a text-to-speech model action.
+  ///
+  /// Speech models take the prompt text and return a single audio
+  /// [MediaPart] holding a base64 data URL. Streaming is not supported by the
+  /// `/audio/speech` endpoint, so streaming requests are ignored.
+  Model _createSpeechModel(String modelName, ModelInfo? info) {
+    final modelInfo = info ?? speech.speechModelInfo(modelName);
+
+    return Model(
+      name: '$_pluginName/$modelName',
+      customOptions: speech.speechModelOptionsSchema(),
+      metadata: {'model': modelInfo.toJson()},
+      fn: (req, ctx) async {
+        final modelRequest = req!;
+        final options = speech.parseSpeechModelOptions(modelRequest.config);
+        speech.validateSpeechOptions(options);
+        final input = _speechInputText(modelRequest);
+
+        final resolvedConfig = await _resolveClientConfig();
+        final client = sdk.OpenAIClient.withApiKey(
+          resolvedConfig.apiKey,
+          baseUrl: resolvedConfig.baseUrl,
+          defaultHeaders: resolvedConfig.headers,
+          httpClient: httpClient,
+        );
+
+        try {
+          final format =
+              options.responseFormat ?? speech.defaultSpeechResponseFormat;
+          final resolvedModel = options.version ?? modelName;
+
+          final body = _SpeechRequestBody(
+            model: resolvedModel,
+            input: input,
+            voiceName: options.voice ?? speech.defaultSpeechVoice,
+            instructions: options.instructions,
+            responseFormat: options.responseFormat == null
+                ? null
+                : sdk.SpeechResponseFormat.fromJson(format),
+            speed: options.speed,
+          );
+
+          final bytes = await client.audio.speech.create(body);
+          if (bytes.isEmpty) {
+            // Reported as success this would reach the caller as
+            // `data:audio/mpeg;base64,` and be written out as an empty file,
+            // which looks like a bug in their code rather than ours.
+            throw GenkitException(
+              'The speech endpoint returned no audio.',
+              status: StatusCodes.INTERNAL,
+            );
+          }
+          final contentType =
+              speech.speechResponseFormatMediaTypes[format] ?? 'audio/mpeg';
+
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                MediaPart(
+                  media: Media(
+                    contentType: contentType,
+                    url: 'data:$contentType;base64,${base64Encode(bytes)}',
+                  ),
+                ),
+              ],
+            ),
+          );
+        } catch (e, stackTrace) {
+          if (e is GenkitException) {
+            rethrow;
+          }
+
+          StatusCodes? status;
+          String? details;
+
+          if (e is sdk.ApiException) {
+            status = StatusCodes.fromHttpStatus(e.statusCode);
+            details = e.body?.toString();
+          }
+
+          throw GenkitException(
+            'OpenAI API error: $e',
+            status: status,
+            details: details ?? e.toString(),
+            underlyingException: e,
+            stackTrace: stackTrace,
+          );
+        } finally {
+          if (httpClient == null) {
+            client.close();
+          }
+        }
+      },
+    );
+  }
+
+  /// Extracts the text to synthesize: the first message only, matching the
+  /// JS plugin's `toTTSRequest`.
+  String _speechInputText(ModelRequest request) {
+    if (request.messages.isEmpty) {
+      throw GenkitException(
+        'Speech models require a prompt, but no messages were provided.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    // The last non-system message, not the first message. Core appends
+    // `system` ahead of `messages` and `prompt`, so `first` reads the system
+    // instruction aloud and never sees the prompt at all; and in a multi-turn
+    // conversation the newest turn is the one being spoken.
+    final spoken = request.messages.lastWhere(
+      (message) => message.role != Role.system,
+      orElse: () => throw GenkitException(
+        'Speech models require a prompt, but only a system message was '
+        'provided.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      ),
+    );
+
+    final text = spoken.text;
+    if (text.trim().isEmpty) {
+      throw GenkitException(
+        'Speech models require non-empty prompt text.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+
+    return text;
+  }
 }
 
 /// Environment variable consulted for the API key.
@@ -567,4 +766,35 @@ final class _ResolvedClientConfig {
     required this.baseUrl,
     required this.headers,
   });
+}
+
+/// Request body for `/audio/speech`.
+///
+/// The SDK's [sdk.SpeechRequest] caps `voice` at six legacy values and has no
+/// `instructions` field, which is the whole point of `gpt-4o-mini-tts`.
+/// The SDK's speech resource only ever calls `toJson()` on the request, so
+/// overriding it here buys full API fidelity while keeping every call on the
+/// SDK's transport (auth, retries, error mapping).
+final class _SpeechRequestBody extends sdk.SpeechRequest {
+  _SpeechRequestBody({
+    required super.model,
+    required super.input,
+    required this.voiceName,
+    this.instructions,
+    super.responseFormat,
+    super.speed,
+  }) : super(voice: sdk.SpeechVoice.alloy); // Placeholder; replaced in toJson.
+
+  /// Free-form voice name, unconstrained by [sdk.SpeechVoice].
+  final String voiceName;
+
+  /// Tone and delivery guidance for `gpt-4o-mini-tts`.
+  final String? instructions;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'voice': voiceName,
+    if (instructions != null) 'instructions': instructions,
+  };
 }
