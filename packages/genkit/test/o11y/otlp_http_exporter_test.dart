@@ -104,4 +104,47 @@ void main() {
       processor.forceFlush();
     });
   });
+
+  group('setupExporter', () {
+    test('returns a usable provider even when a global provider is already '
+        'registered', () async {
+      // Simulate a user (or other library) owning the global tracer provider.
+      try {
+        api.registerGlobalTracerProvider(
+          sdk.TracerProviderBase(processors: const []),
+        );
+      } catch (_) {
+        // A global provider may already be set from another test in this
+        // isolate; that's fine for the purposes of this test.
+      }
+
+      final posted = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        posted.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return http.Response('', 200);
+      });
+
+      // setupExporter must not throw and must return a provider instance,
+      // even though registering it as the global provider fails.
+      final provider = setupExporter('http://localhost:4318', client: client);
+      expect(provider, isNotNull);
+
+      final tracer = provider!.getTracer('genkit-dart');
+      final span = tracer.startSpan('routed-span');
+      // The provider mints real (non-zero) ids.
+      expect(
+        span.spanContext.traceId.toString(),
+        isNot('00000000000000000000000000000000'),
+      );
+      expect(span.spanContext.spanId.toString(), isNot('0000000000000000'));
+      span.end();
+
+      // The exporter posts asynchronously (fire-and-forget); let the
+      // microtask/event queue drain before asserting.
+      await Future<void>.delayed(Duration.zero);
+
+      // And spans are exported to the configured collector endpoint.
+      expect(posted, isNotEmpty);
+    });
+  });
 }

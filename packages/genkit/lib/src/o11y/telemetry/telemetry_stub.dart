@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-void configureCollectorExporter() {
+import 'package:opentelemetry/api.dart' as api;
+
+/// No-op on unsupported platforms; always returns `null`.
+api.TracerProvider? configureCollectorExporter() {
   // Unimplemented
+  return null;
 }

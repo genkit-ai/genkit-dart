@@ -42,7 +42,10 @@ import 'core/reflection.dart';
 import 'core/registry.dart';
 import 'exception.dart';
 import 'genkit_ai.dart';
-import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
+import 'o11y/instrumentation.dart'
+    show configureInstrumentation, isInstrumentedBy;
+import 'o11y/otel_instrumentation.dart'
+    show OtelInstrumentation, genkitDevInstrumentation;
 import 'types.dart';
 import 'utils.dart' as utils;
 
@@ -77,8 +80,6 @@ final class Genkit extends GenkitAI {
     /// prompt loading.
     String? promptDir = './prompts',
   }) : super(Registry()) {
-    configureCollectorExporter();
-
     // Initialize dotprompt registry with schema resolver wired to the registry
     _dotpromptRegistry = DotpromptRegistry(
       schemaResolver: (name) async {
@@ -102,6 +103,19 @@ final class Genkit extends GenkitAI {
     configureFormats(registry);
 
     if (isDevEnv ?? utils.isDevEnv) {
+      // In the dev environment, auto-inject the built-in OpenTelemetry
+      // instrumentation (unless it is already configured) so the Developer UI
+      // receives traces. The factory wires up the collector exporter and routes
+      // Genkit's spans through its tracer provider; it returns null (and we do
+      // not instrument) when no collector is configured
+      // (`GENKIT_TELEMETRY_SERVER` unset). In production, Genkit is not
+      // instrumented unless the user configures a provider.
+      if (!isInstrumentedBy<OtelInstrumentation>()) {
+        final devInstrumentation = genkitDevInstrumentation();
+        if (devInstrumentation != null) {
+          configureInstrumentation(devInstrumentation);
+        }
+      }
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 

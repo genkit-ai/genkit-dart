@@ -21,18 +21,42 @@ import 'package:opentelemetry/sdk.dart' as sdk;
 
 final _logger = Logger('CollectorHttpExporter');
 
-void setupExporter(String baseUrl) {
+/// Sets up the OTLP collector exporter and returns the backing
+/// [api.TracerProvider], or `null` if setup failed.
+///
+/// The returned provider is what Genkit's own instrumentation should route its
+/// spans through, so that traces reach the collector even if a global tracer
+/// provider was already registered elsewhere.
+///
+/// As a best effort, this also registers the provider as the global tracer
+/// provider so that a user's own OpenTelemetry-API spans flow to the same
+/// collector. If a global provider was already registered, that call fails
+/// harmlessly and we still return our local instance.
+api.TracerProvider? setupExporter(String baseUrl, {http.Client? client}) {
   try {
-    final exporter = CollectorHttpExporter('$baseUrl/api/otlp');
+    final exporter = CollectorHttpExporter('$baseUrl/api/otlp', client: client);
     final processor = RealtimeSpanProcessor(exporter);
     final provider = sdk.TracerProviderBase(processors: [processor]);
-    api.registerGlobalTracerProvider(provider);
+    try {
+      api.registerGlobalTracerProvider(provider);
+    } catch (e, stackTrace) {
+      // A global provider was already registered. Genkit will still route its
+      // own traces through the returned provider instance.
+      _logger.fine(
+        'Global tracer provider already registered; using local instance '
+        'for Genkit traces.',
+        e,
+        stackTrace,
+      );
+    }
+    return provider;
   } catch (e, stackTrace) {
     _logger.warning(
       'Failed to configure telemetry exporter: $e',
       e,
       stackTrace,
     );
+    return null;
   }
 }
 

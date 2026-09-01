@@ -13,110 +13,148 @@
 // limitations under the License.
 
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:opentelemetry/api.dart' as api;
+import 'instrumentation_api.dart';
 
-final _tracer = api.globalTracerProvider.getTracer('genkit-dart');
+export 'instrumentation_api.dart'
+    show Instrumentation, SpanContext, SpanMetadata;
 
-typedef TelemetryContext = ({
-  Map<String, String> attributes,
-  String traceId,
-  String spanId,
-});
+/// Zone key under which the active [SpanContext] is stored while a span runs.
+const _spanContextKey = #genkit.spanContext;
 
-void setCustomMetadataAttributes(Map<String, dynamic> attributes) {
-  final context = Zone.current[#api.context] as api.Context?;
-  if (context != null) {
-    final span = api.spanFromContext(context);
-    attributes.forEach((key, value) {
-      String valueString;
-      try {
-        valueString = value is String ? value : jsonEncode(value);
-      } catch (e) {
-        valueString = 'Error encoding metadata: $e';
-      }
-      span.setAttribute(
-        api.Attribute.fromString('genkit:metadata:$key', valueString),
-      );
-    });
-  }
+/// The ordered list of configured instrumentation providers.
+///
+/// Providers compose as middleware: index 0 is outermost, the wrapped function
+/// is innermost. By default this is empty, meaning Genkit is not instrumented at
+/// all (spans are a no-op and no telemetry backend is touched).
+final List<Instrumentation> _instrumentations = [];
+
+/// Registers an [instrumentation] provider.
+///
+/// May be called multiple times to stack providers; they compose as a chain in
+/// registration order. Configure providers before creating `Genkit`.
+void configureInstrumentation(Instrumentation instrumentation) {
+  _instrumentations.add(instrumentation);
 }
 
+/// Removes all configured instrumentation providers.
+///
+/// Primarily intended for tests and re-initialization.
+void resetInstrumentation() {
+  _instrumentations.clear();
+}
+
+/// Whether any configured provider is of type [T].
+///
+/// Useful to guard against injecting a built-in provider more than once.
+bool isInstrumentedBy<T extends Instrumentation>() {
+  return _instrumentations.any((i) => i is T);
+}
+
+/// Attaches custom metadata to the currently active span, if any.
+///
+/// No-op when running outside an instrumented span.
+void setCustomMetadataAttributes(Map<String, Object?> attributes) {
+  final span = Zone.current[_spanContextKey] as SpanContext?;
+  span?.setMetadata(attributes);
+}
+
+/// Runs [fn] inside a new span, dispatching to all configured
+/// [Instrumentation] providers as a middleware chain.
+///
+/// When no providers are configured, [fn] runs directly with a no-op
+/// [SpanContext] (empty trace/span ids).
 Future<Output> runInNewSpan<Input, Output>(
   String name,
-  Future<Output> Function(TelemetryContext) fn, {
+  Future<Output> Function(SpanContext) fn, {
   String? actionType,
   Input? input,
   Map<String, String>? attributes,
-}) async {
-  final parentContext = Zone.current[#api.context] as api.Context?;
-  final spanAttributes = <api.Attribute>[];
-  spanAttributes.add(api.Attribute.fromString('genkit:name', name));
-  if (actionType != null) {
-    spanAttributes.addAll([
-      api.Attribute.fromString('genkit:type', actionType),
-      // tmp hack...
-      if (actionType == 'flow')
-        api.Attribute.fromString('genkit:metadata:flow:name', name),
-    ]);
+}) {
+  final metadata = SpanMetadata(
+    name: name,
+    actionType: actionType,
+    input: input,
+    attributes: attributes ?? const {},
+  );
+
+  // Snapshot the providers up front so that mutations to [_instrumentations]
+  // (e.g. configureInstrumentation/resetInstrumentation) during asynchronous
+  // gaps cannot cause a RangeError or an inconsistent middleware chain.
+  final instrumentations = List<Instrumentation>.of(_instrumentations);
+  if (instrumentations.isEmpty) {
+    return _runWithSpan(const _NoopSpanContext(), fn);
   }
-  if (input != null) {
-    try {
-      spanAttributes.add(
-        api.Attribute.fromString('genkit:input', jsonEncode(input)),
-      );
-    } catch (e) {
-      spanAttributes.add(
-        api.Attribute.fromString('genkit:input', 'Unable to encode input: $e'),
-      );
+
+  // Collect the per-provider spans while descending the chain, so the composite
+  // span handed to [fn] can fan metadata out to all of them and resolve
+  // trace/span ids from the first provider that supplies them.
+  final spans = <SpanContext>[];
+
+  Future<Output> build(int index) {
+    if (index == instrumentations.length) {
+      return _runWithSpan(_CompositeSpanContext(spans), fn);
+    }
+    return instrumentations[index].runInNewSpan(metadata, (span) {
+      spans.add(span);
+      return build(index + 1);
+    });
+  }
+
+  return build(0);
+}
+
+/// Runs [fn] with [span] recorded in the current zone so that
+/// [setCustomMetadataAttributes] can reach it.
+Future<Output> _runWithSpan<Output>(
+  SpanContext span,
+  Future<Output> Function(SpanContext) fn,
+) {
+  return runZoned(() => fn(span), zoneValues: {_spanContextKey: span});
+}
+
+/// A [SpanContext] used when no instrumentation is configured.
+class _NoopSpanContext implements SpanContext {
+  const _NoopSpanContext();
+
+  @override
+  String get traceId => '';
+
+  @override
+  String get spanId => '';
+
+  @override
+  void setMetadata(Map<String, Object?> metadata) {}
+}
+
+/// A [SpanContext] that fans out to every provider's span.
+///
+/// [traceId] and [spanId] resolve to the first non-empty value across the
+/// underlying spans, so a real backend (e.g. the dev OTel provider) surfaces
+/// usable ids even when combined with backends that do not expose them.
+class _CompositeSpanContext implements SpanContext {
+  final List<SpanContext> _spans;
+
+  _CompositeSpanContext(this._spans);
+
+  @override
+  String get traceId => _firstNonEmpty((s) => s.traceId);
+
+  @override
+  String get spanId => _firstNonEmpty((s) => s.spanId);
+
+  @override
+  void setMetadata(Map<String, Object?> metadata) {
+    for (final span in _spans) {
+      span.setMetadata(metadata);
     }
   }
-  attributes?.forEach((key, value) {
-    spanAttributes.add(api.Attribute.fromString(key, value));
-  });
-  final span = parentContext == null
-      ? _tracer.startSpan(name, attributes: spanAttributes)
-      : _tracer.startSpan(
-          name,
-          context: parentContext,
-          attributes: spanAttributes,
-        );
-  return runZoned(
-    () async {
-      try {
-        final telemetryContext = (
-          attributes: <String, String>{},
-          traceId: span.spanContext.traceId.toString(),
-          spanId: span.spanContext.spanId.toString(),
-        );
-        final output = await fn(telemetryContext);
-        telemetryContext.attributes.forEach((key, value) {
-          span.setAttribute(api.Attribute.fromString(key, value));
-        });
-        try {
-          span.setAttribute(
-            api.Attribute.fromString('genkit:output', jsonEncode(output)),
-          );
-        } catch (e) {
-          // Ignore json encoding errors for output
-          span.setAttribute(
-            api.Attribute.fromString(
-              'genkit:output',
-              'Unable to encode output: $e',
-            ),
-          );
-        }
-        return output;
-      } catch (e, s) {
-        span
-          ..setStatus(api.StatusCode.error, e.toString())
-          ..recordException(e, stackTrace: s);
-        rethrow;
-      } finally {
-        span.end();
-      }
-    },
-    zoneValues: {#api.context: api.contextWithSpan(api.Context.current, span)},
-  );
+
+  String _firstNonEmpty(String Function(SpanContext) get) {
+    for (final span in _spans) {
+      final value = get(span);
+      if (value.isNotEmpty) return value;
+    }
+    return '';
+  }
 }
