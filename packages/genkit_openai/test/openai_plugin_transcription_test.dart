@@ -431,6 +431,36 @@ void main() {
       await ai.shutdown();
     });
 
+    test('a custom content-type cannot break the multipart boundary', () async {
+      // MultipartRequest.finalize() sets content-type (with the boundary)
+      // after any headers we add, and BaseRequest.headers is case-insensitive,
+      // so a plugin-level content-type is replaced rather than honored.
+      final captured = <CapturedUpload>[];
+      final ai = Genkit(
+        plugins: [
+          openAI(
+            apiKey: 'test-key',
+            headers: {'Content-Type': 'application/json'},
+            httpClient: transcriptionWireClient(captured),
+          ),
+        ],
+      );
+
+      await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [audioPart()],
+      );
+
+      final upload = captured.single;
+      expect(upload.headers['content-type'], startsWith('multipart/form-data'));
+      expect(upload.headers['content-type'], contains('boundary='));
+      // The upload still parsed, which it could not have without a boundary.
+      expect(upload.fields['model'], 'whisper-1');
+      expect(upload.filename, 'input.mp3');
+
+      await ai.shutdown();
+    });
+
     test('an async apiKeyProvider is honored', () async {
       final captured = <CapturedUpload>[];
       final ai = Genkit(
