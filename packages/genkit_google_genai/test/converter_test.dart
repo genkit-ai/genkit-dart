@@ -74,6 +74,53 @@ void main() {
         expect(geminiPart.fileData!.mimeType, '');
       },
     );
+
+    test('converts a tool response to a functionResponse', () {
+      final part = ToolResponsePart(
+        toolResponse: ToolResponse(
+          ref: 'ref-1',
+          name: 'getWeather',
+          output: {'temp': 72},
+        ),
+      );
+      final geminiPart = toGeminiPart(part);
+      expect(geminiPart.functionResponse, isNotNull);
+      expect(geminiPart.functionResponse!.name, 'getWeather');
+      expect(geminiPart.functionResponse!.response, {
+        'output': {'temp': 72},
+      });
+      // No multipart content, so no `parts` should be emitted.
+      expect(geminiPart.functionResponse!.toJson().containsKey('parts'), false);
+    });
+
+    test(
+      'maps multipart tool-response content into functionResponse parts',
+      () {
+        final part = ToolResponsePart(
+          toolResponse: ToolResponse(
+            name: 'screenshot',
+            output: {'result': 'captured'},
+            content: [
+              MediaPart(
+                media: Media(
+                  contentType: 'image/png',
+                  url: 'data:image/png;base64,SGVsbG8=',
+                ),
+              ).toJson(),
+            ],
+          ),
+        );
+        final geminiPart = toGeminiPart(part);
+        final fnResponse = geminiPart.functionResponse!;
+        expect(fnResponse.name, 'screenshot');
+        expect(fnResponse.response, {
+          'output': {'result': 'captured'},
+        });
+        final parts = fnResponse.toJson()['parts'] as List;
+        expect(parts, hasLength(1));
+        expect((parts.first as Map)['inlineData'], isNotNull);
+      },
+    );
   });
 
   group('fromGeminiPart', () {

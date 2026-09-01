@@ -36,9 +36,16 @@ export 'package:genkit/src/ai/generate_types.dart'
 export 'package:genkit/src/ai/interrupt.dart' show ToolInterruptException;
 export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
-export 'package:genkit/src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
+export 'package:genkit/src/ai/tool.dart'
+    show
+        Tool,
+        ToolFn,
+        ToolFnArgs,
+        ToolInterruptResult,
+        ToolResponseResult,
+        ToolResult;
 export 'package:genkit/src/core/action.dart'
-    show Action, ActionFnArg, ActionMetadata;
+    show Action, ActionFnArg, ActionMetadata, ActionType;
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/core/registry.dart' show Registry;
 export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;

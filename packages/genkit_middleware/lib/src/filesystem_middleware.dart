@@ -123,7 +123,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
       description:
           'Lists files and directories in a given path. Returns a list of objects with path and type.',
       inputSchema: ListFilesInput.$schema,
-      outputSchema: .list(ListFileOutputItem.$schema),
+      toolOutputSchema: .list(ListFileOutputItem.$schema),
       fn: (input, _) async {
         final dirPath = _resolvePath(input.dirPath ?? '');
         final recursive = input.recursive ?? false;
@@ -149,14 +149,15 @@ class FilesystemMiddleware extends GenerateMiddleware {
           return results;
         }
 
-        return await list(dirPath, input.dirPath ?? '');
+        return .response(await list(dirPath, input.dirPath ?? ''));
       },
     ),
     Tool<ReadFileInput, String>(
       name: 'read_file',
       description: 'Reads the contents of a file',
       inputSchema: ReadFileInput.$schema,
-      outputSchema: .string(),
+      toolOutputSchema: .string(),
+
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
@@ -220,27 +221,30 @@ class FilesystemMiddleware extends GenerateMiddleware {
           );
         }
 
-        return 'File ${input.filePath} read successfully, see contents below';
+        return .response(
+          'File ${input.filePath} read successfully, see contents below',
+        );
       },
     ),
     Tool<WriteFileInput, String>(
       name: 'write_file',
       description: 'Writes content to a file, overwriting it if it exists.',
       inputSchema: WriteFileInput.$schema,
-      outputSchema: .string(),
+      toolOutputSchema: .string(),
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
         await file.parent.create(recursive: true);
         await file.writeAsString(input.content);
-        return 'File ${input.filePath} written successfully.';
+        return .response('File ${input.filePath} written successfully.');
       },
     ),
     Tool<SearchAndReplaceInput, String>(
       name: 'search_and_replace',
       description: 'Replaces text in a file using search and replace blocks. ',
       inputSchema: SearchAndReplaceInput.$schema,
-      outputSchema: .string(),
+      toolOutputSchema: .string(),
+
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
@@ -311,7 +315,9 @@ class FilesystemMiddleware extends GenerateMiddleware {
         }
 
         await file.writeAsString(content);
-        return 'Successfully applied ${input.edits.length} edit(s) to ${input.filePath}.';
+        return .response(
+          'Successfully applied ${input.edits.length} edit(s) to ${input.filePath}.',
+        );
       },
     ),
   ];

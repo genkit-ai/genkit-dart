@@ -98,10 +98,10 @@ void main() async {
     inputSchema: WeatherInputSchema.$schema,
     outputSchema: WeatherOutputSchema.$schema,
     fn: (input, ctx) async {
-      return WeatherOutput(
+      return .response(WeatherOutput(
         temperature: 72,
         condition: 'sunny',
-      );
+      ));
     },
   );
 

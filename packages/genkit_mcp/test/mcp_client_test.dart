@@ -185,7 +185,7 @@ void main() {
         },
       },
     );
-    expect(result, 'yep {"foo":"bar"}{"soMeta":true}');
+    expect(result.output, 'yep {"foo":"bar"}{"soMeta":true}');
   });
 
   test('client converts prompts and resources', () async {
@@ -322,7 +322,7 @@ void main() {
 
     // Plugin should expose actions through the registry.
     final dap =
-        await ai.registry.lookupAction('dynamic-action-provider', 'my-server')
+        await ai.registry.lookupAction(.dynamicActionProvider, 'my-server')
             as DynamicActionProvider;
     expect(dap, isNotNull);
 
@@ -337,7 +337,7 @@ void main() {
     final resolved = await dap.getAction('my-server/regTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
-    expect(result, 'ok');
+    expect(result.output, 'ok');
   });
 
   test('rawToolResponses returns unprocessed MCP result', () async {
@@ -365,9 +365,10 @@ void main() {
     await client.ready();
 
     final tools = await client.getActiveTools(Genkit());
-    final result = await tools.first.call({'foo': 'bar'});
+    final result = (await tools.first.call({'foo': 'bar'})).output;
 
     // With rawToolResponses=true, the raw MCP map (with 'content' array)
+
     // should be returned instead of the parsed JSON.
     expect(result, isA<Map>());
     final resultMap = result as Map<String, dynamic>;

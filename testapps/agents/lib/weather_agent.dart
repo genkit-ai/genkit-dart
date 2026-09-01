@@ -44,9 +44,8 @@ final getWeather = ai.defineTool(
   description: 'Get the current weather for a given location.',
   inputSchema: GetWeatherInput.$schema,
   outputSchema: GetWeatherOutput.$schema,
-  fn: (input, _) async => GetWeatherOutput(
-    weather: 'Sunny in ${input.location}',
-    temperature: '71F',
+  fn: (input, _) async => .response(
+    GetWeatherOutput(weather: 'Sunny in ${input.location}', temperature: '71F'),
   ),
 );
 

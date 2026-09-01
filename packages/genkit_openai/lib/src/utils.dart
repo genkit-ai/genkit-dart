@@ -72,14 +72,22 @@ class _DefaultModelCapabilities extends _ModelCapabilities {
 class _OSeriesModelCapabilities extends _DefaultModelCapabilities {
   const _OSeriesModelCapabilities(super.modelId);
 
+  // o1-mini and o1-preview never had function calling on the chat API;
+  // every other o-series model supports tools.
   @override
-  bool get supportsTools => false;
+  bool get supportsTools =>
+      !id.startsWith('o1-mini') && !id.startsWith('o1-preview');
 
   @override
   bool get supportsSystemRole => false;
 
+  // o3-mini, o1-mini, and o1-preview (incl. dated variants) are text-only;
+  // the rest of the o-series accepts images.
   @override
-  bool get supportsMedia => true;
+  bool get supportsMedia =>
+      !id.startsWith('o3-mini') &&
+      !id.startsWith('o1-mini') &&
+      !id.startsWith('o1-preview');
 }
 
 bool _supportsToolsByHeuristics(String id) {

@@ -46,7 +46,7 @@ void main() {
       final listTool = tools.firstWhere((t) => t.name == 'list_files');
 
       final result = await listTool.runRaw({'dirPath': ''});
-      final list = result.result as List<ListFileOutputItem>;
+      final list = result.result.output as List<ListFileOutputItem>;
 
       expect(list.any((i) => i.path == 'file1.txt' && !i.isDirectory), isTrue);
       expect(list.any((i) => i.path == 'subdir' && i.isDirectory), isTrue);
@@ -227,7 +227,7 @@ void main() {
         'filePath': 'new.txt',
         'content': 'new content',
       });
-      expect(result.result, contains('written successfully'));
+      expect(result.result.output, contains('written successfully'));
 
       final file = File(p.join(tempDir.path, 'new.txt'));
       expect(await file.readAsString(), 'new content');
@@ -258,7 +258,10 @@ hello universe
           'edits': [editBlock],
         });
 
-        expect(result.result, contains('Successfully applied 1 edit(s)'));
+        expect(
+          result.result.output,
+          contains('Successfully applied 1 edit(s)'),
+        );
         expect(await file.readAsString(), 'hello universe');
       });
 
@@ -279,7 +282,10 @@ there
           'edits': [editBlock1, editBlock2],
         });
 
-        expect(result.result, contains('Successfully applied 2 edit(s)'));
+        expect(
+          result.result.output,
+          contains('Successfully applied 2 edit(s)'),
+        );
         expect(await file.readAsString(), 'hi there');
       });
 
@@ -400,7 +406,7 @@ separator
             'edits': [complexEditBlock],
           });
 
-          expect(result.result, contains('Successfully applied'));
+          expect(result.result.output, contains('Successfully applied'));
 
           // 'code with\n=======\nseparator' was exactly found as search block,
           // and 'new code with\n=======\nseparator' is the replacement.

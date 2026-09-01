@@ -29,8 +29,9 @@ void main() {
     name: 'checkPantry',
     description: 'Checks if we have specific spices in the kitchen pantry',
     inputSchema: CheckPantryInput.$schema,
-    fn: (CheckPantryInput input, _) async =>
-        input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+    fn: (CheckPantryInput input, _) async => .response(
+      input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+    ),
   );
 
   ai.defineRemoteModel(
@@ -116,8 +117,9 @@ class _ClientSideTabState extends State<ClientSideTab> {
         name: 'checkPantry',
         description: 'Checks if we have specific spices in the kitchen pantry',
         inputSchema: CheckPantryInput.$schema,
-        fn: (CheckPantryInput input, _) async =>
-            input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+        fn: (CheckPantryInput input, _) async => .response(
+          input.spice.toLowerCase() == 'cumin' ? 'Out of stock' : 'In stock',
+        ),
       );
 
       final model = switch (_selectedProvider) {

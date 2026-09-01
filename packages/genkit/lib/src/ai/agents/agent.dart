@@ -1019,7 +1019,7 @@ Agent<State> defineCustomAgent<State>(
       Action<AgentInput, AgentOutput, AgentStreamChunk, AgentInit>(
         name: config.name,
         description: config.description,
-        actionType: 'agent',
+        actionType: .agent,
         inputSchema: AgentInput.$schema,
         outputSchema: AgentOutput.$schema,
         streamSchema: AgentStreamChunk.$schema,
@@ -1369,7 +1369,7 @@ Agent<State> defineCustomAgent<State>(
         name: config.name,
         description:
             'Gets snapshot data for ${config.name} by snapshotId or sessionId',
-        actionType: 'agent-snapshot',
+        actionType: .agentSnapshot,
         inputSchema: GetSnapshotDataInput.$schema,
         fn: (lookup, ctx) async =>
             resolveSnapshot(lookup?.snapshotId, lookup?.sessionId),
@@ -1382,7 +1382,7 @@ Agent<State> defineCustomAgent<State>(
         description:
             'Aborts ${config.name} agent by snapshotId. Returns the snapshot '
             'id and its status after the abort attempt.',
-        actionType: 'agent-abort',
+        actionType: .agentAbort,
         inputSchema: AgentAbortRequest.$schema,
         outputSchema: AgentAbortResponse.$schema,
         fn: (request, ctx) async {
@@ -1450,7 +1450,7 @@ Agent<State> definePromptAgent<State>(
     await sess.run((input, ctx) async {
       if (cachedPrompt == null) {
         final action = await registry.lookupAction(
-          'executable-prompt',
+          .executablePrompt,
           promptName,
         );
         if (action is! PromptAction) {

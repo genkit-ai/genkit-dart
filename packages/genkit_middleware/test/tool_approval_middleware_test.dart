@@ -31,7 +31,7 @@ void main() {
           .boolean(),
         ), // Input is Map<String, dynamic> at runtime
         fn: (input, context) async {
-          return 'Dangerous action confirmed: $input';
+          return .response('Dangerous action confirmed: $input');
         },
       );
 
@@ -43,7 +43,7 @@ void main() {
           .boolean(),
         ), // Input is Map<String, dynamic> at runtime
         fn: (input, context) async {
-          return 'Safe action confirmed: $input';
+          return .response('Safe action confirmed: $input');
         },
       );
     });

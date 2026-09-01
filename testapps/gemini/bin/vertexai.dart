@@ -100,9 +100,9 @@ void main(List<String> args) async {
     inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
-        return 'The weather in Boston is 72 and sunny.';
+        return .response('The weather in Boston is 72 and sunny.');
       }
-      return 'The weather in ${input.location} is 75 and cloudy.';
+      return .response('The weather in ${input.location} is 75 and cloudy.');
     },
   );
 

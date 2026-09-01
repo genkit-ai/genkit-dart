@@ -25,6 +25,7 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
+import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
 import 'src/ai/generate_middleware.dart';
 import 'src/ai/generate_types.dart';
@@ -41,6 +42,7 @@ export 'src/types.dart';
 Future<GenerateResponseHelper> generate<C>({
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   required Model<C> model,
   C? config,
@@ -88,6 +90,7 @@ Future<GenerateResponseHelper> generate<C>({
   }
 
   final registry = Registry();
+  configureFormats(registry);
   registry.register(model);
   tools?.forEach(registry.register);
   GenerateActionOutputConfig? outputConfig;
@@ -110,6 +113,7 @@ Future<GenerateResponseHelper> generate<C>({
     registry,
     system: system,
     prompt: prompt,
+    promptParts: promptParts,
     messages: messages,
     model: model,
     config: config,
@@ -132,6 +136,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   required Model<C> model,
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   C? config,
   List<Tool>? tools,
@@ -159,6 +164,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   generate(
         system: system,
         prompt: prompt,
+        promptParts: promptParts,
         messages: messages,
         model: model,
         config: config,

@@ -72,7 +72,7 @@ void main() {
 
     test('should handle listActions', () async {
       final testAction = Action(
-        actionType: 'custom',
+        actionType: .custom,
         inputSchema: .map(.string(), .string()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
@@ -271,7 +271,7 @@ void main() {
 
     test('should handle runAction', () async {
       final testAction = Action(
-        actionType: 'custom',
+        actionType: .custom,
         inputSchema: .map(.string(), .string()),
         name: 'testAction',
         fn: (input, context) async => {'bar': input!['foo']},
@@ -320,7 +320,7 @@ void main() {
     test('should pass init param from runAction to the action', () async {
       Object? receivedInit;
       final initAction = Action(
-        actionType: 'custom',
+        actionType: .custom,
         inputSchema: .map(.string(), .string()),
         initSchema: .map(.string(), .string()),
         name: 'initAction',
@@ -373,7 +373,7 @@ void main() {
 
     test('should handle streaming runAction', () async {
       final streamAction = Action(
-        actionType: 'custom',
+        actionType: .custom,
         name: 'streamAction',
         streamSchema: .string(),
         fn: (input, context) async {

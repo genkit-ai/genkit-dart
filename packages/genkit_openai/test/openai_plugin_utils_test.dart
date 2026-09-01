@@ -28,7 +28,7 @@ void main() {
     test('oSeriesModelInfo sets correct supports', () {
       final info = oSeriesModelInfo('o1');
       expect(info.supports?['multiturn'], true);
-      expect(info.supports?['tools'], false);
+      expect(info.supports?['tools'], true);
       expect(info.supports?['systemRole'], false);
       expect(info.supports?['media'], true);
     });
@@ -39,9 +39,10 @@ void main() {
       expect(defaultInfo.supports?['systemRole'], true);
 
       final oSeriesInfo = modelInfoFor('o3-mini');
-      expect(oSeriesInfo.supports?['tools'], false);
+      expect(oSeriesInfo.supports?['tools'], true);
       expect(oSeriesInfo.supports?['systemRole'], false);
-      expect(oSeriesInfo.supports?['media'], true);
+      // o3-mini is text-only (JS marks it media:false).
+      expect(oSeriesInfo.supports?['media'], false);
     });
 
     test('supportsVision identifies vision models', () {
@@ -55,9 +56,10 @@ void main() {
       expect(supportsVision('gpt-4-vision'), true);
       expect(supportsVision('gpt-4-vision-preview'), true);
       expect(supportsVision('o1'), true);
-      expect(supportsVision('o1-preview'), true);
+      expect(supportsVision('o1-mini'), false);
+      expect(supportsVision('o1-preview'), false);
       expect(supportsVision('o3'), true);
-      expect(supportsVision('o3-mini'), true);
+      expect(supportsVision('o3-mini'), false);
       expect(supportsVision('gpt-5o'), true);
       expect(supportsVision('gpt-5.1o'), true);
       expect(supportsVision('gpt-6o-mini'), true);
@@ -80,9 +82,11 @@ void main() {
       expect(supportsTools('gpt-5.1'), true);
 
       // Non-tool models
-      expect(supportsTools('o1'), false);
+      expect(supportsTools('o1'), true);
+      expect(supportsTools('o3-mini'), true);
+      // o1-mini and o1-preview never had function calling.
       expect(supportsTools('o1-mini'), false);
-      expect(supportsTools('o3-mini'), false);
+      expect(supportsTools('o1-preview'), false);
       expect(supportsTools('chatgpt-4o-latest'), false);
       expect(supportsTools('chatgpt-5-latest'), false);
       expect(supportsTools('gpt-3.5-turbo-instruct'), false);

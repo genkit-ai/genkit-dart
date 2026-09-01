@@ -44,7 +44,7 @@ Future<void> main(List<String> args) async {
     inputSchema: TriviaQuestions.$schema,
     fn: (input, ctx) async {
       // input is TriviaQuestions (generated class)
-      ctx.interrupt(input);
+      return .interrupt(input);
     },
   );
 

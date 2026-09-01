@@ -15,7 +15,10 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:logging/logging.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
+
+final _logger = Logger('genkit_openai');
 
 /// Converter class for transforming between Genkit and OpenAI formats
 abstract final class GenkitConverter {
@@ -45,6 +48,18 @@ abstract final class GenkitConverter {
           if (ref == null || ref.isEmpty) {
             throw ArgumentError(
               'ToolResponse.ref must be a non-empty string for tool messages',
+            );
+          }
+          // OpenAI tool messages carry text content only, so multipart tool
+          // content (images, media, etc.) cannot be represented here. Warn so
+          // authors of multipart tools can discover the parts are dropped for
+          // this provider rather than failing silently.
+          if (toolResponse.content?.isNotEmpty ?? false) {
+            _logger.warning(
+              'Tool "${toolResponse.name}" returned multipart content, but '
+              'OpenAI tool messages only support text. Dropping '
+              '${toolResponse.content!.length} content part(s); only the '
+              'structured output is sent.',
             );
           }
           result.add(
@@ -205,6 +220,14 @@ abstract final class GenkitConverter {
     } else if (!parameters.containsKey('type')) {
       // Ensure the schema has a type field
       parameters = {'type': 'object', ...parameters};
+    } else if (parameters['type'] != 'object') {
+      // OpenAI only accepts object-typed tool parameter schemas.
+      throw GenkitException(
+        'OpenAI requires tool parameters to be an object schema; tool '
+        '"${tool.name}" declares type "${parameters['type']}". '
+        'Wrap the input in an object schema.',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
     }
 
     return sdk.Tool.function(
@@ -262,5 +285,18 @@ abstract final class GenkitConverter {
       'tool_calls' => FinishReason.stop,
       _ => FinishReason.unknown,
     };
+  }
+
+  /// Map OpenAI token usage to Genkit [GenerationUsage].
+  static GenerationUsage? mapUsage(sdk.Usage? usage) {
+    if (usage == null) return null;
+    return GenerationUsage(
+      inputTokens: usage.promptTokens.toDouble(),
+      outputTokens: usage.completionTokens?.toDouble(),
+      totalTokens: usage.totalTokens.toDouble(),
+      thoughtsTokens: usage.completionTokensDetails?.reasoningTokens
+          ?.toDouble(),
+      cachedContentTokens: usage.promptTokensDetails?.cachedTokens?.toDouble(),
+    );
   }
 }

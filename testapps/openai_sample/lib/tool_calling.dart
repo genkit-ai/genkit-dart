@@ -118,11 +118,13 @@ void main() {
           : tempCelsius.toDouble();
       final conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'];
 
-      return WeatherToolOutput(
-        temperature: temperature,
-        condition: conditions[random.nextInt(conditions.length)],
-        unit: unit,
-        humidity: 50 + random.nextInt(30),
+      return .response(
+        WeatherToolOutput(
+          temperature: temperature,
+          condition: conditions[random.nextInt(conditions.length)],
+          unit: unit,
+          humidity: 50 + random.nextInt(30),
+        ),
       );
     },
   );

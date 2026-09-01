@@ -43,7 +43,7 @@ void main() async {
     inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       final name = input['name']?.toString();
-      return 'Hello, ${name ?? 'world'}!';
+      return .response('Hello, ${name ?? 'world'}!');
     },
   );
 
@@ -54,7 +54,7 @@ void main() async {
     fn: (input, _) async {
       final a = (input['a'] as num?)?.toDouble() ?? 0;
       final b = (input['b'] as num?)?.toDouble() ?? 0;
-      return '${a + b}';
+      return .response('${a + b}');
     },
   );
 

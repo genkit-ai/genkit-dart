@@ -1,3 +1,14 @@
+## 0.2.0-rc.2
+
+ - updated internal dependencies.
+
+## 0.2.0-rc.1
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+
 ## 0.1.14
 
 ### Fixes

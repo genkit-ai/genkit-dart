@@ -49,6 +49,63 @@ void main() {
     expect(response.text, '{"result": "success"}');
   });
 
+  test('lite generate with outputSchema delivers constrained json request '
+      'to the model', () async {
+    ModelRequest? captured;
+    final model = Model<void>(
+      name: 'constrainedTestModel',
+      fn: (request, context) async {
+        captured = request;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: '{"result": "ok"}')],
+          ),
+        );
+      },
+    );
+
+    await lite.generate(model: model, prompt: 'Hello', outputSchema: .string());
+
+    expect(captured, isNotNull);
+    expect(captured!.output?.format, 'json');
+    expect(captured!.output?.constrained, isTrue);
+    expect(captured!.output?.schema, isNotNull);
+  });
+
+  test('lite generate with custom outputInstructions injects them into '
+      'the prompt', () async {
+    ModelRequest? captured;
+    final model = Model<void>(
+      name: 'instructionsTestModel',
+      fn: (request, context) async {
+        captured = request;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: '{"result": "ok"}')],
+          ),
+        );
+      },
+    );
+
+    await lite.generate(
+      model: model,
+      prompt: 'Hello',
+      outputSchema: .string(),
+      outputInstructions: 'Respond in JSON matching the schema.',
+    );
+
+    final allText = captured!.messages
+        .expand((m) => m.content)
+        .where((p) => p.isText)
+        .map((p) => p.text!)
+        .join('\n');
+    expect(allText, contains('Respond in JSON matching the schema.'));
+  });
+
   test('lite generate prepends system message before prompt', () async {
     ModelRequest? captured;
     final model = Model<void>(
@@ -80,6 +137,43 @@ void main() {
     );
     expect(captured!.messages[1].role, Role.user);
     expect(captured!.messages[1].content[0].toJson()['text'], 'Hello');
+  });
+
+  test('lite generate builds a user message from promptParts', () async {
+    ModelRequest? captured;
+    final model = Model<void>(
+      name: 'promptPartsTestModel',
+      fn: (request, context) async {
+        captured = request;
+        return ModelResponse(
+          finishReason: FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: 'ok')],
+          ),
+        );
+      },
+    );
+
+    await lite.generate(
+      model: model,
+      promptParts: [
+        TextPart(text: 'Describe this image:'),
+        MediaPart(media: Media(url: 'data:image/png;base64,abc123')),
+      ],
+    );
+
+    expect(captured, isNotNull);
+    expect(captured!.messages.length, 1);
+    expect(captured!.messages[0].role, Role.user);
+    expect(captured!.messages[0].content.length, 2);
+    expect(
+      captured!.messages[0].content[0].toJson()['text'],
+      'Describe this image:',
+    );
+    expect(captured!.messages[0].content[1].toJson()['media'], {
+      'url': 'data:image/png;base64,abc123',
+    });
   });
 
   test('lite generateStream with outputSchema does not throw', () async {

@@ -96,7 +96,7 @@ final getAttractions = ai.defineTool(
               description: 'Learn about the local history',
             ),
           ];
-    return GetAttractionsOutput(attractions: attractions);
+    return .response(GetAttractionsOutput(attractions: attractions));
   },
 );
 
@@ -106,21 +106,23 @@ final getFlightInfo = ai.defineTool(
       'Get mock flight information between two cities on a given date.',
   inputSchema: GetFlightInfoInput.$schema,
   outputSchema: GetFlightInfoOutput.$schema,
-  fn: (input, _) async => GetFlightInfoOutput(
-    flights: [
-      Flight(
-        airline: 'SkyAir',
-        departure: '08:00',
-        arrival: '11:30',
-        price: r'$350',
-      ),
-      Flight(
-        airline: 'GlobalJet',
-        departure: '14:15',
-        arrival: '17:45',
-        price: r'$420',
-      ),
-    ],
+  fn: (input, _) async => .response(
+    GetFlightInfoOutput(
+      flights: [
+        Flight(
+          airline: 'SkyAir',
+          departure: '08:00',
+          arrival: '11:30',
+          price: r'$350',
+        ),
+        Flight(
+          airline: 'GlobalJet',
+          departure: '14:15',
+          arrival: '17:45',
+          price: r'$420',
+        ),
+      ],
+    ),
   ),
 );
 

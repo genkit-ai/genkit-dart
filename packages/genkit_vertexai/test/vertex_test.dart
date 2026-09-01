@@ -28,7 +28,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final model = plugin.resolve('model', 'gemini-2.5-pro') as Action;
+      final model = plugin.resolve(.model, 'gemini-2.5-pro') as Action;
       final req = ModelRequest(
         messages: [
           Message(
@@ -55,7 +55,7 @@ void main() {
         authClient: mockClient,
       );
 
-      final model = plugin.resolve('model', 'gemini-2.5-pro') as Action;
+      final model = plugin.resolve(.model, 'gemini-2.5-pro') as Action;
       final req = ModelRequest(
         messages: [
           Message(

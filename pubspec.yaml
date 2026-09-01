@@ -22,6 +22,7 @@ workspace:
   - packages/schemantic
   - packages/schemantic_builder
   - packages/genkit_middleware
+  - packages/genkit_a2ui
   - testapps/agents
   - testapps/agentic_patterns
   - testapps/ai_features
@@ -88,7 +89,7 @@ melos:
     build-gen-plugins:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_openai}"
+        scope: "{genkit_a2ui,genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_openai}"
       description: Run build_runner for plugins.
 
     build-gen-testapps:

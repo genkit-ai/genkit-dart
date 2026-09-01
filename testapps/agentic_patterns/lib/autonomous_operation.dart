@@ -44,7 +44,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     outputSchema: .string(),
     fn: (input, _) async {
       // In a real app, you would implement a web search API call here.
-      return 'You found search results for: ${input.query}';
+      return .response('You found search results for: ${input.query}');
     },
   );
 
@@ -56,7 +56,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     outputSchema: .string(),
     fn: (input, context) async {
       // Interrupt execution to get user input
-      context.interrupt(input.question);
+      return .interrupt(input.question);
     },
   );
 
