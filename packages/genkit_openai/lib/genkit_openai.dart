@@ -19,9 +19,11 @@ import 'package:http/http.dart' as http;
 
 import 'src/chat.dart' as chat;
 import 'src/openai_plugin.dart';
+import 'src/speech.dart' as speech;
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
+export 'src/speech.dart' show OpenAISpeechOptions;
 export 'src/utils.dart'
     show
         defaultModelInfo,
@@ -131,6 +133,33 @@ class OpenAICompatPluginHandle {
     return modelRef(
       '$namespace/$name',
       customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+
+  /// Reference to a text-to-speech model, e.g. `tts-1` or `gpt-4o-mini-tts`.
+  ///
+  /// Separate from [model] because speech models take
+  /// `OpenAISpeechOptions` rather than `OpenAIChatOptions`, and return a
+  /// single audio media part instead of text:
+  ///
+  /// ```dart
+  /// final response = await ai.generate(
+  ///   model: openAI.speechModel('gpt-4o-mini-tts'),
+  ///   prompt: 'Genkit is an amazing AI framework.',
+  ///   config: OpenAISpeechOptions(
+  ///     voice: 'sage',
+  ///     instructions: 'Speak in a calm, warm tone.',
+  ///   ),
+  /// );
+  /// final audio = response.media; // data:audio/mpeg;base64,...
+  /// ```
+  ModelRef<speech.OpenAISpeechOptions> speechModel(
+    String name, {
+    String namespace = defaultOpenAINamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: speech.speechModelOptionsSchema(),
     );
   }
 }
