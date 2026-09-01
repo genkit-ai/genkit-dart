@@ -701,17 +701,20 @@ class VersionApplier {
   /// Removes intermediate `## X.Y.Z-<pre>` sections whose base version equals
   /// [stableVersion], used on graduate so the rc entries (e.g. `0.16.0-rc.1`,
   /// `0.16.0-rc.2`) don't linger once `0.16.0` aggregates their contents. A
-  /// section spans its header up to (but not including) the next `## ` header.
+  /// section spans its header up to (but not including) the next version header.
   String _stripPreReleaseSections(String changelog, Version stableVersion) {
     final base =
         '${stableVersion.major}.${stableVersion.minor}.'
         '${stableVersion.patch}';
     // Header line for a pre-release of this base, e.g. `## 0.16.0-rc.2`, then
-    // everything up to the next `## ` header (or end of file).
+    // everything up to the next version header (or end of file). The lookahead
+    // only stops at real version headers (`## X.Y.Z`), not at any `## ` line, so
+    // `##`-prefixed lines inside a section's code blocks don't cut it short.
     final sectionRegex = RegExp(
-      '^## ${RegExp.escape(base)}-[^\\n]*\\n(?:(?!^## ).*\\n?)*',
+      '^## ${RegExp.escape(base)}-[^\\n]*\\n(?:(?!^## \\d+\\.\\d+\\.\\d+).*\\n?)*',
       multiLine: true,
     );
+
     return changelog.replaceAll(sectionRegex, '');
   }
 }
