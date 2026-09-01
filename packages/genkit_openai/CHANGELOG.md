@@ -3,6 +3,7 @@
 ### Features
 
  - add text-to-speech support (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`) via `openAI.speechModel()`
+ - add speech-to-text support (`whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`) via `openAI.transcriptionModel()`, including audio translation on `whisper-1`
 
 ## 0.4.0-rc.2
 

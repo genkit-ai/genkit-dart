@@ -254,6 +254,52 @@ openAI(
 )
 ```
 
+### Speech to Text
+
+Transcription models take audio in and return text. The audio goes in through
+`promptParts` as a `MediaPart` holding a base64 `data:` URL:
+
+```dart
+final response = await ai.generate(
+  model: openAI.transcriptionModel('whisper-1'),
+  promptParts: [
+    MediaPart(
+      media: Media(contentType: 'audio/mpeg', url: 'data:audio/mpeg;base64,...'),
+    ),
+  ],
+  config: OpenAITranscriptionOptions(language: 'en'),
+);
+
+print(response.text); // 'The quick brown fox jumps over the lazy dog.'
+```
+
+`whisper-1`, `gpt-4o-transcribe` and `gpt-4o-mini-transcribe` are supported.
+Set `responseFormat: 'srt'` or `'vtt'` to get subtitle markup instead of a
+plain transcript, and `'verbose_json'` (with `timestampGranularities`) for
+timing metadata.
+
+`whisper-1` can also translate: `translate: true` routes the request to
+OpenAI's translation endpoint, which returns English text for audio in any
+language.
+
+```dart
+final response = await ai.generate(
+  model: openAI.transcriptionModel('whisper-1'),
+  promptParts: [MediaPart(media: spanishAudio)],
+  config: OpenAITranscriptionOptions(translate: true),
+);
+```
+
+As with speech models, a compatible provider whose transcription model is not
+named `*whisper*` or `*transcribe*` can declare audio input when registering it:
+
+```dart
+CustomModelDefinition(
+  name: 'earbox-1',
+  info: ModelInfo(supports: {'media': true}),
+)
+```
+
 ## Options
 
 The `OpenAIChatOptions` class supports the following options:
@@ -276,6 +322,18 @@ The `OpenAISpeechOptions` class supports the following options:
 - `instructions` (String?) - Tone and delivery guidance (`gpt-4o-mini-tts` only)
 - `speed` (double?, 0.25-4.0) - Playback speed (not supported by `gpt-4o-mini-tts`)
 - `responseFormat` (String?, 'mp3'|'opus'|'aac'|'flac'|'wav'|'pcm') - Audio container (defaults to `'mp3'`)
+- `version` (String?) - Model version override
+
+The `OpenAITranscriptionOptions` class supports the following options:
+
+- `language` (String?) - ISO-639-1 code of the spoken language; improves accuracy and latency
+- `prompt` (String?) - Decoding hint (vocabulary, names, style). Defaults to the request's text content
+- `temperature` (double?, 0.0-1.0) - Sampling temperature
+- `responseFormat` (String?, 'json'|'text'|'srt'|'verbose_json'|'vtt') - Transcript format (defaults to `'json'`)
+- `timestampGranularities` (List<String>?) - `'word'` and/or `'segment'`; needs `verbose_json`, `whisper-1` only
+- `chunkingStrategy` (Object?) - `'auto'` or a server-VAD map; `gpt-4o-transcribe` family only
+- `include` (List<String>?) - Extra response fields, e.g. `['logprobs']`
+- `translate` (bool?) - Translate to English instead of transcribing; `whisper-1` only
 - `version` (String?) - Model version override
 
 ## Custom Headers
