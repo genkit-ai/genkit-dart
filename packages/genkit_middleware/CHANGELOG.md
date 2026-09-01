@@ -1,3 +1,7 @@
+## 0.6.0-rc.2
+
+ - updated internal dependencies.
+
 ## 0.6.0-rc.1
 
 ### Breaking Changes

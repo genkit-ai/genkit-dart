@@ -1,3 +1,10 @@
+## 0.16.0-rc.2
+
+### Fixes
+
+ - stitch a2ui blocks split across multiple text parts (#404)
+
+
 ## 0.16.0-rc.1
 
 ### Breaking Changes
