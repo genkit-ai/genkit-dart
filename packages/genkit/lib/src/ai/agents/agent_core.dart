@@ -112,7 +112,7 @@ abstract base class AgentTransport {
   ///
   /// [context] is the ambient request context to run the turn under. It is only
   /// meaningful for the in-process transport (which runs the turn under that
-  /// context, observable by the agent handler via `getContext()`). A remote
+  /// context, observable as `AgentFnOptions.context`). A remote
   /// agent derives its context server-side from the incoming HTTP request
   /// (headers, auth, etc.), so the remote transport rejects a non-empty
   /// [context] with an [UnsupportedError] rather than silently dropping it.
@@ -136,11 +136,18 @@ abstract base class AgentTransport {
   }) => null;
 
   /// Reads a snapshot. Requires a server store.
-  Future<SessionSnapshot?> getSnapshot({String? snapshotId, String? sessionId});
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  });
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
-  Future<SnapshotStatus?> abort(String snapshotId);
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  });
 
   /// Releases any resources owned by this transport. The default is a no-op;
   /// transports that own resources (e.g. an HTTP client) override it.
@@ -506,7 +513,12 @@ final class AgentSnapshot<State> {
 
 /// A handle to a background (detached) task.
 final class DetachedTask<State> {
-  DetachedTask._(this.snapshotId, this._transport, [this._stateSchema]);
+  DetachedTask._(
+    this.snapshotId,
+    this._transport, [
+    this._stateSchema,
+    this._context,
+  ]);
 
   final String snapshotId;
   final AgentTransport _transport;
@@ -515,6 +527,10 @@ final class DetachedTask<State> {
   /// instance on the snapshots this task yields; when `null`, state is a bare
   /// view cast over the JSON.
   final SchemanticType<State>? _stateSchema;
+
+  /// The explicit context captured when the task was detached. It is retained
+  /// by reference, so callers must not mutate it while the task is active.
+  final Map<String, dynamic>? _context;
 
   /// Yields status until a terminal state.
   ///
@@ -529,7 +545,10 @@ final class DetachedTask<State> {
   }) async* {
     var misses = 0;
     while (true) {
-      final snap = await _transport.getSnapshot(snapshotId: snapshotId);
+      final snap = await _transport.getSnapshot(
+        snapshotId: snapshotId,
+        context: _context,
+      );
       if (snap == null) {
         if (++misses >= maxConsecutiveMisses) {
           throw StateError('Snapshot $snapshotId not found.');
@@ -559,7 +578,8 @@ final class DetachedTask<State> {
   }
 
   /// Aborts the task.
-  Future<SnapshotStatus?> abort() => _transport.abort(snapshotId);
+  Future<SnapshotStatus?> abort() =>
+      _transport.abort(snapshotId, context: _context);
 }
 
 // ---------------------------------------------------------------------------
@@ -755,9 +775,9 @@ final class AgentChat<State> {
   /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
-  /// honored by the in-process transport (observable by the agent handler via
-  /// `getContext()`); the remote transport rejects a non-empty context with an
-  /// [UnsupportedError] (see [AgentTransport]).
+  /// honored by the in-process transport (observable as
+  /// `AgentFnOptions.context`); the remote transport rejects a non-empty context
+  /// with an [UnsupportedError] (see [AgentTransport]).
   Future<AgentResponse<State>> send({
     String? text,
     Message? message,
@@ -847,9 +867,9 @@ final class AgentChat<State> {
   /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
-  /// honored by the in-process transport (observable by the agent handler via
-  /// `getContext()`); the remote transport rejects a non-empty context with an
-  /// [UnsupportedError] (see [AgentTransport]).
+  /// honored by the in-process transport (observable as
+  /// `AgentFnOptions.context`); the remote transport rejects a non-empty context
+  /// with an [UnsupportedError] (see [AgentTransport]).
   AgentTurn<State> sendStream({
     String? text,
     Message? message,
@@ -1018,9 +1038,14 @@ final class AgentChat<State> {
   /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
-  /// honored by the in-process transport (observable by the agent handler via
-  /// `getContext()`); the remote transport rejects a non-empty context with an
-  /// [UnsupportedError] (see [AgentTransport]).
+  /// honored by the in-process transport (observable as
+  /// `AgentFnOptions.context`); the remote transport rejects a non-empty context
+  /// with an [UnsupportedError] (see [AgentTransport]).
+  ///
+  /// Pass [context] explicitly when using a context-scoped session store. The
+  /// returned [DetachedTask] retains it for polling and abort after the
+  /// originating action has completed. Do not mutate the context map while the
+  /// detached task is active.
   Future<DetachedTask<State>> detach({
     String? text,
     Message? message,
@@ -1054,14 +1079,14 @@ final class AgentChat<State> {
     if (id == null) {
       throw StateError('detach did not return a snapshotId.');
     }
-    return DetachedTask<State>._(id, _transport, _stateSchema);
+    return DetachedTask<State>._(id, _transport, _stateSchema, context);
   }
 
   /// Aborts the current snapshot.
-  Future<SnapshotStatus?> abort() async {
+  Future<SnapshotStatus?> abort({Map<String, dynamic>? context}) async {
     final id = snapshotId;
     if (id == null) return null;
-    return _transport.abort(id);
+    return _transport.abort(id, context: context);
   }
 
   AgentError<State> _toAgentError(Object e) {
@@ -1130,6 +1155,7 @@ final class AgentApi<State> {
   Future<AgentChat<State>> loadChat({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async {
     assert(
       (snapshotId != null) ^ (sessionId != null),
@@ -1138,6 +1164,7 @@ final class AgentApi<State> {
     final snapshot = await _transport.getSnapshot(
       snapshotId: snapshotId,
       sessionId: sessionId,
+      context: context,
     );
     if (snapshot == null) {
       final id = snapshotId ?? 'session $sessionId';
@@ -1155,10 +1182,12 @@ final class AgentApi<State> {
   Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async {
     final snapshot = await _transport.getSnapshot(
       snapshotId: snapshotId,
       sessionId: sessionId,
+      context: context,
     );
     if (snapshot == null) return null;
     return AgentSnapshot<State>._(snapshot, _stateSchema);
@@ -1166,8 +1195,10 @@ final class AgentApi<State> {
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
-  Future<SnapshotStatus?> abort(String snapshotId) =>
-      _transport.abort(snapshotId);
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) => _transport.abort(snapshotId, context: context);
 
   /// Releases any resources owned by the underlying transport (e.g. an HTTP
   /// client created by `remoteAgent`). A caller-supplied HTTP client is left
