@@ -244,6 +244,23 @@ void main() {
       );
       // The rejected turn never hit the wire.
       expect(client.requests, isEmpty);
+
+      final context = {
+        'auth': {'uid': 'user-123'},
+      };
+      await expectLater(
+        agent.getSnapshot(snapshotId: 's_x', context: context),
+        throwsA(isA<UnsupportedError>()),
+      );
+      await expectLater(
+        agent.loadChat(snapshotId: 's_x', context: context),
+        throwsA(isA<UnsupportedError>()),
+      );
+      await expectLater(
+        agent.abort('s_x', context: context),
+        throwsA(isA<UnsupportedError>()),
+      );
+      expect(client.requests, isEmpty);
     });
 
     test('ignores an empty/null context (stays polymorphic)', () async {
