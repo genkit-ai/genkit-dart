@@ -313,10 +313,6 @@ const _redactedThinkingKey = 'redactedThinking';
 
 /// Rebuilds the Anthropic thinking block a [ReasoningPart] came from.
 ///
-/// `anthropic_sdk_dart` has no thinking input-block variant, so the wire JSON
-/// is handed to [sdk.InputContentBlock.fromJson], which routes an unrecognized
-/// type to a block that round-trips it verbatim.
-///
 /// Returns an empty list for reasoning this plugin cannot round-trip: Anthropic
 /// rejects a thinking block whose signature is missing, so a part that never
 /// carried one - hand-built history, or reasoning from another provider - is
@@ -326,23 +322,14 @@ List<sdk.InputContentBlock> _toAnthropicThinkingBlocks(Part p) {
 
   final redacted = metadata?[_redactedThinkingKey];
   if (redacted is String && redacted.isNotEmpty) {
-    return [
-      sdk.InputContentBlock.fromJson({
-        'type': 'redacted_thinking',
-        'data': redacted,
-      }),
-    ];
+    return [sdk.RedactedThinkingInputBlock(data: redacted)];
   }
 
   final signature = metadata?[_thoughtSignatureKey];
   if (signature is! String || signature.isEmpty) return const [];
 
   return [
-    sdk.InputContentBlock.fromJson({
-      'type': 'thinking',
-      'thinking': p.reasoning ?? '',
-      'signature': signature,
-    }),
+    sdk.ThinkingInputBlock(thinking: p.reasoning ?? '', signature: signature),
   ];
 }
 
