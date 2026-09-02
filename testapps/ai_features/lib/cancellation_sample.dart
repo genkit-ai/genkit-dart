@@ -55,7 +55,10 @@ Future<void> main() async {
   final res = await stream.onResult;
   if (res.finishReason == FinishReason.aborted) {
     print('\nGeneration was cancelled: ${res.finishMessage}');
-    print('Resumable history has ${res.messages.length} message(s): ${jsonEncode(res.messages).toString()}');
+    print(
+      'Resumable history has ${res.messages.length} message(s): '
+      '${jsonEncode(res.messages)}',
+    );
   }
 
   // 2) A token that is already cancelled short-circuits before the model runs
@@ -68,8 +71,8 @@ Future<void> main() async {
   );
   print(
     'Pre-cancelled generate finished as ${res2.finishReason?.value} '
-    'with ${res2.messages.length} message(s) of history: ${jsonEncode(res2.messages).toString()}'
-    ,
+    'with ${res2.messages.length} message(s) of history: '
+    '${jsonEncode(res2.messages)}',
   );
 
   await ai.shutdown();

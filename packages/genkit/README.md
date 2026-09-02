@@ -272,7 +272,10 @@ if (response.finishReason == FinishReason.interrupted) {
 
 Cancel an in-flight `generate` or `generateStream` call. You create a `CancellationController`, pass its `token` into `generate`, and call `cancel()` when you want to stop (e.g. the user hits "stop").
 
-Rather than throwing, a cancelled call resolves with a response whose `finishReason` is `FinishReason.aborted`. The response has no model message, but `response.messages` carries the last-good conversation history, so you can resume from where you left off by passing it back into a fresh `generate` with a new token:
+Cancellation is **cooperative and best-effort**: it prevents further work — additional turns, the tool loop, and (where the plugin supports it) aborting the in-flight model call. When work is actually interrupted, the call resolves — rather than throwing — with a response whose `finishReason` is `FinishReason.aborted`. That aborted response has no model message, but `response.messages` carries the last-good conversation history, so you can resume from where you left off by passing it back into a fresh `generate` with a new token.
+
+If the model call happens to complete before the cancellation takes effect, its result is returned normally (e.g. `finishReason: stop` with the full message) — the completed work is not discarded. Whether a mid-flight cancel yields `aborted` or a completed result therefore depends on the plugin: plugins that tear down their transport on cancel (e.g. `genkit_google_genai`) surface `aborted` promptly, while others may run the request to completion.
+
 
 ```dart
 // Kick off a generation we can interrupt.

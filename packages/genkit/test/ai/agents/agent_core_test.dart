@@ -54,7 +54,7 @@ final class _FakeTransport extends AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     final script = _next();
@@ -65,7 +65,7 @@ final class _FakeTransport extends AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     if (!supportsRun) return null;
@@ -132,7 +132,7 @@ final class _StepTransport extends AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     final step = _next();
@@ -146,7 +146,7 @@ final class _StepTransport extends AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     if (!supportsRun) return null;
@@ -937,7 +937,7 @@ final class _CaptureTransport extends AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     final output = _handler(input);
@@ -951,7 +951,7 @@ final class _CaptureTransport extends AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) => Future.value(_handler(input));
 

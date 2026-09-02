@@ -112,10 +112,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         // Honor cooperative cancellation: closing the underlying HTTP client
         // aborts any in-flight (unary or streaming) request. The `finally`
         // below also closes it on the normal path; closing twice is safe.
-        final disposeCancel = ctx.cancel.onCancel(service.client.close);
+        final disposeCancel = ctx.cancel?.onCancel(service.client.close);
 
         try {
-          ctx.cancel.throwIfCancelled();
+          ctx.cancel?.throwIfCancelled();
+
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
@@ -146,7 +147,8 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             );
             final chunks = <gcl.GenerateContentResponse>[];
             await for (final chunk in stream) {
-              ctx.cancel.throwIfCancelled();
+              ctx.cancel?.throwIfCancelled();
+
               chunks.add(chunk);
               if (chunk.candidates?.isNotEmpty == true) {
                 final (message, finishReason) = fromGeminiCandidate(
@@ -197,7 +199,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
-          disposeCancel();
+          disposeCancel?.call();
           service.client.close();
         }
       },

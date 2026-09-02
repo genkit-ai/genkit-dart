@@ -75,11 +75,74 @@ void main() {
       expect(controller.token.throwIfCancelled, returnsNormally);
     });
 
-    group('CancellationToken.none', () {
-      test('never reports cancelled', () {
-        expect(CancellationToken.none.isCancelled, isFalse);
-        expect(CancellationToken.none.throwIfCancelled, returnsNormally);
+    test('onCancel on an already-cancelled token fires synchronously', () {
+      final controller = CancellationController()..cancel();
+      var fired = false;
+      controller.token.onCancel(() => fired = true);
+      expect(fired, isTrue);
+    });
+
+    test('onCancel disposer detaches the listener', () {
+      final controller = CancellationController();
+      var fired = false;
+      final dispose = controller.token.onCancel(() => fired = true);
+      dispose();
+      controller.cancel();
+      expect(fired, isFalse);
+    });
+
+    test('a throwing listener does not abort the fan-out or escape cancel', () {
+      final controller = CancellationController();
+      final fired = <int>[];
+      controller.token.onCancel(() => fired.add(1));
+      controller.token.onCancel(() => throw StateError('boom'));
+      controller.token.onCancel(() => fired.add(3));
+
+      // cancel() is documented as non-throwing/idempotent; the throwing
+      // listener is routed to the zone error handler, and the surviving
+      // listeners still fire.
+      runZonedGuarded(controller.cancel, (error, stack) {
+        // Swallow the routed listener error so the test zone doesn't fail.
       });
+
+      expect(fired, [1, 3]);
+    });
+
+    test('onCancelWithReason forwards the cancellation reason', () {
+      final controller = CancellationController();
+      Object? seenReason;
+      controller.token.onCancelWithReason((reason) => seenReason = reason);
+      controller.cancel('because');
+      expect(seenReason, 'because');
+    });
+
+    test('link forwards cancellation and reason to the child', () {
+      final parent = CancellationController();
+      final child = CancellationController();
+      parent.token.link(child);
+
+      parent.cancel('stop everything');
+      expect(child.isCancelled, isTrue);
+      expect(child.token.reason, 'stop everything');
+    });
+
+    test('link disposer unlinks the child', () {
+      final parent = CancellationController();
+      final child = CancellationController();
+      final unlink = parent.token.link(child);
+      unlink();
+      parent.cancel();
+      expect(child.isCancelled, isFalse);
+    });
+
+    test('CancelledException carries the producing token', () {
+      final controller = CancellationController()..cancel();
+      try {
+        controller.token.throwIfCancelled();
+        fail('expected throw');
+      } on CancelledException catch (e) {
+        expect(e.token, same(controller.token));
+      }
     });
   });
 
@@ -92,7 +155,7 @@ void main() {
         actionType: .custom,
         fn: (input, ctx) async {
           if (onRun != null) await onRun(ctx);
-          ctx.cancel.throwIfCancelled();
+          ctx.cancel?.throwIfCancelled();
           return 'echo:$input';
         },
       );
@@ -126,18 +189,21 @@ void main() {
       );
     });
 
-    test('ctx.cancel defaults to none when no token is supplied', () async {
+    test('ctx.cancel is null when no token is supplied', () async {
+      var sawCancel = false;
       CancellationToken? seen;
       final action = Action<String, String, void, void>(
         name: 'peek',
         actionType: .custom,
         fn: (input, ctx) async {
+          sawCancel = true;
           seen = ctx.cancel;
           return input!;
         },
       );
       await action.call('x');
-      expect(seen, same(CancellationToken.none));
+      expect(sawCancel, isTrue);
+      expect(seen, isNull);
     });
 
     test('onCancel hook fires when the token is cancelled mid-run', () async {
@@ -147,7 +213,7 @@ void main() {
         name: 'teardown',
         actionType: .custom,
         fn: (input, ctx) async {
-          ctx.cancel.onCancel(() => torndown = true);
+          ctx.cancel?.onCancel(() => torndown = true);
           controller.cancel();
           await Future<void>.delayed(Duration.zero);
           return input!;

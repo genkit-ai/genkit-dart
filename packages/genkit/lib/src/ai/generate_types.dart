@@ -150,9 +150,17 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
   ///
   /// This will be populated if the output format is JSON, or if the output is
   /// arbitrarily parsed as JSON.
+  ///
+  /// Returns `null` for a message-less response (e.g. an aborted turn), where
+  /// `text` is empty and there is nothing to parse, rather than throwing a
+  /// `FormatException`. This mirrors how the other accessors degrade safely on
+  /// the abort path (`text` -> `''`, `media`/`toolRequests` -> null/`[]`).
   Output? get jsonOutput {
     if (output != null) return output;
-    return extractJson(text) as Output?;
+    if (_response.message == null) return null;
+    final source = text;
+    if (source.isEmpty) return null;
+    return extractJson(source) as Output?;
   }
 
   ModelResponse get rawResponse => _response;

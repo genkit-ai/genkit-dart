@@ -78,7 +78,7 @@ abstract base class AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   });
 
@@ -90,7 +90,7 @@ abstract base class AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) => null;
 
@@ -678,14 +678,14 @@ final class AgentChat<State> {
   /// turns resolve to a synthetic `aborted` response.
   Future<AgentResponse<State>> _buildResponse(
     Future<AgentOutput> output,
-    CancellationToken cancel,
+    CancellationToken? cancel,
     int messageCountBeforeTurn,
   ) async {
     AgentOutput raw;
     try {
       raw = await output;
     } catch (e) {
-      if (cancel.isCancelled) {
+      if (cancel?.isCancelled ?? false) {
         raw = AgentOutput(finishReason: AgentFinishReason.aborted);
       } else {
         // A thrown transport error / non-200 rejects before reaching the
@@ -772,13 +772,13 @@ final class AgentChat<State> {
     Map<String, dynamic>? context,
   }) async {
     // In `_send` the token is observed and forwarded only (never cancelled
-    // here), so a caller token flows straight through; absent one, the
-    // never-cancelled sentinel is fine.
-    final token = cancel ?? CancellationToken.none;
+    // here), so a caller token flows straight through; absent one (`null`),
+    // there is no cancellation to observe.
+    final token = cancel;
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: there's no point starting work, and we must
     // not leave an orphaned user message in `messages`.
-    if (token.isCancelled) {
+    if (token?.isCancelled ?? false) {
       return _abortedResponse();
     }
     final runFuture = _transport.run(
@@ -859,8 +859,10 @@ final class AgentChat<State> {
   }) {
     // Own a controller for this turn so `AgentTurn.abort()` can cancel it, and
     // link it to the caller's token (if any) so an external cancel also aborts.
+    // `link` forwards the cancellation reason so a caller-supplied
+    // `controller.cancel('...')` survives the hop into this turn's token.
     final controller = CancellationController();
-    final unlink = cancel?.onCancel(controller.cancel);
+    final unlink = cancel?.link(controller);
     final token = controller.token;
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: return an empty stream and a synthetic
@@ -901,8 +903,11 @@ final class AgentChat<State> {
       (_) => AgentResponse<State>._(AgentOutput(), messages),
     );
     // Detach the caller-token listener once the turn settles so a reused
-    // caller token does not accumulate one handler per turn.
-    if (unlink != null) responsePromise.whenComplete(unlink);
+    // caller token does not accumulate one handler per turn. `whenComplete`
+    // returns a *new* future that re-completes with the same error; `ignore()`
+    // it so a rejecting turn does not reach `Zone.handleUncaughtError` (the
+    // `catchError` above handles the original future, not this derived one).
+    if (unlink != null) responsePromise.whenComplete(unlink).ignore();
 
     Stream<AgentChunk<State>> buildStream() async* {
       var previousText = '';

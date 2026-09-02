@@ -100,9 +100,9 @@ typedef ActionFnArg<Chunk, Input, Init> = ({
   Init? init,
 
   /// A read-only cancellation token the action body should observe to abort
-  /// cooperatively. Always present; defaults to [CancellationToken.none] when
-  /// the caller supplied no token.
-  CancellationToken cancel,
+  /// cooperatively, or `null` when the caller wired up no cancellation. Observe
+  /// it with null-aware calls, e.g. `ctx.cancel?.throwIfCancelled()`.
+  CancellationToken? cancel,
 });
 
 typedef ActionFn<Input, Output, Chunk, Init> =
@@ -216,7 +216,13 @@ class Action<Input, Output, Chunk, Init>
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
-      init: init,
+      // Validate `init` against the schema, matching `runRaw`. The static type
+      // only guarantees shape; value-level constraints (enum membership,
+      // numeric ranges, required nested fields) still need the schema. Skip
+      // when either the schema or the value is absent, mirroring `runRaw`.
+      init: (initSchema != null && init != null)
+          ? initSchema!.parse(init)
+          : init,
       onTraceStart: onTraceStart,
       cancel: cancel,
     )).result;
@@ -258,9 +264,9 @@ class Action<Input, Output, Chunk, Init>
     TraceStartCallback? onTraceStart,
     CancellationToken? cancel,
   }) async {
-    final cancelToken = cancel ?? CancellationToken.none;
     // Bail before doing any work if the caller's token is already cancelled.
-    cancelToken.throwIfCancelled();
+    cancel?.throwIfCancelled();
+
     if (inputStream == null) {
       final internalInputController = StreamController<Input>();
       inputStream = internalInputController.stream;
@@ -288,7 +294,7 @@ class Action<Input, Output, Chunk, Init>
             context: executionContext,
             inputStream: inputStream,
             init: init,
-            cancel: cancelToken,
+            cancel: cancel,
           ));
         },
         actionType: actionType.value,

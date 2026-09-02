@@ -38,18 +38,11 @@ import '../exception.dart';
 /// expected to poll [isCancelled] / call [throwIfCancelled], await
 /// [whenCancelled], or register an [onCancel] callback to tear down eagerly
 /// (e.g. cancel a streaming HTTP subscription).
-///
-/// Use [CancellationToken.none] as a never-cancelled default where a token is
-/// required but no cancellation is wired up.
 final class CancellationToken {
   CancellationToken._();
 
-  /// A token that never cancels. Handy as a default when a [CancellationToken]
-  /// is required but the caller did not supply one.
-  static final CancellationToken none = CancellationToken._();
-
   final Completer<void> _completer = Completer<void>();
-  final List<void Function()> _listeners = [];
+  final List<void Function(Object? reason)> _listeners = [];
   Object? _reason;
 
   /// Whether cancellation has been requested.
@@ -58,8 +51,12 @@ final class CancellationToken {
   /// The optional reason passed to [CancellationController.cancel], or `null`.
   Object? get reason => _reason;
 
-  /// Completes when the owning controller is cancelled. For
-  /// [CancellationToken.none] this future never completes.
+  /// Completes when the owning controller is cancelled.
+  ///
+  /// Every token is per-operation and tied to a real [CancellationController],
+  /// so this future (and any awaiter) is released when the operation and its
+  /// controller become unreachable. It is therefore safe to race against, e.g.
+  /// `Future.any([work, token.whenCancelled])`.
   Future<void> get whenCancelled => _completer.future;
 
   /// Registers [callback] to run when this token is cancelled, and returns a
@@ -69,14 +66,29 @@ final class CancellationToken {
   /// this lets a caller-supplied token be reused across many operations without
   /// leaking per-operation handlers. If the token is already cancelled,
   /// [callback] runs synchronously and the returned disposer is a no-op.
-  void Function() onCancel(void Function() callback) {
-    // `none` never cancels, so its listener list would only ever grow. Return
-    // a no-op disposer immediately instead of stranding the callback.
-    if (identical(this, none)) {
-      return () {};
-    }
+  void Function() onCancel(void Function() callback) =>
+      _register((_) => callback());
+
+  /// Like [onCancel], but forwards the cancellation [reason] to [callback].
+  ///
+  /// Use this when relinking tokens so a caller-supplied reason (e.g.
+  /// `controller.cancel('user pressed stop')`) survives across the hop instead
+  /// of being dropped by a zero-arg tear-off.
+  void Function() onCancelWithReason(void Function(Object? reason) callback) =>
+      _register(callback);
+
+  /// Links [child] to this token so that cancelling this token also cancels
+  /// [child] with the same reason. Returns a disposer that unlinks.
+  ///
+  /// If this token is already cancelled, [child] is cancelled synchronously and
+  /// the returned disposer is a no-op. Prefer this over
+  /// `token.onCancel(child.cancel)`, which silently drops the reason.
+  void Function() link(CancellationController child) =>
+      onCancelWithReason(child.cancel);
+
+  void Function() _register(void Function(Object? reason) callback) {
     if (_completer.isCompleted) {
-      callback();
+      callback(_reason);
       return () {};
     }
     _listeners.add(callback);
@@ -89,7 +101,7 @@ final class CancellationToken {
   /// loop) to bail out promptly.
   void throwIfCancelled() {
     if (isCancelled) {
-      throw CancelledException(reason: _reason);
+      throw CancelledException(reason: _reason, token: this);
     }
   }
 
@@ -102,7 +114,15 @@ final class CancellationToken {
     final listeners = [..._listeners];
     _listeners.clear();
     for (final listener in listeners) {
-      listener();
+      // Isolate listeners: one throwing callback must not abort the fan-out
+      // (dropping the survivors, which were already cleared) nor escape
+      // `CancellationController.cancel`, which is documented as idempotent and
+      // non-throwing. Route failures to the ambient error handler instead.
+      try {
+        listener(reason);
+      } catch (e, s) {
+        Zone.current.handleUncaughtError(e, s);
+      }
     }
   }
 }
@@ -131,7 +151,13 @@ final class CancellationController {
 /// Maps to [StatusCodes.CANCELLED]. Catch this to distinguish a cooperative
 /// cancellation from other failures.
 class CancelledException extends GenkitException {
-  CancelledException({Object? reason})
+  /// The token that produced this cancellation, when known.
+  ///
+  /// Lets a caller distinguish a cancellation of *its own* token from one that
+  /// bubbled up from an unrelated token (e.g. a tool's internal timeout).
+  final CancellationToken? token;
+
+  CancelledException({Object? reason, this.token})
     : super(
         reason is String ? reason : 'Operation was cancelled',
         status: StatusCodes.CANCELLED,

@@ -236,16 +236,68 @@ GenerateResponseHelper _abortedResponse({
   Map<String, dynamic>? config,
   Object? reason,
 }) {
+  final request = ModelRequest(messages: history, config: config);
   return GenerateResponseHelper(
     ModelResponse(
       finishReason: FinishReason.aborted,
       finishMessage: reason is String
           ? reason
           : (reason?.toString() ?? 'Generation was cancelled'),
+      // Stamp the request onto the ModelResponse too, not just the helper, so
+      // the resumable history survives the reflection boundary (the registered
+      // `generate` util action returns `response.modelResponse`, dropping the
+      // helper's own `_request`).
+      request: GenerateRequest(messages: history, config: config),
     ),
-    request: ModelRequest(messages: history, config: config),
+    request: request,
     output: null,
   );
+}
+
+/// Decides whether an exception [e] raised during a generation turn should be
+/// converted into an aborted response, or rethrown.
+///
+/// Returns a [GenerateResponseHelper] (the abort) when:
+/// - [e] is a [CancelledException] produced by *this* turn's [cancel] token
+///   (matched by identity, or by the token being cancelled), or
+/// - [cancel] is cancelled and [e] is a generic failure surfaced because the
+///   plugin honored cancellation by tearing down its transport (e.g. a
+///   `SocketException` from a closed HTTP client). In that case the original
+///   error is preserved as the finish reason so a genuine failure that merely
+///   raced the cancel is not silently masked.
+///
+/// Returns `null` when the caller should rethrow: a [CancelledException] from an
+/// unrelated token (e.g. a tool's own internal timeout) is a real failure, not
+/// an abort of this generation.
+///
+/// All abort sites pass the same [history] shape (the turn's accumulated,
+/// pre-format-injection `options.messages`) so the resumable state a caller
+/// feeds back does not depend on *when* the cancel fired.
+GenerateResponseHelper? _abortResponseIfCancelled(
+  Object e,
+  CancellationToken? cancel, {
+  required List<Message> history,
+  Map<String, dynamic>? config,
+}) {
+  if (cancel == null) return null;
+  if (e is CancelledException) {
+    if (identical(e.token, cancel) || cancel.isCancelled) {
+      return _abortedResponse(
+        history: history,
+        config: config,
+        reason: cancel.reason,
+      );
+    }
+    return null;
+  }
+  if (cancel.isCancelled) {
+    return _abortedResponse(
+      history: history,
+      config: config,
+      reason: cancel.reason ?? e,
+    );
+  }
+  return null;
 }
 
 Future<GenerateResponseHelper> _runGenerateLoop(
@@ -261,11 +313,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   // Cooperative checkpoint at the start of every turn so a cancel between turns
   // resolves with an aborted response carrying the last-good history (rather
   // than throwing), letting the caller resume from `response.messages`.
-  if (ctx.cancel.isCancelled) {
+  if (ctx.cancel?.isCancelled ?? false) {
     return _abortedResponse(
       history: options.messages,
       config: options.config,
-      reason: ctx.cancel.reason,
+      reason: ctx.cancel?.reason,
     );
   }
   if (options.model == null) {
@@ -334,7 +386,8 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     // Cooperative checkpoint right before the (potentially expensive) model
     // call. Middleware wrapping `model` runs before this and can observe
     // `c.cancel` itself.
-    c.cancel.throwIfCancelled();
+    c.cancel?.throwIfCancelled();
+
     return model(
       req,
       onChunk: c.streamingRequested ? c.sendChunk : null,
@@ -406,13 +459,16 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       cancel: ctx.cancel,
     ));
   } catch (e) {
-    if (ctx.cancel.isCancelled) {
-      return _abortedResponse(
-        history: currentRequest.messages,
-        config: options.config,
-        reason: ctx.cancel.reason,
-      );
-    }
+    // A cancel of this turn's token resolves to an aborted response carrying
+    // the last-good history; a genuine failure (even one racing a cancel of an
+    // unrelated token) rethrows with its cause intact.
+    final aborted = _abortResponseIfCancelled(
+      e,
+      ctx.cancel,
+      history: options.messages,
+      config: options.config,
+    );
+    if (aborted != null) return aborted;
     rethrow;
   }
 
@@ -458,14 +514,16 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   } catch (e) {
     // A tool cancelled mid-execution: resolve with the last-good history (this
     // turn's input), discarding the model message whose tool requests were left
-    // unanswered so the history stays a clean resume point.
-    if (ctx.cancel.isCancelled) {
-      return _abortedResponse(
-        history: currentRequest.messages,
-        config: options.config,
-        reason: ctx.cancel.reason,
-      );
-    }
+    // unanswered so the history stays a clean resume point. A `CancelledException`
+    // from an unrelated token (e.g. a tool's own internal timeout) is a real
+    // failure and rethrows.
+    final aborted = _abortResponseIfCancelled(
+      e,
+      ctx.cancel,
+      history: options.messages,
+      config: options.config,
+    );
+    if (aborted != null) return aborted;
     rethrow;
   }
   final toolResponses = execution.toolResponses;
@@ -607,13 +665,35 @@ Future<GenerateResponseHelper> _runGenerateAction(
     final toolStatus = <String, _ToolStatus>{};
 
     if (resumeRestart.isNotEmpty) {
-      final execution = await _executeTools(
-        generateRegistry,
-        resumeRestart.cast<ToolRequestPart>().toList(),
-        c.context,
-        cancel: c.cancel,
-        middleware: resolvedMiddleware,
-      );
+      final ({
+        List<Part> toolResponses,
+        bool interrupted,
+        Map<String, _ToolStatus> toolStatus,
+      })
+      execution;
+      try {
+        execution = await _executeTools(
+          generateRegistry,
+          resumeRestart.cast<ToolRequestPart>().toList(),
+          c.context,
+          cancel: c.cancel,
+          middleware: resolvedMiddleware,
+        );
+      } catch (e) {
+        // A cancel during the restart tool execution resolves to an aborted
+        // response (like the two sites inside `_runGenerateLoop`) rather than
+        // escaping `generate()` as a throw. `coreGenerate` runs before the
+        // loop's own entry checkpoint, so without this guard an already-cancelled
+        // restart would surface a `CancelledException` to the caller.
+        final aborted = _abortResponseIfCancelled(
+          e,
+          c.cancel,
+          history: opts.messages,
+          config: opts.config,
+        );
+        if (aborted != null) return aborted;
+        rethrow;
+      }
       toolStatus.addAll(execution.toolStatus);
 
       if (execution.interrupted) {
@@ -849,7 +929,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
       context: context,
       inputStream: null,
       init: null,
-      cancel: cancel ?? CancellationToken.none,
+      cancel: cancel,
     ),
     middleware: middleware,
   );
@@ -1064,7 +1144,7 @@ _executeTools(
   CancellationToken? cancel,
   List<GenerateMiddleware>? middleware,
 }) async {
-  final cancelToken = cancel ?? CancellationToken.none;
+  final cancelToken = cancel;
   final toolResponses = <ToolResponsePart>[];
   final toolStatus = <String, _ToolStatus>{};
   var interrupted = false;
@@ -1086,7 +1166,7 @@ _executeTools(
       ActionFnArg<void, dynamic, void> c,
     ) async {
       _recordResumedMetadata(c.context);
-      c.cancel.throwIfCancelled();
+      c.cancel?.throwIfCancelled();
       final result = (await tool.runRaw(
         req.toolRequest.input,
         context: c.context,
@@ -1143,17 +1223,36 @@ _executeTools(
       interrupted = true;
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
           (output: null, content: null, metadata: null, interrupt: e);
-    } on CancelledException {
-      // Cancellation must propagate, not be swallowed into an error tool
-      // response (which would let the loop continue as if the tool "failed").
-      rethrow;
+    } on CancelledException catch (e) {
+      // A cancellation of *the caller's* token must propagate, not be swallowed
+      // into an error tool response (which would let the loop continue as if the
+      // tool "failed"). But a `CancelledException` from an unrelated token (e.g.
+      // a tool's own internal timeout) is just a tool failure like any other and
+      // is recorded as an error response so the loop can continue.
+      if (cancelToken != null &&
+          (identical(e.token, cancelToken) || cancelToken.isCancelled)) {
+        rethrow;
+      }
+
+      toolResponses.add(
+        ToolResponsePart(
+          toolResponse: ToolResponse(
+            ref: toolRequest.toolRequest.ref,
+            name: toolRequest.toolRequest.name,
+            output: 'Error: $e',
+          ),
+        ),
+      );
     } catch (e) {
-      if (cancelToken.isCancelled) {
+      if (cancelToken?.isCancelled ?? false) {
         // A generic failure (e.g. a closed HTTP client throwing
         // SocketException) raised during cancellation must still propagate as a
         // cancellation rather than be recorded as a tool error that lets the
         // loop continue.
-        throw CancelledException(reason: cancelToken.reason);
+        throw CancelledException(
+          reason: cancelToken!.reason,
+          token: cancelToken,
+        );
       }
       toolResponses.add(
         ToolResponsePart(
