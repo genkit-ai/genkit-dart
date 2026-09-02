@@ -1,3 +1,10 @@
+## 0.16.1
+
+### Features
+
+ - add context parameter to session store operations and update related tests (#410)
+
+
 ## 0.16.0
 
 ### Breaking Changes

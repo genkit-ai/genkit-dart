@@ -1,3 +1,7 @@
+## 0.6.1
+
+ - updated internal dependencies.
+
 ## 0.6.0
 
 ### Breaking Changes
