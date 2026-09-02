@@ -95,8 +95,8 @@ Future<Output> runInNewSpan<Input, Output>(
     if (index == instrumentations.length) {
       return _runWithSpan(_CompositeSpanContext(spans), fn);
     }
-    return instrumentations[index].runInNewSpan(metadata, (span) {
-      spans.add(span);
+    return instrumentations[index].runInNewSpan(metadata, ([span]) {
+      if (span != null) spans.add(span);
       return build(index + 1);
     });
   }

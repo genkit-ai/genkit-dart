@@ -37,7 +37,7 @@ class GenkitDevOtelInstrumentation implements Instrumentation {
   @override
   Future<O> runInNewSpan<O>(
     SpanMetadata metadata,
-    Future<O> Function(SpanContext span) next,
+    Future<O> Function([SpanContext? span]) next,
   ) {
     final attributes = <String, Object>{'genkit:name': metadata.name};
     final actionType = metadata.actionType;

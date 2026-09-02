@@ -72,10 +72,12 @@ abstract interface class SpanContext {
 abstract interface class Instrumentation {
   /// Wraps [next] in a new span described by [metadata].
   ///
-  /// Implementations must call [next], passing a [SpanContext] representing the
-  /// span they created, and return its result.
+  /// Implementations must call [next] and return its result. Providers that
+  /// create a real span may pass a [SpanContext] representing it, so that
+  /// trace/span ids and mid-execution metadata propagate; providers that don't
+  /// track ids (e.g. a logger) can simply call `next()` with no argument.
   Future<O> runInNewSpan<O>(
     SpanMetadata metadata,
-    Future<O> Function(SpanContext span) next,
+    Future<O> Function([SpanContext? span]) next,
   );
 }

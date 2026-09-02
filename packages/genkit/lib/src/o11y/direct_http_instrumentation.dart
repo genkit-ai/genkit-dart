@@ -50,7 +50,7 @@ class DirectHttpInstrumentation implements Instrumentation {
   @override
   Future<O> runInNewSpan<O>(
     SpanMetadata metadata,
-    Future<O> Function(SpanContext span) next,
+    Future<O> Function([SpanContext? span]) next,
   ) {
     final parent = Zone.current[_activeSpanKey] as _ActiveSpan?;
     final span = _ActiveSpan(

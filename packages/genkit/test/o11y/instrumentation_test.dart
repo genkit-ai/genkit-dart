@@ -223,7 +223,7 @@ void main() {
 
       await instrumentation.runInNewSpan<void>(
         const SpanMetadata(name: 'injected'),
-        (_) async {},
+        ([_]) async {},
       );
 
       // Two exports: a start snapshot (unfinished) then the finished span.
@@ -249,8 +249,9 @@ void main() {
       await expectLater(
         instrumentation.runInNewSpan<void>(
           const SpanMetadata(name: 'boom'),
-          (_) async => throw StateError('nope'),
+          ([_]) async => throw StateError('nope'),
         ),
+
         throwsA(isA<StateError>()),
       );
 
