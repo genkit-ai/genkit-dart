@@ -25,6 +25,7 @@ Future<Map<String, dynamic>> _requestOnTheWire({
   required String model,
   ThinkingConfig? thinking,
   AnthropicOutputConfig? outputConfig,
+  List<Message>? messages,
 }) async {
   Map<String, dynamic>? captured;
   final client = MockClient((request) async {
@@ -55,12 +56,14 @@ Future<Map<String, dynamic>> _requestOnTheWire({
 
   await action(
     ModelRequest(
-      messages: [
-        Message(
-          role: Role.user,
-          content: [TextPart(text: 'hello')],
-        ),
-      ],
+      messages:
+          messages ??
+          [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
       config: AnthropicOptions(
         thinking: thinking,
         outputConfig: outputConfig,
@@ -179,6 +182,72 @@ void main() {
         outputConfig: AnthropicOutputConfig(),
       );
       expect(body, isNot(contains('output_config')));
+    });
+  });
+
+  group('thinking blocks on the wire', () {
+    test('replays a prior assistant turn with its thinking block', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              ReasoningPart(
+                reasoning: 'Hmm',
+                metadata: {'thoughtSignature': 'sig_123'},
+              ),
+              ReasoningPart(
+                reasoning: '',
+                metadata: {'redactedThinking': 'opaque_payload'},
+              ),
+              TextPart(text: 'hi'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'and again?')],
+          ),
+        ],
+      );
+
+      final assistant = (body['messages'] as List)[1] as Map;
+      expect(assistant['role'], 'assistant');
+      expect(assistant['content'], [
+        {'type': 'thinking', 'thinking': 'Hmm', 'signature': 'sig_123'},
+        {'type': 'redacted_thinking', 'data': 'opaque_payload'},
+        {'type': 'text', 'text': 'hi'},
+      ]);
+    });
+
+    test('omits an unsigned thinking block from the wire', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              ReasoningPart(reasoning: 'Hmm'),
+              TextPart(text: 'hi'),
+            ],
+          ),
+        ],
+      );
+
+      final assistant = (body['messages'] as List)[1] as Map;
+      expect(assistant['content'], [
+        {'type': 'text', 'text': 'hi'},
+      ]);
     });
   });
 }

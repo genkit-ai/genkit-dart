@@ -303,12 +303,46 @@ sdk.SystemPrompt? convertSystemMessage(Message m) {
   return sdk.SystemPrompt.text(text);
 }
 
+/// Metadata key carrying an Anthropic thinking block's signature.
+///
+/// Matches the key used by the Gemini plugins and by Genkit JS.
+const _thoughtSignatureKey = 'thoughtSignature';
+
+/// Metadata key carrying the opaque payload of a redacted thinking block.
+const _redactedThinkingKey = 'redactedThinking';
+
+/// Rebuilds the Anthropic thinking block a [ReasoningPart] came from.
+///
+/// Returns an empty list for reasoning this plugin cannot round-trip: Anthropic
+/// rejects a thinking block whose signature is missing, so a part that never
+/// carried one - hand-built history, or reasoning from another provider - is
+/// dropped rather than turned into a request the API will reject.
+List<sdk.InputContentBlock> _toAnthropicThinkingBlocks(Part p) {
+  final metadata = p.metadata;
+
+  final redacted = metadata?[_redactedThinkingKey];
+  if (redacted is String && redacted.isNotEmpty) {
+    return [sdk.RedactedThinkingInputBlock(data: redacted)];
+  }
+
+  final signature = metadata?[_thoughtSignatureKey];
+  if (signature is! String || signature.isEmpty) return const [];
+
+  return [
+    sdk.ThinkingInputBlock(thinking: p.reasoning ?? '', signature: signature),
+  ];
+}
+
 /// Converts a Genkit [Message] to an Anthropic [sdk.InputMessage].
 sdk.InputMessage toAnthropicMessage(Message m) {
   final isUser = m.role == Role.user || m.role == Role.tool;
 
   final blocks = m.content.expand<sdk.InputContentBlock>((p) {
-    if (p.isText) {
+    if (p.isReasoning) {
+      // Anthropic accepts thinking blocks only on assistant turns, and only
+      // when echoed back complete and unmodified.
+      return isUser ? const [] : _toAnthropicThinkingBlocks(p);
+    } else if (p.isText) {
       return [sdk.InputContentBlock.text(p.text!)];
     } else if (p.isToolRequest) {
       final req = p.toolRequest!;
@@ -480,7 +514,14 @@ Message fromAnthropicMessage(sdk.Message m) {
                       as Part,
           sdk.ThinkingBlock(:final thinking, :final signature) => ReasoningPart(
             reasoning: thinking,
-            metadata: {'signature': signature},
+            metadata: {_thoughtSignatureKey: signature},
+          ),
+          // The payload is opaque and unreadable, but Anthropic still requires
+          // it echoed back on later turns, so it is preserved rather than
+          // dropped. The reasoning text is necessarily empty.
+          sdk.RedactedThinkingBlock(:final data) => ReasoningPart(
+            reasoning: '',
+            metadata: {_redactedThinkingKey: data},
           ),
           _ => TextPart(text: ''),
         },

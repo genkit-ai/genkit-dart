@@ -148,6 +148,45 @@ void main() {
       );
     }, timeout: Timeout(Duration(minutes: 2)));
 
+    test('should replay thinking blocks through a tool loop', () async {
+      // Regression test for #353. The second turn re-sends the assistant's
+      // thinking block, whose signature Anthropic verifies server-side - the
+      // one thing the wire tests cannot check. Before the fix the block was
+      // dropped and this request failed.
+      final tool = ai.defineTool(
+        name: 'calculator',
+        description: 'Multiplies two numbers',
+        inputSchema: CalculatorInput.$schema,
+        outputSchema: .integer(),
+        fn: (CalculatorInput input, _) async => .response(input.a * input.b),
+      );
+
+      final response = await ai.generate(
+        model: anthropic.model('claude-sonnet-4-5'),
+        prompt: 'What is 123 * 456? Use the calculator tool.',
+        tools: [tool],
+        config: AnthropicOptions(
+          thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+        ),
+      );
+
+      expect(response.text, contains('56,088'));
+      expect(response.messages.map((m) => m.role), [
+        'user',
+        'model',
+        'tool',
+        'model',
+      ]);
+
+      // The replayed turn must have carried a signed thinking block.
+      final replayed = response.messages[1].content.where((p) => p.isReasoning);
+      expect(replayed, isNotEmpty);
+      expect(
+        replayed.first.metadata?['thoughtSignature'],
+        isA<String>().having((s) => s.isNotEmpty, 'is not empty', isTrue),
+      );
+    }, timeout: Timeout(Duration(minutes: 2)));
+
     test('should use adaptive thinking for newer models', () async {
       final response = await ai.generate(
         model: anthropic.model('claude-sonnet-5'),

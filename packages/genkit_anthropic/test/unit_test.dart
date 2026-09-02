@@ -439,12 +439,70 @@ void main() {
       );
     });
 
-    test('should filter ReasoningPart from input', () {
+    test('should send a signed ReasoningPart back as a thinking block', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(
+            reasoning: 'thinking...',
+            metadata: {'thoughtSignature': 'sig_123'},
+          ),
+          TextPart(text: 'Hello'),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 2);
+
+      // Anthropic requires the thinking block first in the assistant turn.
+      final thinking = result.blocks.first.toJson();
+      expect(thinking['type'], 'thinking');
+      expect(thinking['thinking'], 'thinking...');
+      expect(thinking['signature'], 'sig_123');
+    });
+
+    test('should send a redacted ReasoningPart back as a redacted block', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(
+            reasoning: '',
+            metadata: {'redactedThinking': 'opaque_payload'},
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 1);
+
+      final redacted = result.blocks.first.toJson();
+      expect(redacted['type'], 'redacted_thinking');
+      expect(redacted['data'], 'opaque_payload');
+    });
+
+    test('should drop a ReasoningPart with no signature', () {
+      // Anthropic rejects an unsigned thinking block, so dropping it is the
+      // only recoverable option.
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(reasoning: 'thinking...'),
+          TextPart(text: 'Hello'),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 1);
+      expect(result.blocks.first, isA<sdk.TextInputBlock>());
+    });
+
+    test('should filter ReasoningPart from a user message', () {
+      // Thinking blocks are only valid on assistant turns.
       final input = Message(
         role: Role.user,
         content: [
           TextPart(text: 'Hello'),
-          ReasoningPart(reasoning: 'thinking...'),
+          ReasoningPart(
+            reasoning: 'thinking...',
+            metadata: {'thoughtSignature': 'sig_123'},
+          ),
         ],
       );
       final result = toAnthropicMessage(input);
@@ -490,7 +548,7 @@ void main() {
       expect(part.toolRequest!.ref, 'call_123');
     });
 
-    test('should map ThinkingBlock to ReasoningPart with signature', () {
+    test('should map ThinkingBlock to ReasoningPart with thoughtSignature', () {
       final input = sdk.Message(
         id: 'msg_123',
         role: sdk.MessageRole.assistant,
@@ -508,10 +566,57 @@ void main() {
       // Use JSON check for ReasoningPart due to schemantic type erasure in generic lists
       final reasoningPart = result.content[0].toJson();
       expect(reasoningPart['reasoning'], 'Hmm');
-      expect((reasoningPart['metadata'] as Map?)?['signature'], 'sig_123');
+      expect(
+        (reasoningPart['metadata'] as Map?)?['thoughtSignature'],
+        'sig_123',
+      );
 
       final textPart = result.content[1].toJson();
       expect(textPart['text'], 'Hello');
+    });
+
+    test('should map RedactedThinkingBlock to a ReasoningPart', () {
+      final input = sdk.Message(
+        id: 'msg_123',
+        role: sdk.MessageRole.assistant,
+        content: [
+          sdk.RedactedThinkingBlock(data: 'opaque_payload'),
+          sdk.TextBlock(text: 'Hello'),
+        ],
+        model: 'claude-3-5-sonnet',
+        usage: sdk.Usage(inputTokens: 10, outputTokens: 5),
+      );
+
+      final result = fromAnthropicMessage(input);
+      // The empty-text filter must not swallow the empty-reasoning part.
+      expect(result.content.length, 2);
+
+      final reasoningPart = result.content[0].toJson();
+      expect(reasoningPart['reasoning'], '');
+      expect(
+        (reasoningPart['metadata'] as Map?)?['redactedThinking'],
+        'opaque_payload',
+      );
+    });
+
+    test('should round-trip thinking blocks back onto the wire unmodified', () {
+      final original = sdk.Message(
+        id: 'msg_123',
+        role: sdk.MessageRole.assistant,
+        content: [
+          sdk.ThinkingBlock(thinking: 'Hmm', signature: 'sig_123'),
+          sdk.RedactedThinkingBlock(data: 'opaque_payload'),
+          sdk.TextBlock(text: 'Hello'),
+        ],
+        model: 'claude-3-5-sonnet',
+        usage: sdk.Usage(inputTokens: 10, outputTokens: 5),
+      );
+
+      final blocks = toAnthropicMessage(fromAnthropicMessage(original)).blocks;
+      expect(blocks.length, 3);
+      expect(blocks[0].toJson(), original.content[0].toJson());
+      expect(blocks[1].toJson(), original.content[1].toJson());
+      expect(blocks[2].toJson()['type'], 'text');
     });
 
     test('should map return_output tool to TextPart with JSON', () {
