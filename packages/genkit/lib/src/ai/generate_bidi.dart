@@ -119,7 +119,11 @@ Future<GenerateBidiSession> runGenerateBidi(
   // session it pins) across sessions.
   final unsubscribe = cancel?.onCancel(() => unawaited(session.close()));
   if (unsubscribe != null) {
-    unawaited(session.onResult.whenComplete(unsubscribe));
+    // `whenComplete` returns a *new* future that re-completes with the same
+    // error; `ignore()` it so a session that settles with an error (e.g. a
+    // transport failure) does not surface a duplicate unhandled async error via
+    // this cleanup hook (the caller already sees it through `outputController`).
+    session.onResult.whenComplete(unsubscribe).ignore();
   }
 
   final outputController = StreamController<GenerateResponseChunk>();
@@ -180,6 +184,12 @@ Future<GenerateBidiSession> runGenerateBidi(
             } on ToolInterruptException {
               // Deprecated throwing interrupt form.
               throw bidiInterruptUnsupported();
+            } on CancelledException {
+              // A cooperative cancel tears the session down (the cancel hook
+              // above calls `session.close()`). Propagate it rather than turn it
+              // into a fabricated `Error: ...cancelled` tool answer that would
+              // be sent back to the model on an already-closed input sink.
+              rethrow;
             } catch (e) {
               toolResponses.add(
                 ToolResponsePart(

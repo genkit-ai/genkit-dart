@@ -467,19 +467,30 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
 class BidiActionStream<Chunk, Response, Request>
     extends ActionStream<Chunk, Response> {
   final StreamSink<Request>? _inputSink;
+  bool _inputClosed = false;
 
   BidiActionStream(super.stream, this._inputSink);
 
+  /// Whether the input side of this stream has been closed via [close].
+  bool get isClosed => _inputClosed;
+
   /// Sends a chunk of data back to the action.
+  ///
+  /// No-op once the input side has been [close]d (e.g. after a cooperative
+  /// cancel tears the session down): adding to a closed [StreamSink] throws a
+  /// `StateError`, so a late send that races the close is silently dropped
+  /// rather than crashing the caller.
   void send(Request chunk) {
     if (_inputSink == null) {
       throw GenkitException('Cannot send to this stream (external input)');
     }
+    if (_inputClosed) return;
     _inputSink.add(chunk);
   }
 
   /// Closes the input sink.
   Future<void> close() async {
+    _inputClosed = true;
     await _inputSink?.close();
   }
 }
