@@ -474,7 +474,8 @@ void main() {
       final chat = agent.chat(sessionId: sessionId);
       final res = await chat.send(text: 'hi');
       final prior = await agent.abort(res.snapshotId!);
-      // Turn already completed, so abort reports the prior status.
+      // Turn already settled, so abort is a no-op and returns the existing
+      // terminal status unchanged (only a `pending` row flips to `aborting`).
       expect(prior?.value, 'completed');
     });
 
@@ -545,7 +546,8 @@ void main() {
         AgentAbortRequest(snapshotId: res.snapshotId!),
       );
       expect(response.snapshotId, res.snapshotId);
-      // Turn already completed, so the prior status is reported.
+      // Turn already settled, so abort is a no-op and returns the existing
+      // terminal status unchanged.
       expect(response.status?.value, 'completed');
     });
 
