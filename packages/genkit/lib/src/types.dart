@@ -201,6 +201,7 @@ abstract class $ModelResponse {
   $Message? get message;
   FinishReason get finishReason;
   String? get finishMessage;
+  $RuntimeError? get error;
   double? get latencyMs;
   $GenerationUsage? get usage;
   Map<String, dynamic>? get custom;
@@ -225,10 +226,18 @@ abstract class $MiddlewareRef {
 }
 
 @Schema()
+abstract class $RuntimeError {
+  String? get status;
+  String get message;
+  Map<String, dynamic>? get details;
+}
+
+@Schema()
 abstract class $GenerateResponse {
   $Message? get message;
   FinishReason? get finishReason;
   String? get finishMessage;
+  $RuntimeError? get error;
   double? get latencyMs;
   $GenerationUsage? get usage;
   Map<String, dynamic>? get custom;
@@ -290,6 +299,7 @@ extension type FinishReason(String value) {
   static FinishReason get length => FinishReason('length');
   static FinishReason get blocked => FinishReason('blocked');
   static FinishReason get aborted => FinishReason('aborted');
+  static FinishReason get failed => FinishReason('failed');
   static FinishReason get interrupted => FinishReason('interrupted');
   static FinishReason get other => FinishReason('other');
   static FinishReason get unknown => FinishReason('unknown');
@@ -540,6 +550,7 @@ abstract class $Artifact {
 abstract class $GetSnapshotDataInput {
   String? get snapshotId;
   String? get sessionId;
+  bool? get metadataOnly;
 }
 
 extension type JsonPatchOp(String value) {
@@ -583,6 +594,7 @@ abstract class $SessionState {
 
 extension type SnapshotStatus(String value) {
   static SnapshotStatus get pending => SnapshotStatus('pending');
+  static SnapshotStatus get aborting => SnapshotStatus('aborting');
   static SnapshotStatus get completed => SnapshotStatus('completed');
   static SnapshotStatus get aborted => SnapshotStatus('aborted');
   static SnapshotStatus get failed => SnapshotStatus('failed');

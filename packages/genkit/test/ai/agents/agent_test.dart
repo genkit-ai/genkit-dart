@@ -598,6 +598,60 @@ void main() {
       },
     );
 
+    test(
+      'getSnapshotData reports a stale aborting snapshot as expired',
+      () async {
+        // A cross-runtime read: a Go server settles its abort in two writes
+        // (flip -> `aborting`, later finalize -> `aborted`) and keeps
+        // heartbeating while it winds down. A stale `aborting` beat means the
+        // draining worker died, so - like a stale `pending` - it must read as
+        // `expired`. Dart itself settles aborts in one write and never emits
+        // `aborting`, but must still read one correctly off the wire.
+        final store = InMemorySessionStore();
+        final agent = ai.defineCustomAgent(
+          name: 'winddown',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async => null);
+            return AgentResult();
+          },
+        );
+
+        final sessionId = generateUuidV4();
+        final stale = DateTime.now()
+            .toUtc()
+            .subtract(const Duration(minutes: 5))
+            .toIso8601String();
+        final id = await store.saveSnapshot(
+          null,
+          (_) => SessionSnapshot(
+            snapshotId: '',
+            createdAt: stale,
+            updatedAt: stale,
+            heartbeatAt: stale,
+            status: SnapshotStatus.aborting,
+            state: SessionState(
+              sessionId: sessionId,
+              messages: [],
+              artifacts: [],
+            ),
+          ),
+        );
+
+        // Stored status is still `aborting`...
+        final raw = await store.getSnapshot(snapshotId: id);
+        expect(raw!.status?.value, 'aborting');
+
+        // ...but a read through the agent surfaces it as `expired`.
+        final snapshot = await agent.getSnapshotData(snapshotId: id);
+        expect(snapshot!.status?.value, 'expired');
+
+        // The expiry is read-only: the stored snapshot stays `aborting`.
+        final after = await store.getSnapshot(snapshotId: id);
+        expect(after!.status?.value, 'aborting');
+      },
+    );
+
     test('getSnapshotData requires a store', () async {
       final agent = ai.defineCustomAgent(
         name: 'noStore',

@@ -203,15 +203,21 @@ const Duration _defaultHeartbeatInterval = Duration(seconds: 30);
 /// [_defaultHeartbeatInterval] so a single missed beat does not trip expiry.
 const Duration _defaultHeartbeatTimeout = Duration(seconds: 60);
 
-/// Returns `true` when [snapshot] is a `pending` (detached, in-flight) snapshot
-/// whose heartbeat is older than [timeout] - i.e. its background worker is
-/// presumed dead. A pending snapshot that has not yet written a first heartbeat
-/// is not considered expired (the beat may simply not have fired yet).
+/// Returns `true` when [snapshot] is a detached, in-flight snapshot whose
+/// heartbeat is older than [timeout] - i.e. its background worker is presumed
+/// dead. Both `pending` and `aborting` are in-flight, still-heartbeating states
+/// (a worker keeps beating while it winds down an abort), so a stale beat in
+/// either reads as `expired`; this mirrors the shared spec, where a `pending`
+/// *or* `aborting` row with a stale beat surfaces as `expired`. A snapshot that
+/// has not yet written a first heartbeat is not considered expired (the beat may
+/// simply not have fired yet).
 bool _isHeartbeatExpired(
   SessionSnapshot snapshot, [
   Duration timeout = _defaultHeartbeatTimeout,
 ]) {
-  if (snapshot.status?.value != 'pending' || snapshot.heartbeatAt == null) {
+  final status = snapshot.status?.value;
+  if ((status != 'pending' && status != 'aborting') ||
+      snapshot.heartbeatAt == null) {
     return false;
   }
   final last = DateTime.tryParse(snapshot.heartbeatAt!);
