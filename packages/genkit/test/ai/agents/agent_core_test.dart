@@ -306,6 +306,28 @@ void main() {
         ),
       );
     });
+
+    test('a failed turn on the streaming path throws AgentError without an '
+        'unhandled rejection', () async {
+      // `supportsRun: false` forces the streaming path (`_sendStream`), where
+      // the orphan `responsePromise` must be `.ignore()`d so a rejecting turn
+      // does not reach `Zone.handleUncaughtError` (which package:test would
+      // surface as a failure after the test body passes). The two other
+      // failed-turn tests take the `run()` fast path and never exercise this.
+      final transport = _FakeTransport([
+        _TurnScript(
+          output: AgentOutput(
+            finishReason: AgentFinishReason.failed,
+            error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
+          ),
+        ),
+      ]);
+      final chat = AgentApi(transport).chat();
+      await expectLater(chat.send(text: 'hi'), throwsA(isA<AgentError>()));
+      // Let any stray unhandled async error settle onto the event loop; if the
+      // orphan future weren't ignored, this turn would fail the test here.
+      await Future<void>.delayed(Duration.zero);
+    });
   });
 
   group('AgentChat pre-aborted bail', () {
