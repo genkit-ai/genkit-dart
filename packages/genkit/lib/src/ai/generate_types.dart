@@ -99,7 +99,6 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
          error: _response.error,
          latencyMs: _response.latencyMs,
          usage: _response.usage,
-
          custom: _response.custom,
          raw: _response.raw,
          request: _response.request, // This uses ModelResponse.request

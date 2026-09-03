@@ -1458,6 +1458,60 @@ void main() {
         expect(res.messages[2].role, Role.tool);
         expect(res.messages[2].content.any((p) => p.isToolResponse), isTrue);
       });
+
+      test(
+        'a throwing tool carries the turn\'s usage onto the failed response',
+        () async {
+          const modelName = 'toolThrowUsageModel';
+          const toolName = 'explodingUsageTool';
+
+          genkit.defineTool(
+            name: toolName,
+            description: 'always throws',
+            inputSchema: TestToolInput.$schema,
+            fn: (input, ctx) async {
+              throw GenkitException(
+                'tool exploded',
+                status: StatusCodes.FAILED_PRECONDITION,
+              );
+            },
+          );
+
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              return ModelResponse(
+                finishReason: .stop,
+                usage: GenerationUsage(inputTokens: 11, outputTokens: 7),
+                message: Message(
+                  role: .model,
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: toolName,
+                        input: {'name': 'world'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'use the tool',
+            toolNames: [toolName],
+          );
+
+          expect(res.finishReason, FinishReason.failed);
+          // The model answered this turn before the tool threw, so its token
+          // accounting rides onto the failed response.
+          expect(res.usage, isNotNull);
+          expect(res.usage!.inputTokens, 11);
+          expect(res.usage!.outputTokens, 7);
+        },
+      );
     });
   });
 }

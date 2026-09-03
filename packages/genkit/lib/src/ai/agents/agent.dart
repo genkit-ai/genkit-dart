@@ -1829,7 +1829,6 @@ Agent<State> definePromptAgent<State>(
       // trailing model message preserves the user turn as the resume point
       // rather than treating the user's own message as the model reply.
       final reqMessages = res.modelRequest?.messages;
-
       if (reqMessages != null) {
         final keep = reqMessages
             .where((m) => m.metadata?[_promptTag] != true)

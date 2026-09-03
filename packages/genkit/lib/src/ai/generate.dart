@@ -278,10 +278,17 @@ RuntimeError _toRuntimeError(Object cause) {
 /// inspect `response.messages` and resume from the last good state (the same
 /// shape the abort path uses). Mirrors Go's `failurePartial`, except Dart
 /// returns only the response where Go returns the response and the error.
+///
+/// [usage] carries the accounting the turn already earned (the token counts on
+/// the failing turn's model response), so a failed response still reports what
+/// the run spent before it broke, mirroring Go's `failurePartial` copying the
+/// partial's usage. It is null when the failure struck before the model
+/// answered (e.g. the model call itself threw), where no usage was earned.
 GenerateResponseHelper _failedResponse({
   required List<Message> history,
   required Object cause,
   Map<String, dynamic>? config,
+  GenerationUsage? usage,
 }) {
   final error = _toRuntimeError(cause);
   final request = ModelRequest(messages: history, config: config);
@@ -290,6 +297,7 @@ GenerateResponseHelper _failedResponse({
       finishReason: FinishReason.failed,
       finishMessage: error.message,
       error: error,
+      usage: usage,
       // Stamp the request onto the ModelResponse too (not just the helper) so
       // the resumable history survives the reflection boundary, matching
       // `_abortedResponse`.
@@ -305,7 +313,6 @@ GenerateResponseHelper _failedResponse({
 /// converted into an aborted response, or rethrown.
 ///
 /// Returns a [GenerateResponseHelper] (the abort) when:
-
 /// - [e] is a [CancelledException] produced by *this* turn's [cancel] token
 ///   (matched by identity, or by the token being cancelled), or
 /// - [cancel] is cancelled and [e] is a generic failure surfaced because the
@@ -583,10 +590,12 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       history: options.messages,
       config: options.config,
       cause: e,
+      // The model already answered this turn; carry its usage onto the failed
+      // response so the tokens the turn spent are still reported.
+      usage: response.usage,
     );
   }
   final toolResponses = execution.toolResponses;
-
   final toolStatus = execution.toolStatus;
   final interrupted = execution.interrupted;
 
