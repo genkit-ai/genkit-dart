@@ -1305,6 +1305,69 @@ void main() {
           expect(res.error!.message, contains('boom'));
         },
       );
+
+      test('a failure after a successful tool-call turn preserves that turn as '
+          'last-good history', () async {
+        const modelName = 'toolThenFailModel';
+        const toolName = 'okTool';
+        var modelCall = 0;
+
+        genkit.defineTool(
+          name: toolName,
+          description: 'succeeds',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, ctx) async => .response('tool output'),
+        );
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            modelCall++;
+            // Turn 1: request the tool (it succeeds and the loop continues).
+            if (modelCall == 1) {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: toolName,
+                        input: {'name': 'world'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            // Turn 2 (post-tool): the model errors.
+            throw GenkitException(
+              'model exploded after tool',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'use the tool',
+          toolNames: [toolName],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error!.message, contains('model exploded after tool'));
+
+        // The completed tool-call turn is preserved as the resume point: the
+        // user message, the model's tool request, and the tool response. The
+        // failed turn's own (absent) model reply is not appended.
+        expect(res.messages.length, 3);
+        expect(res.messages[0].role, Role.user);
+        expect(res.messages[0].text, 'use the tool');
+        expect(res.messages[1].role, Role.model);
+        expect(res.messages[1].content.any((p) => p.isToolRequest), isTrue);
+        expect(res.messages[2].role, Role.tool);
+        expect(res.messages[2].content.any((p) => p.isToolResponse), isTrue);
+      });
     });
   });
 }
