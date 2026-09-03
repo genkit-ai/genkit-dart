@@ -127,24 +127,27 @@ void main() {
       expect(joined, contains('my-catalog'));
     });
 
-    test('throws when an unknown catalog id is configured', () async {
-      defineReplyModel('m4', 'ok');
-      await expectLater(
-        genkit.generate(
+    test(
+      'reports a failed response when an unknown catalog id is configured',
+      () async {
+        defineReplyModel('m4', 'ok');
+        // An unknown catalog id throws inside the middleware's model hook.
+        // `generate` no longer rethrows: it resolves to a `failed` response
+        // carrying the error, so assert on that rather than a throw.
+        final res = await genkit.generate(
           model: modelRef('m4'),
           system: 'sys',
           prompt: 'hi',
           use: [a2ui(catalog: 'nope')],
-        ),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('no catalog registered under id "nope"'),
-          ),
-        ),
-      );
-    });
+        );
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error, isNotNull);
+        expect(
+          res.error!.message,
+          contains('no catalog registered under id "nope"'),
+        );
+      },
+    );
 
     test('instructions:none injects nothing', () async {
       ModelRequest? seen;
