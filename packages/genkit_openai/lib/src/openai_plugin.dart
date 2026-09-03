@@ -14,10 +14,14 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
+import 'known_models.dart';
+
+final _logger = Logger('genkit_openai');
 
 /// Core Genkit plugin implementation for OpenAI-compatible APIs.
 ///
@@ -77,45 +81,26 @@ class OpenAIPlugin extends GenkitPlugin {
     }
   }
 
+  /// Registers actions that need neither network access nor a key.
+  ///
+  /// Deliberately does no I/O. The registry treats an `init()` failure as
+  /// fatal and does not cache it (`registry.dart:32-40`), and every
+  /// `listActions()` call initializes plugins outside its per-plugin
+  /// try/catch - so throwing here takes down the whole Dev UI, including
+  /// `/api/__health`. Model discovery belongs in [list], where a failure
+  /// degrades instead.
+  ///
+  /// Models are not registered up front: [resolve] builds them on demand for
+  /// any id, so nothing is lost by staying offline here.
   @override
-  Future<List<Action>> init() async {
-    final actions = <Action>[];
-
-    // Fetch and register models from OpenAI API only for default OpenAI host.
-    if (baseUrl == null) {
-      try {
-        final availableModelIds = await _fetchAvailableModels();
-
-        for (final modelId in availableModelIds) {
-          final modelType = getModelType(modelId);
-
-          if (modelType != 'chat' && modelType != 'unknown') {
-            continue;
-          }
-
-          final info = modelInfoFor(modelId);
-          actions.add(_createModel(modelId, info));
-        }
-      } catch (e) {
-        throw GenkitException(
-          'Error fetching available models from $_pluginName: $e',
-          underlyingException: e,
-        );
-      }
-    }
-
-    // Register custom models
-    for (final model in customModels) {
-      actions.add(_createModel(model.name, model.info));
-    }
-
-    return actions;
-  }
+  Future<List<Action>> init() async => [
+    for (final model in customModels) _createModel(model.name, model.info),
+  ];
 
   /// Fetch available model IDs from OpenAI API
-  Future<List<String>> _fetchAvailableModels() async {
-    final resolvedConfig = await _resolveClientConfig();
-
+  Future<List<String>> _fetchAvailableModels(
+    _ResolvedClientConfig resolvedConfig,
+  ) async {
     final client = sdk.OpenAIClient.withApiKey(
       resolvedConfig.apiKey,
       baseUrl: resolvedConfig.baseUrl,
@@ -141,14 +126,41 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   Future<_ResolvedClientConfig> _resolveClientConfig() async {
-    final configuredApiKey = await _resolveApiKey();
-    if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
+    final config = await _resolveClientConfigOrNull();
+    if (config == null) {
       throw GenkitException(
-        '[$_pluginName] API key is required. Provide it via apiKey or apiKeyProvider in the plugin constructor.',
+        '[$_pluginName] API key is required. Provide it via apiKey or apiKeyProvider '
+        'in the plugin constructor, or set the OPENAI_API_KEY environment variable.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
+    return config;
+  }
 
+  /// Resolves the API key from, in order: [apiKeyProvider], [apiKey], then the
+  /// `OPENAI_API_KEY` environment variable.
+  ///
+  /// Uses `getConfigVar` rather than `Platform.environment` so the plugin stays
+  /// usable on web and wasm, matching `genkit_google_genai`.
+  Future<String?> _resolveApiKey() async {
+    final configuredApiKeyProvider = apiKeyProvider;
+    if (configuredApiKeyProvider != null) {
+      return await configuredApiKeyProvider();
+    }
+    return apiKey ?? _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
+  }
+
+  /// Client config for discovery, or null when no key is available.
+  ///
+  /// Lets [list] skip a request it knows would 401, without duplicating the
+  /// key resolution that [_resolveClientConfig] does - notably without
+  /// invoking [apiKeyProvider] twice, which for a provider that mints a token
+  /// per call would double the cost of every Dev UI poll.
+  Future<_ResolvedClientConfig?> _resolveClientConfigOrNull() async {
+    final configuredApiKey = await _resolveApiKey();
+    if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
+      return null;
+    }
     return _ResolvedClientConfig(
       apiKey: configuredApiKey.trim(),
       baseUrl: baseUrl,
@@ -156,45 +168,63 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 
-  Future<String?> _resolveApiKey() async {
-    final configuredApiKeyProvider = apiKeyProvider;
-    if (configuredApiKeyProvider != null) {
-      return await configuredApiKeyProvider();
-    }
-    return apiKey;
-  }
-
+  /// Lists the plugin's models, enriching the curated catalog with whatever
+  /// `GET /models` reports.
+  ///
+  /// Discovery is best-effort. Any failure - offline, bad key, a compatible
+  /// host that does not serve `/models` - degrades to the curated catalog with
+  /// a logged warning rather than throwing, so the Dev UI keeps working. A
+  /// misconfigured key still fails loudly at generate time.
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
+    final discovered = <String>{};
+
+    // Key resolution is inside the try on purpose: an apiKeyProvider that
+    // throws must degrade like any other discovery failure, not take the
+    // catalog down with it.
     try {
-      final modelIds = await _fetchAvailableModels();
-      final modelMetadataList =
-          <ActionMetadata<dynamic, dynamic, dynamic, dynamic>>[];
-
-      for (final modelId in modelIds) {
-        final modelType = getModelType(modelId);
-        if (modelType != 'chat' && modelType != 'unknown') {
-          continue;
+      // A keyless request is a guaranteed 401, so don't spend it.
+      final config = await _resolveClientConfigOrNull();
+      if (config != null) {
+        for (final modelId in await _fetchAvailableModels(config)) {
+          final modelType = getModelType(modelId);
+          if (modelType != 'chat' && modelType != 'unknown') {
+            continue;
+          }
+          discovered.add(modelId);
         }
-
-        modelMetadataList.add(
-          modelMetadata(
-            '$_pluginName/$modelId',
-            modelInfo: modelInfoFor(modelId),
-            customOptions: chat.chatModelOptionsSchema(),
-          ),
-        );
       }
-
-      return modelMetadataList;
     } catch (e, stackTrace) {
-      throw GenkitException(
-        'Error listing models from $_pluginName: $e',
-        underlyingException: e,
-        stackTrace: stackTrace,
+      _logger.warning(
+        'Failed to list models from $_pluginName; '
+        'falling back to the curated catalog: $e',
+        e,
+        stackTrace,
       );
     }
+
+    // Curated models are listed even when discovery omits them, and custom
+    // models are always listed - they need no discovery to be valid.
+    final ids = <String>{
+      ...discovered,
+      ...knownChatModels,
+      ...customModels.map((m) => m.name),
+    };
+
+    final infoOverrides = {
+      for (final model in customModels)
+        if (model.info != null) model.name: model.info!,
+    };
+
+    return [
+      for (final id in ids)
+        modelMetadata(
+          '$_pluginName/$id',
+          modelInfo: infoOverrides[id] ?? modelInfoFor(id),
+          customOptions: chat.chatModelOptionsSchema(),
+        ),
+    ];
   }
 
   @override
@@ -361,6 +391,9 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 }
+
+/// Environment variables consulted for the API key, in order.
+const _apiKeyEnvVars = ['OPENAI_API_KEY'];
 
 final class _ResolvedClientConfig {
   final String apiKey;
