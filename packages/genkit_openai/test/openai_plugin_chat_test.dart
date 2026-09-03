@@ -71,27 +71,111 @@ void main() {
   });
 
   group('buildOpenAIResponseFormat', () {
-    test('builds ResponseFormat from schema with \$defs', () {
-      final result = buildOpenAIResponseFormat(_createPersonSchema());
-      expect(result, isNotNull);
+    test('json output with a schema builds a json_schema format', () {
+      final result = buildOpenAIResponseFormat(
+        format: 'json',
+        schema: _createPersonSchema(),
+      );
       final js = _jsonSchema(result!);
       expect(js.name, 'output');
       expect(js.schema['type'], 'object');
-      expect(js.schema['additionalProperties'], false);
       expect(js.schema['properties'], isNotNull);
     });
 
-    test('returns null only for null schema', () {
-      expect(buildOpenAIResponseFormat(null), isNull);
+    test('resolves \$defs so type sits at the top level', () {
+      final js = _jsonSchema(
+        buildOpenAIResponseFormat(
+          format: 'json',
+          schema: _createPersonSchema(),
+        )!,
+      );
+      expect(js.schema.containsKey(r'\$defs'), isFalse);
+      expect(js.schema.containsKey(r'\$ref'), isFalse);
     });
 
-    test('builds ResponseFormat from schema without \$defs', () {
-      final result = buildOpenAIResponseFormat({'type': 'object'});
-      expect(result, isNotNull);
-      final js = _jsonSchema(result!);
-      expect(js.name, 'output');
-      expect(js.schema['type'], 'object');
-      expect(js.schema['additionalProperties'], false);
+    test('does not set strict', () {
+      // Strict mode requires additionalProperties:false on every object and
+      // every property in `required`. Genkit schemas are not authored that
+      // way, so strict rejects them with a 400.
+      final js = _jsonSchema(
+        buildOpenAIResponseFormat(format: 'json', schema: {'type': 'object'})!,
+      );
+      expect(js.strict, isFalse);
+    });
+
+    test('passes the schema through without injecting fields', () {
+      // The plugin used to add additionalProperties:false at the top level,
+      // which is both insufficient for strict mode and a silent mutation of
+      // the caller's schema.
+      final schema = {
+        'type': 'object',
+        'properties': {
+          'title': {'type': 'string'},
+          'year': {'type': 'integer'},
+          'author': {
+            'type': 'object',
+            'properties': {
+              'name': {'type': 'string'},
+            },
+            'required': ['name'],
+          },
+        },
+        // `year` deliberately absent - an optional field.
+        'required': ['title'],
+      };
+
+      final js = _jsonSchema(
+        buildOpenAIResponseFormat(format: 'json', schema: schema)!,
+      );
+
+      expect(js.schema, equals(schema));
+      expect(js.schema.containsKey('additionalProperties'), isFalse);
+      final author =
+          (js.schema['properties'] as Map)['author'] as Map<String, dynamic>;
+      expect(author.containsKey('additionalProperties'), isFalse);
+    });
+
+    test('json output without a schema falls back to json_object', () {
+      // The regression this issue is about: with no schema, Genkit emits no
+      // prompt instructions either, so without this nothing asks for JSON.
+      expect(
+        buildOpenAIResponseFormat(format: 'json'),
+        isA<JsonObjectResponseFormat>(),
+      );
+      expect(
+        buildOpenAIResponseFormat(contentType: 'application/json'),
+        isA<JsonObjectResponseFormat>(),
+      );
+    });
+
+    test('an explicit text format maps to text', () {
+      expect(
+        buildOpenAIResponseFormat(format: 'text'),
+        isA<TextResponseFormat>(),
+      );
+    });
+
+    test('jsonMode alone forces json_object', () {
+      expect(
+        buildOpenAIResponseFormat(jsonMode: true),
+        isA<JsonObjectResponseFormat>(),
+      );
+      expect(buildOpenAIResponseFormat(jsonMode: false), isNull);
+    });
+
+    test('output config wins over jsonMode', () {
+      final result = buildOpenAIResponseFormat(
+        format: 'json',
+        schema: {'type': 'object'},
+        jsonMode: true,
+      );
+      expect(result, isA<JsonSchemaResponseFormat>());
+    });
+
+    test('sends nothing when no format is requested', () {
+      // Compatible hosts that reject response_format must keep working.
+      expect(buildOpenAIResponseFormat(), isNull);
+      expect(buildOpenAIResponseFormat(schema: {'type': 'object'}), isNull);
     });
   });
 

@@ -51,7 +51,14 @@ abstract class $OpenAIChatOptions {
   /// User identifier for abuse detection
   String? get user;
 
-  /// JSON mode
+  /// Forces `{"type": "json_object"}` on the request.
+  ///
+  /// Only consulted when Genkit's own output config does not already imply
+  /// JSON - `outputFormat: 'json'` or an `outputSchema` takes precedence, and
+  /// a schema additionally constrains the shape.
+  ///
+  /// OpenAI rejects json_object unless the conversation also asks for JSON, so
+  /// the prompt must say so. Prefer `outputSchema` where the shape is known.
   bool? get jsonMode;
 
   /// Visual detail level for images ('auto', 'low', 'high')
@@ -73,17 +80,45 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
   return format == 'json' || contentType == 'application/json';
 }
 
-/// Builds an OpenAI [ResponseFormat] from a Genkit output schema.
-/// Flattens `$ref`/`$defs` since OpenAI requires `type` at the top level.
-/// Returns null if [schema] is null.
-ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
-  if (schema == null) return null;
-  final flattened = schema.flatten();
-  return ResponseFormat.jsonSchema(
-    name: 'output',
-    schema: {...flattened, 'additionalProperties': false},
-    strict: true,
-  );
+/// Maps Genkit's output config onto OpenAI's `response_format`.
+///
+/// Mirrors the JS plugin: JSON output with a schema becomes `json_schema`,
+/// JSON output without one becomes `json_object`, and an explicit text format
+/// becomes `text`. Anything else sends no `response_format` at all, which
+/// matters for OpenAI-compatible hosts that reject the field.
+///
+/// Returning `json_object` for a schemaless JSON request is not a nicety: with
+/// no schema, Genkit's json formatter also emits no prompt instructions, so
+/// without this nothing would ask the model for JSON at all.
+ResponseFormat? buildOpenAIResponseFormat({
+  String? format,
+  String? contentType,
+  Map<String, dynamic>? schema,
+  bool? jsonMode,
+}) {
+  if (isJsonStructuredOutput(format, contentType)) {
+    if (schema == null) return ResponseFormat.jsonObject();
+
+    // Flattened because OpenAI needs `type` at the top level, so `$ref`/
+    // `$defs` have to be resolved away first.
+    return ResponseFormat.jsonSchema(
+      name: 'output',
+      schema: schema.flatten(),
+      // Strict mode demands `additionalProperties: false` on every object and
+      // every property listed in `required`. Genkit schemas are not authored
+      // that way - an optional field is simply absent from `required` - so
+      // strict rejects ordinary schemas with a 400. JS omits the flag
+      // entirely; the SDK always serializes it, so false is how we say that.
+      strict: false,
+    );
+  }
+
+  if (format == 'text') return ResponseFormat.text();
+
+  // Reached only when the caller opts in without using Genkit's output config.
+  if (jsonMode == true) return ResponseFormat.jsonObject();
+
+  return null;
 }
 
 /// Returns custom options schema for standard chat models.
