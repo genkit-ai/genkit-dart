@@ -242,12 +242,14 @@ final class _HttpAgentTransport extends AgentTransport {
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async {
     _rejectContext(context);
     final headers = await _resolveHeaders();
     final lookup = <String, dynamic>{
       'snapshotId': ?snapshotId,
       'sessionId': ?sessionId,
+      if (metadataOnly) 'metadataOnly': true,
     };
     return _snapshotAction.call(input: lookup, headers: headers);
   }

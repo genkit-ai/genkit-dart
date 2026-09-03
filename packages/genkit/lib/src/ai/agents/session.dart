@@ -50,6 +50,13 @@ SessionSnapshot _cloneSnapshot(SessionSnapshot snapshot) =>
       _deepClone(snapshot.toJson()) as Map<String, dynamic>,
     );
 
+/// Returns a copy of [snapshot] with its `state` dropped, for a metadata-only
+/// read. Every other field is carried through as stored.
+SessionSnapshot stripSnapshotState(SessionSnapshot snapshot) {
+  final json = Map<String, dynamic>.from(snapshot.toJson())..remove('state');
+  return SessionSnapshot.fromJson(json);
+}
+
 /// Decodes a stored JSON list into typed values via [fromJson], treating a
 /// missing/null entry as an empty list.
 List<T> _decodeJsonList<T>(
@@ -111,6 +118,33 @@ abstract interface class SessionStore {
   Future<String?> saveSnapshot(
     String? snapshotId,
     SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  });
+}
+
+/// Optional capability layered on [SessionStore] for answering a metadata-only
+/// read (`GetSnapshotDataInput.metadataOnly`) without loading the row's state.
+///
+/// A store that does not implement it is still correct: the runtime reads the
+/// row in full and drops the state, paying to load a conversation history it
+/// will not use. A projecting store (SQL, Firestore) implements this to skip
+/// that load. Both bundled stores ([InMemorySessionStore], `FileSessionStore`)
+/// implement it. Implement both methods or neither: the capability is detected
+/// as a whole.
+abstract interface class SnapshotMetadataReader {
+  /// [SessionStore.getSnapshot] by [snapshotId] without the state: the returned
+  /// row carries every other field as stored, with `state` null, and the same
+  /// null-if-not-found contract.
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  });
+
+  /// [SessionStore.getSnapshot] by [sessionId] (the session's latest leaf)
+  /// without the state: the same resolution, the same null-if-none contract,
+  /// and a row with `state` null.
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
     Map<String, dynamic>? context,
   });
 }
@@ -315,7 +349,7 @@ final class SessionError implements Exception {
 
 /// In-memory implementation of persistent session store.
 final class InMemorySessionStore
-    implements SessionStore, SnapshotChangeNotifier {
+    implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates an in-memory store.
   ///
   /// When [rejectBranchingSessions] is `true`, a `sessionId` lookup that
@@ -363,6 +397,36 @@ final class InMemorySessionStore
       rejectBranching: rejectBranchingSessions,
     );
     return leaf != null ? _cloneSnapshot(leaf) : null;
+  }
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    // Strip directly off the stored row so we never deep-clone the (possibly
+    // large) state payload the way a full `getSnapshot` would.
+    final snap = _snapshots[snapshotId];
+    return snap != null ? stripSnapshotState(snap) : null;
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) async {
+    final owned = <SessionSnapshot>[];
+    for (final snap in _snapshots.values) {
+      if (snapshotSessionId(snap) == sessionId) {
+        owned.add(snap);
+      }
+    }
+    final leaf = selectLeafSnapshot(
+      owned,
+      sessionId,
+      rejectBranching: rejectBranchingSessions,
+    );
+    return leaf != null ? stripSnapshotState(leaf) : null;
   }
 
   @override

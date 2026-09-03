@@ -85,6 +85,51 @@ final class _ContextRecordingStore
   }
 }
 
+/// A store that implements the optional [SnapshotMetadataReader] capability and
+/// counts how often the metadata path is taken, so a test can assert the
+/// runtime prefers it over a full read for a metadata-only request.
+final class _MetadataCapableStore
+    implements SessionStore, SnapshotMetadataReader {
+  final InMemorySessionStore _delegate = InMemorySessionStore();
+  int metadataReads = 0;
+
+  @override
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  }) => _delegate.getSnapshot(
+    snapshotId: snapshotId,
+    sessionId: sessionId,
+    context: context,
+  );
+
+  @override
+  Future<String?> saveSnapshot(
+    String? snapshotId,
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  }) => _delegate.saveSnapshot(snapshotId, mutator, context: context);
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) {
+    metadataReads++;
+    return _delegate.getSnapshotMetadata(snapshotId, context: context);
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) {
+    metadataReads++;
+    return _delegate.getLatestSnapshotMetadata(sessionId, context: context);
+  }
+}
+
 void main() {
   group('defineCustomAgent (client-managed)', () {
     late Genkit ai;
@@ -715,6 +760,158 @@ void main() {
       final res2 = await rerun.send(text: 'hello again');
       expect(res2.finishReason, AgentFinishReason.stop);
       expect(res2.text, contains('recovered'));
+    });
+
+    test('metadataOnly read drops the state but keeps the metadata', () async {
+      final store = InMemorySessionStore();
+      final agent = ai.defineCustomAgent(
+        name: 'metaOnly',
+        store: store,
+        stateSchema: .map(.string(), .integer()),
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'count': 1});
+            sess.addMessages([
+              Message(
+                role: Role.model,
+                content: [TextPart(text: 'hi')],
+              ),
+            ]);
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          final msgs = sess.getMessages();
+          return AgentResult(
+            message: msgs.isNotEmpty ? msgs.last : null,
+            finishReason: sess.lastTurnFinishReason,
+          );
+        },
+      );
+
+      final res = await agent
+          .chat(sessionId: generateUuidV4())
+          .send(text: 'go');
+      final snapshotId = res.snapshotId!;
+
+      // A full read carries the state.
+      final full = await agent.getSnapshotData(snapshotId: snapshotId);
+      expect(full!.state, isNotNull);
+      expect(full.state!.custom, {'count': 1});
+
+      // A metadata-only read drops the state but keeps every other field.
+      final meta = await agent.getSnapshotData(
+        snapshotId: snapshotId,
+        metadataOnly: true,
+      );
+      expect(meta!.state, isNull);
+      expect(meta.snapshotId, snapshotId);
+      expect(meta.sessionId, full.sessionId);
+      expect(meta.status?.value, 'completed');
+      expect(meta.finishReason, AgentFinishReason.stop);
+      expect(meta.createdAt, full.createdAt);
+      expect(meta.updatedAt, full.updatedAt);
+    });
+
+    test('metadataOnly read still applies heartbeat-expiry shaping', () async {
+      final store = InMemorySessionStore();
+      final agent = ai.defineCustomAgent(
+        name: 'metaOnlyExpiry',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async => null);
+          return AgentResult();
+        },
+      );
+
+      final sessionId = generateUuidV4();
+      final stale = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(minutes: 5))
+          .toIso8601String();
+      final id = await store.saveSnapshot(
+        null,
+        (_) => SessionSnapshot(
+          snapshotId: '',
+          createdAt: stale,
+          updatedAt: stale,
+          heartbeatAt: stale,
+          status: SnapshotStatus.pending,
+          state: SessionState(
+            sessionId: sessionId,
+            messages: [],
+            artifacts: [],
+          ),
+        ),
+      );
+
+      final meta = await agent.getSnapshotData(
+        snapshotId: id,
+        metadataOnly: true,
+      );
+      expect(meta!.status?.value, 'expired');
+      expect(meta.state, isNull);
+    });
+
+    test(
+      'DetachedTask.poll(metadataOnly) yields state-less snapshots',
+      () async {
+        final store = InMemorySessionStore();
+        final releaseTurn = Completer<void>();
+        final agent = ai.defineCustomAgent(
+          name: 'metaOnlyPoll',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async {
+              await releaseTurn.future;
+              sess.updateCustom((_) => {'done': true});
+              return TurnResult(finishReason: AgentFinishReason.stop);
+            });
+            return AgentResult(finishReason: sess.lastTurnFinishReason);
+          },
+        );
+
+        final task = await agent
+            .chat(sessionId: generateUuidV4())
+            .detach(text: 'background');
+        releaseTurn.complete();
+
+        AgentSnapshot? last;
+        await for (final snap in task.poll(
+          interval: const Duration(milliseconds: 10),
+          metadataOnly: true,
+        )) {
+          last = snap;
+        }
+        expect(last, isNotNull);
+        expect(last!.status?.value, 'completed');
+        // The polled snapshots carry no state payload.
+        expect(last.sessionState, isNull);
+      },
+    );
+
+    test('a metadata-only read prefers the store capability', () async {
+      final store = _MetadataCapableStore();
+      final agent = ai.defineCustomAgent(
+        name: 'metaCapability',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'ok': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final res = await agent
+          .chat(sessionId: generateUuidV4())
+          .send(text: 'go');
+      final meta = await agent.getSnapshotData(
+        snapshotId: res.snapshotId!,
+        metadataOnly: true,
+      );
+      expect(meta!.state, isNull);
+      // The metadata path (not the full read) served the request.
+      expect(store.metadataReads, 1);
     });
 
     test('getSnapshotData requires a store', () async {

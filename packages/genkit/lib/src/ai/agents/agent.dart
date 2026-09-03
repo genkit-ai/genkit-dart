@@ -1114,8 +1114,13 @@ final class _InProcessTransport extends AgentTransport {
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) => getSnapshotDataAction(
-    GetSnapshotDataInput(snapshotId: snapshotId, sessionId: sessionId),
+    GetSnapshotDataInput(
+      snapshotId: snapshotId,
+      sessionId: sessionId,
+      metadataOnly: metadataOnly ? true : null,
+    ),
     context: context,
   );
 
@@ -1188,23 +1193,34 @@ class Agent<State> {
   ///
   /// Returns a typed [AgentSnapshot] wrapper (with the same `stateSchema`
   /// applied to `snapshot.state`), or `null` when no snapshot is found.
+  ///
+  /// Pass [metadataOnly] to read the shaped metadata without the state payload.
   Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) => _api.getSnapshot(
     snapshotId: snapshotId,
     sessionId: sessionId,
     context: context,
+    metadataOnly: metadataOnly,
   );
 
   /// Reads a snapshot (applying the client transform). Requires a server store.
+  ///
+  /// Pass [metadataOnly] to read the shaped metadata without the state payload.
   Future<SessionSnapshot?> getSnapshotData({
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) => getSnapshotDataAction(
-    GetSnapshotDataInput(snapshotId: snapshotId, sessionId: sessionId),
+    GetSnapshotDataInput(
+      snapshotId: snapshotId,
+      sessionId: sessionId,
+      metadataOnly: metadataOnly ? true : null,
+    ),
     context: context,
   );
 
@@ -1623,26 +1639,76 @@ Agent<State> defineCustomAgent<State>(
     return SessionSnapshot.fromJson(json);
   }
 
-  Future<SessionSnapshot?> resolveSnapshot(
+  // Reads a snapshot for a metadata-only caller: through the store's
+  // [SnapshotMetadataReader] capability when it has one (loading no state), and
+  // as a full read otherwise. The caller drops the state either way, so the two
+  // paths differ only in what the store had to load.
+  Future<SessionSnapshot?> readSnapshotMetadata(
+    SessionStore store,
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
   ) async {
-    _requireStore(config.store, 'getSnapshotData', config.name);
-    final snapshot = await config.store!.getSnapshot(
+    // Normalize first so the metadata path enforces the same "exactly one of
+    // snapshotId / sessionId" contract as the full read, rather than crashing
+    // on a null-assertion or silently ignoring one id.
+    final normalized = normalizeGetSnapshotOptions(
       snapshotId: snapshotId,
       sessionId: sessionId,
+    );
+    if (store is SnapshotMetadataReader) {
+      final reader = store as SnapshotMetadataReader;
+      return normalized.snapshotId != null
+          ? reader.getSnapshotMetadata(normalized.snapshotId!, context: context)
+          : reader.getLatestSnapshotMetadata(
+              normalized.sessionId!,
+              context: context,
+            );
+    }
+    return store.getSnapshot(
+      snapshotId: normalized.snapshotId,
+      sessionId: normalized.sessionId,
       context: context,
     );
+  }
+
+  Future<SessionSnapshot?> resolveSnapshot(
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context, {
+    bool metadataOnly = false,
+  }) async {
+    _requireStore(config.store, 'getSnapshotData', config.name);
+    final snapshot = metadataOnly
+        ? await readSnapshotMetadata(
+            config.store!,
+            snapshotId,
+            sessionId,
+            context,
+          )
+        : await config.store!.getSnapshot(
+            snapshotId: snapshotId,
+            sessionId: sessionId,
+            context: context,
+          );
     if (snapshot == null) return null;
     // Compute `expired` on read: a `pending` snapshot whose heartbeat has gone
     // stale is presumed orphaned (its background worker died), so surface it as
     // `expired` rather than leaving it `pending` forever. This is read-only -
-    // the status is not written back to the store.
+    // the status is not written back to the store. Heartbeat expiry needs only
+    // the metadata, so it applies identically to a metadata-only read.
     final effective = _isHeartbeatExpired(snapshot)
         ? (SessionSnapshot.fromJson(snapshot.toJson())
             ..status = SnapshotStatus.expired)
         : snapshot;
+    // A metadata-only read is done: drop the state (on a copy, never the
+    // store's row) and skip the client transform, which only shapes outbound
+    // state - and none goes out. This matches a full read of a stateless row.
+    if (metadataOnly) {
+      return effective.state == null
+          ? effective
+          : stripSnapshotState(effective);
+    }
     return toClientSnapshot(effective);
   }
 
@@ -1666,8 +1732,12 @@ Agent<State> defineCustomAgent<State>(
             'Gets snapshot data for ${config.name} by snapshotId or sessionId',
         actionType: .agentSnapshot,
         inputSchema: GetSnapshotDataInput.$schema,
-        fn: (lookup, ctx) async =>
-            resolveSnapshot(lookup?.snapshotId, lookup?.sessionId, ctx.context),
+        fn: (lookup, ctx) async => resolveSnapshot(
+          lookup?.snapshotId,
+          lookup?.sessionId,
+          ctx.context,
+          metadataOnly: lookup?.metadataOnly ?? false,
+        ),
       );
   registry.register(getSnapshotDataAction);
 
