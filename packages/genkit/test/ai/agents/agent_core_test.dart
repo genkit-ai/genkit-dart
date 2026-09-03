@@ -77,6 +77,7 @@ final class _FakeTransport extends AgentTransport {
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async => snapshots[snapshotId];
 
   @override
@@ -158,6 +159,7 @@ final class _StepTransport extends AgentTransport {
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async => null;
 
   @override
@@ -982,6 +984,7 @@ final class _CaptureTransport extends AgentTransport {
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async => null;
 
   @override

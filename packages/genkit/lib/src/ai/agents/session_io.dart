@@ -105,7 +105,8 @@ class _PointerDoc {
 /// scanning the prefix directory and selecting the single leaf whose
 /// `sessionId` matches, then rewrites the pointer so subsequent lookups are fast
 /// again.
-class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
+class FileSessionStore
+    implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates a file-backed store rooted at [dirPath] (created if missing).
   ///
   /// - [maxPersistedChainLength]: when set, snapshots older than this many
@@ -279,6 +280,24 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
       return _latestSnapshotForSession(normalized.sessionId!, context);
     }
     return _snapshotById(normalized.snapshotId!, context);
+  }
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    final snap = await getSnapshot(snapshotId: snapshotId, context: context);
+    return snap != null ? stripSnapshotState(snap) : null;
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) async {
+    final snap = await getSnapshot(sessionId: sessionId, context: context);
+    return snap != null ? stripSnapshotState(snap) : null;
   }
 
   /// Loads a single snapshot file by its id (no sessionId branch). Used both by

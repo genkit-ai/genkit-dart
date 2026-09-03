@@ -95,10 +95,16 @@ abstract base class AgentTransport {
   }) => null;
 
   /// Reads a snapshot. Requires a server store.
+  ///
+  /// When [metadataOnly] is set the returned snapshot carries the shaped
+  /// metadata (status, finish reason, parent, session, timestamps, error) with
+  /// no state payload, so a poll that only branches on where a task stands can
+  /// skip loading the conversation history.
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   });
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
@@ -502,15 +508,21 @@ final class DetachedTask<State> {
   /// `null` read is tolerated. But a snapshot that never appears (deleted, or a
   /// bad id) would otherwise loop forever and leak this poller, so give up
   /// after [maxConsecutiveMisses] consecutive misses.
+  ///
+  /// Pass [metadataOnly] when the poll only branches on where the task stands
+  /// (its status): the yielded snapshots carry the shaped metadata without the
+  /// state payload, so a large conversation history is not loaded each tick.
   Stream<AgentSnapshot<State>> poll({
     Duration interval = const Duration(seconds: 1),
     int maxConsecutiveMisses = 10,
+    bool metadataOnly = false,
   }) async* {
     var misses = 0;
     while (true) {
       final snap = await _transport.getSnapshot(
         snapshotId: snapshotId,
         context: _context,
+        metadataOnly: metadataOnly,
       );
       if (snap == null) {
         if (++misses >= maxConsecutiveMisses) {
@@ -1158,15 +1170,20 @@ final class AgentApi<State> {
   ///
   /// Returns a typed [AgentSnapshot] wrapper (with the same `stateSchema`
   /// applied to `snapshot.state`), or `null` when no snapshot is found.
+  ///
+  /// Pass [metadataOnly] to read the shaped metadata (status, finish reason,
+  /// parent, session, timestamps, error) without the state payload.
   Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
     Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async {
     final snapshot = await _transport.getSnapshot(
       snapshotId: snapshotId,
       sessionId: sessionId,
       context: context,
+      metadataOnly: metadataOnly,
     );
     if (snapshot == null) return null;
     return AgentSnapshot<State>._(snapshot, _stateSchema);
