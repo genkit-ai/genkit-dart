@@ -292,14 +292,7 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<ModelResponse> _handleStreaming(
     sdk.OpenAIClient client,
     sdk.ChatCompletionCreateRequest request,
-    ({
-      bool streamingRequested,
-      void Function(ModelResponseChunk) sendChunk,
-      Map<String, dynamic>? context,
-      Stream<ModelRequest>? inputStream,
-      void init,
-    })
-    ctx,
+    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
   ) async {
     final streamRequest = request.copyWith(
       streamOptions: const sdk.StreamOptions(includeUsage: true),

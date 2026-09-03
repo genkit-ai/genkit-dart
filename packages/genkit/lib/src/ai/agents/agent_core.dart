@@ -32,55 +32,14 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
+import '../../core/cancellation.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
 import 'json_patch.dart';
 import 'state_codec.dart';
 
-// ---------------------------------------------------------------------------
-// Cancellation (Dart has no AbortSignal/AbortController).
-// ---------------------------------------------------------------------------
-
-/// A minimal cooperative cancellation primitive, the Dart stand-in for the
-/// Web's `AbortSignal`/`AbortController`.
-final class CancellationToken {
-  final Completer<void> _completer = Completer<void>();
-  final List<void Function()> _listeners = [];
-
-  /// Whether cancellation has been requested.
-  bool get isCancelled => _completer.isCompleted;
-
-  /// Completes when [cancel] is called.
-  Future<void> get whenCancelled => _completer.future;
-
-  /// Registers [callback] to run when this token is cancelled, and returns a
-  /// disposer that unregisters it. Unlike [whenCancelled] (a one-shot future
-  /// that can never be detached), this lets a caller-supplied token be reused
-  /// across turns without leaking per-turn handlers. If the token is already
-  /// cancelled, [callback] runs synchronously and the returned disposer is a
-  /// no-op.
-  void Function() onCancel(void Function() callback) {
-    if (_completer.isCompleted) {
-      callback();
-      return () {};
-    }
-    _listeners.add(callback);
-    return () => _listeners.remove(callback);
-  }
-
-  /// Requests cancellation (idempotent).
-  void cancel() {
-    if (_completer.isCompleted) return;
-    _completer.complete();
-    // Snapshot then clear so listeners that (re)register during fan-out don't
-    // fire twice and can't be stranded in the list.
-    final listeners = [..._listeners];
-    _listeners.clear();
-    for (final listener in listeners) {
-      listener();
-    }
-  }
-}
+export '../../core/cancellation.dart'
+    show CancellationController, CancellationToken;
 
 // ---------------------------------------------------------------------------
 // Transport
@@ -119,7 +78,7 @@ abstract base class AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   });
 
@@ -131,7 +90,7 @@ abstract base class AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) => null;
 
@@ -719,14 +678,14 @@ final class AgentChat<State> {
   /// turns resolve to a synthetic `aborted` response.
   Future<AgentResponse<State>> _buildResponse(
     Future<AgentOutput> output,
-    CancellationToken cancel,
+    CancellationToken? cancel,
     int messageCountBeforeTurn,
   ) async {
     AgentOutput raw;
     try {
       raw = await output;
     } catch (e) {
-      if (cancel.isCancelled) {
+      if (cancel?.isCancelled ?? false) {
         raw = AgentOutput(finishReason: AgentFinishReason.aborted);
       } else {
         // A thrown transport error / non-200 rejects before reaching the
@@ -812,11 +771,14 @@ final class AgentChat<State> {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) async {
-    final token = cancel ?? CancellationToken();
+    // In `_send` the token is observed and forwarded only (never cancelled
+    // here), so a caller token flows straight through; absent one (`null`),
+    // there is no cancellation to observe.
+    final token = cancel;
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: there's no point starting work, and we must
     // not leave an orphaned user message in `messages`.
-    if (token.isCancelled) {
+    if (token?.isCancelled ?? false) {
       return _abortedResponse();
     }
     final runFuture = _transport.run(
@@ -895,12 +857,19 @@ final class AgentChat<State> {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
-    final token = cancel ?? CancellationToken();
+    // Own a controller for this turn so `AgentTurn.abort()` can cancel it, and
+    // link it to the caller's token (if any) so an external cancel also aborts.
+    // `link` forwards the cancellation reason so a caller-supplied
+    // `controller.cancel('...')` survives the hop into this turn's token.
+    final controller = CancellationController();
+    final unlink = cancel?.link(controller);
+    final token = controller.token;
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: return an empty stream and a synthetic
     // `aborted` response, and leave `messages` untouched. Mirrors the JS
     // core's pre-aborted short-circuit.
     if (token.isCancelled) {
+      unlink?.call();
       return AgentTurn<State>._(
         stream: const Stream.empty(),
         response: Future.value(_abortedResponse()),
@@ -933,6 +902,12 @@ final class AgentChat<State> {
     responsePromise.catchError(
       (_) => AgentResponse<State>._(AgentOutput(), messages),
     );
+    // Detach the caller-token listener once the turn settles so a reused
+    // caller token does not accumulate one handler per turn. `whenComplete`
+    // returns a *new* future that re-completes with the same error; `ignore()`
+    // it so a rejecting turn does not reach `Zone.handleUncaughtError` (the
+    // `catchError` above handles the original future, not this derived one).
+    if (unlink != null) responsePromise.whenComplete(unlink).ignore();
 
     Stream<AgentChunk<State>> buildStream() async* {
       var previousText = '';
@@ -977,7 +952,7 @@ final class AgentChat<State> {
     return AgentTurn<State>._(
       stream: buildStream(),
       response: responsePromise,
-      onAbort: token.cancel,
+      onAbort: controller.cancel,
     );
   }
 
@@ -1066,11 +1041,11 @@ final class AgentChat<State> {
     }
     final init = _buildInit();
 
-    final token = CancellationToken();
+    final controller = CancellationController();
     final turn = _transport.runTurn(
       agentInput,
       init,
-      cancel: token,
+      cancel: controller.token,
       context: context,
     );
     final raw = await turn.output;

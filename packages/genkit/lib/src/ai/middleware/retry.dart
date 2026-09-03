@@ -19,6 +19,7 @@ import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
+import '../../core/cancellation.dart';
 import '../../core/plugin.dart';
 import '../../exception.dart';
 import '../../types.dart';
@@ -162,7 +163,7 @@ class RetryMiddleware extends GenerateMiddleware {
     if (!retryModel) {
       return next(request, ctx);
     }
-    return _retry(() => next(request, ctx));
+    return _retry(() => next(request, ctx), ctx.cancel);
   }
 
   @override
@@ -178,16 +179,26 @@ class RetryMiddleware extends GenerateMiddleware {
     if (!retryTools) {
       return next(request, ctx);
     }
-    return _retry(() => next(request, ctx));
+    return _retry(() => next(request, ctx), ctx.cancel);
   }
 
-  Future<T> _retry<T>(Future<T> Function() fn) async {
+  Future<T> _retry<T>(
+    Future<T> Function() fn, [
+    CancellationToken? cancel,
+  ]) async {
     var attempt = 0;
     while (true) {
+      // Don't start (or restart) work once the caller has cancelled.
+      cancel?.throwIfCancelled();
       try {
         return await fn();
       } catch (e) {
-        if (attempt >= maxRetries || !_shouldRetry(e)) {
+        if (attempt >= maxRetries ||
+            !_shouldRetry(e) ||
+            (cancel?.isCancelled ?? false)) {
+          // A cancel that surfaces as a transport error (e.g. the plugin closed
+          // its HTTP client) can look retryable; don't back off - let the
+          // downstream cancel checkpoint resolve it as an abort.
           rethrow;
         }
         attempt++;
@@ -199,7 +210,14 @@ class RetryMiddleware extends GenerateMiddleware {
         _logger.warning(
           'Retry attempt $attempt after ${delay.inMilliseconds}ms due to error: $e',
         );
-        await Future.delayed(delay);
+        // Race the backoff against cancellation so a cancel during the sleep
+        // resolves promptly instead of waiting out the full (possibly long)
+        // delay. When no token is wired up, just wait out the delay.
+        if (cancel == null) {
+          await Future<void>.delayed(delay);
+        } else {
+          await Future.any([Future<void>.delayed(delay), cancel.whenCancelled]);
+        }
       }
     }
   }
