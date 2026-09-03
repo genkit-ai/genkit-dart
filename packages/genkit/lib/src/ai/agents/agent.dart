@@ -420,8 +420,8 @@ class SessionRunner<State> {
 
   /// Cooperative cancellation token (the Dart stand-in for `AbortSignal`). When
   /// cancelled, a turn that rejects out of `generate` is reported as `aborted`
-  /// (not `failed`) and its failed snapshot write is skipped (the abort path
-  /// already persisted the `aborted` status).
+  /// (not `failed`) and settled with a single `aborted` snapshot write (the
+  /// detached abort flip left the row `aborting`, which this finalize settles).
   final CancellationToken? cancel;
 
   /// The finish reason of the most recently completed turn.
@@ -522,18 +522,19 @@ class SessionRunner<State> {
 
           // The generate loop now resolves (rather than throws) on a
           // cooperative cancel, so a returned turn can still be an abort. Mirror
-          // the catch-path handling: record `aborted`, skip the `completed`
-          // snapshot (the abort path already persisted `aborted`, and the
-          // abort-aware mutator would skip a late `completed` write anyway), and
-          // stop processing further inputs.
+          // the catch-path handling: record `aborted`, write the settling
+          // `aborted` snapshot, and stop processing further inputs.
           if (cancel?.isCancelled ?? false) {
             lastTurnFinishReason = AgentFinishReason.aborted;
             lastTurnError = null;
-            // Persist the turn as `aborted`. The detached route already wrote
-            // `aborted` via `_abortSnapshotInStore`, in which case the
-            // abort-aware mutator makes this a no-op; but the attached route
-            // (`AgentTurn.abort()` -> token cancel) has written nothing, so
-            // without this the trailing `invocationEnd` snapshot would persist a
+            // Persist the turn as `aborted`. This is the second of the abort
+            // protocol's two writes: the detached route already flipped the row
+            // to `aborting` via `_abortSnapshotInStore` (which stopped the
+            // work), and this finalize settles it to `aborted` *with* the state
+            // - the abort-aware mutator lets it through because `aborting` is
+            // not terminal. The attached route (`AgentTurn.abort()` -> token
+            // cancel) has written nothing, so this is its only abort write;
+            // without it the trailing `invocationEnd` snapshot would persist a
             // half-finished turn as `completed` and later be picked as a resume
             // point.
             final snapshotId = await maybeSnapshot(
@@ -593,10 +594,11 @@ class SessionRunner<State> {
         turnIndex++;
       } catch (e) {
         // An aborted turn rejects out of `generate` and lands here. Treat it as
-        // `aborted` rather than `failed`: the abort path already persisted the
-        // `aborted` status (the abort-aware mutator would skip a `failed` write
-        // anyway), so we record the finish reason and skip the failed snapshot
-        // write entirely instead of reporting a spurious error.
+        // `aborted` rather than `failed`: the settling `aborted` snapshot was
+        // already written on the resolve path above (or, for a wedged run, is
+        // owed by the finalize), and the abort-aware mutator would skip a late
+        // `failed` write anyway, so we record the finish reason and skip the
+        // failed snapshot write entirely instead of reporting a spurious error.
         if (cancel?.isCancelled ?? false) {
           lastTurnFinishReason = AgentFinishReason.aborted;
           lastTurnError = null;
@@ -1081,10 +1083,11 @@ final class _InProcessTransport extends AgentTransport {
     context: context,
   );
 
-  // Detached/persist-only: flips the persisted snapshot to `aborted` and
-  // returns its prior status. A detached worker watching the snapshot cancels
-  // its own turn in response; an attached in-process turn's model call is not
-  // interrupted (see [runTurn]).
+  // Detached/persist-only: flips the persisted snapshot to `aborting` and
+  // returns its resulting status. A detached worker watching the snapshot
+  // cancels its own turn in response and its finalize settles the row to
+  // `aborted`; an attached in-process turn's model call is not interrupted
+  // (see [runTurn]).
   @override
   Future<SnapshotStatus?> abort(
     String snapshotId, {
@@ -1169,8 +1172,10 @@ class Agent<State> {
     context: context,
   );
 
-  /// Aborts a running snapshot. Requires a server store. Returns the prior
-  /// status, or `null`.
+  /// Aborts a running snapshot. Requires a server store. Returns the status
+  /// after the attempt (a pending row reads back as `aborting`; an
+  /// already-settled row returns its terminal status), or `null` when the
+  /// snapshot does not exist.
   Future<SnapshotStatus?> abort(
     String snapshotId, {
     Map<String, dynamic>? context,
