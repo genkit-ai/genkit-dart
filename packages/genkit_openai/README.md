@@ -46,7 +46,6 @@ final response = await ai.generate(
   config: OpenAIChatOptions(
     temperature: 0.7,
     maxTokens: 100,
-    jsonMode: false,
   ),
 );
 ```
@@ -225,9 +224,49 @@ The `OpenAIChatOptions` class supports the following options:
 - `frequencyPenalty` (double?, -2.0 to 2.0) - Frequency penalty
 - `seed` (int?) - Seed for deterministic sampling
 - `user` (String?) - User identifier for abuse detection
-- `jsonMode` (bool?) - Enable JSON mode
+- `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config does not already imply JSON; see [JSON output](#json-output)
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
+
+### JSON output
+
+There are three ways to get JSON back, in order of preference:
+
+```dart
+// 1. A schema - the model is constrained to the shape and `output` is typed.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Describe a book.',
+  outputSchema: Book.$schema,
+);
+print(response.output!.title);
+
+// 2. JSON with no particular shape.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Return a JSON object with keys "name" and "age".',
+  outputFormat: 'json',
+);
+
+// 3. The provider flag directly, for callers not using Genkit's output config.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Reply with a JSON object.',
+  config: OpenAIChatOptions(jsonMode: true),
+);
+```
+
+`outputSchema` sends `response_format: {"type": "json_schema"}`; the other two
+send `{"type": "json_object"}`. Output config wins when both are set, so
+`jsonMode` never overrides a schema.
+
+OpenAI rejects `json_object` unless the conversation also asks for JSON, so
+options 2 and 3 need the prompt to say so. Option 1 does not.
+
+Schemas are sent as authored. The plugin does not set `strict`, because
+OpenAI's strict mode requires every property to appear in `required` and
+`additionalProperties: false` on every object — which rejects ordinary schemas
+that have optional fields.
 
 ## Custom Headers
 

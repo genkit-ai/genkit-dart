@@ -229,13 +229,6 @@ class OpenAIPlugin extends GenkitPlugin {
               ?.map(GenkitConverter.toOpenAITool)
               .toList();
 
-          final isJsonMode = chat.isJsonStructuredOutput(
-            modelRequest.output?.format,
-            modelRequest.output?.contentType,
-          );
-          final responseFormat = chat.buildOpenAIResponseFormat(
-            modelRequest.output?.schema,
-          );
           final request = sdk.ChatCompletionCreateRequest(
             model: options.version ?? modelName,
             messages: GenkitConverter.toOpenAIMessages(
@@ -252,7 +245,12 @@ class OpenAIPlugin extends GenkitPlugin {
             frequencyPenalty: options.frequencyPenalty,
             seed: options.seed,
             user: options.user,
-            responseFormat: isJsonMode ? responseFormat : null,
+            responseFormat: chat.buildOpenAIResponseFormat(
+              format: modelRequest.output?.format,
+              contentType: modelRequest.output?.contentType,
+              schema: modelRequest.output?.schema,
+              jsonMode: options.jsonMode,
+            ),
           );
           if (ctx.streamingRequested) {
             return await _handleStreaming(client, request, ctx);
