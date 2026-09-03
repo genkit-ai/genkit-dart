@@ -64,6 +64,11 @@ the tool result.
   allowing the orchestrator to self-correct.
 - Sub-agent artifacts are merged into the parent session and/or returned inline,
   controlled by `artifactStrategy`.
+- Delegations to sub-agents that keep a session (server-managed, i.e. those with
+  a `store`) return a `taskId` handle, which the `continue_task` tool can use to
+  retry a failed/aborted run or follow up on a completed one.
+- With `async: true`, delegations can run in the **background** and are collected
+  later (see below).
 
 #### Options
 
@@ -74,6 +79,62 @@ the tool result.
 | `maxDelegations` | `int?` | unlimited | Maximum sub-agent delegations allowed per generate call. Prevents runaway delegation loops. |
 | `historyLength` | `int?` | `0` | Number of recent conversation messages (user/model only) to forward to sub-agents as context. |
 | `artifactStrategy` | `String?` | `'inline'` | `inline`: artifact content is included in the tool result **and** merged into the parent session. `session`: artifacts are merged into the parent session only (the tool result lists names only). |
+| `async` | `bool?` | `false` | Enables background delegation. Delegation tools gain a `background` flag, and the `check_background_tasks` / `wait_for_background_tasks` / `abort_background_tasks` tools are added. Requires server-managed sub-agents (those with a `store`). |
+
+#### Background (async) delegation
+
+Set `async: true` to let the orchestrator fan work out to sub-agents in parallel
+instead of blocking on each in turn. A delegation tool call with
+`"background": true` starts the sub-agent and returns a `taskId` immediately; the
+orchestrator keeps working and collects the results later.
+
+Three shared tools are added:
+- `check_background_tasks` — non-blocking status (and results) for the given
+  `taskIds`.
+- `wait_for_background_tasks` — blocks until the listed tasks settle. Supports
+  `timeoutSeconds` (0/omitted waits indefinitely, negative returns immediately)
+  and `waitFor: "first"` to return as soon as any one task settles.
+- `abort_background_tasks` — stops tasks whose results are no longer needed.
+
+Background delegation requires **server-managed** sub-agents (defined with a
+`store`), since only they can detach and persist a resumable snapshot. A launch
+against a client-managed agent is refused with a note telling the model to
+delegate synchronously instead. Task handles are self-contained
+(`"<agent>:<snapshotId>"`) and ride in the orchestrator's history, so a
+re-instantiated orchestrator can resume tracking from the IDs alone.
+
+> Note: `wait_for_background_tasks` polls each task's snapshot on an interval
+> (the same strategy `DetachedTask.wait` uses); there is no single blocking wait
+> action in the Dart runtime.
+
+#### Continuing a task
+
+Whenever a sub-agent keeps a session, its delegation result carries a `taskId`.
+The `continue_task` tool spends that handle:
+- retry a **failed** or **aborted** task from its last saved progress (omit
+  `instructions` to re-attempt as it stood, or pass `instructions` to steer it);
+- follow up on a **completed** task inside its own session (`instructions`
+  required), without repeating the finished work.
+
+A task that stopped on an interrupt cannot be continued, and a result without a
+`taskId` (a client-managed delegation) is not continuable; delegate again to redo
+that work.
+
+```dart
+final result = await ai.generate(
+  model: modelRef('gemini-flash-latest'),
+  prompt: 'Research topics A, B, and C in parallel, then summarize.',
+  use: [
+    agents(
+      agents: ['researcher', 'writer'],
+      async: true,
+      maxDelegations: 8,
+    ),
+  ],
+);
+```
+
+See `testapps/agents/bin/async_agent_sample.dart` for a runnable example.
 
 #### Configuration
 

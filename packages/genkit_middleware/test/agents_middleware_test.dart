@@ -638,12 +638,13 @@ void main() {
       final artifacts = capturedToolOutput!['artifacts'] as List;
       expect(artifacts, isNotEmpty);
       final name = (artifacts.first as Map<String, dynamic>)['name'] as String;
-      // Pattern: nsAgent_{4chars}/output.txt
+      // A server-managed (store-backed) sub-agent namespaces artifacts by the
+      // run's shortened snapshot id: nsAgent_{first 8 of the UUID}/output.txt.
       expect(
-        RegExp(r'^nsAgent_[a-z0-9]{4}/output\.txt$').hasMatch(name),
+        RegExp(r'^nsAgent_[0-9a-f]{8}/output\.txt$').hasMatch(name),
         isTrue,
         reason:
-            'Artifact name "$name" should match pattern nsAgent_XXXX/output.txt',
+            'Artifact name "$name" should match pattern nsAgent_XXXXXXXX/output.txt',
       );
     });
 
