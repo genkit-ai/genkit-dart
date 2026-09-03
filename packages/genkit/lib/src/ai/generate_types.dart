@@ -78,38 +78,49 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
   final ModelRequest? _request;
   final Output? output;
 
-  GenerateResponseHelper(this._response, {ModelRequest? request, this.output})
-    : _request = request,
-      super(
-        message: _response.message,
-        finishReason: _response.finishReason,
-        finishMessage: _response.finishMessage,
-        // Forward the structured error so a failed response
-        // (`finishReason: failed`) carries its cause; null on success.
-        error: _response.error,
-        latencyMs: _response.latencyMs,
-        usage: _response.usage,
+  /// The original thrown error a failed response resolved from, for callers
+  /// that want to inspect the raw exception (e.g. `cause is SocketException`).
+  /// The serializable view lives on [error]; `cause` is in-process only and
+  /// does NOT survive the reflection/HTTP boundary (like [modelRequest]).
+  final Object? cause;
 
-        custom: _response.custom,
-        raw: _response.raw,
-        request: _response.request, // This uses ModelResponse.request
-        operation: _response.operation,
-        // Only build a candidate when a message is present. An aborted response
-        // (`finishReason: aborted`) carries no message, so there is no candidate
-        // to report.
-        candidates: _response.message == null
-            ? null
-            : [
-                Candidate(
-                  index: 0,
-                  message: _response.message!,
-                  finishReason: _response.finishReason,
-                  finishMessage: _response.finishMessage,
-                  usage: _response.usage,
-                  custom: _response.custom,
-                ),
-              ],
-      );
+  GenerateResponseHelper(
+    this._response, {
+    ModelRequest? request,
+    this.output,
+    this.cause,
+  }) : _request = request,
+
+       super(
+         message: _response.message,
+         finishReason: _response.finishReason,
+         finishMessage: _response.finishMessage,
+         // Forward the structured error so a failed response
+         // (`finishReason: failed`) carries its cause; null on success.
+         error: _response.error,
+         latencyMs: _response.latencyMs,
+         usage: _response.usage,
+
+         custom: _response.custom,
+         raw: _response.raw,
+         request: _response.request, // This uses ModelResponse.request
+         operation: _response.operation,
+         // Only build a candidate when a message is present. An aborted response
+         // (`finishReason: aborted`) carries no message, so there is no candidate
+         // to report.
+         candidates: _response.message == null
+             ? null
+             : [
+                 Candidate(
+                   index: 0,
+                   message: _response.message!,
+                   finishReason: _response.finishReason,
+                   finishMessage: _response.finishMessage,
+                   usage: _response.usage,
+                   custom: _response.custom,
+                 ),
+               ],
+       );
 
   /// The full history of the conversation, including the request messages and
   /// the final model response.

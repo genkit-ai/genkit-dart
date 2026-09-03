@@ -1277,10 +1277,100 @@ void main() {
         expect(res.error, isNotNull);
         expect(res.error!.status, StatusCodes.UNAVAILABLE.name);
         expect(res.error!.message, contains('model exploded'));
+        // The raw thrown error is available for in-process inspection.
+        expect(res.cause, isA<GenkitException>());
         // The last-good history (the user turn) survives so the caller can
         // resume.
         expect(res.messages, isNotEmpty);
         expect(res.messages.last.role, Role.user);
+      });
+
+      test(
+        'a throwing tool fails the generation and preserves last-good history',
+        () async {
+          const modelName = 'toolThrowModel';
+          const toolName = 'explodingTool';
+
+          genkit.defineTool(
+            name: toolName,
+            description: 'always throws',
+            inputSchema: TestToolInput.$schema,
+            fn: (input, ctx) async {
+              throw GenkitException(
+                'tool exploded',
+                status: StatusCodes.FAILED_PRECONDITION,
+              );
+            },
+          );
+
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: toolName,
+                        input: {'name': 'world'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+
+          // A throwing tool no longer feeds an `Error: ...` tool response back
+          // to the model; it fails the generation, just like a model error.
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'use the tool',
+            toolNames: [toolName],
+          );
+
+          expect(res.finishReason, FinishReason.failed);
+          expect(res.error, isNotNull);
+          expect(res.error!.status, StatusCodes.FAILED_PRECONDITION.name);
+          expect(res.error!.message, contains('tool exploded'));
+          expect(res.cause, isA<GenkitException>());
+          // The failing turn's model tool-request message is dropped; the user
+          // turn remains as the last-good resume point.
+          expect(res.messages.length, 1);
+          expect(res.messages.last.role, Role.user);
+          expect(res.messages.last.text, 'use the tool');
+        },
+      );
+
+      test('a request for an unregistered tool fails the generation', () async {
+        const modelName = 'unknownToolModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(name: 'ghostTool', input: {}),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'hi',
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error!.status, StatusCodes.NOT_FOUND.name);
+        expect(res.error!.message, contains('ghostTool'));
       });
 
       test(

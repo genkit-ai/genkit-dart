@@ -297,6 +297,7 @@ GenerateResponseHelper _failedResponse({
     ),
     request: request,
     output: null,
+    cause: cause,
   );
 }
 
@@ -740,10 +741,12 @@ Future<GenerateResponseHelper> _runGenerateAction(
         );
       } catch (e) {
         // A cancel during the restart tool execution resolves to an aborted
-        // response (like the two sites inside `_runGenerateLoop`) rather than
-        // escaping `generate()` as a throw. `coreGenerate` runs before the
-        // loop's own entry checkpoint, so without this guard an already-cancelled
-        // restart would surface a `CancelledException` to the caller.
+        // response (like the two sites inside `_runGenerateLoop`); any other
+        // error (a throwing restarted tool) resolves to a failed response
+        // carrying the last-good history, rather than escaping `generate()` as a
+        // throw. `coreGenerate` runs before the loop's own entry checkpoint, so
+        // without this an already-cancelled restart would surface a
+        // `CancelledException` to the caller.
         final aborted = _abortResponseIfCancelled(
           e,
           c.cancel,
@@ -751,7 +754,11 @@ Future<GenerateResponseHelper> _runGenerateAction(
           config: opts.config,
         );
         if (aborted != null) return aborted;
-        rethrow;
+        return _failedResponse(
+          history: opts.messages,
+          config: opts.config,
+          cause: e,
+        );
       }
       toolStatus.addAll(execution.toolStatus);
 
@@ -1279,51 +1286,22 @@ _executeTools(
         interrupt: null,
       );
     } on ToolInterruptException catch (e) {
+      // An interrupt is a turn outcome, not a failure: mark it and let the loop
+      // bubble the request back to the caller (via `_buildInterruptedResponse`).
       interrupted = true;
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
           (output: null, content: null, metadata: null, interrupt: e);
-    } on CancelledException catch (e) {
-      // A cancellation of *the caller's* token must propagate, not be swallowed
-      // into an error tool response (which would let the loop continue as if the
-      // tool "failed"). But a `CancelledException` from an unrelated token (e.g.
-      // a tool's own internal timeout) is just a tool failure like any other and
-      // is recorded as an error response so the loop can continue.
-      if (cancelToken != null &&
-          (identical(e.token, cancelToken) || cancelToken.isCancelled)) {
-        rethrow;
-      }
-
-      toolResponses.add(
-        ToolResponsePart(
-          toolResponse: ToolResponse(
-            ref: toolRequest.toolRequest.ref,
-            name: toolRequest.toolRequest.name,
-            output: 'Error: $e',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (cancelToken?.isCancelled ?? false) {
-        // A generic failure (e.g. a closed HTTP client throwing
-        // SocketException) raised during cancellation must still propagate as a
-        // cancellation rather than be recorded as a tool error that lets the
-        // loop continue.
-        throw CancelledException(
-          reason: cancelToken!.reason,
-          token: cancelToken,
-        );
-      }
-      toolResponses.add(
-        ToolResponsePart(
-          toolResponse: ToolResponse(
-            ref: toolRequest.toolRequest.ref,
-            name: toolRequest.toolRequest.name,
-            output: 'Error: $e',
-          ),
-        ),
-      );
     }
+    // Any other throw - a failing tool `fn`, a tool-not-found, or a
+    // `CancelledException` - propagates to the caller rather than being fed back
+    // to the model as an `Error: ...` tool response. `_runGenerateLoop` converts
+    // it into a `failed` response carrying the last-good history, or an
+    // `aborted` one when this turn's token was cancelled (see
+    // `_abortResponseIfCancelled`). A `CancelledException` whose token was NOT
+    // cancelled (e.g. a tool's own internal timeout) is a regular failure and
+    // surfaces as `failed`.
   }
+
   return (
     toolResponses: toolResponses,
     interrupted: interrupted,
