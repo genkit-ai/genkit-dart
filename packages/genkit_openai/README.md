@@ -17,15 +17,13 @@ dependencies:
 ### Basic Usage
 
 ```dart
-import 'dart:io';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 
 void main() async {
-  // Initialize Genkit with the OpenAI plugin
-  final ai = Genkit(plugins: [
-    openAI(apiKey: Platform.environment['OPENAI_API_KEY']),
-  ]);
+  // Initialize Genkit with the OpenAI plugin. The API key is read from the
+  // OPENAI_API_KEY environment variable when not passed explicitly.
+  final ai = Genkit(plugins: [openAI()]);
 
   // Generate text
   final response = await ai.generate(
@@ -36,6 +34,23 @@ void main() async {
   print(response.text);
 }
 ```
+
+### API Key
+
+The key is resolved in this order:
+
+1. `apiKeyProvider`, if given
+2. `apiKey`, if given
+3. the `OPENAI_API_KEY` environment variable
+
+Creating the plugin does no network I/O and does not require a key, so an app
+starts up (and the Dev UI connects) offline. A missing or invalid key surfaces
+when a model is actually called.
+
+Model discovery via `GET /models` happens only when listing actions, and is
+best-effort: if it fails, the plugin falls back to a curated catalog of common
+models plus any `models:` you registered. Models outside that catalog still
+work when named explicitly, so newly released ids need no plugin update.
 
 ### With Custom Options
 

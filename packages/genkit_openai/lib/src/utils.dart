@@ -18,6 +18,9 @@ final RegExp _oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
 final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
 final RegExp _gptOPattern = RegExp(r'gpt-\d+(?:\.\d+)?o');
 
+/// Captures the major and optional minor version of a `gpt-N[.M]` id.
+final RegExp _gptVersionPattern = RegExp(r'^gpt-(\d+)(?:\.(\d+))?');
+
 const List<String> _nonToolKeywords = [
   'embedding',
   'tts',
@@ -120,6 +123,20 @@ bool _supportsToolsByHeuristics(String id) {
   return true;
 }
 
+/// Whether a `gpt-N[.M]` id is version 4.1 or newer.
+bool _isVisionCapableGptVersion(String id) {
+  final match = _gptVersionPattern.firstMatch(id);
+  if (match == null) return false;
+
+  final major = int.tryParse(match.group(1)!);
+  if (major == null) return false;
+  if (major >= 5) return true;
+
+  // gpt-4 with no minor is the original text-only model; 4.1 and 4.5 are not.
+  final minor = int.tryParse(match.group(2) ?? '');
+  return major == 4 && minor != null && minor >= 1;
+}
+
 bool _supportsVisionByHeuristics(String id) {
   // Explicitly named vision models.
   if (id.contains('vision')) {
@@ -128,6 +145,13 @@ bool _supportsVisionByHeuristics(String id) {
 
   // GPT-4o variants (gpt-4o, gpt-4o-mini, etc.).
   if (id.contains('gpt-4o')) {
+    return true;
+  }
+
+  // Every GPT family from 4.1 onward is multimodal, including the whole
+  // gpt-5.x line. Matching on a literal 'o' (see _gptOPattern below) misses
+  // all of them, since the version marker moved from a suffix to a number.
+  if (_isVisionCapableGptVersion(id)) {
     return true;
   }
 

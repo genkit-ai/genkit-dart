@@ -72,10 +72,9 @@ typedef OpenAIApiKeyProvider = FutureOr<String> Function();
 /// Use this to create the plugin and to reference models:
 ///
 /// ```dart
-/// // Create the plugin
-/// final ai = Genkit(plugins: [
-///   openAI(apiKey: Platform.environment['OPENAI_API_KEY']),
-/// ]);
+/// // Create the plugin. The key falls back to the OPENAI_API_KEY
+/// // environment variable when not passed explicitly.
+/// final ai = Genkit(plugins: [openAI()]);
 ///
 /// // Reference a model
 /// final response = await ai.generate(
@@ -83,6 +82,9 @@ typedef OpenAIApiKeyProvider = FutureOr<String> Function();
 ///   prompt: 'Hello!',
 /// );
 /// ```
+///
+/// Creating the plugin does no I/O and needs no key: models resolve on demand,
+/// and a missing or invalid key surfaces at generate time.
 const OpenAICompatPluginHandle openAI = OpenAICompatPluginHandle();
 
 /// Handle class for configuring and referencing OpenAI-compatible models.
@@ -99,6 +101,9 @@ class OpenAICompatPluginHandle {
   /// (e.g. `'openrouter'`, `'nanogpt'`). It defaults to
   /// [defaultOpenAINamespace] and is used as the namespace prefix for all
   /// models registered by this instance (e.g. `openrouter/gpt-4o`).
+  ///
+  /// If neither [apiKey] nor [apiKeyProvider] is given, the key is read from
+  /// the `OPENAI_API_KEY` environment variable.
   GenkitPlugin call({
     String name = defaultOpenAINamespace,
     String? apiKey,
