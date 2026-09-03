@@ -404,7 +404,9 @@ final class InMemorySessionStore
     String snapshotId, {
     Map<String, dynamic>? context,
   }) async {
-    final snap = await getSnapshot(snapshotId: snapshotId, context: context);
+    // Strip directly off the stored row so we never deep-clone the (possibly
+    // large) state payload the way a full `getSnapshot` would.
+    final snap = _snapshots[snapshotId];
     return snap != null ? stripSnapshotState(snap) : null;
   }
 
@@ -413,8 +415,18 @@ final class InMemorySessionStore
     String sessionId, {
     Map<String, dynamic>? context,
   }) async {
-    final snap = await getSnapshot(sessionId: sessionId, context: context);
-    return snap != null ? stripSnapshotState(snap) : null;
+    final owned = <SessionSnapshot>[];
+    for (final snap in _snapshots.values) {
+      if (snapshotSessionId(snap) == sessionId) {
+        owned.add(snap);
+      }
+    }
+    final leaf = selectLeafSnapshot(
+      owned,
+      sessionId,
+      rejectBranching: rejectBranchingSessions,
+    );
+    return leaf != null ? stripSnapshotState(leaf) : null;
   }
 
   @override

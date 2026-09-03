@@ -1649,15 +1649,25 @@ Agent<State> defineCustomAgent<State>(
     String? sessionId,
     Map<String, dynamic>? context,
   ) async {
-    if (store is SnapshotMetadataReader) {
-      final reader = store as SnapshotMetadataReader;
-      return snapshotId != null
-          ? reader.getSnapshotMetadata(snapshotId, context: context)
-          : reader.getLatestSnapshotMetadata(sessionId!, context: context);
-    }
-    return store.getSnapshot(
+    // Normalize first so the metadata path enforces the same "exactly one of
+    // snapshotId / sessionId" contract as the full read, rather than crashing
+    // on a null-assertion or silently ignoring one id.
+    final normalized = normalizeGetSnapshotOptions(
       snapshotId: snapshotId,
       sessionId: sessionId,
+    );
+    if (store is SnapshotMetadataReader) {
+      final reader = store as SnapshotMetadataReader;
+      return normalized.snapshotId != null
+          ? reader.getSnapshotMetadata(normalized.snapshotId!, context: context)
+          : reader.getLatestSnapshotMetadata(
+              normalized.sessionId!,
+              context: context,
+            );
+    }
+    return store.getSnapshot(
+      snapshotId: normalized.snapshotId,
+      sessionId: normalized.sessionId,
       context: context,
     );
   }

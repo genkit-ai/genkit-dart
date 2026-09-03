@@ -287,8 +287,19 @@ class FileSessionStore
     String snapshotId, {
     Map<String, dynamic>? context,
   }) async {
-    final snap = await getSnapshot(snapshotId: snapshotId, context: context);
-    return snap != null ? stripSnapshotState(snap) : null;
+    final file = await _fileFor(snapshotId, context);
+    if (!file.existsSync()) return null;
+    try {
+      // Drop `state` off the decoded map before parsing, so the (possibly
+      // large) state payload is never materialized into a SessionState and we
+      // avoid the re-serialize a `stripSnapshotState` on the full row would do.
+      final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>
+        ..remove('state');
+      return SessionSnapshot.fromJson(json);
+    } catch (_) {
+      // Corrupt / concurrently-deleted file: treat as missing.
+      return null;
+    }
   }
 
   @override
@@ -296,6 +307,25 @@ class FileSessionStore
     String sessionId, {
     Map<String, dynamic>? context,
   }) async {
+    // Fast path via the pointer file (skipped when we must detect branching):
+    // resolve the leaf id and read its metadata directly. Honor the pointer
+    // only when the leaf still exists and belongs to this session; a stale or
+    // foreign pointer falls through to the scan below, matching
+    // `_latestSnapshotForSession`.
+    if (!rejectBranchingSessions) {
+      final pointer = await _readPointer(sessionId, context);
+      if (pointer != null) {
+        final meta = await getSnapshotMetadata(
+          pointer.currentSnapshotId,
+          context: context,
+        );
+        if (meta != null && snapshotSessionId(meta) == sessionId) {
+          return meta;
+        }
+      }
+    }
+    // Fallback: the full scan resolves the leaf (and rewrites the pointer);
+    // strip its state on the way out.
     final snap = await getSnapshot(sessionId: sessionId, context: context);
     return snap != null ? stripSnapshotState(snap) : null;
   }
