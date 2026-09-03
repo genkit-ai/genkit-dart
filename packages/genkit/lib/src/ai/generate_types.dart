@@ -90,7 +90,6 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
     this.output,
     this.cause,
   }) : _request = request,
-
        super(
          message: _response.message,
          finishReason: _response.finishReason,
