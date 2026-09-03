@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_models.dart' show knownChatModels;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -282,6 +283,62 @@ void main() {
       expect(result.usage?.inputTokens, greaterThan(0));
       expect(result.usage?.outputTokens, greaterThan(0));
       expect(result.usage?.totalTokens, greaterThan(0));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('resolves the key from OPENAI_API_KEY when none is passed', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // Note the bare openAI() - no apiKey, no apiKeyProvider. Every other
+      // live test passes the key explicitly, so this is the only coverage of
+      // the environment fallback actually authenticating a real request.
+      final ai = Genkit(plugins: [openAI()]);
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o-mini'),
+        prompt: 'Say "hello" and nothing else.',
+      );
+
+      expect(response.text.toLowerCase(), contains('hello'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('discovery enriches the curated catalog', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // Offline, list() returns exactly knownChatModels. With a real key it
+      // must return strictly more than that - if it does not, discovery has
+      // silently stopped running and the offline fallback has swallowed it.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final actions = await ai.registry.listActions();
+      final names = actions
+          .where((a) => a.actionType == .model)
+          .map((a) => a.name)
+          .toSet();
+
+      expect(
+        names,
+        containsAll(knownChatModels.map((id) => 'openai/$id')),
+        reason: 'the curated catalog must survive discovery',
+      );
+      expect(
+        names.length,
+        greaterThan(knownChatModels.length),
+        reason: 'discovery should contribute models beyond the catalog',
+      );
+
+      // Discovery must not smuggle in non-chat models.
+      expect(names.any((n) => n.contains('embedding')), isFalse);
+      expect(names.any((n) => n.contains('dall-e')), isFalse);
+
+      await ai.shutdown();
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
