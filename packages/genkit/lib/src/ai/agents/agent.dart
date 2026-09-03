@@ -147,11 +147,21 @@ class AgentInitError extends GenkitException {
 // ---------------------------------------------------------------------------
 
 /// Builds an abort-aware [SnapshotMutator]: it skips the write (returns `null`)
-/// when the current snapshot was concurrently aborted, otherwise writes
-/// [input]. This prevents a "completed"/"failed" write from clobbering an
-/// "aborted" status set by a concurrent abort.
+/// when the current snapshot has already *settled*, otherwise writes [input].
+/// This prevents a "completed"/"failed" write from clobbering a terminal status.
+///
+/// An `aborting` row is deliberately NOT treated as settled: it sits between the
+/// abort flip (which stops the work) and the finalize (which stamps the state
+/// on), so the finalize that settles it to `aborted` with state must be allowed
+/// through.
 SnapshotMutator _abortAwareMutator(SessionSnapshot input) {
-  return (current) => current?.status?.value == 'aborted' ? null : input;
+  return (current) {
+    final status = current?.status?.value;
+    if (status == 'completed' || status == 'failed' || status == 'aborted') {
+      return null;
+    }
+    return input;
+  };
 }
 
 /// Asserts that an operation requiring a persistent store is not being invoked
@@ -166,28 +176,39 @@ void _requireStore(SessionStore? store, String operation, String agentName) {
   }
 }
 
-/// Sets a snapshot's status to `aborted` (unless it already reached a terminal
-/// state) and returns its previous status, or `null` when the snapshot does
-/// not exist.
+/// Flips a `pending` snapshot to `aborting` via an ordinary `saveSnapshot`, and
+/// returns the *resulting* status: `aborting` when the row was pending (or was
+/// already aborting, since a second abort is an idempotent verbatim rewrite),
+/// the existing terminal status when the row had already settled, or `null` when
+/// the snapshot does not exist.
+///
+/// This is the first of the abort protocol's two writes: it stops the work (the
+/// detached worker observes the flip and cancels its turn) but does not stamp
+/// state - the worker's own finalize write later settles the row to `aborted`
+/// *with* the last-good state (see [SessionRunner.maybeSnapshot]). The flip
+/// deliberately leaves `heartbeatAt` where the worker left it: the beat is the
+/// worker's liveness signal, so a dead worker's row reads as `expired` at once
+/// rather than a heartbeat timeout later.
 Future<String?> _abortSnapshotInStore(
   SessionStore store,
   String snapshotId,
   Map<String, dynamic>? context,
 ) async {
-  String? previousStatus;
+  String? resultStatus;
   await store.saveSnapshot(snapshotId, (current) {
-    if (current == null) return null;
-    previousStatus = current.status?.value;
-    if (previousStatus == 'completed' ||
-        previousStatus == 'failed' ||
-        previousStatus == 'aborted') {
-      return null; // Already terminal - don't override.
+    if (current == null) return null; // not found
+    final status = current.status?.value;
+    if (status != 'pending') {
+      // Settled, or already aborting: re-persist verbatim so the returned
+      // status carries the existing value (idempotent).
+      resultStatus = status;
+      return current;
     }
-
-    current.status = SnapshotStatus.aborted;
+    current.status = SnapshotStatus.aborting;
+    resultStatus = 'aborting';
     return current;
   }, context: context);
-  return previousStatus;
+  return resultStatus;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,20 +224,117 @@ const Duration _defaultHeartbeatInterval = Duration(seconds: 30);
 /// [_defaultHeartbeatInterval] so a single missed beat does not trip expiry.
 const Duration _defaultHeartbeatTimeout = Duration(seconds: 60);
 
-/// Returns `true` when [snapshot] is a `pending` (detached, in-flight) snapshot
-/// whose heartbeat is older than [timeout] - i.e. its background worker is
-/// presumed dead. A pending snapshot that has not yet written a first heartbeat
-/// is not considered expired (the beat may simply not have fired yet).
+/// Bounds how long an `aborting` invocation keeps heartbeating while its worker
+/// drains toward the finalize write. The beats are what keep a live,
+/// winding-down worker's row reading as `aborting` instead of `expired` the
+/// moment the abort flip lands: the flip stops the work, not the worker, and a
+/// drain through a slow tool call can outlast [_defaultHeartbeatTimeout]. A
+/// worker that has not finalized within the budget is presumed wedged; its
+/// beats stop, the row goes stale and reads as `expired`, and the task stays
+/// recoverable instead of winding down forever.
+const Duration _windDownHeartbeatBudget = Duration(minutes: 5);
+
+/// Returns `true` when [snapshot] is a detached, in-flight snapshot whose
+/// heartbeat is older than [timeout] - i.e. its background worker is presumed
+/// dead. Both `pending` and `aborting` are in-flight, still-heartbeating states
+/// (a worker keeps beating while it winds down an abort), so a stale beat in
+/// either reads as `expired`; this mirrors the shared spec, where a `pending`
+/// *or* `aborting` row with a stale beat surfaces as `expired`. A snapshot that
+/// has not yet written a first heartbeat is not considered expired (the beat may
+/// simply not have fired yet).
 bool _isHeartbeatExpired(
   SessionSnapshot snapshot, [
   Duration timeout = _defaultHeartbeatTimeout,
 ]) {
-  if (snapshot.status?.value != 'pending' || snapshot.heartbeatAt == null) {
+  final status = snapshot.status?.value;
+  if ((status != 'pending' && status != 'aborting') ||
+      snapshot.heartbeatAt == null) {
     return false;
   }
   final last = DateTime.tryParse(snapshot.heartbeatAt!);
   if (last == null) return false;
   return DateTime.now().toUtc().difference(last.toUtc()) > timeout;
+}
+
+/// Asserts [snapshot] is in a resumable status and carries the state to resume
+/// from, throwing a [GenkitException] otherwise (the caller turns that into a
+/// graceful `finishReason: 'failed'`).
+///
+/// `completed`, `failed`, and `aborted` are resumable: each committed a
+/// conversation ending at a turn seam, and whether to continue from a run that
+/// broke or was stopped is the caller's judgement, not the framework's. A
+/// `pending` or `aborting` row is rejected with heartbeat-aware messaging: a
+/// live beat means the run is still writing this same id (wait/retry it), a
+/// stale beat means the worker died and the resume point is the parent. An
+/// `aborted`/`failed` row that somehow carries no state (written by something
+/// other than the runtime) is redirected to its parent.
+void _assertResumable(SessionSnapshot snapshot) {
+  final status = snapshot.status?.value;
+  switch (status) {
+    case 'pending':
+    case 'aborting':
+      final id = snapshot.snapshotId;
+      if (_isHeartbeatExpired(snapshot)) {
+        final parent = snapshot.parentId;
+        if (parent != null) {
+          throw GenkitException(
+            "Snapshot '$id' is still '$status' but its worker stopped "
+            'heartbeating and is presumed dead; resume from its parent '
+            "snapshot '$parent'.",
+            status: StatusCodes.FAILED_PRECONDITION,
+          );
+        }
+        throw GenkitException(
+          "Snapshot '$id' is still '$status' but its worker stopped "
+          'heartbeating and is presumed dead. It recorded no progress, so '
+          'there is nothing to resume.',
+          status: StatusCodes.FAILED_PRECONDITION,
+        );
+      }
+      if (status == 'aborting') {
+        throw GenkitException(
+          "Snapshot '$id' is still being finalized: its invocation was "
+          'aborted and has not recorded the state yet; retry this same '
+          'snapshot id.',
+          status: StatusCodes.FAILED_PRECONDITION,
+        );
+      }
+      throw GenkitException(
+        "Snapshot '$id' is still pending: its detached invocation is still "
+        'running; wait for it to finalize or abort it before resuming.',
+        status: StatusCodes.FAILED_PRECONDITION,
+      );
+    case 'completed':
+    case 'failed':
+    case 'aborted':
+      // The runtime lands a `failed`/`aborted` row together with its state, so
+      // one without state was written by something else; the parent is the
+      // resume point.
+      if (snapshot.state == null) {
+        final parent = snapshot.parentId;
+        throw GenkitException(
+          "Snapshot '${snapshot.snapshotId}' is '$status' but carries no "
+          'state to resume from'
+          '${parent != null ? "; resume from its parent snapshot '$parent'." : ' and has no parent.'}',
+          status: StatusCodes.FAILED_PRECONDITION,
+        );
+      }
+      return;
+    default:
+      throw GenkitException(
+        "Snapshot '${snapshot.snapshotId}' is not resumable (status: "
+        "${status ?? 'unknown'}).",
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+  }
+}
+
+/// Whether [snapshot] is in a resumable *terminal* status carrying state, used
+/// by the `sessionId` parent-walk to find the last-good resume point.
+bool _isResumableLeaf(SessionSnapshot snapshot) {
+  final status = snapshot.status?.value;
+  return (status == 'completed' || status == 'failed' || status == 'aborted') &&
+      snapshot.state != null;
 }
 
 // ---------------------------------------------------------------------------
@@ -302,8 +420,8 @@ class SessionRunner<State> {
 
   /// Cooperative cancellation token (the Dart stand-in for `AbortSignal`). When
   /// cancelled, a turn that rejects out of `generate` is reported as `aborted`
-  /// (not `failed`) and its failed snapshot write is skipped (the abort path
-  /// already persisted the `aborted` status).
+  /// (not `failed`) and settled with a single `aborted` snapshot write (the
+  /// detached abort flip left the row `aborting`, which this finalize settles).
   final CancellationToken? cancel;
 
   /// The finish reason of the most recently completed turn.
@@ -404,18 +522,19 @@ class SessionRunner<State> {
 
           // The generate loop now resolves (rather than throws) on a
           // cooperative cancel, so a returned turn can still be an abort. Mirror
-          // the catch-path handling: record `aborted`, skip the `completed`
-          // snapshot (the abort path already persisted `aborted`, and the
-          // abort-aware mutator would skip a late `completed` write anyway), and
-          // stop processing further inputs.
+          // the catch-path handling: record `aborted`, write the settling
+          // `aborted` snapshot, and stop processing further inputs.
           if (cancel?.isCancelled ?? false) {
             lastTurnFinishReason = AgentFinishReason.aborted;
             lastTurnError = null;
-            // Persist the turn as `aborted`. The detached route already wrote
-            // `aborted` via `_abortSnapshotInStore`, in which case the
-            // abort-aware mutator makes this a no-op; but the attached route
-            // (`AgentTurn.abort()` -> token cancel) has written nothing, so
-            // without this the trailing `invocationEnd` snapshot would persist a
+            // Persist the turn as `aborted`. This is the second of the abort
+            // protocol's two writes: the detached route already flipped the row
+            // to `aborting` via `_abortSnapshotInStore` (which stopped the
+            // work), and this finalize settles it to `aborted` *with* the state
+            // - the abort-aware mutator lets it through because `aborting` is
+            // not terminal. The attached route (`AgentTurn.abort()` -> token
+            // cancel) has written nothing, so this is its only abort write;
+            // without it the trailing `invocationEnd` snapshot would persist a
             // half-finished turn as `completed` and later be picked as a resume
             // point.
             final snapshotId = await maybeSnapshot(
@@ -475,10 +594,11 @@ class SessionRunner<State> {
         turnIndex++;
       } catch (e) {
         // An aborted turn rejects out of `generate` and lands here. Treat it as
-        // `aborted` rather than `failed`: the abort path already persisted the
-        // `aborted` status (the abort-aware mutator would skip a `failed` write
-        // anyway), so we record the finish reason and skip the failed snapshot
-        // write entirely instead of reporting a spurious error.
+        // `aborted` rather than `failed`: the settling `aborted` snapshot was
+        // already written on the resolve path above (or, for a wedged run, is
+        // owed by the finalize), and the abort-aware mutator would skip a late
+        // `failed` write anyway, so we record the finish reason and skip the
+        // failed snapshot write entirely instead of reporting a spurious error.
         if (cancel?.isCancelled ?? false) {
           lastTurnFinishReason = AgentFinishReason.aborted;
           lastTurnError = null;
@@ -759,16 +879,11 @@ _resolveSession<State>(
       );
     }
 
-    // Only `completed` snapshots are resumable. A failed/aborted/pending
-    // snapshot is persisted for inspection but is not a valid resume target.
-    if (snapshot.status?.value != 'completed') {
-      throw GenkitException(
-        'Snapshot ${init.snapshotId} is not resumable (status: '
-        "${snapshot.status?.value ?? 'unknown'}). Only 'completed' snapshots "
-        'can be resumed.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
+    // Validate the snapshot is in a resumable status and load its state. A
+    // `failed` or `aborted` snapshot resumes: the turn that wrote it committed
+    // a conversation ending at a turn seam, and whether to continue from a run
+    // that broke or one that was stopped is the caller's judgement.
+    _assertResumable(snapshot);
 
     validateCustomState(snapshot.state?.custom);
     return (
@@ -788,7 +903,7 @@ _resolveSession<State>(
       context: context,
     );
     final visited = <String>{};
-    while (snapshot != null && snapshot.status?.value != 'completed') {
+    while (snapshot != null && !_isResumableLeaf(snapshot)) {
       if (visited.contains(snapshot.snapshotId)) {
         throw GenkitException(
           "Session '${init.sessionId}' has a cyclic snapshot parent chain "
@@ -968,10 +1083,11 @@ final class _InProcessTransport extends AgentTransport {
     context: context,
   );
 
-  // Detached/persist-only: flips the persisted snapshot to `aborted` and
-  // returns its prior status. A detached worker watching the snapshot cancels
-  // its own turn in response; an attached in-process turn's model call is not
-  // interrupted (see [runTurn]).
+  // Detached/persist-only: flips the persisted snapshot to `aborting` and
+  // returns its resulting status. A detached worker watching the snapshot
+  // cancels its own turn in response and its finalize settles the row to
+  // `aborted`; an attached in-process turn's model call is not interrupted
+  // (see [runTurn]).
   @override
   Future<SnapshotStatus?> abort(
     String snapshotId, {
@@ -1056,8 +1172,10 @@ class Agent<State> {
     context: context,
   );
 
-  /// Aborts a running snapshot. Requires a server store. Returns the prior
-  /// status, or `null`.
+  /// Aborts a running snapshot. Requires a server store. Returns the status
+  /// after the attempt (a pending row reads back as `aborting`; an
+  /// already-settled row returns its terminal status), or `null` when the
+  /// snapshot does not exist.
   Future<SnapshotStatus?> abort(
     String snapshotId, {
     Map<String, dynamic>? context,
@@ -1112,330 +1230,351 @@ Agent<State> defineCustomAgent<State>(
     }
   }
 
-  final primaryAction =
-      Action<AgentInput, AgentOutput, AgentStreamChunk, AgentInit>(
-        name: config.name,
-        description: config.description,
-        actionType: .agent,
-        inputSchema: AgentInput.$schema,
-        outputSchema: AgentOutput.$schema,
-        streamSchema: AgentStreamChunk.$schema,
-        initSchema: AgentInit.$schema,
-        metadata: {
-          'agent': AgentMetadata(
-            stateManagement: config.store != null
-                ? AgentStateManagement.server
-                : AgentStateManagement.client,
-            abortable: config.store is SnapshotChangeNotifier,
-            stateSchema: stateJsonSchema,
-          ).toJson(),
-        },
-        fn: (input, ctx) async {
-          final init = ctx.init;
-          final resolvedStore = config.store ?? InMemorySessionStore();
+  final primaryAction = Action<AgentInput, AgentOutput, AgentStreamChunk, AgentInit>(
+    name: config.name,
+    description: config.description,
+    actionType: .agent,
+    inputSchema: AgentInput.$schema,
+    outputSchema: AgentOutput.$schema,
+    streamSchema: AgentStreamChunk.$schema,
+    initSchema: AgentInit.$schema,
+    metadata: {
+      'agent': AgentMetadata(
+        stateManagement: config.store != null
+            ? AgentStateManagement.server
+            : AgentStateManagement.client,
+        abortable: config.store is SnapshotChangeNotifier,
+        stateSchema: stateJsonSchema,
+      ).toJson(),
+    },
+    fn: (input, ctx) async {
+      final init = ctx.init;
+      final resolvedStore = config.store ?? InMemorySessionStore();
 
-          // API-misuse checks (init does not match the agent's state-management
-          // mode) throw out of the handler so the server maps them to a proper
-          // HTTP status, rather than being absorbed into a graceful
-          // `finishReason: 'failed'` result below.
-          _assertInitMatchesStateManagement(config, init);
+      // API-misuse checks (init does not match the agent's state-management
+      // mode) throw out of the handler so the server maps them to a proper
+      // HTTP status, rather than being absorbed into a graceful
+      // `finishReason: 'failed'` result below.
+      _assertInitMatchesStateManagement(config, init);
 
-          Session<State> session;
-          SessionSnapshot? snapshot;
-          try {
-            final resolved = await _resolveSession<State>(
-              config,
-              resolvedStore,
-              init,
-              validateCustomState,
-              ctx.context,
-            );
-            session = resolved.session;
-            snapshot = resolved.snapshot;
-          } catch (e) {
-            // An AgentInitError signals API misuse (e.g. the snapshot/session
-            // ownership guard) that must surface as a thrown error; re-throw it
-            // so the server handler maps it to a proper HTTP status. Other
-            // pre-turn failures resolve gracefully with `finishReason: 'failed'`
-            // (preserving the original error.status).
-            if (e is AgentInitError) rethrow;
-            return AgentOutput(
-              finishReason: AgentFinishReason.failed,
-              error: _toErrorInfo(toErrorDetails(e)),
-              state: (config.store == null && init?.state != null)
-                  ? init!.state
-                  : null,
-            );
+      Session<State> session;
+      SessionSnapshot? snapshot;
+      try {
+        final resolved = await _resolveSession<State>(
+          config,
+          resolvedStore,
+          init,
+          validateCustomState,
+          ctx.context,
+        );
+        session = resolved.session;
+        snapshot = resolved.snapshot;
+      } catch (e) {
+        // An AgentInitError signals API misuse (e.g. the snapshot/session
+        // ownership guard) that must surface as a thrown error; re-throw it
+        // so the server handler maps it to a proper HTTP status. Other
+        // pre-turn failures resolve gracefully with `finishReason: 'failed'`
+        // (preserving the original error.status).
+        if (e is AgentInitError) rethrow;
+        return AgentOutput(
+          finishReason: AgentFinishReason.failed,
+          error: _toErrorInfo(toErrorDetails(e)),
+          state: (config.store == null && init?.state != null)
+              ? init!.state
+              : null,
+        );
+      }
+
+      setCustomMetadataAttributes({'agent:sessionId': session.sessionId});
+
+      String? detachedSnapshotId;
+      final detachCompleter = Completer<void>();
+      // Own a controller for this turn (cancelled on detach-abort or when
+      // the persisted snapshot flips to `aborted`) and link the ambient
+      // transport token to it, so an attached `runTurn(cancel:)` also
+      // cooperatively stops this turn's `generate`.
+      final cancelController = CancellationController();
+      // Capture the disposer so a reused, long-lived `ctx.cancel` token
+      // doesn't accumulate one stranded listener (pinning this turn's
+      // controller and closure) per turn. Disposed when the flow settles.
+      // `link` forwards the cancellation reason so a caller-supplied
+      // `controller.cancel('...')` survives the hop into this turn's token.
+      final unlinkCancel = ctx.cancel?.link(cancelController);
+      final cancelToken = cancelController.token;
+      void Function()? unsubscribe;
+      // Background heartbeat timer for the detached snapshot. Started in
+      // `onDetach`, cleared when the flow settles (or when the wind-down
+      // budget after an abort elapses).
+      Timer? heartbeatTimer;
+      // Bounds how long the heartbeat keeps beating after an abort flip
+      // while the worker drains toward its finalize; released early when the
+      // heartbeat stops for any other reason so a normal wind-down does not
+      // pin it for the whole budget.
+      Timer? windDownBudget;
+      void stopHeartbeat() {
+        heartbeatTimer?.cancel();
+        heartbeatTimer = null;
+        windDownBudget?.cancel();
+        windDownBudget = null;
+      }
+
+      late SessionRunner<State> runner;
+
+      void emitChunk(AgentStreamChunk chunk) {
+        final transform = config.clientTransform?.chunk;
+        if (transform != null) {
+          final transformed = transform(chunk);
+          if (transformed == null) return;
+          ctx.sendChunk(transformed);
+          return;
+        }
+        ctx.sendChunk(chunk);
+      }
+
+      final runnerInputController = StreamController<AgentInput>();
+      _pipeInputWithDetach(
+        ctx.inputStream!,
+        runnerInputController,
+        () => runner,
+        config.store != null,
+        (reason) {
+          if (!detachCompleter.isCompleted) {
+            detachCompleter.completeError(reason);
           }
-
-          setCustomMetadataAttributes({'agent:sessionId': session.sessionId});
-
-          String? detachedSnapshotId;
-          final detachCompleter = Completer<void>();
-          // Own a controller for this turn (cancelled on detach-abort or when
-          // the persisted snapshot flips to `aborted`) and link the ambient
-          // transport token to it, so an attached `runTurn(cancel:)` also
-          // cooperatively stops this turn's `generate`.
-          final cancelController = CancellationController();
-          // Capture the disposer so a reused, long-lived `ctx.cancel` token
-          // doesn't accumulate one stranded listener (pinning this turn's
-          // controller and closure) per turn. Disposed when the flow settles.
-          // `link` forwards the cancellation reason so a caller-supplied
-          // `controller.cancel('...')` survives the hop into this turn's token.
-          final unlinkCancel = ctx.cancel?.link(cancelController);
-          final cancelToken = cancelController.token;
-          void Function()? unsubscribe;
-          // Background heartbeat timer for the detached snapshot. Started in
-          // `onDetach`, cleared when the flow settles (or on abort).
-          Timer? heartbeatTimer;
-          void stopHeartbeat() {
-            heartbeatTimer?.cancel();
-            heartbeatTimer = null;
-          }
-
-          late SessionRunner<State> runner;
-
-          void emitChunk(AgentStreamChunk chunk) {
-            final transform = config.clientTransform?.chunk;
-            if (transform != null) {
-              final transformed = transform(chunk);
-              if (transformed == null) return;
-              ctx.sendChunk(transformed);
-              return;
-            }
-            ctx.sendChunk(chunk);
-          }
-
-          final runnerInputController = StreamController<AgentInput>();
-          _pipeInputWithDetach(
-            ctx.inputStream!,
-            runnerInputController,
-            () => runner,
-            config.store != null,
-            (reason) {
-              if (!detachCompleter.isCompleted) {
-                detachCompleter.completeError(reason);
-              }
-            },
-          );
-
-          runner = SessionRunner<State>(
-            session,
-            runnerInputController.stream,
-            store: resolvedStore,
-            context: ctx.context,
-            lastSnapshot: snapshot,
-            cancel: cancelToken,
-            onDetach: (snapshotId) {
-              detachedSnapshotId = snapshotId;
-              if (!detachCompleter.isCompleted) detachCompleter.complete();
-
-              // Refresh the detached snapshot's heartbeat periodically. The
-              // mutator only touches a still-`pending` snapshot (returns null
-              // otherwise) so it never resurrects a terminal snapshot or
-              // clobbers a concurrent abort. If a read sees this heartbeat go
-              // stale, the snapshot is reported as `expired` (worker presumed
-              // dead).
-              heartbeatTimer = Timer.periodic(_defaultHeartbeatInterval, (_) {
-                unawaited(
-                  resolvedStore
-                      .saveSnapshot(snapshotId, (current) {
-                        if (current?.status?.value != 'pending') return null;
-                        current!.heartbeatAt = DateTime.now()
-                            .toUtc()
-                            .toIso8601String();
-                        return current;
-                      }, context: ctx.context)
-                      .catchError((_) {
-                        // Best-effort heartbeat; ignore transient store errors.
-                        return null;
-                      }),
-                );
-              });
-
-              if (resolvedStore is SnapshotChangeNotifier) {
-                // Capture the unsubscribe in a local first: if
-                // `onSnapshotStateChange` fires the callback synchronously on
-                // registration, the outer `unsubscribe` would still be null.
-                void Function()? localUnsubscribe;
-                localUnsubscribe = (resolvedStore as SnapshotChangeNotifier)
-                    .onSnapshotStateChange(snapshotId, (snap) {
-                      if (snap.status?.value == 'aborted') {
-                        stopHeartbeat();
-                        cancelController.cancel();
-                        localUnsubscribe?.call();
-                      }
-                    }, context: ctx.context);
-                unsubscribe = localUnsubscribe;
-              }
-            },
-
-            onEndTurn: (snapshotId, finishReason) {
-              if (!runner.isDetached) {
-                emitChunk(
-                  AgentStreamChunk(
-                    turnEnd: TurnEnd(
-                      snapshotId: config.store != null ? snapshotId : null,
-                      finishReason: finishReason,
-                    ),
-                  ),
-                );
-              }
-            },
-          );
-
-          void sendArtifactChunk(Object? a) {
-            if (!runner.isDetached) {
-              emitChunk(AgentStreamChunk(artifact: a as Artifact));
-            }
-          }
-
-          final offArtifactAdded = session.on(
-            'artifactAdded',
-            sendArtifactChunk,
-          );
-          final offArtifactUpdated = session.on(
-            'artifactUpdated',
-            sendArtifactChunk,
-          );
-
-          dynamic lastSentCustom;
-          void sendCustomPatch(Object? _) {
-            if (runner.isDetached) return;
-            final transformed = toClientState(session.getState())?.custom;
-            JsonPatch patch;
-            if (runner.firstCustomPatchInTurn) {
-              patch = [
-                {'op': 'replace', 'path': '', 'value': _clone(transformed)},
-              ];
-              runner.firstCustomPatchInTurn = false;
-            } else {
-              patch = diff(lastSentCustom, transformed);
-            }
-            lastSentCustom = _clone(transformed);
-            if (patch.isNotEmpty) {
-              emitChunk(
-                AgentStreamChunk(
-                  customPatch: patch.map(JsonPatchOperation.fromJson).toList(),
-                ),
-              );
-            }
-          }
-
-          final offCustomChanged = session.on('customChanged', sendCustomPatch);
-
-          void sendChunk(AgentStreamChunk chunk) {
-            if (!runner.isDetached) emitChunk(chunk);
-          }
-
-          Future<({AgentResult result, String? finalSnapshotId})> flow() async {
-            try {
-              final result = await runWithSession(
-                session,
-                () => fn(
-                  runner,
-                  AgentFnOptions(
-                    sendChunk: sendChunk,
-                    cancel: cancelToken,
-                    context: ctx.context,
-                  ),
-                ),
-              );
-              final finalSnapshotId = await runner.maybeSnapshot();
-              return (result: result, finalSnapshotId: finalSnapshotId);
-            } finally {
-              // The turn has settled (the snapshot reached a terminal status),
-              // so stop refreshing its heartbeat.
-              stopHeartbeat();
-              unlinkCancel?.call();
-              unsubscribe?.call();
-              offArtifactAdded();
-              offArtifactUpdated();
-              offCustomChanged();
-            }
-          }
-
-          final flowFuture = flow();
-
-          // Race the background flow execution against the detach signal.
-          final outcome = Completer<_Outcome>();
-          flowFuture
-              .then((v) {
-                if (!outcome.isCompleted) outcome.complete(_Outcome.flow(v));
-              })
-              .catchError((Object e, StackTrace s) {
-                if (!outcome.isCompleted) outcome.completeError(e, s);
-              });
-          detachCompleter.future
-              .then((_) {
-                if (!outcome.isCompleted) outcome.complete(_Outcome.detached());
-              })
-              .catchError((Object e, StackTrace s) {
-                if (!outcome.isCompleted) outcome.completeError(e, s);
-              });
-
-          final result = await outcome.future;
-
-          if (result.isDetached) {
-            // Swallow any later flow error now that we've detached.
-            unawaited(
-              flowFuture.catchError(
-                (_) => (result: AgentResult(), finalSnapshotId: null),
-              ),
-            );
-            return AgentOutput(
-              sessionId: session.sessionId,
-              snapshotId: detachedSnapshotId,
-              finishReason: AgentFinishReason.detached,
-              state: config.store == null
-                  ? toClientState(session.getState())
-                  : null,
-            );
-          }
-
-          final flowValue = result.flowValue!;
-          final agentResult = flowValue.result;
-          final finalSnapshotId = flowValue.finalSnapshotId;
-
-          // A turn failed: resolve gracefully with the last-good state.
-          if (runner.lastTurnFinishReason == AgentFinishReason.failed &&
-              runner.lastTurnError != null) {
-            final lastGood = runner.lastGoodState ?? session.getState();
-            final lastGoodMessages = lastGood.messages;
-            return AgentOutput(
-              sessionId: session.sessionId,
-              finishReason: AgentFinishReason.failed,
-              error: _toErrorInfo(runner.lastTurnError!),
-              artifacts: agentResult.artifacts?.isNotEmpty == true
-                  ? agentResult.artifacts
-                  : null,
-              message: lastGoodMessages?.isNotEmpty == true
-                  ? lastGoodMessages!.last
-                  : null,
-              snapshotId: config.store != null
-                  ? await runner.ensureRecoverySnapshot()
-                  : null,
-              state: config.store == null ? toClientState(lastGood) : null,
-            );
-          }
-
-          final finishReason =
-              agentResult.finishReason ?? runner.lastTurnFinishReason;
-
-          return AgentOutput(
-            sessionId: session.sessionId,
-            artifacts: agentResult.artifacts?.isNotEmpty == true
-                ? agentResult.artifacts
-                : null,
-            message: agentResult.message,
-            finishReason: finishReason,
-            snapshotId: config.store != null ? finalSnapshotId : null,
-            state: config.store == null
-                ? toClientState(session.getState())
-                : null,
-          );
         },
       );
+
+      runner = SessionRunner<State>(
+        session,
+        runnerInputController.stream,
+        store: resolvedStore,
+        context: ctx.context,
+        lastSnapshot: snapshot,
+        cancel: cancelToken,
+        onDetach: (snapshotId) {
+          detachedSnapshotId = snapshotId;
+          if (!detachCompleter.isCompleted) detachCompleter.complete();
+
+          // Refresh the detached snapshot's heartbeat periodically. The
+          // mutator beats the two rows a live worker is still owed a write
+          // for - a `pending` one while the turn runs, and an `aborting`
+          // one while the stopped turn drains toward its finalize - and
+          // no-ops on any other (settled) row, so it never resurrects a
+          // terminal snapshot or clobbers a concurrent finalize. If a read
+          // sees this heartbeat go stale, the snapshot is reported as
+          // `expired` (worker presumed dead).
+          heartbeatTimer = Timer.periodic(_defaultHeartbeatInterval, (_) {
+            unawaited(
+              resolvedStore
+                  .saveSnapshot(snapshotId, (current) {
+                    final status = current?.status?.value;
+                    if (status != 'pending' && status != 'aborting') {
+                      return null;
+                    }
+                    current!.heartbeatAt = DateTime.now()
+                        .toUtc()
+                        .toIso8601String();
+                    return current;
+                  }, context: ctx.context)
+                  .catchError((_) {
+                    // Best-effort heartbeat; ignore transient store errors.
+                    return null;
+                  }),
+            );
+          });
+
+          if (resolvedStore is SnapshotChangeNotifier) {
+            // Capture the unsubscribe in a local first: if
+            // `onSnapshotStateChange` fires the callback synchronously on
+            // registration, the outer `unsubscribe` would still be null.
+            void Function()? localUnsubscribe;
+            localUnsubscribe = (resolvedStore as SnapshotChangeNotifier)
+                .onSnapshotStateChange(snapshotId, (snap) {
+                  // The runtime's own abort flips the row to `aborting`; a
+                  // foreign writer that lands `aborted` directly still means
+                  // stop.
+                  final status = snap.status?.value;
+                  if (status != 'aborting' && status != 'aborted') return;
+                  // The flip stops the work, not the worker: the run is
+                  // winding down toward its finalize write now, and the
+                  // heartbeat keeps running so readers see a live `aborting`
+                  // row instead of presuming the worker dead the moment the
+                  // flip lands. The flow's `finally` stops the beats right
+                  // before the finalize; the budget bounds a worker whose fn
+                  // never observes the cancellation, so a truly wedged run
+                  // still goes stale and reads as `expired`.
+                  windDownBudget = Timer(
+                    _windDownHeartbeatBudget,
+                    stopHeartbeat,
+                  );
+                  cancelController.cancel();
+                  localUnsubscribe?.call();
+                }, context: ctx.context);
+            unsubscribe = localUnsubscribe;
+          }
+        },
+
+        onEndTurn: (snapshotId, finishReason) {
+          if (!runner.isDetached) {
+            emitChunk(
+              AgentStreamChunk(
+                turnEnd: TurnEnd(
+                  snapshotId: config.store != null ? snapshotId : null,
+                  finishReason: finishReason,
+                ),
+              ),
+            );
+          }
+        },
+      );
+
+      void sendArtifactChunk(Object? a) {
+        if (!runner.isDetached) {
+          emitChunk(AgentStreamChunk(artifact: a as Artifact));
+        }
+      }
+
+      final offArtifactAdded = session.on('artifactAdded', sendArtifactChunk);
+      final offArtifactUpdated = session.on(
+        'artifactUpdated',
+        sendArtifactChunk,
+      );
+
+      dynamic lastSentCustom;
+      void sendCustomPatch(Object? _) {
+        if (runner.isDetached) return;
+        final transformed = toClientState(session.getState())?.custom;
+        JsonPatch patch;
+        if (runner.firstCustomPatchInTurn) {
+          patch = [
+            {'op': 'replace', 'path': '', 'value': _clone(transformed)},
+          ];
+          runner.firstCustomPatchInTurn = false;
+        } else {
+          patch = diff(lastSentCustom, transformed);
+        }
+        lastSentCustom = _clone(transformed);
+        if (patch.isNotEmpty) {
+          emitChunk(
+            AgentStreamChunk(
+              customPatch: patch.map(JsonPatchOperation.fromJson).toList(),
+            ),
+          );
+        }
+      }
+
+      final offCustomChanged = session.on('customChanged', sendCustomPatch);
+
+      void sendChunk(AgentStreamChunk chunk) {
+        if (!runner.isDetached) emitChunk(chunk);
+      }
+
+      Future<({AgentResult result, String? finalSnapshotId})> flow() async {
+        try {
+          final result = await runWithSession(
+            session,
+            () => fn(
+              runner,
+              AgentFnOptions(
+                sendChunk: sendChunk,
+                cancel: cancelToken,
+                context: ctx.context,
+              ),
+            ),
+          );
+          final finalSnapshotId = await runner.maybeSnapshot();
+          return (result: result, finalSnapshotId: finalSnapshotId);
+        } finally {
+          // The turn has settled (the snapshot reached a terminal status),
+          // so stop refreshing its heartbeat.
+          stopHeartbeat();
+          unlinkCancel?.call();
+          unsubscribe?.call();
+          offArtifactAdded();
+          offArtifactUpdated();
+          offCustomChanged();
+        }
+      }
+
+      final flowFuture = flow();
+
+      // Race the background flow execution against the detach signal.
+      final outcome = Completer<_Outcome>();
+      flowFuture
+          .then((v) {
+            if (!outcome.isCompleted) outcome.complete(_Outcome.flow(v));
+          })
+          .catchError((Object e, StackTrace s) {
+            if (!outcome.isCompleted) outcome.completeError(e, s);
+          });
+      detachCompleter.future
+          .then((_) {
+            if (!outcome.isCompleted) outcome.complete(_Outcome.detached());
+          })
+          .catchError((Object e, StackTrace s) {
+            if (!outcome.isCompleted) outcome.completeError(e, s);
+          });
+
+      final result = await outcome.future;
+
+      if (result.isDetached) {
+        // Swallow any later flow error now that we've detached.
+        unawaited(
+          flowFuture.catchError(
+            (_) => (result: AgentResult(), finalSnapshotId: null),
+          ),
+        );
+        return AgentOutput(
+          sessionId: session.sessionId,
+          snapshotId: detachedSnapshotId,
+          finishReason: AgentFinishReason.detached,
+          state: config.store == null
+              ? toClientState(session.getState())
+              : null,
+        );
+      }
+
+      final flowValue = result.flowValue!;
+      final agentResult = flowValue.result;
+      final finalSnapshotId = flowValue.finalSnapshotId;
+
+      // A turn failed: resolve gracefully with the last-good state.
+      if (runner.lastTurnFinishReason == AgentFinishReason.failed &&
+          runner.lastTurnError != null) {
+        final lastGood = runner.lastGoodState ?? session.getState();
+        final lastGoodMessages = lastGood.messages;
+        return AgentOutput(
+          sessionId: session.sessionId,
+          finishReason: AgentFinishReason.failed,
+          error: _toErrorInfo(runner.lastTurnError!),
+          artifacts: agentResult.artifacts?.isNotEmpty == true
+              ? agentResult.artifacts
+              : null,
+          message: lastGoodMessages?.isNotEmpty == true
+              ? lastGoodMessages!.last
+              : null,
+          snapshotId: config.store != null
+              ? await runner.ensureRecoverySnapshot()
+              : null,
+          state: config.store == null ? toClientState(lastGood) : null,
+        );
+      }
+
+      final finishReason =
+          agentResult.finishReason ?? runner.lastTurnFinishReason;
+
+      return AgentOutput(
+        sessionId: session.sessionId,
+        artifacts: agentResult.artifacts?.isNotEmpty == true
+            ? agentResult.artifacts
+            : null,
+        message: agentResult.message,
+        finishReason: finishReason,
+        snapshotId: config.store != null ? finalSnapshotId : null,
+        state: config.store == null ? toClientState(session.getState()) : null,
+      );
+    },
+  );
 
   registry.register(primaryAction);
 

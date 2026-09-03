@@ -474,7 +474,8 @@ void main() {
       final chat = agent.chat(sessionId: sessionId);
       final res = await chat.send(text: 'hi');
       final prior = await agent.abort(res.snapshotId!);
-      // Turn already completed, so abort reports the prior status.
+      // Turn already settled, so abort is a no-op and returns the existing
+      // terminal status unchanged (only a `pending` row flips to `aborting`).
       expect(prior?.value, 'completed');
     });
 
@@ -545,7 +546,8 @@ void main() {
         AgentAbortRequest(snapshotId: res.snapshotId!),
       );
       expect(response.snapshotId, res.snapshotId);
-      // Turn already completed, so the prior status is reported.
+      // Turn already settled, so abort is a no-op and returns the existing
+      // terminal status unchanged.
       expect(response.status?.value, 'completed');
     });
 
@@ -595,6 +597,60 @@ void main() {
         // The expiry is read-only: the stored snapshot stays `pending`.
         final after = await store.getSnapshot(snapshotId: id);
         expect(after!.status?.value, 'pending');
+      },
+    );
+
+    test(
+      'getSnapshotData reports a stale aborting snapshot as expired',
+      () async {
+        // A cross-runtime read: a Go server settles its abort in two writes
+        // (flip -> `aborting`, later finalize -> `aborted`) and keeps
+        // heartbeating while it winds down. A stale `aborting` beat means the
+        // draining worker died, so - like a stale `pending` - it must read as
+        // `expired`. Dart itself settles aborts in one write and never emits
+        // `aborting`, but must still read one correctly off the wire.
+        final store = InMemorySessionStore();
+        final agent = ai.defineCustomAgent(
+          name: 'winddown',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async => null);
+            return AgentResult();
+          },
+        );
+
+        final sessionId = generateUuidV4();
+        final stale = DateTime.now()
+            .toUtc()
+            .subtract(const Duration(minutes: 5))
+            .toIso8601String();
+        final id = await store.saveSnapshot(
+          null,
+          (_) => SessionSnapshot(
+            snapshotId: '',
+            createdAt: stale,
+            updatedAt: stale,
+            heartbeatAt: stale,
+            status: SnapshotStatus.aborting,
+            state: SessionState(
+              sessionId: sessionId,
+              messages: [],
+              artifacts: [],
+            ),
+          ),
+        );
+
+        // Stored status is still `aborting`...
+        final raw = await store.getSnapshot(snapshotId: id);
+        expect(raw!.status?.value, 'aborting');
+
+        // ...but a read through the agent surfaces it as `expired`.
+        final snapshot = await agent.getSnapshotData(snapshotId: id);
+        expect(snapshot!.status?.value, 'expired');
+
+        // The expiry is read-only: the stored snapshot stays `aborting`.
+        final after = await store.getSnapshot(snapshotId: id);
+        expect(after!.status?.value, 'aborting');
       },
     );
 

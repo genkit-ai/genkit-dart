@@ -842,7 +842,13 @@ Future<void> _executeAbort(
     throw _SpecError('abort invocation requires snapshotId');
   }
 
-  final previousStatus = await agent.abort(snapshotId);
+  // Capture the status before aborting so we can assert `expectPreviousStatus`.
+  // `abort()` returns the status *after* the attempt (a pending row reads back
+  // as `aborting`), while the spec asserts the *previous* status, so the harness
+  // reads it first. Mirrors the Go and JS conformance harnesses.
+  final before = await agent.getSnapshotData(snapshotId: snapshotId);
+  final previousStatus = before?.status;
+  await agent.abort(snapshotId);
 
   if (resolved.containsKey('expectPreviousStatus')) {
     final expected = resolved['expectPreviousStatus']; // null means absent
