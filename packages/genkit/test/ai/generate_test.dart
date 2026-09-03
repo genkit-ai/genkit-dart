@@ -45,19 +45,19 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Done')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -109,19 +109,19 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Done')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -163,21 +163,21 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             // Check if both called? No, just finish
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Done')],
               ),
             );
           }
           // Request both tools
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -239,9 +239,9 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [
                   ToolRequestPart(
                     toolRequest: ToolRequest(
@@ -288,9 +288,9 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [
                   ToolRequestPart(
                     toolRequest: ToolRequest(
@@ -344,9 +344,9 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'Response')],
             ),
           );
@@ -395,19 +395,19 @@ void main() {
       genkit.defineModel(
         name: 'testModel',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'The weather is sunny')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -459,19 +459,19 @@ void main() {
       genkit.defineModel(
         name: 'testModel2',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'The weather is sunny')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -523,19 +523,19 @@ void main() {
       genkit.defineModel(
         name: 'testModelExplicit',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'The weather is sunny explicit')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -590,11 +590,11 @@ void main() {
         genkit.defineModel(
           name: 'testModelExplicitPrefix',
           fn: (request, context) async {
-            if (request.messages.last.role == Role.tool) {
+            if (request.messages.last.role == .tool) {
               return ModelResponse(
-                finishReason: FinishReason.stop,
+                finishReason: .stop,
                 message: Message(
-                  role: Role.model,
+                  role: .model,
                   content: [
                     TextPart(text: 'The weather is sunny explicit prefix'),
                   ],
@@ -602,9 +602,9 @@ void main() {
               );
             }
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [
                   ToolRequestPart(
                     toolRequest: ToolRequest(
@@ -664,11 +664,11 @@ void main() {
       genkit.defineModel(
         name: 'testModelPrefixWildcard',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [
                   TextPart(text: 'The weather is sunny prefix wildcard'),
                 ],
@@ -676,9 +676,9 @@ void main() {
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -714,9 +714,9 @@ void main() {
           defaultModelCalled = true;
           expect(request.config?['temperature'], 0.7);
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'Default Model Output')],
             ),
           );
@@ -743,9 +743,9 @@ void main() {
           fn: (request, context) async {
             defaultModelCalled = true;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Default')],
               ),
             );
@@ -758,9 +758,9 @@ void main() {
             customModelCalled = true;
             expect(request.config?['temperature'], 0.9);
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Custom')],
               ),
             );
@@ -793,9 +793,9 @@ void main() {
             // explicit config should be used
             expect(request.config?['temperature'], 0.5);
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Default')],
               ),
             );
@@ -821,9 +821,9 @@ void main() {
             // explicit config should override modelRef's config
             expect(request.config?['temperature'], 0.5);
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Custom')],
               ),
             );
@@ -851,9 +851,9 @@ void main() {
             fn: (request, context) async {
               captured = request;
               return ModelResponse(
-                finishReason: FinishReason.stop,
+                finishReason: .stop,
                 message: Message(
-                  role: Role.model,
+                  role: .model,
                   content: [TextPart(text: 'ok')],
                 ),
               );
@@ -889,9 +889,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -903,11 +903,11 @@ void main() {
           system: 'Be concise.',
           messages: [
             Message(
-              role: Role.user,
+              role: .user,
               content: [TextPart(text: 'hi')],
             ),
             Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'hello')],
             ),
           ],
@@ -932,9 +932,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -946,11 +946,11 @@ void main() {
           system: 'sys',
           messages: [
             Message(
-              role: Role.user,
+              role: .user,
               content: [TextPart(text: 'past-u')],
             ),
             Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'past-m')],
             ),
           ],
@@ -979,9 +979,9 @@ void main() {
             fn: (request, context) async {
               captured = request;
               return ModelResponse(
-                finishReason: FinishReason.stop,
+                finishReason: .stop,
                 message: Message(
-                  role: Role.model,
+                  role: .model,
                   content: [TextPart(text: 'ok')],
                 ),
               );
@@ -993,11 +993,11 @@ void main() {
             system: 'param system',
             messages: [
               Message(
-                role: Role.system,
+                role: .system,
                 content: [TextPart(text: 'inline system')],
               ),
               Message(
-                role: Role.user,
+                role: .user,
                 content: [TextPart(text: 'hi')],
               ),
             ],
@@ -1030,9 +1030,9 @@ void main() {
               ModelResponseChunk(content: [TextPart(text: 'hi')]),
             );
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'hi')],
               ),
             );
@@ -1069,9 +1069,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1102,9 +1102,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1140,9 +1140,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1154,7 +1154,7 @@ void main() {
           system: 'sys',
           messages: [
             Message(
-              role: Role.user,
+              role: .user,
               content: [TextPart(text: 'past-u')],
             ),
           ],
@@ -1181,9 +1181,9 @@ void main() {
               ModelResponseChunk(content: [TextPart(text: 'hi')]),
             );
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'hi')],
               ),
             );
@@ -1212,9 +1212,9 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1237,9 +1237,9 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1326,9 +1326,9 @@ void main() {
             // Turn 1: request the tool (it succeeds and the loop continues).
             if (modelCall == 1) {
               return ModelResponse(
-                finishReason: FinishReason.stop,
+                finishReason: .stop,
                 message: Message(
-                  role: Role.model,
+                  role: .model,
                   content: [
                     ToolRequestPart(
                       toolRequest: ToolRequest(
