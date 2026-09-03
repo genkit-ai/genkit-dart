@@ -84,8 +84,12 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
         message: _response.message,
         finishReason: _response.finishReason,
         finishMessage: _response.finishMessage,
+        // Forward the structured error so a failed response
+        // (`finishReason: failed`) carries its cause; null on success.
+        error: _response.error,
         latencyMs: _response.latencyMs,
         usage: _response.usage,
+
         custom: _response.custom,
         raw: _response.raw,
         request: _response.request, // This uses ModelResponse.request

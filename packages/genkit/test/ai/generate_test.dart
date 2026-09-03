@@ -1252,5 +1252,59 @@ void main() {
         );
       });
     });
+
+    group('failed responses', () {
+      test('a model error resolves to a failed response carrying last-good '
+          'history and the error (rather than throwing)', () async {
+        const modelName = 'failingModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            throw GenkitException(
+              'model exploded',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'hi',
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.message, isNull);
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.UNAVAILABLE.name);
+        expect(res.error!.message, contains('model exploded'));
+        // The last-good history (the user turn) survives so the caller can
+        // resume.
+        expect(res.messages, isNotEmpty);
+        expect(res.messages.last.role, Role.user);
+      });
+
+      test(
+        'a non-GenkitException model error is reported as INTERNAL',
+        () async {
+          const modelName = 'plainThrowModel';
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              throw StateError('boom');
+            },
+          );
+
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'hi',
+          );
+
+          expect(res.finishReason, FinishReason.failed);
+          expect(res.error, isNotNull);
+          expect(res.error!.status, StatusCodes.INTERNAL.name);
+          expect(res.error!.message, contains('boom'));
+        },
+      );
+    });
   });
 }

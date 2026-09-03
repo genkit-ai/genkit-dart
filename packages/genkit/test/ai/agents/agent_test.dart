@@ -654,6 +654,69 @@ void main() {
       },
     );
 
+    test('a prompt-backed turn whose model fails persists a `failed` snapshot '
+        'with rerunnable history, and can be rerun to success', () async {
+      final store = InMemorySessionStore();
+      var shouldFail = true;
+      ai.defineModel(
+        name: 'flakyModel',
+        fn: (request, ctx) async {
+          if (shouldFail) {
+            throw GenkitException(
+              'model temporarily unavailable',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          }
+          return ModelResponse(
+            message: Message(
+              role: Role.model,
+              content: [
+                TextPart(text: 'recovered: ${request.messages.last.text}'),
+              ],
+            ),
+            finishReason: FinishReason.stop,
+          );
+        },
+      );
+      final agent = ai.defineAgent(
+        name: 'recoverable',
+        model: modelRef('flakyModel'),
+        store: store,
+      );
+
+      // First run fails. `chat.send` surfaces a failed turn as a thrown
+      // [AgentError] carrying the resume point, but the runtime still persists
+      // a `failed` snapshot with the user turn as resumable history plus the
+      // structured error.
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+      final error = await chat
+          .send(text: 'hello')
+          .then<AgentError?>(
+            (_) => null,
+            onError: (Object e) => e as AgentError,
+          );
+      expect(error, isNotNull);
+      expect(error!.status, StatusCodes.UNAVAILABLE.name);
+      expect(error.snapshotId, isNotNull);
+
+      final failedSnap = await agent.getSnapshotData(
+        snapshotId: error.snapshotId,
+      );
+      expect(failedSnap!.status?.value, 'failed');
+      expect(failedSnap.error, isNotNull);
+      expect(failedSnap.state, isNotNull);
+      // The user turn is preserved so the run can be re-driven.
+      expect(failedSnap.state!.messages, isNotEmpty);
+
+      // Rerun the failed snapshot; this time the model succeeds.
+      shouldFail = false;
+      final rerun = agent.chat(snapshotId: error.snapshotId);
+      final res2 = await rerun.send(text: 'hello again');
+      expect(res2.finishReason, AgentFinishReason.stop);
+      expect(res2.text, contains('recovered'));
+    });
+
     test('getSnapshotData requires a store', () async {
       final agent = ai.defineCustomAgent(
         name: 'noStore',

@@ -281,6 +281,10 @@ final class AgentResponse<State> {
   AgentFinishReason get finishReason =>
       _raw.finishReason ?? AgentFinishReason.unknown;
 
+  /// The structured error on a `failed` response, or `null` otherwise. A caller
+  /// can branch on `error.status` and rerun the (persisted) snapshot.
+  AgentErrorInfo? get error => _raw.error;
+
   String? get finishMessage => _raw.error?.message;
 
   AgentOutput get raw => _raw;

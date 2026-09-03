@@ -254,10 +254,57 @@ GenerateResponseHelper _abortedResponse({
   );
 }
 
+/// Maps a thrown value to the structured [RuntimeError] carried on a failed
+/// response's `error` field. Preserves a [GenkitException]'s status; anything
+/// else is reported as `INTERNAL`.
+RuntimeError _toRuntimeError(Object cause) {
+  if (cause is GenkitException) {
+    return RuntimeError(
+      status: cause.status.name,
+      message: cause.message,
+      details: cause.details != null ? {'details': cause.details} : null,
+    );
+  }
+  return RuntimeError(
+    status: StatusCodes.INTERNAL.name,
+    message: cause.toString(),
+  );
+}
+
+/// Builds a failed [GenerateResponseHelper] carrying [history] as the resumable
+/// message list and [cause] as the structured `error`. Used when a model or tool
+/// call errors: rather than throwing, the loop resolves with a response whose
+/// `finishReason` is [FinishReason.failed] and no message, so the caller can
+/// inspect `response.messages` and resume from the last good state (the same
+/// shape the abort path uses). Mirrors Go's `failurePartial`, except Dart
+/// returns only the response where Go returns the response and the error.
+GenerateResponseHelper _failedResponse({
+  required List<Message> history,
+  required Object cause,
+  Map<String, dynamic>? config,
+}) {
+  final error = _toRuntimeError(cause);
+  final request = ModelRequest(messages: history, config: config);
+  return GenerateResponseHelper(
+    ModelResponse(
+      finishReason: FinishReason.failed,
+      finishMessage: error.message,
+      error: error,
+      // Stamp the request onto the ModelResponse too (not just the helper) so
+      // the resumable history survives the reflection boundary, matching
+      // `_abortedResponse`.
+      request: GenerateRequest(messages: history, config: config),
+    ),
+    request: request,
+    output: null,
+  );
+}
+
 /// Decides whether an exception [e] raised during a generation turn should be
 /// converted into an aborted response, or rethrown.
 ///
 /// Returns a [GenerateResponseHelper] (the abort) when:
+
 /// - [e] is a [CancelledException] produced by *this* turn's [cancel] token
 ///   (matched by identity, or by the token being cancelled), or
 /// - [cancel] is cancelled and [e] is a generic failure surfaced because the
@@ -460,8 +507,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     ));
   } catch (e) {
     // A cancel of this turn's token resolves to an aborted response carrying
-    // the last-good history; a genuine failure (even one racing a cancel of an
-    // unrelated token) rethrows with its cause intact.
+    // the last-good history. A genuine model error resolves to a failed
+    // response carrying the same last-good history (the failing turn's own
+    // partial output is dropped), so the caller can inspect `response.error`
+    // and resume from `response.messages` - mirroring the abort path and Go's
+    // `failurePartial`.
     final aborted = _abortResponseIfCancelled(
       e,
       ctx.cancel,
@@ -469,7 +519,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       config: options.config,
     );
     if (aborted != null) return aborted;
-    rethrow;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+    );
   }
 
   final parser = format
@@ -514,9 +568,9 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   } catch (e) {
     // A tool cancelled mid-execution: resolve with the last-good history (this
     // turn's input), discarding the model message whose tool requests were left
-    // unanswered so the history stays a clean resume point. A `CancelledException`
-    // from an unrelated token (e.g. a tool's own internal timeout) is a real
-    // failure and rethrows.
+    // unanswered so the history stays a clean resume point. A tool error that is
+    // not a cancel resolves to a failed response carrying that same clean
+    // history, so the caller can inspect `response.error` and resume.
     final aborted = _abortResponseIfCancelled(
       e,
       ctx.cancel,
@@ -524,9 +578,14 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       config: options.config,
     );
     if (aborted != null) return aborted;
-    rethrow;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+    );
   }
   final toolResponses = execution.toolResponses;
+
   final toolStatus = execution.toolStatus;
   final interrupted = execution.interrupted;
 
