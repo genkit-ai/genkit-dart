@@ -102,15 +102,38 @@ GenerateMiddlewareRef<FilesystemOptions> filesystem({
 
 class FilesystemMiddleware extends GenerateMiddleware {
   final String rootDirectory;
+  final String _canonicalRoot;
   final List<Message> _messageQueue = [];
 
-  FilesystemMiddleware(this.rootDirectory);
+  FilesystemMiddleware(this.rootDirectory)
+    : _canonicalRoot = _realPath(rootDirectory);
+
+  /// Longest existing prefix, with symlinks resolved. Falls back to
+  /// [p.canonicalize] when the path does not exist yet (e.g. write_file).
+  static String _realPath(String path) {
+    var current = p.normalize(path);
+    final suffix = <String>[];
+    while (true) {
+      try {
+        final real = File(current).resolveSymbolicLinksSync();
+        return suffix.isEmpty ? real : p.join(real, p.joinAll(suffix.reversed));
+      } on FileSystemException {
+        final parent = p.dirname(current);
+        if (parent == current) {
+          return p.canonicalize(path);
+        }
+        suffix.add(p.basename(current));
+        current = parent;
+      }
+    }
+  }
 
   String _resolvePath(String relativePath) {
-    // Normalize and resolve the path
-    final resolved = p.canonicalize(p.join(rootDirectory, relativePath));
-    // Check if the path is within the root path
-    if (!p.isWithin(rootDirectory, resolved) && resolved != rootDirectory) {
+    // Resolve the configured root once in the constructor so Windows
+    // drive-letter / on-disk casing and non-canonical roots compare equal,
+    // and so a symlink inside the sandbox cannot escape it.
+    final resolved = _realPath(p.join(_canonicalRoot, relativePath));
+    if (!p.isWithin(_canonicalRoot, resolved) && resolved != _canonicalRoot) {
       throw Exception('Access denied: Path is outside of root directory.');
     }
     return resolved;
