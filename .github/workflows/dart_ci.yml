@@ -5,23 +5,24 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    name: Run Dart Tests
+  codegen:
+    name: Verify Generated Code
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        sdk: ['3.10', dev]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      # Generate committed sources with one canonical toolchain. Compatibility
+      # jobs below test those sources without regenerating SDK-dependent output.
       - name: Set up Dart SDK
-        uses: dart-lang/setup-dart@v1
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1
         with:
-          sdk: ${{ matrix.sdk }}
+          sdk: stable
 
       - name: Install Melos
         run: dart pub global activate melos
@@ -32,11 +33,37 @@ jobs:
       - name: Run Code Generation
         run: melos run build-gen
 
+      - name: Verify clean git tree
+        run: '[ -z "$(git status --short)" ] || (git status --short && exit 1)'
+
+  test:
+    name: Run Dart Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ['3.10', dev]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Dart SDK
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1
+        with:
+          sdk: ${{ matrix.sdk }}
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap Workspace
+        run: melos bootstrap
+
       - name: Analyze Project Source
         run: melos run analyze
 
       - name: Run Tests
-        run: melos run test
+        run: melos run test --no-select
 
       - name: Verify clean git tree
         run: '[ -z "$(git status --short)" ] || (git status --short && exit 1)'
@@ -47,21 +74,21 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Dart SDK
-        uses: dart-lang/setup-dart@v1
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1
         with:
           sdk: '3.10'
 
       - name: Set up Java (required by the Firestore emulator)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
 
