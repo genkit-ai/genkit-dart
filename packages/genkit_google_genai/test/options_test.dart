@@ -48,6 +48,18 @@ void main() {
       expect(settings.responseMimeType, 'application/json');
     });
 
+    test('maps image config', () {
+      final options = GeminiOptions(
+        imageConfig: ImageConfig(aspectRatio: '3:4', imageSize: '2K'),
+      );
+
+      final settings = toGeminiSettings(options, null, false);
+
+      expect(settings.imageConfig, isNotNull);
+      expect(settings.imageConfig!.aspectRatio, '3:4');
+      expect(settings.imageConfig!.imageSize, '2K');
+    });
+
     test('maps thinking config', () {
       final options = GeminiOptions(
         thinkingConfig: ThinkingConfig(

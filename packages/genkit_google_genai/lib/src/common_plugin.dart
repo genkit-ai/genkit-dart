@@ -287,6 +287,9 @@ gcl.GenerationConfig toGeminiSettings(
     responseModalities: options.responseModalities?.isEmpty ?? true
         ? null
         : options.responseModalities!.map((m) => m.toUpperCase()).toList(),
+    imageConfig: options.imageConfig != null
+        ? gcl.ImageConfig.fromJson(_toImageConfig(options.imageConfig)!)
+        : null,
     speechConfig: options.speechConfig != null
         ? gcl.SpeechConfig.fromJson(_toSpeechConfig(options.speechConfig)!)
         : null,
@@ -336,6 +339,14 @@ gcl.GenerationConfig toGeminiTtsSettings(
           )
         : null,
   );
+}
+
+Map<String, dynamic>? _toImageConfig(ImageConfig? config) {
+  if (config == null) return null;
+  return {
+    if (config.aspectRatio != null) 'aspectRatio': config.aspectRatio,
+    if (config.imageSize != null) 'imageSize': config.imageSize,
+  };
 }
 
 Map<String, dynamic>? _toSpeechConfig(SpeechConfig? config) {
