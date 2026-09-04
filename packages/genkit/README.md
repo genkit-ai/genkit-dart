@@ -604,10 +604,23 @@ void main() async {
   // 1. Initialize the plugin directly
   final gemini = googleAI();
 
-  // 2. Direct generation call without a Genkit instance
+  // 2. Define a tool. Tools are plain objects in the Lite API, so you can
+  //    pass them straight to `generate` without registering them anywhere.
+  final weather = Tool(
+    name: 'getWeather',
+    description: 'Gets the current weather for a location.',
+    inputSchema: SchemanticType.map(
+      SchemanticType.string(),
+      SchemanticType.dynamicSchema(),
+    ),
+    fn: (input, ctx) async => .response('Sunny, 24°C in ${input['location']}'),
+  );
+
+  // 3. Direct generation call without a Genkit instance
   final response = await lite.generate(
     model: gemini.model('gemini-flash-latest'),
-    prompt: 'Hello from Lite API!',
+    prompt: 'What is the weather in Toronto?',
+    tools: [weather],
     // Middleware objects are used directly in the Lite API
     use: [
       RetryMiddleware(maxRetries: 2),
