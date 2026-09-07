@@ -206,9 +206,16 @@ class OpenAIPlugin extends GenkitPlugin {
 
     // Curated models are listed even when discovery omits them, and custom
     // models are always listed - they need no discovery to be valid.
+    //
+    // The curated catalog is an OpenAI catalog, so it is withheld once a
+    // baseUrl points somewhere else: a Groq or DeepSeek backend listing
+    // `groq/gpt-5.5` and `groq/o3` offers the Dev UI seventeen models that
+    // host will 404 on. Compat backends are left with whatever `GET /models`
+    // reports plus their own `models:`, and - as ever - resolve() still serves
+    // any id named explicitly, so nothing becomes unreachable.
     final ids = <String>{
       ...discovered,
-      ...knownChatModels,
+      if (baseUrl == null) ...knownChatModels,
       ...customModels.map((m) => m.name),
     };
 

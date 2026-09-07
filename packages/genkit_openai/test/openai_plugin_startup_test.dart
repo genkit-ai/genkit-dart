@@ -380,25 +380,24 @@ void main() {
       expect(names, contains('groq/llama-3.3-70b'));
     });
 
-    test(
-      'a host without /models still lists catalog and custom models',
-      () async {
-        final plugin = OpenAIPlugin(
-          name: 'local',
-          apiKey: 'test-key',
-          baseUrl: 'http://127.0.0.1:9/v1',
-          httpClient: MockClient(
-            (request) async => http.Response('no such endpoint', 404),
-          ),
-          customModels: [CustomModelDefinition(name: 'my-local-model')],
-        );
+    test('a host without /models still lists its custom models', () async {
+      final plugin = OpenAIPlugin(
+        name: 'local',
+        apiKey: 'test-key',
+        baseUrl: 'http://127.0.0.1:9/v1',
+        httpClient: MockClient(
+          (request) async => http.Response('no such endpoint', 404),
+        ),
+        customModels: [CustomModelDefinition(name: 'my-local-model')],
+      );
 
-        final names = modelNames(await plugin.list());
+      final names = modelNames(await plugin.list());
 
-        expect(names, contains('local/my-local-model'));
-        expect(names, contains('local/gpt-4o'));
-      },
-    );
+      expect(names, {'local/my-local-model'});
+      // The curated catalog is OpenAI's. A local llama.cpp-style host has no
+      // gpt-4o, so listing 'local/gpt-4o' would only hand the Dev UI a 404.
+      expect(names, isNot(contains('local/gpt-4o')));
+    });
   });
 
   group('api key resolution', () {
