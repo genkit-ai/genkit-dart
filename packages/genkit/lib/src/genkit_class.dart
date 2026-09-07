@@ -60,9 +60,9 @@ import 'utils.dart' as utils;
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
 /// ([generate], [generateStream], [generateBidi], [embed], [embedMany], [run]).
 ///
-/// If `isDevEnv` is true or the `GENKIT_ENV` environment variable is set to
-/// 'dev', initializing [Genkit] also starts a local reflection server that
-/// communicates with the Genkit Developer UI.
+/// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
+/// environment or as a `--dart-define`, initializing [Genkit] also starts a
+/// local reflection server that communicates with the Genkit Developer UI.
 final class Genkit extends GenkitAI {
   ReflectionServerHandle? _reflectionServer;
 
