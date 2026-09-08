@@ -161,18 +161,37 @@ void main() {
       expect(names.where((n) => n == 'openai/gpt-4o'), hasLength(1));
     });
 
-    test('a custom baseUrl gets the generic defaults, not OpenAI\'s', () async {
+    test('a custom baseUrl keeps the curated capabilities', () async {
+      // gpt-4o would not catch this: its curated supports are the same map
+      // the generic fallback hands out. A text-only model does.
+      final metadata = await pluginListing([
+        'gpt-3.5-turbo',
+      ], baseUrl: 'https://gateway.ai.cloudflare.com/v1/openai').list();
+      final info = modelMetadataOf(metadata.single);
+
+      expect(info['supports'], textOnlyLegacySupports);
+      expect((info['supports'] as Map)['media'], isFalse);
+    });
+
+    test('a custom baseUrl drops OpenAI\'s deployment details', () async {
       final metadata = await pluginListing([
         'gpt-4o',
       ], baseUrl: 'https://openrouter.ai/api/v1').list();
       final info = modelMetadataOf(metadata.single);
 
-      // A proxy serving a colliding name is not OpenAI: its label, lifecycle
-      // and served snapshots are its own.
-      expect(info['supports'], multimodalSupports);
+      // The label names OpenAI's offering, the stage tracks OpenAI's
+      // retirement schedule, and the versions enumerate what OpenAI serves.
       expect(info.containsKey('label'), isFalse);
       expect(info.containsKey('stage'), isFalse);
       expect(info.containsKey('versions'), isFalse);
+    });
+
+    test('an uncurated name on a compat backend takes the defaults', () async {
+      final metadata = await pluginListing([
+        'llama-3.3-70b-versatile',
+      ], baseUrl: 'https://api.groq.com/openai/v1').list();
+
+      expect(modelMetadataOf(metadata.single)['supports'], multimodalSupports);
     });
 
     test('non-chat models stay filtered out', () async {

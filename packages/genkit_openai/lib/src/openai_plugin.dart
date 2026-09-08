@@ -250,13 +250,12 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Capability metadata for [modelName] on this plugin instance.
   ///
-  /// For the same reason the catalog itself is withheld from a compat backend,
-  /// its metadata is too. A proxy that happens to serve a colliding name is
-  /// still not OpenAI: the label, the lifecycle stage and the list of served
-  /// snapshots are all claims about OpenAI's deployment, so those models take
-  /// the generic defaults instead.
+  /// A compat backend keeps the curated capabilities — a proxy serving
+  /// `gpt-3.5-turbo` is serving that model, and calling it multimodal would
+  /// invite image parts it rejects — but not OpenAI's deployment details. See
+  /// [compatModelInfo].
   ModelInfo _infoFor(String modelName) =>
-      baseUrl == null ? modelInfoFor(modelName) : dynamicModelInfo(modelName);
+      baseUrl == null ? modelInfoFor(modelName) : compatModelInfo(modelName);
 
   @override
   Action? resolve(ActionType actionType, String name) {

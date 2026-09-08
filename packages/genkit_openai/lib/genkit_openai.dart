@@ -27,6 +27,7 @@ export 'src/known_models.dart'
     show
         KnownOpenAIModel,
         OpenAIModelStage,
+        compatModelInfo,
         dynamicModelInfo,
         knownChatModels,
         knownOpenAIModelFor,

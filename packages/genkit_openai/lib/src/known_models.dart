@@ -508,6 +508,32 @@ ModelInfo dynamicModelInfo(String modelName) {
 ModelInfo modelInfoFor(String model) =>
     knownOpenAIModelFor(model)?.info ?? dynamicModelInfo(model);
 
+/// The curated entries with OpenAI's deployment details stripped off.
+final _compatInfo = <KnownOpenAIModel, ModelInfo>{
+  for (final model in KnownOpenAIModel.values)
+    // Shares the already-unmodifiable map from the full curated entry.
+    model: ModelInfo(supports: model.info.supports),
+};
+
+/// Capability metadata for [modelName] on an OpenAI-compatible backend that is
+/// not OpenAI itself.
+///
+/// The capabilities carry over. A gateway or proxy that serves a name from
+/// OpenAI's catalog is nearly always serving that model — Azure, Cloudflare AI
+/// Gateway, LiteLLM and OpenRouter all route to OpenAI — so `gpt-3.5-turbo`
+/// behind one is still text-only, and describing it as multimodal would invite
+/// image parts the backend rejects.
+///
+/// OpenAI's *deployment* does not carry over: the label names OpenAI's
+/// offering, the lifecycle stage tracks OpenAI's retirement schedule, and the
+/// version list enumerates the snapshots OpenAI serves. A backend pinned to one
+/// snapshot, or serving a fine-tune under a familiar name, satisfies none of
+/// those. A `CustomModelDefinition` with explicit `info` overrides all of it.
+ModelInfo compatModelInfo(String modelName) {
+  final curated = knownOpenAIModelFor(modelName);
+  return curated != null ? _compatInfo[curated]! : dynamicModelInfo(modelName);
+}
+
 /// Whether [model] supports tools / function calling.
 bool supportsTools(String model) =>
     modelInfoFor(model).supports?['tools'] == true;
