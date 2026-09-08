@@ -16,7 +16,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/known_models.dart' show knownChatModels;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 

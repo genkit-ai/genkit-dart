@@ -16,11 +16,12 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/known_models.dart' show knownChatModels;
 import 'package:genkit_openai/src/openai_plugin.dart' show OpenAIPlugin;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
+
+import 'discovery_client.dart';
 
 /// An environment with no API key in it.
 ///
@@ -58,30 +59,6 @@ MockClient unauthorizedClient(List<String> requests) {
     );
   });
 }
-
-/// Serves a `/models` list so discovery has something to find.
-MockClient discoveryClient(List<String> requests, {List<String>? ids}) {
-  return MockClient((request) async {
-    requests.add('${request.method} ${request.url}');
-    if (request.url.path.endsWith('/models')) {
-      return http.Response(
-        jsonEncode({
-          'object': 'list',
-          'data': [
-            for (final id in ids ?? const ['gpt-5-preview'])
-              {'id': id, 'object': 'model', 'created': 0, 'owned_by': 'openai'},
-          ],
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    return http.Response('not found', 404);
-  });
-}
-
-Set<String> modelNames(List<ActionMetadata> metadata) =>
-    metadata.map((m) => m.name).toSet();
 
 void main() {
   group('offline startup', () {
@@ -277,39 +254,51 @@ void main() {
   });
 
   group('catalog metadata', () {
-    test('every curated model is a chat model with sane capabilities', () {
-      // A curated id that the heuristics misclassify would be listed with
-      // wrong metadata - e.g. advertising media:false for a multimodal model,
-      // which makes Genkit reject image inputs.
+    test('every listed model is a chat model with curated capabilities', () {
+      // A listed id described by the wrong capabilities is worse than one
+      // that is missing - e.g. advertising media:false for a multimodal model
+      // makes Genkit reject image inputs.
       for (final id in knownChatModels) {
         expect(getModelType(id), 'chat', reason: '$id should classify as chat');
 
-        final supports = modelInfoFor(id).supports!;
-        expect(supports['tools'], isTrue, reason: '$id should support tools');
-
-        // Every curated gpt-* model is multimodal. The o-series is mixed -
-        // o3-mini and the o1-mini/preview pair are text-only - so those are
-        // left to the dedicated heuristics tests.
-        if (id.startsWith('gpt-')) {
-          expect(
-            supports['media'],
-            isTrue,
-            reason: '$id is multimodal and should advertise media input',
-          );
-        } else {
-          expect(supports['media'], isA<bool>());
-        }
+        final info = modelInfoFor(id);
+        expect(
+          knownOpenAIModelFor(id),
+          isNotNull,
+          reason: '$id is listed, so it must carry curated metadata',
+        );
+        expect(info.supports, isNotNull);
+        expect(info.label, isNotNull, reason: '$id should have a label');
       }
     });
 
-    test('the catalog holds aliases, not dated snapshots', () {
+    test('every listed model is one OpenAI still serves', () {
+      for (final id in knownChatModels) {
+        expect(
+          knownOpenAIModelFor(id)!.stage,
+          isNot(OpenAIModelStage.deprecated),
+          reason: '$id is retired; listing it offers a name that 404s',
+        );
+      }
+    });
+
+    test('the catalog lists aliases, not dated snapshots', () {
       for (final id in knownChatModels) {
         expect(
           RegExp(r'-\d{4}-\d{2}-\d{2}$').hasMatch(id),
           isFalse,
           reason: '$id is a dated snapshot; discovery surfaces those',
         );
-        expect(id, isNot(contains('chat-latest')));
+      }
+    });
+
+    test('the ChatGPT-tuned snapshots are listed, without tools', () {
+      // These were excluded while capabilities came from name matching, which
+      // could not describe a chat model that takes no tools. The catalog can.
+      for (final id in ['gpt-5-chat-latest', 'chatgpt-4o-latest']) {
+        expect(knownChatModels, contains(id));
+        expect(modelInfoFor(id).supports?['tools'], isFalse, reason: id);
+        expect(modelInfoFor(id).supports?['media'], isTrue, reason: id);
       }
     });
   });

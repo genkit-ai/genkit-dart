@@ -20,7 +20,6 @@ import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
-import 'known_models.dart';
 
 final _logger = Logger('genkit_openai');
 
@@ -224,7 +223,7 @@ class OpenAIPlugin extends GenkitPlugin {
     //
     // The curated catalog is an OpenAI catalog, so it is withheld once a
     // baseUrl points somewhere else: a Groq or DeepSeek backend listing
-    // `groq/gpt-5.5` and `groq/o3` offers the Dev UI seventeen models that
+    // `groq/gpt-5.5` and `groq/o3` offers the Dev UI a page of models that
     // host will 404 on. Compat backends are left with whatever `GET /models`
     // reports plus their own `models:`, and - as ever - resolve() still serves
     // any id named explicitly, so nothing becomes unreachable.
@@ -243,11 +242,21 @@ class OpenAIPlugin extends GenkitPlugin {
       for (final id in ids)
         modelMetadata(
           '$_pluginName/$id',
-          modelInfo: infoOverrides[id] ?? modelInfoFor(id),
+          modelInfo: infoOverrides[id] ?? _infoFor(id),
           customOptions: chat.chatModelOptionsSchema(),
         ),
     ];
   }
+
+  /// Capability metadata for [modelName] on this plugin instance.
+  ///
+  /// For the same reason the catalog itself is withheld from a compat backend,
+  /// its metadata is too. A proxy that happens to serve a colliding name is
+  /// still not OpenAI: the label, the lifecycle stage and the list of served
+  /// snapshots are all claims about OpenAI's deployment, so those models take
+  /// the generic defaults instead.
+  ModelInfo _infoFor(String modelName) =>
+      baseUrl == null ? modelInfoFor(modelName) : dynamicModelInfo(modelName);
 
   @override
   Action? resolve(ActionType actionType, String name) {
@@ -258,7 +267,7 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   Model _createModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? modelInfoFor(modelName);
+    final modelInfo = info ?? _infoFor(modelName);
 
     return Model(
       name: '$_pluginName/$modelName',
