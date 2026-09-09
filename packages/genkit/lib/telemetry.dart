@@ -33,9 +33,20 @@
 /// (via the `GENKIT_TELEMETRY_SERVER` environment variable, or the CLI
 /// reflection handshake), so the Developer UI receives traces. That built-in
 /// runs independently of OpenTelemetry, posting Genkit's spans directly to the
-/// server over HTTP. In production, configure a provider explicitly with
+/// server over HTTP. It also bridges `package:logging` records (correlated with
+/// the active span) to the server so logs show up in the Developer UI; that
+/// logging bridge is an implementation detail of the built-in provider, not a
+/// behavior of Genkit core. In production, configure a provider explicitly with
 /// `configureInstrumentation`.
+///
+/// A provider that holds resources (subscriptions, clients) can implement
+/// `DisposableInstrumentation`; Genkit disposes it on `Genkit.shutdown()`.
 library;
 
 export 'src/o11y/instrumentation.dart'
-    show Instrumentation, SpanContext, SpanMetadata, configureInstrumentation;
+    show
+        DisposableInstrumentation,
+        Instrumentation,
+        SpanContext,
+        SpanMetadata,
+        configureInstrumentation;

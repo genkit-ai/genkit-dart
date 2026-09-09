@@ -21,12 +21,13 @@ import 'span_data.dart';
 
 final _logger = Logger('CollectorHttpSink');
 
-/// A [SpanSink] that POSTs OTLP/JSON spans to the Genkit telemetry server.
+/// A [TelemetrySink] that POSTs OTLP/JSON spans and logs to the Genkit
+/// telemetry server.
 ///
-/// It needs no OTel runtime: it just serializes [GenkitSpanData] and fires it
-/// at `$server/api/otlp`. Exports are fire-and-forget so tracing never blocks
-/// the traced operation.
-class CollectorHttpSink implements SpanSink {
+/// It needs no OTel runtime: it just serializes [GenkitSpanData]/[GenkitLogData]
+/// and fires it at `$server/api/otlp`. Exports are fire-and-forget so telemetry
+/// never blocks the traced operation.
+class CollectorHttpSink implements TelemetrySink {
   final Uri _uri;
   final Map<String, String> _headers;
   final http.Client _client;
@@ -43,9 +44,16 @@ class CollectorHttpSink implements SpanSink {
   @override
   void export(List<GenkitSpanData> spans) {
     if (_isShutdown || spans.isEmpty) return;
+    _post({'resourceSpans': encodeResourceSpans(spans)}, 'spans');
+  }
 
-    final body = {'resourceSpans': encodeResourceSpans(spans)};
+  @override
+  void exportLogs(List<GenkitLogData> logs) {
+    if (_isShutdown || logs.isEmpty) return;
+    _post({'resourceLogs': encodeResourceLogs(logs)}, 'logs');
+  }
 
+  void _post(Map<String, dynamic> body, String what) {
     _client
         .post(
           _uri,
@@ -55,7 +63,7 @@ class CollectorHttpSink implements SpanSink {
         .then(
           (_) {},
           onError: (Object e, StackTrace stackTrace) {
-            _logger.severe('Failed to export spans: $e', e, stackTrace);
+            _logger.severe('Failed to export $what: $e', e, stackTrace);
           },
         );
   }

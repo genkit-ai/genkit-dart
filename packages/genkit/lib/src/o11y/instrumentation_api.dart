@@ -81,3 +81,14 @@ abstract interface class Instrumentation {
     Future<O> Function([SpanContext? span]) next,
   );
 }
+
+/// Optional capability: an [Instrumentation] that holds resources needing
+/// release (e.g. stream subscriptions, HTTP clients).
+///
+/// Genkit calls [dispose] on any configured provider that implements this when
+/// instrumentation is torn down (e.g. `Genkit.shutdown()` or, in tests,
+/// `resetInstrumentation`). Providers that hold nothing can ignore this.
+abstract interface class DisposableInstrumentation {
+  /// Releases resources held by this provider. Safe to call more than once.
+  void dispose();
+}

@@ -19,7 +19,7 @@ import 'package:meta/meta.dart';
 import 'instrumentation_api.dart';
 
 export 'instrumentation_api.dart'
-    show Instrumentation, SpanContext, SpanMetadata;
+    show DisposableInstrumentation, Instrumentation, SpanContext, SpanMetadata;
 
 /// Zone key under which the active [SpanContext] is stored while a span runs.
 const _spanContextKey = #genkit.spanContext;
@@ -39,12 +39,23 @@ void configureInstrumentation(Instrumentation instrumentation) {
   _instrumentations.add(instrumentation);
 }
 
-/// Removes all configured instrumentation providers.
+/// Removes all configured instrumentation providers, disposing any that
+/// implement [DisposableInstrumentation].
 ///
 /// Intended for tests and re-initialization.
 @visibleForTesting
 void resetInstrumentation() {
+  disposeInstrumentations();
   _instrumentations.clear();
+}
+
+/// Disposes any configured provider implementing [DisposableInstrumentation],
+/// without clearing the list. Called on `Genkit.shutdown()`.
+void disposeInstrumentations() {
+  for (final disposable
+      in _instrumentations.whereType<DisposableInstrumentation>()) {
+    disposable.dispose();
+  }
 }
 
 /// Whether any configured provider is of type [T].

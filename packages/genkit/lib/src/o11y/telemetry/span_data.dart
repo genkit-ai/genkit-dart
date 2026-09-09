@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Backend-agnostic span data and the sink abstraction Genkit exports through.
+/// Backend-agnostic span/log data and the sink abstraction Genkit exports
+/// through.
 ///
 /// This layer deliberately carries no OpenTelemetry dependency: the direct-HTTP
-/// tracer lowers its spans into [GenkitSpanData] and hands them to a [SpanSink].
-/// The sink (see `collector_http_sink.dart`) is what actually serializes to
-/// OTLP JSON and ships spans to the Genkit telemetry server.
+/// tracer lowers its spans into [GenkitSpanData] and logs into [GenkitLogData],
+/// then hands them to a [TelemetrySink]. The sink (see
+/// `collector_http_sink.dart`) is what actually serializes to OTLP JSON and
+/// ships them to the Genkit telemetry server.
 library;
+
+import 'dart:convert';
 
 /// OpenTelemetry span kind, mirrored as a plain enum so we avoid leaking any
 /// OTel types into this layer.
@@ -80,19 +84,63 @@ class GenkitSpanData {
   });
 }
 
-/// A destination for finished spans.
+/// A finished log record, ready to be serialized and exported.
 ///
-/// This is the single "accepts spans, routes them somewhere" seam described in
-/// the telemetry design: whether spans originate from the custom tracer or from
-/// OpenTelemetry, they funnel through a [SpanSink]. Soon this will also carry
-/// logs.
+/// Timestamps are Unix nanoseconds since epoch (the OTLP wire unit). Severity
+/// follows the OpenTelemetry numbering (e.g. 9 = INFO, 17 = ERROR).
+class GenkitLogData {
+  final int timeUnixNano;
+  final int severityNumber;
+  final String severityText;
 
-abstract interface class SpanSink {
+  /// The log body. Usually the message String; non-scalar bodies are
+  /// JSON-encoded on the wire.
+  final Object? body;
+
+  /// Structured attributes (e.g. `loggerName`, `error`).
+  final Map<String, Object?> attributes;
+
+  /// Trace correlation ids. Empty when the record was emitted outside a span;
+  /// empty ids are omitted from the OTLP payload.
+  final String traceId;
+  final String spanId;
+
+  /// Instrumentation scope (OTLP `scope`).
+  final String scopeName;
+  final String? scopeVersion;
+
+  /// Resource attributes (e.g. `service.name`). May be empty.
+  final Map<String, Object?> resourceAttributes;
+
+  const GenkitLogData({
+    required this.timeUnixNano,
+    required this.severityNumber,
+    required this.severityText,
+    this.body,
+    this.attributes = const {},
+    this.traceId = '',
+    this.spanId = '',
+    this.scopeName = 'genkit-dart',
+    this.scopeVersion,
+    this.resourceAttributes = const {},
+  });
+}
+
+/// A destination for finished telemetry (spans and logs).
+///
+/// This is the single "accepts telemetry, routes it somewhere" seam described in
+/// the telemetry design: whether telemetry originates from the custom tracer or
+/// from OpenTelemetry, it funnels through a [TelemetrySink].
+abstract interface class TelemetrySink {
   /// Exports [spans]. Implementations are expected to be non-blocking
   /// (fire-and-forget) so instrumentation never stalls the traced operation.
   void export(List<GenkitSpanData> spans);
 
-  /// Releases resources; subsequent [export] calls should be no-ops.
+  /// Exports [logs]. Like [export], implementations are expected to be
+  /// non-blocking (fire-and-forget).
+  void exportLogs(List<GenkitLogData> logs);
+
+  /// Releases resources; subsequent export calls should be no-ops.
   void shutdown();
 }
 
@@ -139,6 +187,44 @@ List<Map<String, dynamic>> encodeResourceSpans(List<GenkitSpanData> spans) {
   }).toList();
 }
 
+/// Serializes [logs] into the OTLP/JSON `resourceLogs` structure expected by
+/// the Genkit telemetry server's `/api/otlp` endpoint.
+///
+/// Records are grouped by resource attributes and then by instrumentation
+/// scope, matching the OTLP wire shape.
+List<Map<String, dynamic>> encodeResourceLogs(List<GenkitLogData> logs) {
+  final byResource = <String, _LogResourceGroup>{};
+
+  for (final log in logs) {
+    final resourceKey = _stableKey(log.resourceAttributes);
+    final group = byResource.putIfAbsent(
+      resourceKey,
+      () => _LogResourceGroup(log.resourceAttributes),
+    );
+    final scopeKey = '${log.scopeName}:${log.scopeVersion ?? ''}';
+    final scope = group.scopes.putIfAbsent(
+      scopeKey,
+      () => _LogScopeGroup(log.scopeName, log.scopeVersion),
+    );
+    scope.logRecords.add(_encodeLog(log));
+  }
+
+  return byResource.values.map((group) {
+    return {
+      'resource': {
+        'attributes': _encodeAttributes(group.resourceAttributes),
+        'droppedAttributesCount': 0,
+      },
+      'scopeLogs': group.scopes.values.map((scope) {
+        return {
+          'scope': {'name': scope.name, 'version': scope.version ?? ''},
+          'logRecords': scope.logRecords,
+        };
+      }).toList(),
+    };
+  }).toList();
+}
+
 class _ResourceGroup {
   final Map<String, Object?> resourceAttributes;
   final Map<String, _ScopeGroup> scopes = {};
@@ -150,6 +236,19 @@ class _ScopeGroup {
   final String? version;
   final List<Map<String, dynamic>> spans = [];
   _ScopeGroup(this.name, this.version);
+}
+
+class _LogResourceGroup {
+  final Map<String, Object?> resourceAttributes;
+  final Map<String, _LogScopeGroup> scopes = {};
+  _LogResourceGroup(this.resourceAttributes);
+}
+
+class _LogScopeGroup {
+  final String name;
+  final String? version;
+  final List<Map<String, dynamic>> logRecords = [];
+  _LogScopeGroup(this.name, this.version);
 }
 
 String _stableKey(Map<String, Object?> map) {
@@ -181,6 +280,40 @@ Map<String, dynamic> _encodeSpan(GenkitSpanData span) {
 }
 
 bool _isZeroId(String id) => RegExp(r'^0+$').hasMatch(id);
+
+Map<String, dynamic> _encodeLog(GenkitLogData log) {
+  final map = <String, dynamic>{
+    'timeUnixNano': log.timeUnixNano.toString(),
+    'severityNumber': log.severityNumber,
+    'severityText': log.severityText,
+    'body': _encodeAttributeValue(_scalarOrJson(log.body)),
+    'attributes': _encodeAttributes(log.attributes),
+  };
+  if (log.traceId.isNotEmpty && !_isZeroId(log.traceId)) {
+    map['traceId'] = log.traceId;
+  }
+  if (log.spanId.isNotEmpty && !_isZeroId(log.spanId)) {
+    map['spanId'] = log.spanId;
+  }
+  return map;
+}
+
+/// Passes scalars (String/bool/int/double) through; JSON-encodes anything else
+/// so it lands as a `stringValue`, mirroring the JS log exporter.
+Object? _scalarOrJson(Object? value) {
+  if (value == null ||
+      value is String ||
+      value is bool ||
+      value is int ||
+      value is double) {
+    return value;
+  }
+  try {
+    return jsonEncode(value);
+  } catch (_) {
+    return value.toString();
+  }
+}
 
 int _encodeKind(GenkitSpanKind kind) {
   return switch (kind) {

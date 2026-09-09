@@ -16,6 +16,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:logging/logging.dart';
+
 import 'instrumentation_api.dart';
 import 'telemetry/span_data.dart';
 
@@ -27,16 +29,26 @@ const _activeSpanKey = #genkit.directHttpSpan;
 /// runtime.
 ///
 /// It mints its own trace/span ids, tracks parentage via the current [Zone],
-/// times each operation, and on completion serializes the span to a [SpanSink]
-/// (which POSTs OTLP/JSON to the Genkit telemetry server). This is the built-in
-/// dev-mode instrumentation, and it runs independently of OpenTelemetry.
+/// times each operation, and on completion serializes the span to a
+/// [TelemetrySink] (which POSTs OTLP/JSON to the Genkit telemetry server). This
+/// is the built-in dev-mode instrumentation, and it runs independently of
+/// OpenTelemetry.
+///
+/// When `captureLogs` is true (the default), it also bridges `package:logging`
+/// records from `Logger.root` to the same server as OTLP logs, correlated with
+/// the active span (resolved from the record's zone). This bridge lives here,
+/// not in Genkit core, so core stays unopinionated about where logs come from;
+/// an OpenTelemetry-based provider would bring its own logger integration.
+/// [dispose] cancels the subscription.
 ///
 /// It reproduces the `genkit:*` attribute conventions the Developer UI relies
 /// on.
-class DirectHttpInstrumentation implements Instrumentation {
-  final SpanSink _sink;
+class DirectHttpInstrumentation
+    implements Instrumentation, DisposableInstrumentation {
+  final TelemetrySink _sink;
   final Random _random;
   final Map<String, Object?> _resourceAttributes;
+  StreamSubscription<LogRecord>? _logSubscription;
 
   DirectHttpInstrumentation(
     this._sink, {
@@ -44,8 +56,13 @@ class DirectHttpInstrumentation implements Instrumentation {
       'service.name': 'genkit-dart',
     },
     Random? random,
+    bool captureLogs = true,
   }) : _resourceAttributes = resourceAttributes,
-       _random = random ?? Random();
+       _random = random ?? Random() {
+    if (captureLogs) {
+      _logSubscription = Logger.root.onRecord.listen(_onLogRecord);
+    }
+  }
 
   @override
   Future<O> runInNewSpan<O>(
@@ -101,6 +118,37 @@ class DirectHttpInstrumentation implements Instrumentation {
     }, zoneValues: {_activeSpanKey: span});
   }
 
+  @override
+  void dispose() {
+    _logSubscription?.cancel();
+    _logSubscription = null;
+  }
+
+  /// Lowers a `package:logging` [record] to an OTLP log and ships it, correlated
+  /// with the span active in the record's zone (if any).
+  void _onLogRecord(LogRecord record) {
+    // Skip the sink's own export-failure logs to avoid a
+    // log -> failed-export -> log feedback loop against a down server.
+    if (record.loggerName == 'CollectorHttpSink') return;
+
+    final span = record.zone?[_activeSpanKey] as _ActiveSpan?;
+    final attributes = <String, Object?>{'loggerName': record.loggerName};
+    if (record.error != null) attributes['error'] = record.error.toString();
+
+    _sink.exportLogs([
+      GenkitLogData(
+        timeUnixNano: record.time.microsecondsSinceEpoch * 1000,
+        severityNumber: _severityNumber(record.level),
+        severityText: _severityText(record.level),
+        body: record.object ?? record.message,
+        attributes: attributes,
+        traceId: span?.traceId ?? '',
+        spanId: span?.spanId ?? '',
+        resourceAttributes: _resourceAttributes,
+      ),
+    ]);
+  }
+
   String _newTraceId() => _hex(16);
   String _newSpanId() => _hex(8);
 
@@ -114,6 +162,24 @@ class DirectHttpInstrumentation implements Instrumentation {
 }
 
 int _nowUnixNano() => DateTime.now().microsecondsSinceEpoch * 1000;
+
+/// Maps a `package:logging` [Level] to an OpenTelemetry severity number.
+int _severityNumber(Level level) {
+  if (level >= Level.SHOUT) return 21; // FATAL
+  if (level >= Level.SEVERE) return 17; // ERROR
+  if (level >= Level.WARNING) return 13; // WARN
+  if (level >= Level.CONFIG) return 9; // INFO (covers INFO and CONFIG)
+  return 5; // DEBUG (FINE/FINER/FINEST)
+}
+
+/// Maps a `package:logging` [Level] to an OpenTelemetry severity text.
+String _severityText(Level level) {
+  if (level >= Level.SHOUT) return 'FATAL';
+  if (level >= Level.SEVERE) return 'ERROR';
+  if (level >= Level.WARNING) return 'WARN';
+  if (level >= Level.CONFIG) return 'INFO';
+  return 'DEBUG';
+}
 
 /// Always JSON-encodes (a String becomes a quoted JSON string), matching the
 /// historical `genkit:input`/`genkit:output` encoding.

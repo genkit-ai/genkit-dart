@@ -288,10 +288,14 @@ void main() {
   });
 }
 
-/// A [SpanSink] that drops spans; used to instrument tests without exporting.
-class _DiscardSink implements SpanSink {
+/// A [TelemetrySink] that drops telemetry; used to instrument tests without
+/// exporting.
+class _DiscardSink implements TelemetrySink {
   @override
   void export(List<GenkitSpanData> spans) {}
+
+  @override
+  void exportLogs(List<GenkitLogData> logs) {}
 
   @override
   void shutdown() {}

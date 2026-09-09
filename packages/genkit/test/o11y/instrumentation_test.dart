@@ -23,6 +23,7 @@ import 'package:genkit/src/o11y/instrumentation_setup.dart'
         enableDevInstrumentationForServer,
         genkitDevInstrumentation;
 import 'package:genkit/src/o11y/telemetry/span_data.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import '../test_util.dart';
@@ -277,6 +278,116 @@ void main() {
     });
   });
 
+  group('DirectHttpInstrumentation log capture', () {
+    late Level previousLevel;
+
+    setUp(() {
+      previousLevel = Logger.root.level;
+      Logger.root.level = Level.ALL;
+    });
+
+    tearDown(() {
+      Logger.root.level = previousLevel;
+    });
+
+    test('bridges package:logging records to the sink', () {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
+      addTearDown(instrumentation.dispose);
+
+      Logger('genkit.test.capture').info('hello');
+
+      final log = sink.logs.firstWhere((l) => l.body == 'hello');
+      expect(log.severityNumber, 9); // INFO
+      expect(log.severityText, 'INFO');
+      expect(log.attributes['loggerName'], 'genkit.test.capture');
+    });
+
+    test('maps Dart levels to OTel severities', () {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
+      addTearDown(instrumentation.dispose);
+
+      final logger = Logger('genkit.test.severity');
+      logger.fine('f');
+      logger.info('i');
+      logger.warning('w');
+      logger.severe('s');
+      logger.shout('x');
+
+      final bodies = {for (final l in sink.logs) l.body: l};
+      expect(bodies['f']!.severityText, 'DEBUG');
+      expect(bodies['i']!.severityText, 'INFO');
+      expect(bodies['w']!.severityText, 'WARN');
+      expect(bodies['s']!.severityText, 'ERROR');
+      expect(bodies['x']!.severityText, 'FATAL');
+      expect(bodies['f']!.severityNumber, 5);
+      expect(bodies['x']!.severityNumber, 21);
+    });
+
+    test('correlates a record with the active span', () async {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
+      addTearDown(instrumentation.dispose);
+
+      await instrumentation.runInNewSpan<void>(
+        const SpanMetadata(name: 'op'),
+        ([_]) async {
+          Logger('genkit.test.correlate').info('in-span');
+        },
+      );
+
+      final log = sink.logs.firstWhere((l) => l.body == 'in-span');
+      expect(log.traceId, isNotEmpty);
+      expect(log.spanId, isNotEmpty);
+    });
+
+    test('leaves trace/span ids empty outside a span', () {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
+      addTearDown(instrumentation.dispose);
+
+      Logger('genkit.test.nospan').info('no-span');
+
+      final log = sink.logs.firstWhere((l) => l.body == 'no-span');
+      expect(log.traceId, isEmpty);
+      expect(log.spanId, isEmpty);
+    });
+
+    test('ignores the telemetry sink own logger', () {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
+      addTearDown(instrumentation.dispose);
+
+      Logger('CollectorHttpSink').severe('export failed');
+
+      expect(sink.logs, isEmpty);
+    });
+
+    test('captureLogs: false disables capture', () {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(
+        sink,
+        captureLogs: false,
+      );
+      addTearDown(instrumentation.dispose);
+
+      Logger('genkit.test.disabled').info('ignored');
+
+      expect(sink.logs, isEmpty);
+    });
+
+    test('dispose stops capture', () {
+      final sink = RecordingSpanSink();
+      final instrumentation = DirectHttpInstrumentation(sink);
+
+      instrumentation.dispose();
+      Logger('genkit.test.afterdispose').info('after-dispose');
+
+      expect(sink.logs, isEmpty);
+    });
+  });
+
   group('dev instrumentation gate', () {
     tearDown(resetInstrumentation);
 
@@ -350,4 +461,43 @@ void main() {
       expect(log, ['enter:a', 'exit:a']);
     });
   });
+
+  group('disposal', () {
+    tearDown(resetInstrumentation);
+
+    test('resetInstrumentation disposes DisposableInstrumentation', () {
+      final provider = _DisposableInstrumentation();
+      configureInstrumentation(provider);
+
+      resetInstrumentation();
+
+      expect(provider.disposed, isTrue);
+    });
+
+    test('disposeInstrumentations disposes without clearing', () {
+      final provider = _DisposableInstrumentation();
+      configureInstrumentation(provider);
+
+      disposeInstrumentations();
+
+      expect(provider.disposed, isTrue);
+      // Provider stays registered after a dispose-only pass.
+      expect(isInstrumentedBy<_DisposableInstrumentation>(), isTrue);
+    });
+  });
+}
+
+/// An [Instrumentation] that records whether it was disposed.
+class _DisposableInstrumentation
+    implements Instrumentation, DisposableInstrumentation {
+  bool disposed = false;
+
+  @override
+  Future<O> runInNewSpan<O>(
+    SpanMetadata metadata,
+    Future<O> Function([SpanContext? span]) next,
+  ) => next();
+
+  @override
+  void dispose() => disposed = true;
 }

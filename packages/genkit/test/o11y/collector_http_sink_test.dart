@@ -122,6 +122,82 @@ void main() {
     });
   });
 
+  group('encodeResourceLogs', () {
+    test('produces OTLP JSON grouped by resource and scope', () {
+      final logs = [
+        GenkitLogData(
+          timeUnixNano: 1500000,
+          severityNumber: 9,
+          severityText: 'INFO',
+          body: 'hello',
+          attributes: const {'loggerName': 'genkit.test'},
+          traceId: 'a' * 32,
+          spanId: 'b' * 16,
+          scopeName: 'genkit-dart',
+          scopeVersion: '1.2.3',
+          resourceAttributes: const {'service.name': 'test-service'},
+        ),
+      ];
+
+      final resourceLogs = encodeResourceLogs(logs);
+      expect(resourceLogs.length, 1);
+
+      final resourceLog = resourceLogs[0];
+      expect(resourceLog['resource']['attributes'][0]['key'], 'service.name');
+
+      final scopeLogs = resourceLog['scopeLogs'] as List;
+      expect(scopeLogs.length, 1);
+      expect(scopeLogs[0]['scope']['name'], 'genkit-dart');
+      expect(scopeLogs[0]['scope']['version'], '1.2.3');
+
+      final records = scopeLogs[0]['logRecords'] as List;
+      expect(records.length, 1);
+      final record = records[0];
+      expect(record['timeUnixNano'], '1500000');
+      expect(record['severityNumber'], 9);
+      expect(record['severityText'], 'INFO');
+      expect(record['body']['stringValue'], 'hello');
+      expect(record['traceId'], 'a' * 32);
+      expect(record['spanId'], 'b' * 16);
+      final attributes = record['attributes'] as List;
+      expect(attributes[0]['key'], 'loggerName');
+      expect(attributes[0]['value']['stringValue'], 'genkit.test');
+    });
+
+    test('JSON-encodes a non-scalar body into a stringValue', () {
+      final logs = [
+        GenkitLogData(
+          timeUnixNano: 1,
+          severityNumber: 9,
+          severityText: 'INFO',
+          body: const {'a': 1},
+        ),
+      ];
+
+      final record =
+          (encodeResourceLogs(logs)[0]['scopeLogs']
+              as List)[0]['logRecords'][0];
+      expect(record['body']['stringValue'], '{"a":1}');
+    });
+
+    test('omits empty trace/span ids', () {
+      final logs = [
+        GenkitLogData(
+          timeUnixNano: 1,
+          severityNumber: 9,
+          severityText: 'INFO',
+          body: 'no-correlation',
+        ),
+      ];
+
+      final record =
+          (encodeResourceLogs(logs)[0]['scopeLogs']
+              as List)[0]['logRecords'][0];
+      expect(record.containsKey('traceId'), isFalse);
+      expect(record.containsKey('spanId'), isFalse);
+    });
+  });
+
   group('CollectorHttpSink', () {
     test('POSTs OTLP JSON to the configured endpoint', () async {
       final posted = <Map<String, dynamic>>[];
@@ -156,6 +232,34 @@ void main() {
       expect(resourceSpans, hasLength(1));
     });
 
+    test('POSTs OTLP JSON logs to the configured endpoint', () async {
+      final posted = <Map<String, dynamic>>[];
+      final client = MockClient((request) async {
+        posted.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return http.Response('', 200);
+      });
+
+      final sink = CollectorHttpSink(
+        'http://localhost:4318/api/otlp',
+        client: client,
+      );
+
+      sink.exportLogs([
+        GenkitLogData(
+          timeUnixNano: 1,
+          severityNumber: 9,
+          severityText: 'INFO',
+          body: 'hello',
+          resourceAttributes: const {'service.name': 'genkit-dart'},
+        ),
+      ]);
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(posted, isNotEmpty);
+      expect(posted.single.containsKey('resourceLogs'), isTrue);
+    });
+
     test('does not export after shutdown', () async {
       var posts = 0;
       final client = MockClient((request) async {
@@ -175,6 +279,14 @@ void main() {
           name: 'exported',
           startTimeUnixNano: 1,
           endTimeUnixNano: 2,
+        ),
+      ]);
+      sink.exportLogs([
+        GenkitLogData(
+          timeUnixNano: 1,
+          severityNumber: 9,
+          severityText: 'INFO',
+          body: 'hello',
         ),
       ]);
 

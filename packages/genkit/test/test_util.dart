@@ -14,13 +14,15 @@
 
 import 'package:genkit/src/o11y/telemetry/span_data.dart';
 
-/// A [SpanSink] that records exported spans in memory for assertions.
+/// A [TelemetrySink] that records exported spans and logs in memory for
+/// assertions.
 ///
 /// The direct-HTTP instrumentation exports each span twice: once when it starts
 /// (with `endTimeUnixNano == 0`) and once when it finishes. [spans] holds every
 /// export; use [finished] to filter to completed spans.
-class RecordingSpanSink implements SpanSink {
+class RecordingSpanSink implements TelemetrySink {
   final List<GenkitSpanData> spans = [];
+  final List<GenkitLogData> logs = [];
   var _isShutdown = false;
 
   @override
@@ -29,7 +31,16 @@ class RecordingSpanSink implements SpanSink {
     this.spans.addAll(spans);
   }
 
-  void reset() => spans.clear();
+  @override
+  void exportLogs(List<GenkitLogData> logs) {
+    if (_isShutdown) return;
+    this.logs.addAll(logs);
+  }
+
+  void reset() {
+    spans.clear();
+    logs.clear();
+  }
 
   @override
   void shutdown() => _isShutdown = true;

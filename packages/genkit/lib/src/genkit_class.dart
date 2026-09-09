@@ -43,7 +43,7 @@ import 'core/registry.dart';
 import 'exception.dart';
 import 'genkit_ai.dart';
 import 'o11y/instrumentation.dart'
-    show configureInstrumentation, isInstrumentedBy;
+    show configureInstrumentation, disposeInstrumentations, isInstrumentedBy;
 import 'o11y/instrumentation_setup.dart'
     show GenkitBuiltinInstrumentation, genkitDevInstrumentation;
 
@@ -137,6 +137,10 @@ final class Genkit extends GenkitAI {
   ///
   /// This is mostly meant for testing purposes.
   Future<void> shutdown() async {
+    // Release instrumentation resources (e.g. the built-in dev provider's log
+    // subscription). Providers implementing DisposableInstrumentation are
+    // disposed; they remain registered.
+    disposeInstrumentations();
     if (_reflectionServer != null) {
       await _reflectionServer!.stop();
     }
