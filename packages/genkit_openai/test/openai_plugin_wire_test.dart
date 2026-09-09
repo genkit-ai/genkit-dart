@@ -152,6 +152,82 @@ void main() {
       await ai.shutdown();
     });
 
+    test('reasoningEffort reaches the wire as reasoning_effort', () async {
+      final captured = <Map<String, dynamic>>[];
+      final ai = Genkit(
+        plugins: [openAI(apiKey: 'test-key', httpClient: wireClient(captured))],
+      );
+
+      await ai.generate(
+        model: openAI.model('gpt-6-astra'),
+        prompt: 'Say hello.',
+        config: OpenAIChatOptions(reasoningEffort: 'xhigh'),
+      );
+
+      expect(captured.first['reasoning_effort'], 'xhigh');
+
+      await ai.shutdown();
+    });
+
+    test('an unknown reasoningEffort is rejected before any request', () async {
+      final captured = <Map<String, dynamic>>[];
+      final ai = Genkit(
+        plugins: [openAI(apiKey: 'test-key', httpClient: wireClient(captured))],
+      );
+
+      await expectLater(
+        ai.generate(
+          model: openAI.model('gpt-6-astra'),
+          prompt: 'Say hello.',
+          config: OpenAIChatOptions(reasoningEffort: 'max'),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.INVALID_ARGUMENT,
+          ),
+        ),
+      );
+      expect(captured, isEmpty);
+
+      await ai.shutdown();
+    });
+
+    test(
+      'a default request sends no temperature, top_p or reasoning_effort',
+      () async {
+        // gpt-6-astra rejects temperature != 1 and top_p, so the defaults must
+        // stay unset; tools stay advisory and still reach the wire.
+        final captured = <Map<String, dynamic>>[];
+        final ai = Genkit(
+          plugins: [
+            openAI(apiKey: 'test-key', httpClient: wireClient(captured)),
+          ],
+        );
+        ai.defineTool(
+          name: 'getWeather',
+          description: 'Get the weather for a location',
+          fn: (input, ctx) async => .response({'temperature': 72}),
+        );
+
+        await ai.generate(
+          model: openAI.model('gpt-6-astra'),
+          prompt: 'What is the weather in Boston?',
+          toolNames: ['getWeather'],
+        );
+
+        final body = captured.first;
+        expect(body['model'], 'gpt-6-astra');
+        expect(body.containsKey('temperature'), isFalse);
+        expect(body.containsKey('top_p'), isFalse);
+        expect(body.containsKey('reasoning_effort'), isFalse);
+        expect(body.containsKey('tools'), isTrue);
+
+        await ai.shutdown();
+      },
+    );
+
     test('tools reach the wire for standard GPT models', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = Genkit(

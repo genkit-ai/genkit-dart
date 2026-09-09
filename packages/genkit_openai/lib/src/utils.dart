@@ -17,6 +17,7 @@ import 'package:genkit/genkit.dart';
 final RegExp _oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
 final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
 final RegExp _gptOPattern = RegExp(r'gpt-\d+(?:\.\d+)?o');
+final RegExp _gpt6AstraPattern = RegExp(r'^gpt-6-astra(?:-|$)');
 
 const List<String> _nonToolKeywords = [
   'embedding',
@@ -55,8 +56,12 @@ abstract class _ModelCapabilities {
   }
 
   static _ModelCapabilities forModel(String modelId) {
-    if (_oSeriesPattern.hasMatch(modelId.toLowerCase())) {
+    final id = modelId.toLowerCase();
+    if (_oSeriesPattern.hasMatch(id)) {
       return _OSeriesModelCapabilities(modelId);
+    }
+    if (_gpt6AstraPattern.hasMatch(id)) {
+      return _Gpt6AstraModelCapabilities(modelId);
     }
 
     return _DefaultModelCapabilities(modelId);
@@ -88,6 +93,17 @@ class _OSeriesModelCapabilities extends _DefaultModelCapabilities {
       !id.startsWith('o3-mini') &&
       !id.startsWith('o1-mini') &&
       !id.startsWith('o1-preview');
+}
+
+/// GPT-6 Astra: Chat Completions rejects tools at every reasoning effort.
+class _Gpt6AstraModelCapabilities extends _DefaultModelCapabilities {
+  const _Gpt6AstraModelCapabilities(super.modelId);
+
+  @override
+  bool get supportsTools => false;
+
+  @override
+  bool get supportsMedia => true;
 }
 
 bool _supportsToolsByHeuristics(String id) {

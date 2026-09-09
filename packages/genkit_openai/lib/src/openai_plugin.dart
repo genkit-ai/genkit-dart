@@ -253,6 +253,9 @@ class OpenAIPlugin extends GenkitPlugin {
             seed: options.seed,
             user: options.user,
             responseFormat: isJsonMode ? responseFormat : null,
+            reasoningEffort: options.reasoningEffort == null
+                ? null
+                : _reasoningEffort(options.reasoningEffort!),
           );
           if (ctx.streamingRequested) {
             return await _handleStreaming(client, request, ctx);
@@ -373,3 +376,16 @@ final class _ResolvedClientConfig {
     required this.headers,
   });
 }
+
+sdk.ReasoningEffort _reasoningEffort(String effort) => switch (effort) {
+  'none' => sdk.ReasoningEffort.none,
+  'minimal' => sdk.ReasoningEffort.minimal,
+  'low' => sdk.ReasoningEffort.low,
+  'medium' => sdk.ReasoningEffort.medium,
+  'high' => sdk.ReasoningEffort.high,
+  'xhigh' => sdk.ReasoningEffort.xhigh,
+  _ => throw GenkitException(
+    'Unsupported OpenAI reasoningEffort "$effort".',
+    status: StatusCodes.INVALID_ARGUMENT,
+  ),
+};

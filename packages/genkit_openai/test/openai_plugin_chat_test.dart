@@ -63,6 +63,37 @@ void main() {
       expect(options.stop, ['stop1', 'stop2']);
     });
 
+    test('parses reasoningEffort', () {
+      for (final value in [
+        'none',
+        'minimal',
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+      ]) {
+        final options = OpenAIChatOptions.$schema.parse({
+          'reasoningEffort': value,
+        });
+        expect(options.reasoningEffort, value);
+      }
+    });
+
+    test('schema advertises the reasoningEffort enum', () {
+      final schema = OpenAIChatOptions.$schema.jsonSchema();
+      final properties = (schema['properties'] as Map).cast<String, dynamic>();
+      final field = (properties['reasoningEffort'] as Map)
+          .cast<String, dynamic>();
+      expect(field['enum'], [
+        'none',
+        'minimal',
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+      ]);
+    });
+
     test('creates default options', () {
       final options = OpenAIChatOptions();
       expect(options.temperature, isNull);
