@@ -357,7 +357,8 @@ bool _isNewerLeaf(
 /// yet". To avoid this, either set the `GOOGLE_CLOUD_PROJECT` environment
 /// variable (often required even when ADC is present) or pass an explicit
 /// [Firestore] instance configured with a project ID to the constructor.
-class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
+class FirestoreSessionStore
+    implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates a Firestore-backed session store.
   ///
   /// - [db]: an explicit [Firestore] instance. Defaults to a new [Firestore]
@@ -494,6 +495,35 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
       if (reconstructed == null) return null;
       return _toSnapshot(reconstructed.doc, reconstructed.state);
     }, transactionOptions: ReadOnlyTransactionOptions());
+  }
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    // Reject an empty id up front, mirroring `getSnapshot`'s normalization.
+    _normalizeGetSnapshotOptions(snapshotId, null);
+    // A single document read: the snapshot document already carries every
+    // metadata field, so unlike the full read there is no read-only
+    // transaction and no shard/diff reconstruction of the conversation state.
+    final snap = await _snapshotsCol(context).doc(snapshotId).get();
+    if (!snap.exists) return null;
+    return _toMetadataSnapshot(_SnapshotDoc.fromData(snap.data()!));
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) async {
+    _normalizeGetSnapshotOptions(null, sessionId);
+    // Pointer read then the leaf's metadata: two single-document reads, no
+    // transaction and no state reconstruction.
+    final pointerSnap = await _pointersCol(context).doc(sessionId).get();
+    if (!pointerSnap.exists) return null;
+    final pointer = _PointerDoc.fromData(pointerSnap.data()!);
+    return getSnapshotMetadata(pointer.currentSnapshotId, context: context);
   }
 
   @override
@@ -988,4 +1018,20 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
     };
     return SessionSnapshot.fromJson(json);
   }
+
+  /// Assembles a state-less [SessionSnapshot] from a snapshot document, for a
+  /// metadata-only read: every field a full read carries except the state, which
+  /// is left null (no shard/diff reconstruction needed).
+  SessionSnapshot _toMetadataSnapshot(_SnapshotDoc doc) =>
+      SessionSnapshot.fromJson(<String, dynamic>{
+        'snapshotId': doc.snapshotId,
+        'sessionId': doc.sessionId,
+        'createdAt': doc.createdAt,
+        if (doc.parentId != null) 'parentId': doc.parentId,
+        if (doc.updatedAt != null) 'updatedAt': doc.updatedAt,
+        if (doc.status != null) 'status': doc.status,
+        if (doc.heartbeatAt != null) 'heartbeatAt': doc.heartbeatAt,
+        if (doc.finishReason != null) 'finishReason': doc.finishReason,
+        if (doc.error != null) 'error': doc.error,
+      });
 }

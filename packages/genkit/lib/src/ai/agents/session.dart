@@ -51,10 +51,20 @@ SessionSnapshot _cloneSnapshot(SessionSnapshot snapshot) =>
     );
 
 /// Returns a copy of [snapshot] with its `state` dropped, for a metadata-only
-/// read. Every other field is carried through as stored.
+/// read.
+///
+/// Deep-clones the retained fields so a caller mutating the result (e.g.
+/// `meta.error!.message = ...`) never reaches a store's row - the cheap clone
+/// happens *after* `state` is removed, so the large payload is never copied.
+/// Promotes the resolved `sessionId` to the top level so session identity
+/// survives a row that carried it only under `state` (see [snapshotSessionId]);
+/// without this the row would come back with a null `sessionId`, breaking both
+/// client branching and the `FileSessionStore` pointer fast path.
 SessionSnapshot stripSnapshotState(SessionSnapshot snapshot) {
+  final sessionId = snapshotSessionId(snapshot);
   final json = Map<String, dynamic>.from(snapshot.toJson())..remove('state');
-  return SessionSnapshot.fromJson(json);
+  if (sessionId != null) json['sessionId'] = sessionId;
+  return SessionSnapshot.fromJson(_deepClone(json) as Map<String, dynamic>);
 }
 
 /// Decodes a stored JSON list into typed values via [fromJson], treating a
@@ -128,9 +138,14 @@ abstract interface class SessionStore {
 /// A store that does not implement it is still correct: the runtime reads the
 /// row in full and drops the state, paying to load a conversation history it
 /// will not use. A projecting store (SQL, Firestore) implements this to skip
-/// that load. Both bundled stores ([InMemorySessionStore], `FileSessionStore`)
-/// implement it. Implement both methods or neither: the capability is detected
-/// as a whole.
+/// that load. All bundled stores implement it: [InMemorySessionStore],
+/// `FileSessionStore`, and `FirestoreSessionStore`. Implement both methods or
+/// neither: the capability is detected as a whole.
+///
+/// Both methods honor the same id validation and null/error contract as
+/// [SessionStore.getSnapshot]: an empty id is rejected, a not-found row reads
+/// as `null`, and a corrupt/unreadable row surfaces as an error rather than as
+/// `null` (so a caller can tell corruption apart from "not found").
 abstract interface class SnapshotMetadataReader {
   /// [SessionStore.getSnapshot] by [snapshotId] without the state: the returned
   /// row carries every other field as stored, with `state` null, and the same
@@ -142,7 +157,8 @@ abstract interface class SnapshotMetadataReader {
 
   /// [SessionStore.getSnapshot] by [sessionId] (the session's latest leaf)
   /// without the state: the same resolution, the same null-if-none contract,
-  /// and a row with `state` null.
+  /// and a row with `state` null. The resolved `sessionId` is carried on the
+  /// returned row even for a row that stored it only under `state`.
   Future<SessionSnapshot?> getLatestSnapshotMetadata(
     String sessionId, {
     Map<String, dynamic>? context,
@@ -404,8 +420,13 @@ final class InMemorySessionStore
     String snapshotId, {
     Map<String, dynamic>? context,
   }) async {
-    // Strip directly off the stored row so we never deep-clone the (possibly
-    // large) state payload the way a full `getSnapshot` would.
+    // Validate the id the same way `getSnapshot` does (reject empty), so the
+    // metadata path honors the same contract instead of silently returning
+    // null for a blank id.
+    normalizeGetSnapshotOptions(snapshotId: snapshotId);
+    // Strip directly off the stored row: `stripSnapshotState` deep-clones only
+    // the retained fields, so a caller can mutate the result without reaching
+    // this row and we never copy the (possibly large) state payload.
     final snap = _snapshots[snapshotId];
     return snap != null ? stripSnapshotState(snap) : null;
   }
@@ -415,6 +436,7 @@ final class InMemorySessionStore
     String sessionId, {
     Map<String, dynamic>? context,
   }) async {
+    normalizeGetSnapshotOptions(sessionId: sessionId);
     final owned = <SessionSnapshot>[];
     for (final snap in _snapshots.values) {
       if (snapshotSessionId(snap) == sessionId) {

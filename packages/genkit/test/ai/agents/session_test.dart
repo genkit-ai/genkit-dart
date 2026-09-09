@@ -507,5 +507,90 @@ void main() {
       expect(seen, isNotNull);
       expect(seen!.status?.value, 'completed');
     });
+
+    test('getSnapshotMetadata drops state but keeps metadata', () async {
+      final store = InMemorySessionStore();
+      final sessionId = generateUuidV4();
+      final id = await store.saveSnapshot(
+        null,
+        (_) => _snapshot(snapshotId: '', sessionId: sessionId),
+      );
+
+      final meta = await store.getSnapshotMetadata(id!);
+      expect(meta, isNotNull);
+      expect(meta!.snapshotId, id);
+      expect(meta.state, isNull);
+      // sessionId lives only under state on this row; it must survive the strip.
+      expect(meta.sessionId, sessionId);
+    });
+
+    test(
+      'getSnapshotMetadata result is isolated from the stored row',
+      () async {
+        final store = InMemorySessionStore();
+        final sessionId = generateUuidV4();
+        final id = await store.saveSnapshot(
+          null,
+          (current) => _snapshot(snapshotId: '', sessionId: sessionId)
+            ..error = AgentErrorInfo(status: 'UNKNOWN', message: 'original'),
+        );
+
+        final meta = await store.getSnapshotMetadata(id!);
+        // Mutating a nested field on the result must not reach the store's row.
+        meta!.error!.message = 'mutated';
+
+        final again = await store.getSnapshotMetadata(id);
+        expect(again!.error!.message, 'original');
+      },
+    );
+
+    test('getLatestSnapshotMetadata resolves the leaf without state', () async {
+      final store = InMemorySessionStore();
+      final sessionId = generateUuidV4();
+      final firstId = await store.saveSnapshot(
+        null,
+        (_) => _snapshot(snapshotId: '', sessionId: sessionId),
+      );
+      final secondId = await store.saveSnapshot(
+        null,
+        (_) =>
+            _snapshot(snapshotId: '', parentId: firstId, sessionId: sessionId),
+      );
+
+      final meta = await store.getLatestSnapshotMetadata(sessionId);
+      expect(meta!.snapshotId, secondId);
+      expect(meta.state, isNull);
+      expect(meta.sessionId, sessionId);
+    });
+
+    test('metadata reads validate their id like getSnapshot', () async {
+      final store = InMemorySessionStore();
+      expect(
+        () => store.getSnapshotMetadata(''),
+        throwsA(isA<GenkitException>()),
+      );
+      expect(
+        () => store.getLatestSnapshotMetadata(''),
+        throwsA(isA<GenkitException>()),
+      );
+    });
+  });
+
+  group('stripSnapshotState', () {
+    test('drops state, promotes sessionId, deep-clones retained fields', () {
+      final sessionId = generateUuidV4();
+      final snapshot = _snapshot(snapshotId: 's1', sessionId: sessionId)
+        ..error = AgentErrorInfo(status: 'UNKNOWN', message: 'original');
+
+      final stripped = stripSnapshotState(snapshot);
+      expect(stripped.state, isNull);
+      // sessionId only lived under state; promotion keeps identity.
+      expect(stripped.sessionId, sessionId);
+
+      // Retained fields are deep-cloned: editing the result never touches the
+      // source snapshot.
+      stripped.error!.message = 'mutated';
+      expect(snapshot.error!.message, 'original');
+    });
   });
 }
