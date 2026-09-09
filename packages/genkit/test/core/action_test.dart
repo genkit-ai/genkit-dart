@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
 import 'package:genkit/src/o11y/instrumentation.dart'
@@ -74,6 +76,43 @@ void main() {
       expect(span.attributes['genkit:name'], 'testAction');
       expect(span.attributes['genkit:input'], '"input"');
       expect(span.attributes['genkit:output'], '"output"');
+    });
+
+    test('records execution context on the span, redacting secrets', () async {
+      final action = Action(
+        name: 'testAction',
+        actionType: ActionType('test'),
+        fn: (input, context) async => 'output',
+      );
+
+      await action.run(
+        'input',
+        context: {'auth': 'secret-token', 'secrets': 'shh', 'uid': 'u123'},
+      );
+
+      expect(sink.finished.length, 1);
+      final raw = sink.finished[0].attributes['genkit:metadata:context'];
+      expect(raw, isA<String>());
+      final context = jsonDecode(raw as String) as Map<String, dynamic>;
+      expect(context['auth'], '<redacted>');
+      expect(context['secrets'], '<redacted>');
+      expect(context['uid'], 'u123');
+    });
+
+    test('does not record context metadata when no context is given', () async {
+      final action = Action(
+        name: 'testAction',
+        actionType: ActionType('test'),
+        fn: (input, context) async => 'output',
+      );
+
+      await action('input');
+
+      expect(sink.finished.length, 1);
+      expect(
+        sink.finished[0].attributes.containsKey('genkit:metadata:context'),
+        isFalse,
+      );
     });
 
     test('should run a basic action', () async {
