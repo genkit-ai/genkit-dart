@@ -26,13 +26,13 @@ const _activeSpanKey = #genkit.directHttpSpan;
 /// A completely self-contained [Instrumentation] that needs no OpenTelemetry
 /// runtime.
 ///
-/// This is the fallback path: when Genkit cannot participate in a global OTel
-/// setup, it mints its own trace/span ids, tracks parentage via the current
-/// [Zone], times each operation, and on completion serializes the span to a
-/// [SpanSink] (which POSTs OTLP/JSON to the Genkit telemetry server).
+/// It mints its own trace/span ids, tracks parentage via the current [Zone],
+/// times each operation, and on completion serializes the span to a [SpanSink]
+/// (which POSTs OTLP/JSON to the Genkit telemetry server). This is the built-in
+/// dev-mode instrumentation, and it runs independently of OpenTelemetry.
 ///
-/// It intentionally reproduces the `genkit:*` attribute conventions the
-/// Developer UI relies on, matching the OTel-backed instrumentation.
+/// It reproduces the `genkit:*` attribute conventions the Developer UI relies
+/// on.
 class DirectHttpInstrumentation implements Instrumentation {
   final SpanSink _sink;
   final Random _random;
@@ -79,8 +79,7 @@ class DirectHttpInstrumentation implements Instrumentation {
     });
 
     // Export the started span (endTime 0, unset status) so the Developer UI can
-    // show it live, then export again once finished. This mirrors the OTel-
-    // backed path, whose RealtimeSpanProcessor emits on both start and end.
+    // show it live, then export again once finished.
     _sink.export([span.toSpanData(_resourceAttributes)]);
 
     return runZoned(() async {

@@ -14,12 +14,10 @@
 
 /// Backend-agnostic span data and the sink abstraction Genkit exports through.
 ///
-/// This layer deliberately carries no OpenTelemetry dependency: both the
-/// custom direct-HTTP tracer and the OpenTelemetry-backed instrumentation lower
-/// their spans into [GenkitSpanData] and hand them to a [SpanSink]. The sink
-
-/// (see `collector_http_sink.dart`) is what actually serializes to OTLP JSON
-/// and ships spans to the Genkit telemetry server.
+/// This layer deliberately carries no OpenTelemetry dependency: the direct-HTTP
+/// tracer lowers its spans into [GenkitSpanData] and hands them to a [SpanSink].
+/// The sink (see `collector_http_sink.dart`) is what actually serializes to
+/// OTLP JSON and ships spans to the Genkit telemetry server.
 library;
 
 /// OpenTelemetry span kind, mirrored as a plain enum so we avoid leaking any

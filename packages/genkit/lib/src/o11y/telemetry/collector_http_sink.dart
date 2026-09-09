@@ -23,10 +23,9 @@ final _logger = Logger('CollectorHttpSink');
 
 /// A [SpanSink] that POSTs OTLP/JSON spans to the Genkit telemetry server.
 ///
-/// This is the fallback (and, when a user hasn't set up OpenTelemetry, the
-/// primary) path: it needs no OTel runtime, it just serializes [GenkitSpanData]
-/// and fires it at `$server/api/otlp`. Exports are fire-and-forget so tracing
-/// never blocks the traced operation.
+/// It needs no OTel runtime: it just serializes [GenkitSpanData] and fires it
+/// at `$server/api/otlp`. Exports are fire-and-forget so tracing never blocks
+/// the traced operation.
 class CollectorHttpSink implements SpanSink {
   final Uri _uri;
   final Map<String, String> _headers;

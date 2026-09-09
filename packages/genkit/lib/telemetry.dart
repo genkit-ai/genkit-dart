@@ -30,16 +30,12 @@
 ///
 /// By default Genkit is not instrumented. In the dev environment the built-in
 /// instrumentation (`genkitDevInstrumentation`) is auto-injected so the
-/// Developer UI works out of the box. When a user has already initialized the
-/// global OpenTelemetry SDK (backed by `package:dartastic_opentelemetry`), that
-/// built-in routes Genkit's spans through it; otherwise it falls back to a
-/// custom tracer that posts spans directly to the Genkit telemetry server.
+/// Developer UI works out of the box. It runs independently of OpenTelemetry,
+/// posting Genkit's spans directly to the Genkit telemetry server over HTTP.
 library;
 
 export 'src/o11y/direct_http_instrumentation.dart'
     show DirectHttpInstrumentation;
-export 'src/o11y/genkit_dev_otel_instrumentation.dart'
-    show GenkitDevOtelInstrumentation;
 
 export 'src/o11y/instrumentation.dart'
     show

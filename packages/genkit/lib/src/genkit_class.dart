@@ -106,10 +106,8 @@ final class Genkit extends GenkitAI {
     if (isDevEnv ?? utils.isDevEnv) {
       // In the dev environment, auto-inject the built-in telemetry
       // instrumentation (unless already configured) so the Developer UI
-      // receives traces. It routes Genkit's spans to the Genkit telemetry
-      // server, either through OpenTelemetry (when the user has a global OTel
-      // setup) or a custom direct-HTTP tracer otherwise. It returns
-
+      // receives traces. It posts Genkit's spans directly to the Genkit
+      // telemetry server over HTTP, independently of OpenTelemetry. It returns
       // null (and we do not instrument) when no server is configured
       // (`GENKIT_TELEMETRY_SERVER` unset). In production, Genkit is not
       // instrumented unless the user configures a provider.
