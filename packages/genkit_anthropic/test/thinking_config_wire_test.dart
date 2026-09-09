@@ -225,6 +225,77 @@ void main() {
       ]);
     });
 
+    test('replays a thinking block persisted under the pre-0.4 key', () async {
+      // Through v0.3.1 the plugin wrote the signature as `signature`. A
+      // conversation persisted then and replayed after upgrading must still
+      // round-trip, or the upgrade silently drops the blocks this conversion
+      // exists to preserve.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              ReasoningPart(
+                reasoning: 'Hmm',
+                metadata: {'signature': 'legacy_sig'},
+              ),
+              TextPart(text: 'hi'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'and again?')],
+          ),
+        ],
+      );
+
+      final assistant = (body['messages'] as List)[1] as Map;
+      expect(assistant['content'], [
+        {'type': 'thinking', 'thinking': 'Hmm', 'signature': 'legacy_sig'},
+        {'type': 'text', 'text': 'hi'},
+      ]);
+    });
+
+    test('prefers the current key when a part carries both', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              ReasoningPart(
+                reasoning: 'Hmm',
+                metadata: {
+                  'thoughtSignature': 'current',
+                  'signature': 'legacy',
+                },
+              ),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'and again?')],
+          ),
+        ],
+      );
+
+      final assistant = (body['messages'] as List)[1] as Map;
+      expect((assistant['content'] as List).single, {
+        'type': 'thinking',
+        'thinking': 'Hmm',
+        'signature': 'current',
+      });
+    });
+
     test('omits an unsigned thinking block from the wire', () async {
       final body = await _requestOnTheWire(
         model: 'claude-sonnet-4-5',
