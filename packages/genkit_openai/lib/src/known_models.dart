@@ -20,9 +20,13 @@ import 'utils.dart';
 //
 // Structured outputs (`response_format: json_schema` with `strict`) arrived
 // with the gpt-4o-mini and gpt-4o-2024-08-06 snapshots, so models predating
-// them advertise no constrained generation and fall back to schema
-// instructions in the prompt. That is the only difference between the
-// `*Supports` presets and their `*LegacySupports` counterparts.
+// them advertise no constrained generation. That is the only difference
+// between the `*Supports` presets and their `*LegacySupports` counterparts.
+//
+// Descriptive, not load-bearing: nothing in `package:genkit` reads `supports`,
+// so this changes what the Dev UI and `listActions` report, not what the
+// generate path does. The plugin sends `response_format` off the request's own
+// output config either way.
 // See https://developers.openai.com/api/docs/guides/structured-outputs.
 
 // A const map literal rejects duplicate keys, so the shared entries cannot be
