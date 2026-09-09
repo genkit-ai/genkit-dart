@@ -716,6 +716,70 @@ void main() {
       expect(res2.text, contains('recovered'));
     });
 
+    test('a failure on a later turn reports its own `failed` snapshot as the '
+        'resume point (not a shortened completed row)', () async {
+      final store = InMemorySessionStore();
+      var failNow = false;
+      ai.defineModel(
+        name: 'turn2FailModel',
+        fn: (request, ctx) async {
+          if (failNow) {
+            throw GenkitException(
+              'model broke on turn 2',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          }
+          return ModelResponse(
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok: ${request.messages.last.text}')],
+            ),
+            finishReason: FinishReason.stop,
+          );
+        },
+      );
+      final agent = ai.defineAgent(
+        name: 'twoTurns',
+        model: modelRef('turn2FailModel'),
+        store: store,
+      );
+
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+
+      // Turn 1 succeeds and commits a `completed` snapshot.
+      final res1 = await chat.send(text: 'first');
+      expect(res1.finishReason, AgentFinishReason.stop);
+
+      // Turn 2 fails.
+      failNow = true;
+      final error = await chat
+          .send(text: 'second')
+          .then<AgentError?>(
+            (_) => null,
+            onError: (Object e) => e as AgentError,
+          );
+      expect(error, isNotNull);
+      expect(error!.status, StatusCodes.UNAVAILABLE.name);
+
+      // The reported snapshot is this turn's own `failed` row, not a fresh
+      // `completed` one from the turn-1 state.
+      final snap = await agent.getSnapshotData(snapshotId: error.snapshotId);
+      expect(snap!.status?.value, 'failed');
+      // Its state carries the turn-2 user message, so a rerun re-drives it.
+      expect(
+        snap.state!.messages!.any((m) => m.text == 'second'),
+        isTrue,
+      );
+
+      // Rerunning the failed snapshot recovers once the model is healthy again.
+      failNow = false;
+      final rerun = agent.chat(snapshotId: error.snapshotId);
+      final res2 = await rerun.send(text: 'second');
+      expect(res2.finishReason, AgentFinishReason.stop);
+      expect(res2.text, contains('second'));
+    });
+
     test('a detached run aborted via a thrown cancel settles as aborted', () async {
       // Regression: a detached turn aborted mid-flight can *throw* out of the
       // handler (an action's `cancel.throwIfCancelled()`) rather than resolve.

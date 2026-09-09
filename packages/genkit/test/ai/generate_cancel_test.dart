@@ -329,6 +329,12 @@ void main() {
 
         expect(res.finishReason, FinishReason.aborted);
         expect(res.finishMessage, contains('max turns'));
+        // An aborted response carries a structured error too (ABORTED-classed),
+        // so a caller reading `res.error` after any abnormal finish reason gets
+        // a payload rather than a null-check crash.
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.ABORTED.name);
+        expect(res.error!.message, contains('max turns'));
         expect(modelCalls, 2);
         expect(res.messages, isNotEmpty);
       },
