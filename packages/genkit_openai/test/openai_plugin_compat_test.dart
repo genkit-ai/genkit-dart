@@ -46,8 +46,6 @@ CustomModelDefinition llama() => CustomModelDefinition(
 );
 
 void main() {
-  late FakeOpenAIServer server;
-
   Future<FakeOpenAIServer> startServer({String? expectedApiKey}) async {
     final started = await FakeOpenAIServer.start(
       expectedApiKey: expectedApiKey,
@@ -57,6 +55,8 @@ void main() {
   }
 
   group('baseUrl routing', () {
+    late FakeOpenAIServer server;
+
     setUp(() async {
       server = await startServer();
     });
@@ -227,12 +227,21 @@ void main() {
           .cast<Map<String, dynamic>>();
       final function = tools.single['function'] as Map<String, dynamic>;
       expect(function['name'], 'getWeather');
-      // The second turn must carry the tool result the host asked for.
-      final followUpRoles = (bodies[1]['messages'] as List)
-          .cast<Map<String, dynamic>>()
-          .map((m) => m['role'])
-          .toList();
-      expect(followUpRoles, contains('tool'));
+      // The second turn must carry the tool result back under the id the host
+      // asked for. A plugin that sends the right role with the wrong
+      // tool_call_id is the real failure mode on Groq and DeepSeek, and a
+      // role-only assertion would not see it.
+      final followUp = (bodies[1]['messages'] as List)
+          .cast<Map<String, dynamic>>();
+
+      final assistant = followUp.firstWhere((m) => m['role'] == 'assistant');
+      final reSentCalls = (assistant['tool_calls'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(reSentCalls.single['id'], 'call_1');
+
+      final toolMessage = followUp.firstWhere((m) => m['role'] == 'tool');
+      expect(toolMessage['tool_call_id'], 'call_1');
+      expect(toolMessage['content'], contains('72'));
     });
 
     test('a stream with no [DONE] sentinel still completes', () async {
@@ -268,7 +277,7 @@ void main() {
 
   group('authentication against a compat host', () {
     test('the configured key is sent as a bearer token', () async {
-      server = await startServer(expectedApiKey: 'groq-key');
+      final server = await startServer(expectedApiKey: 'groq-key');
       final ai = Genkit(
         plugins: [
           openAI(name: 'groq', apiKey: 'groq-key', baseUrl: server.baseUrl),
@@ -288,7 +297,7 @@ void main() {
     });
 
     test('apiKeyProvider is honored on the compat path', () async {
-      server = await startServer(expectedApiKey: 'minted-token');
+      final server = await startServer(expectedApiKey: 'minted-token');
       var calls = 0;
       final ai = Genkit(
         plugins: [
@@ -317,7 +326,7 @@ void main() {
     });
 
     test('a rejected key surfaces as UNAUTHENTICATED', () async {
-      server = await startServer(expectedApiKey: 'right-key');
+      final server = await startServer(expectedApiKey: 'right-key');
       final ai = Genkit(
         plugins: [
           openAI(name: 'groq', apiKey: 'wrong-key', baseUrl: server.baseUrl),
@@ -344,6 +353,8 @@ void main() {
   });
 
   group('custom headers', () {
+    late FakeOpenAIServer server;
+
     setUp(() async {
       server = await startServer();
     });
@@ -392,6 +403,8 @@ void main() {
   });
 
   group('CustomModelDefinition', () {
+    late FakeOpenAIServer server;
+
     setUp(() async {
       server = await startServer();
     });
@@ -530,20 +543,6 @@ void main() {
       expect(deepseek.chatRequestBodies.single['model'], 'deepseek-chat');
     });
 
-    test('a compat backend never claims the openai namespace', () async {
-      final compat = await startServer();
-      final plugin = OpenAIPlugin(
-        name: 'groq',
-        apiKey: 'groq-key',
-        baseUrl: compat.baseUrl,
-        customModels: [llama()],
-      );
-
-      final names = modelNames(await plugin.list());
-
-      expect(names.every((n) => n.startsWith('groq/')), isTrue);
-    });
-
     test('a compat backend does not list the curated OpenAI catalog', () async {
       // Regression: list() merged the curated catalog in unconditionally, so
       // a Groq backend advertised 'groq/gpt-5.5', 'groq/o3' and fifteen more
@@ -595,12 +594,15 @@ void main() {
       403: StatusCodes.PERMISSION_DENIED,
       404: StatusCodes.NOT_FOUND,
       500: StatusCodes.INTERNAL,
+      503: StatusCodes.UNAVAILABLE,
     };
 
     cases.forEach((statusCode, expected) {
       test('$statusCode becomes ${expected.name}', () async {
         // 429 is deliberately absent: the SDK retries it with exponential
-        // backoff, which would add ~7s to this suite for one assertion.
+        // backoff, which would add ~7s to this suite for one assertion. 503
+        // is not retried here - the SDK only retries 5xx on idempotent
+        // methods, and chat completions is a POST.
         final host = await startServer();
         host.enqueue(FakeResponse.error(statusCode, 'compat host said no'));
         final ai = Genkit(
@@ -627,25 +629,41 @@ void main() {
       final baseUrl = dead.baseUrl;
       await dead.stop();
 
-      final ai = Genkit(
-        plugins: [openAI(name: 'groq', apiKey: 'groq-key', baseUrl: baseUrl)],
+      final plugin = OpenAIPlugin(
+        name: 'groq',
+        apiKey: 'groq-key',
+        baseUrl: baseUrl,
+        customModels: [llama()],
       );
+      final ai = Genkit(plugins: [plugin]);
       addTearDown(ai.shutdown);
 
-      // Startup and listing survive a host that is not there at all. This
-      // takes ~7s: discovery is a GET, so the SDK retries the refused
+      // Listing survives a host that is not there at all, and still returns
+      // the plugin's own models. Asserting on listActions() alone would not
+      // pin this: a compat backend is withheld the curated catalog, so that
+      // call passes on the core actions even if the plugin contributes none.
+      //
+      // Costs ~7s: discovery is a GET, so the SDK retries the refused
       // connection three times with exponential backoff before list() gives
-      // up and falls back to the catalog. That is the whole test - do not
-      // "speed it up" by dropping the listActions() call.
-      final actions = await ai.registry.listActions();
-      expect(actions, isNotEmpty);
+      // up. Accepted deliberately - do not "speed it up" by dropping it.
+      expect(modelNames(await plugin.list()), {'groq/llama-3.3-70b-versatile'});
 
       await expectLater(
         ai.generate(
           model: openAI.model('llama-3.3-70b-versatile', namespace: 'groq'),
           prompt: 'Hello!',
         ),
-        throwsA(isA<GenkitException>()),
+        throwsA(
+          // INTERNAL, not UNAVAILABLE: a refused socket never becomes an
+          // ApiException, so there is no HTTP status to map and the generic
+          // default applies. Pinned as-is - arguably it should be
+          // UNAVAILABLE, but that is a behaviour change, not a test fix.
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.INTERNAL,
+          ),
+        ),
       );
     });
   });

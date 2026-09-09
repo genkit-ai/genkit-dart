@@ -18,11 +18,11 @@
 /// This binds a real socket rather than injecting a `MockClient` because the
 /// compat path is precisely the part a mock cannot vouch for: every other test
 /// in this package hands the plugin an `httpClient`, so the client the plugin
-/// builds for itself - the one real users get, and the only thing that turns
-/// `baseUrl` into an actual connection - is never exercised. Pointing the
-/// plugin at `server.baseUrl` with no `httpClient` proves the URL is dialed,
-/// the auth and custom headers survive the SDK's interceptor chain, and SSE is
-/// parsed off a genuinely chunked socket.
+/// builds for itself - the one real users get - is never exercised, and nor is
+/// closing it. The `MockClient` tests do cover `baseUrl` reaching the client
+/// and streaming; what a real socket adds is the self-built client and its
+/// `close()`, header serialisation as the wire sees it, and SSE parsed off
+/// genuinely chunked frames.
 library;
 
 import 'dart:async';
@@ -54,9 +54,6 @@ class RecordedRequest {
   Map<String, dynamic> get body => rawBody.isEmpty
       ? const {}
       : (jsonDecode(rawBody) as Map).cast<String, dynamic>();
-
-  @override
-  String toString() => '$method $path';
 }
 
 /// A canned reply for the fake host to serve.
@@ -66,9 +63,6 @@ class FakeResponse {
 
   /// JSON-encodable body, for non-streaming replies.
   final Object? body;
-
-  /// Extra response headers.
-  final Map<String, String> headers;
 
   /// Whether to serve this reply as an SSE stream.
   final bool stream;
@@ -83,7 +77,6 @@ class FakeResponse {
   const FakeResponse({
     this.statusCode = 200,
     this.body,
-    this.headers = const {},
     this.stream = false,
     this.chunks,
     this.rawSse,
@@ -131,7 +124,9 @@ class FakeOpenAIServer {
   ///
   /// A handler that dies leaves the client staring at a closed socket, which
   /// surfaces in the test as an opaque transport error a long way from the
-  /// cause. These are printed as they happen so the real reason is on screen.
+  /// cause. These are printed as they happen so the real reason is on screen,
+  /// and [stop] fails the test rather than letting one pass over a host that
+  /// was quietly broken.
   final List<Object> handlerErrors = [];
 
   /// Binds a fake host on an ephemeral loopback port.
@@ -151,7 +146,15 @@ class FakeOpenAIServer {
   void enqueue(FakeResponse response) => _queued.add(response);
 
   /// Stops the host, dropping any in-flight connections.
-  Future<void> stop() => _server.close(force: true);
+  Future<void> stop() async {
+    await _server.close(force: true);
+    if (handlerErrors.isNotEmpty) {
+      throw StateError(
+        'the fake host threw while serving a request: '
+        '${handlerErrors.join('; ')}',
+      );
+    }
+  }
 
   /// The bodies of every chat-completions request received.
   List<Map<String, dynamic>> get chatRequestBodies => [
@@ -210,24 +213,17 @@ class FakeOpenAIServer {
     if (response.stream) {
       await _writeSse(request.response, response);
     } else {
-      await _writeJson(
-        request.response,
-        response.statusCode,
-        response.body,
-        extraHeaders: response.headers,
-      );
+      await _writeJson(request.response, response.statusCode, response.body);
     }
   }
 
   Future<void> _writeJson(
     HttpResponse response,
     int statusCode,
-    Object? body, {
-    Map<String, String> extraHeaders = const {},
-  }) async {
+    Object? body,
+  ) async {
     response.statusCode = statusCode;
     response.headers.contentType = ContentType.json;
-    extraHeaders.forEach(response.headers.set);
     response.write(jsonEncode(body));
     await response.close();
   }
@@ -236,7 +232,6 @@ class FakeOpenAIServer {
     response.statusCode = spec.statusCode;
     response.headers.set('content-type', 'text/event-stream');
     response.headers.set('cache-control', 'no-cache');
-    spec.headers.forEach(response.headers.set);
 
     final rawSse = spec.rawSse;
     if (rawSse != null) {
@@ -265,7 +260,6 @@ class FakeOpenAIServer {
 /// Builds a `chat.completion` body, the shape a compatible host must return.
 Map<String, dynamic> chatCompletion({
   String content = 'ok',
-  String model = 'test-model',
   String finishReason = 'stop',
   List<Map<String, dynamic>>? toolCalls,
   Map<String, dynamic>? usage,
@@ -274,7 +268,7 @@ Map<String, dynamic> chatCompletion({
     'id': 'chatcmpl-fake',
     'object': 'chat.completion',
     'created': 0,
-    'model': model,
+    'model': 'test-model',
     'choices': [
       {
         'index': 0,
@@ -291,16 +285,12 @@ Map<String, dynamic> chatCompletion({
 }
 
 /// Builds one `chat.completion.chunk` frame for [FakeResponse.sse].
-Map<String, dynamic> chatChunk({
-  String? content,
-  String model = 'test-model',
-  String? finishReason,
-}) {
+Map<String, dynamic> chatChunk({String? content, String? finishReason}) {
   return {
     'id': 'chatcmpl-fake',
     'object': 'chat.completion.chunk',
     'created': 0,
-    'model': model,
+    'model': 'test-model',
     'choices': [
       {
         'index': 0,

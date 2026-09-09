@@ -182,8 +182,9 @@ void main() {
           apiKey: backend.apiKey,
           baseUrl: backend.baseUrl,
           models: backend.models,
-          // Several compatible hosts read headers for attribution or routing;
-          // this is the knob OpenRouter's rankings use, for instance.
+          // Several compatible hosts read headers for attribution or
+          // routing. None of the three below require one; this is here to
+          // show where a provider-specific header goes.
           headers: {'X-Title': 'Genkit Dart sample'},
         ),
     ],
