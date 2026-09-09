@@ -135,9 +135,11 @@ void main() {
       expect(supportsVision('gpt-3.5-turbo-0613'), false);
       expect(supportsVision('gpt-4-0314'), false);
       expect(supportsVision('gpt-4-32k-0314'), false);
-      // Azure spells gpt-3.5-turbo without the dot.
+      // Azure spells gpt-3.5-turbo without the dot, snapshots included.
       expect(supportsVision('gpt-35-turbo'), false);
       expect(supportsVision('gpt-35-turbo-16k'), false);
+      expect(supportsVision('gpt-35-turbo-0125'), false);
+      expect(supportsVision('gpt-35-turbo-16k-0613'), false);
     });
   });
 

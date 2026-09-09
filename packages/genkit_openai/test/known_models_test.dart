@@ -35,10 +35,18 @@ Map<String, dynamic> modelMetadataOf(ActionMetadata metadata) =>
 
 void main() {
   group('catalog invariants', () {
+    test('the exported collections cannot be mutated', () {
+      expect(() => knownChatModels.add('x'), throwsUnsupportedError);
+      expect(
+        () => knownOpenAIModels['x'] = knownOpenAIModels.values.first,
+        throwsUnsupportedError,
+      );
+    });
+
     test('no two entries claim the same name', () {
       final seen = <String, String>{};
       for (final model in KnownOpenAIModel.values) {
-        for (final name in [...model.versions, ...model.aliases]) {
+        for (final name in model.versions) {
           expect(
             seen,
             isNot(contains(name)),
@@ -51,7 +59,7 @@ void main() {
 
     test('every name is lower-case, as the OpenAI catalog is', () {
       for (final model in KnownOpenAIModel.values) {
-        for (final name in [...model.versions, ...model.aliases]) {
+        for (final name in model.versions) {
           expect(name, name.toLowerCase());
         }
       }
@@ -80,7 +88,7 @@ void main() {
 
     test('every entry resolves to itself', () {
       for (final model in KnownOpenAIModel.values) {
-        for (final name in [...model.versions, ...model.aliases]) {
+        for (final name in model.versions) {
           expect(knownOpenAIModelFor(name), model, reason: name);
         }
       }
@@ -91,6 +99,19 @@ void main() {
         knownOpenAIModels.keys,
         unorderedEquals(KnownOpenAIModel.values.map((m) => m.id)),
       );
+    });
+
+    test('only post-response_format models advertise json output', () {
+      // gpt-4 and gpt-4-32k resolve to their -0613 snapshots, which 400 on
+      // response_format. Go advertises json for them; JS does not, and JS is
+      // right.
+      for (final id in ['gpt-4', 'gpt-4-32k']) {
+        expect(modelInfoFor(id).supports?['output'], ['text'], reason: id);
+      }
+      expect(modelInfoFor('gpt-3.5-turbo').supports?['output'], [
+        'text',
+        'json',
+      ]);
     });
 
     test('only structured-output models claim constrained generation', () {
@@ -107,19 +128,44 @@ void main() {
       expect(openAIModelAlias('o3-2025-04-16'), 'o3');
     });
 
-    test('an alternate spelling resolves but is not a version', () {
-      final turbo = knownOpenAIModelFor('gpt-35-turbo');
-
-      expect(turbo, KnownOpenAIModel.gpt35Turbo);
-      // Azure's spelling resolves, but OpenAI does not serve it, so it must
-      // not appear in the versions the catalog advertises.
-      expect(turbo!.versions, isNot(contains('gpt-35-turbo')));
-      expect(modelInfoFor('gpt-35-turbo').supports, textOnlyLegacySupports);
-    });
-
     test('leaves undated names alone', () {
       expect(openAIModelAlias('gpt-4o'), 'gpt-4o');
       expect(openAIModelAlias('gpt-3.5-turbo-0125'), 'gpt-3.5-turbo-0125');
+    });
+  });
+
+  group('Azure spellings', () {
+    test('the whole dotless family resolves, snapshots included', () {
+      const azure = {
+        'gpt-35-turbo': 'gpt-3.5-turbo',
+        'gpt-35-turbo-16k': 'gpt-3.5-turbo',
+        'gpt-35-turbo-0125': 'gpt-3.5-turbo',
+        'gpt-35-turbo-1106': 'gpt-3.5-turbo',
+        'gpt-35-turbo-0613': 'gpt-3.5-turbo',
+        'gpt-35-turbo-16k-0613': 'gpt-3.5-turbo',
+      };
+      azure.forEach((deployment, expected) {
+        expect(
+          knownOpenAIModelFor(deployment)?.id,
+          expected,
+          reason: deployment,
+        );
+        expect(supportsVision(deployment), isFalse, reason: deployment);
+      });
+    });
+
+    test('the dotless spelling is not advertised as a version', () {
+      // OpenAI does not serve these names; only Azure does.
+      expect(
+        KnownOpenAIModel.gpt35Turbo.versions,
+        isNot(contains('gpt-35-turbo')),
+      );
+    });
+
+    test('normalisation only touches the dotted-version prefix', () {
+      expect(openAIModelSpelling('gpt-4o'), 'gpt-4o');
+      expect(openAIModelSpelling('gpt-35-turbo'), 'gpt-3.5-turbo');
+      expect(openAIModelSpelling('o3-mini'), 'o3-mini');
     });
   });
 
@@ -128,6 +174,14 @@ void main() {
       expect(OpenAIModels.gpt4o.name, 'openai/gpt-4o');
       expect(OpenAIModels.o3Mini.name, 'openai/o3-mini');
       expect(OpenAIModels.gpt56Sol.name, 'openai/gpt-5.6-sol');
+    });
+
+    test('cover every model OpenAI still serves', () {
+      // Nothing else fails when a catalog entry is added without a ref.
+      expect(
+        OpenAIModels.all.map((r) => r.name).toSet(),
+        knownChatModels.map((id) => 'openai/$id').toSet(),
+      );
     });
 
     test('match openAI.model() for the same id', () {

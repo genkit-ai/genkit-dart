@@ -38,12 +38,14 @@ export 'src/known_models.dart'
         multimodalSupports,
         nonChatSupports,
         openAIModelAlias,
+        openAIModelSpelling,
         reasoningPreviewSupports,
         reasoningSupports,
         reasoningTextOnlySupports,
         supportsTools,
         supportsVision,
-        textOnlyLegacySupports;
+        textOnlyLegacySupports,
+        textOnlyNoJsonSupports;
 export 'src/utils.dart' show getModelType;
 
 /// Default plugin / namespace name used when no custom name is provided.
@@ -317,4 +319,41 @@ abstract final class OpenAIModels {
   static final ModelRef<chat.OpenAIChatOptions> gpt35Turbo = openAI.model(
     KnownOpenAIModel.gpt35Turbo.id,
   );
+
+  /// Every ref above, in catalog order.
+  ///
+  /// Exists so the statics cannot silently fall behind [KnownOpenAIModel]: a
+  /// test asserts this names exactly the models OpenAI still serves, and
+  /// fails when an entry is added without a ref here.
+  static final List<ModelRef<chat.OpenAIChatOptions>> all = [
+    gpt56Sol,
+    gpt56Terra,
+    gpt56Luna,
+    gpt55,
+    gpt54,
+    gpt54Mini,
+    gpt54Nano,
+    gpt52,
+    gpt51,
+    gpt5,
+    gpt5Mini,
+    gpt5Nano,
+    gpt5ChatLatest,
+    gpt41,
+    gpt41Mini,
+    gpt41Nano,
+    gpt4o,
+    gpt4oMini,
+    chatgpt4oLatest,
+    o3,
+    o4Mini,
+    o3Mini,
+    o1,
+    gpt4Turbo,
+    gpt40125Preview,
+    gpt41106Preview,
+    gpt4,
+    gpt432k,
+    gpt35Turbo,
+  ];
 }

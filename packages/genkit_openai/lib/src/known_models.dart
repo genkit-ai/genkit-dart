@@ -53,6 +53,21 @@ const multimodalLegacySupports = <String, dynamic>{
   'output': ['text', 'json'],
 };
 
+/// [textOnlyLegacySupports] for models that predate `response_format`
+/// altogether, so they cannot even be asked for a JSON object.
+///
+/// The `gpt-4` and `gpt-4-32k` aliases resolve to their `-0613` snapshots,
+/// which 400 on `response_format`; JSON mode arrived with the `-1106`
+/// generation. The Go catalog advertises `json` for these, JS does not — JS is
+/// right.
+const textOnlyNoJsonSupports = <String, dynamic>{
+  ..._chatCore,
+  'tools': true,
+  'toolChoice': true,
+  'media': false,
+  'output': ['text'],
+};
+
 /// [multimodalLegacySupports] without image input.
 const textOnlyLegacySupports = <String, dynamic>{
   ..._chatCore,
@@ -357,14 +372,14 @@ enum KnownOpenAIModel {
   gpt4(
     'gpt-4',
     'OpenAI GPT-4',
-    textOnlyLegacySupports,
+    textOnlyNoJsonSupports,
     snapshots: ['gpt-4-0613', 'gpt-4-0314'],
     stage: OpenAIModelStage.legacy,
   ),
   gpt432k(
     'gpt-4-32k',
     'OpenAI GPT-4 32k',
-    textOnlyLegacySupports,
+    textOnlyNoJsonSupports,
     snapshots: ['gpt-4-32k-0613', 'gpt-4-32k-0314'],
     stage: OpenAIModelStage.legacy,
   ),
@@ -379,10 +394,6 @@ enum KnownOpenAIModel {
       'gpt-3.5-turbo-16k',
       'gpt-3.5-turbo-16k-0613',
     ],
-    // Azure drops the dot from the model name. Without these, `gpt-35-turbo`
-    // is uncurated and takes the multimodal defaults, which would have Genkit
-    // send images to a text-only model.
-    aliases: ['gpt-35-turbo', 'gpt-35-turbo-16k'],
     stage: OpenAIModelStage.legacy,
   );
 
@@ -391,7 +402,6 @@ enum KnownOpenAIModel {
     this.label,
     this.supports, {
     this.snapshots = const [],
-    this.aliases = const [],
     this.stage = OpenAIModelStage.stable,
   });
 
@@ -406,12 +416,6 @@ enum KnownOpenAIModel {
 
   /// Dated snapshots that resolve to this model, excluding [id] itself.
   final List<String> snapshots;
-
-  /// Other names the same model answers to, which OpenAI itself does not
-  /// serve — an Azure deployment name, say. They resolve to these
-  /// capabilities but are deliberately absent from [versions], which
-  /// enumerates what OpenAI serves.
-  final List<String> aliases;
 
   /// Lifecycle stage, which decides whether the plugin registers this model
   /// as an action as well as how it describes it.
@@ -444,9 +448,9 @@ final _curatedInfo = <KnownOpenAIModel, ModelInfo>{
 ///
 /// Derived from [KnownOpenAIModel]; other names still resolve, they just take
 /// [dynamicModelInfo] instead of a curated entry.
-final knownOpenAIModels = <String, ModelInfo>{
+final Map<String, ModelInfo> knownOpenAIModels = Map.unmodifiable({
   for (final model in KnownOpenAIModel.values) model.id: model.info,
-};
+});
 
 /// Chat models the plugin lists without network access, newest generation
 /// first.
@@ -462,20 +466,31 @@ final knownOpenAIModels = <String, ModelInfo>{
 /// Every id here carries curated capability metadata; see [knownOpenAIModels].
 /// [OpenAIModelStage.deprecated] entries are excluded: OpenAI no longer serves
 /// them, so listing them would offer a model picker names that 404.
-final List<String> knownChatModels = [
+final List<String> knownChatModels = List.unmodifiable([
   for (final model in KnownOpenAIModel.values)
     if (model.stage != OpenAIModelStage.deprecated) model.id,
-];
+]);
 
-/// Every curated name — the alias, its dated snapshots, and any alternate
-/// spelling — mapped to the catalog entry that describes it.
+/// Every curated name — the alias and its dated snapshots — mapped to the
+/// catalog entry that describes it.
 final _knownOpenAIModelsByName = <String, KnownOpenAIModel>{
   for (final model in KnownOpenAIModel.values)
-    for (final name in [...model.versions, ...model.aliases])
-      name.toLowerCase(): model,
+    for (final name in model.versions) name.toLowerCase(): model,
 };
 
 final _datedSuffixPattern = RegExp(r'-\d{4}-\d{2}-\d{2}$');
+final _azureDottedPattern = RegExp(r'^gpt-(\d)(\d)-');
+
+/// Rewrites a name into the spelling the catalog uses.
+///
+/// Azure drops the dot from a model's version, and its deployment names carry
+/// the same undated snapshot suffixes OpenAI's do — `gpt-35-turbo`,
+/// `gpt-35-turbo-0125`, `gpt-35-turbo-16k-0613`. Restoring the dot maps the
+/// whole family at once, rather than listing each spelling.
+String openAIModelSpelling(String modelName) => modelName.replaceFirstMapped(
+  _azureDottedPattern,
+  (m) => 'gpt-${m[1]}.${m[2]}-',
+);
 
 /// Strips a trailing dated-snapshot suffix (e.g. `gpt-5.6-sol-2026-06-01` ->
 /// `gpt-5.6-sol`), so a snapshot released after this version of the plugin
@@ -483,13 +498,24 @@ final _datedSuffixPattern = RegExp(r'-\d{4}-\d{2}-\d{2}$');
 String openAIModelAlias(String modelName) =>
     modelName.replaceFirst(_datedSuffixPattern, '');
 
-/// Returns the curated entry for [modelName], matching the catalog's own
-/// names first and then a dated-snapshot alias, or `null` when the name is not
-/// curated. Matching is case-insensitive; the OpenAI catalog is lower-case.
+/// Returns the curated entry for [modelName], or `null` when the name is not
+/// curated.
+///
+/// Tried in order: the name as given, its Azure-to-OpenAI spelling, and then
+/// each of those with a dated snapshot suffix stripped. Matching is
+/// case-insensitive; the OpenAI catalog is lower-case.
 KnownOpenAIModel? knownOpenAIModelFor(String modelName) {
   final id = modelName.toLowerCase();
-  return _knownOpenAIModelsByName[id] ??
-      _knownOpenAIModelsByName[openAIModelAlias(id)];
+  for (final candidate in {
+    id,
+    openAIModelSpelling(id),
+    openAIModelAlias(id),
+    openAIModelAlias(openAIModelSpelling(id)),
+  }) {
+    final match = _knownOpenAIModelsByName[candidate];
+    if (match != null) return match;
+  }
+  return null;
 }
 
 /// Capability metadata for a model with no curated entry.
