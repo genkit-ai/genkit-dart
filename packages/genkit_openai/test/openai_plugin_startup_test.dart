@@ -22,6 +22,13 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
+/// An environment with no API key in it.
+///
+/// The package's own `integration_test.dart` expects `OPENAI_API_KEY`
+/// exported, so the no-key tests below must not read the real environment or
+/// they pass or fail depending on the developer's shell.
+String? noEnv(String name) => null;
+
 /// A client that records every request and refuses them all.
 ///
 /// Startup must not touch the network, so a test that passes with this client
@@ -111,7 +118,9 @@ void main() {
       // /api/__health and /api/actions return 500 and the Dev UI unable to
       // connect at all.
       final recorder = RecordingFailClient();
-      final ai = Genkit(plugins: [openAI(httpClient: recorder.client)]);
+      final ai = Genkit(
+        plugins: [OpenAIPlugin(httpClient: recorder.client, configVar: noEnv)],
+      );
 
       final actions = await ai.registry.listActions();
       final names = actions
@@ -326,8 +335,7 @@ void main() {
 
     test('the provider is invoked once per listing, not twice', () async {
       // list() checks for a key and then builds a client. Resolving twice
-      // would double the cost for a provider that mints a token per call,
-      // on every Dev UI poll.
+      // would double the cost for a provider that mints a token per call.
       var calls = 0;
       final requests = <String>[];
       final plugin = OpenAIPlugin(
@@ -404,7 +412,9 @@ void main() {
     test('a missing key still fails at generate time', () async {
       // The startup requirement is gone; the call-time requirement stays.
       final recorder = RecordingFailClient();
-      final ai = Genkit(plugins: [openAI(httpClient: recorder.client)]);
+      final ai = Genkit(
+        plugins: [OpenAIPlugin(httpClient: recorder.client, configVar: noEnv)],
+      );
 
       await expectLater(
         ai.generate(model: openAI.model('gpt-4o'), prompt: 'hi'),

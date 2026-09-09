@@ -15,6 +15,7 @@
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
@@ -25,9 +26,9 @@ final _logger = Logger('genkit_openai');
 
 /// Core Genkit plugin implementation for OpenAI-compatible APIs.
 ///
-/// Automatically discovers models from the OpenAI API (when no custom
-/// [baseUrl] is set) and registers them in the Genkit action registry.
-/// Additional models can be provided via [customModels].
+/// Registers nothing up front beyond [customModels]: [resolve] builds a model
+/// on demand for any id. Discovery runs in [list], against whichever host
+/// [baseUrl] names, and returns metadata rather than registered actions.
 class OpenAIPlugin extends GenkitPlugin {
   final String _pluginName;
 
@@ -55,6 +56,15 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Optional HTTP client for dependency injection and testing.
   final http.Client? httpClient;
 
+  /// Looks up an environment variable, for the API key fallback.
+  ///
+  /// Injectable so a test can run against a known-empty environment: the
+  /// package's own suite needs `OPENAI_API_KEY` exported for
+  /// `integration_test.dart`, which would otherwise make the no-key tests
+  /// pass or fail depending on the developer's shell.
+  @visibleForTesting
+  final String? Function(String name) configVar;
+
   /// Creates an [OpenAIPlugin].
   ///
   /// Provide either [apiKey] or [apiKeyProvider], but not both.
@@ -66,6 +76,7 @@ class OpenAIPlugin extends GenkitPlugin {
     this.customModels = const [],
     this.headers,
     this.httpClient,
+    this.configVar = getConfigVar,
   }) : _pluginName = name {
     if (name.isEmpty || name.contains('/')) {
       throw GenkitException(
@@ -83,12 +94,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Registers actions that need neither network access nor a key.
   ///
-  /// Deliberately does no I/O. The registry treats an `init()` failure as
-  /// fatal and does not cache it (`registry.dart:32-40`), and every
-  /// `listActions()` call initializes plugins outside its per-plugin
-  /// try/catch - so throwing here takes down the whole Dev UI, including
-  /// `/api/__health`. Model discovery belongs in [list], where a failure
-  /// degrades instead.
+  /// Deliberately does no I/O. A throw here is not cached and is not caught
+  /// per-plugin, so it fails every `listActions()` call for the whole
+  /// registry - taking down the Dev UI, `/api/__health` included. Model
+  /// discovery belongs in [list], where a failure degrades instead.
   ///
   /// Models are not registered up front: [resolve] builds them on demand for
   /// any id, so nothing is lost by staying offline here.
@@ -130,7 +139,7 @@ class OpenAIPlugin extends GenkitPlugin {
     if (config == null) {
       throw GenkitException(
         '[$_pluginName] API key is required. Provide it via apiKey or apiKeyProvider '
-        'in the plugin constructor, or set the OPENAI_API_KEY environment variable.',
+        'in the plugin constructor, or set the $_apiKeyEnvVar environment variable.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -140,22 +149,28 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Resolves the API key from, in order: [apiKeyProvider], [apiKey], then the
   /// `OPENAI_API_KEY` environment variable.
   ///
-  /// Uses `getConfigVar` rather than `Platform.environment` so the plugin stays
-  /// usable on web and wasm, matching `genkit_google_genai`.
+  /// Reads through [configVar] — `getConfigVar` by default — rather than
+  /// `Platform.environment`, so the plugin stays usable on web and wasm,
+  /// matching `genkit_google_genai`.
   Future<String?> _resolveApiKey() async {
     final configuredApiKeyProvider = apiKeyProvider;
     if (configuredApiKeyProvider != null) {
       return await configuredApiKeyProvider();
     }
-    return apiKey ?? _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
+    // A blank apiKey is treated as absent rather than short-circuiting the
+    // fallback, so `apiKey: ''` still finds the environment variable.
+    final configured = apiKey?.trim();
+    if (configured != null && configured.isNotEmpty) return configured;
+    final fromEnv = configVar(_apiKeyEnvVar)?.trim();
+    return (fromEnv != null && fromEnv.isNotEmpty) ? fromEnv : null;
   }
 
   /// Client config for discovery, or null when no key is available.
   ///
   /// Lets [list] skip a request it knows would 401, without duplicating the
   /// key resolution that [_resolveClientConfig] does - notably without
-  /// invoking [apiKeyProvider] twice, which for a provider that mints a token
-  /// per call would double the cost of every Dev UI poll.
+  /// invoking [apiKeyProvider] twice for a single listing, which for a
+  /// provider that mints a token per call would double its cost.
   Future<_ResolvedClientConfig?> _resolveClientConfigOrNull() async {
     final configuredApiKey = await _resolveApiKey();
     if (configuredApiKey == null || configuredApiKey.trim().isEmpty) {
@@ -392,8 +407,8 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 }
 
-/// Environment variables consulted for the API key, in order.
-const _apiKeyEnvVars = ['OPENAI_API_KEY'];
+/// Environment variable consulted for the API key.
+const _apiKeyEnvVar = 'OPENAI_API_KEY';
 
 final class _ResolvedClientConfig {
   final String apiKey;

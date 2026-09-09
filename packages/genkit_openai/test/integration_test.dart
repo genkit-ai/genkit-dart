@@ -315,6 +315,9 @@ void main() {
       // Offline, list() returns exactly knownChatModels. With a real key it
       // must return strictly more than that - if it does not, discovery has
       // silently stopped running and the offline fallback has swallowed it.
+      //
+      // Not asserted: that the merged listing contains the catalog. list()
+      // merges it in unconditionally, so that holds however discovery went.
       final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
       final actions = await ai.registry.listActions();
@@ -323,10 +326,24 @@ void main() {
           .map((a) => a.name)
           .toSet();
 
+      // A baseUrl withholds the catalog, so this listing is pure discovery -
+      // the only way to see what OpenAI actually serves. An empty overlap
+      // means every curated id has been renamed or retired.
+      final probe = Genkit(
+        plugins: [openAI(apiKey: apiKey, baseUrl: 'https://api.openai.com/v1')],
+      );
+      final discovered = (await probe.registry.listActions())
+          .where((a) => a.actionType == .model)
+          .map((a) => a.name)
+          .toSet();
+      await probe.shutdown();
+
       expect(
-        names,
-        containsAll(knownChatModels.map((id) => 'openai/$id')),
-        reason: 'the curated catalog must survive discovery',
+        discovered.intersection(
+          knownChatModels.map((id) => 'openai/$id').toSet(),
+        ),
+        isNotEmpty,
+        reason: 'no curated id is served by OpenAI any more',
       );
       expect(
         names.length,

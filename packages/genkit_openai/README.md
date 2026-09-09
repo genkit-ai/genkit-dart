@@ -47,6 +47,11 @@ Creating the plugin does no network I/O and does not require a key, so an app
 starts up (and the Dev UI connects) offline. A missing or invalid key surfaces
 when a model is actually called.
 
+This is deliberately more permissive than the other Genkit SDKs, not parity
+with them: the JS plugin throws when constructed without a key and Go panics
+in `Init`. Dart defers the requirement to call time so the Dev UI stays
+usable before a key is exported, matching `genkit_anthropic`.
+
 Model discovery via `GET /models` happens only when listing actions, and is
 best-effort: if it fails, the plugin falls back to a curated catalog of common
 models plus any `models:` you registered. Models outside that catalog still
