@@ -656,8 +656,8 @@ void main() {
         throwsA(
           // INTERNAL, not UNAVAILABLE: a refused socket never becomes an
           // ApiException, so there is no HTTP status to map and the generic
-          // default applies. Pinned as-is - arguably it should be
-          // UNAVAILABLE, but that is a behaviour change, not a test fix.
+          // default applies. Pinned as current behaviour; #424 tracks the
+          // fix, which is a behaviour change rather than a test one.
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
