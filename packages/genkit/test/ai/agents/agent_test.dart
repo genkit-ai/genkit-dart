@@ -603,12 +603,11 @@ void main() {
     test(
       'getSnapshotData reports a stale aborting snapshot as expired',
       () async {
-        // A cross-runtime read: a Go server settles its abort in two writes
-        // (flip -> `aborting`, later finalize -> `aborted`) and keeps
-        // heartbeating while it winds down. A stale `aborting` beat means the
-        // draining worker died, so - like a stale `pending` - it must read as
-        // `expired`. Dart itself settles aborts in one write and never emits
-        // `aborting`, but must still read one correctly off the wire.
+        // The abort protocol settles in two writes (flip -> `aborting`, later
+        // finalize -> `aborted`), and the worker keeps heartbeating while it
+        // winds down. A stale `aborting` beat means the draining worker died,
+        // so - like a stale `pending` - it must read as `expired`. This
+        // exercises the read side, whatever runtime wrote the row.
         final store = InMemorySessionStore();
         final agent = ai.defineCustomAgent(
           name: 'winddown',
