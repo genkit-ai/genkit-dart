@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -21,6 +22,40 @@ part 'generate_test.g.dart';
 @Schema()
 abstract class $TestToolInput {
   String get name;
+}
+
+/// A middleware whose `generate` hook throws before delegating to `next`, used
+/// to prove a hook fault resolves to a `failed` response rather than escaping
+/// `generate()` as a throw.
+class _ThrowingHookMiddleware extends GenerateMiddleware {
+  @override
+  Future<GenerateResponseHelper> generate(
+    GenerateTurnState envelope,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResponseHelper> Function(
+      GenerateTurnState envelope,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  ) {
+    throw GenkitException(
+      'hook exploded before delegating',
+      status: StatusCodes.FAILED_PRECONDITION,
+    );
+  }
+}
+
+class _ThrowingHookPlugin extends GenkitPlugin {
+  @override
+  String get name => 'throwingHook';
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => [
+    defineMiddleware<void>(
+      name: 'throwingHook',
+      create: (config, ctx) => _ThrowingHookMiddleware(),
+    ),
+  ];
 }
 
 void main() {
@@ -1333,9 +1368,25 @@ void main() {
 
           expect(res.finishReason, FinishReason.failed);
           expect(res.error, isNotNull);
-          expect(res.error!.status, StatusCodes.FAILED_PRECONDITION.name);
+          // A tool's failure is not a failure of the caller's request: its own
+          // status (FAILED_PRECONDITION) is reclassified to INTERNAL so a retry
+          // client does not act on the tool's status as the whole run's.
+          expect(res.error!.status, StatusCodes.INTERNAL.name);
+          // The message names the failing tool and still carries the original.
+          expect(res.error!.message, contains('explodingTool'));
           expect(res.error!.message, contains('tool exploded'));
+          // The original tool exception is still reachable in-process.
           expect(res.cause, isA<GenkitException>());
+          expect(
+            (res.cause as GenkitException).underlyingException,
+            isA<GenkitException>(),
+          );
+          expect(
+            ((res.cause as GenkitException).underlyingException
+                    as GenkitException)
+                .status,
+            StatusCodes.FAILED_PRECONDITION,
+          );
           // The failing turn's model tool-request message is dropped; the user
           // turn remains as the last-good resume point.
           expect(res.messages.length, 1);
@@ -1512,6 +1563,143 @@ void main() {
           expect(res.usage!.outputTokens, 7);
         },
       );
+
+      test('a throwing tool carries the turn\'s custom/raw accounting onto the '
+          'failed response', () async {
+        const modelName = 'toolThrowCustomModel';
+        const toolName = 'explodingCustomTool';
+
+        genkit.defineTool(
+          name: toolName,
+          description: 'always throws',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, ctx) async {
+            throw GenkitException(
+              'tool exploded',
+              status: StatusCodes.INTERNAL,
+            );
+          },
+        );
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: .stop,
+              custom: {'cacheReadTokens': 42},
+              raw: {'providerId': 'abc'},
+              message: Message(
+                role: .model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: toolName,
+                      input: {'name': 'world'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'use the tool',
+          toolNames: [toolName],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        // The whole base response's accounting rides along, not just usage, so
+        // provider billing/cache detail in `custom`/`raw` survives.
+        expect(res.custom, {'cacheReadTokens': 42});
+        expect(res.raw, {'providerId': 'abc'});
+      });
+
+      test('a middleware generate hook that throws resolves to a failed '
+          'response rather than escaping as a throw', () async {
+        final gk = Genkit(isDevEnv: false, plugins: [_ThrowingHookPlugin()]);
+        addTearDown(gk.shutdown);
+        gk.defineModel(
+          name: 'unreachable',
+          fn: (request, context) async => ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'hi')],
+            ),
+          ),
+        );
+
+        final res = await gk.generate(
+          model: modelRef('unreachable'),
+          prompt: 'hi',
+          use: [middlewareRef(name: 'throwingHook')],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.FAILED_PRECONDITION.name);
+        expect(res.error!.message, contains('hook exploded'));
+      });
+
+      test(
+        'a blocked model response skips output parsing (passes through)',
+        () async {
+          const modelName = 'blockedModel';
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async => ModelResponse(
+              // An abnormal finish with an empty (non-JSON) message: the parser
+              // must not run and turn this into a schema error.
+              finishReason: FinishReason.blocked,
+              finishMessage: 'safety',
+              message: Message(
+                role: .model,
+                content: [TextPart(text: '')],
+              ),
+            ),
+          );
+
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'give me json',
+            outputSchema: TestToolInput.$schema,
+          );
+
+          expect(res.finishReason, FinishReason.blocked);
+          expect(res.finishMessage, 'safety');
+        },
+      );
+
+      test('a schema-mismatched output resolves with the original message and '
+          'an error rather than throwing', () async {
+        const modelName = 'badJsonModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'this is not json at all')],
+            ),
+          ),
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'give me json',
+          outputSchema: TestToolInput.$schema,
+        );
+
+        // The model finished normally; parsing failed, but the response rides
+        // back with its message and finish reason intact under an error.
+        expect(res.finishReason, FinishReason.stop);
+        expect(res.text, contains('not json'));
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.INTERNAL.name);
+        expect(res.error!.message, contains('expected schema'));
+      });
     });
   });
 }

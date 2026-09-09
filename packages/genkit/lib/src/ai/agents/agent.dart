@@ -444,7 +444,6 @@ class SessionRunner<State> {
   /// The state the most recently successful turn left behind. On a failed turn
   /// this is the state the failed turn started with.
   SessionState? lastGoodState;
-  AgentFinishReason? _lastGoodFinishReason;
   int? lastGoodStateVersion;
   SessionSnapshot? _lastSnapshot;
   int _lastSnapshotVersion = 0;
@@ -622,7 +621,6 @@ class SessionRunner<State> {
 
           lastGoodState = session.getState();
           lastGoodStateVersion = session.getVersion();
-          _lastGoodFinishReason = finishReason;
 
           _notifyEndTurn(snapshotId, finishReason);
           return false;
@@ -672,52 +670,17 @@ class SessionRunner<State> {
     }
   }
 
-  /// Ensures the last-good state is persisted and returns its snapshotId.
+  /// Returns the snapshotId a failed invocation should report as its resume
+  /// point.
+  ///
+  /// A failed turn already committed its own `failed` snapshot via
+  /// [maybeSnapshot], and that row's state is the last-good history the failing
+  /// turn preserved, so it is a rerunnable resume point on *any* turn (not just
+  /// the first). Report it directly rather than writing a fresh `completed` row
+  /// from the prior turn's state, which would drop the failed turn's own user
+  /// message. Mirrors Go's `failedOutput`, which returns `lastSnapshotID`.
   Future<String?> ensureRecoverySnapshot() async {
-    if (_store == null || lastGoodState == null) {
-      return _lastSnapshot?.snapshotId;
-    }
-
-    if (lastGoodStateVersion != null &&
-        lastGoodStateVersion == _lastSnapshotVersion) {
-      return _lastSnapshot?.snapshotId;
-    }
-
-    // First-turn failure: the last-good state is the seed the client holds,
-    // so there is no prior turn snapshot to recover to. If this turn itself
-    // persisted a terminal (e.g. `failed`) snapshot, that row is the resume
-    // point; report it. Otherwise there is nothing to resume.
-    if (turnIndex == 0) {
-      return _lastSnapshot?.snapshotId;
-    }
-
-    final now = DateTime.now().toUtc().toIso8601String();
-    final snapshotInput = SessionSnapshot(
-      snapshotId: '',
-      sessionId: session.sessionId,
-      createdAt: now,
-      updatedAt: now,
-      state: lastGoodState!,
-      parentId: _lastSnapshot?.snapshotId,
-      status: SnapshotStatus.completed,
-      finishReason: _lastGoodFinishReason,
-    );
-
-    final assignedId = await _store.saveSnapshot(
-      null,
-      _abortAwareMutator(snapshotInput),
-      context: context,
-    );
-    if (assignedId == null) {
-      return _lastSnapshot?.snapshotId;
-    }
-
-    snapshotInput.snapshotId = assignedId;
-    _lastSnapshot = snapshotInput;
-    if (lastGoodStateVersion != null) {
-      _lastSnapshotVersion = lastGoodStateVersion!;
-    }
-    return assignedId;
+    return _lastSnapshot?.snapshotId;
   }
 
   /// Evaluates whether to save a snapshot to the persistent store.
