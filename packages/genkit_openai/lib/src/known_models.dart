@@ -375,6 +375,10 @@ enum KnownOpenAIModel {
       'gpt-3.5-turbo-16k',
       'gpt-3.5-turbo-16k-0613',
     ],
+    // Azure drops the dot from the model name. Without these, `gpt-35-turbo`
+    // is uncurated and takes the multimodal defaults, which would have Genkit
+    // send images to a text-only model.
+    aliases: ['gpt-35-turbo', 'gpt-35-turbo-16k'],
     stage: OpenAIModelStage.legacy,
   );
 
@@ -383,6 +387,7 @@ enum KnownOpenAIModel {
     this.label,
     this.supports, {
     this.snapshots = const [],
+    this.aliases = const [],
     this.stage = OpenAIModelStage.stable,
   });
 
@@ -397,6 +402,12 @@ enum KnownOpenAIModel {
 
   /// Dated snapshots that resolve to this model, excluding [id] itself.
   final List<String> snapshots;
+
+  /// Other names the same model answers to, which OpenAI itself does not
+  /// serve — an Azure deployment name, say. They resolve to these
+  /// capabilities but are deliberately absent from [versions], which
+  /// enumerates what OpenAI serves.
+  final List<String> aliases;
 
   /// Lifecycle stage, which decides whether the plugin registers this model
   /// as an action as well as how it describes it.
@@ -452,11 +463,12 @@ final List<String> knownChatModels = [
     if (model.stage != OpenAIModelStage.deprecated) model.id,
 ];
 
-/// Every curated name — aliases and dated snapshots alike — mapped to the
-/// catalog entry that describes it.
+/// Every curated name — the alias, its dated snapshots, and any alternate
+/// spelling — mapped to the catalog entry that describes it.
 final _knownOpenAIModelsByName = <String, KnownOpenAIModel>{
   for (final model in KnownOpenAIModel.values)
-    for (final name in model.versions) name.toLowerCase(): model,
+    for (final name in [...model.versions, ...model.aliases])
+      name.toLowerCase(): model,
 };
 
 final _datedSuffixPattern = RegExp(r'-\d{4}-\d{2}-\d{2}$');

@@ -38,7 +38,7 @@ void main() {
     test('no two entries claim the same name', () {
       final seen = <String, String>{};
       for (final model in KnownOpenAIModel.values) {
-        for (final name in model.versions) {
+        for (final name in [...model.versions, ...model.aliases]) {
           expect(
             seen,
             isNot(contains(name)),
@@ -51,7 +51,7 @@ void main() {
 
     test('every name is lower-case, as the OpenAI catalog is', () {
       for (final model in KnownOpenAIModel.values) {
-        for (final name in model.versions) {
+        for (final name in [...model.versions, ...model.aliases]) {
           expect(name, name.toLowerCase());
         }
       }
@@ -80,7 +80,7 @@ void main() {
 
     test('every entry resolves to itself', () {
       for (final model in KnownOpenAIModel.values) {
-        for (final name in model.versions) {
+        for (final name in [...model.versions, ...model.aliases]) {
           expect(knownOpenAIModelFor(name), model, reason: name);
         }
       }
@@ -105,6 +105,16 @@ void main() {
     test('strips a dated snapshot suffix', () {
       expect(openAIModelAlias('gpt-4o-2024-08-06'), 'gpt-4o');
       expect(openAIModelAlias('o3-2025-04-16'), 'o3');
+    });
+
+    test('an alternate spelling resolves but is not a version', () {
+      final turbo = knownOpenAIModelFor('gpt-35-turbo');
+
+      expect(turbo, KnownOpenAIModel.gpt35Turbo);
+      // Azure's spelling resolves, but OpenAI does not serve it, so it must
+      // not appear in the versions the catalog advertises.
+      expect(turbo!.versions, isNot(contains('gpt-35-turbo')));
+      expect(modelInfoFor('gpt-35-turbo').supports, textOnlyLegacySupports);
     });
 
     test('leaves undated names alone', () {
