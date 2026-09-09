@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:logging/logging.dart';
 
 import '../core/action.dart';
+import '../core/cancellation.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../schema_extensions.dart';
@@ -72,6 +73,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   dynamic config,
   List<String>? tools,
   String? system,
+  CancellationToken? cancel,
 }) async {
   final model =
       await registry.lookupAction(.bidiModel, modelName) as BidiModel?;
@@ -109,7 +111,20 @@ Future<GenerateBidiSession> runGenerateBidi(
     tools: toolDefs,
   );
 
-  final session = model.streamBidi(init: initRequest);
+  final session = model.streamBidi(init: initRequest, cancel: cancel);
+  // Close the input side of the session when cancellation is requested so no
+  // further turns can be sent; the model's own `cancel` handling stops the
+  // in-flight turn. Capture the disposer and drop it once the session settles
+  // so a reused, long-lived `cancel` token doesn't leak this closure (and the
+  // session it pins) across sessions.
+  final unsubscribe = cancel?.onCancel(() => unawaited(session.close()));
+  if (unsubscribe != null) {
+    // `whenComplete` returns a *new* future that re-completes with the same
+    // error; `ignore()` it so a session that settles with an error (e.g. a
+    // transport failure) does not surface a duplicate unhandled async error via
+    // this cleanup hook (the caller already sees it through `outputController`).
+    session.onResult.whenComplete(unsubscribe).ignore();
+  }
 
   final outputController = StreamController<GenerateResponseChunk>();
   final previousChunks = <ModelResponseChunk>[];
@@ -164,10 +179,17 @@ Future<GenerateBidiSession> runGenerateBidi(
             try {
               result = (await tool.runRaw(
                 toolRequest.toolRequest.input,
+                cancel: cancel,
               )).result;
             } on ToolInterruptException {
               // Deprecated throwing interrupt form.
               throw bidiInterruptUnsupported();
+            } on CancelledException {
+              // A cooperative cancel tears the session down (the cancel hook
+              // above calls `session.close()`). Propagate it rather than turn it
+              // into a fabricated `Error: ...cancelled` tool answer that would
+              // be sent back to the model on an already-closed input sink.
+              rethrow;
             } catch (e) {
               toolResponses.add(
                 ToolResponsePart(

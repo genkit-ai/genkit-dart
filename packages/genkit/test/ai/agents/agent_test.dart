@@ -478,6 +478,52 @@ void main() {
       expect(prior?.value, 'completed');
     });
 
+    test('an attached AgentTurn.abort() persists the turn as aborted, not '
+        'completed', () async {
+      // Regression: the attached abort route (`AgentTurn.abort()` -> token
+      // cancel) writes nothing to the store itself, so without the run loop's
+      // `status: 'aborted'` write the trailing `invocationEnd` snapshot would
+      // persist the half-finished turn as `completed` - and a later `loadChat`
+      // would then pick it as the last-good resume point.
+      final store = InMemorySessionStore();
+      final handlerRunning = Completer<void>();
+      final proceed = Completer<void>();
+      final agent = ai.defineCustomAgent(
+        name: 'attachedAbortable',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'count': 1});
+            // Signal that the turn is in flight, then stay in flight until the
+            // test aborts the attached turn (cancelling this turn's token).
+            if (!handlerRunning.isCompleted) handlerRunning.complete();
+            await proceed.future;
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+      final turn = chat.sendStream(text: 'go');
+      // Drain the stream so the turn progresses.
+      final drained = turn.stream.drain<void>();
+
+      await handlerRunning.future;
+      turn.abort(); // cancels this turn's token (attached route)
+      proceed.complete();
+
+      await turn.response;
+      await drained;
+
+      // The latest snapshot for the session must be `aborted`, never the
+      // `completed` a stray `invocationEnd` write would have produced.
+      final snapshot = await agent.getSnapshot(sessionId: sessionId);
+      expect(snapshot, isNotNull);
+      expect(snapshot!.status?.value, 'aborted');
+    });
+
     test('abortAgentAction round-trips typed request/response', () async {
       final store = InMemorySessionStore();
       final agent = ai.defineCustomAgent(

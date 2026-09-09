@@ -47,9 +47,16 @@ import 'session.dart';
 /// ended (e.g. `interrupted`, `length`). When omitted, no per-turn reason is
 /// reported.
 class TurnResult {
-  TurnResult({this.finishReason});
+  TurnResult({this.finishReason, this.finishMessage});
 
   final AgentFinishReason? finishReason;
+
+  /// An optional human-readable message describing why the turn ended.
+  ///
+  /// Carries, for example, the "Reached max turns of N" text from a generation
+  /// that overran its turn limit, so the [SessionRunner] can surface it rather
+  /// than dropping it.
+  final String? finishMessage;
 }
 
 /// Per-turn context handed to the handler passed to [SessionRunner.run].
@@ -390,10 +397,64 @@ class SessionRunner<State> {
       );
 
       try {
-        await runInNewSpan('runTurn-${turnIndex + 1}', (_) async {
+        final aborted = await runInNewSpan('runTurn-${turnIndex + 1}', (
+          _,
+        ) async {
           final turnResult = await fn(input, turnContext);
 
+          // The generate loop now resolves (rather than throws) on a
+          // cooperative cancel, so a returned turn can still be an abort. Mirror
+          // the catch-path handling: record `aborted`, skip the `completed`
+          // snapshot (the abort path already persisted `aborted`, and the
+          // abort-aware mutator would skip a late `completed` write anyway), and
+          // stop processing further inputs.
+          if (cancel?.isCancelled ?? false) {
+            lastTurnFinishReason = AgentFinishReason.aborted;
+            lastTurnError = null;
+            // Persist the turn as `aborted`. The detached route already wrote
+            // `aborted` via `_abortSnapshotInStore`, in which case the
+            // abort-aware mutator makes this a no-op; but the attached route
+            // (`AgentTurn.abort()` -> token cancel) has written nothing, so
+            // without this the trailing `invocationEnd` snapshot would persist a
+            // half-finished turn as `completed` and later be picked as a resume
+            // point.
+            final snapshotId = await maybeSnapshot(
+              status: 'aborted',
+              snapshotId: turnSnapshotId,
+              finishReason: AgentFinishReason.aborted,
+            );
+            _notifyEndTurn(
+              snapshotId ?? _lastSnapshot?.snapshotId,
+              AgentFinishReason.aborted,
+            );
+            return true;
+          }
+
           final finishReason = turnResult?.finishReason;
+
+          // A turn that resolved `aborted` *without* the token being cancelled
+          // is not a cooperative cancel: it is an overrun (e.g. the generate
+          // loop hit `maxTurns`). Route it to the failure path so the reason
+          // (e.g. "Reached max turns of N") surfaces as an error instead of
+          // being silently dropped as a success with a null message.
+          if (finishReason == AgentFinishReason.aborted) {
+            lastTurnFinishReason = AgentFinishReason.failed;
+            lastTurnError = toErrorDetails(
+              GenkitException(
+                turnResult?.finishMessage ?? 'Turn aborted.',
+                status: StatusCodes.ABORTED,
+              ),
+            );
+            final snapshotId = await maybeSnapshot(
+              status: 'failed',
+              error: lastTurnError,
+              snapshotId: turnSnapshotId,
+              finishReason: AgentFinishReason.failed,
+            );
+            _notifyEndTurn(snapshotId, AgentFinishReason.failed);
+            return true;
+          }
+
           lastTurnFinishReason = finishReason;
           lastTurnError = null;
 
@@ -408,8 +469,9 @@ class SessionRunner<State> {
           _lastGoodFinishReason = finishReason;
 
           _notifyEndTurn(snapshotId, finishReason);
-          return 0;
+          return false;
         }, input: input);
+        if (aborted) break;
         turnIndex++;
       } catch (e) {
         // An aborted turn rejects out of `generate` and lands here. Treat it as
@@ -857,44 +919,43 @@ final class _InProcessTransport extends AgentTransport {
 
   BidiActionStream<AgentStreamChunk, AgentOutput, AgentInput> _startBidi(
     AgentInput input,
-    AgentInit init, [
+    AgentInit init, {
     Map<String, dynamic>? context,
-  ]) {
-    final bidi = primaryAction.streamBidi(init: init, context: context);
+    CancellationToken? cancel,
+  }) {
+    final bidi = primaryAction.streamBidi(
+      init: init,
+      context: context,
+      cancel: cancel,
+    );
     bidi.send(input);
     bidi.close();
     return bidi;
   }
 
-  // NOTE: [cancel] is accepted to satisfy the [AgentTransport] contract but is
-  // not threaded into `generate` on the in-process transport today, so it does
-  // not stop an in-flight model call for an *attached* turn. Cooperative
-  // cancellation currently only takes effect on the detached path: `abort`
-  // flips the persisted snapshot to `aborted`, and a detached worker observing
-  // that (via `SnapshotChangeNotifier`) cancels its own turn. Aborting an
-  // attached in-process turn is therefore effectively persist-only. Threading
-  // cancellation through `generate` to cancel attached turns is future work.
+  // [cancel] is threaded into the agent action's `generate` call (via
+  // `streamBidi`), so aborting an attached in-process turn cooperatively stops
+  // the in-flight model call. The detached path additionally observes the
+  // persisted `aborted` status via `SnapshotChangeNotifier`.
   @override
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
-    final bidi = _startBidi(input, init, context);
+    final bidi = _startBidi(input, init, context: context, cancel: cancel);
     return (stream: bidi, output: bidi.onResult);
   }
 
-  // See [runTurn]: [cancel] is not wired into `generate` here, so aborting an
-  // attached in-process turn is persist-only (does not stop the model).
   @override
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
-    return _startBidi(input, init, context).onResult;
+    return _startBidi(input, init, context: context, cancel: cancel).onResult;
   }
 
   @override
@@ -1111,7 +1172,18 @@ Agent<State> defineCustomAgent<State>(
 
           String? detachedSnapshotId;
           final detachCompleter = Completer<void>();
-          final cancelToken = CancellationToken();
+          // Own a controller for this turn (cancelled on detach-abort or when
+          // the persisted snapshot flips to `aborted`) and link the ambient
+          // transport token to it, so an attached `runTurn(cancel:)` also
+          // cooperatively stops this turn's `generate`.
+          final cancelController = CancellationController();
+          // Capture the disposer so a reused, long-lived `ctx.cancel` token
+          // doesn't accumulate one stranded listener (pinning this turn's
+          // controller and closure) per turn. Disposed when the flow settles.
+          // `link` forwards the cancellation reason so a caller-supplied
+          // `controller.cancel('...')` survives the hop into this turn's token.
+          final unlinkCancel = ctx.cancel?.link(cancelController);
+          final cancelToken = cancelController.token;
           void Function()? unsubscribe;
           // Background heartbeat timer for the detached snapshot. Started in
           // `onDetach`, cleared when the flow settles (or on abort).
@@ -1190,7 +1262,7 @@ Agent<State> defineCustomAgent<State>(
                     .onSnapshotStateChange(snapshotId, (snap) {
                       if (snap.status?.value == 'aborted') {
                         stopHeartbeat();
-                        cancelToken.cancel();
+                        cancelController.cancel();
                         localUnsubscribe?.call();
                       }
                     }, context: ctx.context);
@@ -1275,6 +1347,7 @@ Agent<State> defineCustomAgent<State>(
               // The turn has settled (the snapshot reached a terminal status),
               // so stop refreshing its heartbeat.
               stopHeartbeat();
+              unlinkCancel?.call();
               unsubscribe?.call();
               offArtifactAdded();
               offArtifactUpdated();
@@ -1569,9 +1642,16 @@ Agent<State> definePromptAgent<State>(
         context: options.context,
         inputStream: null,
         init: null,
+        cancel: options.cancel,
       ));
 
-      // Keep everything that is NOT a prompt-template message.
+      final aborted = res.finishReason == FinishReason.aborted;
+
+      // Keep everything that is NOT a prompt-template message. On an aborted
+      // turn `res.message` is null; the abort path already carries the last-good
+      // history in `res.modelRequest`, so leaving `keep` without a trailing
+      // model message preserves the user turn as the resume point rather than
+      // treating the user's own message as the model reply.
       final reqMessages = res.modelRequest?.messages;
       if (reqMessages != null) {
         final keep = reqMessages
@@ -1599,13 +1679,18 @@ Agent<State> definePromptAgent<State>(
       final reason = res.finishReason;
       return TurnResult(
         finishReason: reason != null ? AgentFinishReason(reason.value) : null,
+        finishMessage: aborted ? res.finishMessage : null,
       );
     });
 
     final msgs = sess.getMessages();
+    // Only surface the last message as the agent's reply when it is actually a
+    // model turn. An aborted turn leaves the user message last (see above), so
+    // returning it would echo the user's prompt back as the agent's reply.
+    final lastMessage = msgs.isNotEmpty ? msgs.last : null;
     return AgentResult(
       artifacts: sess.getArtifacts(),
-      message: msgs.isNotEmpty ? msgs.last : null,
+      message: lastMessage?.role == Role.model ? lastMessage : null,
       finishReason: sess.lastTurnFinishReason,
     );
   }

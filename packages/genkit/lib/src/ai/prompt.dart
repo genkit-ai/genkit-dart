@@ -18,6 +18,7 @@ import 'package:dotprompt/dotprompt.dart' as dp;
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
+import '../core/cancellation.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../o11y/instrumentation.dart';
@@ -136,6 +137,11 @@ class PromptGenerateOptions<CustomOptions> {
   final List<GenerateMiddlewareRef>? use;
   final List<Message>? messages;
 
+  /// Cooperative cancellation token, observed by the model call, tools, and
+  /// middleware to abort generation. A cancelled call resolves with a response
+  /// whose `finishReason` is `FinishReason.aborted` (rather than throwing).
+  final CancellationToken? cancel;
+
   PromptGenerateOptions({
     this.model,
     this.config,
@@ -148,6 +154,7 @@ class PromptGenerateOptions<CustomOptions> {
     this.context,
     this.use,
     this.messages,
+    this.cancel,
   });
 }
 
@@ -335,6 +342,7 @@ class ExecutablePrompt<Input> {
           maxTurns: options.maxTurns,
           output: options.output,
           context: opts?.context,
+          cancel: opts?.cancel,
           middleware: middleware.isNotEmpty ? middleware : null,
           onChunk: onChunk,
         );

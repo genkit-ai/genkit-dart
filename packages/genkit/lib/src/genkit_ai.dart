@@ -24,6 +24,7 @@ import 'ai/generate_types.dart';
 import 'ai/model.dart';
 import 'ai/tool.dart';
 import 'core/action.dart';
+import 'core/cancellation.dart';
 import 'core/registry.dart';
 import 'exception.dart';
 import 'o11y/instrumentation.dart';
@@ -85,6 +86,7 @@ base class GenkitAI {
     List<Tool>? tools,
     List<String>? toolNames,
     String? system,
+    CancellationToken? cancel,
   }) {
     final resolved = _resolveTools(
       registry,
@@ -97,6 +99,7 @@ base class GenkitAI {
       config: config,
       tools: resolved.toolNames,
       system: system,
+      cancel: cancel,
     );
   }
 
@@ -122,6 +125,10 @@ base class GenkitAI {
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
     List<GenerateMiddlewareRef>? use,
+
+    /// Cooperative cancellation token, observed by the model call, tools, and
+    /// middleware to abort generation.
+    CancellationToken? cancel,
 
     /// Optional data to resume an interrupted generation session.
     ///
@@ -187,6 +194,7 @@ base class GenkitAI {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
+      cancel: cancel,
       middleware: use
           ?.map<GenerateMiddlewareOneof>(
             (mw) => (middlewareRef: mw, middlewareInstance: null),
@@ -221,7 +229,13 @@ base class GenkitAI {
     if (outputSchema != null) {
       return GenerateResponseHelper(
         rawResponse.rawResponse,
-        output: outputSchema.parse(rawResponse.output),
+        request: rawResponse.modelRequest,
+        // An aborted response carries no output; guard the parse so the
+        // aborted response (with its resumable history) survives structured
+        // output calls too.
+        output: rawResponse.output == null
+            ? null
+            : outputSchema.parse(rawResponse.output),
       );
     } else {
       return GenerateResponseHelper(
@@ -254,6 +268,7 @@ base class GenkitAI {
     String? outputContentType,
     Map<String, dynamic>? context,
     List<GenerateMiddlewareRef>? use,
+    CancellationToken? cancel,
     List<InterruptResponse>? interruptRespond,
     List<ToolRequestPart>? interruptRestart,
   }) {
@@ -283,6 +298,7 @@ base class GenkitAI {
           outputNoInstructions: outputNoInstructions,
           outputContentType: outputContentType,
           use: use,
+          cancel: cancel,
           interruptRespond: interruptRespond,
           interruptRestart: interruptRestart,
           onChunk: (chunk) {

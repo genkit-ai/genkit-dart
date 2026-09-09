@@ -278,77 +278,65 @@ void main() {
       },
     );
 
-    test('should throw an error when maxTurns is reached', () async {
-      const modelName = 'maxTurnsModel';
-      const toolName = 'testTool';
+    test(
+      'should return an aborted response when maxTurns is reached',
+      () async {
+        const modelName = 'maxTurnsModel';
+        const toolName = 'testTool';
 
-      genkit.defineModel(
-        name: modelName,
-        fn: (request, context) async {
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [
-                ToolRequestPart(
-                  toolRequest: ToolRequest(
-                    name: toolName,
-                    input: {'name': 'world'},
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: toolName,
+                      input: {'name': 'world'},
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+                ],
+              ),
+            );
+          },
+        );
 
-      genkit.defineTool(
-        name: toolName,
-        description: 'A test tool',
-        inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
-          return .response('tool output');
-        },
-      );
+        genkit.defineTool(
+          name: toolName,
+          description: 'A test tool',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, context) async {
+            return .response('tool output');
+          },
+        );
 
-      await expectLater(
-        () => genkit.generate(
+        // Exceeding maxTurns now resolves gracefully with an aborted response
+        // that carries the accumulated history, rather than throwing.
+        final res = await genkit.generate(
           model: modelRef(modelName),
           prompt: 'Use a tool',
           // this tool causes an infinite tool call loop
+
           toolNames: [toolName],
           maxTurns: 5,
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.ABORTED)
-              .having(
-                (e) => e.message,
-                'message',
-                contains('Adjust maxTurns option'),
-              ),
-        ),
-      );
+        );
+        expect(res.finishReason, FinishReason.aborted);
+        expect(res.finishMessage, contains('Adjust maxTurns option'));
+        expect(res.messages, isNotEmpty);
 
-      await expectLater(
-        () => genkit.generate(
+        // maxTurns is not specified, should still use the default (5).
+        final resDefault = await genkit.generate(
           model: modelRef(modelName),
           prompt: 'Use a tool',
-          // this tool causes an infinite tool call loop
           toolNames: [toolName],
-          // maxTurns is not specified, should still use default (5).
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.ABORTED)
-              .having(
-                (e) => e.message,
-                'message',
-                contains('Adjust maxTurns option'),
-              ),
-        ),
-      );
-    });
+        );
+        expect(resDefault.finishReason, FinishReason.aborted);
+        expect(resDefault.finishMessage, contains('Adjust maxTurns option'));
+      },
+    );
 
     test('should return full message history in response.messages', () async {
       const modelName = 'historyModel';

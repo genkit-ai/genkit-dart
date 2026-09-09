@@ -289,6 +289,7 @@ extension type FinishReason(String value) {
   static FinishReason get stop => FinishReason('stop');
   static FinishReason get length => FinishReason('length');
   static FinishReason get blocked => FinishReason('blocked');
+  static FinishReason get aborted => FinishReason('aborted');
   static FinishReason get interrupted => FinishReason('interrupted');
   static FinishReason get other => FinishReason('other');
   static FinishReason get unknown => FinishReason('unknown');

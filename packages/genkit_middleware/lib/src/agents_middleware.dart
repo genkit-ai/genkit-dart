@@ -336,9 +336,18 @@ class AgentsMiddleware extends GenerateMiddleware {
         );
       }
 
-      // ── Failure: surface the error to the orchestrator ────────────────
-      if (output.finishReason == AgentFinishReason.failed) {
-        final message = output.error?.message ?? 'Unknown sub-agent failure.';
+      // ── Failure / abort: surface the error to the orchestrator ────────
+      // A sub-agent that fails or overruns its turn limit now resolves with a
+      // `failed`/`aborted` finishReason (rather than throwing). Both are
+      // surfaced to the orchestrator as an error string instead of degrading
+      // to an empty '(no response)'.
+      if (output.finishReason == AgentFinishReason.failed ||
+          output.finishReason == AgentFinishReason.aborted) {
+        final message =
+            output.error?.message ??
+            (output.finishReason == AgentFinishReason.aborted
+                ? 'Sub-agent turn was aborted.'
+                : 'Unknown sub-agent failure.');
         return AgentDelegationResult(
           response: "Error calling agent '$agentName': $message",
         );

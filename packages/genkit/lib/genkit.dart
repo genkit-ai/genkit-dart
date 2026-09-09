@@ -43,6 +43,7 @@ export 'src/ai/agents/agent_core.dart'
         AgentSnapshot,
         AgentTransport,
         AgentTurn,
+        CancellationController,
         CancellationToken,
         DetachedTask,
         TurnStream;
@@ -106,10 +107,10 @@ export 'src/ai/tool.dart'
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;
-
 export 'src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata, ActionType;
-
+export 'src/core/cancellation.dart'
+    show CancellationController, CancellationToken, CancelledException;
 export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
 export 'src/exception.dart' show GenkitException, StatusCodes;

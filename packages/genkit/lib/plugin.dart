@@ -46,6 +46,8 @@ export 'package:genkit/src/ai/tool.dart'
         ToolResult;
 export 'package:genkit/src/core/action.dart'
     show Action, ActionFnArg, ActionMetadata, ActionType;
+export 'package:genkit/src/core/cancellation.dart'
+    show CancellationController, CancellationToken, CancelledException;
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/core/registry.dart' show Registry;
 export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;

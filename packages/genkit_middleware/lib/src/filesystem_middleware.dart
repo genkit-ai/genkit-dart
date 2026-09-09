@@ -387,6 +387,12 @@ class FilesystemMiddleware extends GenerateMiddleware {
   ) async {
     try {
       return await next(request, ctx);
+    } on CancelledException {
+      // A cooperative cancellation must propagate so the generation loop can
+      // abort. Converting it into an error tool response (below) would let the
+      // loop continue and record a fabricated "cancelled" tool result in the
+      // resumable history.
+      rethrow;
     } catch (e) {
       // Check if this tool is one of ours
       if ([

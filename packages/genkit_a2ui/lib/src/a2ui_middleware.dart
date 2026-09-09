@@ -250,6 +250,7 @@ class A2uiMiddleware extends GenerateMiddleware {
         context: ctx.context,
         inputStream: ctx.inputStream,
         init: null,
+        cancel: ctx.cancel,
       );
     }
 

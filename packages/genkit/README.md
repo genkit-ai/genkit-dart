@@ -268,6 +268,43 @@ if (response.finishReason == FinishReason.interrupted) {
 }
 ```
 
+### Cancellation
+
+Cancel an in-flight `generate` or `generateStream` call. You create a `CancellationController`, pass its `token` into `generate`, and call `cancel()` when you want to stop (e.g. the user hits "stop").
+
+Cancellation is **cooperative and best-effort**: it prevents further work — additional turns, the tool loop, and (where the plugin supports it) aborting the in-flight model call. When work is actually interrupted, the call resolves — rather than throwing — with a response whose `finishReason` is `FinishReason.aborted`. That aborted response has no model message, but `response.messages` carries the last-good conversation history, so you can resume from where you left off by passing it back into a fresh `generate` with a new token.
+
+If the model call happens to complete before the cancellation takes effect, its result is returned normally (e.g. `finishReason: stop` with the full message) — the completed work is not discarded. Whether a mid-flight cancel yields `aborted` or a completed result therefore depends on the plugin: plugins that tear down their transport on cancel (e.g. `genkit_google_genai`) surface `aborted` promptly, while others may run the request to completion.
+
+
+```dart
+// Kick off a generation we can interrupt.
+final controller = CancellationController();
+// Simulate the user pressing "stop" mid-flight.
+Timer(const Duration(milliseconds: 200), () {
+  controller.cancel('user pressed stop');
+});
+
+final aborted = await ai.generate(
+  model: googleAI.gemini('gemini-flash-latest'),
+  prompt: 'Explain quantum computing in detail.',
+  cancel: controller.token,
+);
+
+if (aborted.finishReason == FinishReason.aborted) {
+  print('Cancelled: ${aborted.finishMessage}');
+
+  // Resume: reuse the preserved history.
+  final resumed = await ai.generate(
+    model: googleAI.gemini('gemini-flash-latest'),
+    messages: aborted.messages, // last-good conversation state
+  );
+  print(resumed.text);
+}
+```
+
+The same aborted-response path is used when a generation exceeds its `maxTurns` limit (`finishMessage` contains "max turns"), so the same resume pattern applies after bumping `maxTurns`.
+
 ### Middleware
 
 Intercept and modify requests and responses with middleware. Genkit provides built-in middleware like `retry` for robust error handling. Check out the [genkit_middleware](https://pub.dev/packages/genkit_middleware) package for more specialized middleware like tool approval, filesystem access, and skills.
