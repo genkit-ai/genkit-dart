@@ -591,6 +591,83 @@ void main() {
         expect(count, countAfterUnsub);
       });
     });
+
+    group('metadata reads', () {
+      test('getSnapshotMetadata drops state but keeps metadata', () async {
+        final store = newStore();
+        await store.saveSnapshot(
+          's1',
+          (_) => _snap(
+            snapshotId: 's1',
+            sessionId: 'sess',
+            custom: {'n': 1},
+            status: SnapshotStatus.completed,
+          ),
+        );
+
+        final meta = await store.getSnapshotMetadata('s1');
+        expect(meta!.snapshotId, 's1');
+        expect(meta.sessionId, 'sess');
+        expect(meta.status?.value, 'completed');
+        expect(meta.state, isNull);
+      });
+
+      test('getSnapshotMetadata returns null for a missing snapshot', () async {
+        final store = newStore();
+        expect(await store.getSnapshotMetadata('nope'), isNull);
+      });
+
+      test(
+        'getLatestSnapshotMetadata resolves the leaf without state',
+        () async {
+          final store = newStore(checkpointInterval: 100);
+          await store.saveSnapshot(
+            'a',
+            (_) => _snap(
+              snapshotId: 'a',
+              sessionId: 'sess',
+              createdAt: '2020-01-01T00:00:00.000Z',
+              custom: {'v': 1},
+            ),
+          );
+          await store.saveSnapshot(
+            'b',
+            (_) => _snap(
+              snapshotId: 'b',
+              sessionId: 'sess',
+              parentId: 'a',
+              createdAt: '2020-01-01T00:00:01.000Z',
+              custom: {'v': 2},
+            ),
+          );
+
+          final meta = await store.getLatestSnapshotMetadata('sess');
+          expect(meta!.snapshotId, 'b');
+          expect(meta.sessionId, 'sess');
+          expect(meta.state, isNull);
+        },
+      );
+
+      test('getLatestSnapshotMetadata returns null for a missing session', () {
+        final store = newStore();
+        return expectLater(
+          store.getLatestSnapshotMetadata('nope'),
+          completion(isNull),
+        );
+      });
+
+      test('metadata reads validate their id like getSnapshot', () async {
+        final store = newStore();
+        expect(
+          () => store.getSnapshotMetadata(''),
+          throwsA(isA<GenkitException>()),
+        );
+        expect(
+          () => store.getLatestSnapshotMetadata(''),
+          throwsA(isA<GenkitException>()),
+        );
+      });
+    });
   });
 }
 

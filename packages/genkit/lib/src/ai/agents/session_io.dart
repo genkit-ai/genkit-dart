@@ -287,19 +287,23 @@ class FileSessionStore
     String snapshotId, {
     Map<String, dynamic>? context,
   }) async {
+    normalizeGetSnapshotOptions(snapshotId: snapshotId);
     final file = await _fileFor(snapshotId, context);
     if (!file.existsSync()) return null;
-    try {
-      // Drop `state` off the decoded map before parsing, so the (possibly
-      // large) state payload is never materialized into a SessionState and we
-      // avoid the re-serialize a `stripSnapshotState` on the full row would do.
-      final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>
-        ..remove('state');
-      return SessionSnapshot.fromJson(json);
-    } catch (_) {
-      // Corrupt / concurrently-deleted file: treat as missing.
-      return null;
-    }
+    // Let a corrupt / unreadable file throw, exactly as the full read
+    // (`_snapshotById`) does, so a caller can tell corruption apart from "not
+    // found" (a truncated file must not read as a missing snapshot).
+    final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    // Promote the resolved sessionId before dropping `state` so identity (and
+    // the pointer fast path in `getLatestSnapshotMetadata`) survives a row that
+    // carried it only under `state`; then drop `state` so the (possibly large)
+    // payload is never materialized into a SessionState.
+    final sessionId =
+        (json['sessionId'] as String?) ??
+        (json['state'] as Map<String, dynamic>?)?['sessionId'] as String?;
+    json.remove('state');
+    if (sessionId != null) json['sessionId'] = sessionId;
+    return SessionSnapshot.fromJson(json);
   }
 
   @override
@@ -307,11 +311,13 @@ class FileSessionStore
     String sessionId, {
     Map<String, dynamic>? context,
   }) async {
+    normalizeGetSnapshotOptions(sessionId: sessionId);
     // Fast path via the pointer file (skipped when we must detect branching):
     // resolve the leaf id and read its metadata directly. Honor the pointer
     // only when the leaf still exists and belongs to this session; a stale or
-    // foreign pointer falls through to the scan below, matching
-    // `_latestSnapshotForSession`.
+    // foreign pointer falls through to the scan below. A corrupt pointer target
+    // propagates, exactly as the full read's fast path (`_snapshotById` in
+    // `_latestSnapshotForSession`) does, so the two paths stay identical.
     if (!rejectBranchingSessions) {
       final pointer = await _readPointer(sessionId, context);
       if (pointer != null) {
