@@ -127,6 +127,37 @@ void main() {
       expect(hasContent, isTrue);
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
+    test('a schema-less tool round-trips', () async {
+      // The counterpart to the test above, which declares an inputSchema. A
+      // tool without one has to reach OpenAI as a valid empty object schema;
+      // this only fails against the real API, which is why it lives here.
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+      var toolRan = false;
+      ai.defineTool(
+        name: 'getTime',
+        description: 'Returns the current time',
+        fn: (input, ctx) async {
+          toolRan = true;
+          return .response({'time': '12:00'});
+        },
+      );
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Use the getTime tool to tell me the current time.',
+        toolNames: ['getTime'],
+      );
+
+      expect(response.message, isNotNull);
+      expect(toolRan, isTrue);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
     test('o-series tool calling executes the tool', () async {
       if (apiKey == null || apiKey.isEmpty) {
         fail(
