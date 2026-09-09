@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/telemetry.dart';
+import 'package:genkit/src/o11y/telemetry/span_data.dart';
 
 /// A [SpanSink] that records exported spans in memory for assertions.
 ///
-/// [DirectHttpInstrumentation] exports each span twice: once when it starts
+/// The direct-HTTP instrumentation exports each span twice: once when it starts
 /// (with `endTimeUnixNano == 0`) and once when it finishes. [spans] holds every
-/// export; use [finished] to filter to completed spans. Use with
-/// `configureInstrumentation(DirectHttpInstrumentation(sink))`.
+/// export; use [finished] to filter to completed spans.
 class RecordingSpanSink implements SpanSink {
   final List<GenkitSpanData> spans = [];
   var _isShutdown = false;

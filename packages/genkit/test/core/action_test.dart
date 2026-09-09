@@ -13,7 +13,9 @@
 // limitations under the License.
 
 import 'package:genkit/src/core/action.dart';
-import 'package:genkit/telemetry.dart';
+import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
+import 'package:genkit/src/o11y/instrumentation.dart'
+    show configureInstrumentation, resetInstrumentation;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 

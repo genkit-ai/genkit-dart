@@ -194,8 +194,10 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
           jsonEncode({'result': result.result}),
           headers: {
             'Content-Type': 'application/json',
-            'x-genkit-trace-id': result.traceId,
-            'x-genkit-span-id': result.spanId,
+            // Omit trace/span headers when uninstrumented (empty ids): a blank
+            // value looks like a broken exporter to clients.
+            if (result.traceId.isNotEmpty) 'x-genkit-trace-id': result.traceId,
+            if (result.spanId.isNotEmpty) 'x-genkit-span-id': result.spanId,
           },
         );
       } catch (e) {

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 import 'direct_http_instrumentation.dart';
+import 'instrumentation.dart' show configureInstrumentation, isInstrumentedBy;
 import 'instrumentation_api.dart';
 import 'telemetry/collector_http_sink.dart';
-import 'telemetry/span_data.dart';
 import 'telemetry/telemetry_platform.dart';
 
 /// Marker mixed into Genkit's built-in instrumentation so `Genkit` can detect
@@ -41,12 +41,19 @@ Instrumentation? genkitDevInstrumentation() {
   return _DirectBuiltin(CollectorHttpSink('$server/api/otlp'));
 }
 
-/// Builds a [DirectHttpInstrumentation] that posts to [server]`/api/otlp`.
+/// Enables the built-in dev instrumentation targeting [server], as requested by
+/// the CLI reflection handshake (`telemetryServerUrl`).
 ///
-/// Exposed for tests and advanced callers that want the custom tracer without
-/// the dev-environment auto-detection.
-Instrumentation directHttpInstrumentation(String server, {SpanSink? sink}) {
-  return DirectHttpInstrumentation(
-    sink ?? CollectorHttpSink('$server/api/otlp'),
+/// The `GENKIT_TELEMETRY_SERVER` environment variable takes precedence: when it
+/// is set, the env-configured instrumentation wins and this is a no-op. Also a
+/// no-op when a built-in provider is already registered, so repeated handshakes
+/// never double-instrument.
+void enableDevInstrumentationForServer(String server) {
+  if (server.isEmpty) return;
+  // Env var wins; if set, the dev instrumentation is already configured off it.
+  if (genkitTelemetryServerUrl() != null) return;
+  if (isInstrumentedBy<GenkitBuiltinInstrumentation>()) return;
+  configureInstrumentation(
+    _DirectBuiltin(CollectorHttpSink('$server/api/otlp')),
   );
 }

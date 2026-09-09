@@ -28,36 +28,14 @@
 /// }
 /// ```
 ///
-/// By default Genkit is not instrumented. In the dev environment the built-in
-/// instrumentation (`genkitDevInstrumentation`) is auto-injected so the
-/// Developer UI works out of the box. It runs independently of OpenTelemetry,
-/// posting Genkit's spans directly to the Genkit telemetry server over HTTP.
+/// By default Genkit is not instrumented. In the dev environment a built-in
+/// provider is auto-injected only when a Genkit telemetry server is configured
+/// (via the `GENKIT_TELEMETRY_SERVER` environment variable, or the CLI
+/// reflection handshake), so the Developer UI receives traces. That built-in
+/// runs independently of OpenTelemetry, posting Genkit's spans directly to the
+/// server over HTTP. In production, configure a provider explicitly with
+/// `configureInstrumentation`.
 library;
 
-export 'src/o11y/direct_http_instrumentation.dart'
-    show DirectHttpInstrumentation;
-
 export 'src/o11y/instrumentation.dart'
-    show
-        Instrumentation,
-        SpanContext,
-        SpanMetadata,
-        configureInstrumentation,
-        isInstrumentedBy,
-        resetInstrumentation,
-        runInNewSpan,
-        setCustomMetadataAttributes;
-export 'src/o11y/instrumentation_setup.dart'
-    show
-        GenkitBuiltinInstrumentation,
-        directHttpInstrumentation,
-        genkitDevInstrumentation;
-export 'src/o11y/telemetry/collector_http_sink.dart' show CollectorHttpSink;
-export 'src/o11y/telemetry/span_data.dart'
-    show
-        GenkitSpanData,
-        GenkitSpanKind,
-        GenkitSpanStatus,
-        GenkitStatusCode,
-        SpanSink,
-        encodeResourceSpans;
+    show Instrumentation, SpanContext, SpanMetadata, configureInstrumentation;

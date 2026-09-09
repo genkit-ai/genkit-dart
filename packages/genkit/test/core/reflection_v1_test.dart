@@ -22,6 +22,10 @@ import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v1.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
+import 'package:genkit/src/o11y/instrumentation.dart'
+    show configureInstrumentation, resetInstrumentation;
+import 'package:genkit/src/o11y/telemetry/span_data.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -90,9 +94,12 @@ void main() {
       server = ReflectionServerV1(registry, port: 0);
       await server.start();
       url = 'http://localhost:${server.actualPort}';
+      // Instrument so runAction produces real trace/span ids to assert on.
+      configureInstrumentation(DirectHttpInstrumentation(_DiscardSink()));
     });
 
     tearDown(() async {
+      resetInstrumentation();
       await server.stop();
     });
 
@@ -166,7 +173,7 @@ void main() {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       expect(body['result'], 'output for testInput');
       expect(body['telemetry'], isNotNull);
-      expect(body['telemetry']['traceId'], isA<String>());
+      expect(body['telemetry']['traceId'], isNotEmpty);
     });
 
     test('POST /api/runAction forwards init to the action handler', () async {
@@ -260,7 +267,32 @@ void main() {
       final finalResponse = chunks[2] as Map<String, dynamic>;
       expect(finalResponse['result'], 'output for testInput');
       expect(finalResponse['telemetry'], isNotNull);
-      expect(finalResponse['telemetry']['traceId'], isA<String>());
+      expect(finalResponse['telemetry']['traceId'], isNotEmpty);
+    });
+
+    test('POST /api/runAction omits telemetry when uninstrumented', () async {
+      // No instrumentation configured for this action: trace ids are empty, so
+      // the server must omit the telemetry payload rather than send a blank id.
+      resetInstrumentation();
+      final response = await http.post(
+        Uri.parse('$url/api/runAction'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'key': '/test/testAction', 'input': 'testInput'}),
+      );
+      expect(response.statusCode, 200);
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      expect(body['result'], 'output for testInput');
+      expect(body.containsKey('telemetry'), isFalse);
+      expect(response.headers.containsKey('x-genkit-trace-id'), isFalse);
     });
   });
+}
+
+/// A [SpanSink] that drops spans; used to instrument tests without exporting.
+class _DiscardSink implements SpanSink {
+  @override
+  void export(List<GenkitSpanData> spans) {}
+
+  @override
+  void shutdown() {}
 }

@@ -14,6 +14,8 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
 import 'instrumentation_api.dart';
 
 export 'instrumentation_api.dart'
@@ -39,7 +41,8 @@ void configureInstrumentation(Instrumentation instrumentation) {
 
 /// Removes all configured instrumentation providers.
 ///
-/// Primarily intended for tests and re-initialization.
+/// Intended for tests and re-initialization.
+@visibleForTesting
 void resetInstrumentation() {
   _instrumentations.clear();
 }

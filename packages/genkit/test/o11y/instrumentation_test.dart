@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
+
 import 'package:genkit/genkit.dart';
-import 'package:genkit/telemetry.dart';
+import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
+import 'package:genkit/src/o11y/instrumentation.dart';
+import 'package:genkit/src/o11y/instrumentation_setup.dart'
+    show
+        GenkitBuiltinInstrumentation,
+        enableDevInstrumentationForServer,
+        genkitDevInstrumentation;
+import 'package:genkit/src/o11y/telemetry/span_data.dart';
 import 'package:test/test.dart';
 
 import '../test_util.dart';
@@ -68,6 +77,13 @@ class _FakeInstrumentation implements Instrumentation {
       log.add('exit:$label');
     }
   }
+}
+
+/// A [_FakeInstrumentation] that also carries the [GenkitBuiltinInstrumentation]
+/// marker, so tests can assert the auto-injection guard treats it as a builtin.
+class _FakeBuiltin extends _FakeInstrumentation
+    with GenkitBuiltinInstrumentation {
+  _FakeBuiltin(super.label, super.log);
 }
 
 void main() {
@@ -258,6 +274,80 @@ void main() {
       final span = sink.byName('boom');
       expect(span.status.code, GenkitStatusCode.error);
       expect(span.status.message, contains('nope'));
+    });
+  });
+
+  group('dev instrumentation gate', () {
+    tearDown(resetInstrumentation);
+
+    test('genkitDevInstrumentation is null without a telemetry server', () {
+      // CI runs without GENKIT_TELEMETRY_SERVER; skip if a dev happens to have
+      // it set locally, since the gate is exactly what we're asserting.
+      if (Platform.environment['GENKIT_TELEMETRY_SERVER'] != null) {
+        return;
+      }
+      expect(genkitDevInstrumentation(), isNull);
+    });
+
+    test(
+      'Genkit(isDevEnv: true) does not instrument without a server',
+      () async {
+        if (Platform.environment['GENKIT_TELEMETRY_SERVER'] != null) {
+          return;
+        }
+        final ai = Genkit(isDevEnv: true);
+        addTearDown(ai.shutdown);
+        expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isFalse);
+      },
+    );
+
+    test('enableDevInstrumentationForServer registers one builtin', () {
+      expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isFalse);
+      enableDevInstrumentationForServer('http://127.0.0.1:4033');
+      expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isTrue);
+    });
+
+    test(
+      'enableDevInstrumentationForServer does not double-instrument',
+      () async {
+        // Pre-register a builtin, then a handshake must be a no-op: only the
+        // pre-registered provider wraps a run (no second builtin appended).
+        final log = <String>[];
+        configureInstrumentation(_FakeBuiltin('pre', log));
+
+        enableDevInstrumentationForServer('http://127.0.0.1:4033');
+
+        expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isTrue);
+        await runInNewSpan<void, void>('op', (_) async {});
+        // Exactly one provider (the pre-registered one) wrapped the run.
+        expect(log, ['enter:pre', 'exit:pre']);
+      },
+    );
+
+    test('enableDevInstrumentationForServer is a no-op for an empty url', () {
+      enableDevInstrumentationForServer('');
+      expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isFalse);
+    });
+  });
+
+  group('runInNewSpan snapshot', () {
+    tearDown(resetInstrumentation);
+
+    test('tolerates configuration changes mid-flight', () async {
+      final log = <String>[];
+      configureInstrumentation(_FakeInstrumentation('a', log));
+
+      // Mutating the provider list while a span runs must not corrupt the
+      // in-flight middleware chain (snapshotted at entry) nor throw.
+      final result = await runInNewSpan<void, String>('op', (_) async {
+        resetInstrumentation();
+        configureInstrumentation(_FakeInstrumentation('b', log));
+        return 'ok';
+      });
+
+      expect(result, 'ok');
+      // Only the snapshotted provider 'a' wrapped this run; 'b' registered after.
+      expect(log, ['enter:a', 'exit:a']);
     });
   });
 }

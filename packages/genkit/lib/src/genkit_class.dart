@@ -109,8 +109,10 @@ final class Genkit extends GenkitAI {
       // receives traces. It posts Genkit's spans directly to the Genkit
       // telemetry server over HTTP, independently of OpenTelemetry. It returns
       // null (and we do not instrument) when no server is configured
-      // (`GENKIT_TELEMETRY_SERVER` unset). In production, Genkit is not
-      // instrumented unless the user configures a provider.
+      // (`GENKIT_TELEMETRY_SERVER` unset); in that case the reflection
+      // handshake may still enable it later if the CLI supplies a server URL.
+      // In production, Genkit is not instrumented unless the user configures a
+      // provider.
       if (!isInstrumentedBy<GenkitBuiltinInstrumentation>()) {
         final devInstrumentation = genkitDevInstrumentation();
         if (devInstrumentation != null) {
