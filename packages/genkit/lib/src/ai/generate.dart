@@ -638,8 +638,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       // `ErrInvalidOutput` parse-failure path.
       response.error = RuntimeError(
         status: StatusCodes.INTERNAL.name,
-        message:
-            'model failed to generate output matching expected schema: $e',
+        message: 'model failed to generate output matching expected schema: $e',
       );
       return GenerateResponseHelper(
         response,
@@ -1420,8 +1419,7 @@ _executeTools(
       // `aborted` (via `_abortResponseIfCancelled`).
       if (cancelToken != null &&
           (cancelToken.isCancelled ||
-              (e is CancelledException &&
-                  identical(e.token, cancelToken)))) {
+              (e is CancelledException && identical(e.token, cancelToken)))) {
         rethrow;
       }
       // Any other throw - a failing tool `fn`, or a tool's own unrelated

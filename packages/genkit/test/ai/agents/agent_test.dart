@@ -767,10 +767,7 @@ void main() {
       final snap = await agent.getSnapshotData(snapshotId: error.snapshotId);
       expect(snap!.status?.value, 'failed');
       // Its state carries the turn-2 user message, so a rerun re-drives it.
-      expect(
-        snap.state!.messages!.any((m) => m.text == 'second'),
-        isTrue,
-      );
+      expect(snap.state!.messages!.any((m) => m.text == 'second'), isTrue);
 
       // Rerunning the failed snapshot recovers once the model is healthy again.
       failNow = false;

@@ -1574,7 +1574,10 @@ void main() {
           description: 'always throws',
           inputSchema: TestToolInput.$schema,
           fn: (input, ctx) async {
-            throw GenkitException('tool exploded', status: StatusCodes.INTERNAL);
+            throw GenkitException(
+              'tool exploded',
+              status: StatusCodes.INTERNAL,
+            );
           },
         );
 
@@ -1621,7 +1624,10 @@ void main() {
           name: 'unreachable',
           fn: (request, context) async => ModelResponse(
             finishReason: .stop,
-            message: Message(role: .model, content: [TextPart(text: 'hi')]),
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'hi')],
+            ),
           ),
         );
 
@@ -1637,29 +1643,34 @@ void main() {
         expect(res.error!.message, contains('hook exploded'));
       });
 
-      test('a blocked model response skips output parsing (passes through)',
-          () async {
-        const modelName = 'blockedModel';
-        genkit.defineModel(
-          name: modelName,
-          fn: (request, context) async => ModelResponse(
-            // An abnormal finish with an empty (non-JSON) message: the parser
-            // must not run and turn this into a schema error.
-            finishReason: FinishReason.blocked,
-            finishMessage: 'safety',
-            message: Message(role: .model, content: [TextPart(text: '')]),
-          ),
-        );
+      test(
+        'a blocked model response skips output parsing (passes through)',
+        () async {
+          const modelName = 'blockedModel';
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async => ModelResponse(
+              // An abnormal finish with an empty (non-JSON) message: the parser
+              // must not run and turn this into a schema error.
+              finishReason: FinishReason.blocked,
+              finishMessage: 'safety',
+              message: Message(
+                role: .model,
+                content: [TextPart(text: '')],
+              ),
+            ),
+          );
 
-        final res = await genkit.generate(
-          model: modelRef(modelName),
-          prompt: 'give me json',
-          outputSchema: TestToolInput.$schema,
-        );
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'give me json',
+            outputSchema: TestToolInput.$schema,
+          );
 
-        expect(res.finishReason, FinishReason.blocked);
-        expect(res.finishMessage, 'safety');
-      });
+          expect(res.finishReason, FinishReason.blocked);
+          expect(res.finishMessage, 'safety');
+        },
+      );
 
       test('a schema-mismatched output resolves with the original message and '
           'an error rather than throwing', () async {
