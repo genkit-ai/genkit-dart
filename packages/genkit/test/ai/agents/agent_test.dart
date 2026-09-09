@@ -654,6 +654,52 @@ void main() {
       },
     );
 
+    test(
+      'a detached run aborted via a thrown cancel settles as aborted',
+      () async {
+        // Regression: a detached turn aborted mid-flight can *throw* out of the
+        // handler (an action's `cancel.throwIfCancelled()`) rather than resolve.
+        // That lands in the run loop's catch, which must still write the settling
+        // `aborted` snapshot - without it the row stays `aborting`, later shapes
+        // to `expired` on read, and drops the last-good state on resume.
+        final store = InMemorySessionStore();
+        final handlerRunning = Completer<void>();
+        final agent = ai.defineCustomAgent(
+          name: 'thrownAbort',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async {
+              sess.updateCustom((_) => {'count': 1});
+              if (!handlerRunning.isCompleted) handlerRunning.complete();
+              // Block until aborted, then throw the way an action would.
+              await options.cancel?.whenCancelled;
+              options.cancel?.throwIfCancelled();
+              return TurnResult(finishReason: AgentFinishReason.stop);
+            });
+            return AgentResult(finishReason: sess.lastTurnFinishReason);
+          },
+        );
+
+        final sessionId = generateUuidV4();
+        final chat = agent.chat(sessionId: sessionId);
+        final task = await chat.detach(text: 'do the long thing');
+
+        await handlerRunning.future;
+        await task.abort();
+
+        final terminal = await task.wait(
+          interval: const Duration(milliseconds: 10),
+        );
+        expect(terminal.status?.value, 'aborted');
+        // Settled *with* the last-good state, not dropped.
+        expect(terminal.custom, {'count': 1});
+
+        // And the stored row is terminal, never left `aborting`/`expired`.
+        final stored = await store.getSnapshot(snapshotId: terminal.snapshotId);
+        expect(stored!.status?.value, 'aborted');
+      },
+    );
+
     test('getSnapshotData requires a store', () async {
       final agent = ai.defineCustomAgent(
         name: 'noStore',
