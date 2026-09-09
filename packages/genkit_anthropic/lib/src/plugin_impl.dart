@@ -308,6 +308,14 @@ sdk.SystemPrompt? convertSystemMessage(Message m) {
 /// Matches the key used by the Gemini plugins and by Genkit JS.
 const _thoughtSignatureKey = 'thoughtSignature';
 
+/// The key this plugin wrote for the same value through v0.3.1.
+///
+/// Read, never written. Conversations persisted by an earlier version carry
+/// it, and a session replayed after upgrading would otherwise have its
+/// thinking blocks dropped for want of a signature that is right there under
+/// the old name - the exact failure this conversion exists to prevent.
+const _legacyThoughtSignatureKey = 'signature';
+
 /// Metadata key carrying the opaque payload of a redacted thinking block.
 const _redactedThinkingKey = 'redactedThinking';
 
@@ -315,8 +323,13 @@ const _redactedThinkingKey = 'redactedThinking';
 ///
 /// Returns an empty list for reasoning this plugin cannot round-trip: Anthropic
 /// rejects a thinking block whose signature is missing, so a part that never
-/// carried one - hand-built history, or reasoning from another provider - is
-/// dropped rather than turned into a request the API will reject.
+/// carried one - hand-built history, say - is dropped rather than turned into
+/// a request the API will reject.
+///
+/// Reasoning from another provider is a known limitation, not something this
+/// catches. The Gemini plugins write the same [_thoughtSignatureKey], so a
+/// Gemini part arrives with a signature Anthropic cannot verify and is
+/// forwarded, then rejected server-side. Genkit JS collides the same way.
 List<sdk.InputContentBlock> _toAnthropicThinkingBlocks(Part p) {
   final metadata = p.metadata;
 
@@ -325,7 +338,8 @@ List<sdk.InputContentBlock> _toAnthropicThinkingBlocks(Part p) {
     return [sdk.RedactedThinkingInputBlock(data: redacted)];
   }
 
-  final signature = metadata?[_thoughtSignatureKey];
+  final signature =
+      metadata?[_thoughtSignatureKey] ?? metadata?[_legacyThoughtSignatureKey];
   if (signature is! String || signature.isEmpty) return const [];
 
   return [
