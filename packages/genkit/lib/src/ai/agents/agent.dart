@@ -212,6 +212,10 @@ Future<String?> _abortSnapshotInStore(
       return current;
     }
     current.status = SnapshotStatus.aborting;
+    // Advance `updatedAt` so a client ordering or displaying by it sees the
+    // abort as activity. Matches Go, which stamps `UpdatedAt` on this flip; the
+    // verbatim re-persist branch above deliberately leaves it alone.
+    current.updatedAt = DateTime.now().toUtc().toIso8601String();
     resultStatus = 'aborting';
     return current;
   }, context: context);
@@ -626,16 +630,28 @@ class SessionRunner<State> {
         if (aborted) break;
         turnIndex++;
       } catch (e) {
-        // An aborted turn rejects out of `generate` and lands here. Treat it as
-        // `aborted` rather than `failed`: the settling `aborted` snapshot was
-        // already written on the resolve path above (or, for a wedged run, is
-        // owed by the finalize), and the abort-aware mutator would skip a late
-        // `failed` write anyway, so we record the finish reason and skip the
-        // failed snapshot write entirely instead of reporting a spurious error.
+        // An aborted turn rejects out of `generate` (or out of any action's
+        // `cancel.throwIfCancelled()`) and lands here. Treat it as `aborted`
+        // rather than `failed` and settle the turn ourselves: unlike the resolve
+        // path above, nothing has written the settling snapshot yet, so we own
+        // the finalize. The detached route already flipped the row to `aborting`
+        // via `_abortSnapshotInStore` (stopping the work); this write settles it
+        // to `aborted` *with* the last-good state (the abort-aware mutator lets
+        // it through because `aborting` is not terminal). Without it the row
+        // would stay `aborting`, later shape to `expired` on read, and drop the
+        // last-good state on resume.
         if (cancel?.isCancelled ?? false) {
           lastTurnFinishReason = AgentFinishReason.aborted;
           lastTurnError = null;
-          _notifyEndTurn(_lastSnapshot?.snapshotId, AgentFinishReason.aborted);
+          final snapshotId = await maybeSnapshot(
+            status: 'aborted',
+            snapshotId: turnSnapshotId,
+            finishReason: AgentFinishReason.aborted,
+          );
+          _notifyEndTurn(
+            snapshotId ?? _lastSnapshot?.snapshotId,
+            AgentFinishReason.aborted,
+          );
           break;
         }
 
@@ -930,14 +946,29 @@ _resolveSession<State>(
 
   if (init?.sessionId != null) {
     // Resume the session's latest snapshot. The store returns the latest leaf
-    // regardless of status, but only `completed` snapshots are resumable - so
-    // if the leaf is a non-resumable turn, walk back over its parent chain to
-    // the last-good (`completed`) snapshot. When the session has no resumable
-    // snapshot, seed a fresh session bound to the requested sessionId.
+    // regardless of status; a terminal leaf carrying state (`completed`,
+    // `failed`, or `aborted`) is resumable, so if the leaf is a non-resumable
+    // turn, walk back over its parent chain to the last-good snapshot. When the
+    // session has no resumable snapshot, seed a fresh session bound to the
+    // requested sessionId.
     var snapshot = await store.getSnapshot(
       sessionId: init!.sessionId,
       context: context,
     );
+    // A `pending` or `aborting` leaf is an in-flight run: resuming from an
+    // earlier snapshot would fork the session away from work that is about to be
+    // committed, so reject rather than walk (matching Go's `resumeSessionFrom`).
+    // The caller waits for the run to finalize, or resumes the exact `snapshotId`
+    // once its worker is presumed dead.
+    final leafStatus = snapshot?.status?.value;
+    if (leafStatus == 'pending' || leafStatus == 'aborting') {
+      throw GenkitException(
+        "Session '${init.sessionId}' has an in-flight leaf snapshot "
+        "'${snapshot!.snapshotId}' (status: $leafStatus); wait for it to "
+        'finalize before resuming, or abort it first.',
+        status: StatusCodes.FAILED_PRECONDITION,
+      );
+    }
     final visited = <String>{};
     while (snapshot != null && !_isResumableLeaf(snapshot)) {
       if (visited.contains(snapshot.snapshotId)) {
