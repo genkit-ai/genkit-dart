@@ -41,6 +41,7 @@ base class OpenAIChatOptions {
     String? user,
     bool? jsonMode,
     String? visualDetailLevel,
+    String? reasoningEffort,
   }) {
     _json = {
       'version': ?version,
@@ -54,6 +55,7 @@ base class OpenAIChatOptions {
       'user': ?user,
       'jsonMode': ?jsonMode,
       'visualDetailLevel': ?visualDetailLevel,
+      'reasoningEffort': ?reasoningEffort,
     };
   }
 
@@ -217,6 +219,22 @@ base class OpenAIChatOptions {
     }
   }
 
+  /// Reasoning effort for reasoning models ('none', 'minimal', 'low',
+  /// 'medium', 'high', 'xhigh'); each model accepts a subset
+  String? get reasoningEffort {
+    return _json['reasoningEffort'] as String?;
+  }
+
+  /// Reasoning effort for reasoning models ('none', 'minimal', 'low',
+  /// 'medium', 'high', 'xhigh'); each model accepts a subset
+  set reasoningEffort(String? value) {
+    if (value == null) {
+      _json.remove('reasoningEffort');
+    } else {
+      _json['reasoningEffort'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -255,6 +273,9 @@ base class _OpenAIChatOptionsTypeFactory
             'jsonMode': $Schema.boolean(),
             'visualDetailLevel': $Schema.string(
               enumValues: ['auto', 'low', 'high'],
+            ),
+            'reasoningEffort': $Schema.string(
+              enumValues: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'],
             ),
           },
         )

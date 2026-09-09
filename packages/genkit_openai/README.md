@@ -213,6 +213,12 @@ final response = await ai.generate(
 );
 ```
 
+`gpt-6-astra` is registered without tool support: the Chat Completions
+endpoint rejects function tools for it at every accepted `reasoningEffort`.
+It accepts `reasoningEffort` values `low`, `medium`, `high` and `xhigh`,
+rejects `none`, and rejects `temperature` other than 1 and `topP`, so leave
+those unset.
+
 ## Options
 
 The `OpenAIChatOptions` class supports the following options:
@@ -227,6 +233,7 @@ The `OpenAIChatOptions` class supports the following options:
 - `user` (String?) - User identifier for abuse detection
 - `jsonMode` (bool?) - Enable JSON mode
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
+- `reasoningEffort` (String?, 'none'|'minimal'|'low'|'medium'|'high'|'xhigh') - Reasoning effort for reasoning models
 - `version` (String?) - Model version override
 
 ## Custom Headers

@@ -57,6 +57,13 @@ abstract class $OpenAIChatOptions {
   /// Visual detail level for images ('auto', 'low', 'high')
   @StringField(enumValues: ['auto', 'low', 'high'])
   String? get visualDetailLevel;
+
+  /// Reasoning effort for reasoning models ('none', 'minimal', 'low',
+  /// 'medium', 'high', 'xhigh'); each model accepts a subset
+  @StringField(
+    enumValues: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'],
+  )
+  String? get reasoningEffort;
 }
 
 /// Alias for [OpenAIChatOptions].

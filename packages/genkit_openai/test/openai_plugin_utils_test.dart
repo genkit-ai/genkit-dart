@@ -45,6 +45,30 @@ void main() {
       expect(oSeriesInfo.supports?['media'], false);
     });
 
+    test('gpt-6-astra advertises media but not tools', () {
+      for (final id in [
+        'gpt-6-astra',
+        'gpt-6-astra-2026-09-01',
+        'gpt-6-astra-mini',
+      ]) {
+        final info = modelInfoFor(id);
+        expect(info.supports, {
+          'multiturn': true,
+          'tools': false,
+          'systemRole': true,
+          'media': true,
+        });
+      }
+      expect(supportsTools('gpt-6-astra'), false);
+      expect(supportsVision('gpt-6-astra'), true);
+      expect(getModelType('gpt-6-astra'), 'chat');
+      // Other gpt-6 ids and fine-tunes keep the default GPT profile.
+      for (final id in ['gpt-6', 'gpt-6-astral', 'ft:gpt-6-astra:org::id']) {
+        expect(supportsTools(id), true);
+        expect(supportsVision(id), false);
+      }
+    });
+
     test('supportsVision identifies vision models', () {
       // Vision models
       expect(supportsVision('gpt-4o'), true);
