@@ -76,10 +76,14 @@ final class _FakeTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async => snapshots[snapshotId];
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async {
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
     aborted.add(snapshotId);
     return SnapshotStatus.aborted;
   }
@@ -153,10 +157,14 @@ final class _StepTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async => null;
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async => null;
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async => null;
 }
 
 Message _modelMessage(String text) => Message(
@@ -950,8 +958,12 @@ final class _CaptureTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async => null;
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async => null;
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async => null;
 }

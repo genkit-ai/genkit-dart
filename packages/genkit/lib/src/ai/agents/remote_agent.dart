@@ -237,7 +237,9 @@ final class _HttpAgentTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async {
+    _rejectContext(context);
     final headers = await _resolveHeaders();
     final lookup = <String, dynamic>{
       'snapshotId': ?snapshotId,
@@ -247,7 +249,11 @@ final class _HttpAgentTransport extends AgentTransport {
   }
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async {
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    _rejectContext(context);
     final headers = await _resolveHeaders();
     final response = await _abortAction.call(
       input: AgentAbortRequest(snapshotId: snapshotId),

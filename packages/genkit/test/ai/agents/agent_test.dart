@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -37,6 +39,50 @@ void _defineEchoModel(Genkit ai) {
       );
     },
   );
+}
+
+final class _ContextRecordingStore
+    implements SessionStore, SnapshotChangeNotifier {
+  final InMemorySessionStore _delegate = InMemorySessionStore();
+  final List<Map<String, dynamic>?> contexts = [];
+
+  @override
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  }) {
+    contexts.add(context);
+    return _delegate.getSnapshot(
+      snapshotId: snapshotId,
+      sessionId: sessionId,
+      context: context,
+    );
+  }
+
+  @override
+  Future<String?> saveSnapshot(
+    String? snapshotId,
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  }) {
+    contexts.add(context);
+    return _delegate.saveSnapshot(snapshotId, mutator, context: context);
+  }
+
+  @override
+  void Function()? onSnapshotStateChange(
+    String snapshotId,
+    void Function(SessionSnapshot snapshot) callback, {
+    Map<String, dynamic>? context,
+  }) {
+    contexts.add(context);
+    return _delegate.onSnapshotStateChange(
+      snapshotId,
+      callback,
+      context: context,
+    );
+  }
 }
 
 void main() {
@@ -250,6 +296,115 @@ void main() {
       await chat2.send(text: 'two');
       final snapshot2 = await agent.getSnapshot(sessionId: sessionId);
       expect(snapshot2!.custom, {'count': 2});
+    });
+
+    test('passes context to every session store operation', () async {
+      final store = _ContextRecordingStore();
+      final agent = ai.defineCustomAgent(
+        name: 'tenantScoped',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'ok': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+      final context = <String, dynamic>{'tenant': 'alice'};
+      final sessionId = generateUuidV4();
+
+      final response = await agent
+          .chat(sessionId: sessionId)
+          .send(text: 'hi', context: context);
+      expect(response.snapshotId, isNotNull);
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
+
+      store.contexts.clear();
+      await agent.loadChat(sessionId: sessionId, context: context);
+      await agent.getSnapshot(
+        snapshotId: response.snapshotId,
+        context: context,
+      );
+      await agent.getSnapshotDataAction(
+        GetSnapshotDataInput(snapshotId: response.snapshotId),
+        context: context,
+      );
+      await agent.abort(response.snapshotId!, context: context);
+      await agent.abortAgentAction(
+        AgentAbortRequest(snapshotId: response.snapshotId!),
+        context: context,
+      );
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
+    });
+
+    test('inherits ambient action context for store operations', () async {
+      final store = _ContextRecordingStore();
+      final agent = ai.defineCustomAgent(
+        name: 'ambientTenantScoped',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'ok': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+      final context = <String, dynamic>{'tenant': 'alice'};
+      final sessionId = generateUuidV4();
+      final outer = Action<String, void, void, void>(
+        name: 'ambientAgentCaller',
+        actionType: .custom,
+        fn: (_, ctx) async {
+          final response = await agent
+              .chat(sessionId: sessionId)
+              .send(text: 'hi');
+          await agent.getSnapshot(snapshotId: response.snapshotId);
+        },
+      );
+
+      await outer('run', context: context);
+
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
+    });
+
+    test('detached task retains explicit context', () async {
+      final store = _ContextRecordingStore();
+      final releaseTurn = Completer<void>();
+      final agent = ai.defineCustomAgent(
+        name: 'ambientDetachedTenantScoped',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            await releaseTurn.future;
+            sess.updateCustom((_) => {'done': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+      final context = <String, dynamic>{'tenant': 'alice'};
+      final outer = Action<String, DetachedTask<dynamic>, void, void>(
+        name: 'ambientDetachedAgentCaller',
+        actionType: .custom,
+        fn: (_, ctx) => agent
+            .chat(sessionId: generateUuidV4())
+            .detach(text: 'background', context: ctx.context),
+      );
+
+      final task = await outer('run', context: context);
+      releaseTurn.complete();
+      final snapshot = await task.wait(
+        interval: const Duration(milliseconds: 10),
+      );
+      expect(snapshot.status?.value, 'completed');
+      expect((await task.abort())?.value, 'completed');
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
     });
 
     test('detached turn does not self-parent its snapshot', () async {

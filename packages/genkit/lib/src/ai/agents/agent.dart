@@ -165,6 +165,7 @@ void _requireStore(SessionStore? store, String operation, String agentName) {
 Future<String?> _abortSnapshotInStore(
   SessionStore store,
   String snapshotId,
+  Map<String, dynamic>? context,
 ) async {
   String? previousStatus;
   await store.saveSnapshot(snapshotId, (current) {
@@ -178,7 +179,7 @@ Future<String?> _abortSnapshotInStore(
 
     current.status = SnapshotStatus.aborted;
     return current;
-  });
+  }, context: context);
   return previousStatus;
 }
 
@@ -272,6 +273,7 @@ class SessionRunner<State> {
     this.inputCh, {
     SessionSnapshot? lastSnapshot,
     SessionStore? store,
+    this.context,
     this.cancel,
     this.onEndTurn,
     this.onDetach,
@@ -311,6 +313,9 @@ class SessionRunner<State> {
   SessionSnapshot? _lastSnapshot;
   int _lastSnapshotVersion = 0;
   final SessionStore? _store;
+
+  /// Ambient action context used to scope all persistent-store operations.
+  final Map<String, dynamic>? context;
 
   bool isDetached = false;
 
@@ -467,6 +472,7 @@ class SessionRunner<State> {
     final assignedId = await _store.saveSnapshot(
       null,
       _abortAwareMutator(snapshotInput),
+      context: context,
     );
     if (assignedId == null) {
       return _lastSnapshot?.snapshotId;
@@ -534,6 +540,7 @@ class SessionRunner<State> {
     final assignedId = await _store.saveSnapshot(
       effectiveId,
       _abortAwareMutator(snapshotInput),
+      context: context,
     );
     if (assignedId == null) {
       // Snapshot was aborted concurrently; preserve the existing ID.
@@ -660,10 +667,14 @@ _resolveSession<State>(
   SessionStore store,
   AgentInit? init,
   ValidateCustomState validateCustomState,
+  Map<String, dynamic>? context,
 ) async {
   final stateSchema = config.stateSchema;
   if (init?.snapshotId != null) {
-    final snapshot = await store.getSnapshot(snapshotId: init!.snapshotId);
+    final snapshot = await store.getSnapshot(
+      snapshotId: init!.snapshotId,
+      context: context,
+    );
     if (snapshot == null) {
       throw GenkitException(
         'Snapshot ${init.snapshotId} not found',
@@ -710,7 +721,10 @@ _resolveSession<State>(
     // if the leaf is a non-resumable turn, walk back over its parent chain to
     // the last-good (`completed`) snapshot. When the session has no resumable
     // snapshot, seed a fresh session bound to the requested sessionId.
-    var snapshot = await store.getSnapshot(sessionId: init!.sessionId);
+    var snapshot = await store.getSnapshot(
+      sessionId: init!.sessionId,
+      context: context,
+    );
     final visited = <String>{};
     while (snapshot != null && snapshot.status?.value != 'completed') {
       if (visited.contains(snapshot.snapshotId)) {
@@ -724,7 +738,7 @@ _resolveSession<State>(
       visited.add(snapshot.snapshotId);
       final parentId = snapshot.parentId;
       snapshot = parentId != null
-          ? await store.getSnapshot(snapshotId: parentId)
+          ? await store.getSnapshot(snapshotId: parentId, context: context)
           : null;
     }
     if (snapshot != null) {
@@ -828,17 +842,18 @@ final class _InProcessTransport extends AgentTransport {
   _InProcessTransport({
     required AgentStateManagement stateManagement,
     required this.primaryAction,
-    required this.getSnapshotFn,
-    required this.abortFn,
+    required this.getSnapshotDataAction,
+    required this.abortAgentAction,
   }) {
     this.stateManagement = stateManagement;
   }
 
   final Action<AgentInput, AgentOutput, AgentStreamChunk, AgentInit>
   primaryAction;
-  final Future<SessionSnapshot?> Function(String? snapshotId, String? sessionId)
-  getSnapshotFn;
-  final Future<SnapshotStatus?> Function(String snapshotId) abortFn;
+  final Action<GetSnapshotDataInput, SessionSnapshot?, void, void>
+  getSnapshotDataAction;
+  final Action<AgentAbortRequest, AgentAbortResponse, void, void>
+  abortAgentAction;
 
   BidiActionStream<AgentStreamChunk, AgentOutput, AgentInput> _startBidi(
     AgentInput input,
@@ -886,14 +901,24 @@ final class _InProcessTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
-  }) => getSnapshotFn(snapshotId, sessionId);
+    Map<String, dynamic>? context,
+  }) => getSnapshotDataAction(
+    GetSnapshotDataInput(snapshotId: snapshotId, sessionId: sessionId),
+    context: context,
+  );
 
   // Detached/persist-only: flips the persisted snapshot to `aborted` and
   // returns its prior status. A detached worker watching the snapshot cancels
   // its own turn in response; an attached in-process turn's model call is not
   // interrupted (see [runTurn]).
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) => abortFn(snapshotId);
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async => (await abortAgentAction(
+    AgentAbortRequest(snapshotId: snapshotId),
+    context: context,
+  )).status;
 }
 
 // ---------------------------------------------------------------------------
@@ -912,15 +937,7 @@ class Agent<State> {
     required this.getSnapshotDataAction,
     required this.abortAgentAction,
     required AgentApi<State> api,
-    required Future<SessionSnapshot?> Function(
-      String? snapshotId,
-      String? sessionId,
-    )
-    resolveSnapshot,
-    required Future<SnapshotStatus?> Function(String snapshotId) runAbort,
-  }) : _api = api,
-       _resolveSnapshot = resolveSnapshot,
-       _runAbort = runAbort;
+  }) : _api = api;
 
   /// The primary bidi agent turn action.
   final Action<AgentInput, AgentOutput, AgentStreamChunk, AgentInit> action;
@@ -934,9 +951,6 @@ class Agent<State> {
   abortAgentAction;
 
   final AgentApi<State> _api;
-  final Future<SessionSnapshot?> Function(String? snapshotId, String? sessionId)
-  _resolveSnapshot;
-  final Future<SnapshotStatus?> Function(String snapshotId) _runAbort;
 
   /// Starts a new chat, optionally attaching via [snapshotId] / [sessionId] /
   /// [state] (provide at most one).
@@ -947,8 +961,15 @@ class Agent<State> {
   }) => _api.chat(snapshotId: snapshotId, sessionId: sessionId, state: state);
 
   /// Loads a server snapshot and returns a chat with history restored.
-  Future<AgentChat<State>> loadChat({String? snapshotId, String? sessionId}) =>
-      _api.loadChat(snapshotId: snapshotId, sessionId: sessionId);
+  Future<AgentChat<State>> loadChat({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  }) => _api.loadChat(
+    snapshotId: snapshotId,
+    sessionId: sessionId,
+    context: context,
+  );
 
   /// Reads a snapshot without starting a chat. Requires a server store.
   ///
@@ -957,17 +978,32 @@ class Agent<State> {
   Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
-  }) => _api.getSnapshot(snapshotId: snapshotId, sessionId: sessionId);
+    Map<String, dynamic>? context,
+  }) => _api.getSnapshot(
+    snapshotId: snapshotId,
+    sessionId: sessionId,
+    context: context,
+  );
 
   /// Reads a snapshot (applying the client transform). Requires a server store.
   Future<SessionSnapshot?> getSnapshotData({
     String? snapshotId,
     String? sessionId,
-  }) => _resolveSnapshot(snapshotId, sessionId);
+    Map<String, dynamic>? context,
+  }) => getSnapshotDataAction(
+    GetSnapshotDataInput(snapshotId: snapshotId, sessionId: sessionId),
+    context: context,
+  );
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
-  Future<SnapshotStatus?> abort(String snapshotId) => _runAbort(snapshotId);
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async => (await abortAgentAction(
+    AgentAbortRequest(snapshotId: snapshotId),
+    context: context,
+  )).status;
 }
 
 // ---------------------------------------------------------------------------
@@ -1051,6 +1087,7 @@ Agent<State> defineCustomAgent<State>(
               resolvedStore,
               init,
               validateCustomState,
+              ctx.context,
             );
             session = resolved.session;
             snapshot = resolved.snapshot;
@@ -1114,6 +1151,7 @@ Agent<State> defineCustomAgent<State>(
             session,
             runnerInputController.stream,
             store: resolvedStore,
+            context: ctx.context,
             lastSnapshot: snapshot,
             cancel: cancelToken,
             onDetach: (snapshotId) {
@@ -1135,7 +1173,7 @@ Agent<State> defineCustomAgent<State>(
                             .toUtc()
                             .toIso8601String();
                         return current;
-                      })
+                      }, context: ctx.context)
                       .catchError((_) {
                         // Best-effort heartbeat; ignore transient store errors.
                         return null;
@@ -1155,7 +1193,7 @@ Agent<State> defineCustomAgent<State>(
                         cancelToken.cancel();
                         localUnsubscribe?.call();
                       }
-                    });
+                    }, context: ctx.context);
                 unsubscribe = localUnsubscribe;
               }
             },
@@ -1340,11 +1378,13 @@ Agent<State> defineCustomAgent<State>(
   Future<SessionSnapshot?> resolveSnapshot(
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   ) async {
     _requireStore(config.store, 'getSnapshotData', config.name);
     final snapshot = await config.store!.getSnapshot(
       snapshotId: snapshotId,
       sessionId: sessionId,
+      context: context,
     );
     if (snapshot == null) return null;
     // Compute `expired` on read: a `pending` snapshot whose heartbeat has gone
@@ -1358,9 +1398,16 @@ Agent<State> defineCustomAgent<State>(
     return toClientSnapshot(effective);
   }
 
-  Future<SnapshotStatus?> runAbort(String snapshotId) async {
+  Future<SnapshotStatus?> runAbort(
+    String snapshotId,
+    Map<String, dynamic>? context,
+  ) async {
     _requireStore(config.store, 'abort', config.name);
-    final previous = await _abortSnapshotInStore(config.store!, snapshotId);
+    final previous = await _abortSnapshotInStore(
+      config.store!,
+      snapshotId,
+      context,
+    );
     return previous != null ? SnapshotStatus(previous) : null;
   }
 
@@ -1372,7 +1419,7 @@ Agent<State> defineCustomAgent<State>(
         actionType: .agentSnapshot,
         inputSchema: GetSnapshotDataInput.$schema,
         fn: (lookup, ctx) async =>
-            resolveSnapshot(lookup?.snapshotId, lookup?.sessionId),
+            resolveSnapshot(lookup?.snapshotId, lookup?.sessionId, ctx.context),
       );
   registry.register(getSnapshotDataAction);
 
@@ -1386,7 +1433,7 @@ Agent<State> defineCustomAgent<State>(
         inputSchema: AgentAbortRequest.$schema,
         outputSchema: AgentAbortResponse.$schema,
         fn: (request, ctx) async {
-          final status = await runAbort(request!.snapshotId);
+          final status = await runAbort(request!.snapshotId, ctx.context);
           return AgentAbortResponse(
             snapshotId: request.snapshotId,
             status: status,
@@ -1400,8 +1447,8 @@ Agent<State> defineCustomAgent<State>(
         ? AgentStateManagement.server
         : AgentStateManagement.client,
     primaryAction: primaryAction,
-    getSnapshotFn: resolveSnapshot,
-    abortFn: runAbort,
+    getSnapshotDataAction: getSnapshotDataAction,
+    abortAgentAction: abortAgentAction,
   );
 
   return Agent<State>._(
@@ -1409,8 +1456,6 @@ Agent<State> defineCustomAgent<State>(
     getSnapshotDataAction: getSnapshotDataAction,
     abortAgentAction: abortAgentAction,
     api: AgentApi<State>(transport, stateSchema: config.stateSchema),
-    resolveSnapshot: resolveSnapshot,
-    runAbort: runAbort,
   );
 }
 

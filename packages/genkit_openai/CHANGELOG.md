@@ -1,8 +1,8 @@
-## 0.4.0-rc.2
+## 0.4.1
 
  - updated internal dependencies.
 
-## 0.4.0-rc.1
+## 0.4.0
 
 ### Breaking Changes
 
