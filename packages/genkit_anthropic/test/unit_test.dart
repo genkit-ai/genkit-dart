@@ -575,7 +575,7 @@ void main() {
       expect(textPart['text'], 'Hello');
     });
 
-    test('should map RedactedThinkingBlock to a ReasoningPart', () {
+    test('should map RedactedThinkingBlock to a CustomPart', () {
       final input = sdk.Message(
         id: 'msg_123',
         role: sdk.MessageRole.assistant,
@@ -588,15 +588,13 @@ void main() {
       );
 
       final result = fromAnthropicMessage(input);
-      // The empty-text filter must not swallow the empty-reasoning part.
+      // The empty-text filter must not swallow the payload-only part.
       expect(result.content.length, 2);
 
-      final reasoningPart = result.content[0].toJson();
-      expect(reasoningPart['reasoning'], '');
-      expect(
-        (reasoningPart['metadata'] as Map?)?['redactedThinking'],
-        'opaque_payload',
-      );
+      // A CustomPart, matching Genkit JS: there is no reasoning text to
+      // carry, so consumers do not see an empty ReasoningPart either.
+      expect(result.content[0].custom?['redactedThinking'], 'opaque_payload');
+      expect(result.content[0].isReasoning, isFalse);
     });
 
     test('should round-trip thinking blocks back onto the wire unmodified', () {

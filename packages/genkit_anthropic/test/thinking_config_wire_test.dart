@@ -202,10 +202,7 @@ void main() {
                 reasoning: 'Hmm',
                 metadata: {'thoughtSignature': 'sig_123'},
               ),
-              ReasoningPart(
-                reasoning: '',
-                metadata: {'redactedThinking': 'opaque_payload'},
-              ),
+              CustomPart(custom: {'redactedThinking': 'opaque_payload'}),
               TextPart(text: 'hi'),
             ],
           ),
@@ -220,6 +217,40 @@ void main() {
       expect(assistant['role'], 'assistant');
       expect(assistant['content'], [
         {'type': 'thinking', 'thinking': 'Hmm', 'signature': 'sig_123'},
+        {'type': 'redacted_thinking', 'data': 'opaque_payload'},
+        {'type': 'text', 'text': 'hi'},
+      ]);
+    });
+
+    test('replays a redacted block persisted as a ReasoningPart', () async {
+      // Through v0.3.1 a redacted block came back as
+      // `ReasoningPart(reasoning: '', metadata: {redactedThinking})`. It is a
+      // CustomPart now, matching JS, but the old shape must still replay.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              ReasoningPart(
+                reasoning: '',
+                metadata: {'redactedThinking': 'opaque_payload'},
+              ),
+              TextPart(text: 'hi'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'and again?')],
+          ),
+        ],
+      );
+
+      expect(((body['messages'] as List)[1] as Map)['content'], [
         {'type': 'redacted_thinking', 'data': 'opaque_payload'},
         {'type': 'text', 'text': 'hi'},
       ]);
