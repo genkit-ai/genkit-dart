@@ -38,7 +38,10 @@ import 'package:genkit_middleware/agents.dart';
 
 final _model = googleAI.gemini('gemini-flash-latest');
 
-final Genkit ai = Genkit(plugins: [googleAI(), AgentsPlugin()], model: _model);
+final Genkit ai = Genkit(
+  plugins: [googleAI(), AgentsPlugin(), RetryPlugin()],
+  model: _model,
+);
 
 // Server-managed sub-agents (they have a store), so they can detach and run in
 // the background, and their tasks leave continuable handles behind.
@@ -52,6 +55,7 @@ final researcher = ai.defineAgent(
       'questions.',
   store: InMemorySessionStore(),
   maxTurns: 4,
+  use: [retry()],
 );
 
 final writer = ai.defineAgent(
@@ -62,6 +66,7 @@ final writer = ai.defineAgent(
       'short, readable paragraph. Do not ask follow-up questions.',
   store: InMemorySessionStore(),
   maxTurns: 4,
+  use: [retry()],
 );
 
 final orchestrator = ai.defineAgent(
@@ -77,6 +82,7 @@ results. Then hand the combined notes to the "writer" sub-agent to produce a
 final summary, and return that to the user.''',
   use: [
     agents(agents: ['researcher', 'writer'], async: true, maxDelegations: 8),
+    retry(),
   ],
   store: InMemorySessionStore(),
 );
