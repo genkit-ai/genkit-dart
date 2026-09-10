@@ -20,6 +20,8 @@ import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
+// compatModelInfo is intentionally not part of the public surface.
+import 'known_models.dart' show compatModelInfo;
 
 final _logger = Logger('genkit_openai');
 
@@ -253,7 +255,7 @@ class OpenAIPlugin extends GenkitPlugin {
   /// A compat backend keeps the curated capabilities — a proxy serving
   /// `gpt-3.5-turbo` is serving that model, and calling it multimodal would
   /// invite image parts it rejects — but not OpenAI's deployment details. See
-  /// [compatModelInfo].
+  /// `compatModelInfo` in `known_models.dart`.
   ModelInfo _infoFor(String modelName) =>
       baseUrl == null ? modelInfoFor(modelName) : compatModelInfo(modelName);
 

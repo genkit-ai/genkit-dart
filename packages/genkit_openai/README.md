@@ -256,8 +256,8 @@ final response = await ai.generate(
 ```
 
 `KnownOpenAIModel` enumerates the catalog and `knownOpenAIModels` maps each
-bare model name to its `ModelInfo`. This is the catalog listing falls back to
-when discovery is unavailable, minus the models OpenAI has retired: those still
+bare model name to its `ModelInfo`. Listing falls back to this catalog when
+discovery is unavailable, minus the models OpenAI has retired: those still
 resolve by name, but are never offered in a listing.
 
 The catalog is not the set of usable models. Any OpenAI-compatible model works
@@ -276,8 +276,14 @@ final response = await ai.generate(
 To correct or extend what the plugin knows about a model — most often for a
 model released after this version of the plugin, or one served by a proxy that
 supports less than OpenAI does — pass a `CustomModelDefinition` with explicit
-`info`. The curated catalog describes OpenAI's own deployment, so it is not
-applied when `baseUrl` points at a compatible provider.
+`info`.
+
+Behind a custom `baseUrl`, a curated model keeps its capabilities — a gateway
+serving `gpt-3.5-turbo` is serving that model — but not OpenAI's deployment
+details, since the label, lifecycle stage and snapshot list all describe
+OpenAI's own hosting. The catalog is also not added to that host's listing:
+what a compatible provider lists is whatever its `/models` reports plus the
+models you register.
 
 ## Options
 

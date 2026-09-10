@@ -23,12 +23,18 @@ import 'src/openai_plugin.dart';
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
+// The catalog and the capability vocabulary are public: describing a model
+// the plugin does not know is a supported thing to do, and a caller doing it
+// should reach for the same presets the curated entries use.
+//
+// The resolution mechanics are not. `dynamicModelInfo`, `compatModelInfo`,
+// `openAIModelAlias` and `openAIModelSpelling` are how `modelInfoFor` decides
+// what a name means; they are reachable from `src/` for tests, but committing
+// to them as API would freeze policy this plugin should stay free to change.
 export 'src/known_models.dart'
     show
         KnownOpenAIModel,
         OpenAIModelStage,
-        compatModelInfo,
-        dynamicModelInfo,
         knownChatModels,
         knownOpenAIModelFor,
         knownOpenAIModels,
@@ -36,9 +42,6 @@ export 'src/known_models.dart'
         multimodalLegacySupports,
         multimodalNoToolsSupports,
         multimodalSupports,
-        nonChatSupports,
-        openAIModelAlias,
-        openAIModelSpelling,
         reasoningPreviewSupports,
         reasoningSupports,
         reasoningTextOnlySupports,
@@ -263,11 +266,6 @@ abstract final class OpenAIModels {
     KnownOpenAIModel.gpt4oMini.id,
   );
 
-  /// OpenAI ChatGPT-4o, the ChatGPT-tuned snapshot. No function calling.
-  static final ModelRef<chat.OpenAIChatOptions> chatgpt4oLatest = openAI.model(
-    KnownOpenAIModel.chatgpt4oLatest.id,
-  );
-
   // Reasoning models.
   /// OpenAI o3.
   static final ModelRef<chat.OpenAIChatOptions> o3 = openAI.model(
@@ -295,24 +293,9 @@ abstract final class OpenAIModels {
     KnownOpenAIModel.gpt4Turbo.id,
   );
 
-  /// OpenAI GPT-4 0125 Preview.
-  static final ModelRef<chat.OpenAIChatOptions> gpt40125Preview = openAI.model(
-    KnownOpenAIModel.gpt40125Preview.id,
-  );
-
-  /// OpenAI GPT-4 1106 Preview.
-  static final ModelRef<chat.OpenAIChatOptions> gpt41106Preview = openAI.model(
-    KnownOpenAIModel.gpt41106Preview.id,
-  );
-
   /// OpenAI GPT-4. Text-only.
   static final ModelRef<chat.OpenAIChatOptions> gpt4 = openAI.model(
     KnownOpenAIModel.gpt4.id,
-  );
-
-  /// OpenAI GPT-4 32k. Text-only.
-  static final ModelRef<chat.OpenAIChatOptions> gpt432k = openAI.model(
-    KnownOpenAIModel.gpt432k.id,
   );
 
   /// OpenAI GPT-3.5-turbo. Text-only.
@@ -344,16 +327,12 @@ abstract final class OpenAIModels {
     gpt41Nano,
     gpt4o,
     gpt4oMini,
-    chatgpt4oLatest,
     o3,
     o4Mini,
     o3Mini,
     o1,
     gpt4Turbo,
-    gpt40125Preview,
-    gpt41106Preview,
     gpt4,
-    gpt432k,
     gpt35Turbo,
   ];
 }

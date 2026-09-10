@@ -292,13 +292,40 @@ void main() {
       }
     });
 
-    test('the ChatGPT-tuned snapshots are listed, without tools', () {
-      // These were excluded while capabilities came from name matching, which
+    test('the ChatGPT-tuned snapshots take no tools', () {
+      // These were absent while capabilities came from name matching, which
       // could not describe a chat model that takes no tools. The catalog can.
+      // Only the live one is listed; chatgpt-4o-latest went with the 4o line.
       for (final id in ['gpt-5-chat-latest', 'chatgpt-4o-latest']) {
-        expect(knownChatModels, contains(id));
         expect(modelInfoFor(id).supports?['tools'], isFalse, reason: id);
         expect(modelInfoFor(id).supports?['media'], isTrue, reason: id);
+      }
+      expect(knownChatModels, contains('gpt-5-chat-latest'));
+      expect(knownChatModels, isNot(contains('chatgpt-4o-latest')));
+    });
+
+    test('the current multimodal families advertise media input', () {
+      // Pins the #414 fix: name matching reported media:false for every
+      // family from 4.1 on, which made those models unusable for vision in
+      // any consumer that reads the metadata.
+      for (final id in [
+        'gpt-4.1',
+        'gpt-4.1-mini',
+        'gpt-5',
+        'gpt-5-mini',
+        'gpt-5.1',
+        'gpt-5.4',
+        'gpt-5.5',
+        'gpt-5.6-sol',
+        'gpt-4o',
+      ]) {
+        expect(modelInfoFor(id).supports?['media'], isTrue, reason: id);
+      }
+
+      // ...and the text-only ones are still text-only, so the assertion above
+      // cannot be satisfied by making everything multimodal.
+      for (final id in ['gpt-4', 'gpt-3.5-turbo', 'o3-mini']) {
+        expect(modelInfoFor(id).supports?['media'], isFalse, reason: id);
       }
     });
   });

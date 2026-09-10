@@ -288,11 +288,13 @@ enum KnownOpenAIModel {
     multimodalSupports,
     snapshots: ['gpt-4o-mini-2024-07-18'],
   ),
-  // The ChatGPT-tuned GPT-4o snapshot: no function calling.
+  // The ChatGPT-tuned GPT-4o snapshot: no function calling. Retired along
+  // with the rest of the 4o line.
   chatgpt4oLatest(
     'chatgpt-4o-latest',
     'OpenAI ChatGPT-4o',
     multimodalNoToolsSupports,
+    stage: OpenAIModelStage.deprecated,
   ),
 
   // Reasoning models. o1, o3-mini, and o4-mini shut down 2026-10-23;
@@ -345,17 +347,19 @@ enum KnownOpenAIModel {
     snapshots: ['gpt-4-turbo-2024-04-09', 'gpt-4-turbo-preview'],
     stage: OpenAIModelStage.legacy,
   ),
+  // The GPT-4 previews are gone; the catalog keeps them so the names still
+  // resolve, but they are never registered.
   gpt40125Preview(
     'gpt-4-0125-preview',
     'OpenAI GPT-4 0125 Preview',
     multimodalLegacySupports,
-    stage: OpenAIModelStage.legacy,
+    stage: OpenAIModelStage.deprecated,
   ),
   gpt41106Preview(
     'gpt-4-1106-preview',
     'OpenAI GPT-4 1106 Preview',
     multimodalLegacySupports,
-    stage: OpenAIModelStage.legacy,
+    stage: OpenAIModelStage.deprecated,
   ),
   // `gpt-4-vision` alone was never a deployed id — the JS catalog carries it,
   // the API only ever served these two — so the preview is the alias.
@@ -381,7 +385,7 @@ enum KnownOpenAIModel {
     'OpenAI GPT-4 32k',
     textOnlyNoJsonSupports,
     snapshots: ['gpt-4-32k-0613', 'gpt-4-32k-0314'],
-    stage: OpenAIModelStage.legacy,
+    stage: OpenAIModelStage.deprecated,
   ),
   gpt35Turbo(
     'gpt-3.5-turbo',
