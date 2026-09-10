@@ -411,21 +411,22 @@ void main() {
   group('api key resolution', () {
     test('a missing key still fails at generate time', () async {
       // The startup requirement is gone; the call-time requirement stays.
+      // Since #413, generate() reports a model error as a failed response
+      // rather than throwing, so the requirement shows up there.
       final recorder = RecordingFailClient();
       final ai = Genkit(
         plugins: [OpenAIPlugin(httpClient: recorder.client, configVar: noEnv)],
       );
 
-      await expectLater(
-        ai.generate(model: openAI.model('gpt-4o'), prompt: 'hi'),
-        throwsA(
-          isA<GenkitException>().having(
-            (e) => e.toString(),
-            'message',
-            contains('API key is required'),
-          ),
-        ),
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'hi',
       );
+
+      expect(response.finishReason, FinishReason.failed);
+      expect(response.error, isNotNull);
+      expect(response.error!.status, StatusCodes.INVALID_ARGUMENT.name);
+      expect(response.error!.message, contains('API key is required'));
 
       await ai.shutdown();
     });
