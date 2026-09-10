@@ -68,7 +68,6 @@ abstract interface class SpanContext {
 /// around the `next` call.
 ///
 /// Configure providers via `configureInstrumentation` (see `instrumentation.dart`).
-
 abstract interface class Instrumentation {
   /// Wraps [next] in a new span described by [metadata].
   ///
