@@ -46,6 +46,11 @@ const _waitPollInterval = Duration(milliseconds: 200);
 /// instantly.
 const _maxWaitSeconds = 9223372036854775807 ~/ Duration.microsecondsPerSecond;
 
+/// Seconds-since-epoch of [DateTime]'s upper bound (+/-100,000,000 days from
+/// epoch). A deadline past this throws from `DateTime.add`, so a `timeoutSeconds`
+/// that would land beyond it is treated as unbounded instead.
+const _maxDateTimeSeconds = 100000000 * Duration.secondsPerDay;
+
 extension _AgentsMiddlewareAsync on AgentsMiddleware {
   // ── Launch ────────────────────────────────────────────────────────────────
 
@@ -253,8 +258,8 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     // unbounded (the same as 0); without the clamp it wraps into a deadline in
     // the past and the wait returns instantly (matches Go's maxWaitSeconds).
     // The clamp bounds Duration; DateTime's own valid range ends sooner, so a
-    // value that clears the clamp can still overflow the add below, which is
-    // caught and likewise treated as unbounded.
+    // value that clears the clamp but overruns that range is likewise treated as
+    // unbounded (see _deadlineFor).
     final deadline = _deadlineFor(timeoutSeconds);
 
     // Follow each task concurrently. The slowest task sets the wall clock; a
@@ -289,17 +294,17 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
 
   /// Turns a positive `timeoutSeconds` into a wait deadline, or `null` for an
   /// unbounded wait. A value that overflows [Duration]'s microsecond field or
-  /// lands outside [DateTime]'s valid range is treated as unbounded, matching
-  /// the 0 case, rather than throwing or wrapping into a past deadline.
+  /// would push the deadline past [DateTime]'s valid range is treated as
+  /// unbounded, matching the 0 case, rather than throwing or wrapping into a
+  /// past deadline.
   DateTime? _deadlineFor(int timeoutSeconds) {
     if (timeoutSeconds <= 0 || timeoutSeconds > _maxWaitSeconds) return null;
-    try {
-      return DateTime.now().add(Duration(seconds: timeoutSeconds));
-    } on ArgumentError {
-      // DateTime's range is narrower than Duration's; a value in that band is
-      // unbounded.
-      return null;
-    }
+    // DateTime's range is narrower than Duration's. Compare against the bound up
+    // front rather than catching the ArgumentError DateTime.add would throw
+    // (avoid_catching_errors: Error subtypes signal programming faults).
+    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (nowSeconds + timeoutSeconds >= _maxDateTimeSeconds) return null;
+    return DateTime.now().add(Duration(seconds: timeoutSeconds));
   }
 
   /// Follows every task to its end (or the [deadline]), polling each one's
