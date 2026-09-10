@@ -12,34 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:opentelemetry/sdk.dart' as sdk;
+import 'package:genkit/src/o11y/telemetry/span_data.dart';
 
-class TextExporter implements sdk.SpanExporter {
+/// A [TelemetrySink] that records exported spans and logs in memory for
+/// assertions.
+///
+/// The direct-HTTP instrumentation exports each span twice: once when it starts
+/// (with `endTimeUnixNano == 0`) and once when it finishes. [spans] holds every
+/// export; use [finished] to filter to completed spans.
+class RecordingSpanSink implements TelemetrySink {
+  final List<GenkitSpanData> spans = [];
+  final List<GenkitLogData> logs = [];
   var _isShutdown = false;
-  final List<sdk.ReadOnlySpan> spans = [];
 
   @override
-  void export(List<sdk.ReadOnlySpan> spans) {
-    if (_isShutdown) {
-      return;
-    }
+  void export(List<GenkitSpanData> spans) {
+    if (_isShutdown) return;
     this.spans.addAll(spans);
+  }
+
+  @override
+  void exportLogs(List<GenkitLogData> logs) {
+    if (_isShutdown) return;
+    this.logs.addAll(logs);
   }
 
   void reset() {
     spans.clear();
-  }
-
-  @Deprecated(
-    'This method will be removed in 0.19.0. Use [SpanProcessor] instead.',
-  )
-  @override
-  void forceFlush() {
-    return;
+    logs.clear();
   }
 
   @override
-  void shutdown() {
-    _isShutdown = true;
-  }
+  void shutdown() => _isShutdown = true;
+
+  /// Only the finished span exports (those with a non-zero end time).
+  List<GenkitSpanData> get finished =>
+      spans.where((s) => s.endTimeUnixNano > 0).toList();
+
+  /// Returns the single finished span with [name], failing if absent.
+  GenkitSpanData byName(String name) =>
+      finished.firstWhere((s) => s.name == name);
 }

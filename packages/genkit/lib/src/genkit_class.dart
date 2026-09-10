@@ -42,7 +42,11 @@ import 'core/reflection.dart';
 import 'core/registry.dart';
 import 'exception.dart';
 import 'genkit_ai.dart';
-import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
+import 'o11y/instrumentation.dart'
+    show configureInstrumentation, disposeInstrumentations, isInstrumentedBy;
+import 'o11y/instrumentation_setup.dart'
+    show GenkitBuiltinInstrumentation, genkitDevInstrumentation;
+
 import 'types.dart';
 import 'utils.dart' as utils;
 
@@ -77,8 +81,6 @@ final class Genkit extends GenkitAI {
     /// prompt loading.
     String? promptDir = './prompts',
   }) : super(Registry()) {
-    configureCollectorExporter();
-
     // Initialize dotprompt registry with schema resolver wired to the registry
     _dotpromptRegistry = DotpromptRegistry(
       schemaResolver: (name) async {
@@ -102,6 +104,22 @@ final class Genkit extends GenkitAI {
     configureFormats(registry);
 
     if (isDevEnv ?? utils.isDevEnv) {
+      // In the dev environment, auto-inject the built-in telemetry
+      // instrumentation (unless already configured) so the Developer UI
+      // receives traces. It posts Genkit's spans directly to the Genkit
+      // telemetry server over HTTP, independently of OpenTelemetry. It returns
+      // null (and we do not instrument) when no server is configured
+      // (`GENKIT_TELEMETRY_SERVER` unset); in that case the reflection
+      // handshake may still enable it later if the CLI supplies a server URL.
+      // In production, Genkit is not instrumented unless the user configures a
+      // provider.
+      if (!isInstrumentedBy<GenkitBuiltinInstrumentation>()) {
+        final devInstrumentation = genkitDevInstrumentation();
+        if (devInstrumentation != null) {
+          configureInstrumentation(devInstrumentation);
+        }
+      }
+
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
@@ -119,6 +137,10 @@ final class Genkit extends GenkitAI {
   ///
   /// This is mostly meant for testing purposes.
   Future<void> shutdown() async {
+    // Release instrumentation resources (e.g. the built-in dev provider's log
+    // subscription). Providers implementing DisposableInstrumentation are
+    // disposed; they remain registered.
+    disposeInstrumentations();
     if (_reflectionServer != null) {
       await _reflectionServer!.stop();
     }

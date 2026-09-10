@@ -24,6 +24,12 @@ import 'package:genkit/src/ai/model.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
+import 'package:genkit/src/o11y/instrumentation.dart'
+    show configureInstrumentation, isInstrumentedBy, resetInstrumentation;
+import 'package:genkit/src/o11y/instrumentation_setup.dart'
+    show GenkitBuiltinInstrumentation;
+import 'package:genkit/src/o11y/telemetry/span_data.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -46,9 +52,14 @@ void main() {
           wsConnection.complete(ws);
         }
       });
+
+      // Instrument so runAction emits runActionState notifications with real
+      // ids; the CLI handshake path is covered separately below.
+      configureInstrumentation(DirectHttpInstrumentation(_DiscardSink()));
     });
 
     tearDown(() async {
+      resetInstrumentation();
       await reflectionServer.stop();
       await server.close();
     });
@@ -430,5 +441,56 @@ void main() {
       }
       expect(chunks, equals(['chunk1', 'chunk2']));
     });
+
+    test('configure handshake enables telemetry when env is unset', () async {
+      // Env var wins over the handshake; skip if it is set in this environment.
+      if (Platform.environment['GENKIT_TELEMETRY_SERVER'] != null) {
+        return;
+      }
+      // Start uninstrumented so the handshake is what turns instrumentation on.
+      resetInstrumentation();
+
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+      await queue.next; // register
+
+      expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isFalse);
+
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'configure',
+          'params': {'telemetryServerUrl': 'http://127.0.0.1:4033'},
+        }),
+      );
+
+      // configure is a notification (no response); poll until it takes effect.
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (!isInstrumentedBy<GenkitBuiltinInstrumentation>() &&
+          DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isTrue);
+    });
   });
+}
+
+/// A [TelemetrySink] that drops telemetry; used to instrument tests without
+/// exporting.
+class _DiscardSink implements TelemetrySink {
+  @override
+  void export(List<GenkitSpanData> spans) {}
+
+  @override
+  void exportLogs(List<GenkitLogData> logs) {}
+
+  @override
+  void shutdown() {}
 }
