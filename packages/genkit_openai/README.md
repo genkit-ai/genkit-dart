@@ -53,8 +53,10 @@ usable before a key is exported, matching `genkit_anthropic`.
 
 Model discovery via `GET /models` happens only when listing actions, and is
 best-effort: if it fails, the plugin falls back to a curated catalog of common
-models plus any `models:` you registered. Models outside that catalog still
-work when named explicitly, so newly released ids need no plugin update.
+models plus any `models:` you registered. Each curated model carries per-model
+capability metadata; see [Available Models](#available-models). Models outside
+that catalog still work when named explicitly, so newly released ids need no
+plugin update.
 
 ### With Custom Options
 
@@ -242,14 +244,46 @@ final b = await ai.generate(
 
 ## Available Models
 
-Any OpenAI-compatible model can be used by providing its name to the `model()` method:
+The plugin curates capability metadata (vision, tool calling, structured
+outputs, system vs. developer role, lifecycle stage) for the well-known OpenAI
+chat models, and exposes a typed reference for each one via `OpenAIModels`:
 
 ```dart
 final response = await ai.generate(
+  model: OpenAIModels.gpt4o,
+  prompt: 'Hello',
+);
+```
+
+`KnownOpenAIModel` enumerates the catalog and `knownOpenAIModels` maps each
+bare model name to its `ModelInfo`. Listing falls back to this catalog when
+discovery is unavailable, minus the models OpenAI has retired: those still
+resolve by name, but are never offered in a listing.
+
+The catalog is not the set of usable models. Any OpenAI-compatible model works
+by passing its name to `model()`; a name that is not curated takes the current
+multimodal defaults, and a dated snapshot resolves to the capabilities of the
+alias it belongs to:
+
+```dart
+final response = await ai.generate(
+  // Resolves to the curated gpt-4o capabilities.
   model: openAI.model('gpt-4o-2024-08-06'),
   prompt: 'Hello',
 );
 ```
+
+To correct or extend what the plugin knows about a model — most often for a
+model released after this version of the plugin, or one served by a proxy that
+supports less than OpenAI does — pass a `CustomModelDefinition` with explicit
+`info`.
+
+Behind a custom `baseUrl`, a curated model keeps its capabilities — a gateway
+serving `gpt-3.5-turbo` is serving that model — but not OpenAI's deployment
+details, since the label, lifecycle stage and snapshot list all describe
+OpenAI's own hosting. The catalog is also not added to that host's listing:
+what a compatible provider lists is whatever its `/models` reports plus the
+models you register.
 
 ## Options
 

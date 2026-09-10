@@ -13,40 +13,100 @@
 // limitations under the License.
 
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_models.dart' show nonChatSupports;
 import 'package:test/test.dart';
 
 void main() {
-  group('Model Info Helpers', () {
-    test('defaultModelInfo sets correct supports', () {
-      final info = defaultModelInfo('gpt-4o');
-      expect(info.supports?['multiturn'], true);
-      expect(info.supports?['tools'], true);
-      expect(info.supports?['systemRole'], true);
-      expect(info.supports?['media'], true);
+  group('modelInfoFor', () {
+    test('curated model carries its label, versions and stage', () {
+      final info = modelInfoFor('gpt-4o');
+
+      expect(info.label, 'OpenAI GPT-4o');
+      expect(info.stage, 'stable');
+      expect(info.versions, contains('gpt-4o-2024-08-06'));
+      expect(info.supports, multimodalSupports);
     });
 
-    test('oSeriesModelInfo sets correct supports', () {
-      final info = oSeriesModelInfo('o1');
-      expect(info.supports?['multiturn'], true);
-      expect(info.supports?['tools'], true);
+    // Advisory metadata only: nothing in genkit core reads `systemRole`, and
+    // the converter still puts a `system` message on the wire.
+    test('reasoning models do not advertise a system role', () {
+      final info = modelInfoFor('o3');
+
       expect(info.supports?['systemRole'], false);
+      expect(info.supports?['tools'], true);
       expect(info.supports?['media'], true);
     });
 
-    test('modelInfoFor uses family-specific capability profile', () {
-      final defaultInfo = modelInfoFor('gpt-4o');
-      expect(defaultInfo.supports?['tools'], true);
-      expect(defaultInfo.supports?['systemRole'], true);
+    test('o3-mini is text-only', () {
+      final info = modelInfoFor('o3-mini');
 
-      final oSeriesInfo = modelInfoFor('o3-mini');
-      expect(oSeriesInfo.supports?['tools'], true);
-      expect(oSeriesInfo.supports?['systemRole'], false);
-      // o3-mini is text-only (JS marks it media:false).
-      expect(oSeriesInfo.supports?['media'], false);
+      expect(info.supports?['systemRole'], false);
+      expect(info.supports?['tools'], true);
+      expect(info.supports?['media'], false);
     });
 
-    test('supportsVision identifies vision models', () {
-      // Vision models
+    test('models predating structured outputs claim no constrained', () {
+      expect(modelInfoFor('gpt-4o').supports, contains('constrained'));
+      expect(
+        modelInfoFor('gpt-4-turbo').supports?.containsKey('constrained'),
+        isFalse,
+      );
+      expect(
+        modelInfoFor('gpt-3.5-turbo').supports?.containsKey('constrained'),
+        isFalse,
+      );
+    });
+
+    test('a dated snapshot resolves to its curated alias', () {
+      // Listed in the catalog's own versions.
+      expect(modelInfoFor('gpt-4o-2024-05-13').label, 'OpenAI GPT-4o');
+      // Not listed: matched by stripping the dated suffix, so a snapshot
+      // released after this version of the plugin still lands on its alias.
+      expect(
+        modelInfoFor('gpt-5.6-sol-2026-06-01').label,
+        'OpenAI GPT-5.6 Sol',
+      );
+    });
+
+    test('lookup is case-insensitive', () {
+      expect(modelInfoFor('GPT-4O').label, 'OpenAI GPT-4o');
+    });
+
+    test('an uncurated chat model takes the multimodal defaults', () {
+      final info = modelInfoFor('gpt-9-turbo');
+
+      expect(info.label, isNull);
+      expect(info.stage, isNull);
+      expect(info.supports, multimodalSupports);
+    });
+
+    test('an uncurated non-chat model claims no chat capabilities', () {
+      expect(modelInfoFor('text-embedding-3-small').supports, nonChatSupports);
+      expect(modelInfoFor('whisper-1').supports, nonChatSupports);
+    });
+
+    test('an uncurated ChatGPT-tuned snapshot withholds tools', () {
+      expect(modelInfoFor('chatgpt-5.6-latest').supports?['tools'], false);
+      expect(modelInfoFor('chatgpt-5.6-latest').supports?['media'], true);
+    });
+
+    test('retired models keep their stage', () {
+      expect(modelInfoFor('gpt-4o').stage, 'stable');
+      expect(modelInfoFor('gpt-4').stage, 'legacy');
+      expect(modelInfoFor('o1-preview').stage, 'deprecated');
+      expect(modelInfoFor('gpt-4.5').stage, 'deprecated');
+    });
+
+    test('curated metadata is not mutable through the returned info', () {
+      expect(
+        () => modelInfoFor('gpt-4o').supports!['tools'] = false,
+        throwsUnsupportedError,
+      );
+    });
+  });
+
+  group('supportsVision', () {
+    test('identifies vision models', () {
       expect(supportsVision('gpt-4o'), true);
       expect(supportsVision('gpt-4o-mini'), true);
       expect(supportsVision('gpt-4o-2024-05-13'), true);
@@ -56,36 +116,36 @@ void main() {
       expect(supportsVision('gpt-4-vision'), true);
       expect(supportsVision('gpt-4-vision-preview'), true);
       expect(supportsVision('o1'), true);
+      expect(supportsVision('o3'), true);
+      expect(supportsVision('chatgpt-4o-latest'), true);
+      // Uncurated chat names take the multimodal defaults.
+      expect(supportsVision('gpt-5o'), true);
+      expect(supportsVision('gpt-6o-mini'), true);
+    });
+
+    test('identifies text-only models', () {
       expect(supportsVision('o1-mini'), false);
       expect(supportsVision('o1-preview'), false);
-      expect(supportsVision('o3'), true);
       expect(supportsVision('o3-mini'), false);
-      expect(supportsVision('gpt-5o'), true);
-      expect(supportsVision('gpt-5.1o'), true);
-      expect(supportsVision('gpt-6o-mini'), true);
-      expect(supportsVision('chatgpt-4o-latest'), true);
-
-      // GPT 4.1 and the whole gpt-5.x line are multimodal. The version
-      // marker moved from an 'o' suffix into the number, so matching on a
-      // literal 'o' used to report all of these as text-only.
-      expect(supportsVision('gpt-4.1'), true);
-      expect(supportsVision('gpt-4.1-mini'), true);
-      expect(supportsVision('gpt-4.1-nano'), true);
-      expect(supportsVision('gpt-4.5'), true);
-      expect(supportsVision('gpt-5'), true);
-      expect(supportsVision('gpt-5-mini'), true);
-      expect(supportsVision('gpt-5.4'), true);
-      expect(supportsVision('gpt-5.5-pro'), true);
-      expect(supportsVision('gpt-6'), true);
-
-      // Non-vision models
       expect(supportsVision('gpt-3.5-turbo'), false);
       expect(supportsVision('gpt-4'), false);
       expect(supportsVision('text-embedding-3-small'), false);
+      // Undated snapshots, which the alias regex cannot reach: they resolve
+      // only because the catalog lists them.
+      expect(supportsVision('gpt-3.5-turbo-16k'), false);
+      expect(supportsVision('gpt-3.5-turbo-0613'), false);
+      expect(supportsVision('gpt-4-0314'), false);
+      expect(supportsVision('gpt-4-32k-0314'), false);
+      // Azure spells gpt-3.5-turbo without the dot, snapshots included.
+      expect(supportsVision('gpt-35-turbo'), false);
+      expect(supportsVision('gpt-35-turbo-16k'), false);
+      expect(supportsVision('gpt-35-turbo-0125'), false);
+      expect(supportsVision('gpt-35-turbo-16k-0613'), false);
     });
+  });
 
-    test('supportsTools identifies models with function calling support', () {
-      // Tool models
+  group('supportsTools', () {
+    test('identifies models with function calling support', () {
       expect(supportsTools('gpt-4'), true);
       expect(supportsTools('gpt-4o'), true);
       expect(supportsTools('gpt-4o-mini'), true);
@@ -93,15 +153,20 @@ void main() {
       expect(supportsTools('gpt-3.5-turbo'), true);
       expect(supportsTools('gpt-5'), true);
       expect(supportsTools('gpt-5.1'), true);
-
-      // Non-tool models
       expect(supportsTools('o1'), true);
       expect(supportsTools('o3-mini'), true);
+    });
+
+    test('identifies models without function calling support', () {
       // o1-mini and o1-preview never had function calling.
       expect(supportsTools('o1-mini'), false);
       expect(supportsTools('o1-preview'), false);
+      // ChatGPT-tuned snapshots do not take tools, curated or not.
       expect(supportsTools('chatgpt-4o-latest'), false);
+      expect(supportsTools('gpt-5-chat-latest'), false);
       expect(supportsTools('chatgpt-5-latest'), false);
+      expect(supportsTools('chatgpt-4.1-latest'), false);
+      // Non-chat modalities, which this plugin does not serve.
       expect(supportsTools('gpt-3.5-turbo-instruct'), false);
       expect(supportsTools('davinci-002'), false);
       expect(supportsTools('babbage-002'), false);
