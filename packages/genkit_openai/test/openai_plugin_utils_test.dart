@@ -65,6 +65,19 @@ void main() {
       expect(supportsVision('gpt-6o-mini'), true);
       expect(supportsVision('chatgpt-4o-latest'), true);
 
+      // GPT 4.1 and the whole gpt-5.x line are multimodal. The version
+      // marker moved from an 'o' suffix into the number, so matching on a
+      // literal 'o' used to report all of these as text-only.
+      expect(supportsVision('gpt-4.1'), true);
+      expect(supportsVision('gpt-4.1-mini'), true);
+      expect(supportsVision('gpt-4.1-nano'), true);
+      expect(supportsVision('gpt-4.5'), true);
+      expect(supportsVision('gpt-5'), true);
+      expect(supportsVision('gpt-5-mini'), true);
+      expect(supportsVision('gpt-5.4'), true);
+      expect(supportsVision('gpt-5.5-pro'), true);
+      expect(supportsVision('gpt-6'), true);
+
       // Non-vision models
       expect(supportsVision('gpt-3.5-turbo'), false);
       expect(supportsVision('gpt-4'), false);
