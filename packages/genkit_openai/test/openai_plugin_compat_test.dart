@@ -37,6 +37,21 @@ Set<String> modelNames(List<ActionMetadata> metadata) =>
     metadata.map((m) => m.name).toSet();
 
 /// A Groq-shaped model definition, matching the README's example.
+/// Matches the failed response `generate()` returns for a model error.
+///
+/// Since #413 a model error is reported as a response with
+/// [FinishReason.failed] and a structured `error`, not a thrown exception.
+/// `error.status` is the status *name*, not the enum.
+Matcher failsWith(StatusCodes status, {String? message}) =>
+    isA<GenerateResponse>()
+        .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
+        .having((r) => r.error?.status, 'error.status', status.name)
+        .having(
+          (r) => r.error?.message ?? '',
+          'error.message',
+          message == null ? anything : contains(message),
+        );
+
 CustomModelDefinition llama() => CustomModelDefinition(
   name: 'llama-3.3-70b-versatile',
   info: ModelInfo(
@@ -334,19 +349,14 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      await expectLater(
-        ai.generate(
+      expect(
+        await ai.generate(
           model: openAI.model('llama-3.3-70b-versatile', namespace: 'groq'),
           prompt: 'Hello!',
         ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.UNAUTHENTICATED)
-              .having(
-                (e) => e.toString(),
-                'message',
-                contains('Incorrect API key provided'),
-              ),
+        failsWith(
+          StatusCodes.UNAUTHENTICATED,
+          message: 'Incorrect API key provided',
         ),
       );
     });
@@ -612,14 +622,12 @@ void main() {
         );
         addTearDown(ai.shutdown);
 
-        await expectLater(
-          ai.generate(
+        expect(
+          await ai.generate(
             model: openAI.model('llama-3.3-70b-versatile', namespace: 'groq'),
             prompt: 'Hello!',
           ),
-          throwsA(
-            isA<GenkitException>().having((e) => e.status, 'status', expected),
-          ),
+          failsWith(expected),
         );
       });
     });
@@ -648,22 +656,16 @@ void main() {
       // up. Accepted deliberately - do not "speed it up" by dropping it.
       expect(modelNames(await plugin.list()), {'groq/llama-3.3-70b-versatile'});
 
-      await expectLater(
-        ai.generate(
+      // INTERNAL, not UNAVAILABLE: a refused socket never becomes an
+      // ApiException, so there is no HTTP status to map and the generic
+      // default applies. Pinned as current behaviour; #424 tracks the fix,
+      // which is a behaviour change rather than a test one.
+      expect(
+        await ai.generate(
           model: openAI.model('llama-3.3-70b-versatile', namespace: 'groq'),
           prompt: 'Hello!',
         ),
-        throwsA(
-          // INTERNAL, not UNAVAILABLE: a refused socket never becomes an
-          // ApiException, so there is no HTTP status to map and the generic
-          // default applies. Pinned as current behaviour; #424 tracks the
-          // fix, which is a behaviour change rather than a test one.
-          isA<GenkitException>().having(
-            (e) => e.status,
-            'status',
-            StatusCodes.INTERNAL,
-          ),
-        ),
+        failsWith(StatusCodes.INTERNAL),
       );
     });
   });
