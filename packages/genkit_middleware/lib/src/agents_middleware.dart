@@ -398,11 +398,18 @@ String _messageText(Message? m) => (m?.content ?? [])
     .where((t) => t.isNotEmpty)
     .join('\n');
 
-/// Whether a settled finish reason carries a usable answer. Only `stop` does;
-/// `blocked`, `length`, `failed`, `aborted`, `interrupted`, and `detached` do
-/// not (mirrors Go's `FinishReason.CarriesResult`).
-bool _carriesResult(AgentFinishReason? reason) =>
-    reason?.value == AgentFinishReason.stop.value;
+/// Whether a settled finish reason carries a usable answer. Mirrors Go's
+/// `FinishReason.CarriesResult`: `stop`, the two catch-alls (`other`,
+/// `unknown`), and the empty reason a turn may report when it names none all
+/// mean the agent spoke and stopped. `blocked`, `length`, `failed`, `aborted`,
+/// `interrupted`, and `detached` do not.
+bool _carriesResult(AgentFinishReason? reason) {
+  final v = reason?.value ?? '';
+  return v.isEmpty ||
+      v == AgentFinishReason.stop.value ||
+      v == AgentFinishReason.other.value ||
+      v == AgentFinishReason.unknown.value;
+}
 
 /// Maps a settled finish reason onto the status vocabulary shared by delegation
 /// results and background-task reports.
