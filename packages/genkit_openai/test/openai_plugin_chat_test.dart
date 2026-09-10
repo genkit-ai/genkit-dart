@@ -89,8 +89,12 @@ void main() {
           schema: _createPersonSchema(),
         )!,
       );
-      expect(js.schema.containsKey(r'\$defs'), isFalse);
-      expect(js.schema.containsKey(r'\$ref'), isFalse);
+      // Raw strings: r'$defs' is the literal JSON Schema key. Escaping it as
+      // r'\$defs' looks for a backslash and can never match, so the assertion
+      // passed even with the flatten removed.
+      expect(js.schema.containsKey(r'$defs'), isFalse);
+      expect(js.schema.containsKey(r'$ref'), isFalse);
+      expect(js.schema['properties'], isNotNull);
     });
 
     test('does not set strict', () {

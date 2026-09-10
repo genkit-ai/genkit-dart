@@ -53,9 +53,10 @@ abstract class $OpenAIChatOptions {
 
   /// Forces `{"type": "json_object"}` on the request.
   ///
-  /// Only consulted when Genkit's own output config does not already imply
-  /// JSON - `outputFormat: 'json'` or an `outputSchema` takes precedence, and
-  /// a schema additionally constrains the shape.
+  /// Only consulted when Genkit's own output config says nothing about the
+  /// format. Any explicit `outputFormat` wins, including `'text'`, which
+  /// suppresses this rather than conflicting with it; `outputSchema` wins too
+  /// and additionally constrains the shape.
   ///
   /// OpenAI rejects json_object unless the conversation also asks for JSON, so
   /// the prompt must say so. Prefer `outputSchema` where the shape is known.
@@ -108,14 +109,22 @@ ResponseFormat? buildOpenAIResponseFormat({
       // every property listed in `required`. Genkit schemas are not authored
       // that way - an optional field is simply absent from `required` - so
       // strict rejects ordinary schemas with a 400. JS omits the flag
-      // entirely; the SDK always serializes it, so false is how we say that.
+      // entirely; `ResponseFormat.jsonSchema` declares `bool strict = true`
+      // and always serializes it, so false is the closest Dart gets.
+      //
+      // The trade is deliberate and visible: `strict: true` had OpenAI
+      // guarantee the reply conformed to the schema. It no longer does, and
+      // the schema is advisory. Schemas that did satisfy strict lose that
+      // guarantee; schemas that did not stop 400ing.
       strict: false,
     );
   }
 
   if (format == 'text') return ResponseFormat.text();
 
-  // Reached only when the caller opts in without using Genkit's output config.
+  // Reached only when the caller opts in without using Genkit's output
+  // config. An explicit `outputFormat: 'text'` has already returned above, so
+  // it suppresses jsonMode rather than competing with it.
   if (jsonMode == true) return ResponseFormat.jsonObject();
 
   return null;

@@ -72,6 +72,18 @@ Genkit wireGenkit(List<Map<String, dynamic>> captured) => Genkit(
   plugins: [openAI(apiKey: 'test-key', httpClient: wireClient(captured))],
 );
 
+/// A Genkit whose openai plugin points at a compatible host, not OpenAI.
+Genkit compatGenkit(List<Map<String, dynamic>> captured) => Genkit(
+  plugins: [
+    openAI(
+      name: 'groq',
+      apiKey: 'test-key',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      httpClient: wireClient(captured),
+    ),
+  ],
+);
+
 Map<String, dynamic>? responseFormatOf(Map<String, dynamic> body) =>
     (body['response_format'] as Map?)?.cast<String, dynamic>();
 
@@ -154,6 +166,61 @@ void main() {
         model: openAI.model('gpt-4o'),
         prompt: 'Reply in JSON.',
         config: OpenAIChatOptions(jsonMode: true),
+      );
+
+      expect(responseFormatOf(captured.single), {'type': 'json_object'});
+
+      await ai.shutdown();
+    });
+
+    test('an explicit text output format sends type: text', () async {
+      // Mirrors JS (compat-oai/src/model.ts:622). Nothing in the plugin needs
+      // it, so without a test the branch is unpinned - and it is the one
+      // response_format a compat host is most likely to reject.
+      final captured = <Map<String, dynamic>>[];
+      final ai = wireGenkit(captured);
+
+      await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Hello.',
+        outputFormat: 'text',
+      );
+
+      expect(responseFormatOf(captured.single), {'type': 'text'});
+
+      await ai.shutdown();
+    });
+
+    test('an explicit text format suppresses jsonMode', () async {
+      // The documented rule is that jsonMode loses to Genkit's own output
+      // config. `text` is part of that config, so it wins here too.
+      final captured = <Map<String, dynamic>>[];
+      final ai = wireGenkit(captured);
+
+      await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Hello.',
+        outputFormat: 'text',
+        config: OpenAIChatOptions(jsonMode: true),
+      );
+
+      expect(responseFormatOf(captured.single), {'type': 'text'});
+
+      await ai.shutdown();
+    });
+
+    test('a compat host gets json_object for schemaless json too', () async {
+      // Behaviour change: before this fix a schemaless json request sent no
+      // response_format anywhere, so a compat host saw nothing. It now sends
+      // json_object to every host, OpenAI-compatible ones included. Hosts
+      // vary in what they accept, so this is pinned rather than assumed.
+      final captured = <Map<String, dynamic>>[];
+      final ai = compatGenkit(captured);
+
+      await ai.generate(
+        model: openAI.model('gpt-4', namespace: 'groq'),
+        prompt: 'Reply in JSON.',
+        outputFormat: 'json',
       );
 
       expect(responseFormatOf(captured.single), {'type': 'json_object'});

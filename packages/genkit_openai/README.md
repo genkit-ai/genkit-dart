@@ -296,7 +296,7 @@ The `OpenAIChatOptions` class supports the following options:
 - `frequencyPenalty` (double?, -2.0 to 2.0) - Frequency penalty
 - `seed` (int?) - Seed for deterministic sampling
 - `user` (String?) - User identifier for abuse detection
-- `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config does not already imply JSON; see [JSON output](#json-output)
+- `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config says nothing about the format; any explicit `outputFormat` wins, `'text'` included. See [JSON output](#json-output)
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
 

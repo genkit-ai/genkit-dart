@@ -300,8 +300,14 @@ void main() {
             outputSchema: ProfileSchema.$schema,
           );
 
+          // Asserted field by field rather than through `output!.name`: if
+          // the model omits a field, the getter throws a TypeError inside
+          // expect() and the test reports a crash instead of the assertion
+          // that actually failed.
           expect(response.output, isNotNull);
-          expect(response.output!.name, isNotEmpty);
+          final profile = response.output!.toJson();
+          expect(profile['name'], isA<String>());
+          expect(profile['name'], isNotEmpty);
         },
         skip: apiKey == null || apiKey.isEmpty
             ? 'OPENAI_API_KEY not set'
