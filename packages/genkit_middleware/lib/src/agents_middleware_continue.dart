@@ -74,9 +74,14 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
   ///
   /// Refusal slot policy follows the launch precedent: a refusal that ran no
   /// sub-agent work and names a corrected retry that can succeed (missing
-  /// instructions, task still running, a transient read failure) returns its
-  /// slot; a dead end (unknown handle, unresolvable or client-managed agent, no
-  /// saved progress) keeps it, because its retry fails identically.
+  /// instructions, task still running, a transient read failure, a
+  /// client-managed agent whose recourse is a fresh delegation) returns its
+  /// slot; a dead end (unknown handle, unresolvable agent, no saved progress)
+  /// keeps it, because its retry fails identically. Client-managed agents
+  /// return the slot because the continue tool is registered unconditionally
+  /// (the synchronous `tools` getter cannot resolve handles to gate it): a
+  /// store-less sub-agent must not let a run of these refusals drain the cap
+  /// that real delegations need.
   Future<AgentDelegationResult> _runContinue(
     String taskId,
     String? instructions,
@@ -97,7 +102,10 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
 
     if (handle.isClientManaged) {
       // Nothing durable exists behind a client-managed delegation, so no handle
-      // can name a resume point; a dead end keeps its slot.
+      // can name a resume point. Return the slot: the tool is registered even
+      // for store-less sub-agents, and the recourse is a fresh delegation, so
+      // these refusals must not drain the cap real delegations need.
+      _releaseDelegation();
       return AgentDelegationResult(
         response:
             "Error: agent '${resolved.name}' manages its state on the client "

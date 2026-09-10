@@ -520,13 +520,24 @@ class _AgentHandle {
   /// only case that accepts seeded init state. Unknown metadata is treated as
   /// not client-managed (the safe default: avoid seeding state an agent might
   /// reject), matching Go.
+  ///
+  /// Reads the raw map rather than the typed getter: `AgentMetadata.fromJson`
+  /// wraps the map without validating it, so a partial map with the key absent
+  /// would make the typed getter throw a `TypeError` instead of taking the
+  /// fallback these accessors promise.
   bool get isClientManaged =>
-      metadata?.stateManagement.value == AgentStateManagement.client.value;
+      metadata?.toJson()['stateManagement'] ==
+      AgentStateManagement.client.value;
 
   /// Whether the agent can run in the background (its store supports detach).
   /// Unknown metadata is treated as abortable (a wrong guess costs a refusal at
   /// launch time, not a silently missing capability), matching Go.
-  bool get abortable => metadata?.abortable ?? true;
+  ///
+  /// Reads the raw map for the same reason as [isClientManaged].
+  bool get abortable {
+    final value = metadata?.toJson()['abortable'];
+    return value is bool ? value : true;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1000,12 +1011,20 @@ class AgentsMiddleware extends GenerateMiddleware {
     _conversationMessages = options.messages;
 
     final agentList = <String>[];
+    // Whether any sub-agent can leave a continuable handle (server-managed).
+    // The continue tool is registered unconditionally (the sync `tools` getter
+    // cannot resolve handles), but this async hook can, so the continue
+    // guidance is gated on a real capability instead of always shown. Unknown
+    // metadata counts as continuable (the safe default, matching isClientManaged).
+    var anyContinuable = false;
     for (final agentName in _agentNames) {
       final description = await _discoverDescription(agentName);
       agentList.add('  - ${_makeToolName(_prefix, agentName)}: $description');
+      final handle = await _resolveHandle(agentName);
+      if (handle != null && !handle.isClientManaged) anyContinuable = true;
     }
 
-    final agentsInstructions = _buildInstructions(agentList);
+    final agentsInstructions = _buildInstructions(agentList, anyContinuable);
 
     final messages = List<Message>.from(options.messages);
 
@@ -1062,9 +1081,10 @@ class AgentsMiddleware extends GenerateMiddleware {
     ), ctx);
   }
 
-  /// Renders the `<sub-agents>` system prompt block, adding the async and
-  /// continue guidance when those tools are active.
-  String _buildInstructions(List<String> agentList) {
+  /// Renders the `<sub-agents>` system prompt block, adding the async guidance
+  /// when the background tools are active and the continue guidance only when a
+  /// sub-agent can actually leave a continuable handle ([anyContinuable]).
+  String _buildInstructions(List<String> agentList, bool anyContinuable) {
     final b = StringBuffer()
       ..writeln('<sub-agents>')
       ..writeln(
@@ -1095,20 +1115,22 @@ class AgentsMiddleware extends GenerateMiddleware {
         );
     }
 
-    b
-      ..writeln()
-      ..writeln(
-        'Results of delegations to sub-agents that keep sessions carry a '
-        'taskId where the sub-agent\'s progress is addressable. If such a '
-        'delegation fails or is aborted, its saved progress is not lost: call '
-        '$_continueToolName with the taskId to continue it from where it '
-        'stopped, either as-is or steered with instructions. A completed task '
-        'accepts follow-up instructions in its own session the same way, '
-        'without repeating the finished work. A task that stopped on an '
-        'interrupt cannot be continued. A result without a taskId is not '
-        'continuable; delegate again to redo that work.',
-      )
-      ..write('</sub-agents>');
+    if (anyContinuable) {
+      b
+        ..writeln()
+        ..writeln(
+          'Results of delegations to sub-agents that keep sessions carry a '
+          'taskId where the sub-agent\'s progress is addressable. If such a '
+          'delegation fails or is aborted, its saved progress is not lost: call '
+          '$_continueToolName with the taskId to continue it from where it '
+          'stopped, either as-is or steered with instructions. A completed task '
+          'accepts follow-up instructions in its own session the same way, '
+          'without repeating the finished work. A task that stopped on an '
+          'interrupt cannot be continued. A result without a taskId is not '
+          'continuable; delegate again to redo that work.',
+        );
+    }
+    b.write('</sub-agents>');
     return b.toString();
   }
 }

@@ -85,6 +85,21 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
         detach: true,
       );
       return _foldDetachOutcome(handle, begun.invocationNum, out, words);
+    } on GenkitException catch (e) {
+      if (e.status == StatusCodes.FAILED_PRECONDITION) {
+        // The runtime refused the detach itself: the agent's store cannot
+        // support background work. `abortable` falls back to true when the
+        // metadata omits the field, so such an agent clears _refuseUndetachable
+        // and only fails here. Return the slot and name the synchronous retry,
+        // mirroring that pre-flight refusal (Go's maybeDetachRejection).
+        _releaseDelegation();
+        return AgentDelegationResult(
+          response:
+              '${words.errPrefix}: this agent cannot run in the background; '
+              '${words.withoutBackground}.',
+        );
+      }
+      return AgentDelegationResult(response: '${words.errPrefix}: $e');
     } catch (e) {
       return AgentDelegationResult(response: '${words.errPrefix}: $e');
     }
@@ -211,6 +226,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     var first = false;
     switch (input.waitFor) {
       case null:
+      case '':
       case _waitForAll:
         break;
       case _waitForFirst:
@@ -236,9 +252,10 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     // A value large enough to overflow the microsecond arithmetic is treated as
     // unbounded (the same as 0); without the clamp it wraps into a deadline in
     // the past and the wait returns instantly (matches Go's maxWaitSeconds).
-    final deadline = (timeoutSeconds > 0 && timeoutSeconds <= _maxWaitSeconds)
-        ? DateTime.now().add(Duration(seconds: timeoutSeconds))
-        : null;
+    // The clamp bounds Duration; DateTime's own valid range ends sooner, so a
+    // value that clears the clamp can still overflow the add below, which is
+    // caught and likewise treated as unbounded.
+    final deadline = _deadlineFor(timeoutSeconds);
 
     // Follow each task concurrently. The slowest task sets the wall clock; a
     // "first" wait returns as soon as any one settles.
@@ -268,6 +285,21 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
           'again later.';
     }
     return res;
+  }
+
+  /// Turns a positive `timeoutSeconds` into a wait deadline, or `null` for an
+  /// unbounded wait. A value that overflows [Duration]'s microsecond field or
+  /// lands outside [DateTime]'s valid range is treated as unbounded, matching
+  /// the 0 case, rather than throwing or wrapping into a past deadline.
+  DateTime? _deadlineFor(int timeoutSeconds) {
+    if (timeoutSeconds <= 0 || timeoutSeconds > _maxWaitSeconds) return null;
+    try {
+      return DateTime.now().add(Duration(seconds: timeoutSeconds));
+    } on ArgumentError {
+      // DateTime's range is narrower than Duration's; a value in that band is
+      // unbounded.
+      return null;
+    }
   }
 
   /// Follows every task to its end (or the [deadline]), polling each one's
@@ -317,6 +349,9 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
   /// A transient read blip (a non-dead-end fetch failure) is ridden out by
   /// polling again rather than reported as a settled `unknown`, so a momentary
   /// store hiccup does not end the wait early.
+  ///
+  /// Each tick reads metadata only (where the task stands); the single full read
+  /// that folds the answer happens once, on settle, not on every poll.
   Future<BackgroundTaskReport> _awaitTask(
     String taskId, {
     DateTime? deadline,
@@ -327,25 +362,32 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     var stopped = false;
     stopSignal?.then((_) => stopped = true);
 
-    BackgroundTaskReport? lastTransient;
     while (true) {
-      final (report, transient) = await _reportTask(taskId, _readSnapshotOnce);
-      if (transient) {
-        // Keep the report as a fallback, but do not treat the blip as settled;
-        // poll again unless the wait is otherwise ending below.
-        lastTransient = report;
-      } else {
-        lastTransient = null;
-        if (_reportSettled(report.status)) {
-          onSettled?.call();
-          return report;
-        }
+      // Poll metadata only: a tick just needs to know where the task stands.
+      final (report, transient) = await _reportTask(
+        taskId,
+        _pollSnapshot,
+        detail: false,
+      );
+      // A transient blip is not settled; fall through to poll again unless the
+      // wait is otherwise ending below.
+      if (!transient && _reportSettled(report.status)) {
+        // Settled: one full read to fold the answer (and cache it). If that read
+        // hits a transient blip, keep the metadata report we already trust as
+        // terminal rather than downgrading to an error.
+        final (full, fullTransient) = await _reportTask(
+          taskId,
+          _readSnapshotOnce,
+        );
+        onSettled?.call();
+        return fullTransient ? report : full;
       }
+      // A pending exit needs no state, so the metadata-only report stands.
       if (stopped || (cancel?.isCancelled ?? false)) {
-        return lastTransient ?? report;
+        return report;
       }
       if (deadline != null && !DateTime.now().isBefore(deadline)) {
-        return lastTransient ?? report;
+        return report;
       }
       await Future<void>.delayed(_waitPollInterval);
     }
@@ -382,10 +424,16 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
   /// only on a transient read failure (a non-dead-end fetch error). The wait
   /// loop rides those out by polling again; the non-waiting callers ignore the
   /// flag and report the blip as-is.
+  ///
+  /// [detail] is `false` for the wait loop's metadata-only poll: it reads only
+  /// where the task stands (state stripped), so the state-dependent fold and the
+  /// settled-report cache are skipped. The loop does one `detail: true` read on
+  /// settle to fold the answer.
   Future<(BackgroundTaskReport, bool)> _reportTask(
     String taskId,
-    _SnapshotFetch fetch,
-  ) async {
+    _SnapshotFetch fetch, {
+    bool detail = true,
+  }) async {
     final cached = _settledReports[taskId];
     if (cached != null) return (cached, false);
 
@@ -454,7 +502,10 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
         // Still running; nothing to report yet.
         break;
       case 'completed':
-        _foldCompletedReport(report, handle, resolved, snap);
+        // The completed fold reads state (final message + artifacts), which a
+        // metadata-only poll strips. Skip it here; the wait loop does a full
+        // read on settle to fold the answer.
+        if (detail) _foldCompletedReport(report, handle, resolved, snap);
       case 'aborting':
         report.error =
             'The stop signal reached the task and it is winding down; its '
@@ -479,8 +530,10 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     }
 
     // Expired can still change its mind (a slow-beating worker), so it is not
-    // cached; everything else terminal is final and worth caching.
-    if (_terminalStatuses.contains(status) && status != 'expired') {
+    // cached; everything else terminal is final and worth caching. A
+    // metadata-only poll (detail: false) is never cached: its completed report
+    // carries no folded answer, so the wait loop's settle read caches instead.
+    if (detail && _terminalStatuses.contains(status) && status != 'expired') {
       _settledReports[taskId] = report;
     }
     return (report, false);
@@ -521,11 +574,21 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
 
   // ── Snapshot fetches ──────────────────────────────────────────────────────
 
-  /// Reads a task's snapshot once (the check tool and the wait tool's poll).
+  /// Reads a task's snapshot once, state and all (the check tool and the wait
+  /// tool's single read on settle or exit).
   Future<SessionSnapshot?> _readSnapshotOnce(
     _AgentHandle handle,
     String snapshotId,
   ) => _getSnapshot(handle, snapshotId);
+
+  /// The wait loop's per-tick fetch: metadata only, so a poll classifies where
+  /// the task stands without reconstructing the whole conversation state on
+  /// every 200ms tick. The one read that needs the state (the settle) uses
+  /// [_readSnapshotOnce] instead.
+  Future<SessionSnapshot?> _pollSnapshot(
+    _AgentHandle handle,
+    String snapshotId,
+  ) => _getSnapshot(handle, snapshotId, metadataOnly: true);
 
   /// The abort tool's fetch: reads first (an abort must not touch an expired or
   /// already-settled row, whose report the caller needs), then flips a genuinely

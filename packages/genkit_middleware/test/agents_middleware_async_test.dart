@@ -349,6 +349,110 @@ void main() {
       },
     );
 
+    test(
+      'wait_for_background_tasks accepts an empty waitFor as "all"',
+      () async {
+        // Go accepts "" alongside "all"; an empty string must not fall to the
+        // "Unknown waitFor value" arm.
+        _defineEchoAgent(ai, 'worker', 'worker-model', 'empty-waitfor result');
+
+        var turn = 0;
+        Map<String, dynamic>? waited;
+        ai.defineModel(
+          name: 'orchestrator-empty-waitfor',
+          fn: (req, ctx) async {
+            turn++;
+            if (turn == 1) {
+              return _toolCall('delegate_to_worker', {
+                'task': 'do async work',
+                'background': true,
+              });
+            }
+            if (turn == 2) {
+              final taskId =
+                  _toolOutput(req.messages, 'delegate_to_worker')!['taskId']
+                      as String;
+              return _toolCall('wait_for_background_tasks', {
+                'taskIds': [taskId],
+                'waitFor': '',
+              });
+            }
+            waited = _toolOutput(req.messages, 'wait_for_background_tasks');
+            return _text('done');
+          },
+        );
+
+        await ai.generate(
+          model: modelRef('orchestrator-empty-waitfor'),
+          prompt: 'wait with an empty waitFor',
+          maxTurns: 10,
+          use: [
+            agents(agents: ['worker'], async: true),
+          ],
+        );
+
+        expect(waited, isNotNull);
+        // Not routed to the unknown-value refusal.
+        expect(waited!['note'], isNot(contains('Unknown waitFor value')));
+        final report = (waited!['tasks'] as List).first as Map<String, dynamic>;
+        expect(report['status'], 'completed');
+        expect(report['response'], contains('empty-waitfor result'));
+      },
+    );
+
+    test('wait_for_background_tasks treats a DateTime-overflowing timeout as '
+        'unbounded', () async {
+      // A value in the band that clears the Duration clamp (~9.22e12s) but
+      // overflows DateTime's narrower range (~8.64e12s from now): the deadline
+      // add would throw, so it must be caught and treated as unbounded (poll
+      // to settlement) rather than failing the wait. The existing overflow
+      // test uses int64 max, which is above the clamp, so this band is
+      // otherwise untested.
+      _defineEchoAgent(ai, 'worker', 'worker-model', 'eventual result');
+
+      var turn = 0;
+      Map<String, dynamic>? waited;
+      ai.defineModel(
+        name: 'orchestrator-datetime-overflow',
+        fn: (req, ctx) async {
+          turn++;
+          if (turn == 1) {
+            return _toolCall('delegate_to_worker', {
+              'task': 'do async work',
+              'background': true,
+            });
+          }
+          if (turn == 2) {
+            final taskId =
+                _toolOutput(req.messages, 'delegate_to_worker')!['taskId']
+                    as String;
+            return _toolCall('wait_for_background_tasks', {
+              'taskIds': [taskId],
+              // 9e12s: under the Duration clamp, over the DateTime range.
+              'timeoutSeconds': 9000000000000,
+            });
+          }
+          waited = _toolOutput(req.messages, 'wait_for_background_tasks');
+          return _text('done');
+        },
+      );
+
+      await ai.generate(
+        model: modelRef('orchestrator-datetime-overflow'),
+        prompt: 'wait with a DateTime-overflowing timeout',
+        maxTurns: 10,
+        use: [
+          agents(agents: ['worker'], async: true),
+        ],
+      );
+
+      expect(waited, isNotNull);
+      final report = (waited!['tasks'] as List).first as Map<String, dynamic>;
+      // Unbounded wait polled to settlement instead of failing the call.
+      expect(report['status'], 'completed');
+      expect(report['response'], contains('eventual result'));
+    });
+
     test('background-task tools guide when called with no task IDs', () async {
       _defineEchoAgent(ai, 'worker', 'worker-model', 'done');
 
@@ -538,6 +642,72 @@ void main() {
         contains('manages its state on the client'),
       );
     });
+
+    test(
+      'a client-managed continue_task refusal returns its delegation slot',
+      () async {
+        // The continue tool is registered even for store-less sub-agents. Its
+        // client-managed refusal must return the slot, so a run of these
+        // refusals does not drain the cap that real delegations need.
+        ai.defineCustomAgent(
+          name: 'local',
+          fn: (sess, options) async => AgentResult(
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'local done')],
+            ),
+            finishReason: AgentFinishReason.stop,
+          ),
+        );
+
+        var turn = 0;
+        Map<String, dynamic>? continued;
+        Map<String, dynamic>? delegated;
+        ai.defineModel(
+          name: 'orchestrator-slot',
+          fn: (req, ctx) async {
+            turn++;
+            if (turn == 1) {
+              // Spends and (with the fix) returns the only slot.
+              return _toolCall('continue_task', {
+                'taskId': 'local:whatever',
+                'instructions': 'go',
+              });
+            }
+            if (turn == 2) {
+              // A real delegation must still fit under maxDelegations: 1.
+              return _toolCall('delegate_to_local', {'task': 'do it'});
+            }
+            continued = _toolOutput(req.messages, 'continue_task');
+            delegated = _toolOutput(req.messages, 'delegate_to_local');
+            return _text('ok');
+          },
+        );
+
+        await ai.generate(
+          model: modelRef('orchestrator-slot'),
+          prompt: 'refuse a continue, then delegate for real',
+          maxTurns: 6,
+          use: [
+            agents(agents: ['local'], async: true, maxDelegations: 1),
+          ],
+        );
+
+        expect(continued, isNotNull);
+        expect(
+          continued!['response'] as String,
+          contains('manages its state on the client'),
+        );
+        expect(delegated, isNotNull);
+        // The delegation ran instead of hitting the cap the refusal would have
+        // spent without the slot return.
+        expect(
+          delegated!['response'] as String,
+          isNot(contains('Delegation limit reached')),
+        );
+        expect(delegated!['response'] as String, contains('local done'));
+      },
+    );
 
     test('continue_task reports an unresolvable taskId', () async {
       _defineEchoAgent(ai, 'worker', 'worker-model', 'done');
