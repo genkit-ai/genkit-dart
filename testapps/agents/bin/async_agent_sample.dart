@@ -36,7 +36,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_middleware/agents.dart';
 
-final _model = googleAI.gemini('gemini-flash-lite-latest');
+final _model = googleAI.gemini('gemini-flash-latest');
 
 final Genkit ai = Genkit(plugins: [googleAI(), AgentsPlugin()], model: _model);
 

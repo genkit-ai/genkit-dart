@@ -40,6 +40,12 @@ part of 'agents_middleware.dart';
 /// task is still in flight.
 const _waitPollInterval = Duration(milliseconds: 200);
 
+/// Largest `timeoutSeconds` that still fits in [Duration]'s microsecond field.
+/// A larger value is treated as unbounded (the same as 0) rather than
+/// overflowing into a deadline in the past, which would make the wait return
+/// instantly.
+const _maxWaitSeconds = 9223372036854775807 ~/ Duration.microsecondsPerSecond;
+
 extension _AgentsMiddlewareAsync on AgentsMiddleware {
   // ── Launch ────────────────────────────────────────────────────────────────
 
@@ -162,7 +168,8 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
             'soon as any one task settles.',
         inputSchema: WaitBackgroundTasksInput.$schema,
         toolOutputSchema: BackgroundTasksResult.$schema,
-        fn: (input, _) async => .response(await _waitForBackgroundTasks(input)),
+        fn: (input, ctx) async =>
+            .response(await _waitForBackgroundTasks(input, ctx.cancel)),
       ),
       Tool<BackgroundTasksInput, BackgroundTasksResult>(
         name: _abortToolName,
@@ -190,9 +197,13 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
 
   /// The blocking status tool: it polls every task to its end, or returns the
   /// current statuses when the optional timeout elapses. "first" returns as soon
-  /// as any one task settles, the rest reporting their current status.
+  /// as any one task settles, the rest reporting their current status. A
+  /// [cancel] that fires while the wait is in flight aborts it (the tool call
+  /// fails with the cancellation) rather than reporting the still-running tasks
+  /// as settled.
   Future<BackgroundTasksResult> _waitForBackgroundTasks(
     WaitBackgroundTasksInput input,
+    CancellationToken? cancel,
   ) async {
     final ids = input.taskIds ?? const [];
     if (ids.isEmpty) return BackgroundTasksResult(note: _noTaskIdsNote);
@@ -213,19 +224,34 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
         );
     }
 
+    // A caller-supplied token that is already cancelled bails before any work.
+    cancel?.throwIfCancelled();
+
     final timeoutSeconds = input.timeoutSeconds ?? 0;
     // A negative timeout means "don't wait": report the current statuses.
     if (timeoutSeconds < 0) {
       return _reportTasks(ids, _readSnapshotOnce);
     }
 
-    final deadline = timeoutSeconds > 0
+    // A value large enough to overflow the microsecond arithmetic is treated as
+    // unbounded (the same as 0); without the clamp it wraps into a deadline in
+    // the past and the wait returns instantly (matches Go's maxWaitSeconds).
+    final deadline = (timeoutSeconds > 0 && timeoutSeconds <= _maxWaitSeconds)
         ? DateTime.now().add(Duration(seconds: timeoutSeconds))
         : null;
 
     // Follow each task concurrently. The slowest task sets the wall clock; a
     // "first" wait returns as soon as any one settles.
-    final reports = await _awaitAll(ids, deadline: deadline, first: first);
+    final reports = await _awaitAll(
+      ids,
+      deadline: deadline,
+      first: first,
+      cancel: cancel,
+    );
+
+    // The caller cancelling is not a timeout; let it fail the tool call rather
+    // than dressing the still-running tasks up as a settled result.
+    cancel?.throwIfCancelled();
 
     final pending = reports.where((r) => !_reportSettled(r.status)).length;
     final res = BackgroundTasksResult(tasks: reports);
@@ -251,6 +277,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     List<String> ids, {
     DateTime? deadline,
     bool first = false,
+    CancellationToken? cancel,
   }) async {
     // Distinct IDs share one poll; model-authored lists can repeat.
     final distinct = ids.toSet().toList();
@@ -261,6 +288,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
       futures[id] = _awaitTask(
         id,
         deadline: deadline,
+        cancel: cancel,
         stopSignal: first ? settledFirst.future : null,
         onSettled: first
             ? () {
@@ -281,25 +309,43 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
   /// Follows one task by polling its snapshot until terminal or the [deadline].
   /// When [stopSignal] completes (the "first" race was won elsewhere), a still
   /// in-flight task is read once more and returned as it stands. [onSettled] is
-  /// fired when this task itself reaches a terminal status, to win the race.
+  /// fired when this task itself reaches a terminal status, to win the race. A
+  /// [cancel] that fires ends the poll and returns the task as it stands (still
+  /// running, so reported pending); the wait tool turns that into the tool
+  /// call's cancellation.
+  ///
+  /// A transient read blip (a non-dead-end fetch failure) is ridden out by
+  /// polling again rather than reported as a settled `unknown`, so a momentary
+  /// store hiccup does not end the wait early.
   Future<BackgroundTaskReport> _awaitTask(
     String taskId, {
     DateTime? deadline,
     Future<void>? stopSignal,
     void Function()? onSettled,
+    CancellationToken? cancel,
   }) async {
     var stopped = false;
     stopSignal?.then((_) => stopped = true);
 
+    BackgroundTaskReport? lastTransient;
     while (true) {
-      final report = await _reportTask(taskId, _readSnapshotOnce);
-      if (_reportSettled(report.status)) {
-        onSettled?.call();
-        return report;
+      final (report, transient) = await _reportTask(taskId, _readSnapshotOnce);
+      if (transient) {
+        // Keep the report as a fallback, but do not treat the blip as settled;
+        // poll again unless the wait is otherwise ending below.
+        lastTransient = report;
+      } else {
+        lastTransient = null;
+        if (_reportSettled(report.status)) {
+          onSettled?.call();
+          return report;
+        }
       }
-      if (stopped) return report;
+      if (stopped || (cancel?.isCancelled ?? false)) {
+        return lastTransient ?? report;
+      }
       if (deadline != null && !DateTime.now().isBefore(deadline)) {
-        return report;
+        return lastTransient ?? report;
       }
       await Future<void>.delayed(_waitPollInterval);
     }
@@ -311,11 +357,15 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     List<String> taskIds,
     _SnapshotFetch fetch,
   ) async {
-    // One fetch per distinct ID, shared across duplicates.
+    // One fetch per distinct ID, shared across duplicates. None of these
+    // callers wait, so a transient blip is just reported as-is.
     final distinct = taskIds.toSet().toList();
     final fetched = <String, BackgroundTaskReport>{};
     await Future.wait(
-      distinct.map((id) async => fetched[id] = await _reportTask(id, fetch)),
+      distinct.map((id) async {
+        final (report, _) = await _reportTask(id, fetch);
+        fetched[id] = report;
+      }),
     );
     return BackgroundTasksResult(
       tasks: [for (final id in taskIds) fetched[id]!],
@@ -327,21 +377,29 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
   /// response and artifacts; terminal non-success statuses surface an
   /// explanatory error instead. Settled reports are cached for the rest of the
   /// call (except `expired`, which can still be re-read as a settled row).
-  Future<BackgroundTaskReport> _reportTask(
+  ///
+  /// The second field of the returned record is `true` when the report stands
+  /// only on a transient read failure (a non-dead-end fetch error). The wait
+  /// loop rides those out by polling again; the non-waiting callers ignore the
+  /// flag and report the blip as-is.
+  Future<(BackgroundTaskReport, bool)> _reportTask(
     String taskId,
     _SnapshotFetch fetch,
   ) async {
     final cached = _settledReports[taskId];
-    if (cached != null) return cached;
+    if (cached != null) return (cached, false);
 
     final resolved = _resolveTaskId(taskId);
     if (resolved == null) {
-      return BackgroundTaskReport(
-        taskId: taskId,
-        status: _taskStatusUnknown,
-        error:
-            'Task ID "$taskId" does not match any configured agent (expected '
-            '"<agent>:<snapshotId>").',
+      return (
+        BackgroundTaskReport(
+          taskId: taskId,
+          status: _taskStatusUnknown,
+          error:
+              'Task ID "$taskId" does not match any configured agent (expected '
+              '"<agent>:<snapshotId>").',
+        ),
+        false,
       );
     }
 
@@ -357,7 +415,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
           "Agent '${resolved.name}' is not registered in this process. This "
           'task cannot be collected here; report it as unavailable rather than '
           'delegating it again.';
-      return report;
+      return (report, false);
     }
 
     SessionSnapshot? snap;
@@ -374,8 +432,10 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
       } else {
         report.error =
             "Could not read the task's status: $e. Check again later.";
+        // Transient: the wait loop should poll again rather than settle.
+        return (report, true);
       }
-      return report;
+      return (report, false);
     }
 
     if (snap == null) {
@@ -383,7 +443,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
       report.error =
           'No record of this task exists. Delegate the task again if the '
           'result is still needed.';
-      return report;
+      return (report, false);
     }
 
     final status = snap.status?.value ?? _taskStatusUnknown;
@@ -423,7 +483,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
     if (_terminalStatuses.contains(status) && status != 'expired') {
       _settledReports[taskId] = report;
     }
-    return report;
+    return (report, false);
   }
 
   /// Folds a completed snapshot into [report], reusing the synchronous

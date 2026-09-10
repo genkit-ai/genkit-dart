@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:genkit/genkit.dart';
 import 'package:genkit_middleware/agents.dart';
 import 'package:test/test.dart';
@@ -238,6 +240,114 @@ void main() {
       expect(report['status'], 'unknown');
       expect(report['error'], isNotNull);
     });
+
+    test(
+      'wait_for_background_tasks aborts when the cancel token fires',
+      () async {
+        // A worker whose model never settles: the model future hangs, so the
+        // pending snapshot never finalizes and the wait would poll indefinitely
+        // if the cancel token did not cut it short.
+        final hang = Completer<ModelResponse>();
+        ai.defineModel(name: 'hang-model', fn: (req, ctx) => hang.future);
+        ai.defineAgent(
+          name: 'staller',
+          model: modelRef('hang-model'),
+          system: 'You are staller.',
+          store: InMemorySessionStore(),
+        );
+
+        final controller = CancellationController();
+        var turn = 0;
+        ai.defineModel(
+          name: 'orchestrator-cancel',
+          fn: (req, ctx) async {
+            turn++;
+            if (turn == 1) {
+              return _toolCall('delegate_to_staller', {
+                'task': 'never finishes',
+                'background': true,
+              });
+            }
+            final launch = _toolOutput(req.messages, 'delegate_to_staller')!;
+            final taskId = launch['taskId'] as String;
+            // Cancel shortly after the (unbounded) wait begins.
+            Timer(const Duration(milliseconds: 100), controller.cancel);
+            return _toolCall('wait_for_background_tasks', {
+              'taskIds': [taskId],
+            });
+          },
+        );
+
+        final result = await ai.generate(
+          model: modelRef('orchestrator-cancel'),
+          prompt: 'wait on a task that never settles, then cancel',
+          maxTurns: 10,
+          cancel: controller.token,
+          use: [
+            agents(agents: ['staller'], async: true),
+          ],
+        );
+
+        // The wait threw the cancellation, which the generate loop resolves as an
+        // aborted response rather than hanging forever or reporting a settled
+        // result.
+        expect(result.finishReason, FinishReason.aborted);
+        hang.complete(_text('unblock the isolate'));
+      },
+    );
+
+    test(
+      'wait_for_background_tasks treats an overflowing timeout as unbounded',
+      () async {
+        // A worker that settles after a couple of polls. A timeoutSeconds large
+        // enough to overflow Duration's microsecond field must be treated as
+        // unbounded (poll until settled), not wrap into a past deadline that
+        // returns instantly with a still-pending report.
+        _defineEchoAgent(ai, 'worker', 'worker-model', 'eventual result');
+
+        var turn = 0;
+        Map<String, dynamic>? waited;
+        ai.defineModel(
+          name: 'orchestrator-overflow',
+          fn: (req, ctx) async {
+            turn++;
+            if (turn == 1) {
+              return _toolCall('delegate_to_worker', {
+                'task': 'do async work',
+                'background': true,
+              });
+            }
+            if (turn == 2) {
+              final taskId =
+                  _toolOutput(req.messages, 'delegate_to_worker')!['taskId']
+                      as String;
+              return _toolCall('wait_for_background_tasks', {
+                'taskIds': [taskId],
+                // ~9.2e18 seconds: seconds * 1e6 overflows int64.
+                'timeoutSeconds': 9223372036854775807,
+              });
+            }
+            waited = _toolOutput(req.messages, 'wait_for_background_tasks');
+            return _text('done');
+          },
+        );
+
+        await ai.generate(
+          model: modelRef('orchestrator-overflow'),
+          prompt: 'wait with an overflowing timeout',
+          maxTurns: 10,
+          use: [
+            agents(agents: ['worker'], async: true),
+          ],
+        );
+
+        expect(waited, isNotNull);
+        final report = (waited!['tasks'] as List).first as Map<String, dynamic>;
+        // Unbounded wait polled to settlement instead of returning instantly.
+        expect(report['status'], 'completed');
+        expect(report['response'], contains('eventual result'));
+      },
+    );
 
     test('background-task tools guide when called with no task IDs', () async {
       _defineEchoAgent(ai, 'worker', 'worker-model', 'done');

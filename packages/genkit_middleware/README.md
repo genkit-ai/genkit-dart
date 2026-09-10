@@ -92,8 +92,10 @@ Three shared tools are added:
 - `check_background_tasks` — non-blocking status (and results) for the given
   `taskIds`.
 - `wait_for_background_tasks` — blocks until the listed tasks settle. Supports
-  `timeoutSeconds` (0/omitted waits indefinitely, negative returns immediately)
-  and `waitFor: "first"` to return as soon as any one task settles.
+  `timeoutSeconds` (0/omitted or an overflowing value waits indefinitely,
+  negative returns immediately) and `waitFor: "first"` to return as soon as any
+  one task settles. A `CancellationController` cancel on the `generate` call
+  aborts an in-flight wait.
 - `abort_background_tasks` — stops tasks whose results are no longer needed.
 
 Background delegation requires **server-managed** sub-agents (defined with a
