@@ -319,21 +319,33 @@ const _legacyThoughtSignatureKey = 'signature';
 /// Metadata key carrying the opaque payload of a redacted thinking block.
 const _redactedThinkingKey = 'redactedThinking';
 
-/// Rebuilds the Anthropic thinking block a [ReasoningPart] came from.
+/// Rebuilds the Anthropic thinking block [p] came from, or null when it
+/// cannot be rebuilt.
 ///
-/// Returns an empty list for reasoning this plugin cannot round-trip: Anthropic
-/// rejects a thinking block whose signature is missing, so a part that never
-/// carried one - hand-built history, say - is dropped rather than turned into
-/// a request the API will reject.
+/// Null means the part is dropped: Anthropic rejects a thinking block whose
+/// signature is missing, so a part that never carried one - hand-built
+/// history, say - is left out rather than turned into a request the API will
+/// reject.
 ///
 /// Reasoning from another provider is a known limitation, not something this
 /// catches. The Gemini plugins write the same [_thoughtSignatureKey], so a
 /// Gemini part arrives with a signature Anthropic cannot verify and is
 /// forwarded, then rejected server-side. Genkit JS collides the same way.
 sdk.InputContentBlock? _toAnthropicThinkingBlock(Part p) {
-  final redacted = _redactedThinkingPayload(p);
-  if (redacted != null) {
-    return sdk.RedactedThinkingInputBlock(data: redacted);
+  // A part carrying the key at all is a redacted block, so it is judged as
+  // one. Falling through to the signature check would blame a missing
+  // thoughtSignature for a payload problem, naming a key nothing read.
+  if (_claimsRedactedThinking(p)) {
+    final redacted = _redactedThinkingPayload(p);
+    if (redacted != null) {
+      return sdk.RedactedThinkingInputBlock(data: redacted);
+    }
+    _logger.warning(
+      'Dropping a redacted thinking part: its $_redactedThinkingKey payload '
+      'is empty or not a string. Anthropic requires the payload echoed back '
+      'exactly as it arrived.',
+    );
+    return null;
   }
 
   final metadata = p.metadata;
@@ -353,6 +365,12 @@ sdk.InputContentBlock? _toAnthropicThinkingBlock(Part p) {
     signature: signature,
   );
 }
+
+/// Whether [p] presents itself as a redacted thinking block, whatever the
+/// state of its payload.
+bool _claimsRedactedThinking(Part p) =>
+    p.custom?.containsKey(_redactedThinkingKey) == true ||
+    p.metadata?.containsKey(_redactedThinkingKey) == true;
 
 /// The opaque payload of a redacted thinking block carried by [p], if any.
 ///

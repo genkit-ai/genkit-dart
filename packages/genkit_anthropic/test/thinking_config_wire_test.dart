@@ -19,6 +19,7 @@ import 'package:genkit_anthropic/genkit_anthropic.dart';
 import 'package:genkit_anthropic/src/plugin_impl.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 Future<Map<String, dynamic>> _requestOnTheWire({
@@ -325,6 +326,43 @@ void main() {
         'thinking': 'Hmm',
         'signature': 'current',
       });
+    });
+
+    test('a malformed redacted payload names its own key', () async {
+      final logged = <String>[];
+      Logger.root.level = Level.ALL;
+      final sub = Logger.root.onRecord.listen((r) => logged.add(r.message));
+      addTearDown(sub.cancel);
+
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              CustomPart(custom: {'redactedThinking': ''}),
+              TextPart(text: 'hi'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'and again?')],
+          ),
+        ],
+      );
+
+      expect(((body['messages'] as List)[1] as Map)['content'], [
+        {'type': 'text', 'text': 'hi'},
+      ]);
+      // Blaming a missing thoughtSignature would name a key nothing read.
+      final drops = logged.where((m) => m.startsWith('Dropping')).toList();
+      expect(drops, hasLength(1));
+      expect(drops.single, contains('redactedThinking'));
+      expect(drops.single, isNot(contains('thoughtSignature')));
     });
 
     test('omits an unsigned thinking block from the wire', () async {
