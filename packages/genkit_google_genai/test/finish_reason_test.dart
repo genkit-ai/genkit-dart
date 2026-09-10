@@ -21,7 +21,10 @@ import 'package:test/test.dart';
 gcl.Candidate _candidate(String? finishReason) => gcl.Candidate(
   index: 0,
   finishReason: finishReason,
-  content: gcl.Content(role: 'model', parts: [gcl.Part(text: 'hi')]),
+  content: gcl.Content(
+    role: 'model',
+    parts: [gcl.Part(text: 'hi')],
+  ),
 );
 
 void main() {
@@ -55,13 +58,16 @@ void main() {
       expect(reason.value, isNot('unspecified'));
     });
 
-    test('content-less candidate does not throw and defaults role to model', () {
-      final (message, reason) = fromGeminiCandidate(
-        gcl.Candidate(index: 0, finishReason: 'STOP'),
-      );
-      expect(message.role, Role.model);
-      expect(message.content, isEmpty);
-      expect(reason.value, FinishReason.stop.value);
-    });
+    test(
+      'content-less candidate does not throw and defaults role to model',
+      () {
+        final (message, reason) = fromGeminiCandidate(
+          gcl.Candidate(index: 0, finishReason: 'STOP'),
+        );
+        expect(message.role, Role.model);
+        expect(message.content, isEmpty);
+        expect(reason.value, FinishReason.stop.value);
+      },
+    );
   });
 }
