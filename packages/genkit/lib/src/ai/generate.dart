@@ -225,25 +225,85 @@ _resolveTools(
   );
 }
 
-/// Builds an aborted [GenerateResponseHelper] carrying [history] as the
-/// resumable message list. Used when a generation turn is cancelled (or exceeds
-/// its turn limit): rather than throwing, the loop resolves with a response
-/// whose `finishReason` is [FinishReason.aborted] and no message, so the caller
-/// can inspect `response.messages` and attempt to resume from the last good
-/// state.
-GenerateResponseHelper _abortedResponse({
+/// Finish reasons that skip output parsing and are treated as terminal by the
+/// typed helpers: the model did not produce a normal completion, so running its
+/// (missing or partial) output through a schema parser would only mask the
+/// reason the caller needs to see. Mirrors Go's `FinishReason.isAbnormal`.
+extension _AbnormalFinish on FinishReason {
+  bool get isAbnormal => const {
+    'blocked',
+    'aborted',
+    'failed',
+    'interrupted',
+    'other',
+  }.contains(value);
+}
+
+/// Maps a thrown value to the structured [RuntimeError] carried on an abnormal
+/// response's `error` field. Preserves a [GenkitException]'s status; anything
+/// else is reported as `INTERNAL`. The structured `error` is the serializable
+/// view; the raw thrown object rides along on [GenerateResponseHelper.cause]
+/// for in-process inspection. Mirrors Go's `responseError`, which carries only
+/// the classified status and message (no nested details).
+RuntimeError _toRuntimeError(Object cause) {
+  if (cause is GenkitException) {
+    return RuntimeError(status: cause.status.name, message: cause.message);
+  }
+  return RuntimeError(
+    status: StatusCodes.INTERNAL.name,
+    message: cause.toString(),
+  );
+}
+
+/// Classifies a tool's error for the loop. A genuine tool failure becomes an
+/// INTERNAL [GenkitException] whose message names the tool, wrapping the
+/// original as `underlyingException` so callers can still reach it (and
+/// `response.cause`). Mirrors Go's `toolFailureError` and `ErrToolFailed`: a
+/// tool's failure is not a failure of the caller's request, so the tool's own
+/// status must not become the whole generation's.
+GenkitException _toolFailureError(String toolName, Object cause) {
+  final detail = cause is GenkitException ? cause.message : cause.toString();
+  return GenkitException(
+    'tool "$toolName" failed: $detail',
+    status: StatusCodes.INTERNAL,
+    underlyingException: cause,
+  );
+}
+
+/// Builds an abnormal-finish [GenerateResponseHelper] carrying [history] as the
+/// resumable message list and [error] as the structured cause. Used for every
+/// non-success terminal the loop resolves to rather than throws: a model or tool
+/// failure ([FinishReason.failed]) and a cooperative stop such as a cancel or a
+/// `maxTurns` overrun ([FinishReason.aborted]).
+///
+/// Mirrors Go's `failurePartial`: the message is dropped so nothing
+/// half-finished rides along (the caller resumes from `response.messages`), and
+/// `error` is set on both the failed and aborted paths so a caller reading
+/// `response.error` after seeing an abnormal finish reason always gets a
+/// payload. [base], when non-null, supplies the accounting the turn already
+/// earned (usage/custom/raw/latency/operation) so a failure still reports what
+/// the run spent before it broke.
+GenerateResponseHelper _abnormalResponse({
+  required FinishReason finishReason,
   required List<Message> history,
+  required RuntimeError error,
+  String? finishMessage,
   Map<String, dynamic>? config,
-  Object? reason,
+  ModelResponse? base,
+  Object? cause,
 }) {
   final request = ModelRequest(messages: history, config: config);
   return GenerateResponseHelper(
     ModelResponse(
-      finishReason: FinishReason.aborted,
-      finishMessage: reason is String
-          ? reason
-          : (reason?.toString() ?? 'Generation was cancelled'),
-      // Stamp the request onto the ModelResponse too, not just the helper, so
+      finishReason: finishReason,
+      finishMessage: finishMessage ?? error.message,
+      error: error,
+      usage: base?.usage,
+      custom: base?.custom,
+      raw: base?.raw,
+      latencyMs: base?.latencyMs,
+      operation: base?.operation,
+      // Stamp the request onto the ModelResponse too (not just the helper) so
       // the resumable history survives the reflection boundary (the registered
       // `generate` util action returns `response.modelResponse`, dropping the
       // helper's own `_request`).
@@ -251,6 +311,56 @@ GenerateResponseHelper _abortedResponse({
     ),
     request: request,
     output: null,
+    cause: cause,
+  );
+}
+
+/// Builds an aborted response for a cooperative stop (a cancel or a `maxTurns`
+/// overrun). Carries an ABORTED-classed error, or a [GenkitException]'s own
+/// status when a genuine failure raced the cancel, so this path reports an
+/// `error` like the failed path does. [reason] is a status message string, the
+/// exception that raced the cancel, or null.
+GenerateResponseHelper _abortedResponse({
+  required List<Message> history,
+  Map<String, dynamic>? config,
+  Object? reason,
+  ModelResponse? base,
+}) {
+  final message = reason is String
+      ? reason
+      : (reason?.toString() ?? 'Generation was cancelled');
+  final error = reason is GenkitException
+      ? _toRuntimeError(reason)
+      : RuntimeError(status: StatusCodes.ABORTED.name, message: message);
+  return _abnormalResponse(
+    finishReason: FinishReason.aborted,
+    history: history,
+    error: error,
+    finishMessage: message,
+    config: config,
+    base: base,
+    // Only a genuine thrown object is a `cause`; a plain status message is not.
+    cause: reason is String ? null : reason,
+  );
+}
+
+/// Builds a failed response for a model or tool error: the loop resolves with
+/// [FinishReason.failed] and no message, carrying [cause] as the structured
+/// `error` (and the raw object on `cause`), so the caller can inspect
+/// `response.error` and resume from `response.messages`.
+GenerateResponseHelper _failedResponse({
+  required List<Message> history,
+  required Object cause,
+  Map<String, dynamic>? config,
+  ModelResponse? base,
+}) {
+  return _abnormalResponse(
+    finishReason: FinishReason.failed,
+    history: history,
+    error: _toRuntimeError(cause),
+    config: config,
+    base: base,
+    cause: cause,
   );
 }
 
@@ -320,6 +430,12 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       reason: ctx.cancel?.reason,
     );
   }
+  // Setup-phase faults (a missing/unknown model here, a bad option) throw with
+  // no response, matching Go: they are caller mistakes raised before the request
+  // resolves, not a run that broke mid-flight. Everything after the request
+  // resolves - a model call, a tool, a middleware hook - resolves to a
+  // `failed`/`aborted` response instead of throwing. The split is by *when* the
+  // fault is a caller mistake vs a run failure, not by call-stack depth.
   if (options.model == null) {
     throw GenkitException(
       'Model must be provided',
@@ -460,8 +576,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     ));
   } catch (e) {
     // A cancel of this turn's token resolves to an aborted response carrying
-    // the last-good history; a genuine failure (even one racing a cancel of an
-    // unrelated token) rethrows with its cause intact.
+    // the last-good history. A genuine model error resolves to a failed
+    // response carrying the same last-good history (the failing turn's own
+    // partial output is dropped), so the caller can inspect `response.error`
+    // and resume from `response.messages` - mirroring the abort path and Go's
+    // `failurePartial`.
     final aborted = _abortResponseIfCancelled(
       e,
       ctx.cancel,
@@ -469,7 +588,11 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       config: options.config,
     );
     if (aborted != null) return aborted;
-    rethrow;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+    );
   }
 
   final parser = format
@@ -490,11 +613,40 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       .toList();
 
   if (toolRequests == null || toolRequests.isEmpty) {
-    return GenerateResponseHelper(
-      response,
-      request: currentRequest,
-      output: _parseOutput(response.message, parser),
-    );
+    // Skip output parsing on an abnormal finish (blocked, failed, ...): the
+    // model did not complete normally, so the response passes through as-is and
+    // the caller reads the finish reason rather than a schema error. Mirrors
+    // Go's `FinishReason.isAbnormal` guard.
+    if (parser == null || response.finishReason.isAbnormal) {
+      return GenerateResponseHelper(
+        response,
+        request: currentRequest,
+        output: null,
+      );
+    }
+    try {
+      return GenerateResponseHelper(
+        response,
+        request: currentRequest,
+        output: _parseOutput(response.message, parser),
+      );
+    } catch (e) {
+      // The model finished but its output does not match the expected schema.
+      // The response rides back with its original message and finish reason
+      // intact (the raw output is often exactly what the caller needs) under an
+      // INTERNAL error, rather than throwing out of `generate`. Mirrors Go's
+      // `ErrInvalidOutput` parse-failure path.
+      response.error = RuntimeError(
+        status: StatusCodes.INTERNAL.name,
+        message: 'model failed to generate output matching expected schema: $e',
+      );
+      return GenerateResponseHelper(
+        response,
+        request: currentRequest,
+        output: null,
+        cause: e,
+      );
+    }
   }
 
   final ({
@@ -514,9 +666,9 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   } catch (e) {
     // A tool cancelled mid-execution: resolve with the last-good history (this
     // turn's input), discarding the model message whose tool requests were left
-    // unanswered so the history stays a clean resume point. A `CancelledException`
-    // from an unrelated token (e.g. a tool's own internal timeout) is a real
-    // failure and rethrows.
+    // unanswered so the history stays a clean resume point. A tool error that is
+    // not a cancel resolves to a failed response carrying that same clean
+    // history, so the caller can inspect `response.error` and resume.
     final aborted = _abortResponseIfCancelled(
       e,
       ctx.cancel,
@@ -524,7 +676,15 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       config: options.config,
     );
     if (aborted != null) return aborted;
-    rethrow;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+      // The model already answered this turn; carry its accounting (usage,
+      // custom, raw, latency) onto the failed response so what the turn spent
+      // before the tool broke is still reported.
+      base: response,
+    );
   }
   final toolResponses = execution.toolResponses;
   final toolStatus = execution.toolStatus;
@@ -681,10 +841,12 @@ Future<GenerateResponseHelper> _runGenerateAction(
         );
       } catch (e) {
         // A cancel during the restart tool execution resolves to an aborted
-        // response (like the two sites inside `_runGenerateLoop`) rather than
-        // escaping `generate()` as a throw. `coreGenerate` runs before the
-        // loop's own entry checkpoint, so without this guard an already-cancelled
-        // restart would surface a `CancelledException` to the caller.
+        // response (like the two sites inside `_runGenerateLoop`); any other
+        // error (a throwing restarted tool) resolves to a failed response
+        // carrying the last-good history, rather than escaping `generate()` as a
+        // throw. `coreGenerate` runs before the loop's own entry checkpoint, so
+        // without this an already-cancelled restart would surface a
+        // `CancelledException` to the caller.
         final aborted = _abortResponseIfCancelled(
           e,
           c.cancel,
@@ -692,7 +854,11 @@ Future<GenerateResponseHelper> _runGenerateAction(
           config: opts.config,
         );
         if (aborted != null) return aborted;
-        rethrow;
+        return _failedResponse(
+          history: opts.messages,
+          config: opts.config,
+          cause: e,
+        );
       }
       toolStatus.addAll(execution.toolStatus);
 
@@ -772,11 +938,33 @@ Future<GenerateResponseHelper> _runGenerateAction(
         (env, c) => mw.generate(env, c, (nenv, nctx) => next(nenv, nctx)),
   );
 
-  return composedGenerate((
-    request: options,
-    currentTurn: 0,
-    messageIndex: 0,
-  ), ctx);
+  // The three `_failedResponse` sites inside the loop catch a model, tool, or
+  // restart-tool error. A middleware whose `generate` hook throws *before*
+  // delegating to `next` (the loop) escapes here instead, so wrap the tail to
+  // resolve it the same way: an aborted response when this turn's token was
+  // cancelled, otherwise a failed one carrying the entry history. Mirrors Go's
+  // `GenerateWithRequest` tail, which synthesizes a `failurePartial` for an
+  // error raised outside a turn (e.g. a WrapGenerate hook).
+  try {
+    return await composedGenerate((
+      request: options,
+      currentTurn: 0,
+      messageIndex: 0,
+    ), ctx);
+  } catch (e) {
+    final aborted = _abortResponseIfCancelled(
+      e,
+      ctx.cancel,
+      history: options.messages,
+      config: options.config,
+    );
+    if (aborted != null) return aborted;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+    );
+  }
 }
 
 typedef GenerateMiddlewareOneof = ({
@@ -1220,51 +1408,34 @@ _executeTools(
         interrupt: null,
       );
     } on ToolInterruptException catch (e) {
+      // An interrupt is a turn outcome, not a failure: mark it and let the loop
+      // bubble the request back to the caller (via `_buildInterruptedResponse`).
       interrupted = true;
       toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
           (output: null, content: null, metadata: null, interrupt: e);
-    } on CancelledException catch (e) {
-      // A cancellation of *the caller's* token must propagate, not be swallowed
-      // into an error tool response (which would let the loop continue as if the
-      // tool "failed"). But a `CancelledException` from an unrelated token (e.g.
-      // a tool's own internal timeout) is just a tool failure like any other and
-      // is recorded as an error response so the loop can continue.
+    } catch (e) {
+      // A cancel tied to this turn's token is an abort, not a tool failure: let
+      // the original exception propagate unchanged so the loop resolves it as
+      // `aborted` (via `_abortResponseIfCancelled`).
       if (cancelToken != null &&
-          (identical(e.token, cancelToken) || cancelToken.isCancelled)) {
+          (cancelToken.isCancelled ||
+              (e is CancelledException && identical(e.token, cancelToken)))) {
         rethrow;
       }
-
-      toolResponses.add(
-        ToolResponsePart(
-          toolResponse: ToolResponse(
-            ref: toolRequest.toolRequest.ref,
-            name: toolRequest.toolRequest.name,
-            output: 'Error: $e',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (cancelToken?.isCancelled ?? false) {
-        // A generic failure (e.g. a closed HTTP client throwing
-        // SocketException) raised during cancellation must still propagate as a
-        // cancellation rather than be recorded as a tool error that lets the
-        // loop continue.
-        throw CancelledException(
-          reason: cancelToken!.reason,
-          token: cancelToken,
-        );
-      }
-      toolResponses.add(
-        ToolResponsePart(
-          toolResponse: ToolResponse(
-            ref: toolRequest.toolRequest.ref,
-            name: toolRequest.toolRequest.name,
-            output: 'Error: $e',
-          ),
-        ),
-      );
+      // Any other throw - a failing tool `fn`, or a tool's own unrelated
+      // cancellation while the caller never asked to stop - is a genuine tool
+      // failure. Reclassify it to INTERNAL, keeping the tool name in the
+      // message, mirroring Go's `toolFailureError`: a tool's failure is not a
+      // failure of the caller's request, so its own status (e.g.
+      // UNAUTHENTICATED) must not become the whole generation's. The original
+      // exception is wrapped so callers can still reach it via `response.cause`.
+      // `_runGenerateLoop` turns this into a `failed` response carrying the
+      // last-good history rather than feeding an `Error: ...` tool response back
+      // to the model.
+      throw _toolFailureError(toolRequest.toolRequest.name, e);
     }
   }
+
   return (
     toolResponses: toolResponses,
     interrupted: interrupted,

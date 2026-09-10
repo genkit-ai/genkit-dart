@@ -236,12 +236,14 @@ base class GenkitAI {
         output: rawResponse.output == null
             ? null
             : outputSchema.parse(rawResponse.output),
+        cause: rawResponse.cause,
       );
     } else {
       return GenerateResponseHelper(
         rawResponse.rawResponse,
         request: rawResponse.modelRequest,
         output: rawResponse.output as Output?,
+        cause: rawResponse.cause,
       );
     }
   }

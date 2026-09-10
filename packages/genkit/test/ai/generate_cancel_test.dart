@@ -329,6 +329,12 @@ void main() {
 
         expect(res.finishReason, FinishReason.aborted);
         expect(res.finishMessage, contains('max turns'));
+        // An aborted response carries a structured error too (ABORTED-classed),
+        // so a caller reading `res.error` after any abnormal finish reason gets
+        // a payload rather than a null-check crash.
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.ABORTED.name);
+        expect(res.error!.message, contains('max turns'));
         expect(modelCalls, 2);
         expect(res.messages, isNotEmpty);
       },
@@ -418,7 +424,7 @@ void main() {
       expect(res.finishReason, FinishReason.aborted);
     });
 
-    test("a tool's own internal cancellation does not escape generate when the "
+    test("a tool's own internal cancellation fails the generation when the "
         'caller never asked to cancel', () async {
       var modelCalls = 0;
       genkit.defineModel(
@@ -462,12 +468,13 @@ void main() {
       // No `cancel:` supplied by the caller.
       final res = await genkit.generate(model: modelRef('m'), prompt: 'go');
 
-      // The tool's internal cancellation is recorded as an error tool response
-      // (like any other tool failure) and the loop continues, rather than
-      // escaping generate() as a throw.
-      expect(res.finishReason, FinishReason.stop);
-      expect(res.text, 'recovered');
-      expect(modelCalls, 2);
+      // A tool that throws - including via its own unrelated cancellation
+      // token - is a regular tool failure: it fails the generation rather than
+      // being fed back to the model as an error tool response. The model is
+      // never called a second time.
+      expect(res.finishReason, FinishReason.failed);
+      expect(res.error, isNotNull);
+      expect(modelCalls, 1);
     });
 
     test('an already-cancelled token on the resume/restart path returns an '

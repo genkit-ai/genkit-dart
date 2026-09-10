@@ -47,7 +47,7 @@ import 'session.dart';
 /// ended (e.g. `interrupted`, `length`). When omitted, no per-turn reason is
 /// reported.
 class TurnResult {
-  TurnResult({this.finishReason, this.finishMessage});
+  TurnResult({this.finishReason, this.finishMessage, this.error});
 
   final AgentFinishReason? finishReason;
 
@@ -57,6 +57,13 @@ class TurnResult {
   /// that overran its turn limit, so the [SessionRunner] can surface it rather
   /// than dropping it.
   final String? finishMessage;
+
+  /// The structured error a `failed` turn ended with, or `null` otherwise.
+  ///
+  /// A prompt-backed turn populates it from the failed generate response's
+  /// `error` so the [SessionRunner] persists it on the turn-end snapshot and a
+  /// client reading the row can branch on the status the failure carried.
+  final AgentErrorDetails? error;
 }
 
 /// Per-turn context handed to the handler passed to [SessionRunner.run].
@@ -437,7 +444,6 @@ class SessionRunner<State> {
   /// The state the most recently successful turn left behind. On a failed turn
   /// this is the state the failed turn started with.
   SessionState? lastGoodState;
-  AgentFinishReason? _lastGoodFinishReason;
   int? lastGoodStateVersion;
   SessionSnapshot? _lastSnapshot;
   int _lastSnapshotVersion = 0;
@@ -578,6 +584,32 @@ class SessionRunner<State> {
             return true;
           }
 
+          // A turn that resolved `failed` (a model/tool error surfaced as a
+          // graceful response rather than a throw) commits its last-good
+          // history as a `failed` snapshot carrying the error, so a client can
+          // branch on the status and rerun the same snapshot id. Mirrors Go's
+          // failed-turn commit; the failing turn's own partial output was
+          // already dropped by the generate loop.
+          if (finishReason == AgentFinishReason.failed) {
+            lastTurnFinishReason = AgentFinishReason.failed;
+            lastTurnError =
+                turnResult?.error ??
+                toErrorDetails(
+                  GenkitException(
+                    turnResult?.finishMessage ?? 'Turn failed.',
+                    status: StatusCodes.INTERNAL,
+                  ),
+                );
+            final snapshotId = await maybeSnapshot(
+              status: 'failed',
+              error: lastTurnError,
+              snapshotId: turnSnapshotId,
+              finishReason: AgentFinishReason.failed,
+            );
+            _notifyEndTurn(snapshotId, AgentFinishReason.failed);
+            return true;
+          }
+
           lastTurnFinishReason = finishReason;
           lastTurnError = null;
 
@@ -589,7 +621,6 @@ class SessionRunner<State> {
 
           lastGoodState = session.getState();
           lastGoodStateVersion = session.getVersion();
-          _lastGoodFinishReason = finishReason;
 
           _notifyEndTurn(snapshotId, finishReason);
           return false;
@@ -639,49 +670,17 @@ class SessionRunner<State> {
     }
   }
 
-  /// Ensures the last-good state is persisted and returns its snapshotId.
+  /// Returns the snapshotId a failed invocation should report as its resume
+  /// point.
+  ///
+  /// A failed turn already committed its own `failed` snapshot via
+  /// [maybeSnapshot], and that row's state is the last-good history the failing
+  /// turn preserved, so it is a rerunnable resume point on *any* turn (not just
+  /// the first). Report it directly rather than writing a fresh `completed` row
+  /// from the prior turn's state, which would drop the failed turn's own user
+  /// message. Mirrors Go's `failedOutput`, which returns `lastSnapshotID`.
   Future<String?> ensureRecoverySnapshot() async {
-    if (_store == null || lastGoodState == null) {
-      return _lastSnapshot?.snapshotId;
-    }
-
-    if (lastGoodStateVersion != null &&
-        lastGoodStateVersion == _lastSnapshotVersion) {
-      return _lastSnapshot?.snapshotId;
-    }
-
-    // First-turn failure: the last-good state is the seed the client holds.
-    if (turnIndex == 0) {
-      return null;
-    }
-
-    final now = DateTime.now().toUtc().toIso8601String();
-    final snapshotInput = SessionSnapshot(
-      snapshotId: '',
-      sessionId: session.sessionId,
-      createdAt: now,
-      updatedAt: now,
-      state: lastGoodState!,
-      parentId: _lastSnapshot?.snapshotId,
-      status: SnapshotStatus.completed,
-      finishReason: _lastGoodFinishReason,
-    );
-
-    final assignedId = await _store.saveSnapshot(
-      null,
-      _abortAwareMutator(snapshotInput),
-      context: context,
-    );
-    if (assignedId == null) {
-      return _lastSnapshot?.snapshotId;
-    }
-
-    snapshotInput.snapshotId = assignedId;
-    _lastSnapshot = snapshotInput;
-    if (lastGoodStateVersion != null) {
-      _lastSnapshotVersion = lastGoodStateVersion!;
-    }
-    return assignedId;
+    return _lastSnapshot?.snapshotId;
   }
 
   /// Evaluates whether to save a snapshot to the persistent store.
@@ -1816,12 +1815,13 @@ Agent<State> definePromptAgent<State>(
       ));
 
       final aborted = res.finishReason == FinishReason.aborted;
+      final failed = res.finishReason == FinishReason.failed;
 
-      // Keep everything that is NOT a prompt-template message. On an aborted
-      // turn `res.message` is null; the abort path already carries the last-good
-      // history in `res.modelRequest`, so leaving `keep` without a trailing
-      // model message preserves the user turn as the resume point rather than
-      // treating the user's own message as the model reply.
+      // Keep everything that is NOT a prompt-template message. On an aborted or
+      // failed turn `res.message` is null; that path already carries the
+      // last-good history in `res.modelRequest`, so leaving `keep` without a
+      // trailing model message preserves the user turn as the resume point
+      // rather than treating the user's own message as the model reply.
       final reqMessages = res.modelRequest?.messages;
       if (reqMessages != null) {
         final keep = reqMessages
@@ -1847,9 +1847,27 @@ Agent<State> definePromptAgent<State>(
       }
 
       final reason = res.finishReason;
+      // A failed generate response carries its structured `error`; surface it on
+      // the TurnResult so the runtime persists a `failed` snapshot with the
+      // last-good history (rerunnable), rather than treating it as a completed
+      // turn.
+      final error = failed
+          ? (res.error != null
+                ? AgentErrorDetails(
+                    status: res.error!.status ?? StatusCodes.INTERNAL.name,
+                    message: res.error!.message,
+                    details: res.error!.details,
+                  )
+                : AgentErrorDetails(
+                    status: StatusCodes.INTERNAL.name,
+                    message: res.finishMessage ?? 'Generation failed.',
+                  ))
+          : null;
+
       return TurnResult(
         finishReason: reason != null ? AgentFinishReason(reason.value) : null,
-        finishMessage: aborted ? res.finishMessage : null,
+        finishMessage: (aborted || failed) ? res.finishMessage : null,
+        error: error,
       );
     });
 

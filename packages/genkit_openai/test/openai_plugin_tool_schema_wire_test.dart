@@ -114,20 +114,19 @@ void main() {
           fn: (input, ctx) async => .response(input),
         );
 
-        await expectLater(
-          ai.generate(
-            model: openAI.model('gpt-4o'),
-            prompt: 'Echo hello.',
-            toolNames: ['echo'],
-          ),
-          throwsA(
-            isA<GenkitException>().having(
-              (e) => e.message,
-              'message',
-              allOf(contains('echo'), contains('object')),
-            ),
-          ),
+        // The primitive tool schema throws while building the request, before
+        // any HTTP call. `generate` no longer rethrows: it resolves to a
+        // `failed` response carrying the error, so assert on that (and that
+        // nothing hit the wire).
+        final res = await ai.generate(
+          model: openAI.model('gpt-4o'),
+          prompt: 'Echo hello.',
+          toolNames: ['echo'],
         );
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.INVALID_ARGUMENT.name);
+        expect(res.error!.message, allOf(contains('echo'), contains('object')));
         expect(captured, isEmpty);
 
         await ai.shutdown();
