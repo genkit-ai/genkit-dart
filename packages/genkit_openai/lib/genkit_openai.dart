@@ -20,10 +20,12 @@ import 'package:http/http.dart' as http;
 import 'src/chat.dart' as chat;
 import 'src/openai_plugin.dart';
 import 'src/speech.dart' as speech;
+import 'src/transcription.dart' as transcription;
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
 export 'src/speech.dart' show OpenAISpeechOptions;
+export 'src/transcription.dart' show OpenAITranscriptionOptions;
 export 'src/utils.dart'
     show
         defaultModelInfo,
@@ -160,6 +162,33 @@ class OpenAICompatPluginHandle {
     return modelRef(
       '$namespace/$name',
       customOptions: speech.speechModelOptionsSchema(),
+    );
+  }
+
+  /// Reference to a speech-to-text model, e.g. `whisper-1` or
+  /// `gpt-4o-transcribe`.
+  ///
+  /// Transcription models read audio from the request and answer with text,
+  /// so the audio goes in through `promptParts`:
+  ///
+  /// ```dart
+  /// final response = await ai.generate(
+  ///   model: openAI.transcriptionModel('whisper-1'),
+  ///   promptParts: [MediaPart(media: recording)],
+  ///   config: OpenAITranscriptionOptions(language: 'en'),
+  /// );
+  /// print(response.text);
+  /// ```
+  ///
+  /// `whisper-1` also accepts `translate: true` to return English text for
+  /// audio in any language.
+  ModelRef<transcription.OpenAITranscriptionOptions> transcriptionModel(
+    String name, {
+    String namespace = defaultOpenAINamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: transcription.transcriptionModelOptionsSchema(),
     );
   }
 }
