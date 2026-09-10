@@ -105,7 +105,8 @@ class _PointerDoc {
 /// scanning the prefix directory and selecting the single leaf whose
 /// `sessionId` matches, then rewrites the pointer so subsequent lookups are fast
 /// again.
-class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
+class FileSessionStore
+    implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates a file-backed store rooted at [dirPath] (created if missing).
   ///
   /// - [maxPersistedChainLength]: when set, snapshots older than this many
@@ -279,6 +280,60 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
       return _latestSnapshotForSession(normalized.sessionId!, context);
     }
     return _snapshotById(normalized.snapshotId!, context);
+  }
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    normalizeGetSnapshotOptions(snapshotId: snapshotId);
+    final file = await _fileFor(snapshotId, context);
+    if (!file.existsSync()) return null;
+    // Let a corrupt / unreadable file throw, exactly as the full read
+    // (`_snapshotById`) does, so a caller can tell corruption apart from "not
+    // found" (a truncated file must not read as a missing snapshot).
+    final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    // Promote the resolved sessionId before dropping `state` so identity (and
+    // the pointer fast path in `getLatestSnapshotMetadata`) survives a row that
+    // carried it only under `state`; then drop `state` so the (possibly large)
+    // payload is never materialized into a SessionState.
+    final sessionId =
+        (json['sessionId'] as String?) ??
+        (json['state'] as Map<String, dynamic>?)?['sessionId'] as String?;
+    json.remove('state');
+    if (sessionId != null) json['sessionId'] = sessionId;
+    return SessionSnapshot.fromJson(json);
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) async {
+    normalizeGetSnapshotOptions(sessionId: sessionId);
+    // Fast path via the pointer file (skipped when we must detect branching):
+    // resolve the leaf id and read its metadata directly. Honor the pointer
+    // only when the leaf still exists and belongs to this session; a stale or
+    // foreign pointer falls through to the scan below. A corrupt pointer target
+    // propagates, exactly as the full read's fast path (`_snapshotById` in
+    // `_latestSnapshotForSession`) does, so the two paths stay identical.
+    if (!rejectBranchingSessions) {
+      final pointer = await _readPointer(sessionId, context);
+      if (pointer != null) {
+        final meta = await getSnapshotMetadata(
+          pointer.currentSnapshotId,
+          context: context,
+        );
+        if (meta != null && snapshotSessionId(meta) == sessionId) {
+          return meta;
+        }
+      }
+    }
+    // Fallback: the full scan resolves the leaf (and rewrites the pointer);
+    // strip its state on the way out.
+    final snap = await getSnapshot(sessionId: sessionId, context: context);
+    return snap != null ? stripSnapshotState(snap) : null;
   }
 
   /// Loads a single snapshot file by its id (no sessionId branch). Used both by
