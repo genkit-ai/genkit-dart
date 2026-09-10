@@ -83,7 +83,7 @@ Future<Output> runInNewSpan<Input, Output>(
   Future<Output> Function(SpanContext) fn, {
   String? actionType,
   Input? input,
-  Map<String, String>? attributes,
+  Map<String, Object?>? attributes,
 }) {
   final metadata = SpanMetadata(
     name: name,

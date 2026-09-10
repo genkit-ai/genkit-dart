@@ -32,7 +32,10 @@ class SpanMetadata {
   final Object? input;
 
   /// Additional static attributes supplied by the caller.
-  final Map<String, String> attributes;
+  ///
+  /// Values may be any OpenTelemetry-encodable scalar (String, bool, int,
+  /// double); providers decide how to encode them.
+  final Map<String, Object?> attributes;
 
   const SpanMetadata({
     required this.name,
