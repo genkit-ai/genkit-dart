@@ -1,15 +1,14 @@
 [![Pub](https://img.shields.io/pub/v/genkit_openai.svg)](https://pub.dev/packages/genkit_openai)
 
-OpenAI-compatible API plugin for Genkit Dart. Supports OpenAI models (GPT-4o, GPT-4, GPT-3.5-turbo, etc.) and any OpenAI-compatible API (xAI/Grok, DeepSeek, Together AI, Groq, etc.).
+OpenAI plugin for Genkit Dart. Talks the OpenAI Chat Completions API, so it
+drives OpenAI's own models and any host that implements the same API — Groq,
+xAI/Grok, DeepSeek, Together AI, OpenRouter and friends — by pointing it at a
+different [`baseUrl`](#openai-compatible-apis).
 
 ## Installation
 
-Add `genkit_openai` to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  genkit: ^0.13.0
-  genkit_openai: ^0.3.0
+```bash
+dart pub add genkit genkit_openai
 ```
 
 ## Usage
@@ -159,9 +158,28 @@ final response = await ai.generate(
 
 ## OpenAI-Compatible APIs
 
-The plugin supports any OpenAI-compatible API by specifying a custom `baseUrl`.
-Use the `name` parameter to give each backend a unique identity — this is
-required when registering multiple backends in the same `Genkit` instance.
+Point the plugin at any OpenAI-compatible host with `baseUrl`. Use `name` to
+give each backend a unique identity — this is required when registering
+multiple backends in the same `Genkit` instance, and it becomes the namespace
+prefix for that backend's models.
+
+Two things to know before pointing this at a non-OpenAI host:
+
+- **Model discovery is optional.** `GET /models` is only called when listing
+  actions, and a host that does not serve it degrades to a warning. Name any
+  model explicitly and it resolves whether or not the host advertises it — but
+  what the Dev UI *lists* for a custom `baseUrl` is only what discovery
+  returned plus your `models:`. The curated OpenAI catalog is deliberately
+  withheld, so a Groq backend does not offer you `groq/gpt-4o`. Declare the
+  models you care about in `models:` to see them listed.
+- **Streaming always sends `stream_options.include_usage`.** Hosts that reject
+  unknown stream options will refuse streaming calls.
+
+Compatibility is verified against a local fake host
+(`test/openai_plugin_compat_test.dart`) covering `baseUrl` routing, auth,
+custom headers, custom models, streaming and error mapping — not against each
+provider's live API, so treat the providers named above as examples of the
+shape rather than a certified list.
 
 ### Groq
 
