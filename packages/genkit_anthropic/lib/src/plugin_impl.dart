@@ -33,21 +33,39 @@ final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
 
 /// Beta features requested when a request resolves to the beta API surface.
 ///
-/// Sent as the `anthropic-beta` header. Mirrors the list the Genkit JS plugin
-/// enables by default; a request can replace it via `AnthropicOptions.betas`.
+/// Sent as the `anthropic-beta` header. Limited to the features this plugin
+/// actually exposes - `effort` via [AnthropicOutputConfig], and structured
+/// outputs via an output schema.
+///
+/// Deliberately shorter than the Genkit JS default list, which also carries
+/// `files-api-2025-04-14` and `task-budgets-2026-03-13`. This plugin never
+/// calls `/v1/files` and exposes no task budget, so those names buy nothing -
+/// and Anthropic 400s on an unrecognised beta rather than ignoring it, so a
+/// name kept past its retirement fails every `apiVersion: 'beta'` request
+/// until the next release. A caller who needs one can pass it explicitly
+/// through `AnthropicOptions.betas`, which replaces this list.
 const defaultAnthropicBetas = <String>[
-  'files-api-2025-04-14',
   'effort-2025-11-24',
   'structured-outputs-2025-11-13',
-  'task-budgets-2026-03-13',
 ];
 
 /// Resolves whether a request runs against the beta API surface.
 ///
 /// The request's own `apiVersion` wins, then the plugin default, else stable.
+///
+/// Throws on anything but `'beta'` or `'stable'`. Silently reading `'Beta'`
+/// as stable would drop the beta header and the features that depend on it,
+/// with nothing to point at.
 @visibleForTesting
 bool resolveBetaEnabled(String? requestApiVersion, String? pluginApiVersion) {
   final selected = requestApiVersion ?? pluginApiVersion;
+  if (selected == null) return false;
+  if (selected != 'beta' && selected != 'stable') {
+    throw GenkitException(
+      'Invalid apiVersion "$selected". Expected "beta" or "stable".',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
   return selected == 'beta';
 }
 
@@ -196,6 +214,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
         try {
           final createRequest = _buildCreateRequest(req, modelName, options);
           // Empty on the stable surface, which suppresses the header entirely.
+          // `betas: []` is an explicit "send none", distinct from omitting
+          // the field, which takes the defaults.
           final betas = resolveBetaEnabled(options.apiVersion, apiVersion)
               ? (options.betas ?? defaultAnthropicBetas)
               : const <String>[];
@@ -330,7 +350,11 @@ class AnthropicPluginImpl extends GenkitPlugin {
       topK: options.topK,
       stopSequences: options.stopSequences,
       tools: tools.isNotEmpty ? tools : null,
-      toolChoice: toolChoice,
+      // Anthropic rejects a choice with nothing to choose from - "tool_choice.
+      // any may only be specified while providing tools". Reachable since an
+      // output schema stopped always appending `return_output`: a caller's
+      // toolChoice can now outlive the tools it referred to.
+      toolChoice: tools.isNotEmpty ? toolChoice : null,
       thinking: thinking,
       outputConfig: outputConfig,
     );
@@ -591,20 +615,108 @@ sdk.ThinkingConfig? _mapThinkingConfig(
 
 /// Whether [modelName] is on Anthropic's Structured Outputs list.
 ///
-/// Curated models carry the flag; names resolved dynamically are assumed not to
-/// support it, so they keep the tool-based fallback.
+/// An uncurated name is assumed to support it. Every model Anthropic
+/// currently lists does, and assuming otherwise sent a newly released model
+/// down the tool fallback, which fails on exactly the models that do not
+/// accept a forced tool choice:
+///
+///     400 tool_choice: type "tool" and "any" are not supported for this model
+///
+/// So the fallback is opt-out now: a curated entry sets `structuredOutputs:
+/// false` to claim it, rather than every unknown name inheriting it.
 bool _supportsNativeStructuredOutput(String modelName) =>
-    knownClaudeModelFor(modelName)?.structuredOutputs ?? false;
+    knownClaudeModelFor(modelName)?.structuredOutputs ?? true;
+
+/// Keywords whose value is a single nested schema.
+const _schemaValuedKeywords = {
+  'items',
+  'additionalItems',
+  'contains',
+  'not',
+  'if',
+  'then',
+  'else',
+  'propertyNames',
+};
+
+/// Keywords whose value is a list of schemas.
+const _schemaListKeywords = {'allOf', 'anyOf', 'oneOf', 'prefixItems'};
+
+/// Keywords whose value maps names to schemas.
+const _schemaMapKeywords = {
+  'properties',
+  r'$defs',
+  'definitions',
+  'patternProperties',
+};
+
+/// Validation keywords Anthropic's structured-output schema rejects.
+///
+/// `output_config.format` validates the schema strictly and 400s on these -
+/// "For 'integer' type, properties maximum, minimum are not supported". The
+/// tool fallback never validated, which is why they rode through unnoticed.
+/// Genkit's own generator emits them from `@IntegerField(minimum:)` and
+/// friends, so ordinary annotated types hit this.
+///
+/// Dropped rather than translated: they constrain values, and losing them
+/// costs a validation the model was never guaranteed to honour anyway.
+const _unsupportedValidationKeywords = {
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'multipleOf',
+  'minLength',
+  'maxLength',
+  'pattern',
+  'minItems',
+  'maxItems',
+  'uniqueItems',
+  'minProperties',
+  'maxProperties',
+};
+
+/// Whether [type] denotes an object, including the nullable `["object",
+/// "null"]` spelling schemantic emits for an optional object field.
+bool _isObjectType(Object? type) =>
+    type == 'object' || (type is List && type.contains('object'));
 
 /// Rewrites a Genkit JSON schema into the shape Anthropic accepts.
 ///
-/// Anthropic rejects `$schema` and requires `additionalProperties: false` on
-/// every object, including ones nested under `$defs`.
+/// Anthropic rejects `$schema`, rejects the validation keywords above, and
+/// requires `additionalProperties: false` on every object, including ones
+/// nested under `$defs`.
+///
+/// Recursion follows JSON Schema structure rather than descending into every
+/// map it meets. A `properties` map is not itself a schema - descending into
+/// it applied the object inference and the closed marker to the map of field
+/// names, which corrupted any schema with a field called `type`, `properties`
+/// or `required`.
 Map<String, dynamic> _toAnthropicSchema(Map<String, dynamic> schema) {
   final out = <String, dynamic>{};
   for (final entry in schema.entries) {
-    if (entry.key == r'$schema') continue;
-    out[entry.key] = _normalizeSchemaValue(entry.value);
+    final key = entry.key;
+    final value = entry.value;
+    if (key == r'$schema') continue;
+    if (_unsupportedValidationKeywords.contains(key)) continue;
+
+    if (_schemaMapKeywords.contains(key) && value is Map) {
+      out[key] = {
+        for (final field in value.entries)
+          field.key.toString(): _asSchema(field.value),
+      };
+    } else if (_schemaListKeywords.contains(key) && value is List) {
+      out[key] = value.map(_asSchema).toList();
+    } else if (_schemaValuedKeywords.contains(key)) {
+      // `items` may be a list of schemas in older drafts.
+      out[key] = value is List
+          ? value.map(_asSchema).toList()
+          : _asSchema(value);
+    } else if (key == 'additionalProperties' && value is Map) {
+      out[key] = _asSchema(value);
+    } else {
+      out[key] = value;
+    }
   }
   // A `$ref` node may not carry sibling constraints; Anthropic rejects the
   // combination outright. Named Genkit schemas arrive as a bare `$ref` plus
@@ -618,16 +730,16 @@ Map<String, dynamic> _toAnthropicSchema(Map<String, dynamic> schema) {
       (out.containsKey('properties') || out.containsKey('required'))) {
     out['type'] = 'object';
   }
-  if (out['type'] == 'object') {
+  if (_isObjectType(out['type'])) {
     out['additionalProperties'] = false;
   }
   return out;
 }
 
-Object? _normalizeSchemaValue(Object? value) => switch (value) {
+/// Normalises [value] when it is a schema, and leaves anything else alone.
+Object? _asSchema(Object? value) => switch (value) {
   final Map<String, dynamic> map => _toAnthropicSchema(map),
   final Map map => _toAnthropicSchema(map.cast<String, dynamic>()),
-  final List list => list.map(_normalizeSchemaValue).toList(),
   _ => value,
 };
 

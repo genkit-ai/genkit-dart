@@ -356,16 +356,19 @@ void main() {
       expect(pet['additionalProperties'], false);
     });
 
-    test('an uncurated model falls back to the forced tool', () async {
+    test('an uncurated model goes native, not to the fallback', () async {
+      // Inverted deliberately. Every model Anthropic lists supports
+      // structured outputs, and assuming otherwise sent each newly released
+      // one down a path it rejects outright:
+      //   400 tool_choice: type "tool" and "any" are not supported
       final body = await _requestOnTheWire(
         model: 'claude-future-model',
         outputSchema: schema,
       );
 
-      expect(body, isNot(contains('output_config')));
-      final tool = (body['tools'] as List).single as Map<String, dynamic>;
-      expect(tool['name'], 'return_output');
-      expect(body['tool_choice'], {'type': 'tool', 'name': 'return_output'});
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body['tools'], isNull);
+      expect(body['tool_choice'], isNull);
     });
 
     test('native structured output composes with manual thinking', () async {
@@ -379,29 +382,18 @@ void main() {
       expect((body['output_config'] as Map)['format'], isNotNull);
     });
 
-    test('the fallback rejects manual thinking instead of erroring on the '
-        'wire', () async {
-      await expectLater(
-        _requestOnTheWire(
-          model: 'claude-future-model',
-          outputSchema: schema,
-          thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
-              .having((e) => e.message, 'message', contains('manual thinking')),
-        ),
-      );
-    });
-
-    test('the fallback allows adaptive thinking', () async {
+    test('an uncurated model composes output with manual thinking', () async {
+      // Previously this threw: the fallback forces a tool choice, which
+      // Anthropic rejects alongside extended thinking. Going native removes
+      // the conflict, so the guard no longer fires for uncurated names.
       final body = await _requestOnTheWire(
         model: 'claude-future-model',
         outputSchema: schema,
-        thinking: ThinkingConfig(type: 'adaptive'),
+        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
       );
-      expect(body['tool_choice'], {'type': 'tool', 'name': 'return_output'});
+
+      expect(body['thinking'], {'type': 'enabled', 'budget_tokens': 1024});
+      expect((body['output_config'] as Map)['format'], isNotNull);
     });
 
     test('a dated snapshot of a capable model still goes native', () async {
@@ -531,7 +523,7 @@ void main() {
       expect(sent.containsKey('additionalProperties'), isFalse);
     });
 
-    test('the fallback still types a \$ref root for the tool schema', () async {
+    test('a \$ref root passes through without sibling constraints', () async {
       final body = await _requestOnTheWire(
         model: 'claude-future-model',
         outputSchema: {
@@ -542,8 +534,142 @@ void main() {
         },
       );
 
-      final tool = (body['tools'] as List).single as Map<String, dynamic>;
-      expect((tool['input_schema'] as Map)['type'], 'object');
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      expect(sent[r'$ref'], '#/\$defs/Person');
+      // A \$ref node may carry no siblings, so no inferred type is added.
+      expect(sent.containsKey('type'), isFalse);
+      expect(((sent[r'$defs'] as Map)['Person'] as Map)['type'], 'object');
+    });
+
+    test('a nullable object is still closed', () async {
+      // `["object","null"]` is how schemantic spells an optional object. An
+      // equality check against 'object' missed it, and Anthropic replied
+      //   400 For 'object' type, 'additionalProperties' must be explicitly
+      //   set to false
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'nested': {
+              'type': ['object', 'null'],
+              'properties': {
+                'a': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final nested = (sent['properties'] as Map)['nested'] as Map;
+      expect(nested['additionalProperties'], false);
+      expect(sent['additionalProperties'], false);
+    });
+
+    test('a field named like a keyword does not corrupt the schema', () async {
+      // The recursion descended into every Map, so `properties` was itself
+      // treated as a schema node: it gained `type: object` and a closed
+      // marker as though the field names were keywords.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'required': {'type': 'boolean'},
+            'type': {'type': 'string'},
+            'properties': {'type': 'string'},
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final properties = sent['properties'] as Map;
+      expect(
+        properties.keys,
+        unorderedEquals(['required', 'type', 'properties']),
+      );
+      expect(properties['required'], {'type': 'boolean'});
+      expect(properties.containsKey('additionalProperties'), isFalse);
+    });
+
+    test('a \$defs map is not treated as a schema node', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': '#/\$defs/Person',
+          r'$defs': {
+            'Person': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final defs = sent[r'$defs'] as Map;
+      expect(defs.keys, ['Person']);
+      expect((defs['Person'] as Map)['additionalProperties'], false);
+      expect(defs.containsKey('type'), isFalse);
+    });
+
+    test('validation keywords are stripped from the native schema', () async {
+      // output_config validates strictly: "For 'integer' type, properties
+      // maximum, minimum are not supported". Genkit's generator emits these
+      // from @IntegerField(minimum:), so ordinary annotated types hit it.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'n': {'type': 'integer', 'minimum': 1, 'maximum': 10},
+            's': {'type': 'string', 'minLength': 2, 'pattern': '^a'},
+            'l': {
+              'type': 'array',
+              'minItems': 1,
+              'items': {'type': 'string'},
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final properties = sent['properties'] as Map;
+      expect(properties['n'], {'type': 'integer'});
+      expect(properties['s'], {'type': 'string'});
+      expect(properties['l'], {
+        'type': 'array',
+        'items': {'type': 'string'},
+      });
+    });
+
+    test('an unrecognised apiVersion is rejected, not read as stable', () {
+      // Silently downgrading 'Beta' to stable would drop the header and the
+      // features that depend on it, with nothing to point at.
+      for (final value in ['Beta', 'BETA', 'preview', '']) {
+        expect(
+          () => resolveBetaEnabled(value, null),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.status,
+              'status',
+              StatusCodes.INVALID_ARGUMENT,
+            ),
+          ),
+          reason: value,
+        );
+      }
+      expect(resolveBetaEnabled('beta', null), isTrue);
+      expect(resolveBetaEnabled('stable', null), isFalse);
+      expect(resolveBetaEnabled(null, null), isFalse);
     });
 
     test('effort and a native format ride in the same output_config', () async {
@@ -558,25 +684,20 @@ void main() {
       expect((outputConfig['format'] as Map)['type'], 'json_schema');
     });
 
-    test('a caller toolChoice cannot unforce return_output', () async {
-      // Honoring 'auto' here would let the model skip the tool that carries
-      // the schema, silently losing structured output.
-      final body = await _requestOnTheWire(
-        model: 'claude-future-model',
-        outputSchema: schema,
-        toolChoice: 'auto',
-      );
-      expect(body['tool_choice'], {'type': 'tool', 'name': 'return_output'});
-    });
-
-    test('a caller toolChoice still applies on the native path', () async {
-      final body = await _requestOnTheWire(
-        model: 'claude-sonnet-4-5',
-        outputSchema: schema,
-        toolChoice: 'auto',
-      );
-      expect(body['tool_choice'], {'type': 'auto'});
-      expect((body['output_config'] as Map)['format'], isNotNull);
+    test('a caller toolChoice is dropped when there are no tools', () async {
+      // Anthropic rejects a choice with nothing to choose from - "tool_choice.
+      // any may only be specified while providing tools". Newly reachable:
+      // an output schema used to always append `return_output`, so a caller's
+      // toolChoice always had a tool to refer to.
+      for (final model in ['claude-sonnet-4-5', 'claude-future-model']) {
+        final body = await _requestOnTheWire(
+          model: model,
+          outputSchema: schema,
+          toolChoice: 'any',
+        );
+        expect(body['tools'], isNull, reason: model);
+        expect(body['tool_choice'], isNull, reason: model);
+      }
     });
   });
 }
