@@ -200,6 +200,24 @@ class Registry {
     return allActions.values.toList();
   }
 
+  /// Resolves an action from a full registry [key] string, handling both plain
+  /// keys (`/model/googleai/gemini-flash-latest`) and dynamic-action-provider
+  /// keys (`/dynamic-action-provider/<host>:<actionType>/<name>`). Mirrors JS's
+  /// key-based `lookupAction`, which the Dev UI relies on to run DAP-expanded
+  /// actions (their keys are the DAP keys returned by [listResolvableActions]).
+  Future<Action?> lookupActionByKey(String key) async {
+    final parsed = parseRegistryKey(key);
+    if (parsed?.dynamicActionHost != null) {
+      return getDynamicAction(parsed!);
+    }
+    // Non-DAP key: reconstruct the full action name (including any plugin
+    // prefix) from the raw key rather than the parsed name, since
+    // [lookupAction] resolves plugin actions by their `<plugin>/<name>` name.
+    final parts = key.split('/');
+    if (parts.length < 3 || parts[0] != '') return null;
+    return lookupAction(ActionType(parts[1]), parts.sublist(2).join('/'));
+  }
+
   /// Resolves an action addressed through a dynamic action provider, given a
   /// [parsedKey] whose `dynamicActionHost` is set. Returns null when the host
   /// is not a registered provider, the name is a wildcard (which addresses

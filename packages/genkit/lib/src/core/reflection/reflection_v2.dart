@@ -309,7 +309,9 @@ class ReflectionServerV2 {
       return;
     }
 
-    final action = await registry.lookupAction(ActionType(parts[1]), parts[2]);
+    // Resolve by full key so dynamic-action-provider keys (surfaced to the Dev
+    // UI by listResolvableActions) resolve through their provider.
+    final action = await registry.lookupActionByKey(key);
     if (action == null) {
       _sendError(id, 404, 'action $key not found');
       return;

@@ -258,10 +258,9 @@ class ReflectionServerV1 {
         ..close();
       return;
     }
-    final action = await registry.lookupAction(
-      ActionType(parts[1]),
-      parts.sublist(2).join('/'),
-    );
+    // Resolve by full key so dynamic-action-provider keys (surfaced to the Dev
+    // UI by listResolvableActions) resolve through their provider.
+    final action = await registry.lookupActionByKey(key);
 
     if (action == null) {
       request.response
