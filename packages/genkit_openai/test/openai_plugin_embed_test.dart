@@ -228,6 +228,20 @@ void main() {
       );
     });
 
+    test('a failure keeps the stack trace of its origin', () async {
+      // The count-mismatch check throws from embed.dart; a plain `throw` at
+      // the plugin's catch site would restamp the trace there.
+      try {
+        await embedWith(
+          embeddingClient([], returnCount: 1),
+          documents: [doc('first'), doc('second')],
+        );
+        fail('expected a GenkitException');
+      } on GenkitException catch (_, stackTrace) {
+        expect(stackTrace.toString(), contains('embed.dart'));
+      }
+    });
+
     test('an API error keeps its HTTP status', () async {
       await expectLater(
         embedWith(
@@ -304,6 +318,31 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('a compat host judges its own limits', () async {
+      // The catalog describes OpenAI's models. A host serving one of those
+      // names need not share its limits, so the request goes through and the
+      // backend answers for itself.
+      final captured = <Map<String, dynamic>>[];
+      final ai = Genkit(
+        plugins: [
+          openAI(
+            apiKey: 'test-key',
+            baseUrl: 'https://api.deepinfra.com/v1/openai',
+            httpClient: embeddingClient(captured),
+          ),
+        ],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.embed(
+        embedder: openAI.embedder('text-embedding-ada-002'),
+        document: doc('hello'),
+        options: OpenAIEmbedderOptions(dimensions: 256),
+      );
+
+      expect(captured.single['dimensions'], 256);
     });
 
     test('an uncurated embedder is left to OpenAI to judge', () async {

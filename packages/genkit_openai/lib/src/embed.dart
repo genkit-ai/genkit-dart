@@ -109,6 +109,10 @@ String _documentText(DocumentData document, {required int index}) {
 /// and what it would have returned. Only curated models are checked — an
 /// uncurated name has no claim to check against, so its request goes through
 /// and OpenAI has the last word either way.
+///
+/// The caller decides when the catalog is authoritative enough to reject on:
+/// it describes OpenAI's models, and a compatible host serving one of those
+/// names may not have the same limits.
 void validateEmbedderDimensions(String embedderName, int? dimensions) {
   if (dimensions == null) return;
   final curated = knownOpenAIEmbedderFor(embedderName);

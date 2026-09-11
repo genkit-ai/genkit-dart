@@ -194,8 +194,16 @@ void main() {
       expect(getModelType('whisper-1'), 'audio');
     });
 
+    test('classifies embedders a compat host spells without -ing', () {
+      expect(getModelType('text-embedding-3-small'), 'embedding');
+      expect(getModelType('nomic-embed-text'), 'embedding');
+      expect(getModelType('mxbai-embed-large'), 'embedding');
+    });
+
     test('returns unknown for unrecognized models', () {
       expect(getModelType('my-custom-model'), 'unknown');
+      // Matching on `embed` misses a name that carries neither spelling.
+      expect(getModelType('bge-m3'), 'unknown');
     });
   });
 }

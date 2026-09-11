@@ -343,7 +343,14 @@ class OpenAIPlugin extends GenkitPlugin {
         }
 
         final options = embed.parseEmbedderOptions(req.options);
-        embed.validateEmbedderDimensions(embedderName, options.dimensions);
+        if (baseUrl == null) {
+          // Only OpenAI's own host is held to the catalog. Advertising a
+          // vector length that turns out wrong costs a bad number in the Dev
+          // UI; refusing a request the backend would have served costs the
+          // caller the feature outright, so the claim is worth less confidence
+          // when it is load-bearing than when it is advisory.
+          embed.validateEmbedderDimensions(embedderName, options.dimensions);
+        }
         final inputs = embed.embeddingInputs(req.input);
 
         final resolvedConfig = await _resolveClientConfig();
@@ -374,7 +381,10 @@ class OpenAIPlugin extends GenkitPlugin {
           }
           return EmbedResponse(embeddings: embeddings);
         } catch (e, stackTrace) {
-          throw _toGenkitException(e, stackTrace);
+          Error.throwWithStackTrace(
+            _toGenkitException(e, stackTrace),
+            stackTrace,
+          );
         } finally {
           if (httpClient == null) {
             client.close();
@@ -439,7 +449,10 @@ class OpenAIPlugin extends GenkitPlugin {
             return await _handleNonStreaming(client, request);
           }
         } catch (e, stackTrace) {
-          throw _toGenkitException(e, stackTrace);
+          Error.throwWithStackTrace(
+            _toGenkitException(e, stackTrace),
+            stackTrace,
+          );
         } finally {
           if (httpClient == null) {
             client.close();
@@ -452,8 +465,10 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Maps a failure from the OpenAI SDK onto a [GenkitException], preserving
   /// the HTTP status when there was one.
   ///
-  /// Returned rather than thrown so the call sites keep their `throw`, which
-  /// is what tells the analyzer control flow ends there.
+  /// Returned rather than thrown, and rethrown by the call sites through
+  /// `Error.throwWithStackTrace`: a plain `throw` restamps the trace at the
+  /// throw site, which for an exception that was already a [GenkitException]
+  /// would lose the origin `rethrow` used to keep.
   GenkitException _toGenkitException(Object e, StackTrace stackTrace) {
     if (e is GenkitException) return e;
 
