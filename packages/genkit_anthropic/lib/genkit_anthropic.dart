@@ -30,15 +30,21 @@ class AnthropicPluginHandle {
   ///
   /// You can optionally provide an [apiKey]. If omitted, it will be mapped
   /// to the standard `ANTHROPIC_API_KEY` environment variable.
+  ///
+  /// [apiVersion] selects the default Anthropic API surface (`'stable'` or
+  /// `'beta'`) for every request; individual requests can override it via
+  /// `AnthropicOptions.apiVersion`. Defaults to stable.
   GenkitPlugin call({
     String? apiKey,
     Map<String, String>? headers,
     String? baseUrl,
+    String? apiVersion,
   }) {
     return AnthropicPluginImpl(
       apiKey: apiKey,
       headers: headers,
       baseUrl: baseUrl,
+      apiVersion: apiVersion,
     );
   }
 

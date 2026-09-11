@@ -21,17 +21,72 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
+/// Headers of the most recent captured request, alongside its decoded body.
+Map<String, String> _lastHeaders = const {};
+
+/// A minimal well-formed Anthropic SSE stream, enough for the SDK accumulator.
+String _sseStream(String model) {
+  String event(String type, Map<String, dynamic> data) =>
+      'event: $type\ndata: ${jsonEncode(data)}\n\n';
+
+  return event('message_start', {
+        'type': 'message_start',
+        'message': {
+          'id': 'msg_test',
+          'type': 'message',
+          'role': 'assistant',
+          'model': model,
+          'content': <dynamic>[],
+          'stop_reason': null,
+          'stop_sequence': null,
+          'usage': {'input_tokens': 1, 'output_tokens': 1},
+        },
+      }) +
+      event('content_block_start', {
+        'type': 'content_block_start',
+        'index': 0,
+        'content_block': {'type': 'text', 'text': ''},
+      }) +
+      event('content_block_delta', {
+        'type': 'content_block_delta',
+        'index': 0,
+        'delta': {'type': 'text_delta', 'text': 'ok'},
+      }) +
+      event('content_block_stop', {'type': 'content_block_stop', 'index': 0}) +
+      event('message_delta', {
+        'type': 'message_delta',
+        'delta': {'stop_reason': 'end_turn', 'stop_sequence': null},
+        'usage': {'output_tokens': 1},
+      }) +
+      event('message_stop', {'type': 'message_stop'});
+}
+
 Future<Map<String, dynamic>> _requestOnTheWire({
   required String model,
   ThinkingConfig? thinking,
   AnthropicOutputConfig? outputConfig,
+  String? apiVersion,
+  List<String>? betas,
+  String? pluginApiVersion,
+  Map<String, dynamic>? outputSchema,
+  String? toolChoice,
+  bool streaming = false,
 }) async {
   Map<String, dynamic>? captured;
   final client = MockClient((request) async {
     if (request.url.path != '/v1/messages') {
       return http.Response('not found', 404);
     }
+    _lastHeaders = request.headers;
     captured = (jsonDecode(request.body) as Map).cast<String, dynamic>();
+
+    if (streaming) {
+      return http.Response(
+        _sseStream(model),
+        200,
+        headers: {'content-type': 'text/event-stream'},
+      );
+    }
     return http.Response(
       jsonEncode({
         'id': 'msg_test',
@@ -49,7 +104,11 @@ Future<Map<String, dynamic>> _requestOnTheWire({
       headers: {'content-type': 'application/json'},
     );
   });
-  final plugin = AnthropicPluginImpl(apiKey: 'test-key', httpClient: client);
+  final plugin = AnthropicPluginImpl(
+    apiKey: 'test-key',
+    httpClient: client,
+    apiVersion: pluginApiVersion,
+  );
   addTearDown(plugin.close);
   final action = plugin.resolve(.model, model) as Model;
 
@@ -61,11 +120,22 @@ Future<Map<String, dynamic>> _requestOnTheWire({
           content: [TextPart(text: 'hello')],
         ),
       ],
+      toolChoice: toolChoice,
+      output: outputSchema == null
+          ? null
+          : OutputConfig(
+              format: 'json',
+              constrained: true,
+              schema: outputSchema,
+            ),
       config: AnthropicOptions(
         thinking: thinking,
         outputConfig: outputConfig,
+        apiVersion: apiVersion,
+        betas: betas,
       ).toJson(),
     ),
+    onChunk: streaming ? (_) {} : null,
   );
 
   return captured!;
@@ -179,6 +249,455 @@ void main() {
         outputConfig: AnthropicOutputConfig(),
       );
       expect(body, isNot(contains('output_config')));
+    });
+  });
+
+  group('api version on the wire', () {
+    test('stable is the default and sends no beta header', () async {
+      await _requestOnTheWire(model: 'claude-sonnet-5');
+      expect(_lastHeaders, isNot(contains('anthropic-beta')));
+    });
+
+    test('request apiVersion beta sends the curated list', () async {
+      await _requestOnTheWire(model: 'claude-sonnet-5', apiVersion: 'beta');
+      expect(_lastHeaders['anthropic-beta'], defaultAnthropicBetas.join(','));
+    });
+
+    test('plugin-level beta applies when the request is silent', () async {
+      await _requestOnTheWire(
+        model: 'claude-sonnet-5',
+        pluginApiVersion: 'beta',
+      );
+      expect(_lastHeaders['anthropic-beta'], defaultAnthropicBetas.join(','));
+    });
+
+    test('request stable overrides a beta plugin default', () async {
+      await _requestOnTheWire(
+        model: 'claude-sonnet-5',
+        pluginApiVersion: 'beta',
+        apiVersion: 'stable',
+      );
+      expect(_lastHeaders, isNot(contains('anthropic-beta')));
+    });
+
+    test('a supplied betas list replaces the default', () async {
+      await _requestOnTheWire(
+        model: 'claude-sonnet-5',
+        apiVersion: 'beta',
+        betas: ['my-beta-2026-01-01'],
+      );
+      expect(_lastHeaders['anthropic-beta'], 'my-beta-2026-01-01');
+    });
+
+    test('betas are ignored on the stable surface', () async {
+      await _requestOnTheWire(
+        model: 'claude-sonnet-5',
+        betas: ['my-beta-2026-01-01'],
+      );
+      expect(_lastHeaders, isNot(contains('anthropic-beta')));
+    });
+
+    test('the streaming path sends the beta header too', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-5',
+        apiVersion: 'beta',
+        streaming: true,
+      );
+      expect(body['stream'], true);
+      expect(_lastHeaders['anthropic-beta'], defaultAnthropicBetas.join(','));
+    });
+
+    test('the streaming path stays stable by default', () async {
+      await _requestOnTheWire(model: 'claude-sonnet-5', streaming: true);
+      expect(_lastHeaders, isNot(contains('anthropic-beta')));
+    });
+  });
+
+  group('structured output on the wire', () {
+    final schema = <String, dynamic>{
+      r'$schema': 'https://json-schema.org/draft/2020-12/schema',
+      'type': 'object',
+      'properties': {
+        'name': {'type': 'string'},
+        'pet': {
+          'type': 'object',
+          'properties': {
+            'species': {'type': 'string'},
+          },
+        },
+      },
+    };
+
+    test('a capable model sends a native json_schema format', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: schema,
+      );
+
+      final format =
+          (body['output_config'] as Map)['format'] as Map<String, dynamic>;
+      expect(format['type'], 'json_schema');
+      expect(body, isNot(contains('tools')));
+      expect(body, isNot(contains('tool_choice')));
+    });
+
+    test('normalization strips \$schema and closes nested objects', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: schema,
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      expect(sent, isNot(contains(r'$schema')));
+      expect(sent['additionalProperties'], false);
+
+      final pet = (sent['properties'] as Map)['pet'] as Map;
+      expect(pet['additionalProperties'], false);
+    });
+
+    test('an uncurated model goes native, not to the fallback', () async {
+      // Inverted deliberately. Every model Anthropic lists supports
+      // structured outputs, and assuming otherwise sent each newly released
+      // one down a path it rejects outright:
+      //   400 tool_choice: type "tool" and "any" are not supported
+      final body = await _requestOnTheWire(
+        model: 'claude-future-model',
+        outputSchema: schema,
+      );
+
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body['tools'], isNull);
+      expect(body['tool_choice'], isNull);
+    });
+
+    test('native structured output composes with manual thinking', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: schema,
+        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+      );
+
+      expect(body['thinking'], {'type': 'enabled', 'budget_tokens': 1024});
+      expect((body['output_config'] as Map)['format'], isNotNull);
+    });
+
+    test('an uncurated model composes output with manual thinking', () async {
+      // Previously this threw: the fallback forces a tool choice, which
+      // Anthropic rejects alongside extended thinking. Going native removes
+      // the conflict, so the guard no longer fires for uncurated names.
+      final body = await _requestOnTheWire(
+        model: 'claude-future-model',
+        outputSchema: schema,
+        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+      );
+
+      expect(body['thinking'], {'type': 'enabled', 'budget_tokens': 1024});
+      expect((body['output_config'] as Map)['format'], isNotNull);
+    });
+
+    test('a dated snapshot of a capable model still goes native', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5-20250929',
+        outputSchema: schema,
+      );
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body, isNot(contains('tool_choice')));
+    });
+
+    test('normalization recurses through schema lists', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'tags': {
+              'type': 'array',
+              'items': {
+                'type': 'object',
+                'properties': {
+                  'label': {'type': 'string'},
+                },
+              },
+            },
+            'either': {
+              'anyOf': [
+                {
+                  'type': 'object',
+                  'properties': {
+                    'a': {'type': 'string'},
+                  },
+                },
+              ],
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final props = sent['properties'] as Map;
+      final items = (props['tags'] as Map)['items'] as Map;
+      expect(items['additionalProperties'], false);
+
+      final anyOf = (props['either'] as Map)['anyOf'] as List;
+      expect((anyOf.single as Map)['additionalProperties'], false);
+    });
+
+    test('a \$ref root keeps no sibling constraints', () async {
+      // Named Genkit schemas arrive as a bare $ref plus $defs. Anthropic
+      // rejects `$ref` alongside `type`/`additionalProperties`, so neither may
+      // be added to the root - only to the definitions it points at.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': '#/\$defs/Person',
+          r'$defs': {
+            'Person': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+              },
+              'required': ['name'],
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      expect(sent.containsKey('type'), isFalse);
+      expect(sent.containsKey('additionalProperties'), isFalse);
+
+      final person = (sent[r'$defs'] as Map)['Person'] as Map;
+      expect(person['additionalProperties'], false);
+    });
+
+    test('an untyped object schema is inferred and closed', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'properties': {
+            'name': {'type': 'string'},
+            'inner': {
+              'required': ['x'],
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      expect(sent['type'], 'object');
+      expect(sent['additionalProperties'], false);
+
+      // Inferred from `required` alone, at depth.
+      final inner = (sent['properties'] as Map)['inner'] as Map;
+      expect(inner['type'], 'object');
+      expect(inner['additionalProperties'], false);
+
+      // A leaf with a declared non-object type is left alone.
+      final name = (sent['properties'] as Map)['name'] as Map;
+      expect(name.containsKey('additionalProperties'), isFalse);
+    });
+
+    test('type is not inferred onto a \$ref node', () async {
+      // Inferring here would recreate the sibling-constraint 400 that the
+      // $ref guard exists to prevent.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': '#/\$defs/Person',
+          'properties': {
+            'name': {'type': 'string'},
+          },
+          r'$defs': {
+            'Person': {'type': 'object'},
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      expect(sent.containsKey('type'), isFalse);
+      expect(sent.containsKey('additionalProperties'), isFalse);
+    });
+
+    test('a \$ref root passes through without sibling constraints', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-future-model',
+        outputSchema: {
+          r'$ref': '#/\$defs/Person',
+          r'$defs': {
+            'Person': {'type': 'object'},
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      expect(sent[r'$ref'], '#/\$defs/Person');
+      // A \$ref node may carry no siblings, so no inferred type is added.
+      expect(sent.containsKey('type'), isFalse);
+      expect(((sent[r'$defs'] as Map)['Person'] as Map)['type'], 'object');
+    });
+
+    test('a nullable object is still closed', () async {
+      // `["object","null"]` is how schemantic spells an optional object. An
+      // equality check against 'object' missed it, and Anthropic replied
+      //   400 For 'object' type, 'additionalProperties' must be explicitly
+      //   set to false
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'nested': {
+              'type': ['object', 'null'],
+              'properties': {
+                'a': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final nested = (sent['properties'] as Map)['nested'] as Map;
+      expect(nested['additionalProperties'], false);
+      expect(sent['additionalProperties'], false);
+    });
+
+    test('a field named like a keyword does not corrupt the schema', () async {
+      // The recursion descended into every Map, so `properties` was itself
+      // treated as a schema node: it gained `type: object` and a closed
+      // marker as though the field names were keywords.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'required': {'type': 'boolean'},
+            'type': {'type': 'string'},
+            'properties': {'type': 'string'},
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final properties = sent['properties'] as Map;
+      expect(
+        properties.keys,
+        unorderedEquals(['required', 'type', 'properties']),
+      );
+      expect(properties['required'], {'type': 'boolean'});
+      expect(properties.containsKey('additionalProperties'), isFalse);
+    });
+
+    test('a \$defs map is not treated as a schema node', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': '#/\$defs/Person',
+          r'$defs': {
+            'Person': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final defs = sent[r'$defs'] as Map;
+      expect(defs.keys, ['Person']);
+      expect((defs['Person'] as Map)['additionalProperties'], false);
+      expect(defs.containsKey('type'), isFalse);
+    });
+
+    test('validation keywords are stripped from the native schema', () async {
+      // output_config validates strictly: "For 'integer' type, properties
+      // maximum, minimum are not supported". Genkit's generator emits these
+      // from @IntegerField(minimum:), so ordinary annotated types hit it.
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'n': {'type': 'integer', 'minimum': 1, 'maximum': 10},
+            's': {'type': 'string', 'minLength': 2, 'pattern': '^a'},
+            'l': {
+              'type': 'array',
+              'minItems': 1,
+              'items': {'type': 'string'},
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final properties = sent['properties'] as Map;
+      expect(properties['n'], {'type': 'integer'});
+      expect(properties['s'], {'type': 'string'});
+      expect(properties['l'], {
+        'type': 'array',
+        'items': {'type': 'string'},
+      });
+    });
+
+    test('an unrecognised apiVersion is rejected, not read as stable', () {
+      // Silently downgrading 'Beta' to stable would drop the header and the
+      // features that depend on it, with nothing to point at.
+      for (final value in ['Beta', 'BETA', 'preview', '']) {
+        expect(
+          () => resolveBetaEnabled(value, null),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.status,
+              'status',
+              StatusCodes.INVALID_ARGUMENT,
+            ),
+          ),
+          reason: value,
+        );
+      }
+      expect(resolveBetaEnabled('beta', null), isTrue);
+      expect(resolveBetaEnabled('stable', null), isFalse);
+      expect(resolveBetaEnabled(null, null), isFalse);
+    });
+
+    test('effort and a native format ride in the same output_config', () async {
+      final body = await _requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: schema,
+        outputConfig: AnthropicOutputConfig(effort: 'low'),
+      );
+
+      final outputConfig = body['output_config'] as Map;
+      expect(outputConfig['effort'], 'low');
+      expect((outputConfig['format'] as Map)['type'], 'json_schema');
+    });
+
+    test('a caller toolChoice is dropped when there are no tools', () async {
+      // Anthropic rejects a choice with nothing to choose from - "tool_choice.
+      // any may only be specified while providing tools". Newly reachable:
+      // an output schema used to always append `return_output`, so a caller's
+      // toolChoice always had a tool to refer to.
+      for (final model in ['claude-sonnet-4-5', 'claude-future-model']) {
+        final body = await _requestOnTheWire(
+          model: model,
+          outputSchema: schema,
+          toolChoice: 'any',
+        );
+        expect(body['tools'], isNull, reason: model);
+        expect(body['tool_choice'], isNull, reason: model);
+      }
     });
   });
 }
