@@ -41,8 +41,15 @@
 ///
 /// A provider that holds resources (subscriptions, clients) can implement
 /// `DisposableInstrumentation`; Genkit disposes it on `Genkit.shutdown()`.
+///
+/// For OpenTelemetry GenAI semantic-convention telemetry, configure the
+/// `GenAiInstrumentation` provider. It is built on the `dartastic_opentelemetry`
+/// SDK, which the application owns and initializes; it composes freely with the
+/// built-in dev provider.
 library;
 
+export 'src/o11y/genai_instrumentation.dart'
+    show GenAiContentMode, GenAiInstrumentation;
 export 'src/o11y/instrumentation.dart'
     show
         DisposableInstrumentation,
@@ -50,3 +57,4 @@ export 'src/o11y/instrumentation.dart'
         SpanContext,
         SpanMetadata,
         configureInstrumentation;
+

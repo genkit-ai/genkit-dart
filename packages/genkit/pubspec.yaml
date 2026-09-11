@@ -9,6 +9,8 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
+  dartastic_opentelemetry: ^0.9.7
+  dartastic_opentelemetry_api: ^0.9.1
   dotprompt: ^1.0.0
   handlebars_dart: ^1.0.0
   http: ^1.6.0
