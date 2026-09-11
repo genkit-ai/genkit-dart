@@ -24,6 +24,8 @@ packages/genkit_firebase_ai/.flutter-plugins-dependencies
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+.firebase/
+.firebaserc
 
 *.local.*
 # Agents sample: file-backed session store output

@@ -1,0 +1,7 @@
+{
+  "hosting": {
+    "predeploy": "dart run build_runner build -o web:build --release",
+    "public": "build",
+    "site": "chrome-ai"
+  }
+}

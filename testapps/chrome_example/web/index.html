@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>Genkit Chrome Sample</title>
+    <meta http-equiv="origin-trial"
+        content="Av6YTjp2qT21UkvqJvYQ8MpsVirUG7xgsiJBDk4eLFu4pbYL4lQ9Jc1x+tsxodnj/PbWHHRS10/XBOp2Hg90DAEAAABceyJvcmlnaW4iOiJodHRwczovL2Nocm9tZS1haS53ZWIuYXBwOjQ0MyIsImZlYXR1cmUiOiJBSVByb21wdEFQSVBhcmFtcyIsImV4cGlyeSI6MTgwMDMxNjgwMH0=">
     <script defer src="main.dart.js"></script>
     <style>
         :root {
@@ -16,7 +19,8 @@
             --border-color: #e4e6eb;
         }
 
-        body, html {
+        body,
+        html {
             margin: 0;
             padding: 0;
             height: 100%;
@@ -31,10 +35,10 @@
             max-width: 900px;
             margin: 0 auto;
             background-color: var(--chat-bg);
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
             height: 100vh;
         }
-        
+
         #header {
             padding: 16px 20px;
             border-bottom: 1px solid var(--border-color);
@@ -52,7 +56,8 @@
             font-weight: 600;
         }
 
-        #reset, #reset-settings {
+        #reset,
+        #reset-settings {
             height: 34px;
             padding: 0 14px;
             background: #f0f2f5;
@@ -92,7 +97,7 @@
             gap: 16px;
             scroll-behavior: smooth;
         }
-        
+
         .message-row {
             display: flex;
             flex-direction: column;
@@ -101,8 +106,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .message-row.user {
@@ -121,9 +133,9 @@
             margin-bottom: 4px;
             margin-left: 16px;
             margin-right: 4px;
-            display: none; 
+            display: none;
         }
-        
+
         .message-row.model .speaker {
             display: block;
         }
@@ -147,15 +159,43 @@
             color: var(--model-bubble-text);
             border-bottom-left-radius: 4px;
         }
-        
+
         /* Markdown Styles within Content */
-        .content p { margin: 0 0 10px 0; }
-        .content p:last-child { margin: 0; }
-        .content pre { background: rgba(0,0,0,0.1); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
-        .content code { font-family: 'Menlo', 'Monaco', 'Courier New', monospace; font-size: 0.9em; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 4px; }
-        .content pre code { background: none; padding: 0; }
-        .content ul, .content ol { margin: 0 0 10px 20px; padding: 0; }
-        
+        .content p {
+            margin: 0 0 10px 0;
+        }
+
+        .content p:last-child {
+            margin: 0;
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .content code {
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .content ul,
+        .content ol {
+            margin: 0 0 10px 20px;
+            padding: 0;
+        }
+
         #input-container {
             padding: 20px;
             border-top: 1px solid var(--border-color);
@@ -164,7 +204,7 @@
             gap: 12px;
             align-items: flex-end;
         }
-        
+
         textarea {
             flex: 1;
             height: 50px;
@@ -177,12 +217,12 @@
             transition: border-color 0.2s;
             outline: none;
         }
-        
+
         textarea:focus {
             border-color: var(--primary-color);
             background: white;
         }
-        
+
         button {
             height: 46px;
             padding: 0 24px;
@@ -195,7 +235,7 @@
             transition: opacity 0.2s;
             font-family: inherit;
         }
-        
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -227,7 +267,7 @@
             margin-bottom: 10px;
             outline: none;
         }
-        
+
         .settings-content {
             padding: 10px 0;
             display: flex;
@@ -254,7 +294,7 @@
             font-weight: 500;
         }
 
-        input[type="number"], 
+        input[type="number"],
         #settings-panel textarea,
         #settings-panel select {
             padding: 8px;
@@ -333,8 +373,13 @@
             transition: width 0.4s ease, background-color 0.4s ease;
         }
 
-        #token-fill.warn  { background: #f59e0b; }
-        #token-fill.danger { background: #ef4444; }
+        #token-fill.warn {
+            background: #f59e0b;
+        }
+
+        #token-fill.danger {
+            background: #ef4444;
+        }
 
         #download-progress {
             display: none;
@@ -362,8 +407,13 @@
         }
 
         @keyframes indeterminate {
-            0%   { transform: translateX(-100%); }
-            100% { transform: translateX(400%); }
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(400%);
+            }
         }
 
         #download-bar-fill.indeterminate {
@@ -373,12 +423,14 @@
         }
     </style>
 </head>
+
 <body>
     <div id="header">
-        <h1>Genkit Chrome Sample</h1>
+        <h1>Sample: Genkit + Dart + Chrome</h1>
+        <a href="https://github.com/genkit-ai/genkit-dart">github.com/genkit-ai/genkit-dart</a>
         <button id="reset">Reset session</button>
     </div>
-    
+
     <div id="settings-panel">
         <details>
             <summary>Model Settings</summary>
@@ -391,14 +443,16 @@
                     <div class="setting-group">
                         <label for="temperature">
                             Temperature
-                            <span class="help-icon" title="Controls randomness. Lower values are more deterministic.">?</span>
+                            <span class="help-icon"
+                                title="Controls randomness. Lower values are more deterministic.">?</span>
                         </label>
                         <input type="number" id="temperature" min="0" max="2" step="0.1" placeholder="default">
                     </div>
                     <div class="setting-group">
                         <label for="topK">
                             Top K
-                            <span class="help-icon" title="Controls diversity. Lower values limit the token pool.">?</span>
+                            <span class="help-icon"
+                                title="Controls diversity. Lower values limit the token pool.">?</span>
                         </label>
                         <input type="number" id="topK" min="1" step="1" placeholder="default">
                     </div>
@@ -428,7 +482,8 @@
                 <div class="setting-group">
                     <label for="constraintType">
                         Response Constraint
-                        <span class="help-icon" title="Constrain the model output to a JSON Schema or a regular expression.">?</span>
+                        <span class="help-icon"
+                            title="Constrain the model output to a JSON Schema or a regular expression.">?</span>
                     </label>
                     <select id="constraintType">
                         <option value="none">None</option>
@@ -440,7 +495,8 @@
                     <div id="constraint-error" class="validation-error"></div>
                 </div>
                 <div id="session-hint" class="session-hint">
-                    System prompt and language settings take effect in a new session — press <strong>Reset session</strong> to apply.
+                    System prompt and language settings take effect in a new session — press <strong>Reset
+                        session</strong> to apply.
                 </div>
                 <div id="validation-error" class="validation-error"></div>
                 <div class="settings-actions">
@@ -449,17 +505,21 @@
             </div>
         </details>
     </div>
-    
+
     <div id="download-progress">
         <span id="download-text">Downloading model...</span>
-        <div id="download-bar-track"><div id="download-bar-fill"></div></div>
+        <div id="download-bar-track">
+            <div id="download-bar-fill"></div>
+        </div>
     </div>
 
     <div id="chat-container"></div>
 
     <div id="token-stats">
         <span id="token-text">Context: — tokens</span>
-        <div id="token-track"><div id="token-fill"></div></div>
+        <div id="token-track">
+            <div id="token-fill"></div>
+        </div>
     </div>
 
     <div id="input-container">
@@ -468,4 +528,5 @@
         <button id="stop">Stop</button>
     </div>
 </body>
+
 </html>
