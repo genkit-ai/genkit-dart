@@ -151,10 +151,16 @@ Future<GenerateBidiSession> runGenerateBidi(
           _logger.fine('Processing ${toolRequests.length} tool requests');
           final toolResponses = <Part>[];
           for (final toolRequest in toolRequests) {
+            final requestedName = toolRequest.toolRequest.name;
+            // The model echoes the wire (short) name, so match on either the
+            // full name or its last path segment (see `toToolDefinition`).
+            String shortName(String n) =>
+                n.contains('/') ? n.substring(n.lastIndexOf('/') + 1) : n;
             final tool = toolActions.firstWhere(
-              (t) => t.name == toolRequest.toolRequest.name,
+              (t) =>
+                  t.name == requestedName || shortName(t.name) == requestedName,
               orElse: () => throw GenkitException(
-                'Tool ${toolRequest.toolRequest.name} not found',
+                'Tool $requestedName not found',
                 status: StatusCodes.NOT_FOUND,
               ),
             );

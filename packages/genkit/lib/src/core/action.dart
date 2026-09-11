@@ -149,10 +149,20 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   final SchemanticType<Init>? initSchema;
   final Map<String, dynamic> metadata;
 
+  /// The fully-qualified registry key (`/$actionType/$name`) or, for actions
+  /// resolved through a dynamic action provider, the DAP key
+  /// (`/dynamic-action-provider/<host>:<actionType>/<name>`).
+  ///
+  /// Null for locally-defined actions until stamped (a DAP stamps this onto the
+  /// actions it resolves so their provenance survives into tool definitions and
+  /// traces). Mirrors JS's `__action.key`.
+  String? key;
+
   ActionMetadata({
     required this.name,
     this.actionType = .custom,
     this.description,
+    this.key,
 
     this.inputSchema,
     this.outputSchema,
@@ -164,6 +174,7 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   Map<String, dynamic> toJson() {
     return {
       'name': name,
+      if (key != null) 'key': key,
       'description': description,
       'inputSchema': inputSchema?.jsonSchema,
       'outputSchema': outputSchema?.jsonSchema,
@@ -187,6 +198,7 @@ class Action<Input, Output, Chunk, Init>
     super.initSchema,
     super.description,
     super.metadata,
+    super.key,
   });
 
   /// The output schema surfaced when building action manifests (Dev UI,

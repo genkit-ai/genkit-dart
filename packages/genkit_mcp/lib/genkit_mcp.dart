@@ -66,6 +66,7 @@ GenkitMcpHost defineMcpHost(Genkit ai, McpHostOptionsWithCache options) {
     name: host.name,
     listActionsFn: host.getCachedActions,
     getActionFn: host.resolveAction,
+    cacheTtlMillis: host.cacheTtlMillis,
   );
   return host;
 }

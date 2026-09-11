@@ -208,10 +208,13 @@ class ReflectionServerV2 {
 
   Future<void> _handleListActions(String? id) async {
     if (id == null) return;
-    final actions = await registry.listActions();
+    // Use resolvable actions so dynamic action providers expand into their
+    // individual tools/prompts/resources for the Dev UI.
+    final actions = await registry.listResolvableActions();
     final convertedActions = <String, dynamic>{};
-    for (final action in actions) {
-      final key = getKey(action.actionType.value, action.name);
+    for (final entry in actions.entries) {
+      final action = entry.value;
+      final key = action.key ?? entry.key;
       convertedActions[key] = {
         'key': key,
         'name': action.name,

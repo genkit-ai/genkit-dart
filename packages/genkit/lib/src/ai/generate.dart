@@ -69,9 +69,22 @@ GenerateAction defineGenerateAction(Registry registry) {
   );
 }
 
+/// Converts a [Tool] into the [ToolDefinition] sent to the model.
+///
+/// The wire name is shortened to the last path segment (so a namespaced or
+/// DAP-provided tool like `my-server/weatherTool` is presented to the model as
+/// `weatherTool`); the full name is preserved in `metadata.originalName` and
+/// the resolution key is copied onto [ToolDefinition.key] so provenance
+/// survives into the request trace. Mirrors JS's `toToolDefinition`.
 ToolDefinition toToolDefinition(Tool tool) {
+  final originalName = tool.name;
+  final name = originalName.contains('/')
+      ? originalName.substring(originalName.lastIndexOf('/') + 1)
+      : originalName;
+
   return ToolDefinition(
-    name: tool.name,
+    name: name,
+    key: tool.key,
     description: tool.description!,
     inputSchema: tool.inputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.inputSchema)
@@ -79,7 +92,29 @@ ToolDefinition toToolDefinition(Tool tool) {
     outputSchema: tool.toolOutputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.toolOutputSchema)
         : null,
+    metadata: originalName != name ? {'originalName': originalName} : null,
   );
+}
+
+/// Raises [GenkitException] when two tools resolve to the same wire (short)
+/// name, which would make the model's tool request ambiguous. Mirrors JS's
+/// `assertValidToolNames`.
+void _assertValidToolNames(Iterable<Tool> tools) {
+  final seen = <String, String>{};
+  for (final tool in tools) {
+    final full = tool.name;
+    final short = full.contains('/')
+        ? full.substring(full.lastIndexOf('/') + 1)
+        : full;
+    final existing = seen[short];
+    if (existing != null && existing != full) {
+      throw GenkitException(
+        "Cannot provide two tools with the same name: '$full' and '$existing'",
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    seen[short] = full;
+  }
 }
 
 /// Base class for model-specific configuration.
@@ -140,11 +175,19 @@ abstract class GenerateConfig {}
   return (middleware: resolvedMiddleware, registry: registry);
 }
 
+/// Returns the wire (short) name for [fullName]: its last path segment. The
+/// model sees this name and echoes it back on a tool request, so tool
+/// execution resolves against the short name.
+String _shortToolName(String fullName) => fullName.contains('/')
+    ? fullName.substring(fullName.lastIndexOf('/') + 1)
+    : fullName;
+
 Future<
   ({
     Registry registry,
     List<ToolDefinition> toolDefs,
     Set<String> activeToolNames,
+    Map<String, Tool> toolMap,
   })
 >
 _resolveTools(
@@ -154,7 +197,19 @@ _resolveTools(
 ) async {
   var toolDefs = <ToolDefinition>[];
   final activeToolNames = <String>{};
+  // Keyed by the short (wire) name so the model's tool request resolves back to
+  // the concrete tool even when its full name was namespaced (e.g. a DAP tool
+  // `my-server/weatherTool` presented to the model as `weatherTool`).
+  final toolMap = <String, Tool>{};
+  final resolvedTools = <Tool>[];
   var currentRegistry = registry;
+
+  void addTool(Tool tool) {
+    resolvedTools.add(tool);
+    activeToolNames.add(tool.name);
+    toolMap[_shortToolName(tool.name)] = tool;
+    toolDefs.add(toToolDefinition(tool));
+  }
 
   if (requestedTools != null) {
     if (requestedTools.any((t) => t.contains(':'))) {
@@ -175,35 +230,34 @@ _resolveTools(
         if (dap != null) {
           if (actionMatcher.endsWith('*')) {
             final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
-            final actions = await dap.listActions();
+            final actions = await dap.listActionMetadata(.tool, actionMatcher);
             for (final action in actions) {
-              if (action.actionType == .tool &&
-                  (prefix.isEmpty || action.name.startsWith(prefix))) {
-                final fullAction = await dap.getAction(action.name);
-                if (fullAction != null && fullAction is Tool) {
+              if (prefix.isEmpty || action.name.startsWith(prefix)) {
+                final fullAction = await dap.getAction(.tool, action.name);
+                if (fullAction is Tool) {
                   currentRegistry.register(fullAction);
-                  activeToolNames.add(fullAction.name);
-                  toolDefs.add(toToolDefinition(fullAction));
+                  addTool(fullAction);
                 }
               }
             }
           } else {
-            final fullAction = await dap.getAction(actionMatcher);
-            if (fullAction != null && fullAction is Tool) {
+            final fullAction = await dap.getAction(.tool, actionMatcher);
+            if (fullAction is Tool) {
               currentRegistry.register(fullAction);
-              activeToolNames.add(fullAction.name);
-              toolDefs.add(toToolDefinition(fullAction));
+              addTool(fullAction);
             }
           }
           continue;
         }
       }
 
-      activeToolNames.add(toolName);
       final tool = await currentRegistry.lookupAction(.tool, toolName) as Tool?;
-
       if (tool != null) {
-        toolDefs.add(toToolDefinition(tool));
+        addTool(tool);
+      } else {
+        // Preserve the requested name so downstream lookups still surface a
+        // "tool not found" for an unresolved reference.
+        activeToolNames.add(toolName);
       }
     }
   }
@@ -213,15 +267,18 @@ _resolveTools(
       .toList();
   for (final tool in middlewareTools) {
     if (!activeToolNames.contains(tool.name)) {
-      activeToolNames.add(tool.name);
-      toolDefs.add(toToolDefinition(tool));
+      addTool(tool);
     }
   }
+
+  // Guard against two tools colliding on the same wire name before generation.
+  _assertValidToolNames(resolvedTools);
 
   return (
     registry: currentRegistry,
     toolDefs: toolDefs,
     activeToolNames: activeToolNames,
+    toolMap: toolMap,
   );
 }
 
@@ -477,6 +534,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   );
   registry = resolved.registry;
   final toolDefs = resolved.toolDefs;
+  final toolMap = resolved.toolMap;
 
   final request = ModelRequest(
     messages: requestOptions.messages,
@@ -662,6 +720,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       ctx.context,
       cancel: ctx.cancel,
       middleware: resolvedMiddleware,
+      toolMap: toolMap,
     );
   } catch (e) {
     // A tool cancelled mid-execution: resolve with the last-good history (this
@@ -1331,6 +1390,7 @@ _executeTools(
   Map<String, dynamic>? context, {
   CancellationToken? cancel,
   List<GenerateMiddleware>? middleware,
+  Map<String, Tool>? toolMap,
 }) async {
   final cancelToken = cancel;
   final toolResponses = <ToolResponsePart>[];
@@ -1338,13 +1398,18 @@ _executeTools(
   var interrupted = false;
 
   for (final toolRequest in toolRequests) {
+    final requestedName = toolRequest.toolRequest.name;
+    // The model echoes back the short (wire) name, so resolve against the
+    // short-name map built at tool-resolution time first, falling back to a
+    // direct registry lookup (e.g. for restart tools resolved outside the loop).
     final tool =
-        await registry.lookupAction(.tool, toolRequest.toolRequest.name)
-            as Tool?;
+        toolMap?[requestedName] ??
+        toolMap?[_shortToolName(requestedName)] ??
+        await registry.lookupAction(.tool, requestedName) as Tool?;
 
     if (tool == null) {
       throw GenkitException(
-        'Tool ${toolRequest.toolRequest.name} not found',
+        'Tool $requestedName not found',
         status: StatusCodes.NOT_FOUND,
       );
     }

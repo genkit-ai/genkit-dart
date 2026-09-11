@@ -413,7 +413,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'weatherTool') {
             return Tool(
               name: 'weatherTool',
@@ -477,7 +477,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'weatherTool') {
             return Tool(
               name: 'weatherTool',
@@ -541,7 +541,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'weatherTool') {
             return Tool(
               name: 'weatherTool',
@@ -607,7 +607,7 @@ void main() {
               outputSchema: .dynamicSchema(),
             ),
           ],
-          getActionFn: (id) async {
+          getActionFn: (actionType, id) async {
             if (id == 'weatherTool') {
               return Tool(
                 name: 'weatherTool',
@@ -682,7 +682,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'wea/weatherTool') {
             return Tool(
               name: 'wea/weatherTool',
@@ -1699,6 +1699,198 @@ void main() {
         expect(res.error, isNotNull);
         expect(res.error!.status, StatusCodes.INTERNAL.name);
         expect(res.error!.message, contains('expected schema'));
+      });
+    });
+
+    group('DAP parity', () {
+      test(
+        'toToolDefinition shortens namespaced names and records originalName + key',
+        () async {
+          ToolDefinition? seenDef;
+          genkit.defineDynamicActionProvider(
+            name: 'my-dap',
+            listActionsFn: () => [
+              ActionMetadata(
+                actionType: .tool,
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                outputSchema: .dynamicSchema(),
+              ),
+            ],
+            getActionFn: (actionType, id) async {
+              if (id == 'weatherTool') {
+                return Tool(
+                  name: 'weatherTool',
+                  description: 'get weather',
+                  inputSchema: TestToolInput.$schema,
+                  toolOutputSchema: .dynamicSchema(),
+                  fn: (input, context) async => .response('sunny'),
+                );
+              }
+              return null;
+            },
+          );
+
+          genkit.defineModel(
+            name: 'defModelInspect',
+            fn: (request, context) async {
+              seenDef = request.tools?.firstOrNull;
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: .model,
+                  content: [TextPart(text: 'ok')],
+                ),
+              );
+            },
+          );
+
+          await genkit.generate(
+            model: modelRef('defModelInspect'),
+            prompt: 'weather?',
+            toolNames: ['my-dap:tool/weatherTool'],
+          );
+
+          // DAP tool name arrives to the DAP as `weatherTool` (no namespace), so
+          // the wire name is unchanged and no originalName is recorded, but the
+          // DAP key is stamped through to the ToolDefinition.
+          expect(seenDef, isNotNull);
+          expect(seenDef!.name, 'weatherTool');
+          expect(
+            seenDef!.key,
+            '/dynamic-action-provider/my-dap:tool.v2/weatherTool',
+          );
+        },
+      );
+
+      test(
+        'toToolDefinition shortens a slashed tool name and records originalName',
+        () async {
+          ToolDefinition? seenDef;
+          genkit.defineTool(
+            name: 'ns/localTool',
+            description: 'namespaced local tool',
+            inputSchema: TestToolInput.$schema,
+            fn: (input, context) async => .response('ok'),
+          );
+
+          genkit.defineModel(
+            name: 'defModelSlash',
+            fn: (request, context) async {
+              seenDef = request.tools?.firstOrNull;
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: .model,
+                  content: [TextPart(text: 'ok')],
+                ),
+              );
+            },
+          );
+
+          await genkit.generate(
+            model: modelRef('defModelSlash'),
+            prompt: 'hi',
+            toolNames: ['ns/localTool'],
+          );
+
+          expect(seenDef, isNotNull);
+          expect(seenDef!.name, 'localTool');
+          expect(seenDef!.metadata?['originalName'], 'ns/localTool');
+        },
+      );
+
+      test('duplicate short tool names are rejected', () async {
+        genkit.defineTool(
+          name: 'a/dup',
+          description: 'first',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, context) async => .response('a'),
+        );
+        genkit.defineTool(
+          name: 'b/dup',
+          description: 'second',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, context) async => .response('b'),
+        );
+
+        genkit.defineModel(
+          name: 'defModelDup',
+          fn: (request, context) async => ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'x')],
+            ),
+          ),
+        );
+
+        // The collision surfaces as a failed response (the loop resolves an
+        // INVALID_ARGUMENT rather than throwing out of generate).
+        final res = await genkit.generate(
+          model: modelRef('defModelDup'),
+          prompt: 'hi',
+          toolNames: ['a/dup', 'b/dup'],
+        );
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error, isNotNull);
+        expect(res.error!.message, contains('same name'));
+      });
+
+      test(
+        'listResolvableActions expands DAP into individual actions',
+        () async {
+          genkit.defineDynamicActionProvider(
+            name: 'my-dap',
+            listActionsFn: () => [
+              ActionMetadata(
+                actionType: .tool,
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                outputSchema: .dynamicSchema(),
+              ),
+            ],
+            getActionFn: (actionType, id) async => null,
+          );
+
+          final resolvable = await genkit.registry.listResolvableActions();
+          expect(
+            resolvable.keys,
+            contains('/dynamic-action-provider/my-dap:tool.v2/weatherTool'),
+          );
+          // The provider itself is still listed.
+          expect(resolvable.keys, contains('/dynamic-action-provider/my-dap'));
+        },
+      );
+
+      test('DAP listing is cached across calls', () async {
+        var listCalls = 0;
+        final dap = genkit.defineDynamicActionProvider(
+          name: 'cached-dap',
+          listActionsFn: () {
+            listCalls++;
+            return [
+              ActionMetadata(
+                actionType: .tool,
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                outputSchema: .dynamicSchema(),
+              ),
+            ];
+          },
+          getActionFn: (actionType, id) async => null,
+        );
+
+        await dap.listActions();
+        await dap.listActions();
+        expect(listCalls, 1);
+
+        dap.invalidateCache();
+        await dap.listActions();
+        expect(listCalls, 2);
       });
     });
   });

@@ -14,7 +14,66 @@
 
 import '../ai/generate_middleware.dart';
 import './action.dart';
+import './dynamic_action_provider.dart';
 import './plugin.dart';
+
+/// The parsed components of a registry key.
+///
+/// A key is either a plain action key (`/model/googleai/gemini-flash-latest`,
+/// `/util/generate`) or a dynamic-action-provider key
+/// (`/dynamic-action-provider/<host>:<actionType>/<name>`). Mirrors JS's
+/// `ParsedRegistryKey`.
+class ParsedRegistryKey {
+  final String? dynamicActionHost;
+  final ActionType actionType;
+  final String actionName;
+
+  ParsedRegistryKey({
+    this.dynamicActionHost,
+    required this.actionType,
+    required this.actionName,
+  });
+}
+
+/// Parses a registry [key] into its components, or returns null when the key
+/// is malformed. Mirrors JS's `parseRegistryKey`.
+ParsedRegistryKey? parseRegistryKey(String key) {
+  if (key.startsWith('/dynamic-action-provider')) {
+    // Format: /dynamic-action-provider/<host>:<actionType>/<name>
+    // (or just /dynamic-action-provider/<host> with no action suffix).
+    final keyTokens = key.split(':');
+    final hostTokens = keyTokens[0].split('/');
+    if (hostTokens.length < 3) return null;
+    if (keyTokens.length < 2) {
+      return ParsedRegistryKey(
+        actionType: .dynamicActionProvider,
+        actionName: hostTokens[2],
+      );
+    }
+    final tokens = keyTokens[1].split('/');
+    if (tokens.length < 2) return null;
+    return ParsedRegistryKey(
+      dynamicActionHost: hostTokens[2],
+      actionType: ActionType(tokens[0]),
+      actionName: tokens.sublist(1).join('/'),
+    );
+  }
+
+  final tokens = key.split('/');
+  if (tokens.length < 3) return null;
+  // ex: /model/googleai/gemini-flash-latest or /prompt/my-plugin/folder/prompt
+  if (tokens.length >= 4) {
+    return ParsedRegistryKey(
+      actionType: ActionType(tokens[1]),
+      actionName: tokens.sublist(3).join('/'),
+    );
+  }
+  // ex: /util/generate
+  return ParsedRegistryKey(
+    actionType: ActionType(tokens[1]),
+    actionName: tokens[2],
+  );
+}
 
 class Registry {
   final Map<String, Action> _actions = {};
@@ -134,6 +193,70 @@ class Registry {
       }
     }
     return allActions.values.toList();
+  }
+
+  /// Resolves an action addressed through a dynamic action provider, given a
+  /// [parsedKey] whose `dynamicActionHost` is set. Returns null when the host
+  /// is not a registered provider, the name is a wildcard (which addresses
+  /// many actions, not one), or the provider cannot resolve it.
+  Future<Action?> getDynamicAction(ParsedRegistryKey parsedKey) async {
+    final host = parsedKey.dynamicActionHost;
+    if (host == null || parsedKey.actionName.contains('*')) return null;
+    final dap =
+        await lookupAction(.dynamicActionProvider, host)
+            as DynamicActionProvider?;
+    if (dap == null) return null;
+    return dap.getAction(parsedKey.actionType, parsedKey.actionName);
+  }
+
+  /// Expands a possibly-wildcard [key] into the concrete keys it addresses.
+  ///
+  /// A dynamic-action-provider key with a `*` or `prefix*` name expands to one
+  /// key per matching action; any other resolvable key returns itself. Mirrors
+  /// JS's `resolveActionNames`.
+  Future<List<String>> resolveActionNames(String key) async {
+    final parsed = parseRegistryKey(key);
+    final host = parsed?.dynamicActionHost;
+    if (parsed != null && host != null) {
+      final dap =
+          await lookupAction(.dynamicActionProvider, host)
+              as DynamicActionProvider?;
+      if (dap == null) return const [];
+      final metas = await dap.listActionMetadata(
+        parsed.actionType,
+        parsed.actionName,
+      );
+      return metas
+          .map(
+            (m) =>
+                '/dynamic-action-provider/$host:${parsed.actionType.value}/${m.name}',
+          )
+          .toList();
+    }
+    return const [];
+  }
+
+  /// Returns every action that can be resolved, keyed by registry key, with
+  /// dynamic action providers expanded into their individual actions. Used by
+  /// the reflection API / Dev UI so DAP-provided tools, prompts, and resources
+  /// are individually listable. Mirrors JS's `listResolvableActions`.
+  Future<Map<String, ActionMetadata>> listResolvableActions() async {
+    final resolvable = <String, ActionMetadata>{};
+    for (final action in await listActions()) {
+      final key = _getKey(action.actionType.value, action.name);
+      resolvable[key] = action;
+      if (action is DynamicActionProvider) {
+        try {
+          resolvable.addAll(await action.getActionMetadataRecord());
+        } catch (e, st) {
+          print(
+            'Error listing actions for Dynamic Action Provider '
+            '${action.name}: $e $st',
+          );
+        }
+      }
+    }
+    return resolvable;
   }
 }
 
