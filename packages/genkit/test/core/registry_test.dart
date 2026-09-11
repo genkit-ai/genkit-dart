@@ -477,33 +477,40 @@ void main() {
       );
       registry.registerPlugin(TestPlugin('myPlugin', resolvedAction: action));
 
-      final resolved = await registry.lookupActionByKey('/model/myPlugin/myModel');
+      final resolved = await registry.lookupActionByKey(
+        '/model/myPlugin/myModel',
+      );
       expect(resolved, isNotNull);
       expect(resolved!.name, 'myModel');
     });
 
-    test('resolves a dynamic-action-provider key through its provider', () async {
-      final registry = Registry();
-      final tool = Action(
-        actionType: .tool,
-        name: 'weatherTool',
-        fn: (input, context) async => 'sunny',
-      );
-      final dap = DynamicActionProvider(
-        name: 'my-host',
-        listActionsFn: () => [
-          ActionMetadata(actionType: .tool, name: 'weatherTool'),
-        ],
-        getActionFn: (actionType, name) async =>
-            actionType == ActionType.tool && name == 'weatherTool' ? tool : null,
-      );
-      registry.register(dap);
+    test(
+      'resolves a dynamic-action-provider key through its provider',
+      () async {
+        final registry = Registry();
+        final tool = Action(
+          actionType: .tool,
+          name: 'weatherTool',
+          fn: (input, context) async => 'sunny',
+        );
+        final dap = DynamicActionProvider(
+          name: 'my-host',
+          listActionsFn: () => [
+            ActionMetadata(actionType: .tool, name: 'weatherTool'),
+          ],
+          getActionFn: (actionType, name) async =>
+              actionType == ActionType.tool && name == 'weatherTool'
+              ? tool
+              : null,
+        );
+        registry.register(dap);
 
-      final resolved = await registry.lookupActionByKey(
-        dapActionKey('my-host', ActionType.tool, 'weatherTool'),
-      );
-      expect(resolved, same(tool));
-    });
+        final resolved = await registry.lookupActionByKey(
+          dapActionKey('my-host', ActionType.tool, 'weatherTool'),
+        );
+        expect(resolved, same(tool));
+      },
+    );
 
     test('returns null for a wildcard dynamic-action-provider key', () async {
       final registry = Registry();
