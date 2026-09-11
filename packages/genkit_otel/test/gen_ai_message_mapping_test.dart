@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/src/o11y/genai/gen_ai_message_mapping.dart';
-import 'package:genkit/src/types.dart';
+import 'package:genkit/genkit.dart';
+import 'package:genkit_otel/src/genai/gen_ai_message_mapping.dart';
 import 'package:test/test.dart';
 
 void main() {

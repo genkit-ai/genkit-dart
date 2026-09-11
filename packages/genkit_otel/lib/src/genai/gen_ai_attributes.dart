@@ -43,6 +43,9 @@ abstract final class GenAiAttr {
 
   static const responseFinishReasons = 'gen_ai.response.finish_reasons';
 
+  /// Distinguishes token-usage measurements: `input` vs `output`.
+  static const tokenType = 'gen_ai.token.type';
+
   static const usageInputTokens = 'gen_ai.usage.input_tokens';
   static const usageOutputTokens = 'gen_ai.usage.output_tokens';
   static const usageReasoningOutputTokens =
@@ -59,10 +62,19 @@ abstract final class GenAiAttr {
   static const systemInstructions = 'gen_ai.system_instructions';
 
   static const errorType = 'error.type';
+}
 
-  /// Non-standard attribute used to keep the GenAI span tree connected across
-  /// Genkit action types that have no GenAI mapping (flow, util, etc.).
-  static const genkitActionType = 'genkit.action.type';
+/// Non-reserved `genkit.*` attributes. Kept out of the `gen_ai.*` namespace so
+/// GenAI-aware backends (e.g. Jaeger's GenAI view) never try to render raw
+/// Genkit payloads as spec message content.
+abstract final class GenkitAttr {
+  /// Keeps the span tree connected across Genkit action types that have no
+  /// GenAI mapping (flow, util, etc.).
+  static const actionType = 'genkit.action.type';
+
+  /// Raw Genkit action input/output as JSON strings (opt-in; may contain PII).
+  static const input = 'genkit.input';
+  static const output = 'genkit.output';
 }
 
 /// Well-known values for `gen_ai.operation.name`.
@@ -70,6 +82,16 @@ abstract final class GenAiOperation {
   static const chat = 'chat';
   static const executeTool = 'execute_tool';
 }
+
+/// Canonical `gen_ai.*` metric instrument names.
+abstract final class GenAiMetric {
+  static const tokenUsage = 'gen_ai.client.token.usage';
+  static const operationDuration = 'gen_ai.client.operation.duration';
+}
+
+/// The OTel GenAI semantic-conventions version this instrumentation targets.
+/// Recorded so future readers know which shape the mapping was written against.
+const genAiSemConvVersion = '1.38.0';
 
 /// The dedicated event that carries prompt/response content independently of
 /// the span, per the spec.
@@ -100,7 +122,8 @@ String? deriveProviderName(String? prefix) {
     case 'googleai':
     case 'google-genai':
     case 'google_genai':
-      return 'gcp.gen_ai';
+      // Gemini API (AI Studio), distinct from Vertex AI.
+      return 'gcp.gemini';
     case 'vertexai':
     case 'vertex-ai':
     case 'vertex_ai':

@@ -18,7 +18,7 @@
 /// tested directly. Only used when content capture is enabled.
 library;
 
-import '../../types.dart';
+import 'package:genkit/genkit.dart';
 
 /// The result of splitting a message list into system instructions and the
 /// remaining conversation messages, both in the GenAI content schema.

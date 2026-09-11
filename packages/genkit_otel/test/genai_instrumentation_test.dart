@@ -14,10 +14,10 @@
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart' as otel;
 import 'package:dartastic_opentelemetry/testing.dart';
-import 'package:genkit/src/o11y/genai/gen_ai_attributes.dart';
-import 'package:genkit/src/o11y/genai_instrumentation.dart';
-import 'package:genkit/src/o11y/instrumentation_api.dart';
-import 'package:genkit/src/types.dart';
+import 'package:genkit/genkit.dart';
+import 'package:genkit/telemetry.dart';
+import 'package:genkit_otel/src/genai/gen_ai_attributes.dart';
+import 'package:genkit_otel/src/genai_instrumentation.dart';
 import 'package:test/test.dart';
 
 /// Reads a single-value attribute off a recorded span by key, or null.
@@ -99,7 +99,7 @@ void main() {
     final span = harness.spans.findSpanByName('chat gemini-flash-latest');
     expect(span, isNotNull);
     expect(attr(span!, GenAiAttr.operationName), 'chat');
-    expect(attr(span, GenAiAttr.providerName), 'gcp.gen_ai');
+    expect(attr(span, GenAiAttr.providerName), 'gcp.gemini');
     expect(attr(span, GenAiAttr.requestModel), 'gemini-flash-latest');
     expect(attr(span, GenAiAttr.requestTemperature), 0.5);
     expect(attr(span, GenAiAttr.requestTopK), 40);
@@ -262,7 +262,7 @@ void main() {
 
     final flow = harness.spans.findSpanByName('myFlow')!;
     final model = harness.spans.findSpanByName('chat gemini-flash-latest')!;
-    expect(attr(flow, GenAiAttr.genkitActionType), 'flow');
+    expect(attr(flow, GenkitAttr.actionType), 'flow');
     expect(
       model.spanContext.traceId.toString(),
       flow.spanContext.traceId.toString(),
@@ -285,5 +285,58 @@ void main() {
     final span = harness.spans.findSpanByName('execute_tool weather')!;
     expect(attr(span, GenAiAttr.operationName), 'execute_tool');
     expect(attr(span, GenAiAttr.toolName), 'weather');
+  });
+
+  test('does not capture action IO by default', () async {
+    final instr = GenAiInstrumentation();
+    await runModel(
+      instr,
+      'googleai/gemini-flash-latest',
+      modelRequest(),
+      ([span]) async => modelResponse(),
+    );
+    final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+    expect(attr(span, GenkitAttr.input), isNull);
+    expect(attr(span, GenkitAttr.output), isNull);
+  });
+
+  test('captureActionIO records raw genkit IO on all span types', () async {
+    final instr = GenAiInstrumentation(
+      captureActionIO: true,
+      emitToolSpans: true,
+    );
+
+    // Model span.
+    await runModel(
+      instr,
+      'googleai/gemini-flash-latest',
+      modelRequest(),
+      ([span]) async => modelResponse(),
+    );
+    final model = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+    expect(attr(model, GenkitAttr.input), isA<String>());
+    expect(attr(model, GenkitAttr.output), isA<String>());
+
+    // Tool span.
+    await instr.runInNewSpan(
+      const SpanMetadata(name: 'weather', actionType: 'tool', input: 'Paris'),
+      ([span]) async => 'sunny',
+    );
+    final tool = harness.spans.findSpanByName('execute_tool weather')!;
+    expect(attr(tool, GenkitAttr.input) as String, contains('Paris'));
+    expect(attr(tool, GenkitAttr.output) as String, contains('sunny'));
+    // Raw IO must not land in the reserved gen_ai.* content keys.
+    expect(attr(tool, GenAiAttr.inputMessages), isNull);
+    expect(attr(tool, GenAiAttr.outputMessages), isNull);
+
+    // Generic span.
+    await instr.runInNewSpan(
+      const SpanMetadata(name: 'myFlow', actionType: 'flow', input: 'in'),
+      ([span]) async => 'out',
+    );
+    final flow = harness.spans.findSpanByName('myFlow')!;
+    expect(attr(flow, GenkitAttr.input) as String, contains('in'));
+    expect(attr(flow, GenkitAttr.output) as String, contains('out'));
+    expect(attr(flow, GenAiAttr.inputMessages), isNull);
   });
 }

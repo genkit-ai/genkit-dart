@@ -16,12 +16,13 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart' as otel;
+import 'package:genkit/genkit.dart';
+import 'package:genkit/telemetry.dart';
 import 'package:logging/logging.dart';
 
-import '../types.dart';
 import 'genai/gen_ai_attributes.dart';
 import 'genai/gen_ai_message_mapping.dart';
-import 'instrumentation_api.dart';
+import 'genai/gen_ai_metrics.dart';
 
 final _logger = Logger('GenAiInstrumentation');
 
@@ -51,7 +52,8 @@ enum GenAiContentMode {
 ///
 /// [spec]: https://github.com/open-telemetry/semantic-conventions-genai
 class GenAiInstrumentation implements Instrumentation {
-  /// Whether to capture prompt/response content.
+  /// Whether to capture spec-shaped GenAI message content on model spans, i.e.
+  /// the `gen_ai.*.messages` attributes / operation.details event.
   ///
   /// Content may contain PII, so it is off by default. Also enabled when the
   /// env var `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` is set.
@@ -60,28 +62,50 @@ class GenAiInstrumentation implements Instrumentation {
   /// Where captured content is recorded (event vs span attributes).
   final GenAiContentMode contentMode;
 
+  /// Whether to capture raw Genkit action input/output as `genkit.input` /
+  /// `genkit.output` JSON attributes on every span (model, tool, flow, util,
+  /// etc.).
+  ///
+  /// This is independent of [captureContent]: it records the raw Genkit
+  /// payloads (useful for debugging or the Genkit Dev UI) rather than the
+  /// spec-shaped `gen_ai.*` content. May contain PII, so off by default.
+  final bool captureActionIO;
+
   /// Whether to emit `execute_tool` spans for tool actions. Off by default.
   final bool emitToolSpans;
 
-  /// Instrumentation scope name for the tracer/logger.
+  /// Whether to emit the spec's GenAI client metrics (token usage, operation
+  /// duration) for model operations. On by default; low cardinality and cheap.
+  final bool emitMetrics;
+
+  /// Instrumentation scope name for the tracer/logger/meter.
   final String scopeName;
 
   /// Optional explicit tracer (escape hatch). When null, the tracer is resolved
   /// lazily from `OTel.tracerProvider().getTracer(scopeName)`.
   final otel.APITracer? _injectedTracer;
 
+  /// Optional explicit meter (escape hatch). When null, the meter is resolved
+  /// lazily from `OTel.meter(scopeName)`.
+  final otel.APIMeter? _injectedMeter;
+
   otel.APITracer? _cachedTracer;
   otel.APILogger? _cachedLogger;
+  GenAiMetrics? _cachedMetrics;
   bool _warnedNotInitialized = false;
 
   GenAiInstrumentation({
     bool? captureContent,
     this.contentMode = GenAiContentMode.event,
+    this.captureActionIO = false,
     this.emitToolSpans = false,
+    this.emitMetrics = true,
     this.scopeName = 'genkit-genai',
     otel.APITracer? tracer,
+    otel.APIMeter? meter,
   }) : captureContent = captureContent ?? _captureContentFromEnv(),
-       _injectedTracer = tracer;
+       _injectedTracer = tracer,
+       _injectedMeter = meter;
 
   static bool _captureContentFromEnv() {
     final value = Platform.environment[captureContentEnvVar];
@@ -92,6 +116,10 @@ class GenAiInstrumentation implements Instrumentation {
       _injectedTracer ?? otel.OTel.tracerProvider().getTracer(scopeName);
 
   otel.APILogger get _logger_ => _cachedLogger ??= otel.OTel.logger(scopeName);
+
+  GenAiMetrics get _metrics => _cachedMetrics ??= GenAiMetrics(
+    _injectedMeter ?? otel.OTel.meter(scopeName),
+  );
 
   @override
   Future<O> runInNewSpan<O>(
@@ -135,6 +163,14 @@ class GenAiInstrumentation implements Instrumentation {
     );
     _maybeWarnNotRecording(span);
 
+    // Base metric attributes shared by both histograms: low cardinality only.
+    final metricAttrs = <String, Object>{
+      GenAiAttr.operationName: GenAiOperation.chat,
+      GenAiAttr.requestModel: split.model,
+      GenAiAttr.providerName: ?provider,
+    };
+    final stopwatch = Stopwatch()..start();
+
     return _tracer.withSpanAsync(span, () async {
       try {
         final output = await next(_GenAiSpanContext(span));
@@ -145,13 +181,48 @@ class GenAiInstrumentation implements Instrumentation {
         if (captureContent) {
           _recordContent(span, request, response);
         }
+        _maybeCaptureActionIO(span, metadata.input, output);
+        if (emitMetrics) {
+          _recordModelMetrics(stopwatch, metricAttrs, response: response);
+        }
         return output;
       } catch (e, s) {
         _recordError(span, e, s);
+        if (emitMetrics) {
+          _recordModelMetrics(
+            stopwatch,
+            metricAttrs,
+            errorType: e.runtimeType.toString(),
+          );
+        }
         rethrow;
       } finally {
         span.end();
       }
+    });
+  }
+
+  /// Records the token-usage and operation-duration metrics for a model call.
+  void _recordModelMetrics(
+    Stopwatch stopwatch,
+    Map<String, Object> baseAttrs, {
+    ModelResponse? response,
+    String? errorType,
+  }) {
+    stopwatch.stop();
+
+    final usage = response?.usage;
+    if (usage != null) {
+      _metrics.recordTokenUsage(
+        baseAttributes: baseAttrs,
+        inputTokens: usage.inputTokens?.toInt(),
+        outputTokens: usage.outputTokens?.toInt(),
+      );
+    }
+
+    _metrics.recordDuration(stopwatch.elapsedMicroseconds / 1e6, {
+      ...baseAttrs,
+      GenAiAttr.errorType: ?errorType,
     });
   }
 
@@ -174,10 +245,7 @@ class GenAiInstrumentation implements Instrumentation {
     return _tracer.withSpanAsync(span, () async {
       try {
         final output = await next(_GenAiSpanContext(span));
-        if (captureContent) {
-          _setJsonAttribute(span, GenAiAttr.inputMessages, metadata.input);
-          _setJsonAttribute(span, GenAiAttr.outputMessages, output);
-        }
+        _maybeCaptureActionIO(span, metadata.input, output);
         return output;
       } catch (e, s) {
         _recordError(span, e, s);
@@ -194,7 +262,7 @@ class GenAiInstrumentation implements Instrumentation {
   ) {
     final attrs = <String, Object>{
       if (metadata.actionType != null)
-        GenAiAttr.genkitActionType: metadata.actionType!,
+        GenkitAttr.actionType: metadata.actionType!,
     };
     final span = _tracer.startSpan(
       metadata.name,
@@ -206,10 +274,7 @@ class GenAiInstrumentation implements Instrumentation {
     return _tracer.withSpanAsync(span, () async {
       try {
         final output = await next(_GenAiSpanContext(span));
-        if (captureContent) {
-          _setJsonAttribute(span, GenAiAttr.inputMessages, metadata.input);
-          _setJsonAttribute(span, GenAiAttr.outputMessages, output);
-        }
+        _maybeCaptureActionIO(span, metadata.input, output);
         return output;
       } catch (e, s) {
         _recordError(span, e, s);
@@ -218,6 +283,15 @@ class GenAiInstrumentation implements Instrumentation {
         span.end();
       }
     });
+  }
+
+  /// Records raw Genkit input/output on [span] as `genkit.*` JSON attributes
+  /// when [captureActionIO] is enabled. Kept out of the reserved `gen_ai.*`
+  /// namespace so GenAI-aware backends don't misrender it.
+  void _maybeCaptureActionIO(otel.APISpan span, Object? input, Object? output) {
+    if (!captureActionIO) return;
+    _setJsonAttribute(span, GenkitAttr.input, input);
+    _setJsonAttribute(span, GenkitAttr.output, output);
   }
 
   void _addRequestConfigAttributes(

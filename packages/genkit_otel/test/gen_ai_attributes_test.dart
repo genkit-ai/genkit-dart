@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/src/o11y/genai/gen_ai_attributes.dart';
+import 'package:genkit_otel/src/genai/gen_ai_attributes.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -38,15 +38,15 @@ void main() {
 
   group('deriveProviderName', () {
     test('maps known prefixes', () {
-      expect(deriveProviderName('googleai'), 'gcp.gen_ai');
-      expect(deriveProviderName('google-genai'), 'gcp.gen_ai');
+      expect(deriveProviderName('googleai'), 'gcp.gemini');
+      expect(deriveProviderName('google-genai'), 'gcp.gemini');
       expect(deriveProviderName('vertexai'), 'gcp.vertex_ai');
       expect(deriveProviderName('openai'), 'openai');
       expect(deriveProviderName('anthropic'), 'anthropic');
     });
 
     test('is case insensitive', () {
-      expect(deriveProviderName('GoogleAI'), 'gcp.gen_ai');
+      expect(deriveProviderName('GoogleAI'), 'gcp.gemini');
     });
 
     test('passes unknown prefixes through lowercased', () {
