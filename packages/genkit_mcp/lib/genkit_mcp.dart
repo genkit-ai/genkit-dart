@@ -35,8 +35,7 @@ export 'src/client/mcp_client.dart'
         McpServerConfig;
 export 'src/client/mcp_host.dart'
     show GenkitMcpHost, McpHostOptions, McpHostOptionsWithCache;
-export 'src/client/transports/streamable_http_transport.dart'
-    show StreamableHttpClientTransport;
+export 'src/client/transports/client_transport.dart' show McpClientTransport;
 export 'src/server/mcp_server.dart' show GenkitMcpServer, McpServerOptions;
 export 'src/server/transports/server_transport.dart' show McpServerTransport;
 export 'src/server/transports/streamable_http_transport.dart'

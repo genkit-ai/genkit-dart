@@ -17,7 +17,6 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
-import 'package:genkit_mcp/src/client/transports/client_transport.dart';
 import 'package:test/test.dart';
 
 class FakeHostTransport implements McpClientTransport {
@@ -29,6 +28,7 @@ class FakeHostTransport implements McpClientTransport {
   List<Map<String, dynamic>> resources = [];
   List<Map<String, dynamic>> resourceTemplates = [];
   List<Map<String, dynamic>> roots = [];
+  bool failSends = false;
 
   Map<String, dynamic> callToolResult = {
     'content': [
@@ -54,7 +54,18 @@ class FakeHostTransport implements McpClientTransport {
 
   @override
   Future<void> send(Map<String, dynamic> message) async {
+    if (failSends) {
+      throw StateError('send failed');
+    }
     final method = message['method'];
+    if (method == 'server/discover') {
+      _inboundController.add({
+        'jsonrpc': '2.0',
+        'id': message['id'],
+        'error': {'code': -32601, 'message': 'Method not found'},
+      });
+      return;
+    }
     if (method == 'initialize') {
       _respond(message['id'], {
         'protocolVersion': '2025-11-25',
@@ -139,6 +150,21 @@ class FakeHostTransport implements McpClientTransport {
 }
 
 void main() {
+  test('host propagates cache TTL to clients', () async {
+    final host = GenkitMcpHost(
+      const McpHostOptionsWithCache(name: 'test-host', cacheTtlMillis: 1234),
+    );
+
+    await host.connect(
+      'server1',
+      McpServerConfig(transport: FakeHostTransport()),
+    );
+    final client = host.getClient('server1')!;
+    await client.ready();
+
+    expect(client.cacheTtlMillis, 1234);
+  });
+
   test('host connects, disables, and disconnects servers', () async {
     final ai = Genkit();
     final host = GenkitMcpHost(const McpHostOptions(name: 'test-host'));
@@ -192,6 +218,37 @@ void main() {
     tools = await host.getActiveTools(ai);
     names = tools.map((tool) => tool.name).toList()..sort();
     expect(names, ['server2/testTool2']);
+  });
+
+  test('host clears its error state after a successful retry', () async {
+    final ai = Genkit();
+    final host = GenkitMcpHost(const McpHostOptions(name: 'test-host'));
+    final transport = FakeHostTransport()
+      ..tools = [
+        {
+          'name': 'testTool',
+          'inputSchema': {'type': 'object'},
+        },
+      ];
+
+    await host.connect('server1', McpServerConfig(transport: transport));
+    final client = host.getClient('server1')!;
+    await client.ready();
+
+    transport.failSends = true;
+    await host.reconnect('server1');
+    expect(client.disabled, isTrue);
+    expect(client.error, isNotNull);
+
+    transport.failSends = false;
+    await host.enable('server1');
+
+    expect(client.disabled, isFalse);
+    expect(client.error, isNull);
+    expect((await host.getActiveTools(ai)).map((tool) => tool.name), [
+      'server1/testTool',
+    ]);
+    await host.close();
   });
 
   test('host updates roots', () async {
@@ -255,11 +312,19 @@ void main() {
     final ai = Genkit();
     final transport1 = FakeHostTransport();
     transport1.tools = [
-      {'name': 'tool1', 'description': 'tool 1'},
+      {
+        'name': 'tool1',
+        'description': 'tool 1',
+        'inputSchema': {'type': 'object'},
+      },
     ];
     final transport2 = FakeHostTransport();
     transport2.tools = [
-      {'name': 'tool2', 'description': 'tool 2'},
+      {
+        'name': 'tool2',
+        'description': 'tool 2',
+        'inputSchema': {'type': 'object'},
+      },
     ];
 
     // Use mcpServers map in the constructor (the README pattern).
@@ -298,7 +363,11 @@ void main() {
     final ai = Genkit();
     final transport = FakeHostTransport();
     transport.tools = [
-      {'name': 'testTool', 'description': 'test tool'},
+      {
+        'name': 'testTool',
+        'description': 'test tool',
+        'inputSchema': {'type': 'object'},
+      },
     ];
 
     final host = defineMcpHost(
