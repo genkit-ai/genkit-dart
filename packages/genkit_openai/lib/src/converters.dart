@@ -245,6 +245,12 @@ abstract final class GenkitConverter {
   static Message fromOpenAIAssistantMessage(sdk.AssistantMessage msg) {
     final parts = <Part>[];
 
+    // Reasoning comes before the answer it produced, so it leads the content.
+    final reasoning = reasoningTextOf(msg.reasoningContent, msg.reasoning);
+    if (reasoning != null) {
+      parts.add(ReasoningPart(reasoning: reasoning));
+    }
+
     // Handle refusal
     if (msg.refusal != null && msg.refusal!.isNotEmpty) {
       parts.add(TextPart(text: '[Refusal] ${msg.refusal}'));
@@ -274,6 +280,24 @@ abstract final class GenkitConverter {
     }
 
     return Message(role: Role.model, content: parts);
+  }
+
+  /// The reasoning text carried by an assistant message or a stream delta.
+  ///
+  /// Two spellings reach this plugin and neither is OpenAI's: `reasoning` is
+  /// what OpenRouter emits, `reasoning_content` what DeepSeek R1 and vLLM do.
+  /// OpenAI's own models never return their chain of thought on the chat API
+  /// at all - they bill it as reasoning tokens and keep it - so this is
+  /// entirely a compatible-backend path.
+  ///
+  /// Both are read because a gateway in front of several providers passes
+  /// through whichever its upstream used. When both are present they are the
+  /// same text under two names, so the first wins rather than being joined.
+  static String? reasoningTextOf(String? reasoningContent, String? reasoning) {
+    for (final candidate in [reasoningContent, reasoning]) {
+      if (candidate != null && candidate.isNotEmpty) return candidate;
+    }
+    return null;
   }
 
   /// Map OpenAI finish reason to Genkit FinishReason
