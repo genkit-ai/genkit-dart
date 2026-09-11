@@ -52,13 +52,10 @@ class DirectHttpInstrumentation
 
   DirectHttpInstrumentation(
     this._sink, {
-    Map<String, Object?> resourceAttributes = const {
-      'service.name': 'genkit-dart',
-    },
+    this._resourceAttributes = const {'service.name': 'genkit-dart'},
     Random? random,
     bool captureLogs = true,
-  }) : _resourceAttributes = resourceAttributes,
-       _random = random ?? Random() {
+  }) : _random = random ?? Random() {
     if (captureLogs) {
       _logSubscription = Logger.root.onRecord.listen(_onLogRecord);
     }

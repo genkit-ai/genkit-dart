@@ -372,8 +372,8 @@ final class AgentTurn<State> {
   AgentTurn._({
     required this.stream,
     required this.response,
-    required void Function() onAbort,
-  }) : _onAbort = onAbort;
+    required this._onAbort,
+  });
 
   /// Chunks as the turn progresses.
   final Stream<AgentChunk<State>> stream;
@@ -1110,8 +1110,7 @@ final class AgentChat<State> {
 /// on the client.
 final class AgentApi<State> {
   @internal
-  AgentApi(this._transport, {SchemanticType<State>? stateSchema})
-    : _stateSchema = stateSchema;
+  AgentApi(this._transport, {this._stateSchema});
 
   final AgentTransport _transport;
 

@@ -42,11 +42,10 @@ class ResourceAction extends Action<ResourceInput, ResourceOutput, void, void> {
   ResourceAction({
     required super.name,
     required ResourceFn fn,
-    required bool Function(ResourceInput input) matches,
+    required this._matches,
     super.description,
     Map<String, dynamic>? metadata,
-  }) : _matches = matches,
-       super(
+  }) : super(
          actionType: .resource,
          inputSchema: ResourceInput.$schema,
          outputSchema: ResourceOutput.$schema,
