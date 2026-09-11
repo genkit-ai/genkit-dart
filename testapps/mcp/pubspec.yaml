@@ -1,6 +1,6 @@
-name: mcp_server_sample
+name: mcp_sample
 publish_to: none
-description: Genkit MCP stdio server testapp
+description: Genkit MCP testapp with both a stdio server and a host/client
 resolution: workspace
 
 environment:
@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   genkit: ^0.16.1
+  genkit_google_genai: ^0.3.1
   genkit_mcp: ^0.3.1
   schemantic: ^0.2.2
 

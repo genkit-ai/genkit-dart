@@ -72,3 +72,64 @@ base class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
     dependencies: [],
   );
 }
+
+base class WeatherInput {
+  /// Creates a [WeatherInput] from a JSON map.
+  factory WeatherInput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  WeatherInput._(this._json);
+
+  WeatherInput({required String city}) {
+    _json = {'city': city};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [WeatherInput].
+  static const SchemanticType<WeatherInput> $schema =
+      _WeatherInputTypeFactory();
+
+  String get city {
+    return _json['city'] as String;
+  }
+
+  set city(String value) {
+    _json['city'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [WeatherInput] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _WeatherInputTypeFactory extends SchemanticType<WeatherInput> {
+  const _WeatherInputTypeFactory();
+
+  @override
+  WeatherInput parse(Object? json) {
+    return WeatherInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'WeatherInput',
+    definition: $Schema
+        .object(
+          properties: {
+            'city': $Schema.string(
+              description: 'the city to get the weather for',
+            ),
+          },
+          required: ['city'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
