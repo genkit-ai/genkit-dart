@@ -1,5 +1,8 @@
 name: License Compliance
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     branches: [ main ]
@@ -8,9 +11,9 @@ jobs:
   check-license:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       
       - name: Check License Headers
-        uses: genkit-ai/repo-workflows/license-checker@main
+        uses: genkit-ai/repo-workflows/license-checker@8f5bdcf7affaa49e3adeea46bff05e52736568ce # main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
