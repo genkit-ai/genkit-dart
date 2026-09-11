@@ -5,7 +5,7 @@ repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.12.0
 
 dependencies:
   firebase_ai: ^3.8.0
