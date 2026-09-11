@@ -658,8 +658,7 @@ class GenkitMcpServer {
               protocolVersion != null &&
               mcp.isStatelessProtocolVersion(protocolVersion);
           if (!identical(structuredOutput, _notJsonValue) &&
-              (supportsArbitraryStructuredContent ||
-                  structuredOutput is Map)) {
+              (supportsArbitraryStructuredContent || structuredOutput is Map)) {
             response['structuredContent'] = structuredOutput;
           }
           return response;
