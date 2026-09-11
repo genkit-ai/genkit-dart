@@ -41,16 +41,21 @@ ParsedRegistryKey? parseRegistryKey(String key) {
   if (key.startsWith('/dynamic-action-provider')) {
     // Format: /dynamic-action-provider/<host>:<actionType>/<name>
     // (or just /dynamic-action-provider/<host> with no action suffix).
-    final keyTokens = key.split(':');
-    final hostTokens = keyTokens[0].split('/');
-    if (hostTokens.length < 3) return null;
-    if (keyTokens.length < 2) {
+    // Split on the first colon only: the colon separates the host from the
+    // action segment, and the action name itself may legitimately contain
+    // colons (e.g. namespaced names or URIs), which must be preserved.
+    final colonIdx = key.indexOf(':');
+    if (colonIdx == -1) {
+      final hostTokens = key.split('/');
+      if (hostTokens.length < 3) return null;
       return ParsedRegistryKey(
         actionType: .dynamicActionProvider,
         actionName: hostTokens[2],
       );
     }
-    final tokens = keyTokens[1].split('/');
+    final hostTokens = key.substring(0, colonIdx).split('/');
+    if (hostTokens.length < 3) return null;
+    final tokens = key.substring(colonIdx + 1).split('/');
     if (tokens.length < 2) return null;
     return ParsedRegistryKey(
       dynamicActionHost: hostTokens[2],
@@ -232,6 +237,12 @@ class Registry {
                 '/dynamic-action-provider/$host:${parsed.actionType.value}/${m.name}',
           )
           .toList();
+    }
+    // Non-DAP key: it resolves to itself when the action exists, else to
+    // nothing. Mirrors JS, which looks the key up before returning `[key]`.
+    if (parsed != null &&
+        await lookupAction(parsed.actionType, parsed.actionName) != null) {
+      return [key];
     }
     return const [];
   }

@@ -393,6 +393,65 @@ void main() {
       expect(values, containsPair('/test/shared', 'child'));
     });
   });
+
+  group('parseRegistryKey', () {
+    test('parses a plugin-scoped key', () {
+      final parsed = parseRegistryKey('/model/googleai/gemini-flash-latest');
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, isNull);
+      expect(parsed.actionType, ActionType.model);
+      expect(parsed.actionName, 'gemini-flash-latest');
+    });
+
+    test('parses a nested action name', () {
+      final parsed = parseRegistryKey('/prompt/my-plugin/folder/my-prompt');
+      expect(parsed, isNotNull);
+      expect(parsed!.actionType, ActionType('prompt'));
+      expect(parsed.actionName, 'folder/my-prompt');
+    });
+
+    test('parses a util key', () {
+      final parsed = parseRegistryKey('/util/generate');
+      expect(parsed, isNotNull);
+      expect(parsed!.actionType, ActionType.util);
+      expect(parsed.actionName, 'generate');
+    });
+
+    test('parses a DAP key', () {
+      final parsed = parseRegistryKey(
+        '/dynamic-action-provider/my-host:tool.v2/weatherTool',
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, 'my-host');
+      expect(parsed.actionType, ActionType.tool);
+      expect(parsed.actionName, 'weatherTool');
+    });
+
+    test('preserves colons inside a DAP action name', () {
+      final parsed = parseRegistryKey(
+        '/dynamic-action-provider/my-host:resource/scheme://a:b/c',
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, 'my-host');
+      expect(parsed.actionType, ActionType('resource'));
+      // Everything after the first colon and the action type segment is the
+      // name, colons included.
+      expect(parsed.actionName, 'scheme://a:b/c');
+    });
+
+    test('parses a host-only DAP key', () {
+      final parsed = parseRegistryKey('/dynamic-action-provider/my-host');
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, isNull);
+      expect(parsed.actionType, ActionType.dynamicActionProvider);
+      expect(parsed.actionName, 'my-host');
+    });
+
+    test('returns null for a malformed key', () {
+      expect(parseRegistryKey('/model'), isNull);
+      expect(parseRegistryKey('nope'), isNull);
+    });
+  });
 }
 
 class _FailingPlugin extends GenkitPlugin {

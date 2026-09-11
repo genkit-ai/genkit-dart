@@ -78,9 +78,7 @@ GenerateAction defineGenerateAction(Registry registry) {
 /// survives into the request trace. Mirrors JS's `toToolDefinition`.
 ToolDefinition toToolDefinition(Tool tool) {
   final originalName = tool.name;
-  final name = originalName.contains('/')
-      ? originalName.substring(originalName.lastIndexOf('/') + 1)
-      : originalName;
+  final name = shortToolName(originalName);
 
   return ToolDefinition(
     name: name,
@@ -103,9 +101,7 @@ void _assertValidToolNames(Iterable<Tool> tools) {
   final seen = <String, String>{};
   for (final tool in tools) {
     final full = tool.name;
-    final short = full.contains('/')
-        ? full.substring(full.lastIndexOf('/') + 1)
-        : full;
+    final short = shortToolName(full);
     final existing = seen[short];
     if (existing != null && existing != full) {
       throw GenkitException(
@@ -175,13 +171,6 @@ abstract class GenerateConfig {}
   return (middleware: resolvedMiddleware, registry: registry);
 }
 
-/// Returns the wire (short) name for [fullName]: its last path segment. The
-/// model sees this name and echoes it back on a tool request, so tool
-/// execution resolves against the short name.
-String _shortToolName(String fullName) => fullName.contains('/')
-    ? fullName.substring(fullName.lastIndexOf('/') + 1)
-    : fullName;
-
 Future<
   ({
     Registry registry,
@@ -207,7 +196,7 @@ _resolveTools(
   void addTool(Tool tool) {
     resolvedTools.add(tool);
     activeToolNames.add(tool.name);
-    toolMap[_shortToolName(tool.name)] = tool;
+    toolMap[shortToolName(tool.name)] = tool;
     toolDefs.add(toToolDefinition(tool));
   }
 
@@ -1404,7 +1393,7 @@ _executeTools(
     // direct registry lookup (e.g. for restart tools resolved outside the loop).
     final tool =
         toolMap?[requestedName] ??
-        toolMap?[_shortToolName(requestedName)] ??
+        toolMap?[shortToolName(requestedName)] ??
         await registry.lookupAction(.tool, requestedName) as Tool?;
 
     if (tool == null) {
