@@ -41,6 +41,8 @@ base class OpenAIChatOptions {
     String? user,
     bool? jsonMode,
     String? visualDetailLevel,
+    String? reasoningEffort,
+    String? verbosity,
   }) {
     _json = {
       'version': ?version,
@@ -54,6 +56,8 @@ base class OpenAIChatOptions {
       'user': ?user,
       'jsonMode': ?jsonMode,
       'visualDetailLevel': ?visualDetailLevel,
+      'reasoningEffort': ?reasoningEffort,
+      'verbosity': ?verbosity,
     };
   }
 
@@ -217,6 +221,52 @@ base class OpenAIChatOptions {
     }
   }
 
+  /// How hard a reasoning model should think before answering.
+  ///
+  /// Accepted by the o-series and the GPT-5 family; a model that does not
+  /// reason rejects the parameter outright. Which levels a given model takes
+  /// moves with the generation — `minimal` arrived with GPT-5, `none`
+  /// replaced it in GPT-5.1, `xhigh` came later still — so the full
+  /// vocabulary is offered here and OpenAI has the last word on the value.
+  String? get reasoningEffort {
+    return _json['reasoningEffort'] as String?;
+  }
+
+  /// How hard a reasoning model should think before answering.
+  ///
+  /// Accepted by the o-series and the GPT-5 family; a model that does not
+  /// reason rejects the parameter outright. Which levels a given model takes
+  /// moves with the generation — `minimal` arrived with GPT-5, `none`
+  /// replaced it in GPT-5.1, `xhigh` came later still — so the full
+  /// vocabulary is offered here and OpenAI has the last word on the value.
+  set reasoningEffort(String? value) {
+    if (value == null) {
+      _json.remove('reasoningEffort');
+    } else {
+      _json['reasoningEffort'] = value;
+    }
+  }
+
+  /// How much the model should say in its answer.
+  ///
+  /// A GPT-5-family parameter, and unrelated to [reasoningEffort]: this
+  /// shortens or lengthens the reply, not the thinking behind it.
+  String? get verbosity {
+    return _json['verbosity'] as String?;
+  }
+
+  /// How much the model should say in its answer.
+  ///
+  /// A GPT-5-family parameter, and unrelated to [reasoningEffort]: this
+  /// shortens or lengthens the reply, not the thinking behind it.
+  set verbosity(String? value) {
+    if (value == null) {
+      _json.remove('verbosity');
+    } else {
+      _json['verbosity'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -256,6 +306,18 @@ base class _OpenAIChatOptionsTypeFactory
             'visualDetailLevel': $Schema.string(
               enumValues: ['auto', 'low', 'high'],
             ),
+            'reasoningEffort': $Schema.string(
+              enumValues: [
+                'none',
+                'minimal',
+                'low',
+                'medium',
+                'high',
+                'xhigh',
+                'max',
+              ],
+            ),
+            'verbosity': $Schema.string(enumValues: ['low', 'medium', 'high']),
           },
         )
         .value,

@@ -277,6 +277,15 @@ class OpenAIPlugin extends GenkitPlugin {
       fn: (req, ctx) async {
         final modelRequest = req!;
         final options = chat.parseChatModelOptions(modelRequest.config);
+        // `version` overrides the resolved action's id, so it - not
+        // [modelName] - is the model that will answer, and the model the
+        // catalog has to be asked about.
+        final wireModel = options.version ?? modelName;
+        if (baseUrl == null) {
+          // Same rule the embedders follow: the catalog describes OpenAI's
+          // models, so it only judges requests bound for OpenAI's own host.
+          _requireReasoningSupport(wireModel, options.reasoningEffort);
+        }
 
         final resolvedConfig = await _resolveClientConfig();
         final client = sdk.OpenAIClient.withApiKey(
@@ -299,7 +308,7 @@ class OpenAIPlugin extends GenkitPlugin {
             modelRequest.output?.schema,
           );
           final request = sdk.ChatCompletionCreateRequest(
-            model: options.version ?? modelName,
+            model: wireModel,
             messages: GenkitConverter.toOpenAIMessages(
               modelRequest.messages,
               options.visualDetailLevel,
@@ -315,6 +324,8 @@ class OpenAIPlugin extends GenkitPlugin {
             seed: options.seed,
             user: options.user,
             responseFormat: isJsonMode ? responseFormat : null,
+            reasoningEffort: chat.toReasoningEffort(options.reasoningEffort),
+            verbosity: chat.toVerbosity(options.verbosity),
           );
           if (ctx.streamingRequested) {
             return await _handleStreaming(client, request, ctx);
@@ -350,6 +361,33 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 
+  /// Rejects a `reasoningEffort` aimed at a model that does not reason.
+  ///
+  /// OpenAI answers one with `Unsupported parameter: 'reasoning_effort'`,
+  /// which names the parameter but not the model - and the model is the half
+  /// that is usually wrong, since an effort is typically set once in a shared
+  /// config and then inherited by whatever model the call picks.
+  ///
+  /// Only curated models are judged. An uncurated name has no claim to judge
+  /// against, and a model released after this version of the plugin must not
+  /// be refused a parameter it may well accept.
+  ///
+  /// `verbosity` gets no equivalent guard, and its 400 is just as terse. It is
+  /// a GPT-5-family parameter, but the catalog carries no flag saying so, and
+  /// adding one would mean asserting per entry something less well documented
+  /// than which models reason. Left to the API rather than guessed at.
+  void _requireReasoningSupport(String modelName, String? reasoningEffort) {
+    if (reasoningEffort == null) return;
+    final curated = knownOpenAIModelFor(modelName);
+    if (curated == null || curated.reasons) return;
+
+    throw GenkitException(
+      '${curated.id} does not accept reasoningEffort; it is not a reasoning '
+      'model.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
   /// Handle streaming response
   Future<ModelResponse> _handleStreaming(
     sdk.OpenAIClient client,
@@ -365,6 +403,23 @@ class OpenAIPlugin extends GenkitPlugin {
     try {
       await for (final chunk in stream) {
         accumulator.add(chunk);
+
+        // Reasoning streams ahead of the answer, so it is forwarded as it
+        // arrives rather than held back until the final message - watching a
+        // reasoning model think is most of why its stream is worth reading.
+        final delta = chunk.choices?.firstOrNull?.delta;
+        final reasoningDelta = GenkitConverter.reasoningTextOf(
+          delta?.reasoningContent,
+          delta?.reasoning,
+        );
+        if (reasoningDelta != null) {
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: 0,
+              content: [ReasoningPart(reasoning: reasoningDelta)],
+            ),
+          );
+        }
 
         final textDelta = chunk.textDelta;
         if (textDelta != null) {
