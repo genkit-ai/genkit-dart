@@ -176,13 +176,11 @@ class ExecutablePrompt<Input> {
   Future<dp.PromptFunction>? _compiledMessages;
 
   ExecutablePrompt._({
-    required Registry registry,
-    required DotpromptRegistry dotpromptRegistry,
+    required this._registry,
+    required this._dotpromptRegistry,
     required PromptConfig<dynamic, Input> config,
     Map<String, dynamic>? metadata,
-  }) : _registry = registry,
-       _dotpromptRegistry = dotpromptRegistry,
-       _config = config,
+  }) : _config = config,
        ref = (name: config.fullName, metadata: metadata);
 
   /// Renders the prompt template with the given input, producing

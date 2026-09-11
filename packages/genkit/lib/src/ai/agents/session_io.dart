@@ -120,7 +120,7 @@ class FileSessionStore
   ///   [StatusCodes.FAILED_PRECONDITION] instead of returning the latest leaf.
   ///   Defaults to `false`; opt in (e.g. in dev) to surface accidental
   ///   branching early.
-  /// - [snapshotWatchPollInterval]: polling interval for the
+  /// - [_snapshotWatchPollInterval]: polling interval for the
   ///   [onSnapshotStateChange] fallback that backstops the directory watcher
   ///   (which can miss events on some filesystems, e.g. network mounts).
   FileSessionStore(
@@ -128,9 +128,8 @@ class FileSessionStore
     this.maxPersistedChainLength,
     this.snapshotPathPrefix,
     this.rejectBranchingSessions = false,
-    Duration snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
-  }) : _dir = Directory(dirPath).absolute,
-       _snapshotWatchPollInterval = snapshotWatchPollInterval {
+    this._snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
+  }) : _dir = Directory(dirPath).absolute {
     _dir.createSync(recursive: true);
   }
 

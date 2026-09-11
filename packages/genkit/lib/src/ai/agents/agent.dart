@@ -407,14 +407,13 @@ class SessionRunner<State> {
   SessionRunner(
     this.session,
     this.inputCh, {
-    SessionSnapshot? lastSnapshot,
-    SessionStore? store,
+    this._lastSnapshot,
+    this._store,
     this.context,
     this.cancel,
     this.onEndTurn,
     this.onDetach,
-  }) : _lastSnapshot = lastSnapshot,
-       _store = store {
+  }) {
     // Seed the last-good state with the initial session state so a failure on
     // the very first turn still has a valid fallback state.
     lastGoodState = session.getState();
@@ -1148,8 +1147,8 @@ class Agent<State> {
     required this.action,
     required this.getSnapshotDataAction,
     required this.abortAgentAction,
-    required AgentApi<State> api,
-  }) : _api = api;
+    required this._api,
+  });
 
   /// The primary bidi agent turn action.
   final Action<AgentInput, AgentOutput, AgentStreamChunk, AgentInit> action;
