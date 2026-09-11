@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
@@ -86,7 +87,25 @@ void main(List<String> args) async {
     'Run under the Dev UI: genkit start -- dart run bin/host.dart',
   );
   stdout.writeln('Listening... (Press Ctrl+C to exit)');
-  // Keep the process alive for the Dev UI reflection server.
-  await ProcessSignal.sigint.watch().first;
-  await host.close();
+
+  // Keep the process alive for the Dev UI reflection server, then shut down
+  // cleanly. `genkit start` terminates the runtime with SIGTERM (not SIGINT),
+  // so watch both: without handling SIGTERM the host never runs `host.close()`,
+  // leaving the spawned server subprocess and the reflection server running.
+  final done = Completer<void>();
+  void stop() {
+    if (!done.isCompleted) done.complete();
+  }
+
+  ProcessSignal.sigint.watch().listen((_) => stop());
+  try {
+    ProcessSignal.sigterm.watch().listen((_) => stop());
+  } on SignalException {
+    // SIGTERM cannot be watched on Windows; SIGINT still covers Ctrl+C there.
+  }
+
+  await done.future;
+  await host.close(); // kills the spawned server subprocess
+  await ai.shutdown(); // stops the reflection server
+  exit(0);
 }

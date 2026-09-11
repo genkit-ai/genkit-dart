@@ -172,14 +172,23 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   }) : metadata = metadata ?? {};
 
   Map<String, dynamic> toJson() {
+    // `jsonSchema` is a method, so it must be called; a bare tearoff would put a
+    // Function into the map and break jsonEncode (e.g. when a DAP's
+    // List<ActionMetadata> output is serialized into a trace). Use `useRefs`
+    // ($ref + $defs) to match the reflection manifest and avoid the inline path,
+    // which fails for some composite schemas (e.g. GenerateActionOptions).
     return {
       'name': name,
       if (key != null) 'key': key,
       'description': description,
-      'inputSchema': inputSchema?.jsonSchema,
-      'outputSchema': outputSchema?.jsonSchema,
-      'streamSchema': streamSchema?.jsonSchema,
-      'initSchema': initSchema?.jsonSchema,
+      if (inputSchema != null)
+        'inputSchema': inputSchema!.jsonSchema(useRefs: true),
+      if (outputSchema != null)
+        'outputSchema': outputSchema!.jsonSchema(useRefs: true),
+      if (streamSchema != null)
+        'streamSchema': streamSchema!.jsonSchema(useRefs: true),
+      if (initSchema != null)
+        'initSchema': initSchema!.jsonSchema(useRefs: true),
     };
   }
 }
