@@ -23,7 +23,7 @@ final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
 ///
 /// Returns one of the following model types:
 /// - 'chat': Chat completion models (gpt-4, gpt-4o, o1, etc.)
-/// - 'embedding': Text embedding models
+/// - 'embedding': Text embedding models (any id containing 'embed')
 /// - 'audio': Audio processing models (TTS, transcription, realtime)
 /// - 'image': Image generation models (DALL-E, gpt-image)
 /// - 'video': Video generation models (Sora)
@@ -47,7 +47,14 @@ String getModelType(String modelId) {
   }
 
   // Embedding models.
-  if (id.contains('embedding')) {
+  //
+  // Matched on `embed` rather than `embedding` for the compatible hosts:
+  // OpenAI's own embedders all spell it out, but `nomic-embed-text` and
+  // `mxbai-embed-large` do not, and a compat host's `/models` is the only
+  // place its embedders can come from - the curated catalog is withheld once
+  // a baseUrl is set. Names carrying neither (`bge-m3`, `all-minilm`) are
+  // still missed; nothing short of declaring them will catch those.
+  if (id.contains('embed')) {
     return 'embedding';
   }
 
