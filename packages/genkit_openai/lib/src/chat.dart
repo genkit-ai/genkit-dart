@@ -143,7 +143,8 @@ Verbosity? toVerbosity(String? value) {
   final verbosity = Verbosity.fromJson(value);
   if (verbosity == Verbosity.unknown) {
     throw GenkitException(
-      'Unknown verbosity "$value".',
+      'Unknown verbosity "$value". Known levels: '
+      '${Verbosity.values.where((v) => v != Verbosity.unknown).map((v) => v.toJson()).join(', ')}.',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
