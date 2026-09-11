@@ -42,15 +42,19 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run version bump script
+        env:
+          INPUT_RC: ${{ inputs.rc }}
+          INPUT_GRADUATE: ${{ inputs.graduate }}
+          INPUT_DRY_RUN: ${{ inputs.dry-run }}
         run: |
           args=()
-          if [ -n "${{ inputs.rc }}" ]; then
-            args+=("--rc" "${{ inputs.rc }}")
+          if [ -n "$INPUT_RC" ]; then
+            args+=("--rc" "$INPUT_RC")
           fi
-          if [ "${{ inputs.graduate }}" = "true" ]; then
+          if [ "$INPUT_GRADUATE" = "true" ]; then
             args+=("--graduate")
           fi
-          if [ "${{ inputs.dry-run }}" = "true" ]; then
+          if [ "$INPUT_DRY_RUN" = "true" ]; then
             args+=("--dry-run")
           fi
           dart run tools/version.dart "${args[@]}"
