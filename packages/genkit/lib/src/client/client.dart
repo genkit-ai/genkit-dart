@@ -250,7 +250,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
     this._defaultHeaders,
     http.Client? httpClient,
     required this._fromResponse,
-    required Chunk Function(dynamic jsonData) this._fromStreamChunk,
+    required this._fromStreamChunk,
   }) : _httpClient = httpClient ?? http.Client(),
        _ownsHttpClient = httpClient == null;
 
