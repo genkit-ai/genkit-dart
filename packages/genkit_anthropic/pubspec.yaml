@@ -9,7 +9,7 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
-  anthropic_sdk_dart: ^2.0.0
+  anthropic_sdk_dart: ^8.0.0
   genkit: ^0.16.1
   http: ^1.6.0
   logging: ^1.3.0
