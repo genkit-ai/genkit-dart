@@ -32,55 +32,14 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
+import '../../core/cancellation.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
 import 'json_patch.dart';
 import 'state_codec.dart';
 
-// ---------------------------------------------------------------------------
-// Cancellation (Dart has no AbortSignal/AbortController).
-// ---------------------------------------------------------------------------
-
-/// A minimal cooperative cancellation primitive, the Dart stand-in for the
-/// Web's `AbortSignal`/`AbortController`.
-final class CancellationToken {
-  final Completer<void> _completer = Completer<void>();
-  final List<void Function()> _listeners = [];
-
-  /// Whether cancellation has been requested.
-  bool get isCancelled => _completer.isCompleted;
-
-  /// Completes when [cancel] is called.
-  Future<void> get whenCancelled => _completer.future;
-
-  /// Registers [callback] to run when this token is cancelled, and returns a
-  /// disposer that unregisters it. Unlike [whenCancelled] (a one-shot future
-  /// that can never be detached), this lets a caller-supplied token be reused
-  /// across turns without leaking per-turn handlers. If the token is already
-  /// cancelled, [callback] runs synchronously and the returned disposer is a
-  /// no-op.
-  void Function() onCancel(void Function() callback) {
-    if (_completer.isCompleted) {
-      callback();
-      return () {};
-    }
-    _listeners.add(callback);
-    return () => _listeners.remove(callback);
-  }
-
-  /// Requests cancellation (idempotent).
-  void cancel() {
-    if (_completer.isCompleted) return;
-    _completer.complete();
-    // Snapshot then clear so listeners that (re)register during fan-out don't
-    // fire twice and can't be stranded in the list.
-    final listeners = [..._listeners];
-    _listeners.clear();
-    for (final listener in listeners) {
-      listener();
-    }
-  }
-}
+export '../../core/cancellation.dart'
+    show CancellationController, CancellationToken;
 
 // ---------------------------------------------------------------------------
 // Transport
@@ -112,14 +71,14 @@ abstract base class AgentTransport {
   ///
   /// [context] is the ambient request context to run the turn under. It is only
   /// meaningful for the in-process transport (which runs the turn under that
-  /// context, observable by the agent handler via `getContext()`). A remote
+  /// context, observable as `AgentFnOptions.context`). A remote
   /// agent derives its context server-side from the incoming HTTP request
   /// (headers, auth, etc.), so the remote transport rejects a non-empty
   /// [context] with an [UnsupportedError] rather than silently dropping it.
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   });
 
@@ -131,16 +90,29 @@ abstract base class AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) => null;
 
   /// Reads a snapshot. Requires a server store.
-  Future<SessionSnapshot?> getSnapshot({String? snapshotId, String? sessionId});
+  ///
+  /// When [metadataOnly] is set the returned snapshot carries the shaped
+  /// metadata (status, finish reason, parent, session, timestamps, error) with
+  /// no state payload, so a poll that only branches on where a task stands can
+  /// skip loading the conversation history.
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+    bool metadataOnly = false,
+  });
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
-  Future<SnapshotStatus?> abort(String snapshotId);
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  });
 
   /// Releases any resources owned by this transport. The default is a no-op;
   /// transports that own resources (e.g. an HTTP client) override it.
@@ -314,6 +286,10 @@ final class AgentResponse<State> {
 
   AgentFinishReason get finishReason =>
       _raw.finishReason ?? AgentFinishReason.unknown;
+
+  /// The structured error on a `failed` response, or `null` otherwise. A caller
+  /// can branch on `error.status` and rerun the (persisted) snapshot.
+  AgentErrorInfo? get error => _raw.error;
 
   String? get finishMessage => _raw.error?.message;
 
@@ -506,7 +482,12 @@ final class AgentSnapshot<State> {
 
 /// A handle to a background (detached) task.
 final class DetachedTask<State> {
-  DetachedTask._(this.snapshotId, this._transport, [this._stateSchema]);
+  DetachedTask._(
+    this.snapshotId,
+    this._transport, [
+    this._stateSchema,
+    this._context,
+  ]);
 
   final String snapshotId;
   final AgentTransport _transport;
@@ -516,6 +497,10 @@ final class DetachedTask<State> {
   /// view cast over the JSON.
   final SchemanticType<State>? _stateSchema;
 
+  /// The explicit context captured when the task was detached. It is retained
+  /// by reference, so callers must not mutate it while the task is active.
+  final Map<String, dynamic>? _context;
+
   /// Yields status until a terminal state.
   ///
   /// A snapshot can be briefly absent right after [DetachedTask] is created
@@ -523,13 +508,22 @@ final class DetachedTask<State> {
   /// `null` read is tolerated. But a snapshot that never appears (deleted, or a
   /// bad id) would otherwise loop forever and leak this poller, so give up
   /// after [maxConsecutiveMisses] consecutive misses.
+  ///
+  /// Pass [metadataOnly] when the poll only branches on where the task stands
+  /// (its status): the yielded snapshots carry the shaped metadata without the
+  /// state payload, so a large conversation history is not loaded each tick.
   Stream<AgentSnapshot<State>> poll({
     Duration interval = const Duration(seconds: 1),
     int maxConsecutiveMisses = 10,
+    bool metadataOnly = false,
   }) async* {
     var misses = 0;
     while (true) {
-      final snap = await _transport.getSnapshot(snapshotId: snapshotId);
+      final snap = await _transport.getSnapshot(
+        snapshotId: snapshotId,
+        context: _context,
+        metadataOnly: metadataOnly,
+      );
       if (snap == null) {
         if (++misses >= maxConsecutiveMisses) {
           throw StateError('Snapshot $snapshotId not found.');
@@ -559,7 +553,8 @@ final class DetachedTask<State> {
   }
 
   /// Aborts the task.
-  Future<SnapshotStatus?> abort() => _transport.abort(snapshotId);
+  Future<SnapshotStatus?> abort() =>
+      _transport.abort(snapshotId, context: _context);
 }
 
 // ---------------------------------------------------------------------------
@@ -699,14 +694,14 @@ final class AgentChat<State> {
   /// turns resolve to a synthetic `aborted` response.
   Future<AgentResponse<State>> _buildResponse(
     Future<AgentOutput> output,
-    CancellationToken cancel,
+    CancellationToken? cancel,
     int messageCountBeforeTurn,
   ) async {
     AgentOutput raw;
     try {
       raw = await output;
     } catch (e) {
-      if (cancel.isCancelled) {
+      if (cancel?.isCancelled ?? false) {
         raw = AgentOutput(finishReason: AgentFinishReason.aborted);
       } else {
         // A thrown transport error / non-200 rejects before reaching the
@@ -755,9 +750,9 @@ final class AgentChat<State> {
   /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
-  /// honored by the in-process transport (observable by the agent handler via
-  /// `getContext()`); the remote transport rejects a non-empty context with an
-  /// [UnsupportedError] (see [AgentTransport]).
+  /// honored by the in-process transport (observable as
+  /// `AgentFnOptions.context`); the remote transport rejects a non-empty context
+  /// with an [UnsupportedError] (see [AgentTransport]).
   Future<AgentResponse<State>> send({
     String? text,
     Message? message,
@@ -792,11 +787,14 @@ final class AgentChat<State> {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) async {
-    final token = cancel ?? CancellationToken();
+    // In `_send` the token is observed and forwarded only (never cancelled
+    // here), so a caller token flows straight through; absent one (`null`),
+    // there is no cancellation to observe.
+    final token = cancel;
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: there's no point starting work, and we must
     // not leave an orphaned user message in `messages`.
-    if (token.isCancelled) {
+    if (token?.isCancelled ?? false) {
       return _abortedResponse();
     }
     final runFuture = _transport.run(
@@ -847,9 +845,9 @@ final class AgentChat<State> {
   /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
-  /// honored by the in-process transport (observable by the agent handler via
-  /// `getContext()`); the remote transport rejects a non-empty context with an
-  /// [UnsupportedError] (see [AgentTransport]).
+  /// honored by the in-process transport (observable as
+  /// `AgentFnOptions.context`); the remote transport rejects a non-empty context
+  /// with an [UnsupportedError] (see [AgentTransport]).
   AgentTurn<State> sendStream({
     String? text,
     Message? message,
@@ -875,12 +873,19 @@ final class AgentChat<State> {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
-    final token = cancel ?? CancellationToken();
+    // Own a controller for this turn so `AgentTurn.abort()` can cancel it, and
+    // link it to the caller's token (if any) so an external cancel also aborts.
+    // `link` forwards the cancellation reason so a caller-supplied
+    // `controller.cancel('...')` survives the hop into this turn's token.
+    final controller = CancellationController();
+    final unlink = cancel?.link(controller);
+    final token = controller.token;
     // Bail before pushing the message or dispatching the turn if the caller's
     // token is already cancelled: return an empty stream and a synthetic
     // `aborted` response, and leave `messages` untouched. Mirrors the JS
     // core's pre-aborted short-circuit.
     if (token.isCancelled) {
+      unlink?.call();
       return AgentTurn<State>._(
         stream: const Stream.empty(),
         response: Future.value(_abortedResponse()),
@@ -913,6 +918,12 @@ final class AgentChat<State> {
     responsePromise.catchError(
       (_) => AgentResponse<State>._(AgentOutput(), messages),
     );
+    // Detach the caller-token listener once the turn settles so a reused
+    // caller token does not accumulate one handler per turn. `whenComplete`
+    // returns a *new* future that re-completes with the same error; `ignore()`
+    // it so a rejecting turn does not reach `Zone.handleUncaughtError` (the
+    // `catchError` above handles the original future, not this derived one).
+    if (unlink != null) responsePromise.whenComplete(unlink).ignore();
 
     Stream<AgentChunk<State>> buildStream() async* {
       var previousText = '';
@@ -957,7 +968,7 @@ final class AgentChat<State> {
     return AgentTurn<State>._(
       stream: buildStream(),
       response: responsePromise,
-      onAbort: token.cancel,
+      onAbort: controller.cancel,
     );
   }
 
@@ -1018,9 +1029,14 @@ final class AgentChat<State> {
   /// [AgentResume] internally.
   ///
   /// [context] is the ambient request context to run the turn under. It is only
-  /// honored by the in-process transport (observable by the agent handler via
-  /// `getContext()`); the remote transport rejects a non-empty context with an
-  /// [UnsupportedError] (see [AgentTransport]).
+  /// honored by the in-process transport (observable as
+  /// `AgentFnOptions.context`); the remote transport rejects a non-empty context
+  /// with an [UnsupportedError] (see [AgentTransport]).
+  ///
+  /// Pass [context] explicitly when using a context-scoped session store. The
+  /// returned [DetachedTask] retains it for polling and abort after the
+  /// originating action has completed. Do not mutate the context map while the
+  /// detached task is active.
   Future<DetachedTask<State>> detach({
     String? text,
     Message? message,
@@ -1041,11 +1057,11 @@ final class AgentChat<State> {
     }
     final init = _buildInit();
 
-    final token = CancellationToken();
+    final controller = CancellationController();
     final turn = _transport.runTurn(
       agentInput,
       init,
-      cancel: token,
+      cancel: controller.token,
       context: context,
     );
     final raw = await turn.output;
@@ -1054,14 +1070,14 @@ final class AgentChat<State> {
     if (id == null) {
       throw StateError('detach did not return a snapshotId.');
     }
-    return DetachedTask<State>._(id, _transport, _stateSchema);
+    return DetachedTask<State>._(id, _transport, _stateSchema, context);
   }
 
   /// Aborts the current snapshot.
-  Future<SnapshotStatus?> abort() async {
+  Future<SnapshotStatus?> abort({Map<String, dynamic>? context}) async {
     final id = snapshotId;
     if (id == null) return null;
-    return _transport.abort(id);
+    return _transport.abort(id, context: context);
   }
 
   AgentError<State> _toAgentError(Object e) {
@@ -1130,6 +1146,7 @@ final class AgentApi<State> {
   Future<AgentChat<State>> loadChat({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
   }) async {
     assert(
       (snapshotId != null) ^ (sessionId != null),
@@ -1138,6 +1155,7 @@ final class AgentApi<State> {
     final snapshot = await _transport.getSnapshot(
       snapshotId: snapshotId,
       sessionId: sessionId,
+      context: context,
     );
     if (snapshot == null) {
       final id = snapshotId ?? 'session $sessionId';
@@ -1152,13 +1170,20 @@ final class AgentApi<State> {
   ///
   /// Returns a typed [AgentSnapshot] wrapper (with the same `stateSchema`
   /// applied to `snapshot.state`), or `null` when no snapshot is found.
+  ///
+  /// Pass [metadataOnly] to read the shaped metadata (status, finish reason,
+  /// parent, session, timestamps, error) without the state payload.
   Future<AgentSnapshot<State>?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async {
     final snapshot = await _transport.getSnapshot(
       snapshotId: snapshotId,
       sessionId: sessionId,
+      context: context,
+      metadataOnly: metadataOnly,
     );
     if (snapshot == null) return null;
     return AgentSnapshot<State>._(snapshot, _stateSchema);
@@ -1166,8 +1191,10 @@ final class AgentApi<State> {
 
   /// Aborts a running snapshot. Requires a server store. Returns the prior
   /// status, or `null`.
-  Future<SnapshotStatus?> abort(String snapshotId) =>
-      _transport.abort(snapshotId);
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) => _transport.abort(snapshotId, context: context);
 
   /// Releases any resources owned by the underlying transport (e.g. an HTTP
   /// client created by `remoteAgent`). A caller-supplied HTTP client is left

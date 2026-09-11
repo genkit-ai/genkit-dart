@@ -104,6 +104,17 @@ void main() async {
           maxTurns: 20,
         );
 
+        if (response.finishReason == FinishReason.aborted) {
+          // An overrun (e.g. maxTurns) or a cancel now resolves as `aborted`
+          // with no model message; surface the reason instead of printing an
+          // empty "AI Response:" below.
+          print(
+            '\nGeneration aborted: '
+            '${response.finishMessage ?? 'unknown reason'}',
+          );
+          return;
+        }
+
         if (response.finishReason != FinishReason.interrupted) {
           break;
         }

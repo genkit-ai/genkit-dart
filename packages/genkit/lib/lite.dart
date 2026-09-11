@@ -25,22 +25,27 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
+import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
 import 'src/ai/generate_middleware.dart';
 import 'src/ai/generate_types.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
+import 'src/core/cancellation.dart';
 import 'src/core/registry.dart';
 import 'src/types.dart';
 
 export 'src/ai/remote_model.dart' show remoteModel;
+export 'src/core/cancellation.dart'
+    show CancellationController, CancellationToken;
 export 'src/schema_extensions.dart';
 export 'src/types.dart';
 
 Future<GenerateResponseHelper> generate<C>({
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   required Model<C> model,
   C? config,
@@ -58,6 +63,10 @@ Future<GenerateResponseHelper> generate<C>({
   Map<String, dynamic>? context,
   StreamingCallback<GenerateResponseChunk>? onChunk,
   List<GenerateMiddleware>? use,
+
+  /// Cooperative cancellation token, observed by the model call, tools, and
+  /// middleware to abort generation.
+  CancellationToken? cancel,
 
   /// Optional data to resume an interrupted generation session.
   ///
@@ -88,6 +97,7 @@ Future<GenerateResponseHelper> generate<C>({
   }
 
   final registry = Registry();
+  configureFormats(registry);
   registry.register(model);
   tools?.forEach(registry.register);
   GenerateActionOutputConfig? outputConfig;
@@ -110,6 +120,7 @@ Future<GenerateResponseHelper> generate<C>({
     registry,
     system: system,
     prompt: prompt,
+    promptParts: promptParts,
     messages: messages,
     model: model,
     config: config,
@@ -119,6 +130,7 @@ Future<GenerateResponseHelper> generate<C>({
     maxTurns: maxTurns,
     output: outputConfig,
     context: context,
+    cancel: cancel,
     onChunk: onChunk,
     middleware: use
         ?.map((mw) => (middlewareInstance: mw, middlewareRef: null))
@@ -132,6 +144,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   required Model<C> model,
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   C? config,
   List<Tool>? tools,
@@ -147,6 +160,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   String? outputContentType,
   Map<String, dynamic>? context,
   List<GenerateMiddleware>? use,
+  CancellationToken? cancel,
   List<InterruptResponse>? interruptRespond,
   List<ToolRequestPart>? interruptRestart,
 }) {
@@ -159,6 +173,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   generate(
         system: system,
         prompt: prompt,
+        promptParts: promptParts,
         messages: messages,
         model: model,
         config: config,
@@ -174,6 +189,7 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
         outputNoInstructions: outputNoInstructions,
         outputContentType: outputContentType,
         context: context,
+        cancel: cancel,
         onChunk: (chunk) {
           if (streamController.isClosed) return;
           streamController.add(chunk);

@@ -19,6 +19,7 @@ import 'package:genkit/genkit.dart';
 import 'package:mcp_dart/mcp_dart.dart' as mcp;
 
 import '../util/common.dart';
+import '../util/convert_messages.dart';
 import '../util/convert_prompts.dart';
 import '../util/convert_resources.dart';
 import '../util/convert_tools.dart';
@@ -113,11 +114,11 @@ class GenkitMcpServer {
         action.name,
       );
       if (resolved == null) continue;
-      if (resolved.actionType == 'tool') {
+      if (resolved.actionType == .tool) {
         tools.add(resolved as Tool);
-      } else if (resolved.actionType == 'executable-prompt') {
+      } else if (resolved.actionType == .executablePrompt) {
         prompts.add(resolved as PromptAction);
-      } else if (resolved.actionType == 'resource') {
+      } else if (resolved.actionType == .resource) {
         resources.add(resolved as ResourceAction);
       }
     }
@@ -624,22 +625,45 @@ class GenkitMcpServer {
     final input = params['arguments'];
     try {
       final result = await tool.runRaw(input);
-      final output = result.result;
-      final text = _stringifyToolOutput(output);
-      final response = <String, dynamic>{
-        'content': [
-          {'type': 'text', 'text': text},
-        ],
-      };
-      final structuredOutput = _toJsonValue(output);
-      final supportsArbitraryStructuredContent =
-          protocolVersion != null &&
-          mcp.isStatelessProtocolVersion(protocolVersion);
-      if (!identical(structuredOutput, _notJsonValue) &&
-          (supportsArbitraryStructuredContent || structuredOutput is Map)) {
-        response['structuredContent'] = structuredOutput;
+      // Tool functions return a ToolResult; unwrap it to build the MCP reply.
+      final toolResult = result.result;
+
+      switch (toolResult) {
+        case ToolInterruptResult(:final data):
+          // An interrupt is a human-in-the-loop pause, not a real answer. A
+          // remote MCP client has no resume path, so surface it as an error
+          // rather than a successful result so the pause is discoverable.
+          final payload = {'interrupt': data ?? true};
+          return {
+            'content': [
+              {'type': 'text', 'text': _stringifyToolOutput(payload)},
+            ],
+            'structuredContent': payload,
+            'isError': true,
+          };
+        case ToolResponseResult(:final output, :final parts):
+          // Multipart tool content (images, media, etc.) becomes MCP content
+          // blocks alongside the structured output, so nothing is dropped at
+          // this boundary.
+          final response = <String, dynamic>{
+            'content': toMcpToolResultContent(
+              output: output,
+              content: parts?.map((p) => p.toJson()).toList(),
+            ),
+          };
+          // Stateless (2026-07-28+) peers accept arbitrary JSON structured
+          // output; older peers only accept object-shaped structured content.
+          final structuredOutput = _toJsonValue(output);
+          final supportsArbitraryStructuredContent =
+              protocolVersion != null &&
+              mcp.isStatelessProtocolVersion(protocolVersion);
+          if (!identical(structuredOutput, _notJsonValue) &&
+              (supportsArbitraryStructuredContent ||
+                  structuredOutput is Map)) {
+            response['structuredContent'] = structuredOutput;
+          }
+          return response;
       }
-      return response;
     } catch (e) {
       // Tool execution errors (input validation, business logic, etc.)
       // are returned as isError per MCP spec, so that models can

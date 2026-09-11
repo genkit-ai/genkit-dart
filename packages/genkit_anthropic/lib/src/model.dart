@@ -61,6 +61,9 @@ abstract class $AnthropicOptions {
 
   /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
   $ThinkingConfig? get thinking;
+
+  /// Anthropic-specific output behavior configuration.
+  $AnthropicOutputConfig? get outputConfig;
 }
 
 /// Configuration for Anthropic's extended thinking mode.
@@ -82,4 +85,16 @@ abstract class $ThinkingConfig {
         'The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
   )
   int? get budgetTokens;
+}
+
+/// Configuration for Anthropic output behavior.
+@Schema()
+abstract class $AnthropicOutputConfig {
+  @StringField(
+    enumValues: ['low', 'medium', 'high', 'xhigh', 'max'],
+    description:
+        'Controls the effort Claude spends on the response, trading off '
+        'response depth against latency and token usage.',
+  )
+  String? get effort;
 }

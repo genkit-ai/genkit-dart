@@ -65,7 +65,7 @@ void main() {
       test('should list models', () async {
         final actions = await ai.registry.listActions();
         final modelsAndEmbedders = actions.where(
-          (a) => a.actionType == 'model' || a.actionType == 'embedder',
+          (a) => a.actionType == .model || a.actionType == .embedder,
         );
         expect(modelsAndEmbedders.isNotEmpty, isTrue);
       });
@@ -125,7 +125,7 @@ void main() {
           description: 'Multiplies two numbers',
           inputSchema: CalculatorInput.$schema,
           outputSchema: .integer(),
-          fn: (CalculatorInput input, _) async => input.a * input.b,
+          fn: (CalculatorInput input, _) async => .response(input.a * input.b),
         );
 
         final response = await ai.generate(

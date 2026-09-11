@@ -54,7 +54,7 @@ final class _FakeTransport extends AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     final script = _next();
@@ -65,7 +65,7 @@ final class _FakeTransport extends AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     if (!supportsRun) return null;
@@ -76,10 +76,15 @@ final class _FakeTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async => snapshots[snapshotId];
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async {
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
     aborted.add(snapshotId);
     return SnapshotStatus.aborted;
   }
@@ -128,7 +133,7 @@ final class _StepTransport extends AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     final step = _next();
@@ -142,7 +147,7 @@ final class _StepTransport extends AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     if (!supportsRun) return null;
@@ -153,10 +158,15 @@ final class _StepTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async => null;
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async => null;
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async => null;
 }
 
 Message _modelMessage(String text) => Message(
@@ -298,6 +308,28 @@ void main() {
         ),
       );
     });
+
+    test('a failed turn on the streaming path throws AgentError without an '
+        'unhandled rejection', () async {
+      // `supportsRun: false` forces the streaming path (`_sendStream`), where
+      // the orphan `responsePromise` must be `.ignore()`d so a rejecting turn
+      // does not reach `Zone.handleUncaughtError` (which package:test would
+      // surface as a failure after the test body passes). The two other
+      // failed-turn tests take the `run()` fast path and never exercise this.
+      final transport = _FakeTransport([
+        _TurnScript(
+          output: AgentOutput(
+            finishReason: AgentFinishReason.failed,
+            error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
+          ),
+        ),
+      ]);
+      final chat = AgentApi(transport).chat();
+      await expectLater(chat.send(text: 'hi'), throwsA(isA<AgentError>()));
+      // Let any stray unhandled async error settle onto the event loop; if the
+      // orphan future weren't ignored, this turn would fail the test here.
+      await Future<void>.delayed(Duration.zero);
+    });
   });
 
   group('AgentChat pre-aborted bail', () {
@@ -305,7 +337,7 @@ void main() {
       'send() bails before dispatching when the token is cancelled',
       () async {
         final transport = _FakeTransport([], supportsRun: true);
-        final token = CancellationToken()..cancel();
+        final token = (CancellationController()..cancel()).token;
         final chat = AgentApi(transport).chat();
         final res = await chat.send(text: 'hi', cancel: token);
         expect(res.finishReason, AgentFinishReason.aborted);
@@ -318,7 +350,7 @@ void main() {
       'sendStream() bails with an empty stream when the token is cancelled',
       () async {
         final transport = _FakeTransport([]);
-        final token = CancellationToken()..cancel();
+        final token = (CancellationController()..cancel()).token;
         final chat = AgentApi(transport).chat();
         final turn = chat.sendStream(text: 'hi', cancel: token);
         final chunks = <AgentChunk>[];
@@ -452,36 +484,37 @@ void main() {
 
   group('CancellationToken.onCancel', () {
     test('fires registered callbacks on cancel', () {
-      final token = CancellationToken();
+      final controller = CancellationController();
+      final token = controller.token;
       var fired = 0;
       token.onCancel(() => fired++);
       token.onCancel(() => fired++);
       expect(fired, 0);
-      token.cancel();
+      controller.cancel();
       expect(fired, 2);
     });
 
     test('only fires once even if cancel is called repeatedly', () {
-      final token = CancellationToken();
+      final controller = CancellationController();
       var fired = 0;
-      token.onCancel(() => fired++);
-      token
+      controller.token.onCancel(() => fired++);
+      controller
         ..cancel()
         ..cancel();
       expect(fired, 1);
     });
 
     test('the disposer unregisters the callback', () {
-      final token = CancellationToken();
+      final controller = CancellationController();
       var fired = 0;
-      final dispose = token.onCancel(() => fired++);
+      final dispose = controller.token.onCancel(() => fired++);
       dispose();
-      token.cancel();
+      controller.cancel();
       expect(fired, 0);
     });
 
     test('runs the callback synchronously if already cancelled', () {
-      final token = CancellationToken()..cancel();
+      final token = (CancellationController()..cancel()).token;
       var fired = 0;
       final dispose = token.onCancel(() => fired++);
       expect(fired, 1);
@@ -928,7 +961,7 @@ final class _CaptureTransport extends AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     final output = _handler(input);
@@ -942,7 +975,7 @@ final class _CaptureTransport extends AgentTransport {
   Future<AgentOutput>? run(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) => Future.value(_handler(input));
 
@@ -950,8 +983,13 @@ final class _CaptureTransport extends AgentTransport {
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async => null;
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async => null;
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async => null;
 }

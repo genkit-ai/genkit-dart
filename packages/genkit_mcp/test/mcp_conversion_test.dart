@@ -134,7 +134,7 @@ void main() {
     final tool = ai.defineTool<Map<String, dynamic>, String>(
       name: 'plainTool',
       description: 'plain tool',
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final payload = toMcpTool(tool);
@@ -148,8 +148,8 @@ void main() {
       name: 'namedSchemaTool',
       description: 'named schema tool',
       inputSchema: const _NamedToolSchema(),
-      outputSchema: const _NamedToolSchema(),
-      fn: (input, _) async => input,
+      toolOutputSchema: const _NamedToolSchema(),
+      fn: (input, _) async => .response(input),
     );
 
     final payload = toMcpTool(tool);
@@ -167,7 +167,7 @@ void main() {
       name: 'scalarInputTool',
       description: 'scalar input tool',
       inputSchema: .string(),
-      fn: (input, _) async => input,
+      fn: (input, _) async => .response(input),
     );
 
     expect(
@@ -187,8 +187,8 @@ void main() {
       name: 'scalarOutputTool',
       description: 'scalar output tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      outputSchema: .string(),
-      fn: (input, _) async => input.toString(),
+      toolOutputSchema: .string(),
+      fn: (input, _) async => .response(input.toString()),
     );
 
     final payload = toMcpTool(tool);
@@ -203,7 +203,7 @@ void main() {
       name: 'defaultTaskTool',
       description: 'default task tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final payload = toMcpTool(tool);
@@ -222,7 +222,7 @@ void main() {
           'execution': {'taskSupport': 'forbidden'},
         },
       },
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final payload = toMcpTool(forbiddenTool);
@@ -238,7 +238,7 @@ void main() {
           'execution': {'taskSupport': 'required'},
         },
       },
-      fn: (input, _) async => 'ok',
+      fn: (input, _) async => .response('ok'),
     );
 
     final requiredPayload = toMcpTool(requiredTool);

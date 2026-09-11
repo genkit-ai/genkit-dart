@@ -108,7 +108,7 @@ final weatherTool = ai.defineTool(
   inputSchema: WeatherInput.$schema,
   fn: (input, _) async {
     // Call your weather API here
-    return 'Weather in ${input.location}: 72°F and sunny';
+    return .response('Weather in ${input.location}: 72°F and sunny');
   },
 );
 
@@ -172,7 +172,7 @@ Interrupts allow a flow or model to pause execution and wait for external input 
 
 #### Triggering an Interrupt
 
-To trigger an interrupt, call `context.interrupt()` within a tool definition:
+To trigger an interrupt, return `.interrupt(...)` from a tool definition:
 
 ```dart
 @Schema()
@@ -187,7 +187,7 @@ final askUser = ai.defineTool(
   description: 'Ask the user a clarifying question.',
   inputSchema: AskUserInput.$schema,
   fn: (input, context) async {
-    context.interrupt(input.question);
+    return .interrupt(input.question);
   },
 );
 ```
@@ -238,9 +238,9 @@ final confirmAction = ai.defineTool(
     // Access the resumed payload passed via `restart`
     final resumed = context.resumed;
     if (resumed is! Map || resumed['approved'] != true) {
-      context.interrupt('Approval required');
+      return .interrupt('Approval required');
     }
-    return 'Action confirmed';
+    return .response('Action confirmed');
   },
 );
 
@@ -267,6 +267,43 @@ if (response.finishReason == FinishReason.interrupted) {
   }
 }
 ```
+
+### Cancellation
+
+Cancel an in-flight `generate` or `generateStream` call. You create a `CancellationController`, pass its `token` into `generate`, and call `cancel()` when you want to stop (e.g. the user hits "stop").
+
+Cancellation is **cooperative and best-effort**: it prevents further work — additional turns, the tool loop, and (where the plugin supports it) aborting the in-flight model call. When work is actually interrupted, the call resolves — rather than throwing — with a response whose `finishReason` is `FinishReason.aborted`. That aborted response has no model message, but `response.messages` carries the last-good conversation history, so you can resume from where you left off by passing it back into a fresh `generate` with a new token.
+
+If the model call happens to complete before the cancellation takes effect, its result is returned normally (e.g. `finishReason: stop` with the full message) — the completed work is not discarded. Whether a mid-flight cancel yields `aborted` or a completed result therefore depends on the plugin: plugins that tear down their transport on cancel (e.g. `genkit_google_genai`) surface `aborted` promptly, while others may run the request to completion.
+
+
+```dart
+// Kick off a generation we can interrupt.
+final controller = CancellationController();
+// Simulate the user pressing "stop" mid-flight.
+Timer(const Duration(milliseconds: 200), () {
+  controller.cancel('user pressed stop');
+});
+
+final aborted = await ai.generate(
+  model: googleAI.gemini('gemini-flash-latest'),
+  prompt: 'Explain quantum computing in detail.',
+  cancel: controller.token,
+);
+
+if (aborted.finishReason == FinishReason.aborted) {
+  print('Cancelled: ${aborted.finishMessage}');
+
+  // Resume: reuse the preserved history.
+  final resumed = await ai.generate(
+    model: googleAI.gemini('gemini-flash-latest'),
+    messages: aborted.messages, // last-good conversation state
+  );
+  print(resumed.text);
+}
+```
+
+The same aborted-response path is used when a generation exceeds its `maxTurns` limit (`finishMessage` contains "max turns"), so the same resume pattern applies after bumping `maxTurns`.
 
 ### Middleware
 

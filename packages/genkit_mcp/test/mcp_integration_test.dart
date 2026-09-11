@@ -102,7 +102,7 @@ void main() {
             data: {'message': 'latest logging works'},
           );
         }
-        return 'yep ${input['foo']}';
+        return .response('yep ${input['foo']}');
       },
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(
@@ -171,7 +171,7 @@ void main() {
       final tools = await client.getActiveTools(Genkit());
       expect(tools, hasLength(1));
       final toolResult = await tools.first.call({'foo': 'bar'});
-      expect(toolResult, 'yep bar');
+      expect(toolResult.output, 'yep bar');
 
       final prompts = await client.getActivePrompts(Genkit());
       expect(prompts, hasLength(1));
@@ -225,7 +225,7 @@ void main() {
       final tools = await client.getActiveTools(Genkit());
       expect(tools, hasLength(1));
       final toolResult = await tools.first.call({'foo': 'bar'});
-      expect(toolResult, 'yep bar');
+      expect(toolResult.output, 'yep bar');
 
       final prompts = await client.getActivePrompts(Genkit());
       expect(prompts, hasLength(1));
@@ -254,7 +254,7 @@ void main() {
         name: 'echo',
         description: 'echo tool',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (input, _) async => 'genkit ${input['value']}',
+        fn: (input, _) async => .response('genkit ${input['value']}'),
       );
       final server = GenkitMcpServer(
         ai,
@@ -305,7 +305,7 @@ void main() {
       name: 'echo',
       description: 'echo tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (input, _) async => 'genkit ${input['value']}',
+      fn: (input, _) async => .response('genkit ${input['value']}'),
     );
     final server = GenkitMcpServer(
       ai,
@@ -335,7 +335,8 @@ void main() {
       await client.ready();
       expect(client.protocolVersion, mcp.stableProtocolVersion);
       final tools = await client.getActiveTools(Genkit());
-      expect(await tools.single.call({'value': 'works'}), 'genkit works');
+      final toolResult = await tools.single.call({'value': 'works'});
+      expect(toolResult.output, 'genkit works');
     } finally {
       await client.close();
       await server.close();
@@ -366,7 +367,8 @@ void main() {
         expect(client.protocolVersion, mcp.stableProtocolVersion);
         final tools = await client.getActiveTools(Genkit());
         expect(tools, hasLength(1));
-        expect(await tools.single.call({'value': 'works'}), 'native works');
+        final toolResult = await tools.single.call({'value': 'works'});
+        expect(toolResult.output, 'native works');
       } finally {
         await client.close();
       }

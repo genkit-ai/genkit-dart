@@ -65,7 +65,7 @@ void main(List<String> args) {
     description: 'Multiplies two numbers',
     inputSchema: CalculatorInput.$schema,
     outputSchema: .integer(),
-    fn: (input, _) async => input.a * input.b,
+    fn: (input, _) async => .response(input.a * input.b),
   );
 
   ai.defineFlow(

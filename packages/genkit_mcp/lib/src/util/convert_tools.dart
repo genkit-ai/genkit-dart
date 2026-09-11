@@ -29,9 +29,11 @@ Map<String, dynamic> toMcpTool(
       status: StatusCodes.FAILED_PRECONDITION,
     );
   }
+  // A tool's base `outputSchema` describes the `ToolResult` wrapper, so use
+  // the user-declared output schema (`toolOutputSchema`) for `tools/list`.
   final outputSchema = allowNonObjectOutputSchema
-      ? _toMcpSchema(tool.outputSchema)
-      : _toMcpObjectSchema(tool.outputSchema);
+      ? _toMcpSchema(tool.toolOutputSchema)
+      : _toMcpObjectSchema(tool.toolOutputSchema);
   // Allow per-tool override via metadata; default to 'optional' so that
   // task-augmented requests are accepted by the server.
   final execution =

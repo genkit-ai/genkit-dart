@@ -16,13 +16,17 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:logging/logging.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../ai/generate_middleware.dart';
 import '../../ai/model.dart';
+import '../../o11y/instrumentation_setup.dart'
+    show enableDevInstrumentationForServer;
 import '../../schema.dart';
 import '../../types.dart';
 import '../../utils.dart';
+import '../action.dart';
 import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v2');
@@ -178,6 +182,8 @@ class ReflectionServerV2 {
             request['params'] as Map<String, dynamic>,
           );
           await _handleRunAction(id, params);
+        case 'configure':
+          _handleConfigure(request['params']);
         case 'sendInputStreamChunk':
           final params = ReflectionSendInputStreamChunkParams.fromJson(
             request['params'] as Map<String, dynamic>,
@@ -205,7 +211,7 @@ class ReflectionServerV2 {
     final actions = await registry.listActions();
     final convertedActions = <String, dynamic>{};
     for (final action in actions) {
-      final key = getKey(action.actionType, action.name);
+      final key = getKey(action.actionType.value, action.name);
       convertedActions[key] = {
         'key': key,
         'name': action.name,
@@ -214,8 +220,8 @@ class ReflectionServerV2 {
         'metadata': action.metadata,
         if (action.inputSchema != null)
           'inputSchema': toJsonSchema(type: action.inputSchema),
-        if (action.outputSchema != null)
-          'outputSchema': toJsonSchema(type: action.outputSchema),
+        if (_manifestOutputSchema(action) != null)
+          'outputSchema': toJsonSchema(type: _manifestOutputSchema(action)),
         if (action.initSchema != null)
           'initSchema': toJsonSchema(type: action.initSchema),
       };
@@ -266,6 +272,22 @@ class ReflectionServerV2 {
     _sendResponse(id, response.toJson());
   }
 
+  /// Applies the CLI telemetry handshake (`configure` notification).
+  ///
+  /// When the params carry a non-empty `telemetryServerUrl` and no
+  /// `GENKIT_TELEMETRY_SERVER` env var is set, this enables the built-in dev
+  /// instrumentation so traces reach the CLI-provided telemetry server. The env
+  /// var takes precedence. This is a JSON-RPC notification, so it sends no
+  /// response.
+  void _handleConfigure(Object? params) {
+    if (params is! Map<String, dynamic>) return;
+    final configure = ReflectionConfigureParams.fromJson(params);
+    final url = configure.telemetryServerUrl;
+    if (url != null && url.isNotEmpty) {
+      enableDevInstrumentationForServer(url);
+    }
+  }
+
   Future<void> _handleRunAction(
     String? id,
     ReflectionRunActionParams params,
@@ -284,7 +306,7 @@ class ReflectionServerV2 {
       return;
     }
 
-    final action = await registry.lookupAction(parts[1], parts[2]);
+    final action = await registry.lookupAction(ActionType(parts[1]), parts[2]);
     if (action == null) {
       _sendError(id, 404, 'action $key not found');
       return;
@@ -309,38 +331,26 @@ class ReflectionServerV2 {
             );
             _sendNotification('streamChunk', params.toJson());
           },
-          onTraceStart: ({required String traceId, required String spanId}) {
-            final params = ReflectionRunActionStateParams(
-              requestId: id.toString(),
-              state: {'traceId': traceId, 'spanId': spanId},
-            );
-            _sendNotification('runActionState', params.toJson());
-          },
+          onTraceStart: _traceStateNotifier(id),
           context: context,
           inputStream: inputStream,
         );
 
         _sendResponse(id, {
           'result': result.result,
-          'telemetry': {'traceId': result.traceId},
+          'telemetry': ?_telemetry(result.traceId),
         });
       } else {
         final result = await action.runRaw(
           input,
           init: init,
-          onTraceStart: ({required String traceId, required String spanId}) {
-            final params = ReflectionRunActionStateParams(
-              requestId: id.toString(),
-              state: {'traceId': traceId, 'spanId': spanId},
-            );
-            _sendNotification('runActionState', params.toJson());
-          },
+          onTraceStart: _traceStateNotifier(id),
           context: context,
           inputStream: inputStream,
         );
         _sendResponse(id, {
           'result': result.result,
-          'telemetry': {'traceId': result.traceId},
+          'telemetry': ?_telemetry(result.traceId),
         });
       }
     } catch (e, stack) {
@@ -353,6 +363,24 @@ class ReflectionServerV2 {
       _sendError(id, -32000, e.toString(), errorResponse);
     }
   }
+
+  /// Builds the `onTraceStart` callback that streams trace/span ids back as a
+  /// `runActionState` notification, skipping empty (uninstrumented) ids.
+  TraceStartCallback _traceStateNotifier(String id) {
+    return ({required String traceId, required String spanId}) {
+      if (traceId.isEmpty && spanId.isEmpty) return;
+      final params = ReflectionRunActionStateParams(
+        requestId: id,
+        state: {'traceId': traceId, 'spanId': spanId},
+      );
+      _sendNotification('runActionState', params.toJson());
+    };
+  }
+
+  /// The `telemetry` payload, or `null` when uninstrumented (empty traceId), so
+  /// clients don't mistake a blank id for a broken exporter.
+  Map<String, dynamic>? _telemetry(String traceId) =>
+      traceId.isEmpty ? null : {'traceId': traceId};
 
   Future<void> _handleSendInputStreamChunk(
     ReflectionSendInputStreamChunkParams params,
@@ -373,4 +401,16 @@ class ReflectionServerV2 {
       _inputStreams.remove(id);
     }
   }
+}
+
+/// Returns the schema to advertise as an action's output schema in the
+/// manifest.
+///
+/// For [Action]s this is [Action.manifestOutputSchema], which lets tools
+/// surface their user-declared output schema instead of the internal
+/// `ToolResult` wrapper. Plain [ActionMetadata] falls back to
+/// [ActionMetadata.outputSchema].
+SchemanticType? _manifestOutputSchema(ActionMetadata action) {
+  if (action is Action) return action.manifestOutputSchema;
+  return action.outputSchema;
 }

@@ -47,7 +47,7 @@ class ResourceAction extends Action<ResourceInput, ResourceOutput, void, void> {
     Map<String, dynamic>? metadata,
   }) : _matches = matches,
        super(
-         actionType: 'resource',
+         actionType: .resource,
          inputSchema: ResourceInput.$schema,
          outputSchema: ResourceOutput.$schema,
          metadata: _resourceMetadata(description, metadata),

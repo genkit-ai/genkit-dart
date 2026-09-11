@@ -146,7 +146,7 @@ void main() {
         );
 
         final generateAction = await genkit.registry.lookupAction(
-          'util',
+          .util,
           'generate',
         );
 

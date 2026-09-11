@@ -1070,7 +1070,7 @@ class GenkitMcpClient {
       name: '$serverName/$name',
       description: description,
       inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      outputSchema: .dynamicSchema(),
+      toolOutputSchema: .dynamicSchema(),
       metadata: {
         if (meta != null) 'mcp': {'_meta': meta},
       },
@@ -1080,8 +1080,9 @@ class GenkitMcpClient {
           arguments: input,
           meta: extractMcpMeta(ctx.context),
         );
-        if (options.rawToolResponses) return result;
-        return processToolResult(result);
+        // Behavior unchanged; only wrapped in .response() for the new signature.
+        if (options.rawToolResponses) return .response(result);
+        return .response(processToolResult(result));
       },
     );
   }
@@ -1385,16 +1386,13 @@ class GenkitMcpClient {
     final descriptor = _actionIndex[actionName];
     if (descriptor == null) return null;
 
-    switch (descriptor.actionType) {
-      case 'tool':
-        return _createToolAction(descriptor.payload);
-      case 'executable-prompt':
-        return _createPromptAction(descriptor.payload);
-      case 'resource':
-        return _createResourceAction(descriptor.payload);
-      default:
-        return null;
+    final type = descriptor.actionType;
+    if (type == .tool) return _createToolAction(descriptor.payload);
+    if (type == .executablePrompt) {
+      return _createPromptAction(descriptor.payload);
     }
+    if (type == .resource) return _createResourceAction(descriptor.payload);
+    return null;
   }
 
   Future<List<ActionMetadata>> _buildCache(int generation) async {
@@ -1424,7 +1422,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'tool',
+          actionType: .tool,
           description: tool['description']?.toString(),
           inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
           outputSchema: .dynamicSchema(),
@@ -1436,7 +1434,7 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionType: 'tool',
+        actionType: .tool,
         payload: tool,
       );
     }
@@ -1453,7 +1451,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'executable-prompt',
+          actionType: .executablePrompt,
           description: prompt['description']?.toString(),
           inputSchema: promptSchemaFromArgs(args),
           outputSchema: GenerateActionOptions.$schema,
@@ -1465,7 +1463,7 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionType: 'executable-prompt',
+        actionType: .executablePrompt,
         payload: prompt,
       );
     }
@@ -1487,7 +1485,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'resource',
+          actionType: .resource,
           description: resource['description']?.toString(),
           inputSchema: ResourceInput.$schema,
           outputSchema: ResourceOutput.$schema,
@@ -1498,7 +1496,7 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionType: 'resource',
+        actionType: .resource,
         payload: resource,
       );
     }
@@ -1520,7 +1518,7 @@ class GenkitMcpClient {
       actions.add(
         ActionMetadata(
           name: fullName,
-          actionType: 'resource',
+          actionType: .resource,
           description: template['description']?.toString(),
           inputSchema: ResourceInput.$schema,
           outputSchema: ResourceOutput.$schema,
@@ -1531,7 +1529,7 @@ class GenkitMcpClient {
         ),
       );
       index[fullName] = _McpClientActionDescriptor(
-        actionType: 'resource',
+        actionType: .resource,
         payload: template,
       );
     }
@@ -1615,7 +1613,7 @@ class _RawMcpResult implements mcp.BaseResultData {
 }
 
 class _McpClientActionDescriptor {
-  final String actionType;
+  final ActionType actionType;
   final Map<String, dynamic> payload;
 
   _McpClientActionDescriptor({required this.actionType, required this.payload});

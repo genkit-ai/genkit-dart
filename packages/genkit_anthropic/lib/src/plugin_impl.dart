@@ -12,31 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
+import 'known_models.dart';
 import 'model.dart';
 
-/// Default model capabilities shared by all Anthropic Claude models.
-final commonModelInfo = ModelInfo(
-  supports: {
-    'multiturn': true,
-    'media': true,
-    'tools': true,
-    'toolChoice': true, // Anthropic supports tool choice
-    'systemRole': true,
-    'constrained':
-        true, // Supports JSON schema (via tool/constrained mode usually, or just prompt)
-  },
-);
+final _logger = Logger('genkit_anthropic');
+
+/// Fallback capabilities for Claude models resolved by name without a curated
+/// entry.
+final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
 
 /// Core Genkit plugin implementation for Anthropic Claude models.
 ///
 /// Automatically discovers available models from the Anthropic API and
 /// registers them in the Genkit action registry.
+@visibleForTesting
 class AnthropicPluginImpl extends GenkitPlugin {
   /// The static API key used to authenticate requests.
   final String? apiKey;
@@ -47,13 +46,42 @@ class AnthropicPluginImpl extends GenkitPlugin {
   /// Custom base URL for the Anthropic API.
   final String? baseUrl;
 
+  /// Optional HTTP client used for every request. Useful for proxies,
+  /// instrumentation, or injecting a mock transport in tests.
+  final http.Client? httpClient;
+
   sdk.AnthropicClient? _client;
 
   /// Creates an [AnthropicPluginImpl].
-  AnthropicPluginImpl({this.apiKey, this.headers, this.baseUrl});
+  AnthropicPluginImpl({
+    this.apiKey,
+    this.headers,
+    this.baseUrl,
+    this.httpClient,
+  });
 
   @override
   String get name => 'anthropic';
+
+  /// Curated per-model capability metadata, keyed by bare model name.
+  ///
+  /// Names absent here still resolve; they fall back to [commonModelInfo].
+  final Map<String, ModelInfo> knownModels = UnmodifiableMapView(
+    knownClaudeModels,
+  );
+
+  /// Strips a trailing dated-snapshot suffix (e.g.
+  /// `claude-haiku-4-5-20251001` -> `claude-haiku-4-5`) so dated ids returned
+  /// by the models endpoint map onto the curated aliases.
+  static String _aliasOf(String modelName) => claudeModelAlias(modelName);
+
+  /// Returns the capability metadata for [modelName], matching by exact name
+  /// first and then by dated-snapshot alias, falling back to [commonModelInfo]
+  /// for names not in [knownModels].
+  ModelInfo modelInfoFor(String modelName) =>
+      knownModels[modelName] ??
+      knownModels[_aliasOf(modelName)] ??
+      commonModelInfo;
 
   sdk.AnthropicClient get client {
     if (_client != null) return _client!;
@@ -62,37 +90,57 @@ class AnthropicPluginImpl extends GenkitPlugin {
         apiKey!,
         defaultHeaders: headers,
         baseUrl: baseUrl,
+        httpClient: httpClient,
       );
     }
     final config = sdk.AnthropicConfig.fromEnvironment();
     return _client = sdk.AnthropicClient(
       config: config.copyWith(defaultHeaders: headers, baseUrl: baseUrl),
+      httpClient: httpClient,
     );
   }
 
+  ActionMetadata _curatedMetadata(String name, ModelInfo info) => modelMetadata(
+    'anthropic/$name',
+    customOptions: AnthropicOptions.$schema,
+    modelInfo: info,
+  );
+
   @override
   Future<List<ActionMetadata>> list() async {
-    // Attempt to list models from the API if available, otherwise return manual list.
+    // Attempt to enrich the curated catalog with dynamically discovered
+    // models; fall back to the curated catalog alone if listing fails.
     try {
       final response = await client.models.list();
-      return response.data
-          .map(
-            (m) => modelMetadata(
-              'anthropic/${m.id}',
-              customOptions: AnthropicOptions.$schema,
-            ),
-          )
+      final discovered = response.data
+          .map((m) => _curatedMetadata(m.id, modelInfoFor(m.id)))
           .toList();
+      // Curated aliases already covered by discovery. The endpoint may return
+      // dated snapshot ids (e.g. `claude-haiku-4-5-20251001`), so match on the
+      // alias to both enrich (above) and dedup against the curated catalog.
+      final coveredAliases = response.data.map((m) => _aliasOf(m.id)).toSet();
+
+      // Curated models are listed even when discovery omits them.
+      final curated = knownModels.entries
+          .where((entry) => !coveredAliases.contains(entry.key))
+          .map((entry) => _curatedMetadata(entry.key, entry.value));
+
+      return [...discovered, ...curated];
     } catch (e, s) {
-      // Fallback or empty if listing fails/not supported as expected
-      print('Failed to list Anthropic models: $e\n$s');
-      return [];
+      // The sibling plugins rethrow here; this plugin degrades gracefully
+      // instead, advertising the curated catalog so known models stay listable
+      // when discovery is unavailable (e.g. offline).
+      _logger.warning('Failed to list Anthropic models: $e', e, s);
+      return [
+        for (final entry in knownModels.entries)
+          _curatedMetadata(entry.key, entry.value),
+      ];
     }
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType != 'model') return null;
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType != .model) return null;
     return _createModel(name);
   }
 
@@ -104,7 +152,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
     return Model(
       name: 'anthropic/$modelName',
       customOptions: AnthropicOptions.$schema,
-      metadata: {'model': commonModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
         final options = req!.config == null
             ? AnthropicOptions()
@@ -115,6 +163,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
                 options.apiKey!,
                 defaultHeaders: headers,
                 baseUrl: baseUrl,
+                httpClient: httpClient,
               )
             : client;
 
@@ -217,7 +266,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
       };
     }
 
-    final thinking = _mapThinkingConfig(options.thinking);
+    final thinking = _mapThinkingConfig(options.thinking, modelName);
+    final outputConfig = _mapOutputConfig(options.outputConfig);
 
     return sdk.MessageCreateRequest(
       model: modelName,
@@ -231,6 +281,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
       tools: tools.isNotEmpty ? tools : null,
       toolChoice: toolChoice,
       thinking: thinking,
+      outputConfig: outputConfig,
     );
   }
 
@@ -272,10 +323,22 @@ sdk.InputMessage toAnthropicMessage(Message m) {
       ];
     } else if (p.isToolResponse) {
       final res = p.toolResponse!;
+      // Multipart tool content (images, media, etc.) travels alongside the
+      // structured output. Anthropic tool_result blocks accept text and image
+      // content, so map any image media parts to image content and keep the
+      // structured output as text.
+      final content = <sdk.ToolResultContent>[
+        sdk.ToolResultContent.text(jsonEncode(res.output)),
+        ...?res.content
+            ?.map((c) => Part.fromJson((c as Map).cast<String, dynamic>()))
+            .where((part) => part.isMedia)
+            .map((part) => _toAnthropicToolResultImage(part.media!))
+            .nonNulls,
+      ];
       return [
         sdk.InputContentBlock.toolResult(
           toolUseId: res.ref ?? '',
-          content: [sdk.ToolResultContent.text(jsonEncode(res.output))],
+          content: content,
         ),
       ];
     } else if (p.isMedia) {
@@ -290,33 +353,96 @@ sdk.InputMessage toAnthropicMessage(Message m) {
       : sdk.InputMessage.assistantBlocks(blocks);
 }
 
+const _base64Marker = ';base64';
+final _whitespace = RegExp(r'\s');
+
 List<sdk.InputContentBlock> _convertMediaFromJson(
   String url,
   String? contentType,
 ) {
+  final declaredMime = _cleanMimeType(contentType);
   if (url.startsWith('data:')) {
-    final commaIdx = url.indexOf(',');
-    final base64Data = url.substring(commaIdx + 1);
-    final mimeType = contentType ?? 'image/png';
+    final comma = url.indexOf(',');
+    final header = comma < 0
+        ? ''
+        : url.substring('data:'.length, comma).toLowerCase();
+    final base64Data = comma < 0
+        ? ''
+        : url.substring(comma + 1).replaceAll(_whitespace, '');
+    if (!header.endsWith(_base64Marker) || base64Data.isEmpty) {
+      final preview = url.length > 64 ? '${url.substring(0, 64)}...' : url;
+      throw GenkitException(
+        'Invalid media data URL for Anthropic: expected '
+        '"data:<mime>;base64,<data>", got "$preview".',
+        status: StatusCodes.INVALID_ARGUMENT,
+      );
+    }
+    final urlMime = _cleanMimeType(
+      header.substring(0, header.length - _base64Marker.length),
+    );
+    final mimeType = urlMime ?? declaredMime;
+    if (mimeType == 'application/pdf') {
+      return [
+        sdk.InputContentBlock.document(
+          sdk.DocumentSource.base64Pdf(base64Data),
+        ),
+      ];
+    }
     return [
       sdk.InputContentBlock.image(
         sdk.ImageSource.base64(
           data: base64Data,
-          mediaType: _mapImageMediaType(mimeType),
+          mediaType: _requireImageMediaType(mimeType),
         ),
       ),
     ];
-  } else {
-    return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
   }
+  if (declaredMime == 'application/pdf') {
+    return [sdk.InputContentBlock.document(sdk.DocumentSource.url(url))];
+  }
+  if (declaredMime != null) {
+    _requireImageMediaType(declaredMime);
+  }
+  return [sdk.InputContentBlock.image(sdk.ImageSource.url(url))];
 }
 
-sdk.ImageMediaType _mapImageMediaType(String mimeType) {
+/// Maps a Genkit image [Media] to an Anthropic [sdk.ToolResultContent] image.
+///
+/// Returns null for non-image or non-data URLs, since Anthropic tool_result
+/// image content only supports base64-encoded image sources.
+sdk.ToolResultContent? _toAnthropicToolResultImage(Media media) {
+  final contentType = media.contentType ?? '';
+  if (!media.url.startsWith('data:')) return null;
+  if (contentType.isNotEmpty && !contentType.startsWith('image/')) return null;
+  final commaIdx = media.url.indexOf(',');
+  if (commaIdx < 0) return null;
+  final base64Data = media.url.substring(commaIdx + 1);
+  final mimeType = contentType.isEmpty ? 'image/png' : contentType;
+  return sdk.ToolResultContent.image(
+    sdk.ImageSource.base64(
+      data: base64Data,
+      mediaType: _requireImageMediaType(mimeType),
+    ),
+  );
+}
+
+String? _cleanMimeType(String? contentType) {
+  final mimeType = contentType?.split(';').first.trim().toLowerCase();
+  return mimeType?.isEmpty ?? true ? null : mimeType;
+}
+
+sdk.ImageMediaType _requireImageMediaType(String? mimeType) {
   return switch (mimeType) {
     'image/jpeg' || 'image/jpg' => sdk.ImageMediaType.jpeg,
+    'image/png' => sdk.ImageMediaType.png,
     'image/gif' => sdk.ImageMediaType.gif,
     'image/webp' => sdk.ImageMediaType.webp,
-    _ => sdk.ImageMediaType.png,
+    _ => throw GenkitException(
+      'Unsupported media type for Anthropic: ${mimeType ?? '(none)'}. '
+      'Supported: image/jpeg, image/png, image/gif, image/webp, '
+      'application/pdf.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    ),
   };
 }
 
@@ -376,14 +502,52 @@ Map<String, dynamic> _extractOutput(Map<String, dynamic> input) {
   return input;
 }
 
-sdk.ThinkingConfig? _mapThinkingConfig(ThinkingConfig? config) {
+sdk.ThinkingConfig? _mapThinkingConfig(
+  ThinkingConfig? config,
+  String modelName,
+) {
   if (config == null) return null;
-  return switch (config.type ?? 'enabled') {
+
+  final type =
+      config.type ?? knownClaudeModelFor(modelName)?.defaultThinkingMode.name;
+  if (type == null) {
+    throw GenkitException(
+      'Set thinking.type explicitly for unknown Anthropic model "$modelName".',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
+  return switch (type) {
     'disabled' => sdk.ThinkingConfig.disabled(),
     'adaptive' => sdk.ThinkingConfig.adaptive(),
     // 1024 is the minimum budget_tokens required by the Anthropic API.
-    _ => sdk.ThinkingConfig.enabled(budgetTokens: config.budgetTokens ?? 1024),
+    'enabled' => sdk.ThinkingConfig.enabled(
+      budgetTokens: config.budgetTokens ?? 1024,
+    ),
+    _ => throw GenkitException(
+      'Unsupported Anthropic thinking type "$type".',
+      status: StatusCodes.INVALID_ARGUMENT,
+    ),
   };
+}
+
+sdk.OutputConfig? _mapOutputConfig(AnthropicOutputConfig? config) {
+  final effort = config?.effort;
+  if (effort == null) return null;
+
+  return sdk.OutputConfig(
+    effort: switch (effort) {
+      'low' => sdk.EffortLevel.low,
+      'medium' => sdk.EffortLevel.medium,
+      'high' => sdk.EffortLevel.high,
+      'xhigh' => sdk.EffortLevel.xhigh,
+      'max' => sdk.EffortLevel.max,
+      _ => throw GenkitException(
+        'Unsupported Anthropic output effort "$effort".',
+        status: StatusCodes.INVALID_ARGUMENT,
+      ),
+    },
+  );
 }
 
 /// Emits streaming chunks for content deltas and throws on error events.

@@ -91,9 +91,9 @@ void main(List<String> args) async {
     inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
-        return 'The weather in Boston is 72F and sunny.';
+        return .response('The weather in Boston is 72F and sunny.');
       }
-      return 'The weather in ${input.location} is 75F and cloudy.';
+      return .response('The weather in ${input.location} is 75F and cloudy.');
     },
   );
   ai.defineTool(
@@ -104,14 +104,18 @@ void main(List<String> args) async {
     outputSchema: TemperatureConverterOutput.$schema,
     fn: (input, context) async {
       if (input.unit == TemperatureUnit.C) {
-        return TemperatureConverterOutput(
-          temperature: (input.temperature * 9 / 5) + 32,
-          unit: TemperatureUnit.F,
+        return .response(
+          TemperatureConverterOutput(
+            temperature: (input.temperature * 9 / 5) + 32,
+            unit: TemperatureUnit.F,
+          ),
         );
       }
-      return TemperatureConverterOutput(
-        temperature: (input.temperature - 32) * 5 / 9,
-        unit: TemperatureUnit.C,
+      return .response(
+        TemperatureConverterOutput(
+          temperature: (input.temperature - 32) * 5 / 9,
+          unit: TemperatureUnit.C,
+        ),
       );
     },
   );

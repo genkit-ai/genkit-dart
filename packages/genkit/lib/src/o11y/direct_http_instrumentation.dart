@@ -1,0 +1,255 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:logging/logging.dart';
+
+import 'instrumentation_api.dart';
+import 'telemetry/span_data.dart';
+
+/// Zone key under which the active [_ActiveSpan] is propagated so child spans
+/// can find their parent's ids and trace across async gaps.
+const _activeSpanKey = #genkit.directHttpSpan;
+
+/// A completely self-contained [Instrumentation] that needs no OpenTelemetry
+/// runtime.
+///
+/// It mints its own trace/span ids, tracks parentage via the current [Zone],
+/// times each operation, and on completion serializes the span to a
+/// [TelemetrySink] (which POSTs OTLP/JSON to the Genkit telemetry server). This
+/// is the built-in dev-mode instrumentation, and it runs independently of
+/// OpenTelemetry.
+///
+/// When `captureLogs` is true (the default), it also bridges `package:logging`
+/// records from `Logger.root` to the same server as OTLP logs, correlated with
+/// the active span (resolved from the record's zone). This bridge lives here,
+/// not in Genkit core, so core stays unopinionated about where logs come from;
+/// an OpenTelemetry-based provider would bring its own logger integration.
+/// [dispose] cancels the subscription.
+///
+/// It reproduces the `genkit:*` attribute conventions the Developer UI relies
+/// on.
+class DirectHttpInstrumentation
+    implements Instrumentation, DisposableInstrumentation {
+  final TelemetrySink _sink;
+  final Random _random;
+  final Map<String, Object?> _resourceAttributes;
+  StreamSubscription<LogRecord>? _logSubscription;
+
+  DirectHttpInstrumentation(
+    this._sink, {
+    Map<String, Object?> resourceAttributes = const {
+      'service.name': 'genkit-dart',
+    },
+    Random? random,
+    bool captureLogs = true,
+  }) : _resourceAttributes = resourceAttributes,
+       _random = random ?? Random() {
+    if (captureLogs) {
+      _logSubscription = Logger.root.onRecord.listen(_onLogRecord);
+    }
+  }
+
+  @override
+  Future<O> runInNewSpan<O>(
+    SpanMetadata metadata,
+    Future<O> Function([SpanContext? span]) next,
+  ) {
+    final parent = Zone.current[_activeSpanKey] as _ActiveSpan?;
+    final span = _ActiveSpan(
+      traceId: parent?.traceId ?? _newTraceId(),
+      spanId: _newSpanId(),
+      parentSpanId: parent?.spanId,
+      name: metadata.name,
+      startTimeUnixNano: _nowUnixNano(),
+    );
+
+    span.attributes['genkit:name'] = metadata.name;
+    final actionType = metadata.actionType;
+    if (actionType != null) {
+      span.attributes['genkit:type'] = actionType;
+      // The Developer UI keys flow lookups off this metadata attribute.
+      if (actionType == 'flow') {
+        span.attributes['genkit:metadata:flow:name'] = metadata.name;
+      }
+    }
+    final input = metadata.input;
+    if (input != null) {
+      span.attributes['genkit:input'] = _encodeJson(input);
+    }
+    metadata.attributes.forEach((key, value) {
+      span.attributes[key] = value;
+    });
+
+    // Export the started span (endTime 0, unset status) so the Developer UI can
+    // show it live, then export again once finished.
+    _sink.export([span.toSpanData(_resourceAttributes)]);
+
+    return runZoned(() async {
+      try {
+        final output = await next(_DirectSpanContext(span));
+        span.attributes['genkit:output'] = _encodeJson(output);
+        span.status = const GenkitSpanStatus(code: GenkitStatusCode.ok);
+        return output;
+      } catch (e) {
+        span.status = GenkitSpanStatus(
+          code: GenkitStatusCode.error,
+          message: e.toString(),
+        );
+        rethrow;
+      } finally {
+        span.endTimeUnixNano = _nowUnixNano();
+        _sink.export([span.toSpanData(_resourceAttributes)]);
+      }
+    }, zoneValues: {_activeSpanKey: span});
+  }
+
+  @override
+  void dispose() {
+    _logSubscription?.cancel();
+    _logSubscription = null;
+  }
+
+  /// Lowers a `package:logging` [record] to an OTLP log and ships it, correlated
+  /// with the span active in the record's zone (if any).
+  void _onLogRecord(LogRecord record) {
+    // Skip the sink's own export-failure logs to avoid a
+    // log -> failed-export -> log feedback loop against a down server.
+    if (record.loggerName == 'CollectorHttpSink') return;
+
+    final span = record.zone?[_activeSpanKey] as _ActiveSpan?;
+    final attributes = <String, Object?>{'loggerName': record.loggerName};
+    if (record.error != null) attributes['error'] = record.error.toString();
+
+    _sink.exportLogs([
+      GenkitLogData(
+        timeUnixNano: record.time.microsecondsSinceEpoch * 1000,
+        severityNumber: _severityNumber(record.level),
+        severityText: _severityText(record.level),
+        body: record.object ?? record.message,
+        attributes: attributes,
+        traceId: span?.traceId ?? '',
+        spanId: span?.spanId ?? '',
+        resourceAttributes: _resourceAttributes,
+      ),
+    ]);
+  }
+
+  String _newTraceId() => _hex(16);
+  String _newSpanId() => _hex(8);
+
+  String _hex(int bytes) {
+    final sb = StringBuffer();
+    for (var i = 0; i < bytes; i++) {
+      sb.write(_random.nextInt(256).toRadixString(16).padLeft(2, '0'));
+    }
+    return sb.toString();
+  }
+}
+
+int _nowUnixNano() => DateTime.now().microsecondsSinceEpoch * 1000;
+
+/// Maps a `package:logging` [Level] to an OpenTelemetry severity number.
+int _severityNumber(Level level) {
+  if (level >= Level.SHOUT) return 21; // FATAL
+  if (level >= Level.SEVERE) return 17; // ERROR
+  if (level >= Level.WARNING) return 13; // WARN
+  if (level >= Level.CONFIG) return 9; // INFO (covers INFO and CONFIG)
+  return 5; // DEBUG (FINE/FINER/FINEST)
+}
+
+/// Maps a `package:logging` [Level] to an OpenTelemetry severity text.
+String _severityText(Level level) {
+  if (level >= Level.SHOUT) return 'FATAL';
+  if (level >= Level.SEVERE) return 'ERROR';
+  if (level >= Level.WARNING) return 'WARN';
+  if (level >= Level.CONFIG) return 'INFO';
+  return 'DEBUG';
+}
+
+/// Always JSON-encodes (a String becomes a quoted JSON string), matching the
+/// historical `genkit:input`/`genkit:output` encoding.
+String _encodeJson(Object? value) {
+  try {
+    return jsonEncode(value);
+  } catch (e) {
+    return 'Unable to encode: $e';
+  }
+}
+
+/// Encodes metadata values: passes Strings through as-is, JSON-encodes the rest.
+String _encodeMetadata(Object? value) {
+  try {
+    return value is String ? value : jsonEncode(value);
+  } catch (e) {
+    return 'Unable to encode: $e';
+  }
+}
+
+/// Mutable state for a span while its operation runs.
+class _ActiveSpan {
+  final String traceId;
+  final String spanId;
+  final String? parentSpanId;
+  final String name;
+  final int startTimeUnixNano;
+  int endTimeUnixNano = 0;
+  final Map<String, Object?> attributes = {};
+  GenkitSpanStatus status = const GenkitSpanStatus();
+
+  _ActiveSpan({
+    required this.traceId,
+    required this.spanId,
+    required this.parentSpanId,
+    required this.name,
+    required this.startTimeUnixNano,
+  });
+
+  GenkitSpanData toSpanData(Map<String, Object?> resourceAttributes) {
+    return GenkitSpanData(
+      traceId: traceId,
+      spanId: spanId,
+      parentSpanId: parentSpanId,
+      name: name,
+      startTimeUnixNano: startTimeUnixNano,
+      endTimeUnixNano: endTimeUnixNano,
+      attributes: Map.of(attributes),
+      status: status,
+      resourceAttributes: resourceAttributes,
+    );
+  }
+}
+
+/// [SpanContext] handed to the traced function.
+class _DirectSpanContext implements SpanContext {
+  final _ActiveSpan _span;
+
+  _DirectSpanContext(this._span);
+
+  @override
+  String get traceId => _span.traceId;
+
+  @override
+  String get spanId => _span.spanId;
+
+  @override
+  void setMetadata(Map<String, Object?> metadata) {
+    metadata.forEach((key, value) {
+      _span.attributes['genkit:metadata:$key'] = _encodeMetadata(value);
+    });
+  }
+}

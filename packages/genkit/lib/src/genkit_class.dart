@@ -42,7 +42,11 @@ import 'core/reflection.dart';
 import 'core/registry.dart';
 import 'exception.dart';
 import 'genkit_ai.dart';
-import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
+import 'o11y/instrumentation.dart'
+    show configureInstrumentation, disposeInstrumentations, isInstrumentedBy;
+import 'o11y/instrumentation_setup.dart'
+    show GenkitBuiltinInstrumentation, genkitDevInstrumentation;
+
 import 'types.dart';
 import 'utils.dart' as utils;
 
@@ -77,8 +81,6 @@ final class Genkit extends GenkitAI {
     /// prompt loading.
     String? promptDir = './prompts',
   }) : super(Registry()) {
-    configureCollectorExporter();
-
     // Initialize dotprompt registry with schema resolver wired to the registry
     _dotpromptRegistry = DotpromptRegistry(
       schemaResolver: (name) async {
@@ -102,6 +104,22 @@ final class Genkit extends GenkitAI {
     configureFormats(registry);
 
     if (isDevEnv ?? utils.isDevEnv) {
+      // In the dev environment, auto-inject the built-in telemetry
+      // instrumentation (unless already configured) so the Developer UI
+      // receives traces. It posts Genkit's spans directly to the Genkit
+      // telemetry server over HTTP, independently of OpenTelemetry. It returns
+      // null (and we do not instrument) when no server is configured
+      // (`GENKIT_TELEMETRY_SERVER` unset); in that case the reflection
+      // handshake may still enable it later if the CLI supplies a server URL.
+      // In production, Genkit is not instrumented unless the user configures a
+      // provider.
+      if (!isInstrumentedBy<GenkitBuiltinInstrumentation>()) {
+        final devInstrumentation = genkitDevInstrumentation();
+        if (devInstrumentation != null) {
+          configureInstrumentation(devInstrumentation);
+        }
+      }
+
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
@@ -119,6 +137,10 @@ final class Genkit extends GenkitAI {
   ///
   /// This is mostly meant for testing purposes.
   Future<void> shutdown() async {
+    // Release instrumentation resources (e.g. the built-in dev provider's log
+    // subscription). Providers implementing DisposableInstrumentation are
+    // disposed; they remain registered.
+    disposeInstrumentations();
     if (_reflectionServer != null) {
       await _reflectionServer!.stop();
     }
@@ -192,7 +214,69 @@ final class Genkit extends GenkitAI {
       description: description,
       fn: fn,
       inputSchema: inputSchema,
-      outputSchema: outputSchema,
+      toolOutputSchema: outputSchema,
+    );
+    registry.register(tool);
+    return tool;
+  }
+
+  /// Defines and registers an interrupt.
+  ///
+  /// Interrupts are special tools that always halt the generation loop and
+  /// return control back to the caller. They make it simpler to implement
+  /// "human-in-the-loop" and out-of-band processing patterns that require
+  /// waiting on external actions to complete.
+  ///
+  /// When the model calls an interrupt, the request bubbles back to the caller
+  /// instead of executing any logic. You can then resume generation by
+  /// supplying `interruptRespond` (to provide an answer) on a follow-up [generate] call.
+  ///
+  /// Example:
+  /// ```dart
+  /// final confirm = ai.defineInterrupt(
+  ///   name: 'confirmAction',
+  ///   description: 'Asks the user to confirm before proceeding.',
+  ///   inputSchema: SchemanticType.map(
+  ///     SchemanticType.string(),
+  ///     SchemanticType.dynamicSchema(),
+  ///   ),
+  /// );
+  /// ```
+  Tool<Input, Output> defineInterrupt<Input, Output>({
+    required String name,
+    required String description,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    Map<String, dynamic>? metadata,
+
+    /// Optional data attached to the `interrupt` metadata of the generated tool
+    /// request. Receives the tool input and may return a value or a future.
+    /// When omitted, the interrupt metadata defaults to `true`.
+    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    requestMetadata,
+  }) {
+    final tool = Tool<Input, Output>(
+      name: name,
+      description: description,
+      inputSchema: inputSchema,
+      toolOutputSchema: outputSchema,
+      metadata: {
+        ...?metadata,
+        'tool': {
+          // `metadata['tool']` is user-supplied; only spread it when it is
+          // actually a map (it may be absent, a `Map<dynamic, dynamic>` from a
+          // literal, or an unrelated value), otherwise ignore it.
+          if (metadata?['tool'] is Map)
+            ...(metadata!['tool'] as Map).cast<String, dynamic>(),
+          'restartable': false,
+        },
+      },
+      fn: (input, ctx) async {
+        final data = requestMetadata == null
+            ? null
+            : await requestMetadata(input, ctx);
+        return ToolResult.interrupt(data);
+      },
     );
     registry.register(tool);
     return tool;

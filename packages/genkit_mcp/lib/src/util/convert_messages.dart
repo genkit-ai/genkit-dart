@@ -148,29 +148,65 @@ Map<String, String> _toMcpMediaContent(Media media) {
   return {'mimeType': mimeType, 'data': data};
 }
 
+/// Builds MCP `content` blocks for a tool result from its structured [output]
+/// and optional multipart [content] (Genkit `Part` JSON).
+///
+/// The structured output becomes a text block and each multipart entry is
+/// converted into a proper MCP block (text/image/audio). Used by the MCP server
+/// when replying to `tools/call`.
+List<Map<String, dynamic>> toMcpToolResultContent({
+  Object? output,
+  List<dynamic>? content,
+}) {
+  return _toolResponseContent(
+    ToolResponse(name: '', output: output, content: content),
+  );
+}
+
 List<Map<String, dynamic>> _toolResponseContent(ToolResponse response) {
-  if (response.content is List) {
-    final items = response.content as List;
-    final blocks = items.whereType<Map>().map((e) {
-      return e.cast<String, dynamic>();
-    }).toList();
-    if (blocks.isNotEmpty) return blocks;
-  }
+  final blocks = <Map<String, dynamic>>[];
+
+  // The structured output is always emitted as a text block so clients that
+  // only read text still see the result. Structured consumers additionally get
+  // it via `structuredContent` (see the tool_result content builder).
   final output = response.output;
-  if (output == null) {
+  if (output != null) {
+    blocks.add({'type': 'text', 'text': _stringifyOutput(output as Object)});
+  }
+
+  // Multipart tool content is stored as Genkit `Part` JSON. Convert each part
+  // into a proper MCP content block (text/image/audio) rather than passing the
+  // raw Genkit shape through, which is not a valid MCP block.
+  if (response.content is List) {
+    for (final item in response.content as List) {
+      if (item is! Map) continue;
+      final part = Part.fromJson(item.cast<String, dynamic>());
+      blocks.add(_toMcpContentBlock(part));
+    }
+  }
+
+  if (blocks.isEmpty) {
     return [
       {'type': 'text', 'text': ''},
     ];
   }
-  final text = output is String ? output : jsonEncode(output);
-  return [
-    {'type': 'text', 'text': text},
-  ];
+  return blocks;
 }
 
 String _nextToolUseId(String name) {
   _toolUseCounter += 1;
   return '$name-$_toolUseCounter';
+}
+
+/// Renders a tool output as a text block, falling back to `toString()` when the
+/// value cannot be JSON-encoded.
+String _stringifyOutput(Object output) {
+  if (output is String) return output;
+  try {
+    return jsonEncode(output);
+  } catch (_) {
+    return output.toString();
+  }
 }
 
 Message fromMcpPromptMessage(Map<String, dynamic> message) {

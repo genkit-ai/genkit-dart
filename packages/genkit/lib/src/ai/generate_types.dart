@@ -78,37 +78,58 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
   final ModelRequest? _request;
   final Output? output;
 
-  GenerateResponseHelper(this._response, {ModelRequest? request, this.output})
-    : _request = request,
-      super(
-        message: _response.message,
-        finishReason: _response.finishReason,
-        finishMessage: _response.finishMessage,
-        latencyMs: _response.latencyMs,
-        usage: _response.usage,
-        custom: _response.custom,
-        raw: _response.raw,
-        request: _response.request, // This uses ModelResponse.request
-        operation: _response.operation,
-        candidates: [
-          Candidate(
-            index: 0,
-            message: _response.message!,
-            finishReason: _response.finishReason,
-            finishMessage: _response.finishMessage,
-            usage: _response.usage,
-            custom: _response.custom,
-          ),
-        ],
-      );
+  /// The original thrown error a failed response resolved from, for callers
+  /// that want to inspect the raw exception (e.g. `cause is SocketException`).
+  /// The serializable view lives on [error]; `cause` is in-process only and
+  /// does NOT survive the reflection/HTTP boundary (like [modelRequest]).
+  final Object? cause;
+
+  GenerateResponseHelper(
+    this._response, {
+    ModelRequest? request,
+    this.output,
+    this.cause,
+  }) : _request = request,
+       super(
+         message: _response.message,
+         finishReason: _response.finishReason,
+         finishMessage: _response.finishMessage,
+         // Forward the structured error so a failed response
+         // (`finishReason: failed`) carries its cause; null on success.
+         error: _response.error,
+         latencyMs: _response.latencyMs,
+         usage: _response.usage,
+         custom: _response.custom,
+         raw: _response.raw,
+         request: _response.request, // This uses ModelResponse.request
+         operation: _response.operation,
+         // Only build a candidate when a message is present. An aborted response
+         // (`finishReason: aborted`) carries no message, so there is no candidate
+         // to report.
+         candidates: _response.message == null
+             ? null
+             : [
+                 Candidate(
+                   index: 0,
+                   message: _response.message!,
+                   finishReason: _response.finishReason,
+                   finishMessage: _response.finishMessage,
+                   usage: _response.usage,
+                   custom: _response.custom,
+                 ),
+               ],
+       );
 
   /// The full history of the conversation, including the request messages and
   /// the final model response.
   ///
   /// This is useful for continuing the conversation in multi-turn scenarios.
+  /// When the response has no message (e.g. an aborted turn), only the request
+  /// history is returned, so callers can attempt to resume from the last good
+  /// state.
   List<Message> get messages => [
     ...(_request?.messages ?? _response.request?.messages ?? []),
-    _response.message!,
+    if (_response.message != null) _response.message!,
   ];
 
   ModelResponse get modelResponse => _response;
@@ -142,9 +163,17 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
   ///
   /// This will be populated if the output format is JSON, or if the output is
   /// arbitrarily parsed as JSON.
+  ///
+  /// Returns `null` for a message-less response (e.g. an aborted turn), where
+  /// `text` is empty and there is nothing to parse, rather than throwing a
+  /// `FormatException`. This mirrors how the other accessors degrade safely on
+  /// the abort path (`text` -> `''`, `media`/`toolRequests` -> null/`[]`).
   Output? get jsonOutput {
     if (output != null) return output;
-    return extractJson(text) as Output?;
+    if (_response.message == null) return null;
+    final source = text;
+    if (source.isEmpty) return null;
+    return extractJson(source) as Output?;
   }
 
   ModelResponse get rawResponse => _response;

@@ -21,11 +21,14 @@ library;
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/io.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'genkit.dart';
 
 part 'weather_agent.g.dart';
+
+final _logger = Logger('weather_agent');
 
 @Schema()
 abstract class $GetWeatherInput {
@@ -44,10 +47,16 @@ final getWeather = ai.defineTool(
   description: 'Get the current weather for a given location.',
   inputSchema: GetWeatherInput.$schema,
   outputSchema: GetWeatherOutput.$schema,
-  fn: (input, _) async => GetWeatherOutput(
-    weather: 'Sunny in ${input.location}',
-    temperature: '71F',
-  ),
+  fn: (input, _) async {
+    _logger.info('Getting weather for ${input.location}');
+
+    return .response(
+      GetWeatherOutput(
+        weather: 'Sunny in ${input.location}',
+        temperature: '71F',
+      ),
+    );
+  },
 );
 
 /// The weather agent — server-managed state via a file-backed store.

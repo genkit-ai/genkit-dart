@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -37,6 +39,95 @@ void _defineEchoModel(Genkit ai) {
       );
     },
   );
+}
+
+final class _ContextRecordingStore
+    implements SessionStore, SnapshotChangeNotifier {
+  final InMemorySessionStore _delegate = InMemorySessionStore();
+  final List<Map<String, dynamic>?> contexts = [];
+
+  @override
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  }) {
+    contexts.add(context);
+    return _delegate.getSnapshot(
+      snapshotId: snapshotId,
+      sessionId: sessionId,
+      context: context,
+    );
+  }
+
+  @override
+  Future<String?> saveSnapshot(
+    String? snapshotId,
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  }) {
+    contexts.add(context);
+    return _delegate.saveSnapshot(snapshotId, mutator, context: context);
+  }
+
+  @override
+  void Function()? onSnapshotStateChange(
+    String snapshotId,
+    void Function(SessionSnapshot snapshot) callback, {
+    Map<String, dynamic>? context,
+  }) {
+    contexts.add(context);
+    return _delegate.onSnapshotStateChange(
+      snapshotId,
+      callback,
+      context: context,
+    );
+  }
+}
+
+/// A store that implements the optional [SnapshotMetadataReader] capability and
+/// counts how often the metadata path is taken, so a test can assert the
+/// runtime prefers it over a full read for a metadata-only request.
+final class _MetadataCapableStore
+    implements SessionStore, SnapshotMetadataReader {
+  final InMemorySessionStore _delegate = InMemorySessionStore();
+  int metadataReads = 0;
+
+  @override
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  }) => _delegate.getSnapshot(
+    snapshotId: snapshotId,
+    sessionId: sessionId,
+    context: context,
+  );
+
+  @override
+  Future<String?> saveSnapshot(
+    String? snapshotId,
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  }) => _delegate.saveSnapshot(snapshotId, mutator, context: context);
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) {
+    metadataReads++;
+    return _delegate.getSnapshotMetadata(snapshotId, context: context);
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) {
+    metadataReads++;
+    return _delegate.getLatestSnapshotMetadata(sessionId, context: context);
+  }
 }
 
 void main() {
@@ -252,6 +343,115 @@ void main() {
       expect(snapshot2!.custom, {'count': 2});
     });
 
+    test('passes context to every session store operation', () async {
+      final store = _ContextRecordingStore();
+      final agent = ai.defineCustomAgent(
+        name: 'tenantScoped',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'ok': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+      final context = <String, dynamic>{'tenant': 'alice'};
+      final sessionId = generateUuidV4();
+
+      final response = await agent
+          .chat(sessionId: sessionId)
+          .send(text: 'hi', context: context);
+      expect(response.snapshotId, isNotNull);
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
+
+      store.contexts.clear();
+      await agent.loadChat(sessionId: sessionId, context: context);
+      await agent.getSnapshot(
+        snapshotId: response.snapshotId,
+        context: context,
+      );
+      await agent.getSnapshotDataAction(
+        GetSnapshotDataInput(snapshotId: response.snapshotId),
+        context: context,
+      );
+      await agent.abort(response.snapshotId!, context: context);
+      await agent.abortAgentAction(
+        AgentAbortRequest(snapshotId: response.snapshotId!),
+        context: context,
+      );
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
+    });
+
+    test('inherits ambient action context for store operations', () async {
+      final store = _ContextRecordingStore();
+      final agent = ai.defineCustomAgent(
+        name: 'ambientTenantScoped',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'ok': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+      final context = <String, dynamic>{'tenant': 'alice'};
+      final sessionId = generateUuidV4();
+      final outer = Action<String, void, void, void>(
+        name: 'ambientAgentCaller',
+        actionType: .custom,
+        fn: (_, ctx) async {
+          final response = await agent
+              .chat(sessionId: sessionId)
+              .send(text: 'hi');
+          await agent.getSnapshot(snapshotId: response.snapshotId);
+        },
+      );
+
+      await outer('run', context: context);
+
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
+    });
+
+    test('detached task retains explicit context', () async {
+      final store = _ContextRecordingStore();
+      final releaseTurn = Completer<void>();
+      final agent = ai.defineCustomAgent(
+        name: 'ambientDetachedTenantScoped',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            await releaseTurn.future;
+            sess.updateCustom((_) => {'done': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+      final context = <String, dynamic>{'tenant': 'alice'};
+      final outer = Action<String, DetachedTask<dynamic>, void, void>(
+        name: 'ambientDetachedAgentCaller',
+        actionType: .custom,
+        fn: (_, ctx) => agent
+            .chat(sessionId: generateUuidV4())
+            .detach(text: 'background', context: ctx.context),
+      );
+
+      final task = await outer('run', context: context);
+      releaseTurn.complete();
+      final snapshot = await task.wait(
+        interval: const Duration(milliseconds: 10),
+      );
+      expect(snapshot.status?.value, 'completed');
+      expect((await task.abort())?.value, 'completed');
+      expect(store.contexts, isNotEmpty);
+      expect(store.contexts, everyElement(equals(context)));
+    });
+
     test('detached turn does not self-parent its snapshot', () async {
       final store = InMemorySessionStore();
       final agent = ai.defineCustomAgent(
@@ -319,8 +519,55 @@ void main() {
       final chat = agent.chat(sessionId: sessionId);
       final res = await chat.send(text: 'hi');
       final prior = await agent.abort(res.snapshotId!);
-      // Turn already completed, so abort reports the prior status.
+      // Turn already settled, so abort is a no-op and returns the existing
+      // terminal status unchanged (only a `pending` row flips to `aborting`).
       expect(prior?.value, 'completed');
+    });
+
+    test('an attached AgentTurn.abort() persists the turn as aborted, not '
+        'completed', () async {
+      // Regression: the attached abort route (`AgentTurn.abort()` -> token
+      // cancel) writes nothing to the store itself, so without the run loop's
+      // `status: 'aborted'` write the trailing `invocationEnd` snapshot would
+      // persist the half-finished turn as `completed` - and a later `loadChat`
+      // would then pick it as the last-good resume point.
+      final store = InMemorySessionStore();
+      final handlerRunning = Completer<void>();
+      final proceed = Completer<void>();
+      final agent = ai.defineCustomAgent(
+        name: 'attachedAbortable',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'count': 1});
+            // Signal that the turn is in flight, then stay in flight until the
+            // test aborts the attached turn (cancelling this turn's token).
+            if (!handlerRunning.isCompleted) handlerRunning.complete();
+            await proceed.future;
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+      final turn = chat.sendStream(text: 'go');
+      // Drain the stream so the turn progresses.
+      final drained = turn.stream.drain<void>();
+
+      await handlerRunning.future;
+      turn.abort(); // cancels this turn's token (attached route)
+      proceed.complete();
+
+      await turn.response;
+      await drained;
+
+      // The latest snapshot for the session must be `aborted`, never the
+      // `completed` a stray `invocationEnd` write would have produced.
+      final snapshot = await agent.getSnapshot(sessionId: sessionId);
+      expect(snapshot, isNotNull);
+      expect(snapshot!.status?.value, 'aborted');
     });
 
     test('abortAgentAction round-trips typed request/response', () async {
@@ -344,7 +591,8 @@ void main() {
         AgentAbortRequest(snapshotId: res.snapshotId!),
       );
       expect(response.snapshotId, res.snapshotId);
-      // Turn already completed, so the prior status is reported.
+      // Turn already settled, so abort is a no-op and returns the existing
+      // terminal status unchanged.
       expect(response.status?.value, 'completed');
     });
 
@@ -396,6 +644,377 @@ void main() {
         expect(after!.status?.value, 'pending');
       },
     );
+
+    test(
+      'getSnapshotData reports a stale aborting snapshot as expired',
+      () async {
+        // The abort protocol settles in two writes (flip -> `aborting`, later
+        // finalize -> `aborted`), and the worker keeps heartbeating while it
+        // winds down. A stale `aborting` beat means the draining worker died,
+        // so - like a stale `pending` - it must read as `expired`. This
+        // exercises the read side, whatever runtime wrote the row.
+        final store = InMemorySessionStore();
+        final agent = ai.defineCustomAgent(
+          name: 'winddown',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async => null);
+            return AgentResult();
+          },
+        );
+
+        final sessionId = generateUuidV4();
+        final stale = DateTime.now()
+            .toUtc()
+            .subtract(const Duration(minutes: 5))
+            .toIso8601String();
+        final id = await store.saveSnapshot(
+          null,
+          (_) => SessionSnapshot(
+            snapshotId: '',
+            createdAt: stale,
+            updatedAt: stale,
+            heartbeatAt: stale,
+            status: SnapshotStatus.aborting,
+            state: SessionState(
+              sessionId: sessionId,
+              messages: [],
+              artifacts: [],
+            ),
+          ),
+        );
+
+        // Stored status is still `aborting`...
+        final raw = await store.getSnapshot(snapshotId: id);
+        expect(raw!.status?.value, 'aborting');
+
+        // ...but a read through the agent surfaces it as `expired`.
+        final snapshot = await agent.getSnapshotData(snapshotId: id);
+        expect(snapshot!.status?.value, 'expired');
+
+        // The expiry is read-only: the stored snapshot stays `aborting`.
+        final after = await store.getSnapshot(snapshotId: id);
+        expect(after!.status?.value, 'aborting');
+      },
+    );
+
+    test('a prompt-backed turn whose model fails persists a `failed` snapshot '
+        'with rerunnable history, and can be rerun to success', () async {
+      final store = InMemorySessionStore();
+      var shouldFail = true;
+      ai.defineModel(
+        name: 'flakyModel',
+        fn: (request, ctx) async {
+          if (shouldFail) {
+            throw GenkitException(
+              'model temporarily unavailable',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          }
+          return ModelResponse(
+            message: Message(
+              role: Role.model,
+              content: [
+                TextPart(text: 'recovered: ${request.messages.last.text}'),
+              ],
+            ),
+            finishReason: FinishReason.stop,
+          );
+        },
+      );
+      final agent = ai.defineAgent(
+        name: 'recoverable',
+        model: modelRef('flakyModel'),
+        store: store,
+      );
+
+      // First run fails. `chat.send` surfaces a failed turn as a thrown
+      // [AgentError] carrying the resume point, but the runtime still persists
+      // a `failed` snapshot with the user turn as resumable history plus the
+      // structured error.
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+      final error = await chat
+          .send(text: 'hello')
+          .then<AgentError?>(
+            (_) => null,
+            onError: (Object e) => e as AgentError,
+          );
+      expect(error, isNotNull);
+      expect(error!.status, StatusCodes.UNAVAILABLE.name);
+      expect(error.snapshotId, isNotNull);
+
+      final failedSnap = await agent.getSnapshotData(
+        snapshotId: error.snapshotId,
+      );
+      expect(failedSnap!.status?.value, 'failed');
+      expect(failedSnap.error, isNotNull);
+      expect(failedSnap.state, isNotNull);
+      // The user turn is preserved so the run can be re-driven.
+      expect(failedSnap.state!.messages, isNotEmpty);
+
+      // Rerun the failed snapshot; this time the model succeeds.
+      shouldFail = false;
+      final rerun = agent.chat(snapshotId: error.snapshotId);
+      final res2 = await rerun.send(text: 'hello again');
+      expect(res2.finishReason, AgentFinishReason.stop);
+      expect(res2.text, contains('recovered'));
+    });
+
+    test('metadataOnly read drops the state but keeps the metadata', () async {
+      final store = InMemorySessionStore();
+      final agent = ai.defineCustomAgent(
+        name: 'metaOnly',
+        store: store,
+        stateSchema: .map(.string(), .integer()),
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'count': 1});
+            sess.addMessages([
+              Message(
+                role: Role.model,
+                content: [TextPart(text: 'hi')],
+              ),
+            ]);
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          final msgs = sess.getMessages();
+          return AgentResult(
+            message: msgs.isNotEmpty ? msgs.last : null,
+            finishReason: sess.lastTurnFinishReason,
+          );
+        },
+      );
+
+      final res = await agent
+          .chat(sessionId: generateUuidV4())
+          .send(text: 'go');
+      final snapshotId = res.snapshotId!;
+
+      // A full read carries the state.
+      final full = await agent.getSnapshotData(snapshotId: snapshotId);
+      expect(full!.state, isNotNull);
+      expect(full.state!.custom, {'count': 1});
+
+      // A metadata-only read drops the state but keeps every other field.
+      final meta = await agent.getSnapshotData(
+        snapshotId: snapshotId,
+        metadataOnly: true,
+      );
+      expect(meta!.state, isNull);
+      expect(meta.snapshotId, snapshotId);
+      expect(meta.sessionId, full.sessionId);
+      expect(meta.status?.value, 'completed');
+      expect(meta.finishReason, AgentFinishReason.stop);
+      expect(meta.createdAt, full.createdAt);
+      expect(meta.updatedAt, full.updatedAt);
+    });
+
+    test('metadataOnly read still applies heartbeat-expiry shaping', () async {
+      final store = InMemorySessionStore();
+      final agent = ai.defineCustomAgent(
+        name: 'metaOnlyExpiry',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async => null);
+          return AgentResult();
+        },
+      );
+
+      final sessionId = generateUuidV4();
+      final stale = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(minutes: 5))
+          .toIso8601String();
+      final id = await store.saveSnapshot(
+        null,
+        (_) => SessionSnapshot(
+          snapshotId: '',
+          createdAt: stale,
+          updatedAt: stale,
+          heartbeatAt: stale,
+          status: SnapshotStatus.pending,
+          state: SessionState(
+            sessionId: sessionId,
+            messages: [],
+            artifacts: [],
+          ),
+        ),
+      );
+
+      final meta = await agent.getSnapshotData(
+        snapshotId: id,
+        metadataOnly: true,
+      );
+      expect(meta!.status?.value, 'expired');
+      expect(meta.state, isNull);
+    });
+
+    test(
+      'DetachedTask.poll(metadataOnly) yields state-less snapshots',
+      () async {
+        final store = InMemorySessionStore();
+        final releaseTurn = Completer<void>();
+        final agent = ai.defineCustomAgent(
+          name: 'metaOnlyPoll',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async {
+              await releaseTurn.future;
+              sess.updateCustom((_) => {'done': true});
+              return TurnResult(finishReason: AgentFinishReason.stop);
+            });
+            return AgentResult(finishReason: sess.lastTurnFinishReason);
+          },
+        );
+
+        final task = await agent
+            .chat(sessionId: generateUuidV4())
+            .detach(text: 'background');
+        releaseTurn.complete();
+
+        AgentSnapshot? last;
+        await for (final snap in task.poll(
+          interval: const Duration(milliseconds: 10),
+          metadataOnly: true,
+        )) {
+          last = snap;
+        }
+        expect(last, isNotNull);
+        expect(last!.status?.value, 'completed');
+        // The polled snapshots carry no state payload.
+        expect(last.sessionState, isNull);
+      },
+    );
+
+    test('a metadata-only read prefers the store capability', () async {
+      final store = _MetadataCapableStore();
+      final agent = ai.defineCustomAgent(
+        name: 'metaCapability',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'ok': true});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final res = await agent
+          .chat(sessionId: generateUuidV4())
+          .send(text: 'go');
+      final meta = await agent.getSnapshotData(
+        snapshotId: res.snapshotId!,
+        metadataOnly: true,
+      );
+      expect(meta!.state, isNull);
+      // The metadata path (not the full read) served the request.
+      expect(store.metadataReads, 1);
+    });
+    test('a failure on a later turn reports its own `failed` snapshot as the '
+        'resume point (not a shortened completed row)', () async {
+      final store = InMemorySessionStore();
+      var failNow = false;
+      ai.defineModel(
+        name: 'turn2FailModel',
+        fn: (request, ctx) async {
+          if (failNow) {
+            throw GenkitException(
+              'model broke on turn 2',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          }
+          return ModelResponse(
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok: ${request.messages.last.text}')],
+            ),
+            finishReason: FinishReason.stop,
+          );
+        },
+      );
+      final agent = ai.defineAgent(
+        name: 'twoTurns',
+        model: modelRef('turn2FailModel'),
+        store: store,
+      );
+
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+
+      // Turn 1 succeeds and commits a `completed` snapshot.
+      final res1 = await chat.send(text: 'first');
+      expect(res1.finishReason, AgentFinishReason.stop);
+
+      // Turn 2 fails.
+      failNow = true;
+      final error = await chat
+          .send(text: 'second')
+          .then<AgentError?>(
+            (_) => null,
+            onError: (Object e) => e as AgentError,
+          );
+      expect(error, isNotNull);
+      expect(error!.status, StatusCodes.UNAVAILABLE.name);
+
+      // The reported snapshot is this turn's own `failed` row, not a fresh
+      // `completed` one from the turn-1 state.
+      final snap = await agent.getSnapshotData(snapshotId: error.snapshotId);
+      expect(snap!.status?.value, 'failed');
+      // Its state carries the turn-2 user message, so a rerun re-drives it.
+      expect(snap.state!.messages!.any((m) => m.text == 'second'), isTrue);
+
+      // Rerunning the failed snapshot recovers once the model is healthy again.
+      failNow = false;
+      final rerun = agent.chat(snapshotId: error.snapshotId);
+      final res2 = await rerun.send(text: 'second');
+      expect(res2.finishReason, AgentFinishReason.stop);
+      expect(res2.text, contains('second'));
+    });
+
+    test('a detached run aborted via a thrown cancel settles as aborted', () async {
+      // Regression: a detached turn aborted mid-flight can *throw* out of the
+      // handler (an action's `cancel.throwIfCancelled()`) rather than resolve.
+      // That lands in the run loop's catch, which must still write the settling
+      // `aborted` snapshot - without it the row stays `aborting`, later shapes
+      // to `expired` on read, and drops the last-good state on resume.
+      final store = InMemorySessionStore();
+      final handlerRunning = Completer<void>();
+      final agent = ai.defineCustomAgent(
+        name: 'thrownAbort',
+        store: store,
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'count': 1});
+            if (!handlerRunning.isCompleted) handlerRunning.complete();
+            // Block until aborted, then throw the way an action would.
+            await options.cancel?.whenCancelled;
+            options.cancel?.throwIfCancelled();
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final sessionId = generateUuidV4();
+      final chat = agent.chat(sessionId: sessionId);
+      final task = await chat.detach(text: 'do the long thing');
+
+      await handlerRunning.future;
+      await task.abort();
+
+      final terminal = await task.wait(
+        interval: const Duration(milliseconds: 10),
+      );
+      expect(terminal.status?.value, 'aborted');
+      // Settled *with* the last-good state, not dropped.
+      expect(terminal.custom, {'count': 1});
+
+      // And the stored row is terminal, never left `aborting`/`expired`.
+      final stored = await store.getSnapshot(snapshotId: terminal.snapshotId);
+      expect(stored!.status?.value, 'aborted');
+    });
 
     test('getSnapshotData requires a store', () async {
       final agent = ai.defineCustomAgent(

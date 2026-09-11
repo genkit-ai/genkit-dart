@@ -78,6 +78,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             options,
             req.output?.schema,
             isJsonMode,
+            constrained: req.output?.constrained ?? false,
           );
           safetySettings = toGeminiSafetySettings(options.safetySettings);
           tools = toGeminiTools(
@@ -95,6 +96,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             options,
             req.output?.schema,
             isJsonMode,
+            constrained: req.output?.constrained ?? false,
           );
           safetySettings = toGeminiSafetySettings(options.safetySettings);
           tools = toGeminiTools(
@@ -107,7 +109,14 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 
         final service = await getApiClient(apiKey);
 
+        // Honor cooperative cancellation: closing the underlying HTTP client
+        // aborts any in-flight (unary or streaming) request. The `finally`
+        // below also closes it on the normal path; closing twice is safe.
+        final disposeCancel = ctx.cancel?.onCancel(service.client.close);
+
         try {
+          ctx.cancel?.throwIfCancelled();
+
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
@@ -138,6 +147,8 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             );
             final chunks = <gcl.GenerateContentResponse>[];
             await for (final chunk in stream) {
+              ctx.cancel?.throwIfCancelled();
+
               chunks.add(chunk);
               if (chunk.candidates?.isNotEmpty == true) {
                 final (message, finishReason) = fromGeminiCandidate(
@@ -188,6 +199,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
+          disposeCancel?.call();
           service.client.close();
         }
       },
@@ -197,11 +209,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Embedder createEmbedder(String embedderName);
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'embedder') {
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == .embedder) {
       return createEmbedder(name);
     }
-    if (actionType == 'model') {
+    if (actionType == .model) {
       if (name.contains('-tts')) {
         return createModel(name, GeminiTtsOptions.$schema);
       }
@@ -260,8 +272,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 gcl.GenerationConfig toGeminiSettings(
   GeminiOptions options,
   Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences?.isEmpty ?? true
@@ -273,8 +286,10 @@ gcl.GenerationConfig toGeminiSettings(
     topK: options.topK,
     responseMimeType: isJsonMode
         ? 'application/json'
-        : (options.responseMimeType ?? ''),
-    responseJsonSchema: outputSchema,
+        : (options.responseMimeType?.isEmpty ?? true
+              ? null
+              : options.responseMimeType),
+    responseJsonSchema: constrained && isJsonMode ? outputSchema : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
@@ -297,8 +312,9 @@ gcl.GenerationConfig toGeminiSettings(
 gcl.GenerationConfig toGeminiTtsSettings(
   GeminiTtsOptions options,
   Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences?.isEmpty ?? true
@@ -313,7 +329,7 @@ gcl.GenerationConfig toGeminiTtsSettings(
         : (options.responseMimeType?.isEmpty ?? true
               ? null
               : options.responseMimeType),
-    responseJsonSchema: outputSchema,
+    responseJsonSchema: constrained && isJsonMode ? outputSchema : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
@@ -388,14 +404,20 @@ Map<String, Object?>? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
 List<gcl.SafetySetting>? toGeminiSafetySettings(
   List<SafetySettings>? safetySettings,
 ) {
-  return safetySettings
-      ?.map(
-        (s) => gcl.SafetySetting(
-          category: s.category ?? 'HARM_CATEGORY_UNSPECIFIED',
-          threshold: s.threshold ?? 'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
-        ),
-      )
-      .toList();
+  if (safetySettings == null) return null;
+  final settings = <gcl.SafetySetting>[];
+  for (final s in safetySettings) {
+    final category = s.category;
+    if (category == null || category == 'HARM_CATEGORY_UNSPECIFIED') {
+      logger.warning(
+        'Dropping safety setting with unset or UNSPECIFIED category: '
+        'the API rejects HARM_CATEGORY_UNSPECIFIED.',
+      );
+      continue;
+    }
+    settings.add(gcl.SafetySetting(category: category, threshold: s.threshold));
+  }
+  return settings;
 }
 
 @visibleForTesting
@@ -482,15 +504,32 @@ gcl.Part toGeminiPart(Part p) {
     );
   }
   if (p.isToolResponse) {
+    final tr = p.toolResponse!;
+    // Multipart tool content (images, media, etc.) becomes function-response
+    // parts. Gemini's FunctionResponse.parts only supports inline/file data
+    // (see js-genai `FunctionResponsePart`), so we map media parts to their
+    // `inlineData`/`fileData` shape and skip parts that cannot be represented
+    // there (e.g. text) which would otherwise be rejected by the API. The
+    // structured result still travels in `response.output`.
+    final contentParts = tr.content
+        ?.map((c) => Part.fromJson(c as Map<String, dynamic>))
+        .where((part) => part.isMedia)
+        .map((part) => toGeminiPart(part).toJson())
+        .toList();
     return gcl.Part(
-      functionResponse: gcl.FunctionResponse(
-        id: p.toolResponse!.ref ?? '',
-        name: _toGeminiToolName(p.toolResponse!.name),
-        response: {'output': p.toolResponse!.output},
-      ),
+      functionResponse: gcl.FunctionResponse.fromJson({
+        'id': tr.ref ?? '',
+        'name': _toGeminiToolName(tr.name),
+        'response': {'output': tr.output},
+        'parts': ?(contentParts == null || contentParts.isEmpty
+            ? null
+            : contentParts),
+      }),
+
       thoughtSignature: thoughtSignature,
     );
   }
+
   if (p.isMedia) {
     final media = p.media;
     if (media!.url.startsWith('data:')) {

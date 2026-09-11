@@ -638,12 +638,13 @@ void main() {
       final artifacts = capturedToolOutput!['artifacts'] as List;
       expect(artifacts, isNotEmpty);
       final name = (artifacts.first as Map<String, dynamic>)['name'] as String;
-      // Pattern: nsAgent_{4chars}/output.txt
+      // A server-managed (store-backed) sub-agent namespaces artifacts by the
+      // run's shortened snapshot id: nsAgent_{first 8 of the UUID}/output.txt.
       expect(
-        RegExp(r'^nsAgent_[a-z0-9]{4}/output\.txt$').hasMatch(name),
+        RegExp(r'^nsAgent_[0-9a-f]{8}/output\.txt$').hasMatch(name),
         isTrue,
         reason:
-            'Artifact name "$name" should match pattern nsAgent_XXXX/output.txt',
+            'Artifact name "$name" should match pattern nsAgent_XXXXXXXX/output.txt',
       );
     });
 
@@ -901,6 +902,71 @@ void main() {
         contains("Error calling agent 'failer'"),
       );
       expect(result.text, contains('recovered'));
+    });
+
+    test('sub-agent turn ending as "unknown" carries its answer', () async {
+      // A turn that names no reason (e.g. a truncated model response the
+      // googlegenai plugin maps to `unknown`) still carries its text. It must
+      // fold as the answer, not an "Error calling agent" failure.
+      ai.defineCustomAgent(
+        name: 'unknownFinisher',
+        store: InMemorySessionStore(),
+        fn: (sess, options) async {
+          return AgentResult(
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'partial but usable answer')],
+            ),
+            finishReason: AgentFinishReason.unknown,
+          );
+        },
+      );
+
+      var mainTurn = 0;
+      Map<String, dynamic>? capturedToolOutput;
+      ai.defineModel(
+        name: 'main-unknown',
+        fn: (req, ctx) async {
+          mainTurn++;
+          if (mainTurn == 1) {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'delegate_to_unknownFinisher',
+                      input: {'task': 'do a thing'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          capturedToolOutput = _firstToolOutput(req.messages);
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'synthesized')],
+            ),
+          );
+        },
+      );
+
+      await ai.generate(
+        model: modelRef('main-unknown'),
+        prompt: 'delegate to an agent that ends as unknown',
+        use: [
+          agents(agents: ['unknownFinisher']),
+        ],
+      );
+
+      expect(capturedToolOutput, isNotNull);
+      final response = capturedToolOutput!['response'] as String;
+      expect(response, contains('partial but usable answer'));
+      expect(response, isNot(contains('Error calling agent')));
     });
   });
 }

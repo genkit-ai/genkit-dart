@@ -142,9 +142,9 @@ class _ChatScreenState extends State<ChatScreen> {
       inputSchema: WeatherToolInput.$schema,
       fn: (input, context) async {
         if (input.city.toLowerCase().contains('boston')) {
-          return 'The weather in Boston is 72 and sunny.';
+          return .response('The weather in Boston is 72 and sunny.');
         }
-        return 'The weather in ${input.city} is 75 and cloudy.';
+        return .response('The weather in ${input.city} is 75 and cloudy.');
       },
     );
   }
@@ -236,9 +236,9 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       inputSchema: WeatherToolInput.$schema,
       fn: (input, context) async {
         if (input.city.toLowerCase().contains('boston')) {
-          return 'The weather in Boston is 72 and sunny.';
+          return .response('The weather in Boston is 72 and sunny.');
         }
-        return 'The weather in ${input.city} is 75 and cloudy.';
+        return .response('The weather in ${input.city} is 75 and cloudy.');
       },
     );
     _initSession();

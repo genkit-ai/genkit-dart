@@ -43,6 +43,7 @@ export 'src/ai/agents/agent_core.dart'
         AgentSnapshot,
         AgentTransport,
         AgentTurn,
+        CancellationController,
         CancellationToken,
         DetachedTask,
         TurnStream;
@@ -56,6 +57,7 @@ export 'src/ai/agents/session.dart'
         SessionError,
         SessionStore,
         SnapshotChangeNotifier,
+        SnapshotMetadataReader,
         SnapshotMutator,
         generateUuidV4,
         getCurrentSession,
@@ -98,8 +100,18 @@ export 'src/ai/resource.dart'
         createResourceMatcher;
 export 'src/ai/template_helper.dart'
     show TemplateHelperFn, TemplateHelperOptions;
-export 'src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
-export 'src/core/action.dart' show Action, ActionFnArg, ActionMetadata;
+export 'src/ai/tool.dart'
+    show
+        Tool,
+        ToolFn,
+        ToolFnArgs,
+        ToolInterruptResult,
+        ToolResponseResult,
+        ToolResult;
+export 'src/core/action.dart'
+    show Action, ActionFnArg, ActionMetadata, ActionType;
+export 'src/core/cancellation.dart'
+    show CancellationController, CancellationToken, CancelledException;
 export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
 export 'src/exception.dart' show GenkitException, StatusCodes;

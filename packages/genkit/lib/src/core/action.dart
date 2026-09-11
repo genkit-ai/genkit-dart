@@ -18,10 +18,77 @@ import 'package:schemantic/schemantic.dart';
 
 import '../exception.dart';
 import '../o11y/instrumentation.dart';
+import 'cancellation.dart';
 
 const _genkitContextKey = #genkitContext;
 
+/// Well-known action type identifiers used as the `actionType` of an [Action]
+/// and as the first segment of its registry key (`/$actionType/$name`).
+///
+/// This is a string-backed, open "enum" (following the same pattern as `Role`).
+/// The known constants below give type-safe names and autocomplete, while
+/// custom types remain expressible via the unnamed constructor, e.g.
+/// `ActionType('my-custom-type')`.
+extension type const ActionType(String value) {
+  /// A model action.
+  static const ActionType model = ActionType('model');
+
+  /// A bidirectional (streaming) model action.
+  static const ActionType bidiModel = ActionType('bidi-model');
+
+  /// A flow action.
+  static const ActionType flow = ActionType('flow');
+
+  /// An embedder action.
+  static const ActionType embedder = ActionType('embedder');
+
+  /// An evaluator action.
+  static const ActionType evaluator = ActionType('evaluator');
+
+  /// A resource action.
+  static const ActionType resource = ActionType('resource');
+
+  /// An executable prompt action.
+  static const ActionType executablePrompt = ActionType('executable-prompt');
+
+  /// A prompt template action.
+  static const ActionType promptTemplate = ActionType('promptTemplate');
+
+  /// A dotprompt action.
+  static const ActionType dotprompt = ActionType('dotprompt');
+
+  /// An agent action.
+  static const ActionType agent = ActionType('agent');
+
+  /// An agent snapshot data action.
+  static const ActionType agentSnapshot = ActionType('agent-snapshot');
+
+  /// An agent abort action.
+  static const ActionType agentAbort = ActionType('agent-abort');
+
+  /// A dynamic action provider.
+  static const ActionType dynamicActionProvider = ActionType(
+    'dynamic-action-provider',
+  );
+
+  /// A utility action (e.g. the built-in `generate` action).
+  static const ActionType util = ActionType('util');
+
+  /// The default action type for actions that don't specify one.
+  static const ActionType custom = ActionType('custom');
+
+  /// The action type for tools.
+  ///
+  /// Its wire value is `tool.v2`: every Genkit Dart tool implements the
+  /// multipart ("v2") tool contract (its function returns a `ToolResult` that
+  /// serializes to `{output, content?, metadata?}`), so tools are registered
+  /// and resolved under `tool.v2`. External consumers such as the Dev UI use
+  /// this to render/run tools as multipart.
+  static const ActionType tool = ActionType('tool.v2');
+}
+
 typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
+
 typedef TraceStartCallback =
     void Function({required String traceId, required String spanId});
 
@@ -31,6 +98,11 @@ typedef ActionFnArg<Chunk, Input, Init> = ({
   Map<String, dynamic>? context,
   Stream<Input>? inputStream,
   Init? init,
+
+  /// A read-only cancellation token the action body should observe to abort
+  /// cooperatively, or `null` when the caller wired up no cancellation. Observe
+  /// it with null-aware calls, e.g. `ctx.cancel?.throwIfCancelled()`.
+  CancellationToken? cancel,
 });
 
 typedef ActionFn<Input, Output, Chunk, Init> =
@@ -70,7 +142,7 @@ class RunResult<Output> {
 class ActionMetadata<Input, Output, Chunk, Init> {
   final String name;
   final String? description;
-  final String actionType;
+  final ActionType actionType;
   final SchemanticType<Input>? inputSchema;
   final SchemanticType<Output>? outputSchema;
   final SchemanticType<Chunk>? streamSchema;
@@ -79,8 +151,9 @@ class ActionMetadata<Input, Output, Chunk, Init> {
 
   ActionMetadata({
     required this.name,
-    this.actionType = 'custom', // Default or required?
+    this.actionType = .custom,
     this.description,
+
     this.inputSchema,
     this.outputSchema,
     this.streamSchema,
@@ -116,6 +189,14 @@ class Action<Input, Output, Chunk, Init>
     super.metadata,
   });
 
+  /// The output schema surfaced when building action manifests (Dev UI,
+  /// reflection) and tool definitions.
+  ///
+  /// Defaults to [outputSchema]. Subclasses such as `Tool` override this to
+  /// expose the user-declared output schema instead of an internal wrapper
+  /// type (for example `ToolResult<Output>`).
+  SchemanticType? get manifestOutputSchema => outputSchema;
+
   @override
   String toString() {
     return 'Action(name: $name, actionType: $actionType)';
@@ -128,12 +209,22 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     Init? init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
     return (await run(
       input,
       onChunk: onChunk,
       context: context,
+      inputStream: inputStream,
+      // Validate `init` against the schema, matching `runRaw`. The static type
+      // only guarantees shape; value-level constraints (enum membership,
+      // numeric ranges, required nested fields) still need the schema. Skip
+      // when either the schema or the value is absent, mirroring `runRaw`.
+      init: (initSchema != null && init != null)
+          ? initSchema!.parse(init)
+          : init,
       onTraceStart: onTraceStart,
+      cancel: cancel,
     )).result;
   }
 
@@ -144,12 +235,14 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     dynamic init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
     return await run(
       inputSchema != null ? inputSchema!.parse(input) : input as Input?,
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
+      cancel: cancel,
       // Skip validation when no init was supplied. `init` is optional on the
       // first request (e.g. an agent's fresh session sends no init), so a null
       // value must pass through untouched rather than be validated against a
@@ -169,7 +262,11 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     Init? init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
+    // Bail before doing any work if the caller's token is already cancelled.
+    cancel?.throwIfCancelled();
+
     if (inputStream == null) {
       final internalInputController = StreamController<Input>();
       inputStream = internalInputController.stream;
@@ -191,15 +288,17 @@ class Action<Input, Output, Chunk, Init>
           if (onTraceStart != null) {
             onTraceStart(traceId: traceId, spanId: spanId);
           }
+          _recordContextMetadata(executionContext);
           return await fn(input, (
             streamingRequested: onChunk != null,
             sendChunk: onChunk ?? (chunk) {},
             context: executionContext,
             inputStream: inputStream,
             init: init,
+            cancel: cancel,
           ));
         },
-        actionType: actionType,
+        actionType: actionType.value,
         input: input,
       );
       return RunResult<Output>(
@@ -216,11 +315,27 @@ class Action<Input, Output, Chunk, Init>
     }
   }
 
+  /// Records the execution context on the current span, redacting sensitive
+  /// top-level keys (`auth`, `secrets`). Serialization errors are swallowed so
+  /// telemetry never crashes the action.
+  void _recordContextMetadata(Object? context) {
+    if (context is! Map) return;
+    try {
+      final traced = {...context};
+      if (traced.containsKey('auth')) traced['auth'] = '<redacted>';
+      if (traced.containsKey('secrets')) traced['secrets'] = '<redacted>';
+      setCustomMetadataAttributes({'context': traced});
+    } catch (_) {
+      // Ignore telemetry serialization errors.
+    }
+  }
+
   ActionStream<Chunk, Output> stream(
     Input? input, {
     Map<String, dynamic>? context,
     Stream<Input>? inputStream,
     Init? init,
+    CancellationToken? cancel,
   }) {
     final streamController = StreamController<Chunk>();
     final actionStream = ActionStream<Chunk, Output>(streamController.stream);
@@ -230,6 +345,7 @@ class Action<Input, Output, Chunk, Init>
           context: context,
           inputStream: inputStream,
           init: init,
+          cancel: cancel,
           onChunk: (chunk) {
             if (!streamController.isClosed) {
               streamController.add(chunk);
@@ -258,6 +374,7 @@ class Action<Input, Output, Chunk, Init>
     StreamingCallback<Chunk>? onChunk,
     Map<String, dynamic>? context,
     Init? init,
+    CancellationToken? cancel,
   }) {
     StreamController<Input>? internalInputController;
     if (inputStream == null) {
@@ -284,6 +401,7 @@ class Action<Input, Output, Chunk, Init>
           context: context,
           inputStream: inputStream,
           init: init,
+          cancel: cancel,
         )
         .then((result) {
           bidiStream.setResult(result.result);
@@ -365,19 +483,30 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
 class BidiActionStream<Chunk, Response, Request>
     extends ActionStream<Chunk, Response> {
   final StreamSink<Request>? _inputSink;
+  bool _inputClosed = false;
 
   BidiActionStream(super.stream, this._inputSink);
 
+  /// Whether the input side of this stream has been closed via [close].
+  bool get isClosed => _inputClosed;
+
   /// Sends a chunk of data back to the action.
+  ///
+  /// No-op once the input side has been [close]d (e.g. after a cooperative
+  /// cancel tears the session down): adding to a closed [StreamSink] throws a
+  /// `StateError`, so a late send that races the close is silently dropped
+  /// rather than crashing the caller.
   void send(Request chunk) {
     if (_inputSink == null) {
       throw GenkitException('Cannot send to this stream (external input)');
     }
+    if (_inputClosed) return;
     _inputSink.add(chunk);
   }
 
   /// Closes the input sink.
   Future<void> close() async {
+    _inputClosed = true;
     await _inputSink?.close();
   }
 }

@@ -18,12 +18,16 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
+import 'package:schemantic/schemantic.dart';
 
 import '../../ai/generate_middleware.dart';
 import '../../ai/model.dart';
 import '../../exception.dart';
+import '../../o11y/instrumentation_setup.dart'
+    show enableDevInstrumentationForServer;
 import '../../schema.dart';
 import '../../utils.dart';
+import '../action.dart';
 import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v1');
@@ -112,6 +116,7 @@ class ReflectionServerV1 {
             ..close();
         } else if (request.method == 'POST' &&
             request.uri.path == '/api/notify') {
+          await _handleNotify(request);
           request.response
             ..write('OK')
             ..close();
@@ -148,11 +153,29 @@ class ReflectionServerV1 {
     await _writeRuntimeFile();
   }
 
+  /// Applies the CLI telemetry handshake sent to `POST /api/notify`.
+  ///
+  /// When the request body carries a non-empty `telemetryServerUrl` and no
+  /// `GENKIT_TELEMETRY_SERVER` env var is set, this enables the built-in dev
+  /// instrumentation so traces reach the CLI-provided telemetry server. The env
+  /// var takes precedence. Any decoding error is ignored (best-effort dev-only).
+  Future<void> _handleNotify(HttpRequest request) async {
+    try {
+      final body = await _jsonDecodeStream(request);
+      final url = body['telemetryServerUrl'];
+      if (url is String && url.isNotEmpty) {
+        enableDevInstrumentationForServer(url);
+      }
+    } catch (e) {
+      _logger.fine('Ignoring malformed /api/notify body: $e');
+    }
+  }
+
   Future<void> _handleActions(HttpRequest request) async {
     final actions = await registry.listActions();
     final convertedActions = <String, dynamic>{};
     for (final action in actions) {
-      final key = getKey(action.actionType, action.name);
+      final key = getKey(action.actionType.value, action.name);
       convertedActions[key] = {
         'key': key,
         'name': action.name,
@@ -160,8 +183,8 @@ class ReflectionServerV1 {
         'metadata': action.metadata,
         if (action.inputSchema != null)
           'inputSchema': toJsonSchema(type: action.inputSchema),
-        if (action.outputSchema != null)
-          'outputSchema': toJsonSchema(type: action.outputSchema),
+        if (_manifestOutputSchema(action) != null)
+          'outputSchema': toJsonSchema(type: _manifestOutputSchema(action)),
       };
     }
     request.response
@@ -233,7 +256,7 @@ class ReflectionServerV1 {
       return;
     }
     final action = await registry.lookupAction(
-      parts[1],
+      ActionType(parts[1]),
       parts.sublist(2).join('/'),
     );
 
@@ -250,8 +273,14 @@ class ReflectionServerV1 {
     void onTraceStart({required String traceId, required String spanId}) {
       if (headersFlushed) return;
       try {
-        request.response.headers.add('x-genkit-trace-id', traceId);
-        request.response.headers.add('x-genkit-span-id', spanId);
+        // Skip trace/span headers when uninstrumented (empty ids): a blank
+        // `x-genkit-trace-id` looks like a broken exporter to clients.
+        if (traceId.isNotEmpty) {
+          request.response.headers.add('x-genkit-trace-id', traceId);
+        }
+        if (spanId.isNotEmpty) {
+          request.response.headers.add('x-genkit-span-id', spanId);
+        }
         request.response.headers.add('x-genkit-version', genkitVersion);
         // Force headers to be sent immediately
         request.response.headers.chunkedTransferEncoding = true;
@@ -289,7 +318,7 @@ class ReflectionServerV1 {
         );
         final response = RunActionResponse(
           result: result.result,
-          telemetry: {'traceId': result.traceId},
+          telemetry: _telemetry(result.traceId),
         );
         request.response.write(jsonEncode(response.toJson()));
         await request.response.close();
@@ -321,7 +350,7 @@ class ReflectionServerV1 {
         );
         final response = RunActionResponse(
           result: result.result,
-          telemetry: {'traceId': result.traceId},
+          telemetry: _telemetry(result.traceId),
         );
         request.response.write(jsonEncode(response.toJson()));
         await request.response.close();
@@ -402,6 +431,18 @@ class ReflectionServerV1 {
   }
 }
 
+/// Returns the schema to advertise as an action's output schema in the
+/// manifest.
+///
+/// For [Action]s this is [Action.manifestOutputSchema], which lets tools
+/// surface their user-declared output schema instead of the internal
+/// `ToolResult` wrapper. Plain [ActionMetadata] falls back to
+/// [ActionMetadata.outputSchema].
+SchemanticType? _manifestOutputSchema(ActionMetadata action) {
+  if (action is Action) return action.manifestOutputSchema;
+  return action.outputSchema;
+}
+
 Future<String?> _findProjectRoot() async {
   var current = Directory.current.path;
   while (current != p.dirname(current)) {
@@ -417,5 +458,10 @@ Future<String?> _findProjectRoot() async {
 Future<Map<String, dynamic>> _jsonDecodeStream(Stream<List<int>> stream) async {
   return await _jsonStreamDecoder.bind(stream).single as Map<String, dynamic>;
 }
+
+/// Builds the `telemetry` payload, omitting an empty (uninstrumented) traceId
+/// so clients don't mistake a blank id for a broken exporter.
+Map<String, dynamic>? _telemetry(String traceId) =>
+    traceId.isEmpty ? null : {'traceId': traceId};
 
 final _jsonStreamDecoder = utf8.decoder.fuse(json.decoder);

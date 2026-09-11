@@ -44,7 +44,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     outputSchema: .string(),
     fn: (input, _) async {
       // In a real app, you would implement a web search API call here.
-      return 'You found search results for: ${input.query}';
+      return .response('You found search results for: ${input.query}');
     },
   );
 
@@ -56,7 +56,7 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
     outputSchema: .string(),
     fn: (input, context) async {
       // Interrupt execution to get user input
-      context.interrupt(input.question);
+      return .interrupt(input.question);
     },
   );
 
@@ -126,6 +126,13 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
           toolNames: [searchWeb.name, askUser.name],
           interruptRespond: interruptResponses,
         );
+      }
+
+      // A cancelled call or a run that overran `maxTurns` now resolves with an
+      // `aborted` finishReason and no model message (so `response.text` is
+      // empty). Surface the reason rather than reporting an empty success.
+      if (response.finishReason == FinishReason.aborted) {
+        return 'Operation aborted: ${response.finishMessage ?? 'unknown reason'}';
       }
 
       return response.text;

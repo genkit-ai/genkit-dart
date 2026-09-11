@@ -2,6 +2,21 @@ name: Version bump
 
 on:
   workflow_dispatch:
+    inputs:
+      rc:
+        description: "Create an RC release with the given tag (e.g. beta). Leave empty for a normal release."
+        required: false
+        type: string
+      graduate:
+        description: "Graduate RC to a stable release"
+        required: false
+        default: false
+        type: boolean
+      dry-run:
+        description: "Preview changes without applying them"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   release:
@@ -24,9 +39,21 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run version bump script
-        run: dart run tools/version.dart
+        run: |
+          args=()
+          if [ -n "${{ inputs.rc }}" ]; then
+            args+=("--rc" "${{ inputs.rc }}")
+          fi
+          if [ "${{ inputs.graduate }}" = "true" ]; then
+            args+=("--graduate")
+          fi
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            args+=("--dry-run")
+          fi
+          dart run tools/version.dart "${args[@]}"
 
       - name: Push changes and tags
+        if: ${{ inputs.dry-run != true }}
         env:
           GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
         run: git push --follow-tags

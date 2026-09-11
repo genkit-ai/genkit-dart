@@ -107,7 +107,7 @@ final addTask = ai.defineTool(
       state.nextId += 1;
       return state;
     });
-    return newTask;
+    return .response(newTask);
   },
 );
 
@@ -117,20 +117,24 @@ final toggleTask = ai.defineTool(
       'Toggle a task between done and not-done by its ID. Returns the updated '
       'task or an error message.',
   inputSchema: ToggleTaskInput.$schema,
-  fn: (input, _) async => _mutateTaskById(input.id, (tasks, idx) {
-    tasks[idx].done = !tasks[idx].done;
-    return {'success': true, 'task': tasks[idx].toJson()};
-  }),
+  fn: (input, _) async => .response(
+    _mutateTaskById(input.id, (tasks, idx) {
+      tasks[idx].done = !tasks[idx].done;
+      return {'success': true, 'task': tasks[idx].toJson()};
+    }),
+  ),
 );
 
 final removeTask = ai.defineTool(
   name: 'removeTask',
   description: 'Remove a task from the list by its ID.',
   inputSchema: RemoveTaskInput.$schema,
-  fn: (input, _) async => _mutateTaskById(input.id, (tasks, idx) {
-    tasks.removeAt(idx);
-    return {'success': true};
-  }),
+  fn: (input, _) async => .response(
+    _mutateTaskById(input.id, (tasks, idx) {
+      tasks.removeAt(idx);
+      return {'success': true};
+    }),
+  ),
 );
 
 final taskAgent = ai.defineAgent(

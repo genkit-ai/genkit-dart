@@ -30,6 +30,7 @@ export 'src/ai/agents/agent_core.dart'
         AgentSnapshot,
         AgentTransport,
         AgentTurn,
+        CancellationController,
         CancellationToken,
         DetachedTask,
         TurnStream;
