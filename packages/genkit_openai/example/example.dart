@@ -164,6 +164,29 @@ Flow<String, String, void, void> defineModelListFlow(Genkit ai) {
   );
 }
 
+/// Defines a flow that embeds a batch of documents and reports the vectors it
+/// got back.
+Flow<List<String>, String, void, void> defineEmbeddingFlow(Genkit ai) {
+  return ai.defineFlow(
+    name: 'embedding',
+    inputSchema: .list(.string()),
+    outputSchema: .string(),
+    fn: (texts, _) async {
+      final vectors = await ai.embedMany(
+        embedder: OpenAIEmbedders.textEmbedding3Small,
+        documents: [
+          for (final text in texts)
+            DocumentData(content: [TextPart(text: text)]),
+        ],
+        // Optional: the -3- models return a shorter vector on request.
+        options: OpenAIEmbedderOptions(dimensions: 256),
+      );
+
+      return vectors.map((v) => '${v.embedding.length} dimensions').join('\n');
+    },
+  );
+}
+
 /// Defines a flow that demonstrates OpenAI tool/function calling.
 Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(
   Genkit ai,
@@ -309,6 +332,7 @@ void main() {
   defineStreamedSimpleGenerationFlow(ai);
   defineModelResolutionFlow(ai);
   defineModelListFlow(ai);
+  defineEmbeddingFlow(ai);
   defineToolCallingFlow(ai, getWeather);
   defineStreamedToolCallingFlow(ai, getWeather);
   defineStructuredOutputFlow(ai);

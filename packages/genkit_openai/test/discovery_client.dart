@@ -44,6 +44,19 @@ MockClient discoveryClient(List<String> requests, {List<String>? ids}) {
   });
 }
 
-/// The action names in a listing.
+/// The model names in a listing.
+///
+/// Filtered by action type: a listing also carries embedders, and a test
+/// asserting on an exact set of models should not have to spell them out.
 Set<String> modelNames(List<ActionMetadata> metadata) =>
-    metadata.map((m) => m.name).toSet();
+    _namesOf(metadata, ActionType.model);
+
+/// The embedder names in a listing.
+Set<String> embedderNames(List<ActionMetadata> metadata) =>
+    _namesOf(metadata, ActionType.embedder);
+
+Set<String> _namesOf(List<ActionMetadata> metadata, ActionType actionType) =>
+    metadata
+        .where((m) => m.actionType == actionType)
+        .map((m) => m.name)
+        .toSet();

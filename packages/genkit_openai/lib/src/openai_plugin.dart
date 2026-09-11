@@ -20,7 +20,11 @@ import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
-// compatModelInfo is intentionally not part of the public surface.
+import 'embed.dart' as embed;
+// The compat variants and the embedder metadata are intentionally not part of
+// the public surface.
+import 'known_embedders.dart'
+    show compatEmbedderInfo, embedderInfoFor, knownEmbedderModels;
 import 'known_models.dart' show compatModelInfo;
 
 final _logger = Logger('genkit_openai');
@@ -28,8 +32,9 @@ final _logger = Logger('genkit_openai');
 /// Core Genkit plugin implementation for OpenAI-compatible APIs.
 ///
 /// Registers nothing up front beyond [customModels]: [resolve] builds a model
-/// on demand for any id. Discovery runs in [list], against whichever host
-/// [baseUrl] names, and returns metadata rather than registered actions.
+/// or an embedder on demand for any id. Discovery runs in [list], against
+/// whichever host [baseUrl] names, and returns metadata rather than registered
+/// actions.
 class OpenAIPlugin extends GenkitPlugin {
   final String _pluginName;
 
@@ -184,8 +189,8 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 
-  /// Lists the plugin's models, enriching the curated catalog with whatever
-  /// `GET /models` reports.
+  /// Lists the plugin's models and embedders, enriching the curated catalogs
+  /// with whatever `GET /models` reports.
   ///
   /// Discovery is best-effort. Any failure - offline, bad key, a compatible
   /// host that does not serve `/models` - degrades to the curated catalog with
@@ -195,6 +200,7 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
     final discovered = <String>{};
+    final discoveredEmbedders = <String>{};
 
     // Key resolution is inside the try on purpose: an apiKeyProvider that
     // throws must degrade like any other discovery failure, not take the
@@ -205,6 +211,10 @@ class OpenAIPlugin extends GenkitPlugin {
       if (config != null) {
         for (final modelId in await _fetchAvailableModels(config)) {
           final modelType = getModelType(modelId);
+          if (modelType == 'embedding') {
+            discoveredEmbedders.add(modelId);
+            continue;
+          }
           if (modelType != 'chat' && modelType != 'unknown') {
             continue;
           }
@@ -235,6 +245,13 @@ class OpenAIPlugin extends GenkitPlugin {
       ...customModels.map((m) => m.name),
     };
 
+    // Embedders follow the same rule for the same reason: discovery when
+    // there is any, plus the curated catalog when the host is OpenAI itself.
+    final embedderIds = <String>{
+      ...discoveredEmbedders,
+      if (baseUrl == null) ...knownEmbedderModels,
+    };
+
     final infoOverrides = {
       for (final model in customModels)
         if (model.info != null) model.name: model.info!,
@@ -247,7 +264,37 @@ class OpenAIPlugin extends GenkitPlugin {
           modelInfo: infoOverrides[id] ?? _infoFor(id),
           customOptions: chat.chatModelOptionsSchema(),
         ),
+      for (final id in embedderIds) _embedderMetadata(id),
     ];
+  }
+
+  /// Listing metadata for the embedder [embedderName].
+  ///
+  /// Built from `embedderMetadata` rather than replacing it, so the label,
+  /// description and options schema stay whatever core writes, and the
+  /// curated entry only adds to them. The input and output schemas are named
+  /// explicitly the way `genkit_vertexai` does; core's helper omits them.
+  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _embedderMetadata(
+    String embedderName,
+  ) {
+    final base = embedderMetadata(
+      '$_pluginName/$embedderName',
+      customOptions: embed.embedderOptionsSchema(),
+    );
+    final metadata = {...base.metadata};
+    metadata['model'] = <String, dynamic>{
+      ...(metadata['model'] as Map).cast<String, dynamic>(),
+      ..._embedderInfoFor(embedderName),
+    };
+
+    return ActionMetadata(
+      name: base.name,
+      description: base.description,
+      actionType: base.actionType,
+      inputSchema: EmbedRequest.$schema,
+      outputSchema: EmbedResponse.$schema,
+      metadata: metadata,
+    );
   }
 
   /// Capability metadata for [modelName] on this plugin instance.
@@ -259,12 +306,82 @@ class OpenAIPlugin extends GenkitPlugin {
   ModelInfo _infoFor(String modelName) =>
       baseUrl == null ? modelInfoFor(modelName) : compatModelInfo(modelName);
 
+  /// Embedder metadata for [embedderName] on this plugin instance, split the
+  /// same way [_infoFor] splits a model's.
+  Map<String, dynamic> _embedderInfoFor(String embedderName) => baseUrl == null
+      ? embedderInfoFor(embedderName)
+      : compatEmbedderInfo(embedderName);
+
   @override
   Action? resolve(ActionType actionType, String name) {
     if (actionType == .model) {
       return _createModel(name, null);
     }
+    if (actionType == .embedder) {
+      return _createEmbedder(name);
+    }
     return null;
+  }
+
+  /// Builds the embedder [embedderName] against `POST /v1/embeddings`.
+  ///
+  /// Like [_createModel], this resolves any name: an embedder released after
+  /// this version of the plugin, or one a compatible host serves under a name
+  /// OpenAI never used, works as soon as it is named.
+  Embedder _createEmbedder(String embedderName) {
+    return Embedder(
+      name: '$_pluginName/$embedderName',
+      customOptions: embed.embedderOptionsSchema(),
+      metadata: {
+        'model': {..._embedderInfoFor(embedderName)},
+      },
+      fn: (req, ctx) async {
+        if (req == null || req.input.isEmpty) {
+          // Nothing to embed, and an empty `input` is a 400. Answering
+          // directly keeps `embedMany([])` from costing a request.
+          return EmbedResponse(embeddings: []);
+        }
+
+        final options = embed.parseEmbedderOptions(req.options);
+        embed.validateEmbedderDimensions(embedderName, options.dimensions);
+        final inputs = embed.embeddingInputs(req.input);
+
+        final resolvedConfig = await _resolveClientConfig();
+        final client = sdk.OpenAIClient.withApiKey(
+          resolvedConfig.apiKey,
+          baseUrl: resolvedConfig.baseUrl,
+          defaultHeaders: resolvedConfig.headers,
+          httpClient: httpClient,
+        );
+
+        try {
+          // Batches go out one at a time rather than in parallel: a corpus
+          // large enough to need splitting is also large enough for a fan-out
+          // to trip the account's rate limit.
+          final embeddings = <Embedding>[];
+          for (final batch in embed.embeddingBatches(inputs)) {
+            final response = await client.embeddings.create(
+              sdk.EmbeddingRequest(
+                model: embedderName,
+                input: sdk.EmbeddingInput.textList(batch),
+                dimensions: options.dimensions,
+                user: options.user,
+              ),
+            );
+            embeddings.addAll(
+              embed.toGenkitEmbeddings(response, expectedCount: batch.length),
+            );
+          }
+          return EmbedResponse(embeddings: embeddings);
+        } catch (e, stackTrace) {
+          throw _toGenkitException(e, stackTrace);
+        } finally {
+          if (httpClient == null) {
+            client.close();
+          }
+        }
+      },
+    );
   }
 
   Model _createModel(String modelName, ModelInfo? info) {
@@ -322,31 +439,38 @@ class OpenAIPlugin extends GenkitPlugin {
             return await _handleNonStreaming(client, request);
           }
         } catch (e, stackTrace) {
-          if (e is GenkitException) {
-            rethrow;
-          }
-
-          StatusCodes? status;
-          String? details;
-
-          if (e is sdk.ApiException) {
-            status = StatusCodes.fromHttpStatus(e.statusCode);
-            details = e.body?.toString();
-          }
-
-          throw GenkitException(
-            'OpenAI API error: $e',
-            status: status,
-            details: details ?? e.toString(),
-            underlyingException: e,
-            stackTrace: stackTrace,
-          );
+          throw _toGenkitException(e, stackTrace);
         } finally {
           if (httpClient == null) {
             client.close();
           }
         }
       },
+    );
+  }
+
+  /// Maps a failure from the OpenAI SDK onto a [GenkitException], preserving
+  /// the HTTP status when there was one.
+  ///
+  /// Returned rather than thrown so the call sites keep their `throw`, which
+  /// is what tells the analyzer control flow ends there.
+  GenkitException _toGenkitException(Object e, StackTrace stackTrace) {
+    if (e is GenkitException) return e;
+
+    StatusCodes? status;
+    String? details;
+
+    if (e is sdk.ApiException) {
+      status = StatusCodes.fromHttpStatus(e.statusCode);
+      details = e.body?.toString();
+    }
+
+    return GenkitException(
+      'OpenAI API error: $e',
+      status: status,
+      details: details ?? e.toString(),
+      underlyingException: e,
+      stackTrace: stackTrace,
     );
   }
 
