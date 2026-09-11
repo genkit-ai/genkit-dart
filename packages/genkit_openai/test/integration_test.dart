@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
@@ -249,6 +250,69 @@ void main() {
             ? 'OPENAI_API_KEY not set'
             : null,
       );
+
+      test(
+        'schemaless json output returns parseable JSON',
+        () async {
+          if (apiKey == null || apiKey.isEmpty) {
+            fail(
+              'OPENAI_API_KEY environment variable must be set to run integration tests',
+            );
+          }
+
+          // Without a schema Genkit adds no prompt instructions either, so
+          // before the json_object fallback nothing asked for JSON at all.
+          final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+          final response = await ai.generate(
+            model: openAI.model('gpt-4o'),
+            prompt:
+                'Return a JSON object with keys "name" and "age" for a '
+                'person named John Doe aged 30.',
+            outputFormat: 'json',
+          );
+
+          final decoded = jsonDecode(response.text) as Map<String, dynamic>;
+          expect(decoded['name'], isNotNull);
+        },
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
+      );
+
+      test(
+        'an output schema with an optional field is accepted',
+        () async {
+          if (apiKey == null || apiKey.isEmpty) {
+            fail(
+              'OPENAI_API_KEY environment variable must be set to run integration tests',
+            );
+          }
+
+          // Regression test for the old `strict: true`, which made OpenAI
+          // reject any schema whose `required` omitted a property. Only the
+          // live API can prove this; a mock cannot.
+          final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+          final response = await ai.generate(
+            model: openAI.model('gpt-4o'),
+            prompt: 'A person named John Doe who goes by JD.',
+            outputSchema: ProfileSchema.$schema,
+          );
+
+          // Asserted field by field rather than through `output!.name`: if
+          // the model omits a field, the getter throws a TypeError inside
+          // expect() and the test reports a crash instead of the assertion
+          // that actually failed.
+          expect(response.output, isNotNull);
+          final profile = response.output!.toJson();
+          expect(profile['name'], isA<String>());
+          expect(profile['name'], isNotEmpty);
+        },
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
+      );
     });
 
     test('multi-turn conversation', () async {
@@ -400,4 +464,15 @@ abstract class $WeatherInputSchema {
 abstract class $PersonSchema {
   String get name;
   int get age;
+}
+
+/// A schema with an optional field.
+///
+/// `nickname` is nullable, so schemantic leaves it out of `required` - which
+/// is precisely what OpenAI's strict mode rejects. The plugin used to send
+/// `strict: true`, so this shape returned a 400.
+@Schema()
+abstract class $ProfileSchema {
+  String get name;
+  String? get nickname;
 }

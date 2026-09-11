@@ -189,12 +189,28 @@ base class OpenAIChatOptions {
     }
   }
 
-  /// JSON mode
+  /// Forces `{"type": "json_object"}` on the request.
+  ///
+  /// Only consulted when Genkit's own output config says nothing about the
+  /// format. Any explicit `outputFormat` wins, including `'text'`, which
+  /// suppresses this rather than conflicting with it; `outputSchema` wins too
+  /// and additionally constrains the shape.
+  ///
+  /// OpenAI rejects json_object unless the conversation also asks for JSON, so
+  /// the prompt must say so. Prefer `outputSchema` where the shape is known.
   bool? get jsonMode {
     return _json['jsonMode'] as bool?;
   }
 
-  /// JSON mode
+  /// Forces `{"type": "json_object"}` on the request.
+  ///
+  /// Only consulted when Genkit's own output config says nothing about the
+  /// format. Any explicit `outputFormat` wins, including `'text'`, which
+  /// suppresses this rather than conflicting with it; `outputSchema` wins too
+  /// and additionally constrains the shape.
+  ///
+  /// OpenAI rejects json_object unless the conversation also asks for JSON, so
+  /// the prompt must say so. Prefer `outputSchema` where the shape is known.
   set jsonMode(bool? value) {
     if (value == null) {
       _json.remove('jsonMode');
