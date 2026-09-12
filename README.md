@@ -32,6 +32,7 @@ See the [Genkit package documentation](https://pub.dev/packages/genkit) for gett
 | [`genkit_mcp`](packages/genkit_mcp) | Model Context Protocol (MCP) plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_mcp.svg)](https://pub.dev/packages/genkit_mcp) |
 | [`genkit_middleware`](packages/genkit_middleware) | Common middlewares (filesystem, skills, toolApproval) for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_middleware.svg)](https://pub.dev/packages/genkit_middleware) |
 | [`genkit_shelf`](packages/genkit_shelf) | Shelf HTTP Server integration for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_shelf.svg)](https://pub.dev/packages/genkit_shelf) |
+| [`genkit_otel`](packages/genkit_otel) | OpenTelemetry GenAI semantic-conventions instrumentation for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_otel.svg)](https://pub.dev/packages/genkit_otel) |
 | [`genkit_firebase_ai`](packages/genkit_firebase_ai) | Firebase AI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_firebase_ai.svg)](https://pub.dev/packages/genkit_firebase_ai) |
 | [`schemantic`](packages/schemantic) | A general-purpose builder for generating type-safe data classes and JSON schemas from abstract definitions. | [![Pub](https://img.shields.io/pub/v/schemantic.svg)](https://pub.dev/packages/schemantic) |
 
