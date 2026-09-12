@@ -20,3 +20,9 @@ part 'types.g.dart';
 abstract class $PromptInput {
   String get input;
 }
+
+@Schema()
+abstract class $WeatherInput {
+  @Field(description: 'the city to get the weather for')
+  String get city;
+}

@@ -16,7 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
-import 'package:mcp_server_sample/types.dart';
+import 'package:mcp_sample/types.dart';
 
 /// A simple MCP server that communicates over stdio (JSON-RPC via stdin/stdout).
 ///
@@ -55,6 +55,16 @@ void main() async {
       final a = (input['a'] as num?)?.toDouble() ?? 0;
       final b = (input['b'] as num?)?.toDouble() ?? 0;
       return .response('${a + b}');
+    },
+  );
+
+  ai.defineTool<WeatherInput, String>(
+    name: 'weather',
+    description: 'Returns the current weather for a city.',
+    inputSchema: WeatherInput.$schema,
+    fn: (input, _) async {
+      // Canned data so the sample needs no external weather API.
+      return .response('It is 22C and sunny in ${input.city}.');
     },
   );
 

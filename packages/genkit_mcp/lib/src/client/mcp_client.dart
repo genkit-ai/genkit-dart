@@ -1382,9 +1382,10 @@ class GenkitMcpClient {
     }
   }
 
-  Action? resolveAction(String actionName) {
+  Action? resolveAction(ActionType actionType, String actionName) {
     final descriptor = _actionIndex[actionName];
     if (descriptor == null) return null;
+    if (descriptor.actionType != actionType) return null;
 
     final type = descriptor.actionType;
     if (type == .tool) return _createToolAction(descriptor.payload);
