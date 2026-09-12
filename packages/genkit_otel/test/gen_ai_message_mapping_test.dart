@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:genkit_otel/src/genai/gen_ai_message_mapping.dart';
 import 'package:test/test.dart';
@@ -115,6 +117,21 @@ void main() {
       expect(result['parts'], [
         {'type': 'text', 'content': 'Done'},
       ]);
+    });
+  });
+
+  group('mapPart opaque fallback', () {
+    test('serializes unknown parts as valid JSON', () {
+      final part = Part.fromJson({
+        'custom': {'foo': 'bar', 'n': 1},
+      });
+      final mapped = mapPart(part);
+      expect(mapped['type'], 'text');
+      final content = mapped['content'] as String;
+      // Must be valid JSON (not Dart Map.toString()), round-tripping back.
+      expect(jsonDecode(content), {
+        'custom': {'foo': 'bar', 'n': 1},
+      });
     });
   });
 

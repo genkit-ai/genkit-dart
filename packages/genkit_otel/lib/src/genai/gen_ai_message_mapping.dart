@@ -18,6 +18,8 @@
 /// tested directly. Only used when content capture is enabled.
 library;
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 
 /// The result of splitting a message list into system instructions and the
@@ -84,9 +86,9 @@ Map<String, Object?> mapPart(Part part) {
     };
   }
 
-  // Unknown/opaque part: represent it structurally without losing the fact
-  // that it existed.
-  return {'type': 'text', 'content': json.toString()};
+  // Unknown/opaque part: serialize as JSON so downstream consumers get
+  // parseable content, without losing the fact that it existed.
+  return {'type': 'text', 'content': jsonEncode(json)};
 }
 
 /// Whether [part] is a tool-request part, discriminated on its JSON shape.
