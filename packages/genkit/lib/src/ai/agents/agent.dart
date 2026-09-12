@@ -525,106 +525,109 @@ class SessionRunner<State> {
       );
 
       try {
-        final aborted = await runInNewSpan('runTurn-${turnIndex + 1}', (
-          _,
-        ) async {
-          final turnResult = await fn(input, turnContext);
+        final aborted = await runInNewSpan(
+          'runTurn-${turnIndex + 1}',
+          (_) async {
+            final turnResult = await fn(input, turnContext);
 
-          // The generate loop now resolves (rather than throws) on a
-          // cooperative cancel, so a returned turn can still be an abort. Mirror
-          // the catch-path handling: record `aborted`, write the settling
-          // `aborted` snapshot, and stop processing further inputs.
-          if (cancel?.isCancelled ?? false) {
-            lastTurnFinishReason = AgentFinishReason.aborted;
+            // The generate loop now resolves (rather than throws) on a
+            // cooperative cancel, so a returned turn can still be an abort. Mirror
+            // the catch-path handling: record `aborted`, write the settling
+            // `aborted` snapshot, and stop processing further inputs.
+            if (cancel?.isCancelled ?? false) {
+              lastTurnFinishReason = AgentFinishReason.aborted;
+              lastTurnError = null;
+              // Persist the turn as `aborted`. This is the second of the abort
+              // protocol's two writes: the detached route already flipped the row
+              // to `aborting` via `_abortSnapshotInStore` (which stopped the
+              // work), and this finalize settles it to `aborted` *with* the state
+              // - the abort-aware mutator lets it through because `aborting` is
+              // not terminal. The attached route (`AgentTurn.abort()` -> token
+              // cancel) has written nothing, so this is its only abort write;
+              // without it the trailing `invocationEnd` snapshot would persist a
+              // half-finished turn as `completed` and later be picked as a resume
+              // point.
+              final snapshotId = await maybeSnapshot(
+                status: 'aborted',
+                snapshotId: turnSnapshotId,
+                finishReason: AgentFinishReason.aborted,
+              );
+              _notifyEndTurn(
+                snapshotId ?? _lastSnapshot?.snapshotId,
+                AgentFinishReason.aborted,
+              );
+              return true;
+            }
+
+            final finishReason = turnResult?.finishReason;
+
+            // A turn that resolved `aborted` *without* the token being cancelled
+            // is not a cooperative cancel: it is an overrun (e.g. the generate
+            // loop hit `maxTurns`). Route it to the failure path so the reason
+            // (e.g. "Reached max turns of N") surfaces as an error instead of
+            // being silently dropped as a success with a null message.
+            if (finishReason == AgentFinishReason.aborted) {
+              lastTurnFinishReason = AgentFinishReason.failed;
+              lastTurnError = toErrorDetails(
+                GenkitException(
+                  turnResult?.finishMessage ?? 'Turn aborted.',
+                  status: StatusCodes.ABORTED,
+                ),
+              );
+              final snapshotId = await maybeSnapshot(
+                status: 'failed',
+                error: lastTurnError,
+                snapshotId: turnSnapshotId,
+                finishReason: AgentFinishReason.failed,
+              );
+              _notifyEndTurn(snapshotId, AgentFinishReason.failed);
+              return true;
+            }
+
+            // A turn that resolved `failed` (a model/tool error surfaced as a
+            // graceful response rather than a throw) commits its last-good
+            // history as a `failed` snapshot carrying the error, so a client can
+            // branch on the status and rerun the same snapshot id. Mirrors Go's
+            // failed-turn commit; the failing turn's own partial output was
+            // already dropped by the generate loop.
+            if (finishReason == AgentFinishReason.failed) {
+              lastTurnFinishReason = AgentFinishReason.failed;
+              lastTurnError =
+                  turnResult?.error ??
+                  toErrorDetails(
+                    GenkitException(
+                      turnResult?.finishMessage ?? 'Turn failed.',
+                      status: StatusCodes.INTERNAL,
+                    ),
+                  );
+              final snapshotId = await maybeSnapshot(
+                status: 'failed',
+                error: lastTurnError,
+                snapshotId: turnSnapshotId,
+                finishReason: AgentFinishReason.failed,
+              );
+              _notifyEndTurn(snapshotId, AgentFinishReason.failed);
+              return true;
+            }
+
+            lastTurnFinishReason = finishReason;
             lastTurnError = null;
-            // Persist the turn as `aborted`. This is the second of the abort
-            // protocol's two writes: the detached route already flipped the row
-            // to `aborting` via `_abortSnapshotInStore` (which stopped the
-            // work), and this finalize settles it to `aborted` *with* the state
-            // - the abort-aware mutator lets it through because `aborting` is
-            // not terminal. The attached route (`AgentTurn.abort()` -> token
-            // cancel) has written nothing, so this is its only abort write;
-            // without it the trailing `invocationEnd` snapshot would persist a
-            // half-finished turn as `completed` and later be picked as a resume
-            // point.
+
             final snapshotId = await maybeSnapshot(
-              status: 'aborted',
+              status: 'completed',
               snapshotId: turnSnapshotId,
-              finishReason: AgentFinishReason.aborted,
+              finishReason: finishReason,
             );
-            _notifyEndTurn(
-              snapshotId ?? _lastSnapshot?.snapshotId,
-              AgentFinishReason.aborted,
-            );
-            return true;
-          }
 
-          final finishReason = turnResult?.finishReason;
+            lastGoodState = session.getState();
+            lastGoodStateVersion = session.getVersion();
 
-          // A turn that resolved `aborted` *without* the token being cancelled
-          // is not a cooperative cancel: it is an overrun (e.g. the generate
-          // loop hit `maxTurns`). Route it to the failure path so the reason
-          // (e.g. "Reached max turns of N") surfaces as an error instead of
-          // being silently dropped as a success with a null message.
-          if (finishReason == AgentFinishReason.aborted) {
-            lastTurnFinishReason = AgentFinishReason.failed;
-            lastTurnError = toErrorDetails(
-              GenkitException(
-                turnResult?.finishMessage ?? 'Turn aborted.',
-                status: StatusCodes.ABORTED,
-              ),
-            );
-            final snapshotId = await maybeSnapshot(
-              status: 'failed',
-              error: lastTurnError,
-              snapshotId: turnSnapshotId,
-              finishReason: AgentFinishReason.failed,
-            );
-            _notifyEndTurn(snapshotId, AgentFinishReason.failed);
-            return true;
-          }
-
-          // A turn that resolved `failed` (a model/tool error surfaced as a
-          // graceful response rather than a throw) commits its last-good
-          // history as a `failed` snapshot carrying the error, so a client can
-          // branch on the status and rerun the same snapshot id. Mirrors Go's
-          // failed-turn commit; the failing turn's own partial output was
-          // already dropped by the generate loop.
-          if (finishReason == AgentFinishReason.failed) {
-            lastTurnFinishReason = AgentFinishReason.failed;
-            lastTurnError =
-                turnResult?.error ??
-                toErrorDetails(
-                  GenkitException(
-                    turnResult?.finishMessage ?? 'Turn failed.',
-                    status: StatusCodes.INTERNAL,
-                  ),
-                );
-            final snapshotId = await maybeSnapshot(
-              status: 'failed',
-              error: lastTurnError,
-              snapshotId: turnSnapshotId,
-              finishReason: AgentFinishReason.failed,
-            );
-            _notifyEndTurn(snapshotId, AgentFinishReason.failed);
-            return true;
-          }
-
-          lastTurnFinishReason = finishReason;
-          lastTurnError = null;
-
-          final snapshotId = await maybeSnapshot(
-            status: 'completed',
-            snapshotId: turnSnapshotId,
-            finishReason: finishReason,
-          );
-
-          lastGoodState = session.getState();
-          lastGoodStateVersion = session.getVersion();
-
-          _notifyEndTurn(snapshotId, finishReason);
-          return false;
-        }, input: input);
+            _notifyEndTurn(snapshotId, finishReason);
+            return false;
+          },
+          actionType: ActionType.agent.value,
+          input: input,
+        );
         if (aborted) break;
         turnIndex++;
       } catch (e) {

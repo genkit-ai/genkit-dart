@@ -74,6 +74,9 @@ extension type const ActionType(String value) {
   /// A utility action (e.g. the built-in `generate` action).
   static const ActionType util = ActionType('util');
 
+  /// An ad-hoc step inside a flow (e.g. `ai.run(name, fn)`).
+  static const ActionType flowStep = ActionType('flowStep');
+
   /// The default action type for actions that don't specify one.
   static const ActionType custom = ActionType('custom');
 
