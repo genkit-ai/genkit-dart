@@ -108,8 +108,13 @@ class GenAiInstrumentation implements Instrumentation {
        _injectedMeter = meter;
 
   static bool _captureContentFromEnv() {
-    final value = Platform.environment[captureContentEnvVar];
-    return value != null && value.toLowerCase() == 'true';
+    try {
+      final value = Platform.environment[captureContentEnvVar];
+      return value != null && value.toLowerCase() == 'true';
+    } catch (_) {
+      // Platform.environment throws on unsupported platforms (e.g. web).
+      return false;
+    }
   }
 
   otel.APITracer get _tracer => _cachedTracer ??=
