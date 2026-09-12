@@ -117,4 +117,50 @@ void main() {
       ]);
     });
   });
+
+  group('resolveResponseMessage', () {
+    test('prefers the top-level message', () {
+      final response = ModelResponse(
+        finishReason: FinishReason.stop,
+        message: Message(
+          role: Role.model,
+          content: [TextPart(text: 'top')],
+        ),
+      );
+      final message = resolveResponseMessage(response);
+      expect(message, isNotNull);
+      expect(mapMessage(message!)['parts'], [
+        {'type': 'text', 'content': 'top'},
+      ]);
+    });
+
+    test('falls back to legacy candidates[0].message', () {
+      final response = ModelResponse.fromJson({
+        'finishReason': 'stop',
+        'candidates': [
+          {
+            'index': 0,
+            'finishReason': 'stop',
+            'message': {
+              'role': 'model',
+              'content': [
+                {'text': 'from candidate'},
+              ],
+            },
+          },
+        ],
+      });
+      expect(response.message, isNull);
+      final message = resolveResponseMessage(response);
+      expect(message, isNotNull);
+      expect(mapMessage(message!)['parts'], [
+        {'type': 'text', 'content': 'from candidate'},
+      ]);
+    });
+
+    test('returns null when neither message nor candidates present', () {
+      final response = ModelResponse.fromJson({'finishReason': 'stop'});
+      expect(resolveResponseMessage(response), isNull);
+    });
+  });
 }

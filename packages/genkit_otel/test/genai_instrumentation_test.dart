@@ -339,4 +339,70 @@ void main() {
     expect(attr(flow, GenkitAttr.output) as String, contains('out'));
     expect(attr(flow, GenAiAttr.inputMessages), isNull);
   });
+
+  test(
+    'captures legacy candidates[0].message when top-level is absent',
+    () async {
+      final instr = GenAiInstrumentation(
+        captureContent: true,
+        contentMode: GenAiContentMode.span,
+      );
+      final legacy = ModelResponse.fromJson({
+        'finishReason': 'stop',
+        'candidates': [
+          {
+            'index': 0,
+            'finishReason': 'stop',
+            'message': {
+              'role': 'model',
+              'content': [
+                {'text': 'legacy answer'},
+              ],
+            },
+          },
+        ],
+      });
+
+      await runModel(
+        instr,
+        'googleai/gemini-flash-latest',
+        modelRequest(),
+        ([span]) async => legacy,
+      );
+
+      final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+      expect(attr(span, GenAiAttr.outputMessages), contains('legacy answer'));
+    },
+  );
+
+  test('reports tool_calls from legacy candidates[0].message', () async {
+    final instr = GenAiInstrumentation();
+    final legacy = ModelResponse.fromJson({
+      'finishReason': 'stop',
+      'candidates': [
+        {
+          'index': 0,
+          'finishReason': 'stop',
+          'message': {
+            'role': 'model',
+            'content': [
+              {
+                'toolRequest': {'name': 'lookup', 'input': <String, Object?>{}},
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    await runModel(
+      instr,
+      'googleai/gemini-flash-latest',
+      modelRequest(),
+      ([span]) async => legacy,
+    );
+
+    final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+    expect(attr(span, GenAiAttr.responseFinishReasons), ['tool_calls']);
+  });
 }

@@ -122,3 +122,27 @@ NormalizedMessages normalizeMessages(List<Message> messages) {
 Map<String, Object?> mapOutputMessage(Message message, String finishReason) {
   return {...mapMessage(message), 'finish_reason': finishReason};
 }
+
+/// Resolves the effective response message.
+///
+/// Prefers the top-level [ModelResponse.message] and falls back to the legacy
+/// `candidates[0].message` shape (deprecated, but still possible from some
+/// providers / raw JSON). Returns null when neither is present.
+///
+/// `ModelResponse` has no typed `candidates` getter, so the legacy shape is
+/// read from the backing JSON via [ModelResponse.toJson]. Malformed shapes fall
+/// through to null rather than throwing.
+Message? resolveResponseMessage(ModelResponse response) {
+  if (response.message != null) return response.message;
+
+  final candidates = response.toJson()['candidates'];
+  if (candidates is List && candidates.isNotEmpty) {
+    final first = candidates.first;
+    if (first is Map && first['message'] is Map) {
+      return Message.fromJson(
+        (first['message'] as Map).cast<String, dynamic>(),
+      );
+    }
+  }
+  return null;
+}

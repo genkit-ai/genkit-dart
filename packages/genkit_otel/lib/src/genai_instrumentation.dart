@@ -384,7 +384,7 @@ class GenAiInstrumentation implements Instrumentation {
     ModelResponse response, {
     required bool failed,
   }) {
-    final message = response.message;
+    final message = resolveResponseMessage(response);
     final hasToolRequest = message?.content.any(isToolRequestPart) ?? false;
 
     if (hasToolRequest) {
@@ -404,9 +404,12 @@ class GenAiInstrumentation implements Instrumentation {
         ? normalizeMessages(request.messages)
         : null;
     final outputMessages = <Map<String, Object?>>[];
-    if (response?.message != null) {
+    final outputMessage = response != null
+        ? resolveResponseMessage(response)
+        : null;
+    if (outputMessage != null) {
       final reason = _resolveFinishReasons(response!, failed: false).first;
-      outputMessages.add(mapOutputMessage(response.message!, reason));
+      outputMessages.add(mapOutputMessage(outputMessage, reason));
     }
 
     if (contentMode == GenAiContentMode.span) {
