@@ -158,9 +158,15 @@ class DynamicActionProvider
   }
 
   /// Resolves a single action by type and name, stamping its DAP [key].
+  ///
+  /// Refreshes the listing first (like JS's `getAction`, which awaits
+  /// `cache.getOrFetch()`): a provider's [getActionFn] may depend on state
+  /// populated while listing (e.g. the MCP host indexes remote actions during
+  /// its listing), so resolving without a prior list would miss them.
   Future<Action?> getAction(ActionType actionType, String name) async {
     final fn = getActionFn;
     if (fn == null) return null;
+    await listActions();
     final action = await fn(actionType, name);
     if (action != null) {
       action.key ??= dapActionKey(this.name, action.actionType, action.name);

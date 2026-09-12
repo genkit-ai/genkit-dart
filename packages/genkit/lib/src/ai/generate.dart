@@ -30,6 +30,7 @@ import 'generate_types.dart';
 import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
+import 'tool_resolution.dart';
 
 const _defaultMaxTurns = 5;
 
@@ -205,36 +206,24 @@ _resolveTools(
       currentRegistry = Registry.childOf(registry);
     }
     for (var toolName in requestedTools) {
-      final colonIdx = toolName.indexOf(':');
-      if (colonIdx != -1) {
-        final dapName = toolName.substring(0, colonIdx);
-        var actionMatcher = toolName.substring(colonIdx + 1);
-        if (actionMatcher.startsWith('tool/')) {
-          actionMatcher = actionMatcher.substring('tool/'.length);
-        }
+      // A DAP reference is either the full Dev UI registry key
+      // (`/dynamic-action-provider/<host>:<type>/<name>`) or the shorthand
+      // (`<host>:tool/<name>`, `<host>:*`, etc.). See parseDapToolRef.
+      final dapRef = parseDapToolRef(toolName);
+      if (dapRef != null) {
         final dap =
-            await currentRegistry.lookupAction(.dynamicActionProvider, dapName)
+            await currentRegistry.lookupAction(
+                  .dynamicActionProvider,
+                  dapRef.host,
+                )
                 as DynamicActionProvider?;
 
         if (dap != null) {
-          if (actionMatcher.endsWith('*')) {
-            final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
-            final actions = await dap.listActionMetadata(.tool, actionMatcher);
-            for (final action in actions) {
-              if (prefix.isEmpty || action.name.startsWith(prefix)) {
-                final fullAction = await dap.getAction(.tool, action.name);
-                if (fullAction is Tool) {
-                  currentRegistry.register(fullAction);
-                  addTool(fullAction);
-                }
-              }
-            }
-          } else {
-            final fullAction = await dap.getAction(.tool, actionMatcher);
-            if (fullAction is Tool) {
-              currentRegistry.register(fullAction);
-              addTool(fullAction);
-            }
+          for (final action in await resolveDapActions(dap, dapRef)) {
+            currentRegistry.register(action);
+            // Only tools are attached to the model's tool slot; prompts and
+            // resources are registered so they remain resolvable by key.
+            if (action is Tool) addTool(action);
           }
           continue;
         }

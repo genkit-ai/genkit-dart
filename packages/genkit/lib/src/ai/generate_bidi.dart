@@ -18,6 +18,7 @@ import 'package:logging/logging.dart';
 
 import '../core/action.dart';
 import '../core/cancellation.dart';
+import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../schema_extensions.dart';
@@ -27,6 +28,7 @@ import 'generate_types.dart';
 import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
+import 'tool_resolution.dart';
 
 final _logger = Logger('genkit');
 
@@ -87,13 +89,38 @@ Future<GenerateBidiSession> runGenerateBidi(
   var toolDefs = <ToolDefinition>[];
   var toolActions = <Tool>[];
   if (tools != null) {
-    for (var toolName in tools) {
-      final tool = await registry.lookupAction(.tool, toolName) as Tool?;
+    var currentRegistry = registry;
+    if (tools.any((t) => t.contains(':'))) {
+      currentRegistry = Registry.childOf(registry);
+    }
 
-      if (tool != null) {
-        toolActions.add(tool);
-        toolDefs.add(toToolDefinition(tool));
+    void addTool(Tool tool) {
+      toolActions.add(tool);
+      toolDefs.add(toToolDefinition(tool));
+    }
+
+    for (var toolName in tools) {
+      // A DAP reference is either the full registry key or the shorthand form
+      // (see parseDapToolRef); resolve those through the provider.
+      final dapRef = parseDapToolRef(toolName);
+      if (dapRef != null) {
+        final dap =
+            await currentRegistry.lookupAction(
+                  .dynamicActionProvider,
+                  dapRef.host,
+                )
+                as DynamicActionProvider?;
+        if (dap != null) {
+          for (final action in await resolveDapActions(dap, dapRef)) {
+            currentRegistry.register(action);
+            if (action is Tool) addTool(action);
+          }
+          continue;
+        }
       }
+
+      final tool = await currentRegistry.lookupAction(.tool, toolName) as Tool?;
+      if (tool != null) addTool(tool);
     }
   }
 

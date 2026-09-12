@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/plugin.dart';
+import 'package:genkit/src/ai/tool_resolution.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -1891,6 +1892,168 @@ void main() {
         dap.invalidateCache();
         await dap.listActions();
         expect(listCalls, 2);
+      });
+
+      // The Dev UI passes DAP tools by their full registry key
+      // (`/dynamic-action-provider/<host>:<type>/<name>`, type is the internal
+      // `tool.v2`), not the `<host>:<name>` shorthand.
+      test('resolves a DAP tool by its full Dev UI registry key', () async {
+        genkit.defineDynamicActionProvider(
+          name: 'my-dap',
+          listActionsFn: () => [
+            ActionMetadata(
+              actionType: .tool,
+              name: 'weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+            ),
+          ],
+          getActionFn: (actionType, id) async {
+            if (actionType == ActionType.tool && id == 'weatherTool') {
+              return Tool(
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                toolOutputSchema: .dynamicSchema(),
+                fn: (input, context) async => .response('sunny'),
+              );
+            }
+            return null;
+          },
+        );
+
+        genkit.defineModel(
+          name: 'fullKeyModel',
+          fn: (request, context) async {
+            if (request.messages.last.role == .tool) {
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: .model,
+                  content: [TextPart(text: 'The weather is sunny')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'weatherTool',
+                      input: {'name': 'test'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        final response = await genkit.generate(
+          model: modelRef('fullKeyModel'),
+          prompt: 'What is the weather?',
+          toolNames: ['/dynamic-action-provider/my-dap:tool.v2/weatherTool'],
+        );
+
+        expect(response.text, 'The weather is sunny');
+      });
+
+      test('resolves DAP tools by full-key wildcard', () async {
+        ToolDefinition? seenDef;
+        genkit.defineDynamicActionProvider(
+          name: 'my-dap',
+          listActionsFn: () => [
+            ActionMetadata(
+              actionType: .tool,
+              name: 'weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+            ),
+          ],
+          getActionFn: (actionType, id) async {
+            if (actionType == ActionType.tool && id == 'weatherTool') {
+              return Tool(
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                toolOutputSchema: .dynamicSchema(),
+                fn: (input, context) async => .response('sunny'),
+              );
+            }
+            return null;
+          },
+        );
+
+        genkit.defineModel(
+          name: 'fullKeyWildcardModel',
+          fn: (request, context) async {
+            seenDef = request.tools?.firstOrNull;
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef('fullKeyWildcardModel'),
+          prompt: 'weather?',
+          toolNames: ['/dynamic-action-provider/my-dap:tool.v2/*'],
+        );
+
+        expect(seenDef, isNotNull);
+        expect(seenDef!.name, 'weatherTool');
+        expect(
+          seenDef!.key,
+          '/dynamic-action-provider/my-dap:tool.v2/weatherTool',
+        );
+      });
+    });
+
+    group('parseDapToolRef', () {
+      test('parses the full Dev UI registry key', () {
+        final ref = parseDapToolRef(
+          '/dynamic-action-provider/myServers:tool.v2/localServer/add',
+        );
+        expect(ref, isNotNull);
+        expect(ref!.host, 'myServers');
+        expect(ref.actionType, ActionType.tool);
+        expect(ref.matcher, 'localServer/add');
+      });
+
+      test('maps user-facing type shorthands to internal types', () {
+        expect(parseDapToolRef('h:tool/x')!.actionType, ActionType.tool);
+        expect(
+          parseDapToolRef('h:prompt/x')!.actionType,
+          ActionType.executablePrompt,
+        );
+        expect(
+          parseDapToolRef('h:resource/x')!.actionType,
+          ActionType.resource,
+        );
+      });
+
+      test('defaults to the tool type and treats the rest as the name', () {
+        final star = parseDapToolRef('h:*');
+        expect(star!.actionType, ActionType.tool);
+        expect(star.matcher, '*');
+
+        // A namespaced name without a known type segment stays the name.
+        final ns = parseDapToolRef('h:localServer/add');
+        expect(ns!.actionType, ActionType.tool);
+        expect(ns.matcher, 'localServer/add');
+      });
+
+      test('returns null for a non-DAP reference', () {
+        expect(parseDapToolRef('plainTool'), isNull);
+        expect(parseDapToolRef('ns/localTool'), isNull);
       });
     });
   });
