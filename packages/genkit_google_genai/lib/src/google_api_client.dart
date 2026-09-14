@@ -70,13 +70,14 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       final models = (modelsResponse.models ?? [])
           .where((model) {
             final modelName = model.name;
-            if (modelName == null) return false;
-            if (!modelName.startsWith('models/gemini-')) return false;
+            if (modelName == null || !modelName.startsWith('models/gemini-')) {
+              return false;
+            }
             // An absent list is no claim either way, so it admits the model
             // rather than excluding it: a field the API stops sending must not
             // empty the catalogue.
             final methods = model.supportedGenerationMethods;
-            return methods == null || methods.contains('generateContent');
+            return methods?.contains('generateContent') ?? true;
           })
           .map((model) {
             final bareName = model.name!.split('/').last;
