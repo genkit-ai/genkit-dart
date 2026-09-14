@@ -19,6 +19,7 @@ import 'package:meta/meta.dart';
 import 'api_client.dart';
 import 'common_plugin.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'imagen.dart';
 import 'known_models.dart';
 import 'model.dart';
 
@@ -64,17 +65,28 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         // catalog rather than rethrowing; a misconfigured key still fails
         // loudly at generate time.
         logger.warning('Failed to list models: $e', e, stack);
-        return knownModels.entries.map(_curatedModelMetadata).toList();
+        return [
+          ...knownModels.entries.map(_curatedModelMetadata),
+          ...knownImagenModels.entries.map(_curatedImagenMetadata),
+        ];
       }
       final discoveredNames = <String>{};
       final models = (modelsResponse.models ?? [])
           .where((model) {
-            return model.name != null &&
-                model.name!.startsWith('models/gemini-');
+            return (model.name != null &&
+                    model.name!.startsWith('models/gemini-')) ||
+                isDiscoveredImagenModel(model);
           })
           .map((model) {
             final bareName = model.name!.split('/').last;
             discoveredNames.add(bareName);
+            if (isImagenModelName(bareName)) {
+              return modelMetadata(
+                '$name/$bareName',
+                customOptions: ImagenOptions.$schema,
+                modelInfo: imagenModelInfoFor(bareName),
+              );
+            }
             final isTts = bareName.contains('-tts');
             return modelMetadata(
               '$name/$bareName',
@@ -90,6 +102,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       final curated = knownModels.entries
           .where((entry) => !discoveredNames.contains(entry.key))
           .map(_curatedModelMetadata);
+      final curatedImagen = knownImagenModels.entries
+          .where((entry) => !discoveredNames.contains(entry.key))
+          .map(_curatedImagenMetadata);
 
       final embedders = (modelsResponse.models ?? [])
           .where(
@@ -102,7 +117,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             return embedderMetadata('$name/${model.name!.split('/').last}');
           })
           .toList();
-      return [...models, ...curated, ...embedders];
+      return [...models, ...curated, ...curatedImagen, ...embedders];
     } catch (e, stack) {
       if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
@@ -122,6 +137,24 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           : GeminiOptions.$schema,
       modelInfo: entry.value,
     );
+  }
+
+  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _curatedImagenMetadata(
+    MapEntry<String, ModelInfo> entry,
+  ) {
+    return modelMetadata(
+      '$name/${entry.key}',
+      customOptions: ImagenOptions.$schema,
+      modelInfo: entry.value,
+    );
+  }
+
+  @override
+  Action? resolve(String actionType, String name) {
+    if (actionType == 'model' && isImagenModelName(name)) {
+      return createImagenModel(this, name);
+    }
+    return super.resolve(actionType, name);
   }
 
   @override
