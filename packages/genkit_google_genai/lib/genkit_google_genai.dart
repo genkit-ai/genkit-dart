@@ -34,10 +34,6 @@ class GoogleGenAiPluginHandle {
   }
 
   /// A [ModelRef] for the Gemma model [name] served by the Gemini API.
-  ///
-  /// Equivalent to [gemini] in every respect: Gemma takes the Gemini request
-  /// shape and so is configured with `GeminiOptions`. It exists so that call
-  /// sites naming a Gemma model read correctly.
   ModelRef<GeminiOptions> gemma(String name) {
     return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
   }

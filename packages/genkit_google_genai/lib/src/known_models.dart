@@ -58,10 +58,6 @@ enum KnownGeminiModel {
 
 /// Gemma models the Gemini API serves, curated the same way as
 /// [KnownGeminiModel].
-///
-/// Gemma takes the Gemini request shape and advertises the same multimodal
-/// capability preset, so these names need no handling of their own; the enum
-/// only supplies a display [label] and the `stable` stage.
 enum KnownGemmaModel {
   gemma431b('gemma-4-31b-it', 'Gemma 4 31B'),
   gemma426bA4b('gemma-4-26b-a4b-it', 'Gemma 4 26B A4B');
