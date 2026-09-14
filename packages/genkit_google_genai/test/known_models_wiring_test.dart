@@ -125,6 +125,34 @@ void main() {
       expect(info['stage'], 'stable');
     });
 
+    test('drops a discovered model that cannot generate content', () async {
+      final client = MockHttpClient(
+        modelsResponse:
+            '{"models": ['
+            '{"name": "models/gemini-3.5-flash", '
+            '"supportedGenerationMethods": ["generateContent"]}, '
+            '{"name": "models/gemini-embed-x", '
+            '"supportedGenerationMethods": ["embedContent"]}]}',
+      );
+      final names = (await plugin(
+        client: client,
+      ).list()).map((a) => a.name).toList();
+
+      expect(names, contains('googleai/gemini-3.5-flash'));
+      expect(names, isNot(contains('googleai/gemini-embed-x')));
+    });
+
+    test('keeps a discovered model that reports no methods', () async {
+      final client = MockHttpClient(
+        modelsResponse: '{"models": [{"name": "models/gemini-mystery-x"}]}',
+      );
+      final names = (await plugin(
+        client: client,
+      ).list()).map((a) => a.name).toList();
+
+      expect(names, contains('googleai/gemini-mystery-x'));
+    });
+
     test('does not duplicate curated models returned by discovery', () async {
       final client = MockHttpClient(
         modelsResponse:
