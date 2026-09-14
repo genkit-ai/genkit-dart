@@ -322,6 +322,28 @@ void main() {
       expect(names.any((n) => n.contains('gpt-')), isFalse);
     });
 
+    test('another spelling of the same host is still the same host', () async {
+      // DeepSeek documents both `https://api.deepseek.com` and `.../v1`, and
+      // this repo's own sample used the second. Treating it as a foreign
+      // gateway would silently drop the catalog, the labels and the per-model
+      // checks for someone who copied the URL out of DeepSeek's docs.
+      for (final baseUrl in [
+        'https://api.deepseek.com/v1',
+        'https://api.deepseek.com/',
+        'https://API.deepseek.com',
+      ]) {
+        final plugin = OpenAIPlugin(
+          provider: deepSeekProvider,
+          apiKey: 'ds-key',
+          baseUrl: baseUrl,
+          httpClient: recordingClient([]),
+        );
+
+        final names = (await plugin.list()).map((m) => m.name).toSet();
+        expect(names, contains('deepseek/deepseek-flash'), reason: baseUrl);
+      }
+    });
+
     test('a gateway keeps the capabilities but not the deployment', () async {
       final plugin = OpenAIPlugin(
         provider: deepSeekProvider,
@@ -764,7 +786,9 @@ void main() {
       expect(prompt, contains(r'\"name\"'));
     });
 
-    test('does not second-guess a prompt that already says json', () async {
+    test('does not repeat itself when the prompt already says json', () async {
+      // With no schema the instruction exists only to satisfy DeepSeek's
+      // "the prompt must mention json" rule, which the caller already did.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -775,10 +799,78 @@ void main() {
         model: DeepSeekModels.deepseekFlash,
         prompt: 'reply with json please',
         outputFormat: 'json',
-        outputSchema: JsonOut.$schema,
       );
 
       expect(chatBodyOf(requests)['messages'], hasLength(1));
+    });
+
+    test('adds nothing when core already wrote the instructions', () async {
+      // Core's formatter marks what it wrote with `purpose: 'output'`, and
+      // since #453 its simulated constrained generation writes exactly these
+      // instructions for a model claiming no native constraint. A second copy
+      // from here would send the schema twice.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: DeepSeekModels.deepseekFlash,
+        prompt: 'Extract the fields from this JSON log line: {"a":1}',
+        outputFormat: 'json',
+        outputSchema: JsonOut.$schema,
+      );
+
+      final messages = chatBodyOf(requests)['messages'] as List;
+      expect(messages, hasLength(1));
+      final prompt = jsonEncode(messages);
+      expect(prompt, contains(r'\"name\"'));
+      // Once, not twice.
+      expect(
+        RegExp('conform to the following').allMatches(prompt),
+        hasLength(1),
+      );
+    });
+
+    test('writes them itself when core wrote none', () async {
+      // A raw action call carrying a schema but no instruction part: nothing
+      // else will tell DeepSeek what shape to emit, and it refuses a
+      // json_object request whose prompt never says "json".
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      final model = await ai.registry.lookupAction(
+        .model,
+        'deepseek/deepseek-flash',
+      );
+      await (model! as Model)(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'describe a person')],
+            ),
+          ],
+          output: OutputConfig(
+            format: 'json',
+            constrained: false,
+            schema: {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+              },
+            },
+          ),
+        ),
+      );
+
+      final sent = (chatBodyOf(requests)['messages'] as List).last as Map;
+      expect(sent['role'], 'system');
+      expect(sent['content'], contains('"name"'));
     });
 
     test('OpenAI gets no such hint', () async {

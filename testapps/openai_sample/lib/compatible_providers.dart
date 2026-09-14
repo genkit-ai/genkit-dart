@@ -86,8 +86,9 @@ ModelInfo _chatModel(String label) => ModelInfo(
 
 /// The providers the README advertises that have no handle of their own.
 ///
-/// DeepSeek is absent on purpose: it has a first-class `deepSeek()` handle now,
-/// which knows its base URL, its key and its catalog. See `deepseek.dart`.
+/// DeepSeek and xAI are absent on purpose: both have first-class handles now
+/// — `deepSeek()` and `xAI()` — which know their base URL, key and catalog.
+/// See `deepseek.dart` and `xai.dart`.
 final List<CompatBackend> compatBackends = [
   CompatBackend(
     name: 'groq',
@@ -99,12 +100,6 @@ final List<CompatBackend> compatBackends = [
         info: _chatModel('Llama 3.3 70B'),
       ),
     ],
-  ),
-  CompatBackend(
-    name: 'xai',
-    apiKeyEnvVar: 'XAI_API_KEY',
-    defaultBaseUrl: 'https://api.x.ai/v1',
-    models: [CustomModelDefinition(name: 'grok-4', info: _chatModel('Grok 4'))],
   ),
 ];
 
@@ -138,7 +133,7 @@ Flow<String, String, void, void> defineListBackendsFlow(Genkit ai) {
   );
 }
 
-/// Generates against one backend, chosen by name (`groq`, `xai`).
+/// Generates against one backend, chosen by name (`groq`).
 Flow<String, String, void, void> defineCompatGenerateFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'compatGenerate',

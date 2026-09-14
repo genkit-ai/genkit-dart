@@ -22,6 +22,7 @@ import 'src/embed.dart' as embed;
 import 'src/known_deepseek_models.dart';
 import 'src/known_embedders.dart';
 import 'src/known_models.dart';
+import 'src/known_xai_models.dart';
 import 'src/openai_plugin.dart';
 import 'src/provider.dart';
 import 'src/speech.dart' as speech;
@@ -77,6 +78,14 @@ export 'src/known_models.dart'
         supportsVision,
         textOnlyLegacySupports,
         textOnlyNoJsonSupports;
+export 'src/known_xai_models.dart'
+    show
+        KnownXaiModel,
+        defaultXaiNamespace,
+        knownXaiChatModels,
+        knownXaiModelFor,
+        knownXaiModels,
+        xaiModelInfoFor;
 export 'src/speech.dart' show OpenAISpeechOptions;
 export 'src/transcription.dart' show OpenAITranscriptionOptions;
 export 'src/utils.dart' show getModelType;
@@ -600,5 +609,118 @@ abstract final class DeepSeekModels {
     deepseekV4Pro,
     deepseekChat,
     deepseekReasoner,
+  ];
+}
+
+/// Public constant handle for the xAI plugin.
+///
+/// Grok speaks the OpenAI Chat Completions API, so this is the same plugin as
+/// [openAI] pointed at `https://api.x.ai/v1` with xAI's key and catalog. Of
+/// the curated providers it is the closest to OpenAI: same request fields,
+/// same `json_schema` structured outputs.
+///
+/// ```dart
+/// final ai = Genkit(plugins: [xAI()]);
+///
+/// final response = await ai.generate(
+///   model: XaiModels.grok46,
+///   prompt: 'Hello!',
+/// );
+/// ```
+///
+/// The key falls back to the `XAI_API_KEY` environment variable.
+const XaiPluginHandle xAI = XaiPluginHandle();
+
+/// Handle class for configuring and referencing xAI models.
+///
+/// Typically accessed via the top-level [xAI] constant rather than
+/// instantiated directly.
+class XaiPluginHandle {
+  /// Creates a new [XaiPluginHandle].
+  const XaiPluginHandle();
+
+  /// Create the plugin instance.
+  ///
+  /// [baseUrl] defaults to xAI's own host; pointing it elsewhere keeps Grok's
+  /// capabilities but drops xAI's deployment details, as it does for [openAI].
+  GenkitPlugin call({
+    String name = defaultXaiNamespace,
+    String? apiKey,
+    OpenAIApiKeyProvider? apiKeyProvider,
+    String? baseUrl,
+    List<CustomModelDefinition>? models,
+    Map<String, String>? headers,
+    http.Client? httpClient,
+  }) {
+    return OpenAIPlugin(
+      name: name,
+      apiKey: apiKey,
+      apiKeyProvider: apiKeyProvider,
+      baseUrl: baseUrl,
+      customModels: models ?? const [],
+      headers: headers,
+      httpClient: httpClient,
+      provider: xaiProvider,
+    );
+  }
+
+  /// Reference to an xAI model.
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = defaultXaiNamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+}
+
+/// Typed [ModelRef]s for the xAI models curated by the `xai` plugin.
+///
+/// Each entry is equivalent to `xAI.model('<name>')`, which remains the escape
+/// hatch for models not listed here and for plugin instances registered under
+/// a custom namespace.
+abstract final class XaiModels {
+  /// xAI Grok 4.6. 500k context.
+  static final ModelRef<chat.OpenAIChatOptions> grok46 = xAI.model(
+    KnownXaiModel.grok46.id,
+  );
+
+  /// xAI Grok 4.5. 500k context.
+  static final ModelRef<chat.OpenAIChatOptions> grok45 = xAI.model(
+    KnownXaiModel.grok45.id,
+  );
+
+  /// xAI Grok 4.3. 1M context.
+  static final ModelRef<chat.OpenAIChatOptions> grok43 = xAI.model(
+    KnownXaiModel.grok43.id,
+  );
+
+  /// xAI Grok 4.20, the reasoning build.
+  static final ModelRef<chat.OpenAIChatOptions> grok420Reasoning = xAI.model(
+    KnownXaiModel.grok420Reasoning.id,
+  );
+
+  /// xAI Grok 4.20, the non-reasoning build.
+  static final ModelRef<chat.OpenAIChatOptions> grok420NonReasoning = xAI.model(
+    KnownXaiModel.grok420NonReasoning.id,
+  );
+
+  /// xAI Grok Build 0.1, the coding model.
+  static final ModelRef<chat.OpenAIChatOptions> grokBuild = xAI.model(
+    KnownXaiModel.grokBuild.id,
+  );
+
+  /// Every ref above, in catalog order.
+  ///
+  /// Exists so the statics cannot silently fall behind [KnownXaiModel].
+  static final List<ModelRef<chat.OpenAIChatOptions>> all = [
+    grok46,
+    grok45,
+    grok43,
+    grok420Reasoning,
+    grok420NonReasoning,
+    grokBuild,
   ];
 }

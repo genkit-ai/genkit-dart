@@ -240,7 +240,12 @@ class OpenAIPlugin extends GenkitPlugin {
     }
     return _ResolvedClientConfig(
       apiKey: configuredApiKey.trim(),
-      baseUrl: baseUrl,
+      // The provider's own spelling once the host matches. `_ownHost` compares
+      // hosts, so `https://api.x.ai` and `https://api.x.ai/v1` both count as
+      // xAI - but the SDK sends the string as given, and xAI serves `/v1`
+      // only, so the first spelling would 404 on every request. A host we do
+      // not recognise is sent exactly as the caller wrote it.
+      baseUrl: _ownHost ? provider.defaultBaseUrl : baseUrl,
       headers: headers,
     );
   }
