@@ -56,6 +56,16 @@ void main() {
       // Model defaults the label to the action name when not curated.
       expect(info['label'], 'vertexai/gemini-unknown-model');
     });
+
+    test('gemma is uncurated on Vertex and takes the Gemini path', () {
+      final action = plugin().resolve(.model, 'gemma-4-31b-it') as Model;
+
+      expect(action.customOptions, same(GeminiOptions.$schema));
+      final info = modelInfoOf(action);
+      expect(info['supports'], commonModelInfo.supports);
+      expect(info.containsKey('stage'), isFalse);
+      expect(info['label'], 'vertexai/gemma-4-31b-it');
+    });
   });
 
   group('list', () {

@@ -14,6 +14,22 @@
 
 import 'package:genkit/plugin.dart';
 
+/// The multimodal capability profile curated models advertise.
+///
+/// Mirrors the `Multimodal` preset the Go plugin uses for its curated model
+/// list: multiturn chat, media input/output, tool calling with tool choice, a
+/// system role, and native constrained generation.
+// Unmodifiable: curated entries are shared across every resolution of the
+// model, so accidental mutation through action metadata must fail loudly.
+final _multimodalSupports = Map<String, dynamic>.unmodifiable({
+  'multiturn': true,
+  'media': true,
+  'tools': true,
+  'toolChoice': true,
+  'systemRole': true,
+  'constrained': true,
+});
+
 /// Gemini models the Google generative-AI plugins curate capability metadata
 /// for.
 ///
@@ -36,33 +52,41 @@ enum KnownGeminiModel {
   final String label;
 
   /// The multimodal capability profile for this model.
-  ///
-  /// Mirrors the `Multimodal` preset the Go plugin uses for its curated model
-  /// list: multiturn chat, media input/output, tool calling with tool choice,
-  /// a system role, and native constrained generation.
-  ModelInfo get info => ModelInfo(
-    label: label,
-    // Unmodifiable: curated entries are shared across every resolution of the
-    // model, so accidental mutation through action metadata must fail loudly.
-    supports: Map.unmodifiable({
-      'multiturn': true,
-      'media': true,
-      'tools': true,
-      'toolChoice': true,
-      'systemRole': true,
-      'constrained': true,
-    }),
-    stage: 'stable',
-  );
+  ModelInfo get info =>
+      ModelInfo(label: label, supports: _multimodalSupports, stage: 'stable');
 }
 
-/// Curated capability metadata for known Gemini models, keyed by bare model
-/// name (no plugin prefix).
+/// Gemma models the Gemini API serves, curated the same way as
+/// [KnownGeminiModel].
 ///
-/// Derived from [KnownGeminiModel]; models are still resolved from raw strings,
-/// this map only enriches known names with per-model metadata instead of the
-/// shared `commonModelInfo` fallback. Plugins expose a subset via
-/// `CommonGoogleGenPlugin.knownModels`.
+/// Gemma takes the Gemini request shape and advertises the same multimodal
+/// capability preset, so these names need no handling of their own; the enum
+/// only supplies a display [label] and the `stable` stage.
+enum KnownGemmaModel {
+  gemma431b('gemma-4-31b-it', 'Gemma 4 31B'),
+  gemma426bA4b('gemma-4-26b-a4b-it', 'Gemma 4 26B A4B');
+
+  const KnownGemmaModel(this.id, this.label);
+
+  /// Bare model name (no plugin prefix).
+  final String id;
+
+  /// Human-readable label surfaced in listings.
+  final String label;
+
+  /// The multimodal capability profile for this model.
+  ModelInfo get info =>
+      ModelInfo(label: label, supports: _multimodalSupports, stage: 'stable');
+}
+
+/// Curated capability metadata for the Gemini and Gemma models known to the
+/// Google generative-AI plugins, keyed by bare model name (no plugin prefix).
+///
+/// Derived from [KnownGeminiModel] and [KnownGemmaModel]; models are still
+/// resolved from raw strings, this map only enriches known names with per-model
+/// metadata instead of the shared `commonModelInfo` fallback. Plugins expose a
+/// subset via `CommonGoogleGenPlugin.knownModels`.
 final knownGeminiModels = <String, ModelInfo>{
   for (final model in KnownGeminiModel.values) model.id: model.info,
+  for (final model in KnownGemmaModel.values) model.id: model.info,
 };
