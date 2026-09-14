@@ -15,6 +15,7 @@
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -43,9 +44,18 @@ void main() {
       (
         name: 'Google AI',
         plugin: googleAI(apiKey: apiKey),
-        gemini: googleAI.gemini,
+        model: googleAI.gemini,
         textEmbedding: googleAI.textEmbedding,
         modelName: 'gemini-flash-latest',
+        embedderName: 'gemini-embedding-001',
+      ),
+    if (apiKey != null)
+      (
+        name: 'Google AI Gemma',
+        plugin: googleAI(apiKey: apiKey),
+        model: googleAI.gemma,
+        textEmbedding: googleAI.textEmbedding,
+        modelName: KnownGemmaModel.gemma431b.id,
         embedderName: 'gemini-embedding-001',
       ),
   ];
@@ -73,7 +83,7 @@ void main() {
 
       test('should generate simple text', () async {
         final response = await ai.generate(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Say hello to World',
           config: GeminiOptions(temperature: 0),
         );
@@ -82,7 +92,7 @@ void main() {
 
       test('should stream text', () async {
         final response = ai.generateStream(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Count to 15',
         );
 
@@ -97,7 +107,7 @@ void main() {
 
       test('should generate structured output', () async {
         final response = await ai.generate(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Generate a person named John Doe, age 30',
           outputSchema: Person.$schema,
         );
@@ -109,7 +119,7 @@ void main() {
 
       test('should stream structured output', () async {
         final response = ai.generateStream(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Generate a person named Jane Doe, age 25',
           outputSchema: Person.$schema,
         );
@@ -130,12 +140,63 @@ void main() {
         );
 
         final response = await ai.generate(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'What is 123 * 456?',
           tools: [tool],
         );
 
         expect(response.text, contains('56088')); // 123*456 = 56088
+      });
+
+      test('should honour a system message', () async {
+        final response = await ai.generate(
+          model: config.model(config.modelName),
+          system: 'Always answer with the single word BANANA, nothing else.',
+          prompt: 'What is the capital of France?',
+          config: GeminiOptions(temperature: 0),
+        );
+
+        expect(response.text.toUpperCase(), contains('BANANA'));
+      });
+
+      test('should accept a temperature above 1.0', () async {
+        final response = await ai.generate(
+          model: config.model(config.modelName),
+          prompt: 'Say hello to World',
+          config: GeminiOptions(temperature: 1.5),
+        );
+
+        expect(response.text, isNotEmpty);
+      });
+
+      test('should replay its own reasoning parts in history', () async {
+        final first = await ai.generate(
+          model: config.model(config.modelName),
+          prompt: 'My favourite colour is heliotrope. Acknowledge that.',
+          config: GeminiOptions(
+            temperature: 0,
+            thinkingConfig: ThinkingConfig(includeThoughts: true),
+          ),
+        );
+
+        final history = first.messages;
+        expect(
+          history.any((m) => m.content.any((p) => p.isReasoning)),
+          isTrue,
+          reason: 'no reasoning part was returned, so replay is not exercised',
+        );
+
+        final second = await ai.generate(
+          model: config.model(config.modelName),
+          messages: history,
+          prompt: 'What is my favourite colour? Answer with one word.',
+          config: GeminiOptions(
+            temperature: 0,
+            thinkingConfig: ThinkingConfig(includeThoughts: true),
+          ),
+        );
+
+        expect(second.text.toLowerCase(), contains('heliotrope'));
       });
 
       test('should embed text', () async {

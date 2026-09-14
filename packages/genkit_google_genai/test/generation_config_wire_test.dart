@@ -12,52 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/src/api_client.dart';
-import 'package:genkit_google_genai/src/google_api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
-// TODO(#366): consolidate with the shared wire harness once it lands.
-/// Captures every generateContent request body the plugin puts on the wire
-/// and serves a canned Gemini response.
-class _WirePlugin extends GoogleGenAiPluginImpl {
-  final List<Map<String, dynamic>> captured;
-
-  _WirePlugin(this.captured) : super(apiKey: 'test-key');
-
-  @override
-  Future<GenerativeLanguageBaseClient> getApiClient([
-    String? requestApiKey,
-  ]) async {
-    return GenerativeLanguageBaseClient(
-      baseUrl: 'https://example.test/',
-      client: MockClient((request) async {
-        captured.add((jsonDecode(request.body) as Map).cast<String, dynamic>());
-        return http.Response(
-          jsonEncode({
-            'candidates': [
-              {
-                'content': {
-                  'role': 'model',
-                  'parts': [
-                    {'text': '"ok"'},
-                  ],
-                },
-                'finishReason': 'STOP',
-              },
-            ],
-          }),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }),
-    );
-  }
-}
+import 'test_harness.dart';
 
 const _schema = {
   'type': 'object',
@@ -72,7 +30,7 @@ Future<Map<String, dynamic>> _generationConfigOnTheWire({
   String model = 'gemini-2.0-flash',
 }) async {
   final captured = <Map<String, dynamic>>[];
-  final plugin = _WirePlugin(captured);
+  final plugin = WirePlugin(captured);
   final action = plugin.resolve(.model, model) as Model;
   await action(
     ModelRequest(
@@ -213,7 +171,7 @@ void main() {
         'application/json', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = Genkit(
-        plugins: [_WirePlugin(captured)],
+        plugins: [WirePlugin(captured)],
         promptDir: null,
         isDevEnv: false,
       );
