@@ -14,7 +14,12 @@
 
 /// Live tests against xAI's API.
 ///
+/// Grok reasons by default at effort `high`, so a trivial prompt can still take
+/// well past package:test's 30-second default. That budget is sized for unit
+/// tests, not for a round trip to a thinking model.
+///
 /// Skipped unless `XAI_API_KEY` is set.
+@Timeout(Duration(minutes: 3))
 library;
 
 import 'dart:convert';
