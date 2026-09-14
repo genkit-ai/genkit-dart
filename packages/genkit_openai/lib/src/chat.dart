@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart';
 import 'package:schemantic/schemantic.dart';
@@ -117,14 +119,23 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 /// Returning `json_object` for a schemaless JSON request is not a nicety: with
 /// no schema, Genkit's json formatter also emits no prompt instructions, so
 /// without this nothing would ask the model for JSON at all.
+///
+/// [supportsJsonSchema] is false for a host that takes `json_object` but not
+/// `json_schema` - DeepSeek, among others. There the schema cannot travel as a
+/// constraint, so the request asks for JSON and the schema reaches the model
+/// only as far as Genkit's prompt instructions carry it. Sending the schema
+/// anyway would be a 400, which is worse than an unconstrained answer.
 ResponseFormat? buildOpenAIResponseFormat({
   String? format,
   String? contentType,
   Map<String, dynamic>? schema,
   bool? jsonMode,
+  bool supportsJsonSchema = true,
 }) {
   if (isJsonStructuredOutput(format, contentType)) {
-    if (schema == null) return ResponseFormat.jsonObject();
+    if (schema == null || !supportsJsonSchema) {
+      return ResponseFormat.jsonObject();
+    }
 
     // Flattened because OpenAI needs `type` at the top level, so `$ref`/
     // `$defs` have to be resolved away first.
@@ -154,6 +165,38 @@ ResponseFormat? buildOpenAIResponseFormat({
   if (jsonMode == true) return ResponseFormat.jsonObject();
 
   return null;
+}
+
+/// The instruction a host that offers only `json_object` needs in the prompt,
+/// or null when the conversation already carries one.
+///
+/// Two things make this necessary. DeepSeek rejects a `json_object` request
+/// whose prompt does not contain the literal word "json". And Genkit's own
+/// JSON formatter declares `defaultInstructions: false`
+/// (`packages/genkit/lib/src/ai/formatters/json.dart`), so unless the caller
+/// asks for instructions explicitly, nothing tells the model what shape to
+/// emit — which is fine when the schema travels as a `json_schema` constraint
+/// and useless when it cannot travel at all.
+///
+/// Returns null when some message already says "json", so a caller who wrote
+/// their own instructions is not second-guessed.
+String? jsonObjectInstruction(
+  List<Message> messages,
+  Map<String, dynamic>? schema,
+) {
+  final alreadyAsked = messages.any(
+    (message) => message.text.toLowerCase().contains('json'),
+  );
+  if (alreadyAsked) return null;
+
+  final buffer = StringBuffer('Respond with JSON only.');
+  if (schema != null) {
+    buffer.write(
+      '\n\nThe JSON must conform to the following schema:\n\n'
+      '```\n${const JsonEncoder.withIndent('  ').convert(schema)}\n```',
+    );
+  }
+  return buffer.toString();
 }
 
 /// Returns custom options schema for standard chat models.

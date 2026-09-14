@@ -23,12 +23,12 @@ import 'package:openai_dart/openai_dart.dart' as sdk;
 
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
+import 'chat_body_client.dart';
 import 'embed.dart' as embed;
 // The compat variants and the embedder metadata are intentionally not part of
 // the public surface.
-import 'known_embedders.dart'
-    show compatEmbedderInfo, embedderInfoFor, knownEmbedderModels;
-import 'known_models.dart' show compatModelInfo;
+import 'known_embedders.dart' show compatEmbedderInfo, embedderInfoFor;
+import 'provider.dart';
 import 'speech.dart' as speech;
 import 'transcription.dart' as transcription;
 
@@ -64,22 +64,18 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Additional models to register beyond those discovered from the API.
   final List<CustomModelDefinition> customModels;
 
-  /// Whether this instance talks to OpenAI's own API.
+  /// Whether [baseUrl] names the provider's own host.
   ///
-  /// `baseUrl == null` is the default spelling of it, but not the only one:
-  /// naming `https://api.openai.com/v1` explicitly - as a caller pinning the
-  /// URL, or running two instances side by side, reasonably might - dials the
-  /// same host, and used to mean "compat backend", withholding the curated
-  /// catalog and skipping the plugin's own checks.
+  /// What decides whether the provider's catalog and deployment details apply.
+  /// Not the same question as `baseUrl == null` once a provider carries a
+  /// default: DeepSeek always has a baseUrl, and it is still DeepSeek.
   ///
-  /// Only the host is compared. A path, a port or a trailing slash does not
-  /// change who answers; Azure's `*.openai.azure.com` is a different API and
-  /// is deliberately not matched.
-  bool get _isOpenAIHost {
-    if (baseUrl == null) return true;
-    final uri = Uri.tryParse(baseUrl!);
-    return uri != null && uri.host == 'api.openai.com';
-  }
+  /// Only the host is compared, so naming a host's own URL explicitly - as a
+  /// caller pinning it, or running two instances side by side, reasonably
+  /// might - is not mistaken for a compat backend, and neither a path, a port
+  /// nor a trailing slash changes the answer. Azure's `*.openai.azure.com` is
+  /// a different API and deliberately does not match.
+  final bool _ownHost;
 
   /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
@@ -96,19 +92,31 @@ class OpenAIPlugin extends GenkitPlugin {
   @visibleForTesting
   final String? Function(String name) configVar;
 
+  /// The host dialect this instance speaks.
+  ///
+  /// Carries the differences the plugin cannot avoid having an opinion about -
+  /// the key it reads, the catalog it describes models from, and the couple of
+  /// request fields hosts spell differently. See [OpenAIProvider].
+  final OpenAIProvider provider;
+
   /// Creates an [OpenAIPlugin].
   ///
   /// Provide either [apiKey] or [apiKeyProvider], but not both.
   OpenAIPlugin({
-    String name = defaultOpenAINamespace,
+    String? name,
     this.apiKey,
     this.apiKeyProvider,
-    this.baseUrl,
+    String? baseUrl,
     this.customModels = const [],
     this.headers,
     this.httpClient,
     this.configVar = getConfigVar,
-  }) : _pluginName = name {
+    OpenAIProvider? provider,
+  }) : provider = provider ?? openAIProvider,
+       _pluginName = name ?? (provider ?? openAIProvider).defaultNamespace,
+       baseUrl = baseUrl ?? (provider ?? openAIProvider).defaultBaseUrl,
+       _ownHost = _isOwnHost(baseUrl, provider ?? openAIProvider) {
+    final name = _pluginName;
     if (name.isEmpty || name.contains('/')) {
       throw GenkitException(
         'Plugin name must be non-empty and must not contain "/". Got: "$name"',
@@ -121,6 +129,17 @@ class OpenAIPlugin extends GenkitPlugin {
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
+  }
+
+  /// Whether [baseUrl] dials [provider]'s own host. See [_ownHost].
+  static bool _isOwnHost(String? baseUrl, OpenAIProvider provider) {
+    if (baseUrl == null) return true;
+    final dialled = Uri.tryParse(baseUrl)?.host;
+    if (dialled == null || dialled.isEmpty) return false;
+    final own = provider.defaultBaseUrl == null
+        ? _openAIHost
+        : Uri.tryParse(provider.defaultBaseUrl!)?.host;
+    return dialled == own;
   }
 
   /// Registers actions that need neither network access nor a key.
@@ -181,7 +200,8 @@ class OpenAIPlugin extends GenkitPlugin {
     if (config == null) {
       throw GenkitException(
         '[$_pluginName] API key is required. Provide it via apiKey or apiKeyProvider '
-        'in the plugin constructor, or set the $_apiKeyEnvVar environment variable.',
+        'in the plugin constructor, or set the ${provider.apiKeyEnvVar} '
+        'environment variable.',
         status: StatusCodes.INVALID_ARGUMENT,
       );
     }
@@ -203,7 +223,7 @@ class OpenAIPlugin extends GenkitPlugin {
     // fallback, so `apiKey: ''` still finds the environment variable.
     final configured = apiKey?.trim();
     if (configured != null && configured.isNotEmpty) return configured;
-    final fromEnv = configVar(_apiKeyEnvVar)?.trim();
+    final fromEnv = configVar(provider.apiKeyEnvVar)?.trim();
     return (fromEnv != null && fromEnv.isNotEmpty) ? fromEnv : null;
   }
 
@@ -310,7 +330,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
     final ids = <String>{
       ...discovered,
-      if (_isOpenAIHost) ...knownChatModels,
+      if (_ownHost) ...provider.catalogIds,
       ...customModels.map((m) => m.name),
     };
 
@@ -318,23 +338,26 @@ class OpenAIPlugin extends GenkitPlugin {
     // there is any, plus the curated catalog when the host is OpenAI itself.
     final embedderIds = <String>{
       ...discoveredEmbedders,
-      if (_isOpenAIHost) ...knownEmbedderModels,
+      if (_ownHost) ...provider.embedderIds,
     };
 
-    // The curated speech ids are withheld from a compat host for the same
+    // The curated speech ids are withheld from another host for the same
     // reason the chat catalog is: `GET /models` rarely lists them, but that is
-    // no reason to offer a Groq-shaped backend three OpenAI ids it will 404 on.
+    // no reason to offer a Groq-shaped backend three OpenAI ids it will 404
+    // on. From the provider, so a host with no `/audio/speech` at all - as
+    // DeepSeek has none - offers nothing rather than OpenAI's list.
     final speechIds = <String>{
       ...discoveredSpeech,
-      if (baseUrl == null) ...speech.knownSpeechModels,
+      if (_ownHost) ...provider.speechIds,
       ...customSpeech,
     };
 
     // Transcription models follow the speech rule exactly: discovery, the
-    // curated ids on OpenAI's own host, and whatever the caller declared.
+    // curated ids on the provider's own host, and whatever the caller
+    // declared.
     final transcriptionIds = <String>{
       ...discoveredTranscription,
-      if (baseUrl == null) ...transcription.knownTranscriptionModels,
+      if (_ownHost) ...provider.transcriptionIds,
       ...customTranscription,
     };
 
@@ -396,11 +419,11 @@ class OpenAIPlugin extends GenkitPlugin {
   /// invite image parts it rejects — but not OpenAI's deployment details. See
   /// `compatModelInfo` in `known_models.dart`.
   ModelInfo _infoFor(String modelName) =>
-      _isOpenAIHost ? modelInfoFor(modelName) : compatModelInfo(modelName);
+      provider.infoFor(modelName, compat: !_ownHost);
 
   /// Embedder metadata for [embedderName] on this plugin instance, split the
   /// same way [_infoFor] splits a model's.
-  Map<String, dynamic> _embedderInfoFor(String embedderName) => _isOpenAIHost
+  Map<String, dynamic> _embedderInfoFor(String embedderName) => _ownHost
       ? embedderInfoFor(embedderName)
       : compatEmbedderInfo(embedderName);
 
@@ -415,7 +438,9 @@ class OpenAIPlugin extends GenkitPlugin {
         OpenAIModelKind.chat => _createModel(name, info),
       };
     }
-    if (actionType == .embedder) {
+    // A provider with no embeddings API declines the lookup rather than
+    // building an embedder whose every call would 404.
+    if (actionType == .embedder && provider.embedderIds.isNotEmpty) {
       return _createEmbedder(name);
     }
     return null;
@@ -440,16 +465,24 @@ class OpenAIPlugin extends GenkitPlugin {
   /// chat model as readily as a transcription one - so only the output side,
   /// where `output: ['media']` says "this returns audio and nothing else",
   /// still classifies by [info].
+  ///
+  /// The name heuristics only speak for a provider that serves the endpoint
+  /// they point at. A host with no `/audio/transcriptions` gets chat for a
+  /// name that merely reads like one, since the alternative is an action whose
+  /// every call 404s. A [declared] kind still wins - the caller knows their
+  /// host better than this does.
   OpenAIModelKind _kindOf(
     String modelName, {
     ModelInfo? info,
     OpenAIModelKind? declared,
   }) {
     if (declared != null) return declared;
-    if (speech.isSpeechModel(modelName) || speech.declaresMediaOutput(info)) {
+    if (provider.speechIds.isNotEmpty &&
+        (speech.isSpeechModel(modelName) || speech.declaresMediaOutput(info))) {
       return OpenAIModelKind.speech;
     }
-    if (transcription.isTranscriptionModel(modelName)) {
+    if (provider.transcriptionIds.isNotEmpty &&
+        transcription.isTranscriptionModel(modelName)) {
       return OpenAIModelKind.transcription;
     }
     return OpenAIModelKind.chat;
@@ -495,7 +528,7 @@ class OpenAIPlugin extends GenkitPlugin {
         }
 
         final options = embed.parseEmbedderOptions(req.options);
-        if (_isOpenAIHost) {
+        if (_ownHost) {
           // Only OpenAI's own host is held to the catalog. Advertising a
           // vector length that turns out wrong costs a bad number in the Dev
           // UI; refusing a request the backend would have served costs the
@@ -563,20 +596,25 @@ class OpenAIPlugin extends GenkitPlugin {
         // Levels first, model second. `gpt-4o` with `'extreme'` has two
         // things wrong with it, and the level is the one the caller can fix
         // without knowing the catalog - so it is the one to name.
+        //
+        // Which levels exist is a property of the dialect, like the token
+        // field and the response-format vocabulary, so it is checked wherever
+        // the request is bound. Whether a given model reasons is a catalog
+        // question, and a catalog only describes its own host.
+        _requireReasoningEffortLevel(options.reasoningEffort);
         final reasoningEffort = chat.toReasoningEffort(options.reasoningEffort);
         final verbosity = chat.toVerbosity(options.verbosity);
-        if (_isOpenAIHost) {
-          // Same rule the embedders follow: the catalog describes OpenAI's
-          // models, so it only judges requests bound for OpenAI's own host.
-          _requireReasoningSupport(wireModel, options.reasoningEffort);
+        if (_ownHost) {
+          _requireReasoningModel(wireModel, options.reasoningEffort);
         }
 
         final resolvedConfig = await _resolveClientConfig();
+        final transport = _chatTransport();
         final client = sdk.OpenAIClient.withApiKey(
           resolvedConfig.apiKey,
           baseUrl: resolvedConfig.baseUrl,
           defaultHeaders: resolvedConfig.headers,
-          httpClient: httpClient,
+          httpClient: transport,
         );
 
         try {
@@ -584,17 +622,49 @@ class OpenAIPlugin extends GenkitPlugin {
               ?.map(GenkitConverter.toOpenAITool)
               .toList();
 
+          final messages = GenkitConverter.toOpenAIMessages(
+            modelRequest.messages,
+            options.visualDetailLevel,
+            // Only with tools: that is the case DeepSeek documents as losing
+            // context, and the rest of the time the field is ignored.
+            replayReasoning:
+                provider.replaysReasoning && tools != null && tools.isNotEmpty,
+          );
+
+          // A host that cannot be handed a schema needs the prompt to carry
+          // it, and DeepSeek additionally refuses a JSON request whose prompt
+          // never says "json". Appended last so it is the most recent thing
+          // the model read.
+          if (!provider.supportsJsonSchema &&
+              chat.isJsonStructuredOutput(
+                modelRequest.output?.format,
+                modelRequest.output?.contentType,
+              )) {
+            final instruction = chat.jsonObjectInstruction(
+              modelRequest.messages,
+              modelRequest.output?.schema,
+            );
+            if (instruction != null) {
+              messages.add(sdk.ChatMessage.system(instruction));
+            }
+          }
+
           final request = sdk.ChatCompletionCreateRequest(
             model: wireModel,
-            messages: GenkitConverter.toOpenAIMessages(
-              modelRequest.messages,
-              options.visualDetailLevel,
-            ),
+            messages: messages,
             // Some OpenAI-compatible providers reject an empty tools array.
             tools: (tools == null || tools.isEmpty) ? null : tools,
             temperature: options.temperature,
             topP: options.topP,
-            maxCompletionTokens: options.maxTokens,
+            // OpenAI deprecated `max_tokens` for `max_completion_tokens`;
+            // most compatible hosts never followed, and one that reads only
+            // the older name ignores the newer one silently rather than
+            // refusing it, so the limit has to go out under the name the host
+            // actually reads.
+            maxTokens: provider.usesLegacyMaxTokens ? options.maxTokens : null,
+            maxCompletionTokens: provider.usesLegacyMaxTokens
+                ? null
+                : options.maxTokens,
             stop: options.stop,
             presencePenalty: options.presencePenalty,
             frequencyPenalty: options.frequencyPenalty,
@@ -605,6 +675,7 @@ class OpenAIPlugin extends GenkitPlugin {
               contentType: modelRequest.output?.contentType,
               schema: modelRequest.output?.schema,
               jsonMode: options.jsonMode,
+              supportsJsonSchema: provider.supportsJsonSchema,
             ),
             reasoningEffort: reasoningEffort,
             verbosity: verbosity,
@@ -621,11 +692,27 @@ class OpenAIPlugin extends GenkitPlugin {
           );
         } finally {
           if (httpClient == null) {
+            // The SDK closes only a client it built itself, so a transport we
+            // supplied is ours to close - and closing it closes the socket
+            // client underneath.
             client.close();
+            transport?.close();
           }
         }
       },
     );
+  }
+
+  /// The transport for a chat-completions call.
+  ///
+  /// Plain [httpClient] unless the provider needs to rewrite the encoded body,
+  /// in which case the client is wrapped - building the socket client here
+  /// when the caller supplied none, since the SDK will no longer build one of
+  /// its own.
+  http.Client? _chatTransport() {
+    final rewrite = provider.rewriteChatBody;
+    if (rewrite == null) return httpClient;
+    return ChatBodyClient(httpClient ?? http.Client(), rewrite);
   }
 
   /// Maps a failure from the OpenAI SDK onto a [GenkitException], preserving
@@ -655,6 +742,25 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 
+  /// Rejects a `reasoningEffort` the host has no such level for.
+  ///
+  /// The vocabulary is not shared: `medium` is ordinary on OpenAI and a 400 on
+  /// DeepSeek, while the option's schema advertises whatever `openai_dart`
+  /// models. A provider that names its own set is held to it; one that names
+  /// none takes the whole vocabulary, since guessing on a host's behalf would
+  /// refuse a level it may well accept.
+  void _requireReasoningEffortLevel(String? reasoningEffort) {
+    if (reasoningEffort == null) return;
+    final accepted = provider.reasoningEfforts;
+    if (accepted == null || accepted.contains(reasoningEffort)) return;
+
+    throw GenkitException(
+      '$_pluginName does not accept reasoningEffort "$reasoningEffort". '
+      'Accepted levels: ${accepted.join(', ')}.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
   /// Rejects a `reasoningEffort` aimed at a model that does not reason.
   ///
   /// OpenAI answers one with `Unsupported parameter: 'reasoning_effort'`,
@@ -670,21 +776,21 @@ class OpenAIPlugin extends GenkitPlugin {
   /// a GPT-5-family parameter, but the catalog carries no flag saying so, and
   /// adding one would mean asserting per entry something less well documented
   /// than which models reason. Left to the API rather than guessed at.
-  void _requireReasoningSupport(String modelName, String? reasoningEffort) {
+  void _requireReasoningModel(String modelName, String? reasoningEffort) {
     if (reasoningEffort == null) return;
     // A caller who registered the model said more about it than the catalog
     // can: `models:` is how a name is corrected or extended, so a declared
     // model is left to the API to judge, as an uncurated one is.
     if (customModels.any((m) => m.name == modelName)) return;
-    final curated = knownOpenAIModelFor(modelName);
-    if (curated == null || curated.reasons) return;
+    if (provider.reasonsFor(modelName) != false) return;
 
     throw GenkitException(
       // The name that will be on the wire, not the curated alias it resolved
       // through: a `version` of `gpt-4o-2024-11-20` is what the caller set
-      // and what OpenAI will answer for.
-      '$modelName does not accept reasoningEffort; it is not a reasoning '
-      'model.',
+      // and what the host will answer for. Says only that the effort is not
+      // settable, not that the model does not reason: o1-mini and o1-preview
+      // do reason, they simply predate the parameter.
+      '$modelName does not accept reasoningEffort.',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
@@ -1176,8 +1282,8 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 }
 
-/// Environment variable consulted for the API key.
-const _apiKeyEnvVar = 'OPENAI_API_KEY';
+/// Host the SDK dials when no base URL is given.
+const _openAIHost = 'api.openai.com';
 
 final class _ResolvedClientConfig {
   final String apiKey;
