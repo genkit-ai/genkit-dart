@@ -258,14 +258,53 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 }
 
 (Message, FinishReason) fromGeminiCandidate(gcl.Candidate candidate) {
-  final finishReason = FinishReason(
-    candidate.finishReason?.toLowerCase() ?? 'unspecified',
-  );
   final message = Message(
-    role: Role(candidate.content!.role!),
+    role: Role(candidate.content?.role ?? 'model'),
     content: candidate.content?.parts?.map(fromGeminiPart).toList() ?? [],
   );
-  return (message, finishReason);
+  return (message, _toFinishReason(candidate.finishReason));
+}
+
+/// Maps a Gemini finish reason onto Genkit's vocabulary. An absent or
+/// `FINISH_REASON_UNSPECIFIED` reason becomes [FinishReason.unknown] (a
+/// result-carrying reason), never the non-canonical `unspecified`: a truncated
+/// turn that names no reason still carries whatever text it produced.
+/// Unrecognized future reasons also fall to `unknown` rather than leaking the
+/// raw enum string.
+FinishReason _toFinishReason(String? raw) {
+  switch (raw) {
+    case null:
+    case '':
+    case 'FINISH_REASON_UNSPECIFIED':
+      return FinishReason.unknown;
+    case 'STOP':
+      return FinishReason.stop;
+    case 'MAX_TOKENS':
+      return FinishReason.length;
+    case 'SAFETY':
+    case 'RECITATION':
+    case 'LANGUAGE':
+    case 'BLOCKLIST':
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+    case 'IMAGE_SAFETY':
+    case 'IMAGE_PROHIBITED_CONTENT':
+    case 'IMAGE_RECITATION':
+      return FinishReason.blocked;
+    case 'MALFORMED_FUNCTION_CALL':
+    case 'UNEXPECTED_TOOL_CALL':
+    case 'TOO_MANY_TOOL_CALLS':
+    case 'NO_IMAGE':
+    case 'IMAGE_OTHER':
+    case 'MALFORMED_RESPONSE':
+    // Gemini 3 returns this when thought signatures are missing from the
+    // request; treat it as a non-fatal "other" like the Go plugin.
+    case 'MISSING_THOUGHT_SIGNATURE':
+    case 'OTHER':
+      return FinishReason.other;
+    default:
+      return FinishReason.unknown;
+  }
 }
 
 @visibleForTesting
