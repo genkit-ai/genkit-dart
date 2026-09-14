@@ -55,6 +55,34 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Whether [baseUrl] names the provider's own host.
   final bool _ownHost;
 
+  /// Whether [baseUrl] is the provider's own host under another spelling.
+  ///
+  /// A provider usually documents more than one: DeepSeek answers on both
+  /// `https://api.deepseek.com` and `.../v1`, and a trailing slash is nobody's
+  /// idea of a different backend. Comparing the strings raw would quietly put
+  /// a user who wrote the other spelling into compat mode — no curated
+  /// catalog in the Dev UI, no deployment details, no per-model checks —
+  /// which is a confusing thing to earn by typing a URL the provider's own
+  /// documentation gave you.
+  static bool _isOwnHost(String? baseUrl, String? defaultBaseUrl) {
+    if (baseUrl == null) return true;
+    if (defaultBaseUrl == null) return false;
+    return _normalizeHost(baseUrl) == _normalizeHost(defaultBaseUrl);
+  }
+
+  static String _normalizeHost(String url) {
+    var normalized = url.toLowerCase();
+    while (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    // The version segment is the one path suffix providers publish both with
+    // and without; anything else in the path is a different backend.
+    if (normalized.endsWith('/v1')) {
+      normalized = normalized.substring(0, normalized.length - 3);
+    }
+    return normalized;
+  }
+
   /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
 
@@ -97,9 +125,10 @@ class OpenAIPlugin extends GenkitPlugin {
        // decides if its catalog and deployment details apply. Not the same
        // question as `baseUrl == null` once a provider carries a default:
        // DeepSeek always has a baseUrl, and it is still DeepSeek.
-       _ownHost =
-           baseUrl == null ||
-           baseUrl == (provider ?? openAIProvider).defaultBaseUrl {
+       _ownHost = _isOwnHost(
+         baseUrl,
+         (provider ?? openAIProvider).defaultBaseUrl,
+       ) {
     final name = _pluginName;
     if (name.isEmpty || name.contains('/')) {
       throw GenkitException(

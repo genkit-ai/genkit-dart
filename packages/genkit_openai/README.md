@@ -333,6 +333,35 @@ Two caveats the plugin does not paper over: while thinking, DeepSeek ignores
 0.95. And thinking is on by default for the models that support it, which is the
 opposite of OpenAI's behaviour.
 
+## xAI
+
+Grok speaks the same API, and of the curated providers it is the closest to
+OpenAI — same request fields, same `json_schema` structured outputs:
+
+```dart
+final ai = Genkit(plugins: [xAI()]);
+
+final response = await ai.generate(
+  model: XaiModels.grok46,
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `XAI_API_KEY`. `KnownXaiModel` carries the catalog — the
+Grok 4.x line plus `grok-build-0.1`, the coding model. Every Grok text model
+takes image input, calls tools and accepts a schema, so they share one
+capability preset; the only axis they differ on is whether they reason, and
+`grok-4.20-0309-non-reasoning` is the one that does not.
+
+One difference worth knowing: xAI's reasoning levels are `none`, `low`,
+`medium`, `high` and `xhigh` — no `minimal` or `max` — and xAI documents the
+accepted set as varying per model (4.3 takes `none` and defaults to `low`, 4.6
+does neither). The plugin checks the union and leaves the model-level pairing
+to the API.
+
+The image and video models (`grok-imagine-*`) are not listed: this plugin
+serves chat generation.
+
 ## Reasoning
 
 The o-series and the GPT-5 family take a `reasoningEffort`, which trades latency

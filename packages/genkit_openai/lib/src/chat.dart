@@ -138,25 +138,26 @@ ResponseFormat? buildOpenAIResponseFormat(
 /// emit — which is fine when the schema travels as a `json_schema` constraint
 /// and useless when it cannot travel at all.
 ///
-/// Returns null when some message already says "json", so a caller who wrote
-/// their own instructions is not second-guessed.
+/// The two jobs are kept apart on purpose. The word "json" only has to appear
+/// somewhere, so if a message already says it there is nothing to add — but a
+/// schema has nowhere else to go, and a prompt that merely mentions JSON
+/// ("extract the fields from this JSON log line") does not carry one. Dropping
+/// the schema because the word happened to appear would hand the model a
+/// free-form JSON request and fail validation on the way back.
 String? jsonObjectInstruction(
   List<Message> messages,
   Map<String, dynamic>? schema,
 ) {
+  if (schema != null) {
+    return 'Respond with JSON only. The JSON must conform to the following '
+        'schema:\n\n```\n'
+        '${const JsonEncoder.withIndent('  ').convert(schema)}\n```';
+  }
+
   final alreadyAsked = messages.any(
     (message) => message.text.toLowerCase().contains('json'),
   );
-  if (alreadyAsked) return null;
-
-  final buffer = StringBuffer('Respond with JSON only.');
-  if (schema != null) {
-    buffer.write(
-      '\n\nThe JSON must conform to the following schema:\n\n'
-      '```\n${const JsonEncoder.withIndent('  ').convert(schema)}\n```',
-    );
-  }
-  return buffer.toString();
+  return alreadyAsked ? null : 'Respond with JSON only.';
 }
 
 /// Returns custom options schema for standard chat models.
