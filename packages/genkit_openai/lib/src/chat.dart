@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart';
 import 'package:schemantic/schemantic.dart';
@@ -102,7 +104,20 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 /// Builds an OpenAI [ResponseFormat] from a Genkit output schema.
 /// Flattens `$ref`/`$defs` since OpenAI requires `type` at the top level.
 /// Returns null if [schema] is null.
-ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
+///
+/// [supportsJsonSchema] is false for a host that takes `json_object` but not
+/// `json_schema` — DeepSeek, among others. There the schema cannot travel as a
+/// constraint, so the request asks for JSON and the schema reaches the model
+/// only as far as Genkit's prompt instructions carry it. Sending the schema
+/// anyway would be a 400, which is worse than an unconstrained answer.
+ResponseFormat? buildOpenAIResponseFormat(
+  Map<String, dynamic>? schema, {
+  bool supportsJsonSchema = true,
+}) {
+  // Before the null-schema check: a host without `json_schema` still has to be
+  // put into JSON mode when the request carries no schema at all, or the
+  // prompt asks for JSON while the host stays in free text.
+  if (!supportsJsonSchema) return ResponseFormat.jsonObject();
   if (schema == null) return null;
   final flattened = schema.flatten();
   return ResponseFormat.jsonSchema(
@@ -110,6 +125,38 @@ ResponseFormat? buildOpenAIResponseFormat(Map<String, dynamic>? schema) {
     schema: {...flattened, 'additionalProperties': false},
     strict: true,
   );
+}
+
+/// The instruction a host that offers only `json_object` needs in the prompt,
+/// or null when the conversation already carries one.
+///
+/// Two things make this necessary. DeepSeek rejects a `json_object` request
+/// whose prompt does not contain the literal word "json". And Genkit's own
+/// JSON formatter declares `defaultInstructions: false`
+/// (`packages/genkit/lib/src/ai/formatters/json.dart`), so unless the caller
+/// asks for instructions explicitly, nothing tells the model what shape to
+/// emit — which is fine when the schema travels as a `json_schema` constraint
+/// and useless when it cannot travel at all.
+///
+/// Returns null when some message already says "json", so a caller who wrote
+/// their own instructions is not second-guessed.
+String? jsonObjectInstruction(
+  List<Message> messages,
+  Map<String, dynamic>? schema,
+) {
+  final alreadyAsked = messages.any(
+    (message) => message.text.toLowerCase().contains('json'),
+  );
+  if (alreadyAsked) return null;
+
+  final buffer = StringBuffer('Respond with JSON only.');
+  if (schema != null) {
+    buffer.write(
+      '\n\nThe JSON must conform to the following schema:\n\n'
+      '```\n${const JsonEncoder.withIndent('  ').convert(schema)}\n```',
+    );
+  }
+  return buffer.toString();
 }
 
 /// Returns custom options schema for standard chat models.
