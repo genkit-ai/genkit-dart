@@ -1,3 +1,7 @@
+## 0.3.2-wip
+
+ - Expand anthropic_sdk_dart constraint to '>=2.1.0 <9.0.0'.
+
 ## 0.3.1
 
  - updated internal dependencies.
