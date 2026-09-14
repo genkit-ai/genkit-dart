@@ -39,7 +39,8 @@ class MockHttpClient extends http.BaseClient {
         modelsResponse ??
         '{"models": ['
             '{"name": "models/gemini-2.0-flash"}, '
-            '{"name": "models/text-embedding-004"}]}';
+            '{"name": "models/text-embedding-004", '
+            '"supportedGenerationMethods": ["embedContent"]}]}';
     return http.StreamedResponse(
       Stream.value(utf8.encode(body)),
       listStatus,
