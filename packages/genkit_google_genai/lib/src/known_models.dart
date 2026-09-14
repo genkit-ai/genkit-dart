@@ -19,8 +19,8 @@ import 'package:genkit/plugin.dart';
 /// Mirrors the `Multimodal` preset the Go plugin uses for its curated model
 /// list: multiturn chat, media input/output, tool calling with tool choice, a
 /// system role, and native constrained generation.
-// Unmodifiable: curated entries are shared across every resolution of the
-// model, so accidental mutation through action metadata must fail loudly.
+// Unmodifiable: one instance backs every curated model in both enums, so
+// accidental mutation through action metadata must fail loudly.
 final _multimodalSupports = Map<String, dynamic>.unmodifiable({
   'multiturn': true,
   'media': true,

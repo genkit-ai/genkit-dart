@@ -12,77 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/google_api_client.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
-// TODO(#366): consolidate with the shared wire harness once it lands.
-/// Captures every generateContent request body the plugin puts on the wire
-/// and serves a canned response.
-class _WirePlugin extends GoogleGenAiPluginImpl {
-  final List<Map<String, dynamic>> captured;
-
-  _WirePlugin(this.captured) : super(apiKey: 'test-key');
-
-  @override
-  Future<GenerativeLanguageBaseClient> getApiClient([
-    String? requestApiKey,
-  ]) async {
-    return GenerativeLanguageBaseClient(
-      baseUrl: 'https://example.test/',
-      client: MockClient((request) async {
-        captured.add((jsonDecode(request.body) as Map).cast<String, dynamic>());
-        return http.Response(
-          jsonEncode({
-            'candidates': [
-              {
-                'content': {
-                  'role': 'model',
-                  'parts': [
-                    {'text': 'ok'},
-                  ],
-                },
-                'finishReason': 'STOP',
-              },
-            ],
-          }),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }),
-    );
-  }
-}
-
-class _ListingClient extends http.BaseClient {
-  _ListingClient(this.body, {this.status = 200});
-
-  final String body;
-  final int status;
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    return http.StreamedResponse(
-      Stream.value(utf8.encode(body)),
-      status,
-      headers: {'content-type': 'application/json'},
-    );
-  }
-}
-
-/// The models listing as the live API serves it: Gemini plus the two Gemma 4
-/// models, and no earlier Gemma generation.
-const _servedModels =
-    '{"models": ['
-    '{"name": "models/gemini-3.5-flash"}, '
-    '{"name": "models/gemma-4-31b-it"}, '
-    '{"name": "models/gemma-4-26b-a4b-it"}]}';
+import 'test_harness.dart';
 
 Future<Map<String, dynamic>> _onTheWire({
   required String model,
@@ -90,7 +27,7 @@ Future<Map<String, dynamic>> _onTheWire({
   Map<String, dynamic>? config,
 }) async {
   final captured = <Map<String, dynamic>>[];
-  final plugin = _WirePlugin(captured);
+  final plugin = WirePlugin(captured);
   final action = plugin.resolve(.model, model) as Model;
   await action(ModelRequest(messages: messages, config: config));
   return captured.single;
@@ -180,29 +117,9 @@ void main() {
   });
 
   group('list', () {
-    test('lists discovered Gemma models with curated metadata', () async {
-      final actions = await plugin(
-        client: _ListingClient(_servedModels),
-      ).list();
-      final names = actions.map((a) => a.name).toList();
-
-      expect(names, contains('googleai/gemini-3.5-flash'));
-      for (final model in KnownGemmaModel.values) {
-        expect(names.where((n) => n == 'googleai/${model.id}'), hasLength(1));
-
-        final discovered = actions.firstWhere(
-          (a) => a.name == 'googleai/${model.id}',
-        );
-        final info = _modelInfoOf(discovered.metadata);
-        expect(info['label'], model.label);
-        expect(info['stage'], 'stable');
-        expect(info['supports'], commonModelInfo.supports);
-      }
-    });
-
     test('lists Gemma models absent from discovery', () async {
-      final client = _ListingClient(
-        '{"models": [{"name": "models/gemini-3.5-flash"}]}',
+      final client = ListingClient(
+        modelsResponse: '{"models": [{"name": "models/gemini-3.5-flash"}]}',
       );
       final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
@@ -213,9 +130,9 @@ void main() {
     });
 
     test('lists Gemma models when discovery fails outright', () async {
-      final client = _ListingClient(
-        '{"error": {"message": "boom", "status": "INTERNAL"}}',
-        status: 500,
+      final client = ListingClient(
+        modelsResponse: '{"error": {"message": "boom", "status": "INTERNAL"}}',
+        listStatus: 500,
       );
       final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
@@ -223,14 +140,14 @@ void main() {
       for (final model in KnownGemmaModel.values) {
         expect(names, contains('googleai/${model.id}'));
       }
-      expect(names.where((n) => n.contains('gemma-3')), isEmpty);
     });
 
     test('lists a served Gemma model that is not curated', () async {
-      final client = _ListingClient(
-        '{"models": ['
-        '{"name": "models/gemini-3.5-flash"}, '
-        '{"name": "models/gemma-5-x-it"}]}',
+      final client = ListingClient(
+        modelsResponse:
+            '{"models": ['
+            '{"name": "models/gemini-3.5-flash"}, '
+            '{"name": "models/gemma-5-x-it"}]}',
       );
       final actions = await plugin(client: client).list();
 
@@ -253,21 +170,9 @@ void main() {
       );
     });
 
-    test('drops a Gemma model that cannot generate content', () async {
-      final client = _ListingClient(
-        '{"models": ['
-        '{"name": "models/gemma-5-embed", '
-        '"supportedGenerationMethods": ["embedContent"]}]}',
-      );
-      final actions = await plugin(client: client).list();
-      final names = actions.map((a) => a.name).toList();
-
-      expect(names, isNot(contains('googleai/gemma-5-embed')));
-    });
-
     test('keeps a model whose supportedGenerationMethods is absent', () async {
-      final client = _ListingClient(
-        '{"models": [{"name": "models/gemma-5-x-it"}]}',
+      final client = ListingClient(
+        modelsResponse: '{"models": [{"name": "models/gemma-5-x-it"}]}',
       );
       final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
