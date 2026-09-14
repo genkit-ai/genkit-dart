@@ -70,7 +70,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
       final models = (modelsResponse.models ?? [])
           .where((model) {
             final modelName = model.name;
-            if (modelName == null || !modelName.startsWith('models/gemini-')) {
+            if (modelName == null ||
+                (!modelName.startsWith('models/gemini-') &&
+                    !modelName.startsWith('models/gemma-'))) {
               return false;
             }
             // An absent list is no claim either way, so it admits the model
