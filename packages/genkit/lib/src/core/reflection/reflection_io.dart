@@ -14,14 +14,34 @@
 
 import 'dart:io' as io;
 
+import '../../dev_config.dart';
 import '../reflection.dart';
 import '../registry.dart';
 import 'reflection_v1.dart';
 import 'reflection_v2.dart';
 
+const String _v2ServerDefine = String.fromEnvironment(
+  'GENKIT_REFLECTION_V2_SERVER',
+);
+const String _runtimeIdDefine = String.fromEnvironment('GENKIT_RUNTIME_ID');
+
+/// Starts the reflection server the Developer UI talks to.
+///
+/// Both settings come from the process environment, falling back to the
+/// `--dart-define` of the same name for an app whose environment no launcher
+/// can set. An empty `GENKIT_REFLECTION_V2_SERVER` selects the v1 server, as an
+/// unset one does.
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  final v2ServerUrl = io.Platform.environment['GENKIT_REFLECTION_V2_SERVER'];
-  final runtimeId = io.Platform.environment['GENKIT_RUNTIME_ID'] ?? '';
+  final v2ServerUrl = resolveDevConfig(
+    io.Platform.environment['GENKIT_REFLECTION_V2_SERVER'],
+    _v2ServerDefine,
+  );
+  final runtimeId =
+      resolveDevConfig(
+        io.Platform.environment['GENKIT_RUNTIME_ID'],
+        _runtimeIdDefine,
+      ) ??
+      '';
   if (v2ServerUrl != null) {
     final server = ReflectionServerV2(
       registry,
