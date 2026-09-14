@@ -18,11 +18,26 @@ import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 
 import 'src/chat.dart' as chat;
+import 'src/known_deepseek_models.dart';
 import 'src/known_models.dart';
 import 'src/openai_plugin.dart';
+import 'src/provider.dart';
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
+// The DeepSeek catalog is public for the same reasons the OpenAI one is; the
+// dialect that selects it is not, since which request fields a host reads is
+// policy this plugin should stay free to change.
+export 'src/known_deepseek_models.dart'
+    show
+        KnownDeepSeekModel,
+        deepSeekModelInfoFor,
+        deepSeekTextSupports,
+        deepSeekVisionSupports,
+        defaultDeepSeekNamespace,
+        knownDeepSeekChatModels,
+        knownDeepSeekModelFor,
+        knownDeepSeekModels;
 // The catalog and the capability vocabulary are public: describing a model
 // the plugin does not know is a supported thing to do, and a caller doing it
 // should reach for the same presets the curated entries use.
@@ -334,5 +349,110 @@ abstract final class OpenAIModels {
     gpt4Turbo,
     gpt4,
     gpt35Turbo,
+  ];
+}
+
+/// Public constant handle for the DeepSeek plugin.
+///
+/// DeepSeek speaks the OpenAI Chat Completions API, so this is the same plugin
+/// as [openAI] pointed at `https://api.deepseek.com` and told whose dialect it
+/// is speaking — which key to read, which models to describe, and the couple
+/// of request fields DeepSeek spells differently.
+///
+/// ```dart
+/// final ai = Genkit(plugins: [deepSeek()]);
+///
+/// final response = await ai.generate(
+///   model: DeepSeekModels.deepseekFlash,
+///   prompt: 'Hello!',
+/// );
+/// ```
+///
+/// The key falls back to the `DEEPSEEK_API_KEY` environment variable. As with
+/// [openAI], creating the plugin does no I/O and needs no key.
+const DeepSeekPluginHandle deepSeek = DeepSeekPluginHandle();
+
+/// Handle class for configuring and referencing DeepSeek models.
+///
+/// Typically accessed via the top-level [deepSeek] constant rather than
+/// instantiated directly.
+class DeepSeekPluginHandle {
+  /// Creates a new [DeepSeekPluginHandle].
+  const DeepSeekPluginHandle();
+
+  /// Create the plugin instance.
+  ///
+  /// [name] is the namespace models register under, defaulting to
+  /// [defaultDeepSeekNamespace]. [baseUrl] defaults to DeepSeek's own host;
+  /// pointing it elsewhere — a gateway, a proxy — keeps DeepSeek's
+  /// capabilities but drops its deployment details, exactly as a custom
+  /// `baseUrl` does for [openAI].
+  GenkitPlugin call({
+    String name = defaultDeepSeekNamespace,
+    String? apiKey,
+    OpenAIApiKeyProvider? apiKeyProvider,
+    String? baseUrl,
+    List<CustomModelDefinition>? models,
+    Map<String, String>? headers,
+    http.Client? httpClient,
+  }) {
+    return OpenAIPlugin(
+      name: name,
+      apiKey: apiKey,
+      apiKeyProvider: apiKeyProvider,
+      baseUrl: baseUrl,
+      customModels: models ?? const [],
+      headers: headers,
+      httpClient: httpClient,
+      provider: deepSeekProvider,
+    );
+  }
+
+  /// Reference to a DeepSeek model.
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = defaultDeepSeekNamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+}
+
+/// Typed [ModelRef]s for the DeepSeek models curated by the `deepseek` plugin.
+///
+/// Each entry is equivalent to `deepSeek.model('<name>')`, which remains the
+/// escape hatch for models not listed here and for plugin instances registered
+/// under a custom namespace.
+abstract final class DeepSeekModels {
+  /// DeepSeek Flash: 1M context, image input, thinking on by default.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekFlash = deepSeek.model(
+    KnownDeepSeekModel.deepseekFlash.id,
+  );
+
+  /// DeepSeek V4 Pro. Text only.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekV4Pro = deepSeek.model(
+    KnownDeepSeekModel.deepseekV4Pro.id,
+  );
+
+  /// The former chat alias, now DeepSeek Flash with thinking off.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekChat = deepSeek.model(
+    KnownDeepSeekModel.deepseekChat.id,
+  );
+
+  /// The former reasoning alias, now DeepSeek Flash with thinking on.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekReasoner = deepSeek
+      .model(KnownDeepSeekModel.deepseekReasoner.id);
+
+  /// Every ref above, in catalog order.
+  ///
+  /// Exists so the statics cannot silently fall behind [KnownDeepSeekModel],
+  /// the same way `OpenAIModels.all` guards the OpenAI refs.
+  static final List<ModelRef<chat.OpenAIChatOptions>> all = [
+    deepseekFlash,
+    deepseekV4Pro,
+    deepseekChat,
+    deepseekReasoner,
   ];
 }

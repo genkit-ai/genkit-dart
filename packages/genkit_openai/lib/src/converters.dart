@@ -22,11 +22,23 @@ final _logger = Logger('genkit_openai');
 
 /// Converter class for transforming between Genkit and OpenAI formats
 abstract final class GenkitConverter {
-  /// Convert Genkit messages to OpenAI format
+  /// Converts Genkit messages to the OpenAI wire format.
+  ///
+  /// [replayReasoning] re-sends each model turn's reasoning as
+  /// `reasoning_content`. DeepSeek requires it when the request carries
+  /// `tools` — the thinking of previous turns is concatenated into the context
+  /// and is simply lost otherwise — and ignores it the rest of the time. It is
+  /// off by default because the field is not OpenAI's: the SDK serialises it
+  /// whenever it is set, so leaving it on would put a field on the wire that
+  /// OpenAI never asked for.
+  ///
+  /// [visualDetailLevel] stays positional so the exported signature does not
+  /// break.
   static List<sdk.ChatMessage> toOpenAIMessages(
     List<Message> messages,
-    String? visualDetailLevel,
-  ) {
+    String? visualDetailLevel, {
+    bool replayReasoning = false,
+  }) {
     final result = <sdk.ChatMessage>[];
     for (final message in messages) {
       // Tool messages may contain multiple responses and need to be expanded
@@ -70,7 +82,13 @@ abstract final class GenkitConverter {
           );
         }
       } else {
-        result.add(toOpenAIMessage(message, visualDetailLevel));
+        result.add(
+          toOpenAIMessage(
+            message,
+            visualDetailLevel,
+            replayReasoning: replayReasoning,
+          ),
+        );
       }
     }
     return result;
@@ -80,8 +98,9 @@ abstract final class GenkitConverter {
   /// Note: Tool messages are handled separately in toOpenAIMessages()
   static sdk.ChatMessage toOpenAIMessage(
     Message msg,
-    String? visualDetailLevel,
-  ) {
+    String? visualDetailLevel, {
+    bool replayReasoning = false,
+  }) {
     if (msg.role == Role.system) {
       return sdk.ChatMessage.system(msg.text);
     }
@@ -93,9 +112,12 @@ abstract final class GenkitConverter {
     }
     if (msg.role == Role.model) {
       final toolCalls = _extractToolCalls(msg.content);
-      return sdk.ChatMessage.assistant(
+      // Built directly rather than through ChatMessage.assistant(), which
+      // cannot carry reasoning_content.
+      return sdk.AssistantMessage(
         content: msg.text,
         toolCalls: toolCalls.isNotEmpty ? toolCalls : null,
+        reasoningContent: replayReasoning ? _reasoningTextOf(msg) : null,
       );
     }
     if (msg.role == Role.tool) {
@@ -280,6 +302,19 @@ abstract final class GenkitConverter {
     }
 
     return Message(role: Role.model, content: parts);
+  }
+
+  /// Every reasoning part of [msg], joined, or null when it carries none.
+  ///
+  /// All of them, not just the last: DeepSeek's rule is that the reasoning of
+  /// all previous turns is replayed.
+  static String? _reasoningTextOf(Message msg) {
+    final reasoning = msg.content
+        .where((part) => part.isReasoning)
+        .map((part) => part.reasoning)
+        .whereType<String>()
+        .where((text) => text.isNotEmpty);
+    return reasoning.isEmpty ? null : reasoning.join('\n');
   }
 
   /// The reasoning text carried by an assistant message or a stream delta.
