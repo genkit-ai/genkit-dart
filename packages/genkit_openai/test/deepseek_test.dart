@@ -258,6 +258,28 @@ void main() {
       expect(names.any((n) => n.contains('gpt-')), isFalse);
     });
 
+    test('another spelling of the same host is still the same host', () async {
+      // DeepSeek documents both `https://api.deepseek.com` and `.../v1`, and
+      // this repo's own sample used the second. Treating it as a foreign
+      // gateway would silently drop the catalog, the labels and the per-model
+      // checks for someone who copied the URL out of DeepSeek's docs.
+      for (final baseUrl in [
+        'https://api.deepseek.com/v1',
+        'https://api.deepseek.com/',
+        'https://API.deepseek.com',
+      ]) {
+        final plugin = OpenAIPlugin(
+          provider: deepSeekProvider,
+          apiKey: 'ds-key',
+          baseUrl: baseUrl,
+          httpClient: recordingClient([]),
+        );
+
+        final names = (await plugin.list()).map((m) => m.name).toSet();
+        expect(names, contains('deepseek/deepseek-flash'), reason: baseUrl);
+      }
+    });
+
     test('a gateway keeps the capabilities but not the deployment', () async {
       final plugin = OpenAIPlugin(
         provider: deepSeekProvider,
@@ -662,7 +684,9 @@ void main() {
       expect(sent['content'], contains('"name"'));
     });
 
-    test('does not second-guess a prompt that already says json', () async {
+    test('does not repeat itself when the prompt already says json', () async {
+      // With no schema the instruction exists only to satisfy DeepSeek's
+      // "the prompt must mention json" rule, which the caller already did.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -673,10 +697,31 @@ void main() {
         model: DeepSeekModels.deepseekFlash,
         prompt: 'reply with json please',
         outputFormat: 'json',
-        outputSchema: JsonOut.$schema,
       );
 
       expect(chatBodyOf(requests)['messages'], hasLength(1));
+    });
+
+    test('still sends the schema when the prompt mentions json', () async {
+      // The word and the schema are different jobs. A prompt can mention JSON
+      // while carrying no schema at all - "extract the fields from this JSON
+      // log line" - and the schema has nowhere else to travel.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: DeepSeekModels.deepseekFlash,
+        prompt: 'Extract the fields from this JSON log line: {"a":1}',
+        outputFormat: 'json',
+        outputSchema: JsonOut.$schema,
+      );
+
+      final sent = (chatBodyOf(requests)['messages'] as List).last as Map;
+      expect(sent['role'], 'system');
+      expect(sent['content'], contains('"name"'));
     });
 
     test('OpenAI gets no such hint', () async {

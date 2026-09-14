@@ -21,10 +21,12 @@
 /// Skipped unless `DEEPSEEK_API_KEY` is set.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -187,32 +189,25 @@ void main() {
     }, skip: skip);
 
     test('the curated catalog still matches what DeepSeek serves', () async {
-      // The lineup moved once already: deepseek-chat and deepseek-reasoner
-      // were the whole catalog until 2026. A stable id the API no longer
-      // lists is a catalog entry that needs retiring.
-      //
-      // The `/v1` spelling is the same host, but it differs from the
-      // provider's default, so the curated catalog is withheld and this is
-      // pure discovery.
-      final probe = Genkit(
-        plugins: [
-          deepSeek(apiKey: apiKey, baseUrl: 'https://api.deepseek.com/v1'),
-        ],
+      // Asked of the API directly rather than through the plugin: what the
+      // plugin lists is the catalog merged with discovery, and the question
+      // here is only what the host actually serves.
+      final response = await http.get(
+        Uri.parse('https://api.deepseek.com/models'),
+        headers: {'authorization': 'Bearer $apiKey'},
       );
-      addTearDown(probe.shutdown);
+      expect(response.statusCode, 200, reason: response.body);
 
-      final discovered = (await probe.registry.listActions())
-          .where((a) => a.actionType == .model)
-          .map((a) => a.name.split('/').last)
+      final served = ((jsonDecode(response.body) as Map)['data'] as List)
+          .map((m) => (m as Map)['id'] as String)
           .toSet();
 
-      expect(discovered, isNotEmpty, reason: 'discovery returned nothing');
-
-      final stable = KnownDeepSeekModel.values
-          .where((m) => m.stage == OpenAIModelStage.stable)
-          .map((m) => m.id);
-      for (final id in stable) {
-        expect(discovered, contains(id), reason: '$id is no longer served');
+      expect(served, isNotEmpty, reason: 'the host listed no models');
+      for (final id
+          in KnownDeepSeekModel.values
+              .where((m) => m.stage == OpenAIModelStage.stable)
+              .map((m) => m.id)) {
+        expect(served, contains(id), reason: '$id is no longer served');
       }
     }, skip: skip);
   });

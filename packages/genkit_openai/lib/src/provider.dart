@@ -18,6 +18,7 @@ import '../genkit_openai.dart' show defaultOpenAINamespace;
 import 'chat_body_client.dart';
 import 'known_deepseek_models.dart';
 import 'known_models.dart';
+import 'known_xai_models.dart';
 
 /// The facts that differ between hosts speaking the OpenAI Chat Completions
 /// API, gathered in one value.
@@ -143,6 +144,26 @@ final deepSeekProvider = OpenAIProvider(
   rewriteChatBody: deepSeekChatBody,
   usesLegacyMaxTokens: true,
   supportsJsonSchema: false,
+);
+
+/// xAI, which is the closest of the three to OpenAI: the same request fields,
+/// the same `json_schema` structured outputs, a different host and key.
+///
+/// The only real difference is the reasoning vocabulary. xAI documents the
+/// accepted levels as varying per model — 4.3 takes `none` and defaults to
+/// `low`, 4.6 takes neither — so the union is checked here and the pairing is
+/// left to the API.
+final xaiProvider = OpenAIProvider(
+  defaultNamespace: defaultXaiNamespace,
+  defaultBaseUrl: 'https://api.x.ai/v1',
+  apiKeyEnvVar: 'XAI_API_KEY',
+  infoFor: (model, {required compat}) =>
+      compat ? compatXaiModelInfo(model) : xaiModelInfoFor(model),
+  catalogIds: knownXaiChatModels,
+  reasonsFor: (model) => knownXaiModelFor(model)?.reasons,
+  // No `minimal`, and no `max`.
+  // https://docs.x.ai/docs/models
+  reasoningEfforts: const {'none', 'low', 'medium', 'high', 'xhigh'},
 );
 
 /// Moves `reasoning_effort` into the `thinking` object DeepSeek reads.
