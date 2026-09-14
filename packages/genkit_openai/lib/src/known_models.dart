@@ -176,45 +176,66 @@ enum OpenAIModelStage {
 enum KnownOpenAIModel {
   // GPT-5.6, the current frontier family. No dated snapshots yet; the bare
   // `gpt-5.6` alias routes to sol and resolves dynamically.
-  gpt56Sol('gpt-5.6-sol', 'OpenAI GPT-5.6 Sol', multimodalSupports),
-  gpt56Terra('gpt-5.6-terra', 'OpenAI GPT-5.6 Terra', multimodalSupports),
-  gpt56Luna('gpt-5.6-luna', 'OpenAI GPT-5.6 Luna', multimodalSupports),
+  gpt56Sol(
+    'gpt-5.6-sol',
+    'OpenAI GPT-5.6 Sol',
+    multimodalSupports,
+    reasons: true,
+  ),
+  gpt56Terra(
+    'gpt-5.6-terra',
+    'OpenAI GPT-5.6 Terra',
+    multimodalSupports,
+    reasons: true,
+  ),
+  gpt56Luna(
+    'gpt-5.6-luna',
+    'OpenAI GPT-5.6 Luna',
+    multimodalSupports,
+    reasons: true,
+  ),
 
   gpt55(
     'gpt-5.5',
     'OpenAI GPT-5.5',
     multimodalSupports,
     snapshots: ['gpt-5.5-2026-04-23'],
+    reasons: true,
   ),
   gpt54(
     'gpt-5.4',
     'OpenAI GPT-5.4',
     multimodalSupports,
     snapshots: ['gpt-5.4-2026-03-05'],
+    reasons: true,
   ),
   gpt54Mini(
     'gpt-5.4-mini',
     'OpenAI GPT-5.4-mini',
     multimodalSupports,
     snapshots: ['gpt-5.4-mini-2026-03-17'],
+    reasons: true,
   ),
   gpt54Nano(
     'gpt-5.4-nano',
     'OpenAI GPT-5.4-nano',
     multimodalSupports,
     snapshots: ['gpt-5.4-nano-2026-03-17'],
+    reasons: true,
   ),
   gpt52(
     'gpt-5.2',
     'OpenAI GPT-5.2',
     multimodalSupports,
     snapshots: ['gpt-5.2-2025-12-11'],
+    reasons: true,
   ),
   gpt51(
     'gpt-5.1',
     'OpenAI GPT-5.1',
     multimodalSupports,
     snapshots: ['gpt-5.1-2025-11-13'],
+    reasons: true,
   ),
 
   // GPT-5. The dated snapshots shut down 2026-12-11; the aliases stay.
@@ -223,18 +244,21 @@ enum KnownOpenAIModel {
     'OpenAI GPT-5',
     multimodalSupports,
     snapshots: ['gpt-5-2025-08-07'],
+    reasons: true,
   ),
   gpt5Mini(
     'gpt-5-mini',
     'OpenAI GPT-5-mini',
     multimodalSupports,
     snapshots: ['gpt-5-mini-2025-08-07'],
+    reasons: true,
   ),
   gpt5Nano(
     'gpt-5-nano',
     'OpenAI GPT-5-nano',
     multimodalSupports,
     snapshots: ['gpt-5-nano-2025-08-07'],
+    reasons: true,
   ),
   // The ChatGPT-tuned GPT-5 snapshot: no function calling.
   gpt5ChatLatest(
@@ -299,13 +323,20 @@ enum KnownOpenAIModel {
 
   // Reasoning models. o1, o3-mini, and o4-mini shut down 2026-10-23;
   // o3-2025-04-16 shuts down 2026-12-11.
-  o3('o3', 'OpenAI o3', reasoningSupports, snapshots: ['o3-2025-04-16']),
+  o3(
+    'o3',
+    'OpenAI o3',
+    reasoningSupports,
+    snapshots: ['o3-2025-04-16'],
+    reasons: true,
+  ),
   o4Mini(
     'o4-mini',
     'OpenAI o4-mini',
     reasoningSupports,
     snapshots: ['o4-mini-2025-04-16'],
     stage: OpenAIModelStage.legacy,
+    reasons: true,
   ),
   o3Mini(
     'o3-mini',
@@ -313,6 +344,7 @@ enum KnownOpenAIModel {
     reasoningTextOnlySupports,
     snapshots: ['o3-mini-2025-01-31'],
     stage: OpenAIModelStage.legacy,
+    reasons: true,
   ),
   o1(
     'o1',
@@ -320,9 +352,11 @@ enum KnownOpenAIModel {
     reasoningSupports,
     snapshots: ['o1-2024-12-17'],
     stage: OpenAIModelStage.legacy,
+    reasons: true,
   ),
-  // o1-mini and o1-preview never had function calling on the chat API. Both
-  // are retired; curated so the names still resolve honestly.
+  // o1-mini and o1-preview never had function calling on the chat API, and
+  // predate `reasoning_effort` - they reason, but the level is not settable.
+  // Both are retired; curated so the names still resolve honestly.
   o1Mini(
     'o1-mini',
     'OpenAI o1-mini',
@@ -407,6 +441,7 @@ enum KnownOpenAIModel {
     this.supports, {
     this.snapshots = const [],
     this.stage = OpenAIModelStage.stable,
+    this.reasons = false,
   });
 
   /// Bare model name (no plugin prefix).
@@ -424,6 +459,20 @@ enum KnownOpenAIModel {
   /// Lifecycle stage, which decides whether the plugin registers this model
   /// as an action as well as how it describes it.
   final OpenAIModelStage stage;
+
+  /// Whether the model thinks before answering, and so accepts
+  /// `reasoning_effort`.
+  ///
+  /// A model that does not reason rejects the parameter outright, which is
+  /// the whole reason this is curated: setting an effort once in a shared
+  /// config and then switching models is an easy mistake, and a 400 naming
+  /// only the parameter does not say which of the two is wrong.
+  ///
+  /// Deliberately a flag and not a list of levels. Which levels a model takes
+  /// moves with the generation, and enumerating that per entry would be
+  /// guessing at values OpenAI can change under us; the value itself is left
+  /// for the API to judge.
+  final bool reasons;
 
   /// Every name that resolves to this model: the alias followed by its dated
   /// snapshots, newest first. Surfaced as `ModelInfo.versions`.

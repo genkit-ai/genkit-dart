@@ -45,6 +45,46 @@ void main() {
       );
     });
 
+    test(
+      'every o-series model with settable effort is marked as reasoning',
+      () {
+        // Catches an o-series entry added without `reasons`, which would then
+        // be refused a parameter it accepts. The preview pair is excluded: they
+        // reason, but predate `reasoning_effort`.
+        for (final model in KnownOpenAIModel.values) {
+          if (model.supports != reasoningSupports &&
+              model.supports != reasoningTextOnlySupports) {
+            continue;
+          }
+          expect(model.reasons, isTrue, reason: model.id);
+        }
+      },
+    );
+
+    test('the GPT-5 family reasons, bar the ChatGPT-tuned snapshot', () {
+      for (final model in KnownOpenAIModel.values) {
+        if (!model.id.startsWith('gpt-5')) continue;
+        expect(
+          model.reasons,
+          model.id != 'gpt-5-chat-latest',
+          reason: model.id,
+        );
+      }
+    });
+
+    test('no model that predates reasoning claims to reason', () {
+      for (final id in [
+        'gpt-4o',
+        'gpt-4.1',
+        'gpt-4-turbo',
+        'gpt-3.5-turbo',
+        'o1-mini',
+        'o1-preview',
+      ]) {
+        expect(knownOpenAIModelFor(id)!.reasons, isFalse, reason: id);
+      }
+    });
+
     test('no two entries claim the same name', () {
       final seen = <String, String>{};
       for (final model in KnownOpenAIModel.values) {

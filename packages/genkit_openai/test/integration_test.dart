@@ -335,6 +335,90 @@ void main() {
       expect(response.text.toLowerCase(), contains('hello'));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
+    test('reasoning effort reaches a reasoning model', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      // The mocks prove the parameter reaches the wire; only OpenAI can say
+      // whether it accepts the level for this model.
+      final response = await ai.generate(
+        model: OpenAIModels.o4Mini,
+        prompt: 'What is 17 * 23? Answer with the number only.',
+        config: OpenAIChatOptions(reasoningEffort: 'low'),
+      );
+
+      expect(response.text, contains('391'));
+      // Reasoning models bill their thinking separately, so a low effort
+      // still shows up in the usage breakdown.
+      expect(response.usage?.outputTokens, greaterThan(0));
+
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('verbosity reaches the GPT-5 family', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final response = await ai.generate(
+        model: OpenAIModels.gpt5Mini,
+        prompt: 'Name the capital of France.',
+        config: OpenAIChatOptions(verbosity: 'low', reasoningEffort: 'low'),
+      );
+
+      expect(response.text.toLowerCase(), contains('paris'));
+
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('a model that does not reason rejects an effort', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      // The plugin refuses this before the request goes out. The live value
+      // of the test is the other half: that OpenAI would have refused it too,
+      // so the local check is not inventing a restriction.
+      final local = await ai.generate(
+        model: OpenAIModels.gpt4o,
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'high'),
+      );
+      expect(local.finishReason, FinishReason.failed);
+      expect(local.error?.status, StatusCodes.INVALID_ARGUMENT.name);
+
+      // The same request with the guard bypassed. Naming OpenAI's own host as
+      // a baseUrl is the documented way to opt out of the catalog's judgement,
+      // so this reaches the API and OpenAI answers for itself.
+      final direct = Genkit(
+        plugins: [openAI(apiKey: apiKey, baseUrl: 'https://api.openai.com/v1')],
+      );
+      final remote = await direct.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'high'),
+      );
+
+      expect(remote.finishReason, FinishReason.failed);
+      expect(remote.error?.message, contains('reasoning_effort'));
+
+      await direct.shutdown();
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
     test('discovery enriches the curated catalog', () async {
       if (apiKey == null || apiKey.isEmpty) {
         fail(

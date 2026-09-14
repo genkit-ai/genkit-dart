@@ -285,6 +285,49 @@ OpenAI's own hosting. The catalog is also not added to that host's listing:
 what a compatible provider lists is whatever its `/models` reports plus the
 models you register.
 
+## Reasoning
+
+The o-series and the GPT-5 family take a `reasoningEffort`, which trades latency
+and tokens against answer quality:
+
+```dart
+final response = await ai.generate(
+  model: OpenAIModels.o4Mini,
+  prompt: 'Prove it.',
+  config: OpenAIChatOptions(reasoningEffort: 'high'),
+);
+```
+
+Which of these levels a model accepts moves with the generation — `minimal`
+arrived with GPT-5, `none` replaced it in GPT-5.1, `xhigh` came later — so
+every level is offered to every reasoning model and OpenAI decides whether the
+pair makes sense. The set of levels itself is fixed by `openai_dart`, which
+models the parameter as an enum: a level OpenAI ships after this release needs
+an SDK bump to reach. What the plugin does check is the model:
+sending an effort to one that does not reason is rejected before the request
+goes out, naming the model rather than the parameter. Behind a custom `baseUrl`
+that check is skipped, since the catalog describes OpenAI's models and not that
+host's.
+
+`verbosity` is a separate GPT-5-family knob, controlling how much the model says
+rather than how hard it thinks.
+
+When a model returns its chain of thought, it arrives as a `ReasoningPart`
+ahead of the answer, and streams as it is produced:
+
+```dart
+await for (final chunk in ai.generateStream(model: ..., prompt: ...)) {
+  for (final part in chunk.content) {
+    if (part.isReasoning) stdout.write(part.reasoning);
+  }
+}
+```
+
+OpenAI's own models never return reasoning on the chat API — they bill it as
+reasoning tokens and keep it — so in practice this is a compatible-backend
+path: DeepSeek R1 and vLLM send `reasoning_content`, OpenRouter sends
+`reasoning`, and both are read.
+
 ## Options
 
 The `OpenAIChatOptions` class supports the following options:
@@ -300,6 +343,9 @@ The `OpenAIChatOptions` class supports the following options:
 - `jsonMode` (bool?) - Enable JSON mode
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
+- `reasoningEffort` (String?, 'none'|'minimal'|'low'|'medium'|'high'|'xhigh'|'max') -
+  How hard a reasoning model thinks before answering
+- `verbosity` (String?, 'low'|'medium'|'high') - How much the model says in its answer
 
 ## Custom Headers
 
