@@ -335,10 +335,10 @@ send `{"type": "json_object"}`. Output config wins when both are set, so
 OpenAI rejects `json_object` unless the conversation also asks for JSON, so
 options 2 and 3 need the prompt to say so. Option 1 does not.
 
-Schemas are sent as authored. The plugin does not set `strict`, because
-OpenAI's strict mode requires every property to appear in `required` and
-`additionalProperties: false` on every object — which rejects ordinary schemas
-that have optional fields.
+The plugin sends `strict: false`. Schemas are flattened (`$ref`/`$defs`
+resolved) but otherwise unmodified. Strict mode is off because it requires
+every property to appear in `required` and `additionalProperties: false` on
+every object — which rejects ordinary schemas that have optional fields.
 
 ## Custom Headers
 
