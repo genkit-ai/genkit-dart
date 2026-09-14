@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:genkit/genkit.dart';
 import 'package:logging/logging.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
+import 'package:schemantic/schemantic.dart';
 
 final _logger = Logger('genkit_openai');
 
@@ -235,7 +236,13 @@ abstract final class GenkitConverter {
   static sdk.Tool toOpenAITool(ToolDefinition tool) {
     // OpenAI requires parameters to be a valid JSON Schema object
     // If no schema is provided, use an empty object schema
-    var parameters = tool.inputSchema;
+    // Flattened first: schemantic emits a generated class's schema as a
+    // `$ref` into `$defs`, and hosts disagree about resolving one. OpenAI
+    // accepts it; xAI answers `tool parameter root must be an object type
+    // (root schema is a $ref)`. Inlining it costs nothing and is the shape
+    // every host documents. The response format is flattened for the same
+    // reason - see `buildOpenAIResponseFormat`.
+    var parameters = tool.inputSchema?.flatten().cast<String, dynamic>();
 
     if (parameters == null) {
       parameters = {'type': 'object', 'properties': {}};

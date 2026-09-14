@@ -18,7 +18,12 @@
 /// These prove DeepSeek accepts it — which is a different question, and the
 /// only one that catches the plugin agreeing with a stale reading of the docs.
 ///
+/// DeepSeek thinks by default at effort `high`, so a trivial prompt can still take
+/// well past package:test's 30-second default. That budget is sized for unit
+/// tests, not for a round trip to a thinking model.
+///
 /// Skipped unless `DEEPSEEK_API_KEY` is set.
+@Timeout(Duration(minutes: 3))
 library;
 
 import 'dart:convert';

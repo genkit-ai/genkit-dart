@@ -20,7 +20,16 @@ import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
+
+part 'xai_test.g.dart';
+
+/// A generated class, whose schema is a `$ref` into `$defs` before flattening.
+@Schema()
+abstract class $CityQuery {
+  String get city;
+}
 
 MockClient recordingClient(
   List<http.Request> requests, {
@@ -197,6 +206,40 @@ void main() {
       expect(names, contains('xai/grok-4.6'));
       expect(names, isNot(contains('xai/grok-imagine-image-2.0')));
       expect(names, isNot(contains('xai/grok-imagine-video-1.5')));
+    });
+  });
+
+  group('tool schemas', () {
+    test('a generated schema reaches the wire inlined', () async {
+      // schemantic emits a generated class as a `$ref` into `$defs`. OpenAI
+      // resolves it; xAI rejects it outright with "tool parameter root must
+      // be an object type (root schema is a $ref)".
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [xAI(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+      ai.defineTool(
+        name: 'getPopulation',
+        description: 'Get the population of a city.',
+        inputSchema: CityQuery.$schema,
+        outputSchema: .integer(),
+        fn: (q, _) async => .response(1),
+      );
+
+      await ai.generate(
+        model: XaiModels.grok46,
+        prompt: 'hi',
+        toolNames: ['getPopulation'],
+      );
+
+      final tool = (chatBodyOf(requests)['tools'] as List).single as Map;
+      final parameters = ((tool['function'] as Map)['parameters'] as Map)
+          .cast<String, dynamic>();
+
+      expect(parameters[r'$ref'], isNull, reason: 'root is still a ref');
+      expect(parameters['type'], 'object');
+      expect(parameters['properties'] as Map, contains('city'));
     });
   });
 
