@@ -27,4 +27,3 @@ library;
 // `FileSessionStore` moved to the experimental surface
 // (`package:genkit/experimental_io.dart`) alongside the rest of the agent
 // session APIs, so it can evolve without a major version bump.
-
