@@ -76,9 +76,18 @@ export OTEL_COLLECTOR_VERSION=v0.140.0
 await OTel.initialize();
 configureInstrumentation(
   GenAiInstrumentation(
-    captureContent: true,                 // opt-in; may contain PII
-    contentMode: GenAiContentMode.span,   // easiest to read in Jaeger
+    // spanOnly is easiest to read in Jaeger; may contain PII.
+    contentCapturingMode: .spanOnly,
   ),
 );
 final ai = Genkit(plugins: [googleAI()]);
 ```
+
+## Quieting the SDK logger
+
+dartastic prints an `[ERROR] Tracer: Exception in withSpanAsync ...` line for
+every exception that flows through a span (e.g. a model 5xx). The exception is
+still recorded on the span and rethrown; the line is just diagnostic noise. This
+sample turns it down with `OTelLog.currentLevel = LogLevel.fatal;` after
+`OTel.initialize()`. Apps can do the same, or set `OTEL_LOG_LEVEL=fatal`.
+

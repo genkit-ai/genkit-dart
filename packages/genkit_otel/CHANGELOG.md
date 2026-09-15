@@ -6,6 +6,8 @@
   spans, and generic spans for other Genkit action types.
 - Emits the GenAI client metrics `gen_ai.client.token.usage` and
   `gen_ai.client.operation.duration`.
-- Optional message-content capture (span attributes or a dedicated event),
-  off by default and gated by
-  `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`.
+- Optional message-content capture via `contentCapturingMode`
+  (`noContent`/`spanOnly`/`eventOnly`/`spanAndEvent`), mirroring the OTel GenAI
+  `ContentCapturingMode`. Off by default; when unset, the env var
+  `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is parsed using the
+  spec's UPPER_SNAKE tokens.

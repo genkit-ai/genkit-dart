@@ -34,15 +34,19 @@ Future<void> main() async {
   //   OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   await OTel.initialize();
 
-  // captureContent is opt-in (it may contain PII). span mode is the easiest to
-  // eyeball in Jaeger; switch to GenAiContentMode.event to keep bodies off the
-  // span.
+  // Quiet dartastic's internal diagnostic logger. By default it prints an
+  // '[ERROR] Tracer: Exception in withSpanAsync ...' line for every
+  // exception that passes through a span, which can look like the
+  // instrumentation itself failed. The exception is still recorded on the
+  // span and rethrown to the caller. Apps can also set OTEL_LOG_LEVEL.
+  OTelLog.currentLevel = LogLevel.fatal;
+
+  // Content capture is opt-in (it may contain PII). spanOnly is the easiest to
+  // eyeball in Jaeger; eventOnly emits a logs-signal event Jaeger can't show,
+  // spanAndEvent does both. Unset consults
+  // OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
   configureInstrumentation(
-    GenAiInstrumentation(
-      captureContent: true,
-      contentMode: GenAiContentMode.span,
-      emitMetrics: false,
-    ),
+    GenAiInstrumentation(contentCapturingMode: .spanOnly, emitMetrics: false),
   );
 
   final ai = Genkit(plugins: [googleAI()]);

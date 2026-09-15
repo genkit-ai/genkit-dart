@@ -44,27 +44,52 @@ Future<void> main() async {
 
 When the SDK is not initialized, the provider is effectively a no-op.
 
+### SDK logging
+
+dartastic's internal logger defaults to printing an
+`[ERROR] Tracer: Exception in withSpanAsync ...` line for every exception that
+flows through a span. The exception is still recorded and rethrown; the line is
+just diagnostic noise. To quiet it, lower the level after `OTel.initialize()`:
+
+```dart
+OTelLog.currentLevel = LogLevel.fatal; // or set OTEL_LOG_LEVEL=fatal
+```
+
 ## Content capture (PII)
 
 Prompt and response content may contain PII, so capture is off by default.
-Enable it explicitly or via the spec's env var
-`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`:
+`contentCapturingMode` mirrors the OTel GenAI `ContentCapturingMode`:
+
+| Mode | Where content goes |
+| --- | --- |
+| `noContent` (default) | not captured |
+| `spanOnly` | span attributes (`gen_ai.*.messages`) as JSON strings |
+| `eventOnly` | a `gen_ai.client.inference.operation.details` log event |
+| `spanAndEvent` | both |
 
 ```dart
 GenAiInstrumentation(
-  captureContent: true,
-  // event (default): a single operation.details event keeps bodies off the span
-  // span: content attached to the span as gen_ai.* attributes
-  contentMode: GenAiContentMode.span,
+  contentCapturingMode: ContentCapturingMode.spanOnly,
 );
 ```
+
+When not supplied, the env var `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`
+is consulted using the spec's UPPER_SNAKE tokens (`NO_CONTENT`, `SPAN_ONLY`,
+`EVENT_ONLY`, `SPAN_AND_EVENT`); an explicit value overrides it. An unknown
+token logs a one-time warning and falls back to `NO_CONTENT`.
+
+> `EVENT_ONLY` emits content on the OpenTelemetry logs signal (a
+> `gen_ai.client.inference.operation.details` log record), not on the span.
+> Trace-only backends like Jaeger cannot display it (its GenAI tab reads span
+> attributes; its "Trace Logs" tab reads span events, neither is the logs
+> signal). Use `SPAN_ONLY` or `SPAN_AND_EVENT` for Jaeger, or a logs backend
+> (e.g. Loki, Elasticsearch/OpenSearch) for `EVENT_ONLY`.
 
 ## Options
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `captureContent` | env or `false` | Capture spec-shaped `gen_ai.*` message content on model spans. |
-| `contentMode` | `event` | Where model content is recorded (`event` or `span`). |
+| `contentCapturingMode` | env or `noContent` | Where spec-shaped `gen_ai.*` message content is recorded (`noContent`/`spanOnly`/`eventOnly`/`spanAndEvent`). |
 | `captureActionIO` | `false` | Capture raw Genkit input/output as `genkit.input`/`genkit.output` on every span (debugging / Dev UI). |
 | `emitMetrics` | `true` | Emit token-usage and operation-duration metrics. |
 | `emitToolSpans` | `false` | Emit `execute_tool` spans for tool actions. |
