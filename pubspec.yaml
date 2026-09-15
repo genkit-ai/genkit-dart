@@ -34,6 +34,7 @@ workspace:
   - testapps/middleware
   - testapps/remote_models
   - testapps/gemini
+  - testapps/otel_jaeger
   - testapps/prompts
   - testapps/evals
   - testapps/schemantic_sample
@@ -71,6 +72,12 @@ melos:
 
     analyze:
       exec: dart analyze --fatal-infos .
+
+    telemetry:
+      run: cd testapps/otel_jaeger && dart run tool/telemetry.dart
+      description: >-
+        Start a Docker-free local telemetry stack (Jaeger + otelcol-contrib) for
+        the otel_jaeger sample. Downloads the binaries on first run.
 
     build-gen:
       run: |
