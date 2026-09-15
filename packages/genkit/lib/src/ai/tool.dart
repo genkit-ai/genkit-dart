@@ -22,6 +22,14 @@ import '../o11y/instrumentation.dart';
 import '../types.dart';
 import 'interrupt.dart';
 
+/// Returns the wire (short) name for [fullName]: its last path segment. The
+/// model sees this name and echoes it back on a tool request, so tool
+/// execution resolves against the short name (e.g. a namespaced or DAP-provided
+/// tool `my-server/weatherTool` is presented to the model as `weatherTool`).
+String shortToolName(String fullName) => fullName.contains('/')
+    ? fullName.substring(fullName.lastIndexOf('/') + 1)
+    : fullName;
+
 /// Arguments passed to a tool function execution.
 class ToolFnArgs<Input> {
   final ActionFnArg<void, Input, void> _base;
