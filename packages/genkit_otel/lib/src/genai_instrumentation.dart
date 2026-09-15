@@ -26,17 +26,6 @@ import 'genai/gen_ai_metrics.dart';
 
 final _logger = Logger('GenAiInstrumentation');
 
-/// Where captured prompt/response content is recorded.
-enum GenAiContentMode {
-  /// Emit a single `gen_ai.client.inference.operation.details` event carrying
-  /// the content, correlated to the span via context. Keeps large bodies off
-  /// the span. This is the default when content capture is enabled.
-  event,
-
-  /// Attach content directly to the span as `gen_ai.*` JSON-string attributes.
-  span,
-}
-
 /// An [Instrumentation] that emits OpenTelemetry telemetry following the
 /// [OTel GenAI semantic conventions][spec] using the `dartastic_opentelemetry`
 /// SDK.
@@ -52,21 +41,20 @@ enum GenAiContentMode {
 ///
 /// [spec]: https://github.com/open-telemetry/semantic-conventions-genai
 class GenAiInstrumentation implements Instrumentation {
-  /// Whether to capture spec-shaped GenAI message content on model spans, i.e.
-  /// the `gen_ai.*.messages` attributes / operation.details event.
+  /// Where spec-shaped GenAI message content (`gen_ai.system_instructions`,
+  /// `gen_ai.input.messages`, `gen_ai.output.messages`) is recorded.
   ///
-  /// Content may contain PII, so it is off by default. Also enabled when the
-  /// env var `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` is set.
-  final bool captureContent;
-
-  /// Where captured content is recorded (event vs span attributes).
-  final GenAiContentMode contentMode;
+  /// Defaults to [ContentCapturingMode.noContent]. When not supplied, the env
+  /// var `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is consulted
+  /// (spec enum tokens); an explicit value here overrides the env var. Content
+  /// may contain PII.
+  final ContentCapturingMode contentCapturingMode;
 
   /// Whether to capture raw Genkit action input/output as `genkit.input` /
   /// `genkit.output` JSON attributes on every span (model, tool, flow, util,
   /// etc.).
   ///
-  /// This is independent of [captureContent]: it records the raw Genkit
+  /// This is independent of [contentCapturingMode]: it records the raw Genkit
   /// payloads (useful for debugging or the Genkit Dev UI) rather than the
   /// spec-shaped `gen_ai.*` content. May contain PII, so off by default.
   final bool captureActionIO;
@@ -95,27 +83,45 @@ class GenAiInstrumentation implements Instrumentation {
   bool _warnedNotInitialized = false;
 
   GenAiInstrumentation({
-    bool? captureContent,
-    this.contentMode = GenAiContentMode.event,
+    ContentCapturingMode? contentCapturingMode,
     this.captureActionIO = false,
     this.emitToolSpans = false,
     this.emitMetrics = true,
     this.scopeName = 'genkit-genai',
     otel.APITracer? tracer,
     otel.APIMeter? meter,
-  }) : captureContent = captureContent ?? _captureContentFromEnv(),
+  }) : contentCapturingMode =
+           contentCapturingMode ?? _contentCapturingModeFromEnv(),
        _injectedTracer = tracer,
        _injectedMeter = meter;
 
-  static bool _captureContentFromEnv() {
+  static ContentCapturingMode _contentCapturingModeFromEnv() {
+    String? raw;
     try {
-      final value = Platform.environment[captureContentEnvVar];
-      return value != null && value.toLowerCase() == 'true';
+      raw = Platform.environment[captureContentEnvVar];
     } catch (_) {
       // Platform.environment throws on unsupported platforms (e.g. web).
-      return false;
+      return ContentCapturingMode.noContent;
     }
+    final parsed = parseContentCapturingMode(raw);
+    if (parsed != null) return parsed;
+    _logger.warning(
+      'Invalid $captureContentEnvVar="$raw"; expected one of NO_CONTENT, '
+      'SPAN_ONLY, EVENT_ONLY, SPAN_AND_EVENT. Defaulting to NO_CONTENT.',
+    );
+    return ContentCapturingMode.noContent;
   }
+
+  /// Whether content is written to span attributes (SPAN_ONLY/SPAN_AND_EVENT).
+  bool get _captureOnSpan =>
+      contentCapturingMode == ContentCapturingMode.spanOnly ||
+      contentCapturingMode == ContentCapturingMode.spanAndEvent;
+
+  /// Whether content is emitted as the operation.details event
+  /// (EVENT_ONLY/SPAN_AND_EVENT).
+  bool get _captureOnEvent =>
+      contentCapturingMode == ContentCapturingMode.eventOnly ||
+      contentCapturingMode == ContentCapturingMode.spanAndEvent;
 
   otel.APITracer get _tracer => _cachedTracer ??=
       _injectedTracer ?? otel.OTel.tracerProvider().getTracer(scopeName);
@@ -183,7 +189,7 @@ class GenAiInstrumentation implements Instrumentation {
         if (response != null) {
           _addResponseAttributes(span, response, failed: false);
         }
-        if (captureContent) {
+        if (contentCapturingMode != ContentCapturingMode.noContent) {
           _recordContent(span, request, response);
         }
         _maybeCaptureActionIO(span, metadata.input, output);
@@ -412,7 +418,8 @@ class GenAiInstrumentation implements Instrumentation {
       outputMessages.add(mapOutputMessage(outputMessage, reason));
     }
 
-    if (contentMode == GenAiContentMode.span) {
+    // SPAN_ONLY / SPAN_AND_EVENT: attach content to the span as JSON strings.
+    if (_captureOnSpan) {
       if (inputMessages != null) {
         _setJsonAttribute(
           span,
@@ -430,28 +437,31 @@ class GenAiInstrumentation implements Instrumentation {
       if (outputMessages.isNotEmpty) {
         _setJsonAttribute(span, GenAiAttr.outputMessages, outputMessages);
       }
-      return;
     }
 
-    // Event mode (default): emit a single operation.details event correlated to
-    // the span via the current context.
-    final eventAttrs = <String, Object>{};
-    if (inputMessages != null) {
-      eventAttrs[GenAiAttr.inputMessages] = jsonEncode(inputMessages.messages);
-      if (inputMessages.systemInstructions.isNotEmpty) {
-        eventAttrs[GenAiAttr.systemInstructions] = jsonEncode(
-          inputMessages.systemInstructions,
+    // EVENT_ONLY / SPAN_AND_EVENT: emit one operation.details event correlated
+    // to the span via the current context.
+    if (_captureOnEvent) {
+      final eventAttrs = <String, Object>{};
+      if (inputMessages != null) {
+        eventAttrs[GenAiAttr.inputMessages] = jsonEncode(
+          inputMessages.messages,
         );
+        if (inputMessages.systemInstructions.isNotEmpty) {
+          eventAttrs[GenAiAttr.systemInstructions] = jsonEncode(
+            inputMessages.systemInstructions,
+          );
+        }
       }
+      if (outputMessages.isNotEmpty) {
+        eventAttrs[GenAiAttr.outputMessages] = jsonEncode(outputMessages);
+      }
+      _logger_.emit(
+        eventName: genAiOperationDetailsEvent,
+        context: otel.Context.current,
+        attributes: otel.OTel.attributesFromMap(eventAttrs),
+      );
     }
-    if (outputMessages.isNotEmpty) {
-      eventAttrs[GenAiAttr.outputMessages] = jsonEncode(outputMessages);
-    }
-    _logger_.emit(
-      eventName: genAiOperationDetailsEvent,
-      context: otel.Context.current,
-      attributes: otel.OTel.attributesFromMap(eventAttrs),
-    );
   }
 
   void _recordError(otel.APISpan span, Object e, StackTrace s) {

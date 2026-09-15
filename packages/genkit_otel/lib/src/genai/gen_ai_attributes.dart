@@ -101,6 +101,43 @@ const genAiOperationDetailsEvent = 'gen_ai.client.inference.operation.details';
 const captureContentEnvVar =
     'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT';
 
+/// Where captured GenAI message content is recorded, mirroring the OTel GenAI
+/// `ContentCapturingMode`.
+///
+/// Content may contain PII and is often large, so the default is [noContent].
+/// [eventOnly] keeps structured content on a dedicated log event and is
+/// preferred for production; [spanOnly] puts it on span attributes as a JSON
+/// string (easy to eyeball, but subject to backend attribute/envelope limits),
+/// best for development. [spanAndEvent] does both.
+///
+/// The member names are Dart-idiomatic; the spec's UPPER_SNAKE env tokens
+/// (`NO_CONTENT`, `SPAN_ONLY`, `EVENT_ONLY`, `SPAN_AND_EVENT`) map to them via
+/// [parseContentCapturingMode].
+enum ContentCapturingMode { noContent, spanOnly, eventOnly, spanAndEvent }
+
+/// Parses a spec `ContentCapturingMode` env token (case-insensitive,
+/// UPPER_SNAKE).
+///
+/// Returns [ContentCapturingMode.noContent] for a null/empty value, the
+/// matching mode for a known token, and `null` for an unknown token (callers
+/// decide the fallback).
+ContentCapturingMode? parseContentCapturingMode(String? raw) {
+  switch (raw?.trim().toUpperCase()) {
+    case null:
+    case '':
+    case 'NO_CONTENT':
+      return ContentCapturingMode.noContent;
+    case 'SPAN_ONLY':
+      return ContentCapturingMode.spanOnly;
+    case 'EVENT_ONLY':
+      return ContentCapturingMode.eventOnly;
+    case 'SPAN_AND_EVENT':
+      return ContentCapturingMode.spanAndEvent;
+    default:
+      return null;
+  }
+}
+
 /// Splits a fully qualified Genkit model name into `(prefix, model)`.
 ///
 /// `googleai/gemini-flash-latest` -> `('googleai', 'gemini-flash-latest')`.
