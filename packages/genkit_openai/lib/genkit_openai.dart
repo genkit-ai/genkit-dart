@@ -18,11 +18,25 @@ import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 
 import 'src/chat.dart' as chat;
+import 'src/embed.dart' as embed;
+import 'src/known_embedders.dart';
 import 'src/known_models.dart';
 import 'src/openai_plugin.dart';
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
+export 'src/embed.dart' show OpenAIEmbedderOptions;
+// The embedder catalog is public for the same reason the model catalog is.
+// `embedderInfoFor` and its compat variant are not: until core grows an
+// `EmbedderInfo` (#327) they hand back a raw map whose shape is expected to
+// change, and freezing that as API now would make the migration a breaking
+// one.
+export 'src/known_embedders.dart'
+    show
+        KnownOpenAIEmbedder,
+        knownEmbedderModels,
+        knownOpenAIEmbedderFor,
+        knownOpenAIEmbedders;
 // The catalog and the capability vocabulary are public: describing a model
 // the plugin does not know is a supported thing to do, and a caller doing it
 // should reach for the same presets the curated entries use.
@@ -157,6 +171,28 @@ class OpenAICompatPluginHandle {
     return modelRef(
       '$namespace/$name',
       customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+
+  /// Reference to an embedding model.
+  ///
+  /// Takes [namespace] for the same reason [model] does: it is the prefix the
+  /// embedder is looked up under (e.g. `openai/text-embedding-3-small`), and a
+  /// plugin registered with a custom name needs it passed.
+  ///
+  /// ```dart
+  /// final vectors = await ai.embed(
+  ///   embedder: openAI.embedder('text-embedding-3-small'),
+  ///   document: DocumentData(content: [TextPart(text: 'hello')]),
+  /// );
+  /// ```
+  EmbedderRef<embed.OpenAIEmbedderOptions> embedder(
+    String name, {
+    String namespace = defaultOpenAINamespace,
+  }) {
+    return embedderRef(
+      '$namespace/$name',
+      customOptions: embed.embedderOptionsSchema(),
     );
   }
 }
@@ -334,5 +370,36 @@ abstract final class OpenAIModels {
     gpt4Turbo,
     gpt4,
     gpt35Turbo,
+  ];
+}
+
+/// Typed [EmbedderRef]s for the OpenAI embedders curated by the `openai`
+/// plugin.
+///
+/// Each entry is equivalent to `openAI.embedder('<name>')`, which remains the
+/// escape hatch for embedders not listed here and for plugin instances
+/// registered under a custom namespace.
+abstract final class OpenAIEmbedders {
+  /// OpenAI text-embedding-3-small, 1536 dimensions.
+  static final EmbedderRef<embed.OpenAIEmbedderOptions> textEmbedding3Small =
+      openAI.embedder(KnownOpenAIEmbedder.textEmbedding3Small.id);
+
+  /// OpenAI text-embedding-3-large, 3072 dimensions.
+  static final EmbedderRef<embed.OpenAIEmbedderOptions> textEmbedding3Large =
+      openAI.embedder(KnownOpenAIEmbedder.textEmbedding3Large.id);
+
+  /// OpenAI text-embedding-ada-002, 1536 dimensions and no `dimensions`
+  /// option.
+  static final EmbedderRef<embed.OpenAIEmbedderOptions> textEmbeddingAda002 =
+      openAI.embedder(KnownOpenAIEmbedder.textEmbeddingAda002.id);
+
+  /// Every ref above, in catalog order.
+  ///
+  /// Exists so the statics cannot silently fall behind [KnownOpenAIEmbedder],
+  /// the same way `OpenAIModels.all` guards the model refs.
+  static final List<EmbedderRef<embed.OpenAIEmbedderOptions>> all = [
+    textEmbedding3Small,
+    textEmbedding3Large,
+    textEmbeddingAda002,
   ];
 }

@@ -285,6 +285,45 @@ OpenAI's own hosting. The catalog is also not added to that host's listing:
 what a compatible provider lists is whatever its `/models` reports plus the
 models you register.
 
+## Embeddings
+
+Embedders resolve the same way models do, and `OpenAIEmbedders` exposes a typed
+reference for each curated one:
+
+```dart
+final vectors = await ai.embed(
+  embedder: OpenAIEmbedders.textEmbedding3Small,
+  document: DocumentData(content: [TextPart(text: 'The cat sat on the mat.')]),
+);
+
+print(vectors.single.embedding.length); // 1536
+```
+
+`embedMany` takes a list of documents and returns one vector per document, in
+order. A corpus larger than the 2048 inputs OpenAI accepts per request is split
+across requests rather than rejected.
+
+Each document's text parts are joined with newlines; media parts are dropped,
+since OpenAI has no multimodal embedder. A document carrying no text at all is
+rejected before the request goes out.
+
+`KnownOpenAIEmbedder` carries the catalog, including the vector length each
+model returns. The `text-embedding-3-*` models will also return a shorter
+vector on request:
+
+```dart
+final vectors = await ai.embed(
+  embedder: OpenAIEmbedders.textEmbedding3Small,
+  document: DocumentData(content: [TextPart(text: 'hello')]),
+  options: OpenAIEmbedderOptions(dimensions: 256),
+);
+```
+
+As with models, the catalog is not the set of usable embedders: any name works
+by passing it to `openAI.embedder()`, it is just described without a vector
+length, and behind a custom `baseUrl` only what that host's `/models` reports
+is listed.
+
 ## Options
 
 The `OpenAIChatOptions` class supports the following options:
@@ -300,6 +339,12 @@ The `OpenAIChatOptions` class supports the following options:
 - `jsonMode` (bool?) - Enable JSON mode
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
+
+The `OpenAIEmbedderOptions` class supports:
+
+- `dimensions` (int?) - Length of the returned vector, for the models that
+  accept a shorter one
+- `user` (String?) - User identifier for abuse detection
 
 ## Custom Headers
 

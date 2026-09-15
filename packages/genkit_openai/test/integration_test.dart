@@ -387,6 +387,45 @@ void main() {
 
       await ai.shutdown();
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('embeds documents and honours the dimensions option', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+      final documents = [
+        DocumentData(content: [TextPart(text: 'The cat sat on the mat.')]),
+        DocumentData(
+          content: [TextPart(text: 'Paris is the capital of France.')],
+        ),
+      ];
+
+      final full = await ai.embedMany(
+        embedder: OpenAIEmbedders.textEmbedding3Small,
+        documents: documents,
+      );
+
+      // The vector length the catalog claims, checked against the API rather
+      // than against the catalog itself.
+      expect(full, hasLength(2));
+      expect(
+        full.first.embedding,
+        hasLength(KnownOpenAIEmbedder.textEmbedding3Small.dimensions),
+      );
+
+      final shortened = await ai.embed(
+        embedder: OpenAIEmbedders.textEmbedding3Small,
+        document: documents.first,
+        options: OpenAIEmbedderOptions(dimensions: 256),
+      );
+
+      expect(shortened.single.embedding, hasLength(256));
+
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
 
