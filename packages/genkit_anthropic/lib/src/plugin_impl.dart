@@ -229,6 +229,11 @@ class AnthropicPluginImpl extends GenkitPlugin {
         ? convertSystemMessage(systemMessage)
         : null;
 
+    // History is reconverted in full on every request, so one unsigned part in
+    // turn 1 would otherwise warn once per turn for the rest of the
+    // conversation. Conversion is synchronous, so this is a request-scoped
+    // flag in practice.
+    _warnedUnsigned = false;
     final messages = req.messages
         .where((m) => m.role != Role.system)
         .map(toAnthropicMessage)
@@ -331,10 +336,22 @@ const _redactedThinkingKey = 'redactedThinking';
 /// catches. The Gemini plugins write the same [_thoughtSignatureKey], so a
 /// Gemini part arrives with a signature Anthropic cannot verify and is
 /// forwarded, then rejected server-side. Genkit JS collides the same way.
+///
+/// Blocks are replayed whether or not thinking is enabled for the request in
+/// hand. Anthropic documents that toggling thinking mid-conversation does not
+/// error: the API disables it for that request and strips blocks that would
+/// leave the turn structure invalid. Sending them unconditionally is
+/// therefore safe, and the wire tests assert it.
 sdk.InputContentBlock? _toAnthropicThinkingBlock(Part p) {
   // A part carrying the key at all is a redacted block, so it is judged as
   // one. Falling through to the signature check would blame a missing
   // thoughtSignature for a payload problem, naming a key nothing read.
+  //
+  // This wins over a signature on the same part, which only a hand-built part
+  // can have: the two keys land on disjoint part types coming back from the
+  // API. Redacted first because its payload is the half that cannot be
+  // reconstructed - a thought whose signature is dropped can be sent again
+  // from the model, an opaque payload cannot.
   if (_claimsRedactedThinking(p)) {
     final redacted = _redactedThinkingPayload(p);
     if (redacted != null) {
@@ -352,11 +369,19 @@ sdk.InputContentBlock? _toAnthropicThinkingBlock(Part p) {
   final signature =
       metadata?[_thoughtSignatureKey] ?? metadata?[_legacyThoughtSignatureKey];
   if (signature is! String || signature.isEmpty) {
-    _logger.warning(
-      'Dropping a reasoning part with no $_thoughtSignatureKey: Anthropic '
-      'rejects a thinking block whose signature is missing or altered. '
-      'Preserve the metadata a model turn came back with to replay it.',
-    );
+    const message =
+        'Dropping a reasoning part with no thoughtSignature: Anthropic '
+        'rejects a thinking block whose signature is missing or altered. '
+        'Preserve the metadata a model turn came back with to replay it.';
+    // Once per request: the same part is reconverted on every turn after the
+    // one that produced it, and repeating the warning for each says nothing
+    // new.
+    if (_warnedUnsigned) {
+      _logger.fine(message);
+    } else {
+      _warnedUnsigned = true;
+      _logger.warning(message);
+    }
     return null;
   }
 
@@ -365,6 +390,10 @@ sdk.InputContentBlock? _toAnthropicThinkingBlock(Part p) {
     signature: signature,
   );
 }
+
+/// Whether an unsigned reasoning part has already been reported for the
+/// request being converted. Reset in `generate`.
+bool _warnedUnsigned = false;
 
 /// Whether [p] presents itself as a redacted thinking block, whatever the
 /// state of its payload.
@@ -574,11 +603,10 @@ Message fromAnthropicMessage(sdk.Message m) {
           ),
           // The payload is opaque and unreadable, but Anthropic still requires
           // it echoed back on later turns, so it is preserved rather than
-          // dropped. The reasoning text is necessarily empty.
-          // A CustomPart, not a ReasoningPart: the payload is not reasoning
-          // text and there is none to carry. Matches the shape Genkit JS
-          // persists, so a conversation crosses between the SDKs, and spares
-          // consumers an empty ReasoningPart in `message.content`.
+          // dropped. A CustomPart, not a ReasoningPart: the payload is not
+          // reasoning text and there is none to carry. Matches the shape
+          // Genkit JS persists, so a conversation crosses between the SDKs,
+          // and spares consumers an empty ReasoningPart in `message.content`.
           sdk.RedactedThinkingBlock(:final data) => CustomPart(
             custom: {_redactedThinkingKey: data},
           ),

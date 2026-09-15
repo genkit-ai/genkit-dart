@@ -478,6 +478,32 @@ void main() {
       expect(redacted['data'], 'opaque_payload');
     });
 
+    test('a part claiming both keys is sent as the redacted block', () {
+      // Only reachable from a hand-built part: the two keys land on disjoint
+      // part types coming back from the API. Redacted wins because its
+      // payload is the half that cannot be reconstructed - a thought whose
+      // signature was lost can be produced again, an opaque payload cannot.
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(
+            reasoning: 'a real thought',
+            metadata: {
+              'thoughtSignature': 'sig_123',
+              'redactedThinking': 'opaque_payload',
+            },
+          ),
+        ],
+      );
+
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 1);
+
+      final block = result.blocks.first.toJson();
+      expect(block['type'], 'redacted_thinking');
+      expect(block['data'], 'opaque_payload');
+    });
+
     test('should drop a ReasoningPart with no signature', () {
       // Anthropic rejects an unsigned thinking block, so dropping it is the
       // only recoverable option.
