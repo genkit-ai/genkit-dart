@@ -203,10 +203,9 @@ void main() {
     expect(attr(span, GenAiAttr.inputMessages), isNull);
   });
 
-  test('captures content on the span in span mode', () async {
+  test('spanOnly captures content on the span and emits no event', () async {
     final instr = GenAiInstrumentation(
-      captureContent: true,
-      contentMode: GenAiContentMode.span,
+      contentCapturingMode: ContentCapturingMode.spanOnly,
     );
     await runModel(
       instr,
@@ -232,10 +231,20 @@ void main() {
     expect(input as String, contains('hello'));
     expect(attr(span, GenAiAttr.systemInstructions), contains('Be nice'));
     expect(attr(span, GenAiAttr.outputMessages), contains('ok'));
+
+    await harness.flushLogs();
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isEmpty,
+    );
   });
 
-  test('emits an operation.details event in event mode', () async {
-    final instr = GenAiInstrumentation(captureContent: true);
+  test('eventOnly emits the event and sets no span content', () async {
+    final instr = GenAiInstrumentation(
+      contentCapturingMode: ContentCapturingMode.eventOnly,
+    );
     await runModel(
       instr,
       'googleai/gemini-flash-latest',
@@ -259,6 +268,35 @@ void main() {
     // The content event must NOT put content on the span.
     final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
     expect(attr(span, GenAiAttr.inputMessages), isNull);
+  });
+
+  test('spanAndEvent writes both span attrs and the event', () async {
+    final instr = GenAiInstrumentation(
+      contentCapturingMode: ContentCapturingMode.spanAndEvent,
+    );
+    await runModel(
+      instr,
+      'googleai/gemini-flash-latest',
+      modelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+      ),
+      ([span]) async => modelResponse(),
+    );
+    await harness.flushLogs();
+
+    final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+    expect(attr(span, GenAiAttr.inputMessages), contains('hello'));
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isNotEmpty,
+    );
   });
 
   test('nests spans (flow -> model) into one trace', () async {
@@ -418,8 +456,7 @@ void main() {
     'captures legacy candidates[0].message when top-level is absent',
     () async {
       final instr = GenAiInstrumentation(
-        captureContent: true,
-        contentMode: GenAiContentMode.span,
+        contentCapturingMode: ContentCapturingMode.spanOnly,
       );
       final legacy = ModelResponse.fromJson({
         'finishReason': 'stop',
