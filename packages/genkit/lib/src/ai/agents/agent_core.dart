@@ -38,9 +38,6 @@ import '../../types.dart';
 import 'json_patch.dart';
 import 'state_codec.dart';
 
-export '../../core/cancellation.dart'
-    show CancellationController, CancellationToken;
-
 // ---------------------------------------------------------------------------
 // Transport
 // ---------------------------------------------------------------------------

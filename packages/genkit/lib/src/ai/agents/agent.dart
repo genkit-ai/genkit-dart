@@ -26,6 +26,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
+import '../../core/cancellation.dart';
 import '../../core/registry.dart';
 import '../../exception.dart';
 import '../../o11y/instrumentation.dart';

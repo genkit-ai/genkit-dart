@@ -25,6 +25,8 @@ library;
 
 export 'src/client/client.dart' show RemoteAction, defineRemoteAction;
 export 'src/core/action.dart' show ActionStream;
+export 'src/core/cancellation.dart'
+    show CancellationController, CancellationToken;
 export 'src/exception.dart' show GenkitException, StatusCodes;
 export 'src/schema_extensions.dart';
 export 'src/types.dart';

@@ -30,6 +30,12 @@
 /// and the `dart:io` extras in `package:genkit/experimental_io.dart`.
 library;
 
+// Re-export the browser-safe client surface wholesale rather than duplicating
+// its exports here. Keeping `experimental_client.dart` the single direct
+// exporter of the shared agent-client / json-patch / remote-agent symbols
+// avoids dartdoc ambiguous-reexport warnings, while this fuller server-side
+// entry point still surfaces them transitively.
+export 'experimental_client.dart';
 export 'src/ai/agents/agent.dart'
     show
         Agent,
@@ -40,24 +46,6 @@ export 'src/ai/agents/agent.dart'
         TurnContext,
         TurnResult,
         validateResumeAgainstHistory;
-export 'src/ai/agents/agent_core.dart'
-    show
-        AgentApi,
-        AgentChat,
-        AgentChunk,
-        AgentError,
-        AgentInterrupt,
-        AgentResponse,
-        AgentSnapshot,
-        AgentTransport,
-        AgentTurn,
-        CancellationController,
-        CancellationToken,
-        DetachedTask,
-        TurnStream;
-export 'src/ai/agents/json_patch.dart'
-    show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
-export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
 export 'src/ai/agents/session.dart'
     show
         InMemorySessionStore,

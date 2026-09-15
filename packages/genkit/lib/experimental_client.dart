@@ -23,8 +23,25 @@
 /// import 'package:genkit/client.dart';
 /// import 'package:genkit/experimental_client.dart';
 /// ```
-library;
+///
+/// This is the canonical home for the browser-safe agent-client symbols. They
+/// are also re-exported from `package:genkit/experimental.dart`; naming this
+/// library (below) is what breaks the dartdoc canonicalization tie so the docs
+/// land here rather than emitting ambiguous-reexport warnings.
+// Named (rather than unnamed) so the library name embeds the package name.
+// Dartdoc canonicalization gives a decisive score boost to that, making this
+// the canonical home for the agent_core / json_patch / remote_agent libraries
+// re-exported by `experimental.dart`. This library-level tie is what produces
+// the ambiguous-reexport warnings; `{@canonicalFor}` only disambiguates
+// individual symbols, not the private-library reexport, so it does not help.
+// ignore: unnecessary_library_name
+library genkit.experimental.client;
 
+// Note: the core CancellationController / CancellationToken types are
+// deliberately not re-exported here. They are stable core types available from
+// `package:genkit/genkit.dart`; surfacing them through this experimental agent
+// client would make it compete with the `genkit` library for their canonical
+// docs location.
 export 'src/ai/agents/agent_core.dart'
     show
         AgentApi,
@@ -36,8 +53,6 @@ export 'src/ai/agents/agent_core.dart'
         AgentSnapshot,
         AgentTransport,
         AgentTurn,
-        CancellationController,
-        CancellationToken,
         DetachedTask,
         TurnStream;
 export 'src/ai/agents/json_patch.dart'

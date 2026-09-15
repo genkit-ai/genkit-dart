@@ -27,6 +27,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../client/client.dart';
+import '../../core/cancellation.dart';
 import '../../types.dart';
 import 'agent_core.dart';
 
