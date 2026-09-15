@@ -23,6 +23,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';

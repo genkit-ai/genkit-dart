@@ -18,7 +18,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:genkit/io.dart';
+import 'package:genkit/experimental_io.dart';
 
 import 'package:genkit/src/exception.dart';
 import 'package:genkit/src/types.dart';

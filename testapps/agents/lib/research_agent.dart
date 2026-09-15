@@ -31,6 +31,7 @@
 ///   3. Synthesize a final response (main model, streamed to the client).
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 

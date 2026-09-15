@@ -21,6 +21,7 @@
 library;
 
 import 'package:genkit/client.dart';
+import 'package:genkit/experimental_client.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 

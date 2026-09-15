@@ -20,7 +20,7 @@
 /// inline prompt configuration.
 library;
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/experimental.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'genkit.dart';
