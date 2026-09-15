@@ -1,0 +1,18 @@
+name: genkit_otel
+description: OpenTelemetry GenAI semantic-conventions instrumentation for Genkit Dart (traces, metrics, and message-content capture).
+resolution: workspace
+version: 0.1.0
+repository: https://github.com/genkit-ai/genkit-dart
+license: Apache-2.0
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  dartastic_opentelemetry: ^0.11.0
+  dartastic_opentelemetry_api: ^0.11.0
+  genkit: ^0.16.1
+  logging: ^1.3.0
+
+dev_dependencies:
+  test: ^1.29.0
