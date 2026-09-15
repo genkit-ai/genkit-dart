@@ -40,5 +40,5 @@
 /// [spec]: https://github.com/open-telemetry/semantic-conventions-genai
 library;
 
-export 'src/genai_instrumentation.dart'
-    show GenAiContentMode, GenAiInstrumentation;
+export 'src/genai/gen_ai_attributes.dart' show ContentCapturingMode;
+export 'src/genai_instrumentation.dart' show GenAiInstrumentation;
