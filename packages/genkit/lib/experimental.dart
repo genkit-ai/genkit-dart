@@ -28,7 +28,24 @@
 ///
 /// The browser-safe subset lives in `package:genkit/experimental_client.dart`
 /// and the `dart:io` extras in `package:genkit/experimental_io.dart`.
+///
+/// To opt out of the analyzer warning on this import (you have accepted the
+/// instability), add to your `analysis_options.yaml`:
+///
+/// ```yaml
+/// analyzer:
+///   errors:
+///     experimental_member_use: ignore
+/// ```
+// Annotating this entry point (rather than the private `src/ai/agents/*`
+// libraries) is what surfaces `experimental_member_use` to consumers: the
+// analyzer flags the import directive of an @experimental library, but a
+// library-level annotation does NOT propagate through this non-annotated
+// re-export barrel to individual symbols. See experimental_client.dart.
+@experimental
 library;
+
+import 'package:meta/meta.dart';
 
 // Re-export the browser-safe client surface wholesale rather than duplicating
 // its exports here. Keeping `experimental_client.dart` the single direct

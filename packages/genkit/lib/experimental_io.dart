@@ -23,6 +23,22 @@
 /// import 'package:genkit/experimental.dart';
 /// import 'package:genkit/experimental_io.dart';
 /// ```
+///
+/// To opt out of the analyzer warning on this import (you have accepted the
+/// instability), add to your `analysis_options.yaml`:
+///
+/// ```yaml
+/// analyzer:
+///   errors:
+///     experimental_member_use: ignore
+/// ```
+// Annotating this entry point is what surfaces `experimental_member_use` to
+// consumers: the analyzer flags the import directive of an @experimental
+// library. See experimental_client.dart for why we mark the barrel rather than
+// the private `src/ai/agents/*` libraries.
+@experimental
 library;
+
+import 'package:meta/meta.dart';
 
 export 'src/ai/agents/session_io.dart' show FileSessionStore;
