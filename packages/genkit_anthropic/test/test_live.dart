@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_anthropic/genkit_anthropic.dart';
+import 'package:genkit_anthropic/src/known_models.dart';
 import 'package:genkit_anthropic/src/plugin_impl.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -109,6 +110,64 @@ void main() {
       expect(finalResponse.output!.name, 'Jane Doe');
       expect(finalResponse.output!.age, 25);
     });
+
+    test('should generate structured output with manual thinking', () async {
+      // The forced-tool fallback cannot do this - Anthropic rejects a forced
+      // tool_choice alongside extended thinking - so this only passes because
+      // claude-sonnet-4-5 takes the native output_config.format path.
+      final response = await ai.generate(
+        model: anthropic.model('claude-sonnet-4-5'),
+        prompt: 'Generate a person named John Doe, age 30',
+        outputSchema: Person.$schema,
+        config: AnthropicOptions(
+          thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+        ),
+      );
+
+      expect(response.output, isNotNull);
+      expect(response.output!.name, 'John Doe');
+      expect(response.output!.age, 30);
+    }, timeout: Timeout(Duration(minutes: 2)));
+
+    test('should generate structured output via the forced-tool '
+        'fallback', () async {
+      // Discovered rather than hard-coded: any model outside the curated
+      // Structured Outputs catalog takes the return_output path, and which
+      // older models an account can reach varies over time.
+      final available = await plugin!.client.models.list();
+      final uncurated = available.data
+          .map((m) => m.id)
+          .where((id) => knownClaudeModelFor(id) == null)
+          .toList();
+
+      if (uncurated.isEmpty) {
+        markTestSkipped('every available model is on the curated catalog');
+        return;
+      }
+
+      final response = await ai.generate(
+        model: anthropic.model(uncurated.first),
+        prompt: 'Generate a person named Ada Lovelace, age 36',
+        outputSchema: Person.$schema,
+      );
+
+      expect(response.output, isNotNull);
+      expect(response.output!.name, contains('Ada'));
+      expect(response.output!.age, 36);
+    }, timeout: Timeout(Duration(minutes: 2)));
+
+    test('should generate structured output over the beta API', () async {
+      final response = await ai.generate(
+        model: anthropic.model('claude-sonnet-4-5'),
+        prompt: 'Generate a person named Jane Doe, age 25',
+        outputSchema: Person.$schema,
+        config: AnthropicOptions(apiVersion: 'beta'),
+      );
+
+      expect(response.output, isNotNull);
+      expect(response.output!.name, 'Jane Doe');
+      expect(response.output!.age, 25);
+    }, timeout: Timeout(Duration(minutes: 2)));
 
     test('should use tools', () async {
       final tool = ai.defineTool(
