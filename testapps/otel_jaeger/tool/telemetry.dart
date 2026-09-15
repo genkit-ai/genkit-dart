@@ -104,7 +104,10 @@ Future<void> main() async {
   }
 
   ProcessSignal.sigint.watch().listen((_) => shutdown());
-  ProcessSignal.sigterm.watch().listen((_) => shutdown());
+  // sigterm cannot be watched on Windows (throws); sigint/Ctrl+C still works.
+  if (!Platform.isWindows) {
+    ProcessSignal.sigterm.watch().listen((_) => shutdown());
+  }
 
   // Start Jaeger. Its OTLP receiver is moved to 14317/14318 so it does not
   // squat on the app-facing 4317/4318 that the collector needs. UI on 16686.
@@ -395,7 +398,10 @@ void _curlDownload(String url, String dest) {
 void _extract(String archivePath, String destDir) {
   final ProcessResult r;
   if (archivePath.endsWith('.zip')) {
-    r = Process.runSync('unzip', ['-o', archivePath, '-d', destDir]);
+    // Windows has no `unzip` by default, but its built-in `tar` reads .zip.
+    r = Platform.isWindows
+        ? Process.runSync('tar', ['-xf', archivePath, '-C', destDir])
+        : Process.runSync('unzip', ['-o', archivePath, '-d', destDir]);
   } else {
     r = Process.runSync('tar', ['-xzf', archivePath, '-C', destDir]);
   }
