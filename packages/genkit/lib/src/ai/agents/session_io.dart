@@ -23,6 +23,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:meta/meta.dart';
+
 import '../../exception.dart';
 import '../../types.dart';
 import 'session.dart';
@@ -105,6 +107,7 @@ class _PointerDoc {
 /// scanning the prefix directory and selecting the single leaf whose
 /// `sessionId` matches, then rewrites the pointer so subsequent lookups are fast
 /// again.
+@experimental
 class FileSessionStore
     implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates a file-backed store rooted at [dirPath] (created if missing).

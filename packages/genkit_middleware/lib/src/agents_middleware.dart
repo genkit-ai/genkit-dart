@@ -14,8 +14,10 @@
 
 import 'dart:async';
 
-import 'package:genkit/genkit.dart' show GenkitAI, getCurrentSession;
+import 'package:genkit/experimental.dart' show getCurrentSession;
+import 'package:genkit/genkit.dart' show GenkitAI;
 import 'package:genkit/plugin.dart';
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 part 'agents_middleware.g.dart';
@@ -335,6 +337,7 @@ class AgentsPlugin extends GenkitPlugin {
 /// With [async] set, delegation tools additionally accept a `background` flag,
 /// and the `check_background_tasks` / `wait_for_background_tasks` /
 /// `abort_background_tasks` tools are added for collecting background results.
+@experimental
 GenerateMiddlewareRef<AgentsOptions> agents({
   required List<String> agents,
   String? toolPrefix,

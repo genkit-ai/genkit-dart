@@ -29,6 +29,7 @@ library;
 import 'dart:convert';
 
 import 'package:genkit/client.dart';
+import 'package:genkit/experimental_client.dart';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_router/jaspr_router.dart';

@@ -32,6 +32,7 @@
 ///   genkit trace:get `<traceId>` --format=json
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_middleware/agents.dart';

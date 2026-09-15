@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Middleware for Genkit Dart that enables sub-agent delegation.
+/// Native (`dart:io`) extensions to the experimental Genkit agent surface.
 ///
-/// This builds on Genkit's experimental agent surface. Like
-/// `package:genkit/experimental.dart`, these APIs are NOT covered by
-/// semantic-versioning stability guarantees and may change or be removed in any
-/// MINOR release without a major version bump.
+/// These APIs are NOT covered by the package's semantic-versioning stability
+/// guarantees. They may change or be removed in any MINOR release without a
+/// major version bump. Because they depend on `dart:io` they do not work on the
+/// web; import them only from server / CLI / desktop / mobile targets:
+///
+/// ```dart
+/// import 'package:genkit/experimental.dart';
+/// import 'package:genkit/experimental_io.dart';
+/// ```
 library;
 
-export 'src/agents_middleware.dart';
+export 'src/ai/agents/session_io.dart' show FileSessionStore;

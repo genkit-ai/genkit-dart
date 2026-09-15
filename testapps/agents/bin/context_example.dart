@@ -27,6 +27,7 @@
 /// Run with: `dart run bin/context_example.dart`
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 
 void main() async {

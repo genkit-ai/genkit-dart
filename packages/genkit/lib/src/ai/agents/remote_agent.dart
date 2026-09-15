@@ -23,6 +23,7 @@ library;
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../client/client.dart';
@@ -55,6 +56,7 @@ typedef HeadersResolver = FutureOr<Map<String, String>?> Function();
 /// // Release the internally-created HTTP client when done.
 /// await agent.close();
 /// ```
+@experimental
 AgentApi<State> remoteAgent<State>({
   required String url,
   String? getSnapshotUrl,

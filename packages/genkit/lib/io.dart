@@ -24,4 +24,7 @@
 /// The browser-safe surface remains in `package:genkit/genkit.dart`.
 library;
 
-export 'src/ai/agents/session_io.dart' show FileSessionStore;
+// `FileSessionStore` moved to the experimental surface
+// (`package:genkit/experimental_io.dart`) alongside the rest of the agent
+// session APIs, so it can evolve without a major version bump.
+

@@ -26,6 +26,7 @@
 /// to a real widget.
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
