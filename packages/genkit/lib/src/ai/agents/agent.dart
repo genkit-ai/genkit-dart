@@ -624,7 +624,7 @@ class SessionRunner<State> {
             _notifyEndTurn(snapshotId, finishReason);
             return false;
           },
-          actionType: ActionType.agent.value,
+          actionType: ActionType.flowStep.value,
           input: input,
         );
         if (aborted) break;
