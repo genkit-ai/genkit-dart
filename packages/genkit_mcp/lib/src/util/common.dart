@@ -61,6 +61,9 @@ dynamic processToolResult(Map<String, dynamic> result) {
   if (result['isError'] == true) {
     return {'error': _toText(content)};
   }
+  if (result.containsKey('structuredContent')) {
+    return result['structuredContent'];
+  }
   if (content.isEmpty) return result;
   final allText = content.every((c) => c['text'] is String);
   if (allText) {

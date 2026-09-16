@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/src/core/action.dart';
-import 'package:opentelemetry/api.dart' as api;
-import 'package:opentelemetry/sdk.dart' as sdk;
+import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
+import 'package:genkit/src/o11y/instrumentation.dart'
+    show configureInstrumentation, resetInstrumentation;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -33,15 +36,17 @@ abstract class $TestOutput {
 }
 
 void main() {
-  final exporter = TextExporter();
-  final processor = sdk.SimpleSpanProcessor(exporter);
-  final provider = sdk.TracerProviderBase(processors: [processor]);
-  api.registerGlobalTracerProvider(provider);
+  // The custom direct-HTTP tracer records finished spans into this sink.
+  final sink = RecordingSpanSink();
 
   group('Action', () {
-    setUp(exporter.reset);
+    setUp(() {
+      sink.reset();
+      // Actions rely on a configured instrumentation to emit spans.
+      configureInstrumentation(DirectHttpInstrumentation(sink));
+    });
 
-    tearDown(processor.forceFlush);
+    tearDown(resetInstrumentation);
 
     test('should start and end a span when run', () async {
       final action = Action(
@@ -51,10 +56,9 @@ void main() {
       );
 
       await action('input');
-      processor.forceFlush();
 
-      expect(exporter.spans.length, 1);
-      expect(exporter.spans[0].name, 'testAction');
+      expect(sink.finished.length, 1);
+      expect(sink.finished[0].name, 'testAction');
     });
 
     test('should set attributes on the span', () async {
@@ -65,14 +69,50 @@ void main() {
       );
 
       await action('input');
-      processor.forceFlush();
 
-      expect(exporter.spans.length, 1);
-      final span = exporter.spans[0];
-      expect(span.attributes.get('genkit:type'), 'test');
-      expect(span.attributes.get('genkit:name'), 'testAction');
-      expect(span.attributes.get('genkit:input'), '"input"');
-      expect(span.attributes.get('genkit:output'), '"output"');
+      expect(sink.finished.length, 1);
+      final span = sink.finished[0];
+      expect(span.attributes['genkit:type'], 'test');
+      expect(span.attributes['genkit:name'], 'testAction');
+      expect(span.attributes['genkit:input'], '"input"');
+      expect(span.attributes['genkit:output'], '"output"');
+    });
+
+    test('records execution context on the span, redacting secrets', () async {
+      final action = Action(
+        name: 'testAction',
+        actionType: ActionType('test'),
+        fn: (input, context) async => 'output',
+      );
+
+      await action.run(
+        'input',
+        context: {'auth': 'secret-token', 'secrets': 'shh', 'uid': 'u123'},
+      );
+
+      expect(sink.finished.length, 1);
+      final raw = sink.finished[0].attributes['genkit:metadata:context'];
+      expect(raw, isA<String>());
+      final context = jsonDecode(raw as String) as Map<String, dynamic>;
+      expect(context['auth'], '<redacted>');
+      expect(context['secrets'], '<redacted>');
+      expect(context['uid'], 'u123');
+    });
+
+    test('does not record context metadata when no context is given', () async {
+      final action = Action(
+        name: 'testAction',
+        actionType: ActionType('test'),
+        fn: (input, context) async => 'output',
+      );
+
+      await action('input');
+
+      expect(sink.finished.length, 1);
+      expect(
+        sink.finished[0].attributes.containsKey('genkit:metadata:context'),
+        isFalse,
+      );
     });
 
     test('should run a basic action', () async {
@@ -113,17 +153,13 @@ void main() {
       );
 
       await action(TestInput.$schema.parse({'name': 'world'}));
-      processor.forceFlush();
 
-      expect(exporter.spans.length, 1);
-      final span = exporter.spans[0];
-      expect(span.attributes.get('genkit:type'), 'test');
-      expect(span.attributes.get('genkit:name'), 'testAction');
-      expect(span.attributes.get('genkit:input'), '{"name":"world"}');
-      expect(
-        span.attributes.get('genkit:output'),
-        '{"greeting":"Hello world"}',
-      );
+      expect(sink.finished.length, 1);
+      final span = sink.finished[0];
+      expect(span.attributes['genkit:type'], 'test');
+      expect(span.attributes['genkit:name'], 'testAction');
+      expect(span.attributes['genkit:input'], '{"name":"world"}');
+      expect(span.attributes['genkit:output'], '{"greeting":"Hello world"}');
     });
 
     test('should stream an action', () async {

@@ -3,7 +3,7 @@ description: Genkit Middleware test app
 publish_to: none
 resolution: workspace
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.12.0
 
 dependencies:
   genkit: ^0.16.1

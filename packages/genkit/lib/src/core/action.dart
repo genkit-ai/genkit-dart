@@ -288,6 +288,7 @@ class Action<Input, Output, Chunk, Init>
           if (onTraceStart != null) {
             onTraceStart(traceId: traceId, spanId: spanId);
           }
+          _recordContextMetadata(executionContext);
           return await fn(input, (
             streamingRequested: onChunk != null,
             sendChunk: onChunk ?? (chunk) {},
@@ -311,6 +312,21 @@ class Action<Input, Output, Chunk, Init>
       return runZoned(runner, zoneValues: {_genkitContextKey: context});
     } else {
       return runner();
+    }
+  }
+
+  /// Records the execution context on the current span, redacting sensitive
+  /// top-level keys (`auth`, `secrets`). Serialization errors are swallowed so
+  /// telemetry never crashes the action.
+  void _recordContextMetadata(Object? context) {
+    if (context is! Map) return;
+    try {
+      final traced = {...context};
+      if (traced.containsKey('auth')) traced['auth'] = '<redacted>';
+      if (traced.containsKey('secrets')) traced['secrets'] = '<redacted>';
+      setCustomMetadataAttributes({'context': traced});
+    } catch (_) {
+      // Ignore telemetry serialization errors.
     }
   }
 

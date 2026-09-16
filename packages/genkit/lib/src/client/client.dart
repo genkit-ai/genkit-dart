@@ -246,17 +246,13 @@ class RemoteAction<Input, Output, Chunk, Init> {
 
   /// {@macro remote_action}
   RemoteAction({
-    required String url,
-    Map<String, String>? defaultHeaders,
+    required this._url,
+    this._defaultHeaders,
     http.Client? httpClient,
-    required Output Function(dynamic jsonData) fromResponse,
-    required Chunk Function(dynamic jsonData) fromStreamChunk,
-  }) : _url = url,
-       _defaultHeaders = defaultHeaders,
-       _httpClient = httpClient ?? http.Client(),
-       _ownsHttpClient = httpClient == null,
-       _fromResponse = fromResponse,
-       _fromStreamChunk = fromStreamChunk;
+    required this._fromResponse,
+    required this._fromStreamChunk,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _ownsHttpClient = httpClient == null;
 
   /// Invokes the remote flow.
   Future<Output> call({

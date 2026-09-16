@@ -379,7 +379,7 @@ class FirestoreSessionStore
   ///   snapshot, pointer and shard documents are nested under a tenant-scoped
   ///   subcollection keyed by this prefix, isolating reads and writes per
   ///   tenant. Defaults to `"global"`.
-  /// - [snapshotWatchPollInterval]: polling interval used by
+  /// - [_snapshotWatchPollInterval]: polling interval used by
   ///   [onSnapshotStateChange]. Defaults to 2 seconds.
   FirestoreSessionStore({
     Firestore? db,
@@ -387,9 +387,8 @@ class FirestoreSessionStore
     this.checkpointInterval = defaultCheckpointInterval,
     this.shardSize = defaultShardSize,
     this.snapshotPathPrefix,
-    Duration snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
-  }) : db = db ?? Firestore(),
-       _snapshotWatchPollInterval = snapshotWatchPollInterval;
+    this._snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
+  }) : db = db ?? Firestore();
 
   /// The Firestore instance backing this store.
   final Firestore db;
