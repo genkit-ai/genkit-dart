@@ -357,14 +357,12 @@ void main() {
     expect(attr(span, GenkitAttr.actionName), 'googleai/gemini-flash-latest');
   });
 
-  test('captures tool arguments/result under content capture', () async {
-    // Span mode: content lands directly on the span.
-    final spanMode = GenAiInstrumentation(
+  test('spanOnly captures tool arguments/result on the span', () async {
+    final instr = GenAiInstrumentation(
       emitToolSpans: true,
-      captureContent: true,
-      contentMode: GenAiContentMode.span,
+      contentCapturingMode: ContentCapturingMode.spanOnly,
     );
-    await spanMode.runInNewSpan(
+    await instr.runInNewSpan(
       SpanMetadata(
         name: 'weather',
         actionType: ActionType.tool.value,
@@ -378,6 +376,69 @@ void main() {
       contains('Paris'),
     );
     expect(attr(span, GenAiAttr.toolCallResult) as String, contains('sunny'));
+
+    await harness.flushLogs();
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isEmpty,
+    );
+  });
+
+  test('eventOnly emits tool content as an event, not on the span', () async {
+    final instr = GenAiInstrumentation(
+      emitToolSpans: true,
+      contentCapturingMode: ContentCapturingMode.eventOnly,
+    );
+    await instr.runInNewSpan(
+      SpanMetadata(
+        name: 'weather',
+        actionType: ActionType.tool.value,
+        input: {'city': 'Paris'},
+      ),
+      ([span]) async => 'sunny',
+    );
+    await harness.flushLogs();
+
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isNotEmpty,
+    );
+    final span = harness.spans.findSpanByName('execute_tool weather')!;
+    expect(attr(span, GenAiAttr.toolCallArguments), isNull);
+    expect(attr(span, GenAiAttr.toolCallResult), isNull);
+  });
+
+  test('spanAndEvent records tool content on both span and event', () async {
+    final instr = GenAiInstrumentation(
+      emitToolSpans: true,
+      contentCapturingMode: ContentCapturingMode.spanAndEvent,
+    );
+    await instr.runInNewSpan(
+      SpanMetadata(
+        name: 'weather',
+        actionType: ActionType.tool.value,
+        input: {'city': 'Paris'},
+      ),
+      ([span]) async => 'sunny',
+    );
+    await harness.flushLogs();
+
+    final span = harness.spans.findSpanByName('execute_tool weather')!;
+    expect(
+      attr(span, GenAiAttr.toolCallArguments) as String,
+      contains('Paris'),
+    );
+    expect(attr(span, GenAiAttr.toolCallResult) as String, contains('sunny'));
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isNotEmpty,
+    );
   });
 
   test('does not capture tool content without content capture', () async {

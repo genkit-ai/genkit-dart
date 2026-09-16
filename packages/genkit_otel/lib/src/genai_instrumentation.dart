@@ -259,7 +259,7 @@ class GenAiInstrumentation implements Instrumentation {
     return _tracer.withSpanAsync(span, () async {
       try {
         final output = await next(_GenAiSpanContext(span));
-        if (captureContent) {
+        if (contentCapturingMode != ContentCapturingMode.noContent) {
           _recordToolContent(span, metadata.input, output);
         }
         _maybeCaptureActionIO(span, metadata.input, output);
@@ -274,23 +274,23 @@ class GenAiInstrumentation implements Instrumentation {
   }
 
   /// Records tool call arguments/result as spec-shaped `gen_ai.tool.call.*`
-  /// content when [captureContent] is on, honoring [contentMode]. May contain
-  /// PII, hence the opt-in.
+  /// content, honoring [contentCapturingMode]. May contain PII, hence opt-in.
   void _recordToolContent(otel.APISpan span, Object? input, Object? output) {
-    if (contentMode == GenAiContentMode.span) {
+    if (_captureOnSpan) {
       _setJsonAttribute(span, GenAiAttr.toolCallArguments, input);
       _setJsonAttribute(span, GenAiAttr.toolCallResult, output);
-      return;
     }
-    final eventAttrs = <String, Object>{
-      GenAiAttr.toolCallArguments: jsonEncode(input),
-      GenAiAttr.toolCallResult: jsonEncode(output),
-    };
-    _logger_.emit(
-      eventName: genAiOperationDetailsEvent,
-      context: otel.Context.current,
-      attributes: otel.OTel.attributesFromMap(eventAttrs),
-    );
+    if (_captureOnEvent) {
+      final eventAttrs = <String, Object>{
+        GenAiAttr.toolCallArguments: jsonEncode(input),
+        GenAiAttr.toolCallResult: jsonEncode(output),
+      };
+      _logger_.emit(
+        eventName: genAiOperationDetailsEvent,
+        context: otel.Context.current,
+        attributes: otel.OTel.attributesFromMap(eventAttrs),
+      );
+    }
   }
 
   Future<O> _runGenericSpan<O>(
