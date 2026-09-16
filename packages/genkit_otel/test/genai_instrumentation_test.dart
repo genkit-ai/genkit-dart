@@ -150,6 +150,21 @@ void main() {
     },
   );
 
+  test('maps a gracefully failed turn to error, not stop', () async {
+    // Dart resolves failures with finishReason: failed (no throw), so the
+    // success path handles the response.
+    final instr = GenAiInstrumentation();
+    await runModel(
+      instr,
+      'googleai/gemini-flash-latest',
+      modelRequest(),
+      ([span]) async => modelResponse(finishReason: FinishReason.failed),
+    );
+
+    final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+    expect(attr(span, GenAiAttr.responseFinishReasons), ['error']);
+  });
+
   test('records error status and error.type on throw', () async {
     final instr = GenAiInstrumentation();
     await expectLater(
@@ -270,16 +285,17 @@ void main() {
   });
 
   test('emits execute_tool spans only when enabled', () async {
+    // Production tools send `tool.v2` (ActionType.tool serializes to that).
     final off = GenAiInstrumentation();
     await off.runInNewSpan(
-      const SpanMetadata(name: 'weather', actionType: 'tool'),
+      SpanMetadata(name: 'weather', actionType: ActionType.tool.value),
       ([span]) async => 'sunny',
     );
     expect(harness.spans.findSpanByName('execute_tool weather'), isNull);
 
     final on = GenAiInstrumentation(emitToolSpans: true);
     await on.runInNewSpan(
-      const SpanMetadata(name: 'weather', actionType: 'tool'),
+      SpanMetadata(name: 'weather', actionType: ActionType.tool.value),
       ([span]) async => 'sunny',
     );
     final span = harness.spans.findSpanByName('execute_tool weather')!;
@@ -319,7 +335,11 @@ void main() {
 
     // Tool span.
     await instr.runInNewSpan(
-      const SpanMetadata(name: 'weather', actionType: 'tool', input: 'Paris'),
+      SpanMetadata(
+        name: 'weather',
+        actionType: ActionType.tool.value,
+        input: 'Paris',
+      ),
       ([span]) async => 'sunny',
     );
     final tool = harness.spans.findSpanByName('execute_tool weather')!;

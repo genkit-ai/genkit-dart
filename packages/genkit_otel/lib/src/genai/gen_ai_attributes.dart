@@ -152,6 +152,12 @@ String mapFinishReason(String? genkitReason, {required bool failed}) {
     case 'interrupted':
       // No exact spec value; treat an interrupted turn as a normal stop.
       return 'stop';
+    case 'failed':
+    case 'aborted':
+      // Dart resolves failed/aborted turns gracefully (no throw) rather than
+      // raising, so the success path still lands here. Stamp `error` so
+      // consumers don't count a failed turn as a clean `stop`.
+      return 'error';
     case 'other':
     case 'unknown':
     default:

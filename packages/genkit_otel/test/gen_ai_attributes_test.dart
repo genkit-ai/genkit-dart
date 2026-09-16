@@ -70,6 +70,11 @@ void main() {
       expect(mapFinishReason('interrupted', failed: false), 'stop');
     });
 
+    test('maps failed and aborted to error even on the success path', () {
+      expect(mapFinishReason('failed', failed: false), 'error');
+      expect(mapFinishReason('aborted', failed: false), 'error');
+    });
+
     test('resolves ambiguous reasons by failure state', () {
       expect(mapFinishReason('other', failed: false), 'stop');
       expect(mapFinishReason('other', failed: true), 'error');
