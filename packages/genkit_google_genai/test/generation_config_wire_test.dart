@@ -176,7 +176,7 @@ void main() {
         isDevEnv: false,
       );
       addTearDown(ai.shutdown);
-      await ai.generate(
+      final response = await ai.generate(
         model: modelRef('googleai/gemini-2.0-flash'),
         prompt: 'hello',
         outputSchema: .string(),
@@ -185,6 +185,7 @@ void main() {
           .cast<String, dynamic>();
       expect(config['responseMimeType'], 'application/json');
       expect(config['responseJsonSchema'], isNotNull);
+      expect(response.output, 'ok');
     });
   });
 }

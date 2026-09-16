@@ -22,7 +22,8 @@ import 'package:http/testing.dart';
 /// A plugin whose generateContent calls are captured rather than sent.
 ///
 /// Every request body the plugin puts on the wire is appended to [captured]
-/// and answered with a canned single-candidate response.
+/// and answered with a canned single-candidate response whose text is the
+/// JSON scalar `"ok"`, so it also parses as JSON-format output.
 class WirePlugin extends GoogleGenAiPluginImpl {
   WirePlugin(this.captured) : super(apiKey: 'test-key');
 
@@ -44,7 +45,7 @@ class WirePlugin extends GoogleGenAiPluginImpl {
                 'content': {
                   'role': 'model',
                   'parts': [
-                    {'text': 'ok'},
+                    {'text': '"ok"'},
                   ],
                 },
                 'finishReason': 'STOP',
