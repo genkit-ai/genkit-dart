@@ -74,4 +74,37 @@ void main() {
       );
     });
   });
+
+  group('injected client lifecycle', () {
+    VertexAiPluginImpl pluginWith(MockHttpClient client) => VertexAiPluginImpl(
+      projectId: 'my-project',
+      location: 'us-central1',
+      authClient: client,
+    );
+
+    test('list does not close the injected client', () async {
+      final mockClient = MockHttpClient();
+
+      await pluginWith(mockClient).list();
+
+      expect(mockClient.closed, isFalse);
+    });
+
+    test('embedder does not close the injected client', () async {
+      final mockClient = MockHttpClient();
+      final embedder =
+          pluginWith(mockClient).resolve(.embedder, 'text-embedding-005')!
+              as Action<EmbedRequest, EmbedResponse, void, void>;
+
+      await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+          ],
+        ),
+      );
+
+      expect(mockClient.closed, isFalse);
+    });
+  });
 }

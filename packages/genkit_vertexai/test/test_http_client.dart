@@ -34,6 +34,12 @@ class MockHttpClient extends http.BaseClient {
   final List<String> requestBodies = [];
   Uri? lastUrl;
   String? lastBody;
+  bool closed = false;
+
+  @override
+  void close() {
+    closed = true;
+  }
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
