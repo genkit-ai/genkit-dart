@@ -16,8 +16,9 @@ import 'dart:io' as io;
 
 import '../../dev_config.dart';
 
+const String _telemetryServerKey = 'GENKIT_TELEMETRY_SERVER';
 const String _telemetryServerDefine = String.fromEnvironment(
-  'GENKIT_TELEMETRY_SERVER',
+  _telemetryServerKey,
 );
 
 /// The Genkit telemetry server base URL from `GENKIT_TELEMETRY_SERVER` in the
@@ -28,6 +29,6 @@ const String _telemetryServerDefine = String.fromEnvironment(
 /// same configuration produces the same instrumentation decision across
 /// platforms.
 String? genkitTelemetryServerUrl() => resolveDevConfig(
-  io.Platform.environment['GENKIT_TELEMETRY_SERVER'],
+  io.Platform.environment[_telemetryServerKey],
   _telemetryServerDefine,
 );

@@ -22,9 +22,8 @@
 /// shadow the define.
 ///
 /// [defineValue] is passed in rather than looked up here: `String.fromEnvironment`
-/// needs a compile-time literal key, so each caller declares its own
-/// `const String.fromEnvironment('SOME_KEY')`. A version of this taking the key
-/// as a parameter would compile and silently resolve to the default.
+/// resolves against a compile-time constant key, so each caller declares its own
+/// `const String.fromEnvironment(key)`.
 String? resolveDevConfig(String? envValue, String defineValue) {
   if (envValue != null && envValue.isNotEmpty) return envValue;
   return defineValue.isEmpty ? null : defineValue;

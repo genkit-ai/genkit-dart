@@ -22,11 +22,12 @@ int getPid() => io.pid;
 
 String getPlatformLanguageVersion() => io.Platform.version;
 
-const String _devEnvDefine = String.fromEnvironment('GENKIT_ENV');
+const String _devEnvKey = 'GENKIT_ENV';
+const String _devEnvDefine = String.fromEnvironment(_devEnvKey);
 
 /// Whether Genkit runs in dev mode, from `GENKIT_ENV` in the process
 /// environment, falling back to the `--dart-define` of the same name for an app
 /// whose environment no launcher can set.
 final bool isDevEnv =
-    resolveDevConfig(io.Platform.environment['GENKIT_ENV'], _devEnvDefine) ==
+    resolveDevConfig(io.Platform.environment[_devEnvKey], _devEnvDefine) ==
     'dev';

@@ -20,10 +20,11 @@ import '../registry.dart';
 import 'reflection_v1.dart';
 import 'reflection_v2.dart';
 
-const String _v2ServerDefine = String.fromEnvironment(
-  'GENKIT_REFLECTION_V2_SERVER',
-);
-const String _runtimeIdDefine = String.fromEnvironment('GENKIT_RUNTIME_ID');
+const String _v2ServerKey = 'GENKIT_REFLECTION_V2_SERVER';
+const String _runtimeIdKey = 'GENKIT_RUNTIME_ID';
+
+const String _v2ServerDefine = String.fromEnvironment(_v2ServerKey);
+const String _runtimeIdDefine = String.fromEnvironment(_runtimeIdKey);
 
 /// Starts the reflection server the Developer UI talks to.
 ///
@@ -33,12 +34,12 @@ const String _runtimeIdDefine = String.fromEnvironment('GENKIT_RUNTIME_ID');
 /// unset one does.
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
   final v2ServerUrl = resolveDevConfig(
-    io.Platform.environment['GENKIT_REFLECTION_V2_SERVER'],
+    io.Platform.environment[_v2ServerKey],
     _v2ServerDefine,
   );
   final runtimeId =
       resolveDevConfig(
-        io.Platform.environment['GENKIT_RUNTIME_ID'],
+        io.Platform.environment[_runtimeIdKey],
         _runtimeIdDefine,
       ) ??
       '';
