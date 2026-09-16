@@ -44,7 +44,7 @@ void main() {
         plugin: vertexAI(projectId: projectId, location: location),
         gemini: vertexAI.gemini,
         textEmbedding: vertexAI.textEmbedding,
-        modelName: 'gemini-flash-latest',
+        modelName: 'gemini-3.5-flash',
         embedderName: 'gemini-embedding-001',
       ),
   ];

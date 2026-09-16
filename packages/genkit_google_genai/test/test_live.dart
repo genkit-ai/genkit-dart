@@ -45,7 +45,7 @@ void main() {
         plugin: googleAI(apiKey: apiKey),
         gemini: googleAI.gemini,
         textEmbedding: googleAI.textEmbedding,
-        modelName: 'gemini-flash-latest',
+        modelName: 'gemini-3.5-flash',
         embedderName: 'gemini-embedding-001',
       ),
   ];
