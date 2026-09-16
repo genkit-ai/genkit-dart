@@ -301,6 +301,60 @@ void main() {
     final span = harness.spans.findSpanByName('execute_tool weather')!;
     expect(attr(span, GenAiAttr.operationName), 'execute_tool');
     expect(attr(span, GenAiAttr.toolName), 'weather');
+    // Action type/name are stamped on tool spans too.
+    expect(attr(span, GenkitAttr.actionType), ActionType.tool.value);
+    expect(attr(span, GenkitAttr.actionName), 'weather');
+  });
+
+  test('stamps genkit action type/name on model spans', () async {
+    final instr = GenAiInstrumentation();
+    await runModel(
+      instr,
+      'googleai/gemini-flash-latest',
+      modelRequest(),
+      ([span]) async => modelResponse(),
+    );
+    final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+    expect(attr(span, GenkitAttr.actionType), 'model');
+    expect(attr(span, GenkitAttr.actionName), 'googleai/gemini-flash-latest');
+  });
+
+  test('captures tool arguments/result under content capture', () async {
+    // Span mode: content lands directly on the span.
+    final spanMode = GenAiInstrumentation(
+      emitToolSpans: true,
+      captureContent: true,
+      contentMode: GenAiContentMode.span,
+    );
+    await spanMode.runInNewSpan(
+      SpanMetadata(
+        name: 'weather',
+        actionType: ActionType.tool.value,
+        input: {'city': 'Paris'},
+      ),
+      ([span]) async => 'sunny',
+    );
+    final span = harness.spans.findSpanByName('execute_tool weather')!;
+    expect(
+      attr(span, GenAiAttr.toolCallArguments) as String,
+      contains('Paris'),
+    );
+    expect(attr(span, GenAiAttr.toolCallResult) as String, contains('sunny'));
+  });
+
+  test('does not capture tool content without content capture', () async {
+    final instr = GenAiInstrumentation(emitToolSpans: true);
+    await instr.runInNewSpan(
+      SpanMetadata(
+        name: 'weather',
+        actionType: ActionType.tool.value,
+        input: {'city': 'Paris'},
+      ),
+      ([span]) async => 'sunny',
+    );
+    final span = harness.spans.findSpanByName('execute_tool weather')!;
+    expect(attr(span, GenAiAttr.toolCallArguments), isNull);
+    expect(attr(span, GenAiAttr.toolCallResult), isNull);
   });
 
   test('does not capture action IO by default', () async {
@@ -424,5 +478,19 @@ void main() {
 
     final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
     expect(attr(span, GenAiAttr.responseFinishReasons), ['tool_calls']);
+  });
+
+  test('setMetadata uses the dotted genkit.metadata prefix', () async {
+    final instr = GenAiInstrumentation();
+    await instr.runInNewSpan(
+      const SpanMetadata(name: 'myFlow', actionType: 'flow'),
+      ([span]) async {
+        span!.setMetadata({'context': 'abc'});
+        return 'out';
+      },
+    );
+    final span = harness.spans.findSpanByName('myFlow')!;
+    expect(attr(span, 'genkit.metadata.context'), 'abc');
+    expect(attr(span, 'genkit:metadata:context'), isNull);
   });
 }
