@@ -156,6 +156,7 @@ class GenAiInstrumentation implements Instrumentation {
       GenAiAttr.operationName: GenAiOperation.chat,
       GenAiAttr.requestModel: split.model,
       GenAiAttr.providerName: ?provider,
+      ..._actionAttributes(metadata),
     };
 
     if (request != null) {
@@ -240,6 +241,7 @@ class GenAiInstrumentation implements Instrumentation {
       GenAiAttr.operationName: GenAiOperation.executeTool,
       GenAiAttr.toolName: metadata.name,
       GenAiAttr.toolType: 'function',
+      ..._actionAttributes(metadata),
     };
     final span = _tracer.startSpan(
       'execute_tool ${metadata.name}',
@@ -251,6 +253,9 @@ class GenAiInstrumentation implements Instrumentation {
     return _tracer.withSpanAsync(span, () async {
       try {
         final output = await next(_GenAiSpanContext(span));
+        if (captureContent) {
+          _recordToolContent(span, metadata.input, output);
+        }
         _maybeCaptureActionIO(span, metadata.input, output);
         return output;
       } catch (e, s) {
@@ -262,14 +267,31 @@ class GenAiInstrumentation implements Instrumentation {
     });
   }
 
+  /// Records tool call arguments/result as spec-shaped `gen_ai.tool.call.*`
+  /// content when [captureContent] is on, honoring [contentMode]. May contain
+  /// PII, hence the opt-in.
+  void _recordToolContent(otel.APISpan span, Object? input, Object? output) {
+    if (contentMode == GenAiContentMode.span) {
+      _setJsonAttribute(span, GenAiAttr.toolCallArguments, input);
+      _setJsonAttribute(span, GenAiAttr.toolCallResult, output);
+      return;
+    }
+    final eventAttrs = <String, Object>{
+      GenAiAttr.toolCallArguments: jsonEncode(input),
+      GenAiAttr.toolCallResult: jsonEncode(output),
+    };
+    _logger_.emit(
+      eventName: genAiOperationDetailsEvent,
+      context: otel.Context.current,
+      attributes: otel.OTel.attributesFromMap(eventAttrs),
+    );
+  }
+
   Future<O> _runGenericSpan<O>(
     SpanMetadata metadata,
     Future<O> Function(SpanContext span) next,
   ) {
-    final attrs = <String, Object>{
-      if (metadata.actionType != null)
-        GenkitAttr.actionType: metadata.actionType!,
-    };
+    final attrs = _actionAttributes(metadata);
     final span = _tracer.startSpan(
       metadata.name,
       kind: otel.SpanKind.internal,
@@ -290,6 +312,15 @@ class GenAiInstrumentation implements Instrumentation {
       }
     });
   }
+
+  /// Genkit action type/name attributes shared by every span kind. These carry
+  /// meaning across the whole span tree, so we stamp them even on model and tool
+  /// spans that also get spec-shaped `gen_ai.*` attributes.
+  Map<String, Object> _actionAttributes(SpanMetadata metadata) => {
+    if (metadata.actionType != null)
+      GenkitAttr.actionType: metadata.actionType!,
+    GenkitAttr.actionName: metadata.name,
+  };
 
   /// Records raw Genkit input/output on [span] as `genkit.*` JSON attributes
   /// when [captureActionIO] is enabled. Kept out of the reserved `gen_ai.*`
@@ -504,8 +535,9 @@ class _GenAiSpanContext implements SpanContext {
       } catch (e) {
         valueString = 'Error encoding metadata: $e';
       }
-      // Keep ad-hoc metadata out of the reserved gen_ai.* namespace.
-      _span.setStringAttribute('genkit:metadata:$key', valueString);
+      // Keep ad-hoc metadata out of the reserved gen_ai.* namespace, dotted to
+      // match the rest of this provider's genkit.* attributes.
+      _span.setStringAttribute('${GenkitAttr.metadataPrefix}$key', valueString);
     });
   }
 }

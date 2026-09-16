@@ -56,6 +56,15 @@ abstract final class GenAiAttr {
   static const toolName = 'gen_ai.tool.name';
   static const toolType = 'gen_ai.tool.type';
 
+  // Tool call content (opt-in; may contain PII).
+  static const toolCallArguments = 'gen_ai.tool.call.arguments';
+  static const toolCallResult = 'gen_ai.tool.call.result';
+
+  // TODO: capture gen_ai.tool.call.id and gen_ai.tool.description once they're
+  // reachable at this layer. Neither is on SpanMetadata today: the call id lives
+  // in the model/generate layer (never handed to the tool span), and the tool
+  // description is on Action.metadata. Both need a core change to surface here.
+
   // Content attributes (opt-in; may contain PII).
   static const inputMessages = 'gen_ai.input.messages';
   static const outputMessages = 'gen_ai.output.messages';
@@ -68,13 +77,20 @@ abstract final class GenAiAttr {
 /// GenAI-aware backends (e.g. Jaeger's GenAI view) never try to render raw
 /// Genkit payloads as spec message content.
 abstract final class GenkitAttr {
-  /// Keeps the span tree connected across Genkit action types that have no
-  /// GenAI mapping (flow, util, etc.).
+  /// Genkit action type and name. Emitted on every span (model, tool, generic)
+  /// since they carry meaning throughout the span tree, not just where there's
+  /// no GenAI mapping.
   static const actionType = 'genkit.action.type';
+  static const actionName = 'genkit.action.name';
 
   /// Raw Genkit action input/output as JSON strings (opt-in; may contain PII).
   static const input = 'genkit.input';
   static const output = 'genkit.output';
+
+  /// Prefix for dynamic metadata attached via `SpanContext.setMetadata`. Dotted
+  /// to match the rest of the `genkit.*` namespace this provider emits (the
+  /// dev-UI provider uses colons, but that pipeline is separate).
+  static const metadataPrefix = 'genkit.metadata.';
 }
 
 /// Well-known values for `gen_ai.operation.name`.
