@@ -62,7 +62,7 @@ void main() {
         final info = _modelInfoOf(action!.metadata);
         expect(info['label'], model.label);
         expect(info['stage'], 'stable');
-        expect(info['supports'], commonModelInfo.supports);
+        expect(info['supports'], model.info.supports);
       });
 
       test('${model.id} resolves with GeminiOptions as its '
