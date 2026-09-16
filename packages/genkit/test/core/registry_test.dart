@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/src/core/action.dart';
+import 'package:genkit/src/core/dynamic_action_provider.dart';
 import 'package:genkit/src/core/plugin.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:test/test.dart';
@@ -391,6 +392,147 @@ void main() {
       expect(values, containsPair('/test/parentValue', 'parent'));
       expect(values, containsPair('/test/childValue', 'child'));
       expect(values, containsPair('/test/shared', 'child'));
+    });
+  });
+
+  group('parseRegistryKey', () {
+    test('parses a plugin-scoped key', () {
+      final parsed = parseRegistryKey('/model/googleai/gemini-flash-latest');
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, isNull);
+      expect(parsed.actionType, ActionType.model);
+      expect(parsed.actionName, 'gemini-flash-latest');
+    });
+
+    test('parses a nested action name', () {
+      final parsed = parseRegistryKey('/prompt/my-plugin/folder/my-prompt');
+      expect(parsed, isNotNull);
+      expect(parsed!.actionType, ActionType('prompt'));
+      expect(parsed.actionName, 'folder/my-prompt');
+    });
+
+    test('parses a util key', () {
+      final parsed = parseRegistryKey('/util/generate');
+      expect(parsed, isNotNull);
+      expect(parsed!.actionType, ActionType.util);
+      expect(parsed.actionName, 'generate');
+    });
+
+    test('parses a DAP key', () {
+      final parsed = parseRegistryKey(
+        '/dynamic-action-provider/my-host:tool.v2/weatherTool',
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, 'my-host');
+      expect(parsed.actionType, ActionType.tool);
+      expect(parsed.actionName, 'weatherTool');
+    });
+
+    test('preserves colons inside a DAP action name', () {
+      final parsed = parseRegistryKey(
+        '/dynamic-action-provider/my-host:resource/scheme://a:b/c',
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, 'my-host');
+      expect(parsed.actionType, ActionType('resource'));
+      // Everything after the first colon and the action type segment is the
+      // name, colons included.
+      expect(parsed.actionName, 'scheme://a:b/c');
+    });
+
+    test('parses a host-only DAP key', () {
+      final parsed = parseRegistryKey('/dynamic-action-provider/my-host');
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, isNull);
+      expect(parsed.actionType, ActionType.dynamicActionProvider);
+      expect(parsed.actionName, 'my-host');
+    });
+
+    test('returns null for a malformed key', () {
+      expect(parseRegistryKey('/model'), isNull);
+      expect(parseRegistryKey('nope'), isNull);
+    });
+  });
+
+  group('lookupActionByKey', () {
+    test('resolves a plain registered action key', () async {
+      final registry = Registry();
+      final action = Action(
+        actionType: ActionType('test'),
+        name: 'testAction',
+        fn: (input, context) async => 'output',
+      );
+      registry.register(action);
+
+      final resolved = await registry.lookupActionByKey('/test/testAction');
+      expect(resolved, same(action));
+    });
+
+    test('resolves a plugin-namespaced key by its full name', () async {
+      final registry = Registry();
+      final action = Action(
+        actionType: .model,
+        name: 'myModel',
+        fn: (input, context) async => 'output',
+      );
+      registry.registerPlugin(TestPlugin('myPlugin', resolvedAction: action));
+
+      final resolved = await registry.lookupActionByKey(
+        '/model/myPlugin/myModel',
+      );
+      expect(resolved, isNotNull);
+      expect(resolved!.name, 'myModel');
+    });
+
+    test(
+      'resolves a dynamic-action-provider key through its provider',
+      () async {
+        final registry = Registry();
+        final tool = Action(
+          actionType: .tool,
+          name: 'weatherTool',
+          fn: (input, context) async => 'sunny',
+        );
+        final dap = DynamicActionProvider(
+          name: 'my-host',
+          listActionsFn: () => [
+            ActionMetadata(actionType: .tool, name: 'weatherTool'),
+          ],
+          getActionFn: (actionType, name) async =>
+              actionType == ActionType.tool && name == 'weatherTool'
+              ? tool
+              : null,
+        );
+        registry.register(dap);
+
+        final resolved = await registry.lookupActionByKey(
+          dapActionKey('my-host', ActionType.tool, 'weatherTool'),
+        );
+        expect(resolved, same(tool));
+      },
+    );
+
+    test('returns null for a wildcard dynamic-action-provider key', () async {
+      final registry = Registry();
+      final dap = DynamicActionProvider(
+        name: 'my-host',
+        listActionsFn: () => [
+          ActionMetadata(actionType: .tool, name: 'weatherTool'),
+        ],
+        getActionFn: (actionType, name) async => null,
+      );
+      registry.register(dap);
+
+      final resolved = await registry.lookupActionByKey(
+        dapActionKey('my-host', ActionType.tool, '*'),
+      );
+      expect(resolved, isNull);
+    });
+
+    test('returns null for a malformed key', () async {
+      final registry = Registry();
+      expect(await registry.lookupActionByKey('/model'), isNull);
+      expect(await registry.lookupActionByKey('nope'), isNull);
     });
   });
 }

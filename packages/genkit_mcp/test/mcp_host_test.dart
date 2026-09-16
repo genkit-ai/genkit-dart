@@ -386,7 +386,7 @@ void main() {
     final hasTool = actions.any((action) => action.name == 'server1/testTool');
     expect(hasTool, isTrue);
 
-    final resolved = await dap.getAction('server1/testTool');
+    final resolved = await dap.getAction(.tool, 'server1/testTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
     expect(result.output, 'ok');

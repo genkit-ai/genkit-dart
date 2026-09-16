@@ -149,10 +149,20 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   final SchemanticType<Init>? initSchema;
   final Map<String, dynamic> metadata;
 
+  /// The fully-qualified registry key (`/$actionType/$name`) or, for actions
+  /// resolved through a dynamic action provider, the DAP key
+  /// (`/dynamic-action-provider/<host>:<actionType>/<name>`).
+  ///
+  /// Null for locally-defined actions until stamped (a DAP stamps this onto the
+  /// actions it resolves so their provenance survives into tool definitions and
+  /// traces). Mirrors JS's `__action.key`.
+  String? key;
+
   ActionMetadata({
     required this.name,
     this.actionType = .custom,
     this.description,
+    this.key,
 
     this.inputSchema,
     this.outputSchema,
@@ -162,13 +172,23 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   }) : metadata = metadata ?? {};
 
   Map<String, dynamic> toJson() {
+    // `jsonSchema` is a method, so it must be called; a bare tearoff would put a
+    // Function into the map and break jsonEncode (e.g. when a DAP's
+    // List<ActionMetadata> output is serialized into a trace). Use `useRefs`
+    // ($ref + $defs) to match the reflection manifest and avoid the inline path,
+    // which fails for some composite schemas (e.g. GenerateActionOptions).
     return {
       'name': name,
+      if (key != null) 'key': key,
       'description': description,
-      'inputSchema': inputSchema?.jsonSchema,
-      'outputSchema': outputSchema?.jsonSchema,
-      'streamSchema': streamSchema?.jsonSchema,
-      'initSchema': initSchema?.jsonSchema,
+      if (inputSchema != null)
+        'inputSchema': inputSchema!.jsonSchema(useRefs: true),
+      if (outputSchema != null)
+        'outputSchema': outputSchema!.jsonSchema(useRefs: true),
+      if (streamSchema != null)
+        'streamSchema': streamSchema!.jsonSchema(useRefs: true),
+      if (initSchema != null)
+        'initSchema': initSchema!.jsonSchema(useRefs: true),
     };
   }
 }
@@ -187,6 +207,7 @@ class Action<Input, Output, Chunk, Init>
     super.initSchema,
     super.description,
     super.metadata,
+    super.key,
   });
 
   /// The output schema surfaced when building action manifests (Dev UI,

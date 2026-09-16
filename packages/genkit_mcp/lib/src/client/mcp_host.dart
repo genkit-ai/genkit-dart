@@ -364,9 +364,9 @@ class GenkitMcpHost {
     return results.expand((actions) => actions).toList();
   }
 
-  Action? resolveAction(String actionName) {
+  Action? resolveAction(ActionType actionType, String actionName) {
     for (final client in activeClients) {
-      final action = client.resolveAction(actionName);
+      final action = client.resolveAction(actionType, actionName);
       if (action != null) {
         return action;
       }
