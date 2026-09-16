@@ -38,9 +38,7 @@ class GoogleGenAiPluginHandle {
   /// An alias of [gemini] that reads correctly at Gemma call sites. Should
   /// Gemma ever gain an options schema of its own, the options type here
   /// narrows to it, which is a breaking change for callers.
-  ModelRef<GeminiOptions> gemma(String name) {
-    return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
-  }
+  ModelRef<GeminiOptions> gemma(String name) => gemini(name);
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
