@@ -189,7 +189,8 @@ void main() {
           tools: [tool],
         );
 
-        expect(response.text, contains('56088')); // 123*456 = 56088
+        // The model renders the tool result with thousands separators.
+        expect(response.text.replaceAll(',', ''), contains('56088'));
       });
 
       test('should honour a system message', () async {
