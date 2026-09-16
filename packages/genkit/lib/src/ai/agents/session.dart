@@ -200,11 +200,10 @@ final class Session<State> {
   /// object) so mutations round-trip cleanly through `SessionState`'s
   /// (de)serialization regardless of the generated setter behavior.
   ///
-  /// When a [stateSchema] is provided, [getCustom] / [updateCustom] parse and
+  /// When a [_stateSchema] is provided, [getCustom] / [updateCustom] parse and
   /// serialize the custom state through it; otherwise they operate on raw JSON.
-  Session(SessionState initialState, {SchemanticType<State>? stateSchema})
-    : sessionId = initialState.sessionId ?? generateUuidV4(),
-      _stateSchema = stateSchema {
+  Session(SessionState initialState, {this._stateSchema})
+    : sessionId = initialState.sessionId ?? generateUuidV4() {
     // Deep-clone so we never alias (or mutate) the caller's object: the session
     // owns its state, and a handler mutating it must not reach back into the
     // caller's / chat's state. A shallow `Map.from` would leave nested

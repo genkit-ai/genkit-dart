@@ -27,10 +27,9 @@ class McpDartTransport implements mcp.Transport {
 
   McpDartTransport({
     required this.inbound,
-    required Future<void> Function(Map<String, dynamic> message) send,
-    required Future<void> Function() close,
-  }) : _send = send,
-       _close = close;
+    required this._send,
+    required this._close,
+  });
 
   @override
   void Function()? onclose;
