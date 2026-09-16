@@ -150,7 +150,7 @@ Local telemetry environment is running.
 
 Run the sample in another terminal:
   export GEMINI_API_KEY=...
-  dart run
+  dart run bin/main.dart
 
 Press Ctrl+C to stop.''');
 

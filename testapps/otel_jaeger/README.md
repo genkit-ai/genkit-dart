@@ -40,7 +40,7 @@ app-facing `4317`/`4318`.
    ```sh
    export GEMINI_API_KEY=your-key
    export OTEL_SERVICE_NAME=genkit-otel-sample   # optional; names the service
-   dart run
+   dart run bin/main.dart
    ```
 
 3. Open Jaeger at http://localhost:16686, pick your service (the default is
