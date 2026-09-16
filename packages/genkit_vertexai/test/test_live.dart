@@ -35,7 +35,7 @@ abstract class $CalculatorInput {
 
 void main() {
   final projectId = Platform.environment['GCLOUD_PROJECT'];
-  final location = Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1';
+  final location = Platform.environment['GCLOUD_LOCATION'] ?? 'global';
 
   final configs = [
     if (projectId != null)
@@ -134,7 +134,7 @@ void main() {
           tools: [tool],
         );
 
-        expect(response.text, contains('56088')); // 123*456 = 56088
+        expect(response.text.replaceAll(',', ''), contains('56088'));
       });
 
       test('should embed text', () async {
