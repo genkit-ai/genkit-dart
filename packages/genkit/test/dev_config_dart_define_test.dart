@@ -107,9 +107,9 @@ class _FakeTelemetryServer {
 }
 
 Future<void> _waitFor(bool Function() condition, String describeFailure) async {
-  final deadline = DateTime.now().add(_waitLimit);
+  final elapsed = Stopwatch()..start();
   while (!condition()) {
-    if (DateTime.now().isAfter(deadline)) {
+    if (elapsed.elapsed > _waitLimit) {
       fail('$describeFailure within ${_waitLimit.inSeconds}s');
     }
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -170,10 +170,22 @@ class _Probe {
 
     final stderrText = StringBuffer();
     process.stderr.transform(utf8.decoder).listen(stderrText.write);
-    final ready = process.stdout
+    // Drained past the ready line so the probe cannot block on a full pipe.
+    final readyLine = Completer<String>();
+    process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .firstWhere((line) => line.startsWith(_readyPrefix), orElse: () => '')
+        .listen(
+          (line) {
+            if (!readyLine.isCompleted && line.startsWith(_readyPrefix)) {
+              readyLine.complete(line);
+            }
+          },
+          onDone: () {
+            if (!readyLine.isCompleted) readyLine.complete('');
+          },
+        );
+    final ready = readyLine.future
         .timeout(_readyLimit, onTimeout: () => '')
         .then((line) {
           if (line.isEmpty) {
