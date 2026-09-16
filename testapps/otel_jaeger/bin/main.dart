@@ -46,7 +46,7 @@ Future<void> main() async {
   // spanAndEvent does both. Unset consults
   // OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
   configureInstrumentation(
-    GenAiInstrumentation(contentCapturingMode: .spanOnly, emitMetrics: false),
+    GenAiInstrumentation(contentCapturingMode: .spanOnly),
   );
 
   final ai = Genkit(plugins: [googleAI()]);
