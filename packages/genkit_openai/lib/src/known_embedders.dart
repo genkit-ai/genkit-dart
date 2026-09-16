@@ -94,10 +94,15 @@ enum KnownOpenAIEmbedder {
 
   /// Metadata registered for this embedder.
   ///
+  /// Library-private for the same reason [embedderInfoFor] is: the shape is
+  /// the raw map #327 replaces. [id], [label], [dimensions],
+  /// [dimensionsReducible] and [stage] are the public way to read the same
+  /// facts, and they survive that migration.
+  ///
   /// One instance per entry, shared by every resolution of the embedder, so
   /// the maps it carries are unmodifiable: mutating action metadata in place
   /// must fail loudly rather than corrupt the catalog.
-  Map<String, dynamic> get info => _curatedInfo[this]!;
+  Map<String, dynamic> get _info => _curatedInfo[this]!;
 }
 
 /// The shape core will grow a type for in #327.
@@ -105,8 +110,9 @@ enum KnownOpenAIEmbedder {
 /// Until `Embedder` / `embedderMetadata()` carry an `EmbedderInfo` of their
 /// own, this rides in the `model` metadata map that both already merge —
 /// alongside the `label` they write there — so the Dev UI has something to
-/// read and the values do not have to be invented twice later. The keys are
-/// JS `EmbedderInfo`'s: `label`, `dimensions`, `supports.input`.
+/// read and the values do not have to be invented twice later. `label`,
+/// `dimensions` and `supports.input` are JS `EmbedderInfo`'s keys; `stage` is
+/// not one of them and mirrors JS `ModelInfo.stage` instead.
 Map<String, dynamic> _info({String? label, int? dimensions, String? stage}) =>
     Map.unmodifiable(<String, dynamic>{
       'label': ?label,
@@ -132,7 +138,7 @@ final _curatedInfo = <KnownOpenAIEmbedder, Map<String, dynamic>>{
 final Map<String, Map<String, dynamic>> knownOpenAIEmbedders = Map.unmodifiable(
   {
     for (final embedder in KnownOpenAIEmbedder.values)
-      embedder.id: embedder.info,
+      embedder.id: embedder._info,
   },
 );
 
@@ -173,7 +179,7 @@ final Map<String, dynamic> dynamicEmbedderInfo = _info();
 /// Metadata for any OpenAI embedder name: the curated entry when there is one,
 /// [dynamicEmbedderInfo] otherwise.
 Map<String, dynamic> embedderInfoFor(String embedderName) =>
-    knownOpenAIEmbedderFor(embedderName)?.info ?? dynamicEmbedderInfo;
+    knownOpenAIEmbedderFor(embedderName)?._info ?? dynamicEmbedderInfo;
 
 final _compatInfo = <KnownOpenAIEmbedder, Map<String, dynamic>>{
   for (final embedder in KnownOpenAIEmbedder.values)

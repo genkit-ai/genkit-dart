@@ -49,6 +49,10 @@ base class OpenAIEmbedderOptions {
   /// Only the `text-embedding-3-*` models accept this, and only to shorten:
   /// they are trained so that a prefix of the vector is still a usable
   /// embedding. Defaults to the model's full size.
+  ///
+  /// Bounded here rather than in `validateEmbedderDimensions`, which is
+  /// skipped for compat hosts: a non-positive length is wrong for every
+  /// backend, and the Dev UI reads the bound off the schema.
   int? get dimensions {
     return _json['dimensions'] as int?;
   }
@@ -58,6 +62,10 @@ base class OpenAIEmbedderOptions {
   /// Only the `text-embedding-3-*` models accept this, and only to shorten:
   /// they are trained so that a prefix of the vector is still a usable
   /// embedding. Defaults to the model's full size.
+  ///
+  /// Bounded here rather than in `validateEmbedderDimensions`, which is
+  /// skipped for compat hosts: a non-positive length is wrong for every
+  /// backend, and the Dev UI reads the bound off the schema.
   set dimensions(int? value) {
     if (value == null) {
       _json.remove('dimensions');
@@ -106,7 +114,7 @@ base class _OpenAIEmbedderOptionsTypeFactory
     definition: $Schema
         .object(
           properties: {
-            'dimensions': $Schema.integer(),
+            'dimensions': $Schema.integer(minimum: 1),
             'user': $Schema.string(),
           },
         )

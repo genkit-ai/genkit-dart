@@ -33,6 +33,11 @@ abstract class $OpenAIEmbedderOptions {
   /// Only the `text-embedding-3-*` models accept this, and only to shorten:
   /// they are trained so that a prefix of the vector is still a usable
   /// embedding. Defaults to the model's full size.
+  ///
+  /// Bounded here rather than in `validateEmbedderDimensions`, which is
+  /// skipped for compat hosts: a non-positive length is wrong for every
+  /// backend, and the Dev UI reads the bound off the schema.
+  @IntegerField(minimum: 1)
   int? get dimensions;
 
   /// User identifier for abuse detection.

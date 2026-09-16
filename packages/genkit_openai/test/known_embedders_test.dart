@@ -15,7 +15,7 @@
 import 'package:genkit/plugin.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/known_embedders.dart'
-    show compatEmbedderInfo, embedderInfoFor;
+    show compatEmbedderInfo, embedderInfoFor, knownOpenAIEmbedders;
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:test/test.dart';
 

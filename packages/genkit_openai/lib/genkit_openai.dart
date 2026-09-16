@@ -27,16 +27,13 @@ export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
 export 'src/embed.dart' show OpenAIEmbedderOptions;
 // The embedder catalog is public for the same reason the model catalog is.
-// `embedderInfoFor` and its compat variant are not: until core grows an
-// `EmbedderInfo` (#327) they hand back a raw map whose shape is expected to
-// change, and freezing that as API now would make the migration a breaking
-// one.
+// `embedderInfoFor`, its compat variant and `knownOpenAIEmbedders` are not:
+// until core grows an `EmbedderInfo` (#327) they hand back a raw map whose
+// shape is expected to change, and freezing that as API now would make the
+// migration a breaking one. `KnownOpenAIEmbedder`'s typed fields carry the
+// same facts and survive it.
 export 'src/known_embedders.dart'
-    show
-        KnownOpenAIEmbedder,
-        knownEmbedderModels,
-        knownOpenAIEmbedderFor,
-        knownOpenAIEmbedders;
+    show KnownOpenAIEmbedder, knownEmbedderModels, knownOpenAIEmbedderFor;
 // The catalog and the capability vocabulary are public: describing a model
 // the plugin does not know is a supported thing to do, and a caller doing it
 // should reach for the same presets the curated entries use.
