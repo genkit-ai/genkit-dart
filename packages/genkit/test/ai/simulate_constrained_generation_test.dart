@@ -108,26 +108,38 @@ void main() {
       expect(outputInstructionOf(captured), contains('JSON'));
     });
 
-    test(
-      'is not sent the schema, the format or the constrained flag',
-      () async {
-        defineCapturingModel('noClaim');
+    test('is not sent the schema or the constrained flag', () async {
+      defineCapturingModel('noClaim');
 
-        await genkit.generate(
-          model: modelRef('noClaim'),
-          prompt: 'Describe a person.',
-          outputSchema: Person.$schema,
-        );
+      await genkit.generate(
+        model: modelRef('noClaim'),
+        prompt: 'Describe a person.',
+        outputSchema: Person.$schema,
+      );
 
-        // `schema` matters as much as `constrained`: several plugins send a
-        // native schema whenever `output.schema` is set and never read
-        // `output.constrained`.
-        expect(captured.output?.schema, isNull);
-        expect(captured.output?.format, isNull);
-        expect(captured.output?.contentType, isNull);
-        expect(captured.output?.constrained, isFalse);
-      },
-    );
+      // `schema` matters as much as `constrained`: several plugins send a
+      // native schema whenever `output.schema` is set and never read
+      // `output.constrained`.
+      expect(captured.output?.schema, isNull);
+      expect(captured.output?.constrained, isFalse);
+    });
+
+    test('keeps the signal plugins turn native JSON mode on with', () async {
+      defineCapturingModel('noClaim');
+
+      await genkit.generate(
+        model: modelRef('noClaim'),
+        prompt: 'Describe a person.',
+        outputSchema: Person.$schema,
+      );
+
+      // Deliberately unlike JS, which clears these too. Plugins read them to
+      // enable JSON mode, which guarantees the response parses and is
+      // independent of schema constraint. `genkit_google_genai` computes
+      // `isJsonMode` from exactly this pair.
+      expect(captured.output?.format, 'json');
+      expect(captured.output?.contentType, 'application/json');
+    });
 
     test('still parses into typed output', () async {
       defineCapturingModel('noClaim');
@@ -181,6 +193,7 @@ void main() {
 
       expect(outputInstructionOf(captured), isNotNull);
       expect(captured.output?.schema, isNull);
+      expect(captured.output?.format, 'json');
     });
   });
 }

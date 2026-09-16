@@ -43,6 +43,16 @@ String simulatedConstrainedInstructions(Map<String, dynamic> schema) {
 /// schema in place would send the native request this middleware exists to
 /// avoid, on top of the injected instructions.
 ///
+/// `format` and `contentType` are kept, which is where this parts company with
+/// JS (`js/ai/src/model/middleware.ts` clears all four). Plugins read those two
+/// to turn on native JSON mode — `genkit_google_genai` derives `isJsonMode`
+/// from exactly them, and `genkit_openai` sends `json_object` off the same
+/// signal — and that mode is orthogonal to schema constraint: it guarantees the
+/// response parses, leaving the injected instructions to supply only the shape.
+/// Clearing them would throw that away and make the simulated path parse worse
+/// than it needs to. The instructions name JSON, which is the precondition
+/// OpenAI puts on `json_object`.
+///
 /// Parsing is unaffected: `generate` parses the response against the format
 /// it resolved before middleware ran, so the caller still gets typed output.
 class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware {
@@ -78,7 +88,11 @@ class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware {
         tools: request.tools,
         toolChoice: request.toolChoice,
         docs: request.docs,
-        output: OutputConfig(constrained: false),
+        output: OutputConfig(
+          constrained: false,
+          format: output?.format,
+          contentType: output?.contentType,
+        ),
       ),
       ctx,
     );
