@@ -1,6 +1,6 @@
 ## 0.3.2-wip
 
- - Expand anthropic_sdk_dart constraint to '>=2.1.0 <9.0.0'.
+ - Raise the anthropic_sdk_dart floor to 8.0.0, for the typed thinking input blocks.
 
 ## 0.3.1
 
