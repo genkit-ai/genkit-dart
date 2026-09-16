@@ -582,12 +582,18 @@ final class Genkit extends GenkitAI {
   }
 
   /// Defines an AI model interface.
+  ///
+  /// [info] declares what the model can do. `supports.constrained` is read at
+  /// generate time: a model that does not claim native constrained generation
+  /// has it simulated for it, so a model that does support it has to say so.
   Model defineModel({
     required String name,
     required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
+    ModelInfo? info,
   }) {
     final model = Model(
       name: name,
+      metadata: info == null ? null : {'model': info.toJson()},
       fn: (input, context) {
         return fn(input!, context);
       },

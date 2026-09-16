@@ -93,6 +93,9 @@ void main() {
         String? receivedInstructions;
         genkit.defineModel(
           name: 'instructionModel',
+          // Claims native constrained generation, so the simulation fallback
+          // stays out of the way and this tests the formatter alone.
+          info: ModelInfo(supports: {'constrained': true}),
           fn: (req, ctx) async {
             for (final m in req.messages) {
               for (final p in m.content) {
