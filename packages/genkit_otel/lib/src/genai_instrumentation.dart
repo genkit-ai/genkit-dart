@@ -134,7 +134,8 @@ class GenAiInstrumentation implements Instrumentation {
     switch (metadata.actionType) {
       case 'model':
         return _runModelSpan(metadata, next);
-      case 'tool' when emitToolSpans:
+      // Genkit Dart tools register as `ActionType.tool` (serializes to `tool.v2`).
+      case final type when emitToolSpans && type == ActionType.tool.value:
         return _runToolSpan(metadata, next);
       default:
         return _runGenericSpan(metadata, next);
