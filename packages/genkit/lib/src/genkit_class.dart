@@ -42,7 +42,11 @@ import 'core/reflection.dart';
 import 'core/registry.dart';
 import 'exception.dart';
 import 'genkit_ai.dart';
-import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
+import 'o11y/instrumentation.dart'
+    show configureInstrumentation, disposeInstrumentations, isInstrumentedBy;
+import 'o11y/instrumentation_setup.dart'
+    show GenkitBuiltinInstrumentation, genkitDevInstrumentation;
+
 import 'types.dart';
 import 'utils.dart' as utils;
 
@@ -56,9 +60,9 @@ import 'utils.dart' as utils;
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
 /// ([generate], [generateStream], [generateBidi], [embed], [embedMany], [run]).
 ///
-/// If `isDevEnv` is true or the `GENKIT_ENV` environment variable is set to
-/// 'dev', initializing [Genkit] also starts a local reflection server that
-/// communicates with the Genkit Developer UI.
+/// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
+/// environment or as a `--dart-define`, initializing [Genkit] also starts a
+/// local reflection server that communicates with the Genkit Developer UI.
 final class Genkit extends GenkitAI {
   ReflectionServerHandle? _reflectionServer;
 
@@ -77,8 +81,6 @@ final class Genkit extends GenkitAI {
     /// prompt loading.
     String? promptDir = './prompts',
   }) : super(Registry()) {
-    configureCollectorExporter();
-
     // Initialize dotprompt registry with schema resolver wired to the registry
     _dotpromptRegistry = DotpromptRegistry(
       schemaResolver: (name) async {
@@ -102,6 +104,22 @@ final class Genkit extends GenkitAI {
     configureFormats(registry);
 
     if (isDevEnv ?? utils.isDevEnv) {
+      // In the dev environment, auto-inject the built-in telemetry
+      // instrumentation (unless already configured) so the Developer UI
+      // receives traces. It posts Genkit's spans directly to the Genkit
+      // telemetry server over HTTP, independently of OpenTelemetry. It returns
+      // null (and we do not instrument) when no server is configured
+      // (`GENKIT_TELEMETRY_SERVER` unset); in that case the reflection
+      // handshake may still enable it later if the CLI supplies a server URL.
+      // In production, Genkit is not instrumented unless the user configures a
+      // provider.
+      if (!isInstrumentedBy<GenkitBuiltinInstrumentation>()) {
+        final devInstrumentation = genkitDevInstrumentation();
+        if (devInstrumentation != null) {
+          configureInstrumentation(devInstrumentation);
+        }
+      }
+
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
@@ -119,6 +137,10 @@ final class Genkit extends GenkitAI {
   ///
   /// This is mostly meant for testing purposes.
   Future<void> shutdown() async {
+    // Release instrumentation resources (e.g. the built-in dev provider's log
+    // subscription). Providers implementing DisposableInstrumentation are
+    // disposed; they remain registered.
+    disposeInstrumentations();
     if (_reflectionServer != null) {
       await _reflectionServer!.stop();
     }
@@ -622,17 +644,24 @@ final class Genkit extends GenkitAI {
   }
 
   /// Defines a dynamic provider for actions.
+  ///
+  /// [getActionFn] receives the requested [ActionType] and name so a single
+  /// provider can serve tools, prompts, and resources. [cacheTtlMillis]
+  /// controls how long the provider's listing is cached (defaults to three
+  /// seconds; a negative value disables caching).
   DynamicActionProvider defineDynamicActionProvider({
     required String name,
     FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
-    FutureOr<Action?> Function(String)? getActionFn,
+    FutureOr<Action?> Function(ActionType actionType, String name)? getActionFn,
     Map<String, dynamic>? metadata,
+    int? cacheTtlMillis,
   }) {
     final provider = DynamicActionProvider(
       name: name,
       listActionsFn: listActionsFn,
       getActionFn: getActionFn,
       metadata: metadata,
+      cacheTtlMillis: cacheTtlMillis,
     );
     registry.register(provider);
     return provider;

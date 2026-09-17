@@ -21,6 +21,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../ai/generate_middleware.dart';
 import '../../ai/model.dart';
+import '../../o11y/instrumentation_setup.dart'
+    show enableDevInstrumentationForServer;
 import '../../schema.dart';
 import '../../types.dart';
 import '../../utils.dart';
@@ -180,6 +182,8 @@ class ReflectionServerV2 {
             request['params'] as Map<String, dynamic>,
           );
           await _handleRunAction(id, params);
+        case 'configure':
+          _handleConfigure(request['params']);
         case 'sendInputStreamChunk':
           final params = ReflectionSendInputStreamChunkParams.fromJson(
             request['params'] as Map<String, dynamic>,
@@ -204,10 +208,13 @@ class ReflectionServerV2 {
 
   Future<void> _handleListActions(String? id) async {
     if (id == null) return;
-    final actions = await registry.listActions();
+    // Use resolvable actions so dynamic action providers expand into their
+    // individual tools/prompts/resources for the Dev UI.
+    final actions = await registry.listResolvableActions();
     final convertedActions = <String, dynamic>{};
-    for (final action in actions) {
-      final key = getKey(action.actionType.value, action.name);
+    for (final entry in actions.entries) {
+      final action = entry.value;
+      final key = action.key ?? entry.key;
       convertedActions[key] = {
         'key': key,
         'name': action.name,
@@ -268,6 +275,22 @@ class ReflectionServerV2 {
     _sendResponse(id, response.toJson());
   }
 
+  /// Applies the CLI telemetry handshake (`configure` notification).
+  ///
+  /// When the params carry a non-empty `telemetryServerUrl` and no
+  /// `GENKIT_TELEMETRY_SERVER` env var is set, this enables the built-in dev
+  /// instrumentation so traces reach the CLI-provided telemetry server. The env
+  /// var takes precedence. This is a JSON-RPC notification, so it sends no
+  /// response.
+  void _handleConfigure(Object? params) {
+    if (params is! Map<String, dynamic>) return;
+    final configure = ReflectionConfigureParams.fromJson(params);
+    final url = configure.telemetryServerUrl;
+    if (url != null && url.isNotEmpty) {
+      enableDevInstrumentationForServer(url);
+    }
+  }
+
   Future<void> _handleRunAction(
     String? id,
     ReflectionRunActionParams params,
@@ -286,7 +309,9 @@ class ReflectionServerV2 {
       return;
     }
 
-    final action = await registry.lookupAction(ActionType(parts[1]), parts[2]);
+    // Resolve by full key so dynamic-action-provider keys (surfaced to the Dev
+    // UI by listResolvableActions) resolve through their provider.
+    final action = await registry.lookupActionByKey(key);
     if (action == null) {
       _sendError(id, 404, 'action $key not found');
       return;
@@ -311,38 +336,26 @@ class ReflectionServerV2 {
             );
             _sendNotification('streamChunk', params.toJson());
           },
-          onTraceStart: ({required String traceId, required String spanId}) {
-            final params = ReflectionRunActionStateParams(
-              requestId: id.toString(),
-              state: {'traceId': traceId, 'spanId': spanId},
-            );
-            _sendNotification('runActionState', params.toJson());
-          },
+          onTraceStart: _traceStateNotifier(id),
           context: context,
           inputStream: inputStream,
         );
 
         _sendResponse(id, {
           'result': result.result,
-          'telemetry': {'traceId': result.traceId},
+          'telemetry': ?_telemetry(result.traceId),
         });
       } else {
         final result = await action.runRaw(
           input,
           init: init,
-          onTraceStart: ({required String traceId, required String spanId}) {
-            final params = ReflectionRunActionStateParams(
-              requestId: id.toString(),
-              state: {'traceId': traceId, 'spanId': spanId},
-            );
-            _sendNotification('runActionState', params.toJson());
-          },
+          onTraceStart: _traceStateNotifier(id),
           context: context,
           inputStream: inputStream,
         );
         _sendResponse(id, {
           'result': result.result,
-          'telemetry': {'traceId': result.traceId},
+          'telemetry': ?_telemetry(result.traceId),
         });
       }
     } catch (e, stack) {
@@ -355,6 +368,24 @@ class ReflectionServerV2 {
       _sendError(id, -32000, e.toString(), errorResponse);
     }
   }
+
+  /// Builds the `onTraceStart` callback that streams trace/span ids back as a
+  /// `runActionState` notification, skipping empty (uninstrumented) ids.
+  TraceStartCallback _traceStateNotifier(String id) {
+    return ({required String traceId, required String spanId}) {
+      if (traceId.isEmpty && spanId.isEmpty) return;
+      final params = ReflectionRunActionStateParams(
+        requestId: id,
+        state: {'traceId': traceId, 'spanId': spanId},
+      );
+      _sendNotification('runActionState', params.toJson());
+    };
+  }
+
+  /// The `telemetry` payload, or `null` when uninstrumented (empty traceId), so
+  /// clients don't mistake a blank id for a broken exporter.
+  Map<String, dynamic>? _telemetry(String traceId) =>
+      traceId.isEmpty ? null : {'traceId': traceId};
 
   Future<void> _handleSendInputStreamChunk(
     ReflectionSendInputStreamChunkParams params,

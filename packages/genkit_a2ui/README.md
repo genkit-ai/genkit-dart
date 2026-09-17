@@ -220,7 +220,7 @@ server:
 import 'package:genkit_a2ui/a2ui.dart';
 
 await loadCatalog(
-  ai.registry,
+  ai,
   id: 'my-catalog',
   file: './my-catalog.json',
 );
@@ -250,7 +250,7 @@ final myCatalog = A2uiCatalog(
 );
 
 await loadCatalog(
-  ai.registry,
+  ai,
   id: 'my-catalog',
   catalog: myCatalog,
 );

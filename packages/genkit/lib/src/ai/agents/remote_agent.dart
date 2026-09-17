@@ -80,13 +80,10 @@ final class _HttpAgentTransport extends AgentTransport {
     required String url,
     String? getSnapshotUrl,
     String? abortUrl,
-    HeadersResolver? headers,
+    this._headers,
     AgentStateManagement? stateManagement,
     http.Client? httpClient,
-  }) : _headers = headers,
-       // Track ownership: only close a client we created. A caller-passed
-       // client stays caller-owned and must not be closed by us.
-       _ownsClient = httpClient == null,
+  }) : _ownsClient = httpClient == null,
        _httpClient = httpClient ?? http.Client() {
     this.stateManagement = stateManagement;
 
@@ -162,10 +159,11 @@ final class _HttpAgentTransport extends AgentTransport {
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
-    required CancellationToken cancel,
+    CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) {
     _rejectContext(context);
+
     final controller = StreamController<AgentStreamChunk>();
     final outputCompleter = Completer<AgentOutput>();
 
@@ -180,12 +178,14 @@ final class _HttpAgentTransport extends AgentTransport {
         );
 
         // Abort cooperatively when the caller cancels.
-        unawaited(
-          cancel.whenCancelled.then((_) {
-            sub?.cancel();
-            if (!controller.isClosed) controller.close();
-          }),
-        );
+        if (cancel != null) {
+          unawaited(
+            cancel.whenCancelled.then((_) {
+              sub?.cancel();
+              if (!controller.isClosed) controller.close();
+            }),
+          );
+        }
 
         sub = actionStream.listen(
           (chunk) {
@@ -219,35 +219,28 @@ final class _HttpAgentTransport extends AgentTransport {
   }
 
   @override
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    required CancellationToken cancel,
-    Map<String, dynamic>? context,
-  }) {
-    _rejectContext(context);
-    // Opt out of the non-streaming fast path: `send()` should always run the
-    // turn over the streaming transport and drain the stream so a server-managed
-    // agent's `customPatch` chunks are applied to the chat's tracked state. The
-    // turn output is still available via [runTurn]'s `output` future.
-    return null;
-  }
-
-  @override
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
+    Map<String, dynamic>? context,
+    bool metadataOnly = false,
   }) async {
+    _rejectContext(context);
     final headers = await _resolveHeaders();
     final lookup = <String, dynamic>{
       'snapshotId': ?snapshotId,
       'sessionId': ?sessionId,
+      if (metadataOnly) 'metadataOnly': true,
     };
     return _snapshotAction.call(input: lookup, headers: headers);
   }
 
   @override
-  Future<SnapshotStatus?> abort(String snapshotId) async {
+  Future<SnapshotStatus?> abort(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    _rejectContext(context);
     final headers = await _resolveHeaders();
     final response = await _abortAction.call(
       input: AgentAbortRequest(snapshotId: snapshotId),

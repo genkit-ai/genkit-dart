@@ -11,6 +11,11 @@ A complete, runnable sample of [A2UI](https://a2ui.org/) with Genkit Dart:
   renderer (`SurfaceController` + `Surface`). Button presses and form submits are
   sent back to the agent as the next turn.
 
+It also demonstrates a **custom catalog**: a bespoke `Gauge` component that is
+not part of the bundled basic catalog. See ["Custom catalog"](#custom-catalog)
+below.
+
+
 This is a Flutter package, so it lives outside the root pub workspace (like
 `testapps/flutter_genai`) and uses `path:` dependencies on the local packages.
 
@@ -48,6 +53,8 @@ This is a Flutter package, so it lives outside the root pub workspace (like
 ## Try it
 
 - "What's the weather in Tokyo?" — renders a weather card.
+- "Show the weather in Tokyo with a gauge." — renders the custom `Gauge`
+  component (see below).
 - "Compare the weather in London, Paris and Rome." — renders a comparison.
 - "Give me a short signup form (name and email) with a submit button." — renders
   a form; submitting sends the entered values back to the agent.
@@ -59,6 +66,33 @@ This is a Flutter package, so it lives outside the root pub workspace (like
   (`{ "envelopes": [...] }`, mime `application/a2ui+json`) on both the streamed
   chunks and the final message.
 - The client converts each envelope map to a genui `A2uiMessage`
-  (`A2uiMessage.fromJson`) and feeds it to a `SurfaceController`. The bundled
-  genui basic catalog is re-tagged with the plugin's basic-catalog id so surfaces
-  resolve to real widgets.
+  (`A2uiMessage.fromJson`) and feeds it to a `SurfaceController`. The client
+  catalog is tagged with the same catalog id the agent uses, so surfaces resolve
+  to real widgets.
+
+## Custom catalog
+
+By default the `a2ui()` middleware uses the bundled **basic catalog** (Text,
+Card, Column, Button, ...). This sample instead ships its own catalog that adds
+a bespoke `Gauge` component. A catalog has two halves that must agree on a
+catalog id (here `com.example.a2ui.weather`, defined once in `lib/shared.dart`):
+
+- **Server** (`lib/agent.dart`): `weatherCatalog` is an `A2uiCatalog` built from
+  `basicCatalog.components` plus one `A2uiCatalogComponent` describing `Gauge`
+  (its name, a one-line description, and a plain-text `props` line). This is the
+  model-facing half: the middleware injects it into the system prompt so the
+  model knows `Gauge` exists, and validates that emitted surfaces only reference
+  components in the catalog. `registerCatalogs()` (called from
+  `bin/server.dart`) registers it with `loadCatalog(...)`, and the agent selects
+  it with `a2ui(catalog: weatherCatalogId, validate: 'strict')`.
+- **Client** (`lib/gauge.dart` + `lib/main.dart`): `gaugeCatalogItem` is a genui
+  `CatalogItem` (a `name`, a prop `dataSchema`, and a `widgetBuilder` that paints
+  the gauge). `main.dart` adds it to genui's basic widgets and re-tags the whole
+  catalog with the same id
+  (`BasicCatalogItems.asCatalog().copyWith(newItems: [gaugeCatalogItem],
+  catalogId: weatherCatalogId)`).
+
+The `name` on both sides (`'Gauge'`) and the catalog id must match, otherwise the
+model would emit a `Gauge` the client can't render, or the client would register
+widgets under an id no surface references.
+

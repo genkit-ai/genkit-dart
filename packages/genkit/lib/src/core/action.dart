@@ -18,6 +18,7 @@ import 'package:schemantic/schemantic.dart';
 
 import '../exception.dart';
 import '../o11y/instrumentation.dart';
+import 'cancellation.dart';
 
 const _genkitContextKey = #genkitContext;
 
@@ -73,6 +74,9 @@ extension type const ActionType(String value) {
   /// A utility action (e.g. the built-in `generate` action).
   static const ActionType util = ActionType('util');
 
+  /// An ad-hoc step inside a flow (e.g. `ai.run(name, fn)`).
+  static const ActionType flowStep = ActionType('flowStep');
+
   /// The default action type for actions that don't specify one.
   static const ActionType custom = ActionType('custom');
 
@@ -97,6 +101,11 @@ typedef ActionFnArg<Chunk, Input, Init> = ({
   Map<String, dynamic>? context,
   Stream<Input>? inputStream,
   Init? init,
+
+  /// A read-only cancellation token the action body should observe to abort
+  /// cooperatively, or `null` when the caller wired up no cancellation. Observe
+  /// it with null-aware calls, e.g. `ctx.cancel?.throwIfCancelled()`.
+  CancellationToken? cancel,
 });
 
 typedef ActionFn<Input, Output, Chunk, Init> =
@@ -143,10 +152,20 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   final SchemanticType<Init>? initSchema;
   final Map<String, dynamic> metadata;
 
+  /// The fully-qualified registry key (`/$actionType/$name`) or, for actions
+  /// resolved through a dynamic action provider, the DAP key
+  /// (`/dynamic-action-provider/<host>:<actionType>/<name>`).
+  ///
+  /// Null for locally-defined actions until stamped (a DAP stamps this onto the
+  /// actions it resolves so their provenance survives into tool definitions and
+  /// traces). Mirrors JS's `__action.key`.
+  String? key;
+
   ActionMetadata({
     required this.name,
     this.actionType = .custom,
     this.description,
+    this.key,
 
     this.inputSchema,
     this.outputSchema,
@@ -156,13 +175,23 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   }) : metadata = metadata ?? {};
 
   Map<String, dynamic> toJson() {
+    // `jsonSchema` is a method, so it must be called; a bare tearoff would put a
+    // Function into the map and break jsonEncode (e.g. when a DAP's
+    // List<ActionMetadata> output is serialized into a trace). Use `useRefs`
+    // ($ref + $defs) to match the reflection manifest and avoid the inline path,
+    // which fails for some composite schemas (e.g. GenerateActionOptions).
     return {
       'name': name,
+      if (key != null) 'key': key,
       'description': description,
-      'inputSchema': inputSchema?.jsonSchema,
-      'outputSchema': outputSchema?.jsonSchema,
-      'streamSchema': streamSchema?.jsonSchema,
-      'initSchema': initSchema?.jsonSchema,
+      if (inputSchema != null)
+        'inputSchema': inputSchema!.jsonSchema(useRefs: true),
+      if (outputSchema != null)
+        'outputSchema': outputSchema!.jsonSchema(useRefs: true),
+      if (streamSchema != null)
+        'streamSchema': streamSchema!.jsonSchema(useRefs: true),
+      if (initSchema != null)
+        'initSchema': initSchema!.jsonSchema(useRefs: true),
     };
   }
 }
@@ -181,6 +210,7 @@ class Action<Input, Output, Chunk, Init>
     super.initSchema,
     super.description,
     super.metadata,
+    super.key,
   });
 
   /// The output schema surfaced when building action manifests (Dev UI,
@@ -203,12 +233,22 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     Init? init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
     return (await run(
       input,
       onChunk: onChunk,
       context: context,
+      inputStream: inputStream,
+      // Validate `init` against the schema, matching `runRaw`. The static type
+      // only guarantees shape; value-level constraints (enum membership,
+      // numeric ranges, required nested fields) still need the schema. Skip
+      // when either the schema or the value is absent, mirroring `runRaw`.
+      init: (initSchema != null && init != null)
+          ? initSchema!.parse(init)
+          : init,
       onTraceStart: onTraceStart,
+      cancel: cancel,
     )).result;
   }
 
@@ -219,12 +259,14 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     dynamic init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
     return await run(
       inputSchema != null ? inputSchema!.parse(input) : input as Input?,
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
+      cancel: cancel,
       // Skip validation when no init was supplied. `init` is optional on the
       // first request (e.g. an agent's fresh session sends no init), so a null
       // value must pass through untouched rather than be validated against a
@@ -244,7 +286,11 @@ class Action<Input, Output, Chunk, Init>
     Stream<Input>? inputStream,
     Init? init,
     TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
   }) async {
+    // Bail before doing any work if the caller's token is already cancelled.
+    cancel?.throwIfCancelled();
+
     if (inputStream == null) {
       final internalInputController = StreamController<Input>();
       inputStream = internalInputController.stream;
@@ -266,12 +312,14 @@ class Action<Input, Output, Chunk, Init>
           if (onTraceStart != null) {
             onTraceStart(traceId: traceId, spanId: spanId);
           }
+          _recordContextMetadata(executionContext);
           return await fn(input, (
             streamingRequested: onChunk != null,
             sendChunk: onChunk ?? (chunk) {},
             context: executionContext,
             inputStream: inputStream,
             init: init,
+            cancel: cancel,
           ));
         },
         actionType: actionType.value,
@@ -291,11 +339,27 @@ class Action<Input, Output, Chunk, Init>
     }
   }
 
+  /// Records the execution context on the current span, redacting sensitive
+  /// top-level keys (`auth`, `secrets`). Serialization errors are swallowed so
+  /// telemetry never crashes the action.
+  void _recordContextMetadata(Object? context) {
+    if (context is! Map) return;
+    try {
+      final traced = {...context};
+      if (traced.containsKey('auth')) traced['auth'] = '<redacted>';
+      if (traced.containsKey('secrets')) traced['secrets'] = '<redacted>';
+      setCustomMetadataAttributes({'context': traced});
+    } catch (_) {
+      // Ignore telemetry serialization errors.
+    }
+  }
+
   ActionStream<Chunk, Output> stream(
     Input? input, {
     Map<String, dynamic>? context,
     Stream<Input>? inputStream,
     Init? init,
+    CancellationToken? cancel,
   }) {
     final streamController = StreamController<Chunk>();
     final actionStream = ActionStream<Chunk, Output>(streamController.stream);
@@ -305,6 +369,7 @@ class Action<Input, Output, Chunk, Init>
           context: context,
           inputStream: inputStream,
           init: init,
+          cancel: cancel,
           onChunk: (chunk) {
             if (!streamController.isClosed) {
               streamController.add(chunk);
@@ -333,6 +398,7 @@ class Action<Input, Output, Chunk, Init>
     StreamingCallback<Chunk>? onChunk,
     Map<String, dynamic>? context,
     Init? init,
+    CancellationToken? cancel,
   }) {
     StreamController<Input>? internalInputController;
     if (inputStream == null) {
@@ -359,6 +425,7 @@ class Action<Input, Output, Chunk, Init>
           context: context,
           inputStream: inputStream,
           init: init,
+          cancel: cancel,
         )
         .then((result) {
           bidiStream.setResult(result.result);
@@ -440,19 +507,30 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
 class BidiActionStream<Chunk, Response, Request>
     extends ActionStream<Chunk, Response> {
   final StreamSink<Request>? _inputSink;
+  bool _inputClosed = false;
 
   BidiActionStream(super.stream, this._inputSink);
 
+  /// Whether the input side of this stream has been closed via [close].
+  bool get isClosed => _inputClosed;
+
   /// Sends a chunk of data back to the action.
+  ///
+  /// No-op once the input side has been [close]d (e.g. after a cooperative
+  /// cancel tears the session down): adding to a closed [StreamSink] throws a
+  /// `StateError`, so a late send that races the close is silently dropped
+  /// rather than crashing the caller.
   void send(Request chunk) {
     if (_inputSink == null) {
       throw GenkitException('Cannot send to this stream (external input)');
     }
+    if (_inputClosed) return;
     _inputSink.add(chunk);
   }
 
   /// Closes the input sink.
   Future<void> close() async {
+    _inputClosed = true;
     await _inputSink?.close();
   }
 }

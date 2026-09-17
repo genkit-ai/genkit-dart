@@ -1,3 +1,14 @@
+## 0.6.1
+
+ - updated internal dependencies.
+
+## 0.6.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+
 ## 0.5.1
 
  - updated internal dependencies.

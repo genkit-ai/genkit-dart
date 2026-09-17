@@ -1,3 +1,27 @@
+## 0.16.1
+
+### Features
+
+ - add context parameter to session store operations and update related tests (#410)
+
+
+## 0.16.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Features
+
+ - add promptParts parameter to generate functions (#398)
+
+### Fixes
+
+ - stitch a2ui blocks split across multiple text parts (#404)
+ - register formatters in lite.generate (#377)
+ - sync genkit Dart version constant with pubspec version (#343)
+
+
 ## 0.15.1
 
 ### Fixes

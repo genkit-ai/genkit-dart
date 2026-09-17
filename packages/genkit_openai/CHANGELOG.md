@@ -1,3 +1,20 @@
+## 0.4.1
+
+ - updated internal dependencies.
+
+## 0.4.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Fixes
+
+ - reject non-object tool input schemas with a clear error (#374)
+ - populate usage metadata for streaming and non-streaming responses (#373)
+ - stop dropping tools and mark o-series models as tool-capable (#370)
+
+
 ## 0.3.7
 
  - updated internal dependencies.

@@ -129,10 +129,12 @@ class Workspace {
 
     for (final globStr in packageGlobs) {
       final glob = Glob(p.join(rootDir, globStr.toString()));
-      await for (final entity in glob.list()) {
+      await for (final entity in glob.list(followLinks: false)) {
         if (entity is Directory) {
           final segments = p.split(entity.path);
-          if (segments.contains('build') || segments.contains('.dart_tool')) {
+          if (segments.contains('build') ||
+              segments.contains('.dart_tool') ||
+              segments.contains('.symlinks')) {
             continue;
           }
           final pubspecFile = File(p.join(entity.path, 'pubspec.yaml'));
@@ -198,6 +200,42 @@ class GitService {
     return null;
   }
 
+  /// Returns the highest *stable* (non-pre-release) tag for [packageName], or
+  /// null if the package has never had a stable release. Used by `--graduate`
+  /// to aggregate the whole rc cycle's commits into the stable changelog entry,
+  /// rather than only the (empty) window since the latest rc tag.
+  Future<String?> getLatestStableTag(String packageName) async {
+    final prefix = '$packageName-v';
+    final result = await Process.run('git', ['tag', '-l', '$prefix*']);
+    if (result.exitCode != 0) return null;
+
+    final tags = result.stdout
+        .toString()
+        .split('\n')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty);
+
+    Version? best;
+    String? bestTag;
+    for (final tag in tags) {
+      final versionStr = tag.substring(prefix.length);
+      final Version version;
+      try {
+        version = Version.parse(versionStr);
+      } on FormatException {
+        // Skip malformed tags (e.g. leftovers from botched runs like
+        // `pkg-v0.16.0---dry-run.1`).
+        continue;
+      }
+      if (version.isPreRelease) continue;
+      if (best == null || version > best) {
+        best = version;
+        bestTag = tag;
+      }
+    }
+    return bestTag;
+  }
+
   Future<List<String>> getCommitsSince(String? tag, String path) async {
     final range = tag != null ? '$tag..HEAD' : 'HEAD';
     final result = await Process.run('git', [
@@ -237,7 +275,13 @@ class VersionPlanner {
 
       final commitMessages = await git.getCommitsSince(latestTag, pkg.path);
 
-      if (currentTagExists && commitMessages.isEmpty) continue;
+      // A pre-release that's already tagged with no new commits is exactly the
+      // case `--graduate` promotes to stable, so don't short-circuit it here.
+      if (currentTagExists &&
+          commitMessages.isEmpty &&
+          !(graduate && pkg.version.isPreRelease)) {
+        continue;
+      }
       if (commitMessages.isEmpty && !graduate && rcTag == null) continue;
 
       var maxBump = BumpType.none;
@@ -366,8 +410,9 @@ class VersionPlanner {
 class VersionApplier {
   final Workspace workspace;
   final GitService git;
+  final bool graduate;
 
-  VersionApplier(this.workspace, this.git);
+  VersionApplier(this.workspace, this.git, {this.graduate = false});
 
   Future<Set<String>> apply(Map<String, Version> bumps) async {
     final modifiedPackages = <String>{};
@@ -475,20 +520,30 @@ class VersionApplier {
         // what was published. No-op for other packages.
         await _updateVersionDart(pkg, newVersion);
 
-        // Extract commits to build Changelog
-        final latestTag = await git.getLatestTag(pkg.name);
-        final commitMessages = await git.getCommitsSince(latestTag, pkg.path);
+        // Extract commits to build Changelog. On graduate we aggregate the
+        // whole rc cycle by walking back to the last *stable* tag; the window
+        // since the latest (rc) tag would be empty and produce a hollow entry.
+        final sinceTag = graduate
+            ? await git.getLatestStableTag(pkg.name)
+            : await git.getLatestTag(pkg.name);
+        final commitMessages = await git.getCommitsSince(sinceTag, pkg.path);
         final changelogEntry = _buildChangelogEntry(newVersion, commitMessages);
 
         // Write Changelog
         final changelogFile = File(p.join(pkg.path, 'CHANGELOG.md'));
         if (await changelogFile.exists()) {
-          final existing = await changelogFile.readAsString();
-          if (existing.contains('## $newVersion')) {
+          var existing = await changelogFile.readAsString();
+          if (_hasVersionHeader(existing, newVersion)) {
             print(
               'Changelog for $newVersion already exists in ${pkg.name}. Skipping.',
             );
           } else {
+            // On graduate, drop the intermediate `## X.Y.Z-rc.*` sections so
+            // the published changelog carries a single stable entry aggregating
+            // the whole rc cycle rather than leaving rc noise behind.
+            if (graduate) {
+              existing = _stripPreReleaseSections(existing, newVersion);
+            }
             await changelogFile.writeAsString('$changelogEntry\n$existing');
           }
         } else {
@@ -629,6 +684,39 @@ class VersionApplier {
         if (!toSkip[i]) messages[i],
     ];
   }
+
+  /// Whether the changelog already has a section header for exactly [version].
+  ///
+  /// Matches a whole `## X.Y.Z` header line, so `## 0.16.0` does not
+  /// false-positive against an existing `## 0.16.0-rc.2` line (a plain
+  /// substring check would).
+  bool _hasVersionHeader(String changelog, Version version) {
+    final headerRegex = RegExp(
+      '^## ${RegExp.escape(version.toString())}\\s*\$',
+      multiLine: true,
+    );
+    return headerRegex.hasMatch(changelog);
+  }
+
+  /// Removes intermediate `## X.Y.Z-<pre>` sections whose base version equals
+  /// [stableVersion], used on graduate so the rc entries (e.g. `0.16.0-rc.1`,
+  /// `0.16.0-rc.2`) don't linger once `0.16.0` aggregates their contents. A
+  /// section spans its header up to (but not including) the next version header.
+  String _stripPreReleaseSections(String changelog, Version stableVersion) {
+    final base =
+        '${stableVersion.major}.${stableVersion.minor}.'
+        '${stableVersion.patch}';
+    // Header line for a pre-release of this base, e.g. `## 0.16.0-rc.2`, then
+    // everything up to the next version header (or end of file). The lookahead
+    // only stops at real version headers (`## X.Y.Z`), not at any `## ` line, so
+    // `##`-prefixed lines inside a section's code blocks don't cut it short.
+    final sectionRegex = RegExp(
+      '^## ${RegExp.escape(base)}-[^\\n]*\\n(?:(?!^## \\d+\\.\\d+\\.\\d+).*\\n?)*',
+      multiLine: true,
+    );
+
+    return changelog.replaceAll(sectionRegex, '');
+  }
 }
 
 void main(List<String> args) async {
@@ -712,13 +800,17 @@ void main(List<String> args) async {
 
   if (parsedArgs['dry-run'] == true) {
     print('\n--- Changelog Previews ---');
-    final applier = VersionApplier(workspace, git);
+    final applier = VersionApplier(workspace, git, graduate: graduate);
     for (final entry in bumps.entries) {
       final pkgName = entry.key;
       final newVersion = entry.value;
       final pkg = workspace.packages[pkgName]!;
-      final latestTag = await git.getLatestTag(pkg.name);
-      final commitMessages = await git.getCommitsSince(latestTag, pkg.path);
+      // Mirror apply(): on graduate, aggregate commits since the last stable
+      // tag so the preview reflects the real (collapsed) stable entry.
+      final sinceTag = graduate
+          ? await git.getLatestStableTag(pkg.name)
+          : await git.getLatestTag(pkg.name);
+      final commitMessages = await git.getCommitsSince(sinceTag, pkg.path);
       final changelogEntry = applier._buildChangelogEntry(
         newVersion,
         commitMessages,
@@ -732,7 +824,7 @@ void main(List<String> args) async {
   }
 
   // Apply bumps and generate changelog
-  final applier = VersionApplier(workspace, git);
+  final applier = VersionApplier(workspace, git, graduate: graduate);
   final modifiedPackages = await applier.apply(bumps);
 
   if (!(parsedArgs['commit'] as bool)) {

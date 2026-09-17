@@ -3,13 +3,13 @@ description: Agentic patterns samples for Genkit Dart
 publish_to: none
 
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.12.0
 resolution: workspace
 
 dependencies:
   args: ^2.6.0
-  genkit: ^0.15.1
-  genkit_google_genai: ^0.2.12
+  genkit: ^0.16.1
+  genkit_google_genai: ^0.3.1
   schemantic: ^0.2.2
 
 dev_dependencies:

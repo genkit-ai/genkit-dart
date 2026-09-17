@@ -1,15 +1,14 @@
 [![Pub](https://img.shields.io/pub/v/genkit_openai.svg)](https://pub.dev/packages/genkit_openai)
 
-OpenAI-compatible API plugin for Genkit Dart. Supports OpenAI models (GPT-4o, GPT-4, GPT-3.5-turbo, etc.) and any OpenAI-compatible API (xAI/Grok, DeepSeek, Together AI, Groq, etc.).
+OpenAI plugin for Genkit Dart. Talks the OpenAI Chat Completions API, so it
+drives OpenAI's own models and any host that implements the same API — Groq,
+xAI/Grok, DeepSeek, Together AI, OpenRouter and friends — by pointing it at a
+different [`baseUrl`](#openai-compatible-apis).
 
 ## Installation
 
-Add `genkit_openai` to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  genkit: ^0.13.0
-  genkit_openai: ^0.3.0
+```bash
+dart pub add genkit genkit_openai
 ```
 
 ## Usage
@@ -17,15 +16,13 @@ dependencies:
 ### Basic Usage
 
 ```dart
-import 'dart:io';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 
 void main() async {
-  // Initialize Genkit with the OpenAI plugin
-  final ai = Genkit(plugins: [
-    openAI(apiKey: Platform.environment['OPENAI_API_KEY']),
-  ]);
+  // Initialize Genkit with the OpenAI plugin. The API key is read from the
+  // OPENAI_API_KEY environment variable when not passed explicitly.
+  final ai = Genkit(plugins: [openAI()]);
 
   // Generate text
   final response = await ai.generate(
@@ -37,6 +34,30 @@ void main() async {
 }
 ```
 
+### API Key
+
+The key is resolved in this order:
+
+1. `apiKeyProvider`, if given
+2. `apiKey`, if given
+3. the `OPENAI_API_KEY` environment variable
+
+Creating the plugin does no network I/O and does not require a key, so an app
+starts up (and the Dev UI connects) offline. A missing or invalid key surfaces
+when a model is actually called.
+
+This is deliberately more permissive than the other Genkit SDKs, not parity
+with them: the JS plugin throws when constructed without a key and Go panics
+in `Init`. Dart defers the requirement to call time so the Dev UI stays
+usable before a key is exported, matching `genkit_anthropic`.
+
+Model discovery via `GET /models` happens only when listing actions, and is
+best-effort: if it fails, the plugin falls back to a curated catalog of common
+models plus any `models:` you registered. Each curated model carries per-model
+capability metadata; see [Available Models](#available-models). Models outside
+that catalog still work when named explicitly, so newly released ids need no
+plugin update.
+
 ### With Custom Options
 
 ```dart
@@ -46,7 +67,6 @@ final response = await ai.generate(
   config: OpenAIChatOptions(
     temperature: 0.7,
     maxTokens: 100,
-    jsonMode: false,
   ),
 );
 ```
@@ -139,9 +159,28 @@ final response = await ai.generate(
 
 ## OpenAI-Compatible APIs
 
-The plugin supports any OpenAI-compatible API by specifying a custom `baseUrl`.
-Use the `name` parameter to give each backend a unique identity — this is
-required when registering multiple backends in the same `Genkit` instance.
+Point the plugin at any OpenAI-compatible host with `baseUrl`. Use `name` to
+give each backend a unique identity — this is required when registering
+multiple backends in the same `Genkit` instance, and it becomes the namespace
+prefix for that backend's models.
+
+Two things to know before pointing this at a non-OpenAI host:
+
+- **Model discovery is optional.** `GET /models` is only called when listing
+  actions, and a host that does not serve it degrades to a warning. Name any
+  model explicitly and it resolves whether or not the host advertises it — but
+  what the Dev UI *lists* for a custom `baseUrl` is only what discovery
+  returned plus your `models:`. The curated OpenAI catalog is deliberately
+  withheld, so a Groq backend does not offer you `groq/gpt-4o`. Declare the
+  models you care about in `models:` to see them listed.
+- **Streaming always sends `stream_options.include_usage`.** Hosts that reject
+  unknown stream options will refuse streaming calls.
+
+Compatibility is verified against a local fake host
+(`test/openai_plugin_compat_test.dart`) covering `baseUrl` routing, auth,
+custom headers, custom models, streaming and error mapping — not against each
+provider's live API, so treat the providers named above as examples of the
+shape rather than a certified list.
 
 ### Groq
 
@@ -204,14 +243,85 @@ final b = await ai.generate(
 
 ## Available Models
 
-Any OpenAI-compatible model can be used by providing its name to the `model()` method:
+The plugin curates capability metadata (vision, tool calling, structured
+outputs, system vs. developer role, lifecycle stage) for the well-known OpenAI
+chat models, and exposes a typed reference for each one via `OpenAIModels`:
 
 ```dart
 final response = await ai.generate(
+  model: OpenAIModels.gpt4o,
+  prompt: 'Hello',
+);
+```
+
+`KnownOpenAIModel` enumerates the catalog and `knownOpenAIModels` maps each
+bare model name to its `ModelInfo`. Listing falls back to this catalog when
+discovery is unavailable, minus the models OpenAI has retired: those still
+resolve by name, but are never offered in a listing.
+
+The catalog is not the set of usable models. Any OpenAI-compatible model works
+by passing its name to `model()`; a name that is not curated takes the current
+multimodal defaults, and a dated snapshot resolves to the capabilities of the
+alias it belongs to:
+
+```dart
+final response = await ai.generate(
+  // Resolves to the curated gpt-4o capabilities.
   model: openAI.model('gpt-4o-2024-08-06'),
   prompt: 'Hello',
 );
 ```
+
+To correct or extend what the plugin knows about a model — most often for a
+model released after this version of the plugin, or one served by a proxy that
+supports less than OpenAI does — pass a `CustomModelDefinition` with explicit
+`info`.
+
+Behind a custom `baseUrl`, a curated model keeps its capabilities — a gateway
+serving `gpt-3.5-turbo` is serving that model — but not OpenAI's deployment
+details, since the label, lifecycle stage and snapshot list all describe
+OpenAI's own hosting. The catalog is also not added to that host's listing:
+what a compatible provider lists is whatever its `/models` reports plus the
+models you register.
+
+## Embeddings
+
+Embedders resolve the same way models do, and `OpenAIEmbedders` exposes a typed
+reference for each curated one:
+
+```dart
+final vectors = await ai.embed(
+  embedder: OpenAIEmbedders.textEmbedding3Small,
+  document: DocumentData(content: [TextPart(text: 'The cat sat on the mat.')]),
+);
+
+print(vectors.single.embedding.length); // 1536
+```
+
+`embedMany` takes a list of documents and returns one vector per document, in
+order. A corpus larger than the 2048 inputs OpenAI accepts per request is split
+across requests rather than rejected.
+
+Each document's text parts are joined with newlines; media parts are dropped,
+since OpenAI has no multimodal embedder. A document carrying no text at all is
+rejected before the request goes out.
+
+`KnownOpenAIEmbedder` carries the catalog, including the vector length each
+model returns. The `text-embedding-3-*` models will also return a shorter
+vector on request:
+
+```dart
+final vectors = await ai.embed(
+  embedder: OpenAIEmbedders.textEmbedding3Small,
+  document: DocumentData(content: [TextPart(text: 'hello')]),
+  options: OpenAIEmbedderOptions(dimensions: 256),
+);
+```
+
+As with models, the catalog is not the set of usable embedders: any name works
+by passing it to `openAI.embedder()`, it is just described without a vector
+length, and behind a custom `baseUrl` only what that host's `/models` reports
+is listed.
 
 ## Options
 
@@ -225,9 +335,55 @@ The `OpenAIChatOptions` class supports the following options:
 - `frequencyPenalty` (double?, -2.0 to 2.0) - Frequency penalty
 - `seed` (int?) - Seed for deterministic sampling
 - `user` (String?) - User identifier for abuse detection
-- `jsonMode` (bool?) - Enable JSON mode
+- `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config says nothing about the format; any explicit `outputFormat` wins, `'text'` included. See [JSON output](#json-output)
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
+
+The `OpenAIEmbedderOptions` class supports:
+
+- `dimensions` (int?, >= 1) - Length of the returned vector, for the models
+  that accept a shorter one
+- `user` (String?) - User identifier for abuse detection
+
+### JSON output
+
+There are three ways to get JSON back, in order of preference:
+
+```dart
+// 1. A schema - the model is constrained to the shape and `output` is typed.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Describe a book.',
+  outputSchema: Book.$schema,
+);
+print(response.output!.title);
+
+// 2. JSON with no particular shape.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Return a JSON object with keys "name" and "age".',
+  outputFormat: 'json',
+);
+
+// 3. The provider flag directly, for callers not using Genkit's output config.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Reply with a JSON object.',
+  config: OpenAIChatOptions(jsonMode: true),
+);
+```
+
+`outputSchema` sends `response_format: {"type": "json_schema"}`; the other two
+send `{"type": "json_object"}`. Output config wins when both are set, so
+`jsonMode` never overrides a schema.
+
+OpenAI rejects `json_object` unless the conversation also asks for JSON, so
+options 2 and 3 need the prompt to say so. Option 1 does not.
+
+The plugin sends `strict: false`. Schemas are flattened (`$ref`/`$defs`
+resolved) but otherwise unmodified. Strict mode is off because it requires
+every property to appear in `required` and `additionalProperties: false` on
+every object — which rejects ordinary schemas that have optional fields.
 
 ## Custom Headers
 

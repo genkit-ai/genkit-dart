@@ -2324,6 +2324,7 @@ base class ModelResponse {
     Message? message,
     required FinishReason finishReason,
     String? finishMessage,
+    RuntimeError? error,
     double? latencyMs,
     GenerationUsage? usage,
     Map<String, dynamic>? custom,
@@ -2335,6 +2336,7 @@ base class ModelResponse {
       'message': ?message?.toJson(),
       'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
+      'error': ?error?.toJson(),
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
       'custom': ?custom,
@@ -2382,6 +2384,20 @@ base class ModelResponse {
       _json.remove('finishMessage');
     } else {
       _json['finishMessage'] = value;
+    }
+  }
+
+  RuntimeError? get error {
+    return _json['error'] == null
+        ? null
+        : RuntimeError.fromJson(_json['error'] as Map<String, dynamic>);
+  }
+
+  set error(RuntimeError? value) {
+    if (value == null) {
+      _json.remove('error');
+    } else {
+      _json['error'] = value.toJson();
     }
   }
 
@@ -2491,6 +2507,7 @@ base class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
             'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
             'finishReason': $Schema.any(),
             'finishMessage': $Schema.string(),
+            'error': $Schema.fromMap({'\$ref': r'#/$defs/RuntimeError'}),
             'latencyMs': $Schema.number(),
             'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
             'custom': $Schema.object(additionalProperties: $Schema.any()),
@@ -2503,6 +2520,7 @@ base class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
         .value,
     dependencies: [
       Message.$schema,
+      RuntimeError.$schema,
       GenerationUsage.$schema,
       GenerateRequest.$schema,
       Operation.$schema,
@@ -2710,6 +2728,95 @@ base class _MiddlewareRefTypeFactory extends SchemanticType<MiddlewareRef> {
   );
 }
 
+base class RuntimeError {
+  /// Creates a [RuntimeError] from a JSON map.
+  factory RuntimeError.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  RuntimeError._(this._json);
+
+  RuntimeError({
+    String? status,
+    required String message,
+    Map<String, dynamic>? details,
+  }) {
+    _json = {'status': ?status, 'message': message, 'details': ?details};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [RuntimeError].
+  static const SchemanticType<RuntimeError> $schema =
+      _RuntimeErrorTypeFactory();
+
+  String? get status {
+    return _json['status'] as String?;
+  }
+
+  set status(String? value) {
+    if (value == null) {
+      _json.remove('status');
+    } else {
+      _json['status'] = value;
+    }
+  }
+
+  String get message {
+    return _json['message'] as String;
+  }
+
+  set message(String value) {
+    _json['message'] = value;
+  }
+
+  Map<String, dynamic>? get details {
+    return (_json['details'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set details(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('details');
+    } else {
+      _json['details'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [RuntimeError] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _RuntimeErrorTypeFactory extends SchemanticType<RuntimeError> {
+  const _RuntimeErrorTypeFactory();
+
+  @override
+  RuntimeError parse(Object? json) {
+    return RuntimeError._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'RuntimeError',
+    definition: $Schema
+        .object(
+          properties: {
+            'status': $Schema.string(),
+            'message': $Schema.string(),
+            'details': $Schema.object(additionalProperties: $Schema.any()),
+          },
+          required: ['message'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
 base class GenerateResponse {
   /// Creates a [GenerateResponse] from a JSON map.
   factory GenerateResponse.fromJson(Map<String, dynamic> json) =>
@@ -2721,6 +2828,7 @@ base class GenerateResponse {
     Message? message,
     FinishReason? finishReason,
     String? finishMessage,
+    RuntimeError? error,
     double? latencyMs,
     GenerationUsage? usage,
     Map<String, dynamic>? custom,
@@ -2733,6 +2841,7 @@ base class GenerateResponse {
       'message': ?message?.toJson(),
       'finishReason': ?finishReason?.value,
       'finishMessage': ?finishMessage,
+      'error': ?error?.toJson(),
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
       'custom': ?custom,
@@ -2784,6 +2893,20 @@ base class GenerateResponse {
       _json.remove('finishMessage');
     } else {
       _json['finishMessage'] = value;
+    }
+  }
+
+  RuntimeError? get error {
+    return _json['error'] == null
+        ? null
+        : RuntimeError.fromJson(_json['error'] as Map<String, dynamic>);
+  }
+
+  set error(RuntimeError? value) {
+    if (value == null) {
+      _json.remove('error');
+    } else {
+      _json['error'] = value.toJson();
     }
   }
 
@@ -2908,6 +3031,7 @@ base class _GenerateResponseTypeFactory
             'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
             'finishReason': $Schema.any(),
             'finishMessage': $Schema.string(),
+            'error': $Schema.fromMap({'\$ref': r'#/$defs/RuntimeError'}),
             'latencyMs': $Schema.number(),
             'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
             'custom': $Schema.object(additionalProperties: $Schema.any()),
@@ -2922,6 +3046,7 @@ base class _GenerateResponseTypeFactory
         .value,
     dependencies: [
       Message.$schema,
+      RuntimeError.$schema,
       GenerationUsage.$schema,
       GenerateRequest.$schema,
       Operation.$schema,
@@ -6507,8 +6632,16 @@ base class GetSnapshotDataInput {
 
   GetSnapshotDataInput._(this._json);
 
-  GetSnapshotDataInput({String? snapshotId, String? sessionId}) {
-    _json = {'snapshotId': ?snapshotId, 'sessionId': ?sessionId};
+  GetSnapshotDataInput({
+    String? snapshotId,
+    String? sessionId,
+    bool? metadataOnly,
+  }) {
+    _json = {
+      'snapshotId': ?snapshotId,
+      'sessionId': ?sessionId,
+      'metadataOnly': ?metadataOnly,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -6541,6 +6674,18 @@ base class GetSnapshotDataInput {
     }
   }
 
+  bool? get metadataOnly {
+    return _json['metadataOnly'] as bool?;
+  }
+
+  set metadataOnly(bool? value) {
+    if (value == null) {
+      _json.remove('metadataOnly');
+    } else {
+      _json['metadataOnly'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -6569,6 +6714,7 @@ base class _GetSnapshotDataInputTypeFactory
           properties: {
             'snapshotId': $Schema.string(),
             'sessionId': $Schema.string(),
+            'metadataOnly': $Schema.boolean(),
           },
         )
         .value,

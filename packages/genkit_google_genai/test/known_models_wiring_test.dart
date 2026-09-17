@@ -12,47 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/google_api_client.dart';
-import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
-class MockHttpClient extends http.BaseClient {
-  MockHttpClient({this.modelsResponse, this.listStatus = 200});
-
-  /// Overrides the JSON body returned for the models listing.
-  final String? modelsResponse;
-
-  /// HTTP status returned for the models listing.
-  final int listStatus;
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    if (request.url.path != '/v1beta/models') {
-      throw StateError('Unexpected request: ${request.url}');
-    }
-    final body =
-        modelsResponse ??
-        '{"models": ['
-            '{"name": "models/gemini-2.0-flash"}, '
-            '{"name": "models/text-embedding-004"}]}';
-    return http.StreamedResponse(
-      Stream.value(utf8.encode(body)),
-      listStatus,
-      headers: {'content-type': 'application/json'},
-    );
-  }
-}
+import 'test_harness.dart';
 
 void main() {
-  GoogleGenAiPluginImpl plugin({MockHttpClient? client}) =>
+  GoogleGenAiPluginImpl plugin({ListingClient? client}) =>
       GoogleGenAiPluginImpl(
         apiKey: 'test-key',
-        httpClient: client ?? MockHttpClient(),
+        httpClient: client ?? ListingClient(),
       );
 
   Map<String, dynamic> modelInfoOf(Action action) =>
@@ -87,7 +59,7 @@ void main() {
 
   group('list', () {
     test('enriches discovered curated models', () async {
-      final client = MockHttpClient(
+      final client = ListingClient(
         modelsResponse:
             '{"models": ['
             '{"name": "models/gemini-3.5-flash"}, '
@@ -125,8 +97,36 @@ void main() {
       expect(info['stage'], 'stable');
     });
 
+    test('drops a discovered model that cannot generate content', () async {
+      final client = ListingClient(
+        modelsResponse:
+            '{"models": ['
+            '{"name": "models/gemini-3.5-flash", '
+            '"supportedGenerationMethods": ["generateContent"]}, '
+            '{"name": "models/gemini-embed-x", '
+            '"supportedGenerationMethods": ["embedContent"]}]}',
+      );
+      final names = (await plugin(
+        client: client,
+      ).list()).map((a) => a.name).toList();
+
+      expect(names, contains('googleai/gemini-3.5-flash'));
+      expect(names, isNot(contains('googleai/gemini-embed-x')));
+    });
+
+    test('keeps a discovered model that reports no methods', () async {
+      final client = ListingClient(
+        modelsResponse: '{"models": [{"name": "models/gemini-mystery-x"}]}',
+      );
+      final names = (await plugin(
+        client: client,
+      ).list()).map((a) => a.name).toList();
+
+      expect(names, contains('googleai/gemini-mystery-x'));
+    });
+
     test('does not duplicate curated models returned by discovery', () async {
-      final client = MockHttpClient(
+      final client = ListingClient(
         modelsResponse:
             '{"models": ['
             '{"name": "models/gemini-3.5-flash"}, '
@@ -145,7 +145,7 @@ void main() {
     });
 
     test('falls back to the curated catalog when discovery fails', () async {
-      final client = MockHttpClient(
+      final client = ListingClient(
         listStatus: 500,
         modelsResponse: '{"error": {"message": "boom", "status": "INTERNAL"}}',
       );
@@ -183,6 +183,19 @@ void main() {
         GoogleAiModels.gemini3ProImage.name,
         'googleai/${KnownGeminiModel.gemini3ProImage.id}',
       );
+    });
+
+    test('every curated Gemini model has a typed ref', () {
+      final refNames = {
+        GoogleAiModels.gemini35Flash.name,
+        GoogleAiModels.gemini31FlashLite.name,
+        GoogleAiModels.gemini31FlashImage.name,
+        GoogleAiModels.gemini3ProImage.name,
+      };
+
+      expect(refNames, {
+        for (final model in KnownGeminiModel.values) 'googleai/${model.id}',
+      });
     });
   });
 }

@@ -128,6 +128,13 @@ Flow<ResearchAgentInput, String, void, void> defineResearchAgent(
         );
       }
 
+      // A cancelled call or a run that overran `maxTurns` now resolves with an
+      // `aborted` finishReason and no model message (so `response.text` is
+      // empty). Surface the reason rather than reporting an empty success.
+      if (response.finishReason == FinishReason.aborted) {
+        return 'Operation aborted: ${response.finishMessage ?? 'unknown reason'}';
+      }
+
       return response.text;
     },
   );

@@ -13,6 +13,8 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
+import 'package:genkit/src/ai/tool_resolution.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -21,6 +23,40 @@ part 'generate_test.g.dart';
 @Schema()
 abstract class $TestToolInput {
   String get name;
+}
+
+/// A middleware whose `generate` hook throws before delegating to `next`, used
+/// to prove a hook fault resolves to a `failed` response rather than escaping
+/// `generate()` as a throw.
+class _ThrowingHookMiddleware extends GenerateMiddleware {
+  @override
+  Future<GenerateResponseHelper> generate(
+    GenerateTurnState envelope,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResponseHelper> Function(
+      GenerateTurnState envelope,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  ) {
+    throw GenkitException(
+      'hook exploded before delegating',
+      status: StatusCodes.FAILED_PRECONDITION,
+    );
+  }
+}
+
+class _ThrowingHookPlugin extends GenkitPlugin {
+  @override
+  String get name => 'throwingHook';
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => [
+    defineMiddleware<void>(
+      name: 'throwingHook',
+      create: (config, ctx) => _ThrowingHookMiddleware(),
+    ),
+  ];
 }
 
 void main() {
@@ -45,19 +81,19 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Done')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -109,19 +145,19 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Done')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -163,21 +199,21 @@ void main() {
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             // Check if both called? No, just finish
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Done')],
               ),
             );
           }
           // Request both tools
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -239,9 +275,9 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [
                   ToolRequestPart(
                     toolRequest: ToolRequest(
@@ -278,77 +314,65 @@ void main() {
       },
     );
 
-    test('should throw an error when maxTurns is reached', () async {
-      const modelName = 'maxTurnsModel';
-      const toolName = 'testTool';
+    test(
+      'should return an aborted response when maxTurns is reached',
+      () async {
+        const modelName = 'maxTurnsModel';
+        const toolName = 'testTool';
 
-      genkit.defineModel(
-        name: modelName,
-        fn: (request, context) async {
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [
-                ToolRequestPart(
-                  toolRequest: ToolRequest(
-                    name: toolName,
-                    input: {'name': 'world'},
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: toolName,
+                      input: {'name': 'world'},
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+                ],
+              ),
+            );
+          },
+        );
 
-      genkit.defineTool(
-        name: toolName,
-        description: 'A test tool',
-        inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
-          return .response('tool output');
-        },
-      );
+        genkit.defineTool(
+          name: toolName,
+          description: 'A test tool',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, context) async {
+            return .response('tool output');
+          },
+        );
 
-      await expectLater(
-        () => genkit.generate(
+        // Exceeding maxTurns now resolves gracefully with an aborted response
+        // that carries the accumulated history, rather than throwing.
+        final res = await genkit.generate(
           model: modelRef(modelName),
           prompt: 'Use a tool',
           // this tool causes an infinite tool call loop
+
           toolNames: [toolName],
           maxTurns: 5,
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.ABORTED)
-              .having(
-                (e) => e.message,
-                'message',
-                contains('Adjust maxTurns option'),
-              ),
-        ),
-      );
+        );
+        expect(res.finishReason, FinishReason.aborted);
+        expect(res.finishMessage, contains('Adjust maxTurns option'));
+        expect(res.messages, isNotEmpty);
 
-      await expectLater(
-        () => genkit.generate(
+        // maxTurns is not specified, should still use the default (5).
+        final resDefault = await genkit.generate(
           model: modelRef(modelName),
           prompt: 'Use a tool',
-          // this tool causes an infinite tool call loop
           toolNames: [toolName],
-          // maxTurns is not specified, should still use default (5).
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.ABORTED)
-              .having(
-                (e) => e.message,
-                'message',
-                contains('Adjust maxTurns option'),
-              ),
-        ),
-      );
-    });
+        );
+        expect(resDefault.finishReason, FinishReason.aborted);
+        expect(resDefault.finishMessage, contains('Adjust maxTurns option'));
+      },
+    );
 
     test('should return full message history in response.messages', () async {
       const modelName = 'historyModel';
@@ -356,9 +380,9 @@ void main() {
         name: modelName,
         fn: (request, context) async {
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'Response')],
             ),
           );
@@ -390,7 +414,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'weatherTool') {
             return Tool(
               name: 'weatherTool',
@@ -407,19 +431,19 @@ void main() {
       genkit.defineModel(
         name: 'testModel',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'The weather is sunny')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -454,7 +478,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'weatherTool') {
             return Tool(
               name: 'weatherTool',
@@ -471,19 +495,19 @@ void main() {
       genkit.defineModel(
         name: 'testModel2',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'The weather is sunny')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -518,7 +542,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'weatherTool') {
             return Tool(
               name: 'weatherTool',
@@ -535,19 +559,19 @@ void main() {
       genkit.defineModel(
         name: 'testModelExplicit',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'The weather is sunny explicit')],
               ),
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -584,7 +608,7 @@ void main() {
               outputSchema: .dynamicSchema(),
             ),
           ],
-          getActionFn: (id) async {
+          getActionFn: (actionType, id) async {
             if (id == 'weatherTool') {
               return Tool(
                 name: 'weatherTool',
@@ -602,11 +626,11 @@ void main() {
         genkit.defineModel(
           name: 'testModelExplicitPrefix',
           fn: (request, context) async {
-            if (request.messages.last.role == Role.tool) {
+            if (request.messages.last.role == .tool) {
               return ModelResponse(
-                finishReason: FinishReason.stop,
+                finishReason: .stop,
                 message: Message(
-                  role: Role.model,
+                  role: .model,
                   content: [
                     TextPart(text: 'The weather is sunny explicit prefix'),
                   ],
@@ -614,9 +638,9 @@ void main() {
               );
             }
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [
                   ToolRequestPart(
                     toolRequest: ToolRequest(
@@ -659,7 +683,7 @@ void main() {
             outputSchema: .dynamicSchema(),
           ),
         ],
-        getActionFn: (id) async {
+        getActionFn: (actionType, id) async {
           if (id == 'wea/weatherTool') {
             return Tool(
               name: 'wea/weatherTool',
@@ -676,11 +700,11 @@ void main() {
       genkit.defineModel(
         name: 'testModelPrefixWildcard',
         fn: (request, context) async {
-          if (request.messages.last.role == Role.tool) {
+          if (request.messages.last.role == .tool) {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [
                   TextPart(text: 'The weather is sunny prefix wildcard'),
                 ],
@@ -688,9 +712,9 @@ void main() {
             );
           }
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [
                 ToolRequestPart(
                   toolRequest: ToolRequest(
@@ -726,9 +750,9 @@ void main() {
           defaultModelCalled = true;
           expect(request.config?['temperature'], 0.7);
           return ModelResponse(
-            finishReason: FinishReason.stop,
+            finishReason: .stop,
             message: Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'Default Model Output')],
             ),
           );
@@ -755,9 +779,9 @@ void main() {
           fn: (request, context) async {
             defaultModelCalled = true;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Default')],
               ),
             );
@@ -770,9 +794,9 @@ void main() {
             customModelCalled = true;
             expect(request.config?['temperature'], 0.9);
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Custom')],
               ),
             );
@@ -805,9 +829,9 @@ void main() {
             // explicit config should be used
             expect(request.config?['temperature'], 0.5);
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Default')],
               ),
             );
@@ -833,9 +857,9 @@ void main() {
             // explicit config should override modelRef's config
             expect(request.config?['temperature'], 0.5);
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'Custom')],
               ),
             );
@@ -863,9 +887,9 @@ void main() {
             fn: (request, context) async {
               captured = request;
               return ModelResponse(
-                finishReason: FinishReason.stop,
+                finishReason: .stop,
                 message: Message(
-                  role: Role.model,
+                  role: .model,
                   content: [TextPart(text: 'ok')],
                 ),
               );
@@ -901,9 +925,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -915,11 +939,11 @@ void main() {
           system: 'Be concise.',
           messages: [
             Message(
-              role: Role.user,
+              role: .user,
               content: [TextPart(text: 'hi')],
             ),
             Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'hello')],
             ),
           ],
@@ -944,9 +968,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -958,11 +982,11 @@ void main() {
           system: 'sys',
           messages: [
             Message(
-              role: Role.user,
+              role: .user,
               content: [TextPart(text: 'past-u')],
             ),
             Message(
-              role: Role.model,
+              role: .model,
               content: [TextPart(text: 'past-m')],
             ),
           ],
@@ -991,9 +1015,9 @@ void main() {
             fn: (request, context) async {
               captured = request;
               return ModelResponse(
-                finishReason: FinishReason.stop,
+                finishReason: .stop,
                 message: Message(
-                  role: Role.model,
+                  role: .model,
                   content: [TextPart(text: 'ok')],
                 ),
               );
@@ -1005,11 +1029,11 @@ void main() {
             system: 'param system',
             messages: [
               Message(
-                role: Role.system,
+                role: .system,
                 content: [TextPart(text: 'inline system')],
               ),
               Message(
-                role: Role.user,
+                role: .user,
                 content: [TextPart(text: 'hi')],
               ),
             ],
@@ -1042,9 +1066,9 @@ void main() {
               ModelResponseChunk(content: [TextPart(text: 'hi')]),
             );
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'hi')],
               ),
             );
@@ -1081,9 +1105,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1114,9 +1138,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1152,9 +1176,9 @@ void main() {
           fn: (request, context) async {
             captured = request;
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1166,7 +1190,7 @@ void main() {
           system: 'sys',
           messages: [
             Message(
-              role: Role.user,
+              role: .user,
               content: [TextPart(text: 'past-u')],
             ),
           ],
@@ -1193,9 +1217,9 @@ void main() {
               ModelResponseChunk(content: [TextPart(text: 'hi')]),
             );
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'hi')],
               ),
             );
@@ -1224,9 +1248,9 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1249,9 +1273,9 @@ void main() {
           name: modelName,
           fn: (request, context) async {
             return ModelResponse(
-              finishReason: FinishReason.stop,
+              finishReason: .stop,
               message: Message(
-                role: Role.model,
+                role: .model,
                 content: [TextPart(text: 'ok')],
               ),
             );
@@ -1262,6 +1286,774 @@ void main() {
           () => genkit.generate(model: modelRef(modelName), promptParts: []),
           throwsA(isA<ArgumentError>()),
         );
+      });
+    });
+
+    group('failed responses', () {
+      test('a model error resolves to a failed response carrying last-good '
+          'history and the error (rather than throwing)', () async {
+        const modelName = 'failingModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            throw GenkitException(
+              'model exploded',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'hi',
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.message, isNull);
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.UNAVAILABLE.name);
+        expect(res.error!.message, contains('model exploded'));
+        // The raw thrown error is available for in-process inspection.
+        expect(res.cause, isA<GenkitException>());
+        // The last-good history (the user turn) survives so the caller can
+        // resume.
+        expect(res.messages, isNotEmpty);
+        expect(res.messages.last.role, Role.user);
+      });
+
+      test(
+        'a throwing tool fails the generation and preserves last-good history',
+        () async {
+          const modelName = 'toolThrowModel';
+          const toolName = 'explodingTool';
+
+          genkit.defineTool(
+            name: toolName,
+            description: 'always throws',
+            inputSchema: TestToolInput.$schema,
+            fn: (input, ctx) async {
+              throw GenkitException(
+                'tool exploded',
+                status: StatusCodes.FAILED_PRECONDITION,
+              );
+            },
+          );
+
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: toolName,
+                        input: {'name': 'world'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+
+          // A throwing tool no longer feeds an `Error: ...` tool response back
+          // to the model; it fails the generation, just like a model error.
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'use the tool',
+            toolNames: [toolName],
+          );
+
+          expect(res.finishReason, FinishReason.failed);
+          expect(res.error, isNotNull);
+          // A tool's failure is not a failure of the caller's request: its own
+          // status (FAILED_PRECONDITION) is reclassified to INTERNAL so a retry
+          // client does not act on the tool's status as the whole run's.
+          expect(res.error!.status, StatusCodes.INTERNAL.name);
+          // The message names the failing tool and still carries the original.
+          expect(res.error!.message, contains('explodingTool'));
+          expect(res.error!.message, contains('tool exploded'));
+          // The original tool exception is still reachable in-process.
+          expect(res.cause, isA<GenkitException>());
+          expect(
+            (res.cause as GenkitException).underlyingException,
+            isA<GenkitException>(),
+          );
+          expect(
+            ((res.cause as GenkitException).underlyingException
+                    as GenkitException)
+                .status,
+            StatusCodes.FAILED_PRECONDITION,
+          );
+          // The failing turn's model tool-request message is dropped; the user
+          // turn remains as the last-good resume point.
+          expect(res.messages.length, 1);
+          expect(res.messages.last.role, Role.user);
+          expect(res.messages.last.text, 'use the tool');
+        },
+      );
+
+      test('a request for an unregistered tool fails the generation', () async {
+        const modelName = 'unknownToolModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(name: 'ghostTool', input: {}),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'hi',
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error!.status, StatusCodes.NOT_FOUND.name);
+        expect(res.error!.message, contains('ghostTool'));
+      });
+
+      test(
+        'a non-GenkitException model error is reported as INTERNAL',
+        () async {
+          const modelName = 'plainThrowModel';
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              throw StateError('boom');
+            },
+          );
+
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'hi',
+          );
+
+          expect(res.finishReason, FinishReason.failed);
+          expect(res.error, isNotNull);
+          expect(res.error!.status, StatusCodes.INTERNAL.name);
+          expect(res.error!.message, contains('boom'));
+        },
+      );
+
+      test('a failure after a successful tool-call turn preserves that turn as '
+          'last-good history', () async {
+        const modelName = 'toolThenFailModel';
+        const toolName = 'okTool';
+        var modelCall = 0;
+
+        genkit.defineTool(
+          name: toolName,
+          description: 'succeeds',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, ctx) async => .response('tool output'),
+        );
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            modelCall++;
+            // Turn 1: request the tool (it succeeds and the loop continues).
+            if (modelCall == 1) {
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: .model,
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: toolName,
+                        input: {'name': 'world'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            // Turn 2 (post-tool): the model errors.
+            throw GenkitException(
+              'model exploded after tool',
+              status: StatusCodes.UNAVAILABLE,
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'use the tool',
+          toolNames: [toolName],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error!.message, contains('model exploded after tool'));
+
+        // The completed tool-call turn is preserved as the resume point: the
+        // user message, the model's tool request, and the tool response. The
+        // failed turn's own (absent) model reply is not appended.
+        expect(res.messages.length, 3);
+        expect(res.messages[0].role, Role.user);
+        expect(res.messages[0].text, 'use the tool');
+        expect(res.messages[1].role, Role.model);
+        expect(res.messages[1].content.any((p) => p.isToolRequest), isTrue);
+        expect(res.messages[2].role, Role.tool);
+        expect(res.messages[2].content.any((p) => p.isToolResponse), isTrue);
+      });
+
+      test(
+        'a throwing tool carries the turn\'s usage onto the failed response',
+        () async {
+          const modelName = 'toolThrowUsageModel';
+          const toolName = 'explodingUsageTool';
+
+          genkit.defineTool(
+            name: toolName,
+            description: 'always throws',
+            inputSchema: TestToolInput.$schema,
+            fn: (input, ctx) async {
+              throw GenkitException(
+                'tool exploded',
+                status: StatusCodes.FAILED_PRECONDITION,
+              );
+            },
+          );
+
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async {
+              return ModelResponse(
+                finishReason: .stop,
+                usage: GenerationUsage(inputTokens: 11, outputTokens: 7),
+                message: Message(
+                  role: .model,
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: toolName,
+                        input: {'name': 'world'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'use the tool',
+            toolNames: [toolName],
+          );
+
+          expect(res.finishReason, FinishReason.failed);
+          // The model answered this turn before the tool threw, so its token
+          // accounting rides onto the failed response.
+          expect(res.usage, isNotNull);
+          expect(res.usage!.inputTokens, 11);
+          expect(res.usage!.outputTokens, 7);
+        },
+      );
+
+      test('a throwing tool carries the turn\'s custom/raw accounting onto the '
+          'failed response', () async {
+        const modelName = 'toolThrowCustomModel';
+        const toolName = 'explodingCustomTool';
+
+        genkit.defineTool(
+          name: toolName,
+          description: 'always throws',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, ctx) async {
+            throw GenkitException(
+              'tool exploded',
+              status: StatusCodes.INTERNAL,
+            );
+          },
+        );
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            return ModelResponse(
+              finishReason: .stop,
+              custom: {'cacheReadTokens': 42},
+              raw: {'providerId': 'abc'},
+              message: Message(
+                role: .model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: toolName,
+                      input: {'name': 'world'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'use the tool',
+          toolNames: [toolName],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        // The whole base response's accounting rides along, not just usage, so
+        // provider billing/cache detail in `custom`/`raw` survives.
+        expect(res.custom, {'cacheReadTokens': 42});
+        expect(res.raw, {'providerId': 'abc'});
+      });
+
+      test('a middleware generate hook that throws resolves to a failed '
+          'response rather than escaping as a throw', () async {
+        final gk = Genkit(isDevEnv: false, plugins: [_ThrowingHookPlugin()]);
+        addTearDown(gk.shutdown);
+        gk.defineModel(
+          name: 'unreachable',
+          fn: (request, context) async => ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'hi')],
+            ),
+          ),
+        );
+
+        final res = await gk.generate(
+          model: modelRef('unreachable'),
+          prompt: 'hi',
+          use: [middlewareRef(name: 'throwingHook')],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.FAILED_PRECONDITION.name);
+        expect(res.error!.message, contains('hook exploded'));
+      });
+
+      test(
+        'a blocked model response skips output parsing (passes through)',
+        () async {
+          const modelName = 'blockedModel';
+          genkit.defineModel(
+            name: modelName,
+            fn: (request, context) async => ModelResponse(
+              // An abnormal finish with an empty (non-JSON) message: the parser
+              // must not run and turn this into a schema error.
+              finishReason: FinishReason.blocked,
+              finishMessage: 'safety',
+              message: Message(
+                role: .model,
+                content: [TextPart(text: '')],
+              ),
+            ),
+          );
+
+          final res = await genkit.generate(
+            model: modelRef(modelName),
+            prompt: 'give me json',
+            outputSchema: TestToolInput.$schema,
+          );
+
+          expect(res.finishReason, FinishReason.blocked);
+          expect(res.finishMessage, 'safety');
+        },
+      );
+
+      test('a schema-mismatched output resolves with the original message and '
+          'an error rather than throwing', () async {
+        const modelName = 'badJsonModel';
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'this is not json at all')],
+            ),
+          ),
+        );
+
+        final res = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'give me json',
+          outputSchema: TestToolInput.$schema,
+        );
+
+        // The model finished normally; parsing failed, but the response rides
+        // back with its message and finish reason intact under an error.
+        expect(res.finishReason, FinishReason.stop);
+        expect(res.text, contains('not json'));
+        expect(res.error, isNotNull);
+        expect(res.error!.status, StatusCodes.INTERNAL.name);
+        expect(res.error!.message, contains('expected schema'));
+      });
+    });
+
+    group('DAP parity', () {
+      test(
+        'toToolDefinition shortens namespaced names and records originalName + key',
+        () async {
+          ToolDefinition? seenDef;
+          genkit.defineDynamicActionProvider(
+            name: 'my-dap',
+            listActionsFn: () => [
+              ActionMetadata(
+                actionType: .tool,
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                outputSchema: .dynamicSchema(),
+              ),
+            ],
+            getActionFn: (actionType, id) async {
+              if (id == 'weatherTool') {
+                return Tool(
+                  name: 'weatherTool',
+                  description: 'get weather',
+                  inputSchema: TestToolInput.$schema,
+                  toolOutputSchema: .dynamicSchema(),
+                  fn: (input, context) async => .response('sunny'),
+                );
+              }
+              return null;
+            },
+          );
+
+          genkit.defineModel(
+            name: 'defModelInspect',
+            fn: (request, context) async {
+              seenDef = request.tools?.firstOrNull;
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: .model,
+                  content: [TextPart(text: 'ok')],
+                ),
+              );
+            },
+          );
+
+          await genkit.generate(
+            model: modelRef('defModelInspect'),
+            prompt: 'weather?',
+            toolNames: ['my-dap:tool/weatherTool'],
+          );
+
+          // DAP tool name arrives to the DAP as `weatherTool` (no namespace), so
+          // the wire name is unchanged and no originalName is recorded, but the
+          // DAP key is stamped through to the ToolDefinition.
+          expect(seenDef, isNotNull);
+          expect(seenDef!.name, 'weatherTool');
+          expect(
+            seenDef!.key,
+            '/dynamic-action-provider/my-dap:tool.v2/weatherTool',
+          );
+        },
+      );
+
+      test(
+        'toToolDefinition shortens a slashed tool name and records originalName',
+        () async {
+          ToolDefinition? seenDef;
+          genkit.defineTool(
+            name: 'ns/localTool',
+            description: 'namespaced local tool',
+            inputSchema: TestToolInput.$schema,
+            fn: (input, context) async => .response('ok'),
+          );
+
+          genkit.defineModel(
+            name: 'defModelSlash',
+            fn: (request, context) async {
+              seenDef = request.tools?.firstOrNull;
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: .model,
+                  content: [TextPart(text: 'ok')],
+                ),
+              );
+            },
+          );
+
+          await genkit.generate(
+            model: modelRef('defModelSlash'),
+            prompt: 'hi',
+            toolNames: ['ns/localTool'],
+          );
+
+          expect(seenDef, isNotNull);
+          expect(seenDef!.name, 'localTool');
+          expect(seenDef!.metadata?['originalName'], 'ns/localTool');
+        },
+      );
+
+      test('duplicate short tool names are rejected', () async {
+        genkit.defineTool(
+          name: 'a/dup',
+          description: 'first',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, context) async => .response('a'),
+        );
+        genkit.defineTool(
+          name: 'b/dup',
+          description: 'second',
+          inputSchema: TestToolInput.$schema,
+          fn: (input, context) async => .response('b'),
+        );
+
+        genkit.defineModel(
+          name: 'defModelDup',
+          fn: (request, context) async => ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'x')],
+            ),
+          ),
+        );
+
+        // The collision surfaces as a failed response (the loop resolves an
+        // INVALID_ARGUMENT rather than throwing out of generate).
+        final res = await genkit.generate(
+          model: modelRef('defModelDup'),
+          prompt: 'hi',
+          toolNames: ['a/dup', 'b/dup'],
+        );
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error, isNotNull);
+        expect(res.error!.message, contains('same name'));
+      });
+
+      test(
+        'listResolvableActions expands DAP into individual actions',
+        () async {
+          genkit.defineDynamicActionProvider(
+            name: 'my-dap',
+            listActionsFn: () => [
+              ActionMetadata(
+                actionType: .tool,
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                outputSchema: .dynamicSchema(),
+              ),
+            ],
+            getActionFn: (actionType, id) async => null,
+          );
+
+          final resolvable = await genkit.registry.listResolvableActions();
+          expect(
+            resolvable.keys,
+            contains('/dynamic-action-provider/my-dap:tool.v2/weatherTool'),
+          );
+          // The provider itself is still listed.
+          expect(resolvable.keys, contains('/dynamic-action-provider/my-dap'));
+        },
+      );
+
+      test('DAP listing is cached across calls', () async {
+        var listCalls = 0;
+        final dap = genkit.defineDynamicActionProvider(
+          name: 'cached-dap',
+          listActionsFn: () {
+            listCalls++;
+            return [
+              ActionMetadata(
+                actionType: .tool,
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                outputSchema: .dynamicSchema(),
+              ),
+            ];
+          },
+          getActionFn: (actionType, id) async => null,
+        );
+
+        await dap.listActions();
+        await dap.listActions();
+        expect(listCalls, 1);
+
+        dap.invalidateCache();
+        await dap.listActions();
+        expect(listCalls, 2);
+      });
+
+      // The Dev UI passes DAP tools by their full registry key
+      // (`/dynamic-action-provider/<host>:<type>/<name>`, type is the internal
+      // `tool.v2`), not the `<host>:<name>` shorthand.
+      test('resolves a DAP tool by its full Dev UI registry key', () async {
+        genkit.defineDynamicActionProvider(
+          name: 'my-dap',
+          listActionsFn: () => [
+            ActionMetadata(
+              actionType: .tool,
+              name: 'weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+            ),
+          ],
+          getActionFn: (actionType, id) async {
+            if (actionType == ActionType.tool && id == 'weatherTool') {
+              return Tool(
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                toolOutputSchema: .dynamicSchema(),
+                fn: (input, context) async => .response('sunny'),
+              );
+            }
+            return null;
+          },
+        );
+
+        genkit.defineModel(
+          name: 'fullKeyModel',
+          fn: (request, context) async {
+            if (request.messages.last.role == .tool) {
+              return ModelResponse(
+                finishReason: .stop,
+                message: Message(
+                  role: .model,
+                  content: [TextPart(text: 'The weather is sunny')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: 'weatherTool',
+                      input: {'name': 'test'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        final response = await genkit.generate(
+          model: modelRef('fullKeyModel'),
+          prompt: 'What is the weather?',
+          toolNames: ['/dynamic-action-provider/my-dap:tool.v2/weatherTool'],
+        );
+
+        expect(response.text, 'The weather is sunny');
+      });
+
+      test('resolves DAP tools by full-key wildcard', () async {
+        ToolDefinition? seenDef;
+        genkit.defineDynamicActionProvider(
+          name: 'my-dap',
+          listActionsFn: () => [
+            ActionMetadata(
+              actionType: .tool,
+              name: 'weatherTool',
+              description: 'get weather',
+              inputSchema: TestToolInput.$schema,
+              outputSchema: .dynamicSchema(),
+            ),
+          ],
+          getActionFn: (actionType, id) async {
+            if (actionType == ActionType.tool && id == 'weatherTool') {
+              return Tool(
+                name: 'weatherTool',
+                description: 'get weather',
+                inputSchema: TestToolInput.$schema,
+                toolOutputSchema: .dynamicSchema(),
+                fn: (input, context) async => .response('sunny'),
+              );
+            }
+            return null;
+          },
+        );
+
+        genkit.defineModel(
+          name: 'fullKeyWildcardModel',
+          fn: (request, context) async {
+            seenDef = request.tools?.firstOrNull;
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+
+        await genkit.generate(
+          model: modelRef('fullKeyWildcardModel'),
+          prompt: 'weather?',
+          toolNames: ['/dynamic-action-provider/my-dap:tool.v2/*'],
+        );
+
+        expect(seenDef, isNotNull);
+        expect(seenDef!.name, 'weatherTool');
+        expect(
+          seenDef!.key,
+          '/dynamic-action-provider/my-dap:tool.v2/weatherTool',
+        );
+      });
+    });
+
+    group('parseDapToolRef', () {
+      test('parses the full Dev UI registry key', () {
+        final ref = parseDapToolRef(
+          '/dynamic-action-provider/myServers:tool.v2/localServer/add',
+        );
+        expect(ref, isNotNull);
+        expect(ref!.host, 'myServers');
+        expect(ref.actionType, ActionType.tool);
+        expect(ref.matcher, 'localServer/add');
+      });
+
+      test('maps user-facing type shorthands to internal types', () {
+        expect(parseDapToolRef('h:tool/x')!.actionType, ActionType.tool);
+        expect(
+          parseDapToolRef('h:prompt/x')!.actionType,
+          ActionType.executablePrompt,
+        );
+        expect(
+          parseDapToolRef('h:resource/x')!.actionType,
+          ActionType.resource,
+        );
+      });
+
+      test('defaults to the tool type and treats the rest as the name', () {
+        final star = parseDapToolRef('h:*');
+        expect(star!.actionType, ActionType.tool);
+        expect(star.matcher, '*');
+
+        // A namespaced name without a known type segment stays the name.
+        final ns = parseDapToolRef('h:localServer/add');
+        expect(ns!.actionType, ActionType.tool);
+        expect(ns.matcher, 'localServer/add');
+      });
+
+      test('returns null for a non-DAP reference', () {
+        expect(parseDapToolRef('plainTool'), isNull);
+        expect(parseDapToolRef('ns/localTool'), isNull);
       });
     });
   });

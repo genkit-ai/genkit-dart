@@ -17,9 +17,18 @@ import 'dart:async';
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
+import '../core/cancellation.dart';
 import '../o11y/instrumentation.dart';
 import '../types.dart';
 import 'interrupt.dart';
+
+/// Returns the wire (short) name for [fullName]: its last path segment. The
+/// model sees this name and echoes it back on a tool request, so tool
+/// execution resolves against the short name (e.g. a namespaced or DAP-provided
+/// tool `my-server/weatherTool` is presented to the model as `weatherTool`).
+String shortToolName(String fullName) => fullName.contains('/')
+    ? fullName.substring(fullName.lastIndexOf('/') + 1)
+    : fullName;
 
 /// Arguments passed to a tool function execution.
 class ToolFnArgs<Input> {
@@ -29,6 +38,34 @@ class ToolFnArgs<Input> {
 
   /// The execution context.
   Map<String, dynamic>? get context => _base.context;
+
+  /// A read-only cancellation token the tool body should observe to abort
+  /// long-running work cooperatively, or `null` when the caller wired up no
+  /// cancellation.
+  ///
+  /// Poll [CancellationToken.isCancelled], call
+  /// [CancellationToken.throwIfCancelled] at checkpoints, or race
+  /// [CancellationToken.whenCancelled] against long awaits so a cancel can
+  /// interrupt work in progress:
+  ///
+  /// ```dart
+  /// ai.defineTool(
+  ///   name: 'search',
+  ///   description: 'Searches the web.',
+  ///   fn: (input, ctx) async {
+  ///     final cancel = ctx.cancel;
+  ///     if (cancel == null) return .response(await doWork(input));
+  ///     final result = await Future.any([
+  ///       doWork(input),
+  ///       cancel.whenCancelled.then(
+  ///         (_) => throw CancelledException(reason: cancel.reason),
+  ///       ),
+  ///     ]);
+  ///     return .response(result);
+  ///   },
+  /// );
+  /// ```
+  CancellationToken? get cancel => _base.cancel;
 
   /// The tool request that triggered this execution.
   ToolRequestPart? get toolRequest =>

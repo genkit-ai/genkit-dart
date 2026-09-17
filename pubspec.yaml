@@ -3,7 +3,7 @@ description: Genkit Dart Monorepo
 publish_to: none
 
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.12.0
 
 workspace:
   # NOTE: This list is intentionally incomplete.
@@ -29,7 +29,7 @@ workspace:
   - testapps/basic
   - testapps/chrome_example
   - testapps/openai_sample
-  - testapps/mcp_server
+  - testapps/mcp
   - testapps/middleware
   - testapps/remote_models
   - testapps/gemini
@@ -41,7 +41,7 @@ dev_dependencies:
   args: ^2.7.0
   dart_flutter_team_lints: ^3.0.0
   glob: ^2.1.3
-  melos: ^7.0.0
+  melos: ^8.7.0
   path: ^1.9.1
   pub_semver: ^2.2.0
   test: ^1.30.0
@@ -95,7 +95,7 @@ melos:
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{agentic_patterns,ai_features,basic_sample,gemini_testapp,mcp_server_sample,openai_sample,schemantic_sample}"
+        scope: "{agentic_patterns,ai_features,basic_sample,gemini_testapp,mcp_sample,openai_sample,schemantic_sample}"
       description: Run build_runner for testapps (except Flutter ones).
 
     dartdoc-check:

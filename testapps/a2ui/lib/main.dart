@@ -31,9 +31,10 @@ import 'package:a2ui_core/a2ui_core.dart' as core;
 import 'package:flutter/material.dart';
 import 'package:genkit/client.dart';
 import 'package:genkit_a2ui/client.dart';
-// `basicCatalogId` is defined by both genkit_a2ui and genui (with different
-// values); we want the plugin's id, so hide genui's.
-import 'package:genui/genui.dart' hide basicCatalogId;
+import 'package:genui/genui.dart';
+
+import 'gauge.dart';
+import 'shared.dart';
 
 /// The base URL of the agent server. Override with `--dart-define=AGENT_BASE_URL`.
 const String _baseUrl = String.fromEnvironment(
@@ -41,12 +42,18 @@ const String _baseUrl = String.fromEnvironment(
   defaultValue: 'http://localhost:8080',
 );
 
-/// The genui basic catalog, re-tagged with the catalog id the `genkit_a2ui`
-/// plugin's bundled basic catalog advertises, so surfaces created by the agent
-/// resolve to real widgets (genui otherwise registers an empty stub for an
-/// unknown catalog id).
+/// The client catalog, matching the server's custom `weatherCatalog`.
+///
+/// The server's catalog is the bundled basic components plus a custom `Gauge`
+/// (see `lib/agent.dart`), advertised under [weatherCatalogId]. Here we mirror
+/// that: start from genui's basic widgets, add the matching [gaugeCatalogItem],
+/// and re-tag the whole thing with the same [weatherCatalogId] so a surface the
+/// agent creates with that `catalogId` resolves to these widgets. (genui
+/// registers an empty stub for a catalog id it doesn't know, so the ids MUST
+/// match on both sides.)
 final Catalog _catalog = BasicCatalogItems.asCatalog().copyWith(
-  catalogId: basicCatalogId,
+  newItems: [gaugeCatalogItem],
+  catalogId: weatherCatalogId,
 );
 
 void main() {
@@ -330,6 +337,7 @@ class _SuggestionBar extends StatelessWidget {
 
   static const _prompts = [
     "What's the weather in Tokyo?",
+    'Show the weather in Tokyo with a gauge.',
     'Compare the weather in London, Paris and Rome.',
     'Give me a short signup form (name and email) with a submit button.',
   ];

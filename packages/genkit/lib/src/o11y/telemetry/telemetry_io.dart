@@ -13,11 +13,22 @@
 // limitations under the License.
 
 import 'dart:io' as io;
-import 'exporter_impl.dart';
 
-void configureCollectorExporter() {
-  final telemetryServer = io.Platform.environment['GENKIT_TELEMETRY_SERVER'];
-  if (telemetryServer != null) {
-    setupExporter(telemetryServer);
-  }
-}
+import '../../dev_config.dart';
+
+const String _telemetryServerKey = 'GENKIT_TELEMETRY_SERVER';
+const String _telemetryServerDefine = String.fromEnvironment(
+  _telemetryServerKey,
+);
+
+/// The Genkit telemetry server base URL from `GENKIT_TELEMETRY_SERVER` in the
+/// process environment, falling back to the `--dart-define` of the same name,
+/// or `null` when neither is set.
+///
+/// An empty value is treated as unset (matching the web implementation) so the
+/// same configuration produces the same instrumentation decision across
+/// platforms.
+String? genkitTelemetryServerUrl() => resolveDevConfig(
+  io.Platform.environment[_telemetryServerKey],
+  _telemetryServerDefine,
+);
