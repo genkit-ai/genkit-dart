@@ -15,9 +15,11 @@
 import 'package:genkit/plugin.dart';
 
 import 'src/google_api_client.dart';
+import 'src/imagen.dart';
 import 'src/known_models.dart';
 import 'src/model.dart';
 
+export 'src/imagen.dart' show ImagenOptions, KnownImagenModel;
 export 'src/model.dart';
 
 const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
@@ -31,6 +33,10 @@ class GoogleGenAiPluginHandle {
 
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
+  }
+
+  ModelRef<ImagenOptions> imagen(String name) {
+    return modelRef('googleai/$name', customOptions: ImagenOptions.$schema);
   }
 
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
@@ -60,5 +66,17 @@ abstract final class GoogleAiModels {
 
   static final ModelRef<GeminiOptions> gemini3ProImage = googleAI.gemini(
     KnownGeminiModel.gemini3ProImage.id,
+  );
+
+  static final ModelRef<ImagenOptions> imagen4 = googleAI.imagen(
+    KnownImagenModel.imagen4.id,
+  );
+
+  static final ModelRef<ImagenOptions> imagen4Fast = googleAI.imagen(
+    KnownImagenModel.imagen4Fast.id,
+  );
+
+  static final ModelRef<ImagenOptions> imagen4Ultra = googleAI.imagen(
+    KnownImagenModel.imagen4Ultra.id,
   );
 }
