@@ -26,6 +26,10 @@ import 'known_models.dart';
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? projectId;
   String? location;
+
+  /// HTTP transport for credential and API calls. It is never closed by the
+  /// plugin; the caller owns its lifecycle. Because close() is suppressed,
+  /// cancellation cannot abort an in-flight request on an injected client.
   http.Client? authClient;
 
   VertexAiPluginImpl({this.projectId, this.location, this.authClient});
