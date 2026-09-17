@@ -53,6 +53,24 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   ModelInfo modelInfoFor(String modelName) =>
       knownModels[modelName] ?? commonModelInfo;
 
+  /// Returns action metadata for every [knownModels] entry whose bare name is
+  /// not in [discoveredNames], so a curated model stays listed when model
+  /// discovery omits it or fails outright.
+  Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>
+  curatedModelMetadata({Set<String> discoveredNames = const {}}) {
+    return knownModels.entries
+        .where((entry) => !discoveredNames.contains(entry.key))
+        .map(
+          (entry) => modelMetadata(
+            '$name/${entry.key}',
+            customOptions: entry.key.contains('-tts')
+                ? GeminiTtsOptions.$schema
+                : GeminiOptions.$schema,
+            modelInfo: entry.value,
+          ),
+        );
+  }
+
   Model createModel(String modelName, SchemanticType customOptions) {
     return Model(
       name: '$name/$modelName',
@@ -109,9 +127,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 
         final service = await getApiClient(apiKey);
 
-        // Honor cooperative cancellation: closing the underlying HTTP client
-        // aborts any in-flight (unary or streaming) request. The `finally`
-        // below also closes it on the normal path; closing twice is safe.
+        // Aborts the in-flight request on a plugin-owned client; an injected
+        // client's close() is a no-op, so cancellation there only lands at
+        // the next throwIfCancelled checkpoint.
         final disposeCancel = ctx.cancel?.onCancel(service.client.close);
 
         try {
@@ -686,6 +704,22 @@ http.Client httpClientFromApiKey(String? apiKey) {
   }
   final baseClient = CustomClient(defaultHeaders: headers);
   return baseClient;
+}
+
+/// Delegates to a caller-owned client but ignores `close()`, so a plugin's
+/// per-call cleanup never tears down an injected transport.
+class NonClosingClient extends http.BaseClient {
+  /// Wraps [_inner], which stays owned by whoever supplied it.
+  NonClosingClient(this._inner);
+
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {}
 }
 
 class CustomClient extends http.BaseClient {

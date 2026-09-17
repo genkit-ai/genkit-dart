@@ -30,8 +30,34 @@ class MockHttpClient extends http.BaseClient {
   /// HTTP status returned for the models listing.
   final int listStatus;
 
+  bool closed = false;
+
+  @override
+  void close() {
+    closed = true;
+  }
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request.url.path.endsWith(':generateContent')) {
+      return http.StreamedResponse(
+        Stream.value(
+          utf8.encode(
+            '{"candidates": [{"content": {"parts": [{"text": "response"}], '
+            '"role": "model"}, "finishReason": "STOP"}]}',
+          ),
+        ),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    if (request.url.path.endsWith(':embedContent')) {
+      return http.StreamedResponse(
+        Stream.value(utf8.encode('{"embedding": {"values": [0.1, 0.2]}}')),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
     if (request.url.path != '/v1beta/models') {
       throw StateError('Unexpected request: ${request.url}');
     }
@@ -162,6 +188,51 @@ void main() {
       final info = (curated.metadata['model'] as Map).cast<String, dynamic>();
       expect(info['label'], 'Gemini 3.5 Flash');
       expect(info['stage'], 'stable');
+    });
+  });
+
+  group('injected client lifecycle', () {
+    test('list does not close the injected client', () async {
+      final client = MockHttpClient();
+
+      await plugin(client: client).list();
+
+      expect(client.closed, isFalse);
+    });
+
+    test('generate does not close the injected client', () async {
+      final client = MockHttpClient();
+      final model = plugin(client: client).resolve(.model, 'gemini-2.0-flash')!;
+
+      await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+        ),
+      );
+
+      expect(client.closed, isFalse);
+    });
+
+    test('embedder does not close the injected client', () async {
+      final client = MockHttpClient();
+      final embedder =
+          plugin(client: client).resolve(.embedder, 'text-embedding-004')!
+              as Action<EmbedRequest, EmbedResponse, void, void>;
+
+      await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+          ],
+        ),
+      );
+
+      expect(client.closed, isFalse);
     });
   });
 

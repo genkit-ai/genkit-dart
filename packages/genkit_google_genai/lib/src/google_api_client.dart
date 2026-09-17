@@ -43,10 +43,11 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
   ]) async {
+    final injected = httpClient;
     return GenerativeLanguageBaseClient(
       baseUrl: 'https://generativelanguage.googleapis.com/',
-      client: httpClient != null
-          ? _NonClosingClient(httpClient!)
+      client: injected != null
+          ? NonClosingClient(injected)
           : httpClientFromApiKey(requestApiKey ?? apiKey),
     );
   }
@@ -64,7 +65,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         // catalog rather than rethrowing; a misconfigured key still fails
         // loudly at generate time.
         logger.warning('Failed to list models: $e', e, stack);
-        return knownModels.entries.map(_curatedModelMetadata).toList();
+        return curatedModelMetadata().toList();
       }
       final discoveredNames = <String>{};
       final models = (modelsResponse.models ?? [])
@@ -86,10 +87,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           })
           .toList();
 
-      // Curated models are listed even when model discovery omits them.
-      final curated = knownModels.entries
-          .where((entry) => !discoveredNames.contains(entry.key))
-          .map(_curatedModelMetadata);
+      final curated = curatedModelMetadata(discoveredNames: discoveredNames);
 
       final embedders = (modelsResponse.models ?? [])
           .where(
@@ -110,18 +108,6 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
     } finally {
       service.client.close();
     }
-  }
-
-  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _curatedModelMetadata(
-    MapEntry<String, ModelInfo> entry,
-  ) {
-    return modelMetadata(
-      '$name/${entry.key}',
-      customOptions: entry.key.contains('-tts')
-          ? GeminiTtsOptions.$schema
-          : GeminiOptions.$schema,
-      modelInfo: entry.value,
-    );
   }
 
   @override
@@ -185,23 +171,5 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         }
       },
     );
-  }
-}
-
-/// Delegates to a caller-owned client but ignores `close()`, so the plugin's
-/// per-call cleanup never tears down an injected transport.
-class _NonClosingClient extends http.BaseClient {
-  _NonClosingClient(this._inner);
-
-  final http.Client _inner;
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) =>
-      _inner.send(request);
-
-  @override
-  void close() {
-    // Intentional no-op: the inner client is caller-owned and must survive
-    // the per-call close() in the list/embed/generate paths.
   }
 }
