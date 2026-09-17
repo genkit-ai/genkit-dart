@@ -91,7 +91,7 @@ ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
       server.start();
       return ReflectionServerHandle(server.stop);
     case ReflectionTransport.none:
-      _logger.severe(
+      _logger.warning(
         'Dev mode is on but $_v2ServerKey is not set. No reflection server '
         'started: the loopback server this would otherwise start is not safe '
         'on a mobile device and the Developer UI could not reach it.',
