@@ -25,6 +25,7 @@
 /// an `artifact` stream chunk. Artifacts are deduplicated by name.
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 

@@ -21,6 +21,7 @@ library;
 import 'dart:async';
 import 'dart:math';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../exception.dart';
@@ -99,6 +100,7 @@ void Function() _addListener<T>(
 typedef SnapshotMutator = SessionSnapshot? Function(SessionSnapshot? current);
 
 /// Interface for persistent session snapshot storage.
+@experimental
 abstract interface class SessionStore {
   /// Loads a snapshot either by its [snapshotId] or by [sessionId].
   ///
@@ -193,6 +195,7 @@ abstract interface class SnapshotChangeNotifier {
 /// Keeping the internal representation as plain JSON is deliberate: the
 /// `customChanged` -> `customPatch` streaming logic diffs raw JSON, so the typed
 /// API never changes what is stored on the wire.
+@experimental
 final class Session<State> {
   /// Builds a session from [initialState], assigning a [sessionId] if absent.
   ///
@@ -363,6 +366,7 @@ final class SessionError implements Exception {
 }
 
 /// In-memory implementation of persistent session store.
+@experimental
 final class InMemorySessionStore
     implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates an in-memory store.

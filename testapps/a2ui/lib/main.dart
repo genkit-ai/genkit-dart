@@ -29,7 +29,7 @@ import 'dart:convert';
 
 import 'package:a2ui_core/a2ui_core.dart' as core;
 import 'package:flutter/material.dart';
-import 'package:genkit/client.dart';
+import 'package:genkit/experimental_client.dart';
 import 'package:genkit_a2ui/client.dart';
 import 'package:genui/genui.dart';
 

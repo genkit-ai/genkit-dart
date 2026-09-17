@@ -657,4 +657,40 @@ void main() async {
 
 ---
 
+## Experimental APIs
+
+Some features ship as experimental so they can keep evolving toward the best
+design without forcing a major version bump. Experimental APIs are NOT covered
+by semantic-versioning stability guarantees: they may change or be removed in
+any MINOR release.
+
+They live behind dedicated imports so opting in is explicit:
+
+```dart
+import 'package:genkit/experimental.dart';        // agents, sessions, snapshots
+import 'package:genkit/experimental_client.dart'; // browser-safe agent client
+import 'package:genkit/experimental_io.dart';     // dart:io extras (FileSessionStore)
+```
+
+Once imported, the experimental veneer reads like the rest of the API:
+
+```dart
+import 'package:genkit/genkit.dart';
+import 'package:genkit/experimental.dart';
+
+final ai = Genkit(plugins: [googleAI()]);
+final agent = ai.defineAgent(name: 'weather', prompt: 'You are a weather bot.');
+```
+
+Experimental members are also annotated with `@experimental`, so the analyzer
+flags their use if you want a second signal beyond the import.
+
+**Currently experimental:** the agent stack (agents, sessions, snapshots) and
+the `agents()` sub-agent delegation middleware in `package:genkit_middleware`.
+
+**Stable surface** (covered by SemVer): `package:genkit/genkit.dart`,
+`client.dart`, `io.dart`, `lite.dart`, `plugin.dart`, and `telemetry.dart`.
+
+---
+
 Built by [Google](https://firebase.google.com/) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors)

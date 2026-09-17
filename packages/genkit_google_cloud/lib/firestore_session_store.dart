@@ -24,9 +24,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:google_cloud_firestore/google_cloud_firestore.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 final _logger = Logger('genkit.firestoreSessionStore');
 
@@ -357,6 +359,7 @@ bool _isNewerLeaf(
 /// yet". To avoid this, either set the `GOOGLE_CLOUD_PROJECT` environment
 /// variable (often required even when ADC is present) or pass an explicit
 /// [Firestore] instance configured with a project ID to the constructor.
+@experimental
 class FirestoreSessionStore
     implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates a Firestore-backed session store.

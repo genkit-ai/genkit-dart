@@ -29,6 +29,7 @@
 ///   * `historyLength` to forward conversation context to sub-agents.
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_middleware/agents.dart';
 

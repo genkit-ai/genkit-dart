@@ -13,6 +13,11 @@
 // limitations under the License.
 
 /// Middleware for Genkit Dart that enables sub-agent delegation.
+///
+/// This builds on Genkit's experimental agent surface. Like
+/// `package:genkit/experimental.dart`, these APIs are NOT covered by
+/// semantic-versioning stability guarantees and may change or be removed in any
+/// MINOR release without a major version bump.
 library;
 
 export 'src/agents_middleware.dart';
