@@ -64,7 +64,8 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     final safeLocation = Uri.encodeComponent(resolvedLocation);
     final safeProjectId = Uri.encodeComponent(resolvedProjectId);
 
-    final injected = authClient == null ? null : NonClosingClient(authClient!);
+    final caller = authClient;
+    final injected = caller == null ? null : NonClosingClient(caller);
 
     final tokenProvider = createAdcAccessTokenProvider(baseClient: injected);
 
