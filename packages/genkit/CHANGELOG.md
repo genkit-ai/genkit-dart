@@ -1,3 +1,10 @@
+## 0.17.0-rc.2
+
+### Breaking Changes
+
+ - move live/bidi model surface to experimental (#461)
+
+
 ## 0.17.0-rc.1
 
 ### Breaking Changes

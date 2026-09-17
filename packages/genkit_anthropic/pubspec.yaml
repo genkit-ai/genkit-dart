@@ -1,7 +1,7 @@
 name: genkit_anthropic
 description: Anthropic plugin for Genkit Dart, providing Claude model integration with tool calling, multimodal inputs, and streaming support.
 resolution: workspace
-version: 0.4.0-rc.1
+version: 0.4.0-rc.2
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
@@ -13,7 +13,7 @@ dependencies:
   # thinking blocks with ThinkingInputBlock / RedactedThinkingInputBlock, which
   # 8.0.0 introduced. Resolving anything older would not compile.
   anthropic_sdk_dart: ^8.0.0
-  genkit: ^0.17.0-rc.1
+  genkit: ^0.17.0-rc.2
   http: ^1.6.0
   logging: ^1.3.0
   meta: ^1.17.0
