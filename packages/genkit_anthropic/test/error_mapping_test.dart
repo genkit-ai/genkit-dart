@@ -56,6 +56,9 @@ void main() {
         'statuses', () async {
       var attempts = 0;
       final client = MockClient((request) async {
+        if (request.url.path != '/v1/messages') {
+          return http.Response('not found', 404);
+        }
         attempts++;
         return attempts == 1
             ? _errorResponse(529, 'overloaded_error', 'Overloaded')

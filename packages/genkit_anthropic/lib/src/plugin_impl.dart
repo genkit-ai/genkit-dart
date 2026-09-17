@@ -31,9 +31,7 @@ final _logger = Logger('genkit_anthropic');
 /// entry.
 final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
 
-/// Anthropic returns 529 when the API is overloaded. It is outside the
-/// canonical HTTP status mapping, which would otherwise make it UNKNOWN and so
-/// not retryable.
+/// Anthropic returns 529 when the API is overloaded.
 const _overloadedStatusCode = 529;
 
 StatusCodes _statusForHttpCode(int code) => code == _overloadedStatusCode
