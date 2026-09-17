@@ -127,9 +127,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 
         final service = await getApiClient(apiKey);
 
-        // Honor cooperative cancellation: closing the underlying HTTP client
-        // aborts any in-flight (unary or streaming) request. The `finally`
-        // below also closes it on the normal path; closing twice is safe.
+        // Aborts the in-flight request on a plugin-owned client; an injected
+        // client's close() is a no-op, so cancellation there only lands at
+        // the next throwIfCancelled checkpoint.
         final disposeCancel = ctx.cancel?.onCancel(service.client.close);
 
         try {

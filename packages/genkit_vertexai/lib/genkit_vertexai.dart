@@ -37,6 +37,14 @@ const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 class VertexAiPluginHandle {
   const VertexAiPluginHandle();
 
+  /// Creates the Vertex AI plugin. [projectId] falls back to
+  /// `GOOGLE_CLOUD_PROJECT`/`GCLOUD_PROJECT`, and [location] defaults to
+  /// `global`.
+  ///
+  /// [authClient] replaces the default transport for credential and API calls.
+  /// It is never closed by the plugin; the caller owns its lifecycle. Because
+  /// close() is suppressed, cancellation cannot abort an in-flight request on
+  /// an injected client.
   GenkitPlugin call({
     String? projectId,
     String? location,
