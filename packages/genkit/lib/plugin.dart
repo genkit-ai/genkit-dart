@@ -38,6 +38,7 @@ export 'package:genkit/src/ai/model.dart'
     show BidiModel, Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart'
     show
+        Interrupt,
         Tool,
         ToolFn,
         ToolFnArgs,

@@ -65,6 +65,7 @@ export 'src/ai/template_helper.dart'
     show TemplateHelperFn, TemplateHelperOptions;
 export 'src/ai/tool.dart'
     show
+        Interrupt,
         Tool,
         ToolFn,
         ToolFnArgs,
