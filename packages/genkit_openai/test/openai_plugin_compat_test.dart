@@ -32,8 +32,10 @@ import 'package:test/test.dart';
 
 import 'fake_openai_server.dart';
 
-Set<String> modelNames(List<ActionMetadata> metadata) =>
-    metadata.map((m) => m.name).toSet();
+Set<String> modelNames(List<ActionMetadata> metadata) => metadata
+    .where((m) => m.actionType == ActionType.model)
+    .map((m) => m.name)
+    .toSet();
 
 /// A Groq-shaped model definition, matching the README's example.
 /// Matches the failed response `generate()` returns for a model error.
