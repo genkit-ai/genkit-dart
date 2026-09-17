@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Experimental Genkit APIs (agents, sessions, snapshots).
+/// Experimental Genkit APIs (agents, sessions, snapshots, live/bidi models).
 ///
 /// These APIs are NOT covered by the package's semantic-versioning stability
 /// guarantees. They may change or be removed in any MINOR release without a
@@ -76,4 +76,7 @@ export 'src/ai/agents/session.dart'
         getCurrentSession,
         reserveSnapshotId,
         runWithSession;
+export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
+export 'src/ai/model.dart' show BidiModel, BidiModelRef, bidiModelRef;
 export 'src/experimental/agent_veneer.dart' show GenkitAgents;
+export 'src/experimental/bidi_veneer.dart' show GenkitBidi, GenkitBidiModel;
