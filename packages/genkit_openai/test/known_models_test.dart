@@ -266,11 +266,17 @@ void main() {
         'whisper-1',
         'dall-e-3',
       ]).list();
-      final names = metadata.map((m) => m.name).toSet();
+      final models = modelNames(metadata);
 
-      expect(names, isNot(contains('openai/text-embedding-3-small')));
-      expect(names, isNot(contains('openai/whisper-1')));
-      expect(names, isNot(contains('openai/dall-e-3')));
+      // The embedder is listed, but as an embedder; the rest are modalities
+      // this plugin does not serve at all.
+      expect(models, isNot(contains('openai/text-embedding-3-small')));
+      expect(
+        embedderNames(metadata),
+        contains('openai/text-embedding-3-small'),
+      );
+      expect(models, isNot(contains('openai/whisper-1')));
+      expect(models, isNot(contains('openai/dall-e-3')));
     });
   });
 
@@ -294,8 +300,8 @@ void main() {
       expect(info['supports'], reasoningPreviewSupports);
     });
 
-    test('non-model action types do not resolve', () {
-      expect(pluginListing(const []).resolve(.embedder, 'gpt-4o'), isNull);
+    test('action types this plugin does not serve do not resolve', () {
+      expect(pluginListing(const []).resolve(.evaluator, 'gpt-4o'), isNull);
     });
   });
 }

@@ -227,4 +227,38 @@ void main() {
       expect(result, 'baz');
     });
   });
+
+  group('ActionMetadata.toJson', () {
+    test('is JSON-encodable when schemas are present', () {
+      final meta = ActionMetadata(
+        name: 'weather',
+        actionType: ActionType.tool,
+        description: 'get weather',
+        key: '/dynamic-action-provider/host:tool.v2/weather',
+        inputSchema: TestInput.$schema,
+        outputSchema: TestOutput.$schema,
+      );
+
+      // jsonEncode must not choke on a schema field (a bare `jsonSchema`
+      // tearoff would be a Function and fail to encode).
+      final encoded = jsonEncode(meta.toJson());
+      final decoded = jsonDecode(encoded) as Map<String, dynamic>;
+
+      expect(decoded['name'], 'weather');
+      expect(decoded['key'], '/dynamic-action-provider/host:tool.v2/weather');
+      expect(decoded['inputSchema'], isA<Map<String, dynamic>>());
+      expect(decoded['outputSchema'], isA<Map<String, dynamic>>());
+    });
+
+    test('a list of metadata (DAP output) is JSON-encodable', () {
+      final list = [
+        ActionMetadata(
+          name: 'weather',
+          actionType: ActionType.tool,
+          inputSchema: TestInput.$schema,
+        ),
+      ];
+      expect(() => jsonEncode(list), returnsNormally);
+    });
+  });
 }

@@ -14,8 +14,9 @@
 
 /// Platform-specific resolution of the Genkit telemetry server URL.
 ///
-/// Reads `GENKIT_TELEMETRY_SERVER` from the process environment on IO targets
-/// and from the compile-time environment on web; returns `null` elsewhere.
+/// Reads `GENKIT_TELEMETRY_SERVER` from the process environment on IO targets,
+/// falling back to the compile-time environment, and from the compile-time
+/// environment on web; returns `null` elsewhere.
 library;
 
 export 'telemetry_stub.dart'

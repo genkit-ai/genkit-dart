@@ -245,11 +245,14 @@ void main() {
         ),
       );
 
-      final names = modelNames(await plugin.list());
+      final listing = await plugin.list();
+      final models = modelNames(listing);
 
-      expect(names, contains('openai/gpt-4o'));
-      expect(names, isNot(contains('openai/text-embedding-3-small')));
-      expect(names, isNot(contains('openai/dall-e-3')));
+      expect(models, contains('openai/gpt-4o'));
+      // The embedder is listed under its own action type, not as a model.
+      expect(models, isNot(contains('openai/text-embedding-3-small')));
+      expect(embedderNames(listing), contains('openai/text-embedding-3-small'));
+      expect(models, isNot(contains('openai/dall-e-3')));
     });
   });
 

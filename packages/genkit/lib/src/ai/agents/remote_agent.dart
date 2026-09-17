@@ -222,22 +222,6 @@ final class _HttpAgentTransport extends AgentTransport {
   }
 
   @override
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) {
-    _rejectContext(context);
-
-    // Opt out of the non-streaming fast path: `send()` should always run the
-    // turn over the streaming transport and drain the stream so a server-managed
-    // agent's `customPatch` chunks are applied to the chat's tracked state. The
-    // turn output is still available via [runTurn]'s `output` future.
-    return null;
-  }
-
-  @override
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,

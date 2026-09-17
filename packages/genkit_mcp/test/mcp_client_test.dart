@@ -673,7 +673,7 @@ void main() {
     expect(actionNames, contains('my-server/regResource'));
 
     // Test getAction
-    final resolved = await dap.getAction('my-server/regTool');
+    final resolved = await dap.getAction(.tool, 'my-server/regTool');
     expect(resolved, isNotNull);
     final result = await (resolved as Tool).call({'foo': 'bar'});
     expect(result.output, 'ok');

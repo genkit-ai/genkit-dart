@@ -41,10 +41,9 @@ class _Counter {
 
 /// A scripted transport: each turn returns the queued [_TurnScript].
 final class _FakeTransport extends AgentTransport {
-  _FakeTransport(this._scripts, {this.supportsRun = false});
+  _FakeTransport(this._scripts);
 
   final List<_TurnScript> _scripts;
-  final bool supportsRun;
   int _index = 0;
   final Map<String, SessionSnapshot> snapshots = {};
   final List<String> aborted = [];
@@ -60,17 +59,6 @@ final class _FakeTransport extends AgentTransport {
   }) {
     final script = _next();
     return (stream: script.streamOf(), output: script.outputOf());
-  }
-
-  @override
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) {
-    if (!supportsRun) return null;
-    return _next().outputOf();
   }
 
   @override
@@ -122,10 +110,9 @@ _Step _throwStep(String message) => _Step.error(StateError(message));
 
 /// A transport whose turns can throw, to exercise the thrown-error rollback.
 final class _StepTransport extends AgentTransport {
-  _StepTransport(this._steps, {this.supportsRun = false});
+  _StepTransport(this._steps);
 
   final List<_Step> _steps;
-  final bool supportsRun;
   int _index = 0;
 
   _Step _next() => _steps[_index++];
@@ -142,17 +129,6 @@ final class _StepTransport extends AgentTransport {
       stream: const Stream<AgentStreamChunk>.empty(),
       output: step.resolve(),
     );
-  }
-
-  @override
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) {
-    if (!supportsRun) return null;
-    return _next().resolve();
   }
 
   @override
@@ -272,20 +248,33 @@ void main() {
   });
 
   group('AgentChat.send', () {
-    test('uses the non-streaming transport path when available', () async {
+    test('applies streamed custom patches before resolving', () async {
       final transport = _FakeTransport([
         _TurnScript(
+          chunks: [
+            AgentStreamChunk(
+              customPatch: [
+                JsonPatchOperation(
+                  op: JsonPatchOp.replace,
+                  path: '',
+                  value: {'count': 1},
+                ),
+              ],
+            ),
+          ],
           output: AgentOutput(
             snapshotId: 's_y',
             message: _modelMessage('pong'),
             finishReason: AgentFinishReason.stop,
           ),
         ),
-      ], supportsRun: true);
-      final chat = AgentApi(transport).chat();
+      ]);
+      final chat = AgentApi<Map<String, dynamic>>(transport).chat();
       final res = await chat.send(text: 'ping');
       expect(res.text, 'pong');
       expect(res.snapshotId, 's_y');
+      expect(res.state, {'count': 1});
+      expect(chat.state, {'count': 1});
     });
 
     test('throws AgentError with recoverable state on a failed turn', () async {
@@ -297,7 +286,7 @@ void main() {
             error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
           ),
         ),
-      ], supportsRun: true);
+      ]);
       final chat = AgentApi(transport).chat();
       await expectLater(
         chat.send(text: 'x'),
@@ -310,34 +299,34 @@ void main() {
       );
     });
 
-    test('a failed turn on the streaming path throws AgentError without an '
-        'unhandled rejection', () async {
-      // `supportsRun: false` forces the streaming path (`_sendStream`), where
-      // the orphan `responsePromise` must be `.ignore()`d so a rejecting turn
-      // does not reach `Zone.handleUncaughtError` (which package:test would
-      // surface as a failure after the test body passes). The two other
-      // failed-turn tests take the `run()` fast path and never exercise this.
-      final transport = _FakeTransport([
-        _TurnScript(
-          output: AgentOutput(
-            finishReason: AgentFinishReason.failed,
-            error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
+    test(
+      'a failed turn throws AgentError without an unhandled rejection',
+      () async {
+        // The orphan `responsePromise` in `_sendStream` must be `.ignore()`d so
+        // a rejecting turn does not reach `Zone.handleUncaughtError` (which
+        // package:test would surface as a failure after the test body passes).
+        final transport = _FakeTransport([
+          _TurnScript(
+            output: AgentOutput(
+              finishReason: AgentFinishReason.failed,
+              error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
+            ),
           ),
-        ),
-      ]);
-      final chat = AgentApi(transport).chat();
-      await expectLater(chat.send(text: 'hi'), throwsA(isA<AgentError>()));
-      // Let any stray unhandled async error settle onto the event loop; if the
-      // orphan future weren't ignored, this turn would fail the test here.
-      await Future<void>.delayed(Duration.zero);
-    });
+        ]);
+        final chat = AgentApi(transport).chat();
+        await expectLater(chat.send(text: 'hi'), throwsA(isA<AgentError>()));
+        // Let any stray unhandled async error settle onto the event loop; if the
+        // orphan future weren't ignored, this turn would fail the test here.
+        await Future<void>.delayed(Duration.zero);
+      },
+    );
   });
 
   group('AgentChat pre-aborted bail', () {
     test(
       'send() bails before dispatching when the token is cancelled',
       () async {
-        final transport = _FakeTransport([], supportsRun: true);
+        final transport = _FakeTransport([]);
         final token = (CancellationController()..cancel()).token;
         final chat = AgentApi(transport).chat();
         final res = await chat.send(text: 'hi', cancel: token);
@@ -393,7 +382,7 @@ void main() {
         _TurnScript(
           output: AgentOutput(snapshotId: 's_z', message: _modelMessage('hi')),
         ),
-      ], supportsRun: true);
+      ]);
       final chat = AgentApi(transport).chat();
       await chat.send(text: 'hi');
       final status = await chat.abort();
@@ -434,7 +423,7 @@ void main() {
               message: _modelMessage('hi'),
             ),
           ),
-        ], supportsRun: true);
+        ]);
         final chat = AgentApi(transport).chat();
         final res = await chat.send(text: 'hi');
         expect(chat.sessionId, 'sess_3');
@@ -449,7 +438,7 @@ void main() {
       () async {
         final transport = _StepTransport([
           _throwStep('INTERNAL: transport blew up'),
-        ], supportsRun: true);
+        ]);
         final chat = AgentApi(transport).chat();
         await expectLater(chat.send(text: 'hi'), throwsA(isA<AgentError>()));
         // The eagerly-pushed user message must not be left orphaned.
@@ -468,7 +457,7 @@ void main() {
               finishReason: AgentFinishReason.stop,
             ),
           ),
-        ], supportsRun: true);
+        ]);
         final chat = AgentApi(transport).chat();
         await expectLater(chat.send(text: 'first'), throwsA(isA<AgentError>()));
         expect(chat.messages, isEmpty);
@@ -585,7 +574,7 @@ void main() {
             message: _modelMessage('hi'),
           ),
         ),
-      ], supportsRun: true);
+      ]);
       final chat = AgentApi<Map<String, dynamic>>(transport).chat();
       final res = await chat.send(text: 'hi');
 
@@ -692,7 +681,7 @@ void main() {
             message: _modelMessage('hi'),
           ),
         ),
-      ], supportsRun: true);
+      ]);
       final chat = AgentApi<int>(transport).chat();
       final res = await chat.send(text: 'hi');
       expect(chat.state, 7);
@@ -710,7 +699,7 @@ void main() {
             message: _modelMessage('hi'),
           ),
         ),
-      ], supportsRun: true);
+      ]);
       final chat = AgentApi<String>(transport).chat();
       final res = await chat.send(text: 'hi');
       expect(() => chat.state, throwsA(isA<TypeError>()));
@@ -743,7 +732,7 @@ void main() {
             message: _modelMessage('hi'),
           ),
         ),
-      ], supportsRun: true);
+      ]);
       final chat = AgentApi<_Counter>(
         transport,
         stateSchema: _Counter.schema,
@@ -933,7 +922,7 @@ void main() {
               error: AgentErrorInfo(status: 'INTERNAL', message: 'boom'),
             ),
           ),
-        ], supportsRun: true);
+        ]);
         final chat = AgentApi<_Counter>(
           transport,
           stateSchema: _Counter.schema,
@@ -971,14 +960,6 @@ final class _CaptureTransport extends AgentTransport {
       output: Future.value(output),
     );
   }
-
-  @override
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) => Future.value(_handler(input));
 
   @override
   Future<SessionSnapshot?> getSnapshot({

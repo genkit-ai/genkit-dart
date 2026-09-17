@@ -14,12 +14,21 @@
 
 import 'dart:io' as io;
 
-/// The Genkit telemetry server base URL from `GENKIT_TELEMETRY_SERVER`, or
-/// `null` when it is unset or empty.
+import '../../dev_config.dart';
+
+const String _telemetryServerKey = 'GENKIT_TELEMETRY_SERVER';
+const String _telemetryServerDefine = String.fromEnvironment(
+  _telemetryServerKey,
+);
+
+/// The Genkit telemetry server base URL from `GENKIT_TELEMETRY_SERVER` in the
+/// process environment, falling back to the `--dart-define` of the same name,
+/// or `null` when neither is set.
 ///
 /// An empty value is treated as unset (matching the web implementation) so the
-/// same env produces the same instrumentation decision across platforms.
-String? genkitTelemetryServerUrl() {
-  final server = io.Platform.environment['GENKIT_TELEMETRY_SERVER'];
-  return (server == null || server.isEmpty) ? null : server;
-}
+/// same configuration produces the same instrumentation decision across
+/// platforms.
+String? genkitTelemetryServerUrl() => resolveDevConfig(
+  io.Platform.environment[_telemetryServerKey],
+  _telemetryServerDefine,
+);

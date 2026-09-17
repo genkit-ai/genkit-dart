@@ -29,7 +29,7 @@ workspace:
   - testapps/basic
   - testapps/chrome_example
   - testapps/openai_sample
-  - testapps/mcp_server
+  - testapps/mcp
   - testapps/middleware
   - testapps/remote_models
   - testapps/gemini
@@ -95,7 +95,7 @@ melos:
     build-gen-testapps:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{agentic_patterns,ai_features,basic_sample,gemini_testapp,mcp_server_sample,openai_sample,schemantic_sample}"
+        scope: "{agentic_patterns,ai_features,basic_sample,gemini_testapp,mcp_sample,openai_sample,schemantic_sample}"
       description: Run build_runner for testapps (except Flutter ones).
 
     dartdoc-check:

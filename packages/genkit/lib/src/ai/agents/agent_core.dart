@@ -55,8 +55,13 @@ typedef TurnStream = ({
 /// and for the HTTP `remoteAgent` (driving stream/run calls).
 ///
 /// This is a public extension point: third-party transports must `extend`
-/// (not `implement`) it, so they inherit the default [run] / [close] bodies
-/// and the mutable [stateManagement] field.
+/// (not `implement`) it, so they inherit the default [close] body and the
+/// mutable [stateManagement] field.
+///
+/// A turn is always run over [runTurn]. Server-managed agents keep the
+/// client's custom state live through streamed `customPatch` chunks and omit
+/// `state` from the final output, so the core consumes the stream even for a
+/// non-streaming `send()`.
 abstract base class AgentTransport {
   /// Declares server- vs client-managed state
   /// ([AgentStateManagement.server] | [AgentStateManagement.client]);
@@ -78,18 +83,6 @@ abstract base class AgentTransport {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   });
-
-  /// Runs a single turn without streaming. Returns `null` to signal the core
-  /// should fall back to consuming [runTurn]'s `output`.
-  ///
-  /// [context] behaves as documented on [runTurn]: honored by the in-process
-  /// transport, rejected by the remote transport.
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) => null;
 
   /// Reads a snapshot. Requires a server store.
   ///
@@ -777,42 +770,14 @@ final class AgentChat<State> {
   /// return custom `state` on the wire (only a `snapshotId`); the chat's
   /// tracked custom state is kept live by applying the streamed `customPatch`
   /// chunks. Consuming the stream here keeps `send()` and `sendStream()`
-  /// consistent. A transport that opts into the non-streaming [AgentTransport.run]
-  /// path (e.g. returns full state on the wire) skips the drain.
+  /// consistent.
   Future<AgentResponse<State>> _send(
     AgentInput input, {
     CancellationToken? cancel,
     Map<String, dynamic>? context,
   }) async {
-    // In `_send` the token is observed and forwarded only (never cancelled
-    // here), so a caller token flows straight through; absent one (`null`),
-    // there is no cancellation to observe.
-    final token = cancel;
-    // Bail before pushing the message or dispatching the turn if the caller's
-    // token is already cancelled: there's no point starting work, and we must
-    // not leave an orphaned user message in `messages`.
-    if (token?.isCancelled ?? false) {
-      return _abortedResponse();
-    }
-    final runFuture = _transport.run(
-      input,
-      _buildInit(),
-      cancel: token,
-      context: context,
-    );
-    if (runFuture != null) {
-      final messageCountBeforeTurn = messages.length;
-      final inputMessage = input.message;
-      if (inputMessage != null) {
-        messages.add(inputMessage);
-      }
-      return _buildResponse(runFuture, token, messageCountBeforeTurn);
-    }
-    final turn = _sendStream(input, cancel: token, context: context);
-    // Drain the stream so custom-state patches are applied to the chat.
-    await for (final _ in turn.stream) {
-      // no-op: side effects (custom-state patches) happen as we iterate.
-    }
+    final turn = _sendStream(input, cancel: cancel, context: context);
+    await turn.stream.drain<void>();
     return turn.response;
   }
 

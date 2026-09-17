@@ -67,7 +67,6 @@ final response = await ai.generate(
   config: OpenAIChatOptions(
     temperature: 0.7,
     maxTokens: 100,
-    jsonMode: false,
   ),
 );
 ```
@@ -285,6 +284,45 @@ OpenAI's own hosting. The catalog is also not added to that host's listing:
 what a compatible provider lists is whatever its `/models` reports plus the
 models you register.
 
+## Embeddings
+
+Embedders resolve the same way models do, and `OpenAIEmbedders` exposes a typed
+reference for each curated one:
+
+```dart
+final vectors = await ai.embed(
+  embedder: OpenAIEmbedders.textEmbedding3Small,
+  document: DocumentData(content: [TextPart(text: 'The cat sat on the mat.')]),
+);
+
+print(vectors.single.embedding.length); // 1536
+```
+
+`embedMany` takes a list of documents and returns one vector per document, in
+order. A corpus larger than the 2048 inputs OpenAI accepts per request is split
+across requests rather than rejected.
+
+Each document's text parts are joined with newlines; media parts are dropped,
+since OpenAI has no multimodal embedder. A document carrying no text at all is
+rejected before the request goes out.
+
+`KnownOpenAIEmbedder` carries the catalog, including the vector length each
+model returns. The `text-embedding-3-*` models will also return a shorter
+vector on request:
+
+```dart
+final vectors = await ai.embed(
+  embedder: OpenAIEmbedders.textEmbedding3Small,
+  document: DocumentData(content: [TextPart(text: 'hello')]),
+  options: OpenAIEmbedderOptions(dimensions: 256),
+);
+```
+
+As with models, the catalog is not the set of usable embedders: any name works
+by passing it to `openAI.embedder()`, it is just described without a vector
+length, and behind a custom `baseUrl` only what that host's `/models` reports
+is listed.
+
 ## Options
 
 The `OpenAIChatOptions` class supports the following options:
@@ -297,9 +335,55 @@ The `OpenAIChatOptions` class supports the following options:
 - `frequencyPenalty` (double?, -2.0 to 2.0) - Frequency penalty
 - `seed` (int?) - Seed for deterministic sampling
 - `user` (String?) - User identifier for abuse detection
-- `jsonMode` (bool?) - Enable JSON mode
+- `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config says nothing about the format; any explicit `outputFormat` wins, `'text'` included. See [JSON output](#json-output)
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
+
+The `OpenAIEmbedderOptions` class supports:
+
+- `dimensions` (int?, >= 1) - Length of the returned vector, for the models
+  that accept a shorter one
+- `user` (String?) - User identifier for abuse detection
+
+### JSON output
+
+There are three ways to get JSON back, in order of preference:
+
+```dart
+// 1. A schema - the model is constrained to the shape and `output` is typed.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Describe a book.',
+  outputSchema: Book.$schema,
+);
+print(response.output!.title);
+
+// 2. JSON with no particular shape.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Return a JSON object with keys "name" and "age".',
+  outputFormat: 'json',
+);
+
+// 3. The provider flag directly, for callers not using Genkit's output config.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Reply with a JSON object.',
+  config: OpenAIChatOptions(jsonMode: true),
+);
+```
+
+`outputSchema` sends `response_format: {"type": "json_schema"}`; the other two
+send `{"type": "json_object"}`. Output config wins when both are set, so
+`jsonMode` never overrides a schema.
+
+OpenAI rejects `json_object` unless the conversation also asks for JSON, so
+options 2 and 3 need the prompt to say so. Option 1 does not.
+
+The plugin sends `strict: false`. Schemas are flattened (`$ref`/`$defs`
+resolved) but otherwise unmodified. Strict mode is off because it requires
+every property to appear in `required` and `additionalProperties: false` on
+every object — which rejects ordinary schemas that have optional fields.
 
 ## Custom Headers
 

@@ -121,9 +121,10 @@ const multimodalNoToolsSupports = <String, dynamic>{
 
 /// Capabilities advertised for a discovered model that is not a chat model.
 ///
-/// Chat generation is the only modality this plugin serves, so an embedding,
-/// audio, image, moderation, or legacy completion model claims none of it.
-/// Embedders arrive with their own metadata; see issue #361.
+/// Chat generation is the only modality this plugin serves *here*, so an
+/// embedding, audio, image, moderation, or legacy completion model claims none
+/// of it. An embedding model named as a model still lands on this - what the
+/// plugin serves it as is an embedder, described by `known_embedders.dart`.
 const nonChatSupports = <String, dynamic>{
   'multiturn': false,
   'systemRole': false,
@@ -168,8 +169,9 @@ enum OpenAIModelStage {
 ///
 /// Per-model behaviour beyond capabilities belongs on this enum as another
 /// field rather than in a name-matching branch at the call site — that is what
-/// keeps `reasoning_effort` (#239) and the embedder catalog (#361) from each
-/// growing their own copy of the model list.
+/// keeps something like `reasoning_effort` (#239) from growing its own copy of
+/// the model list. A different modality gets its own catalog instead; see
+/// `KnownOpenAIEmbedder`.
 ///
 /// Catalog: https://developers.openai.com/api/docs/models
 /// Retirements: https://developers.openai.com/api/docs/deprecations
