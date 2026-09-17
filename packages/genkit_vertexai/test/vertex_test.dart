@@ -90,6 +90,24 @@ void main() {
       expect(mockClient.closed, isFalse);
     });
 
+    test('generate does not close the injected client', () async {
+      final mockClient = MockHttpClient();
+      final model = pluginWith(mockClient).resolve(.model, 'gemini-2.5-pro')!;
+
+      await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+        ),
+      );
+
+      expect(mockClient.closed, isFalse);
+    });
+
     test('embedder does not close the injected client', () async {
       final mockClient = MockHttpClient();
       final embedder =
