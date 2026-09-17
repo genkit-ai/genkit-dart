@@ -1,3 +1,7 @@
+## 0.3.2-wip
+
+ - Raise the anthropic_sdk_dart floor to 8.0.0, for the typed thinking input blocks.
+
 ## 0.3.1
 
  - updated internal dependencies.

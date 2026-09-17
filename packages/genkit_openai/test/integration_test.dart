@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
@@ -126,6 +127,37 @@ void main() {
       expect(hasContent, isTrue);
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
+    test('a schema-less tool round-trips', () async {
+      // The counterpart to the test above, which declares an inputSchema. A
+      // tool without one has to reach OpenAI as a valid empty object schema;
+      // this only fails against the real API, which is why it lives here.
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+      var toolRan = false;
+      ai.defineTool(
+        name: 'getTime',
+        description: 'Returns the current time',
+        fn: (input, ctx) async {
+          toolRan = true;
+          return .response({'time': '12:00'});
+        },
+      );
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Use the getTime tool to tell me the current time.',
+        toolNames: ['getTime'],
+      );
+
+      expect(response.message, isNotNull);
+      expect(toolRan, isTrue);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
     test('o-series tool calling executes the tool', () async {
       if (apiKey == null || apiKey.isEmpty) {
         fail(
@@ -218,6 +250,69 @@ void main() {
             ? 'OPENAI_API_KEY not set'
             : null,
       );
+
+      test(
+        'schemaless json output returns parseable JSON',
+        () async {
+          if (apiKey == null || apiKey.isEmpty) {
+            fail(
+              'OPENAI_API_KEY environment variable must be set to run integration tests',
+            );
+          }
+
+          // Without a schema Genkit adds no prompt instructions either, so
+          // before the json_object fallback nothing asked for JSON at all.
+          final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+          final response = await ai.generate(
+            model: openAI.model('gpt-4o'),
+            prompt:
+                'Return a JSON object with keys "name" and "age" for a '
+                'person named John Doe aged 30.',
+            outputFormat: 'json',
+          );
+
+          final decoded = jsonDecode(response.text) as Map<String, dynamic>;
+          expect(decoded['name'], isNotNull);
+        },
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
+      );
+
+      test(
+        'an output schema with an optional field is accepted',
+        () async {
+          if (apiKey == null || apiKey.isEmpty) {
+            fail(
+              'OPENAI_API_KEY environment variable must be set to run integration tests',
+            );
+          }
+
+          // Regression test for the old `strict: true`, which made OpenAI
+          // reject any schema whose `required` omitted a property. Only the
+          // live API can prove this; a mock cannot.
+          final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+          final response = await ai.generate(
+            model: openAI.model('gpt-4o'),
+            prompt: 'A person named John Doe who goes by JD.',
+            outputSchema: ProfileSchema.$schema,
+          );
+
+          // Asserted field by field rather than through `output!.name`: if
+          // the model omits a field, the getter throws a TypeError inside
+          // expect() and the test reports a crash instead of the assertion
+          // that actually failed.
+          expect(response.output, isNotNull);
+          final profile = response.output!.toJson();
+          expect(profile['name'], isA<String>());
+          expect(profile['name'], isNotEmpty);
+        },
+        skip: apiKey == null || apiKey.isEmpty
+            ? 'OPENAI_API_KEY not set'
+            : null,
+      );
     });
 
     test('multi-turn conversation', () async {
@@ -283,6 +378,118 @@ void main() {
       expect(result.usage?.outputTokens, greaterThan(0));
       expect(result.usage?.totalTokens, greaterThan(0));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('resolves the key from OPENAI_API_KEY when none is passed', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // Note the bare openAI() - no apiKey, no apiKeyProvider. Every other
+      // live test passes the key explicitly, so this is the only coverage of
+      // the environment fallback actually authenticating a real request.
+      final ai = Genkit(plugins: [openAI()]);
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o-mini'),
+        prompt: 'Say "hello" and nothing else.',
+      );
+
+      expect(response.text.toLowerCase(), contains('hello'));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('discovery enriches the curated catalog', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // Offline, list() returns exactly knownChatModels. With a real key it
+      // must return strictly more than that - if it does not, discovery has
+      // silently stopped running and the offline fallback has swallowed it.
+      //
+      // Not asserted: that the merged listing contains the catalog. list()
+      // merges it in unconditionally, so that holds however discovery went.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final actions = await ai.registry.listActions();
+      final names = actions
+          .where((a) => a.actionType == .model)
+          .map((a) => a.name)
+          .toSet();
+
+      // A baseUrl withholds the catalog, so this listing is pure discovery -
+      // the only way to see what OpenAI actually serves. An empty overlap
+      // means every curated id has been renamed or retired.
+      final probe = Genkit(
+        plugins: [openAI(apiKey: apiKey, baseUrl: 'https://api.openai.com/v1')],
+      );
+      final discovered = (await probe.registry.listActions())
+          .where((a) => a.actionType == .model)
+          .map((a) => a.name)
+          .toSet();
+      await probe.shutdown();
+
+      expect(
+        discovered.intersection(
+          knownChatModels.map((id) => 'openai/$id').toSet(),
+        ),
+        isNotEmpty,
+        reason: 'no curated id is served by OpenAI any more',
+      );
+      expect(
+        names.length,
+        greaterThan(knownChatModels.length),
+        reason: 'discovery should contribute models beyond the catalog',
+      );
+
+      // Discovery must not smuggle in non-chat models.
+      expect(names.any((n) => n.contains('embedding')), isFalse);
+      expect(names.any((n) => n.contains('dall-e')), isFalse);
+
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('embeds documents and honours the dimensions option', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+      final documents = [
+        DocumentData(content: [TextPart(text: 'The cat sat on the mat.')]),
+        DocumentData(
+          content: [TextPart(text: 'Paris is the capital of France.')],
+        ),
+      ];
+
+      final full = await ai.embedMany(
+        embedder: OpenAIEmbedders.textEmbedding3Small,
+        documents: documents,
+      );
+
+      // The vector length the catalog claims, checked against the API rather
+      // than against the catalog itself.
+      expect(full, hasLength(2));
+      expect(
+        full.first.embedding,
+        hasLength(KnownOpenAIEmbedder.textEmbedding3Small.dimensions),
+      );
+
+      final shortened = await ai.embed(
+        embedder: OpenAIEmbedders.textEmbedding3Small,
+        document: documents.first,
+        options: OpenAIEmbedderOptions(dimensions: 256),
+      );
+
+      expect(shortened.single.embedding, hasLength(256));
+
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
 
@@ -296,4 +503,15 @@ abstract class $WeatherInputSchema {
 abstract class $PersonSchema {
   String get name;
   int get age;
+}
+
+/// A schema with an optional field.
+///
+/// `nickname` is nullable, so schemantic leaves it out of `required` - which
+/// is precisely what OpenAI's strict mode rejects. The plugin used to send
+/// `strict: true`, so this shape returned a 400.
+@Schema()
+abstract class $ProfileSchema {
+  String get name;
+  String? get nickname;
 }

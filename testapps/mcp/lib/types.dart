@@ -12,6 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'telemetry/telemetry_stub.dart'
-    if (dart.library.io) 'telemetry/telemetry_io.dart'
-    if (dart.library.js_interop) 'telemetry/telemetry_web.dart';
+import 'package:schemantic/schemantic.dart';
+
+part 'types.g.dart';
+
+@Schema()
+abstract class $PromptInput {
+  String get input;
+}
+
+@Schema()
+abstract class $WeatherInput {
+  @Field(description: 'the city to get the weather for')
+  String get city;
+}

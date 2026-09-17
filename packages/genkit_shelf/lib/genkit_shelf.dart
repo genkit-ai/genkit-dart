@@ -149,6 +149,11 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
 
     if (isStreaming) {
       final controller = StreamController<List<int>>();
+      // Trace/span ids are only known once the span starts, but headers must be
+      // set before the streaming Response is returned. Capture them via
+      // onTraceStart and await before building the response; the controller
+      // buffers any chunks emitted in the meantime.
+      final traceInfo = Completer<({String traceId, String spanId})>();
 
       void sendChunk(String prefix, Map<String, dynamic> payload) {
         final chunk = '$prefix ${jsonEncode(payload)}$_streamDelimiter';
@@ -161,6 +166,11 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
             input,
             context: context,
             init: init,
+            onTraceStart: ({required traceId, required spanId}) {
+              if (!traceInfo.isCompleted) {
+                traceInfo.complete((traceId: traceId, spanId: spanId));
+              }
+            },
             onChunk: (chunk) {
               sendChunk('data:', {'message': chunk});
             },
@@ -170,6 +180,11 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
             controller.close();
           })
           .catchError((Object e) {
+            // Unblock header emission if the action failed before the span
+            // started (traceInfo would otherwise never complete).
+            if (!traceInfo.isCompleted) {
+              traceInfo.complete((traceId: '', spanId: ''));
+            }
             final mapped = _toShelfError(e);
             sendChunk('error:', {
               'error': {
@@ -181,9 +196,18 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
             controller.close();
           });
 
+      final ids = await traceInfo.future;
+
       return Response.ok(
         controller.stream,
-        headers: {'Content-Type': 'text/plain', 'Cache-Control': 'no-cache'},
+        headers: {
+          'Content-Type': 'text/plain',
+          'Cache-Control': 'no-cache',
+          // Same guard as the non-stream path: omit blank ids so an
+          // uninstrumented run doesn't look like a broken exporter.
+          if (ids.traceId.isNotEmpty) 'x-genkit-trace-id': ids.traceId,
+          if (ids.spanId.isNotEmpty) 'x-genkit-span-id': ids.spanId,
+        },
         context: {'shelf.io.buffer_output': false},
       );
     } else {
@@ -194,8 +218,10 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
           jsonEncode({'result': result.result}),
           headers: {
             'Content-Type': 'application/json',
-            'x-genkit-trace-id': result.traceId,
-            'x-genkit-span-id': result.spanId,
+            // Omit trace/span headers when uninstrumented (empty ids): a blank
+            // value looks like a broken exporter to clients.
+            if (result.traceId.isNotEmpty) 'x-genkit-trace-id': result.traceId,
+            if (result.spanId.isNotEmpty) 'x-genkit-span-id': result.spanId,
           },
         );
       } catch (e) {

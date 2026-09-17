@@ -41,6 +41,27 @@ void _defineEchoModel(Genkit ai) {
   );
 }
 
+/// Registers a model that requests the `bump` tool once, then replies `done`.
+void _defineToolCallingModel(Genkit ai) {
+  ai.defineModel(
+    name: 'toolCaller',
+    fn: (request, ctx) async {
+      final toolAnswered = request.messages.any((m) => m.role == Role.tool);
+      final content = toolAnswered
+          ? <Part>[TextPart(text: 'done')]
+          : <Part>[
+              ToolRequestPart(
+                toolRequest: ToolRequest(name: 'bump', ref: 'r1', input: {}),
+              ),
+            ];
+      return ModelResponse(
+        message: Message(role: Role.model, content: content),
+        finishReason: FinishReason.stop,
+      );
+    },
+  );
+}
+
 final class _ContextRecordingStore
     implements SessionStore, SnapshotChangeNotifier {
   final InMemorySessionStore _delegate = InMemorySessionStore();
@@ -341,6 +362,68 @@ void main() {
       await chat2.send(text: 'two');
       final snapshot2 = await agent.getSnapshot(sessionId: sessionId);
       expect(snapshot2!.custom, {'count': 2});
+    });
+
+    test('send() returns the custom state written during the turn', () async {
+      final agent = ai.defineCustomAgent(
+        name: 'counter',
+        store: InMemorySessionStore(),
+        stateSchema: .map(.string(), .integer()),
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((_) => {'count': 1});
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final chat = agent.chat(sessionId: generateUuidV4());
+      final res = await chat.send(text: 'one');
+
+      final snapshot = await agent.getSnapshot(sessionId: chat.sessionId);
+      expect(snapshot?.custom, {'count': 1});
+      expect(res.state, {'count': 1});
+      expect(chat.state, {'count': 1});
+    });
+
+    test('send() and sendStream() agree on state and messages after a tool '
+        'turn', () async {
+      _defineToolCallingModel(ai);
+      ai.defineTool(
+        name: 'bump',
+        description: 'Writes to the session custom state.',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: (input, ctx) async {
+          ai.currentSession()!.updateCustom((_) => {'count': 1});
+          return .response('ok');
+        },
+      );
+      final agent = ai.defineAgent(
+        name: 'toolCounter',
+        model: modelRef('toolCaller'),
+        toolNames: ['bump'],
+        store: InMemorySessionStore(),
+      );
+
+      final sent = agent.chat(sessionId: generateUuidV4());
+      final sentRes = await sent.send(text: 'go');
+
+      final streamed = agent.chat(sessionId: generateUuidV4());
+      final turn = streamed.sendStream(text: 'go');
+      await turn.stream.drain<void>();
+      final streamedRes = await turn.response;
+
+      expect(streamedRes.state, {'count': 1});
+      expect(streamed.state, {'count': 1});
+      expect(sentRes.state, streamedRes.state);
+      expect(sent.state, streamed.state);
+      expect(sentRes.text, 'done');
+      expect(sentRes.text, streamedRes.text);
+      expect(
+        sent.messages.map((m) => m.toJson()).toList(),
+        streamed.messages.map((m) => m.toJson()).toList(),
+      );
     });
 
     test('passes context to every session store operation', () async {

@@ -53,16 +53,24 @@ void main() {
           'gemini-3.1-flash-lite',
           'gemini-3.1-flash-image',
           'gemini-3-pro-image',
+          'gemma-4-31b-it',
+          'gemma-4-26b-a4b-it',
         ]),
       );
     });
 
-    test('is derived from the enum, keyed by bare model id', () {
+    test('is derived from the enums, keyed by bare model id', () {
       expect(
         knownGeminiModels.keys,
-        unorderedEquals([for (final m in KnownGeminiModel.values) m.id]),
+        unorderedEquals([
+          for (final m in KnownGeminiModel.values) m.id,
+          for (final m in KnownGemmaModel.values) m.id,
+        ]),
       );
       for (final model in KnownGeminiModel.values) {
+        expect(knownGeminiModels[model.id]!.label, model.label);
+      }
+      for (final model in KnownGemmaModel.values) {
         expect(knownGeminiModels[model.id]!.label, model.label);
       }
     });

@@ -80,13 +80,10 @@ final class _HttpAgentTransport extends AgentTransport {
     required String url,
     String? getSnapshotUrl,
     String? abortUrl,
-    HeadersResolver? headers,
+    this._headers,
     AgentStateManagement? stateManagement,
     http.Client? httpClient,
-  }) : _headers = headers,
-       // Track ownership: only close a client we created. A caller-passed
-       // client stays caller-owned and must not be closed by us.
-       _ownsClient = httpClient == null,
+  }) : _ownsClient = httpClient == null,
        _httpClient = httpClient ?? http.Client() {
     this.stateManagement = stateManagement;
 
@@ -219,22 +216,6 @@ final class _HttpAgentTransport extends AgentTransport {
     }();
 
     return (stream: controller.stream, output: outputCompleter.future);
-  }
-
-  @override
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) {
-    _rejectContext(context);
-
-    // Opt out of the non-streaming fast path: `send()` should always run the
-    // turn over the streaming transport and drain the stream so a server-managed
-    // agent's `customPatch` chunks are applied to the chat's tracked state. The
-    // turn output is still available via [runTurn]'s `output` future.
-    return null;
   }
 
   @override

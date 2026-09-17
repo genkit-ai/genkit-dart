@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
@@ -132,37 +131,5 @@ void main() {
         await ai.shutdown();
       },
     );
-  });
-
-  group('live', () {
-    final apiKey = Platform.environment['OPENAI_API_KEY'];
-
-    test('schema-less tool round-trips against the real API', () async {
-      if (apiKey == null || apiKey.isEmpty) {
-        fail(
-          'OPENAI_API_KEY environment variable must be set to run integration tests',
-        );
-      }
-
-      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
-      var toolRan = false;
-      ai.defineTool(
-        name: 'getTime',
-        description: 'Returns the current time',
-        fn: (input, ctx) async {
-          toolRan = true;
-          return .response({'time': '12:00'});
-        },
-      );
-
-      final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
-        prompt: 'Use the getTime tool to tell me the current time.',
-        toolNames: ['getTime'],
-      );
-
-      expect(response.message, isNotNull);
-      expect(toolRan, isTrue);
-    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }

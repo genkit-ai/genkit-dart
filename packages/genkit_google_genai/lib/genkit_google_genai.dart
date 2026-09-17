@@ -33,6 +33,13 @@ class GoogleGenAiPluginHandle {
     return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
   }
 
+  /// A [ModelRef] for the Gemma model [name] served by the Gemini API.
+  ///
+  /// An alias of [gemini] that reads correctly at Gemma call sites. Should
+  /// Gemma ever gain an options schema of its own, the options type here
+  /// narrows to it, which is a breaking change for callers.
+  ModelRef<GeminiOptions> gemma(String name) => gemini(name);
+
   EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
       'googleai/$name',
@@ -41,10 +48,12 @@ class GoogleGenAiPluginHandle {
   }
 }
 
-/// Typed [ModelRef]s for the Gemini models curated by the googleai plugin.
+/// Typed [ModelRef]s for the Gemini and Gemma models curated by the googleai
+/// plugin.
 ///
-/// Each entry is equivalent to `googleAI.gemini('<name>')`, which remains the
-/// escape hatch for models not listed here.
+/// Each entry is equivalent to `googleAI.gemini('<name>')` or
+/// `googleAI.gemma('<name>')`, which remain the escape hatch for models not
+/// listed here.
 abstract final class GoogleAiModels {
   static final ModelRef<GeminiOptions> gemini35Flash = googleAI.gemini(
     KnownGeminiModel.gemini35Flash.id,
@@ -60,5 +69,13 @@ abstract final class GoogleAiModels {
 
   static final ModelRef<GeminiOptions> gemini3ProImage = googleAI.gemini(
     KnownGeminiModel.gemini3ProImage.id,
+  );
+
+  static final ModelRef<GeminiOptions> gemma431b = googleAI.gemma(
+    KnownGemmaModel.gemma431b.id,
+  );
+
+  static final ModelRef<GeminiOptions> gemma426bA4b = googleAI.gemma(
+    KnownGemmaModel.gemma426bA4b.id,
   );
 }

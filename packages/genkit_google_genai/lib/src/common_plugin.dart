@@ -323,6 +323,7 @@ gcl.GenerationConfig toGeminiSettings(
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
+    seed: options.seed,
     responseMimeType: isJsonMode
         ? 'application/json'
         : (options.responseMimeType?.isEmpty ?? true
@@ -363,6 +364,7 @@ gcl.GenerationConfig toGeminiTtsSettings(
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
+    seed: options.seed,
     responseMimeType: isJsonMode
         ? 'application/json'
         : (options.responseMimeType?.isEmpty ?? true

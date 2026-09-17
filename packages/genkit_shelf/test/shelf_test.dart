@@ -17,6 +17,9 @@ import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
+// resetInstrumentation is test-only and not part of the public telemetry API.
+import 'package:genkit/src/o11y/instrumentation.dart' show resetInstrumentation;
+import 'package:genkit/telemetry.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
@@ -35,6 +38,35 @@ abstract class $ShelfTestStream {
   String get chunk;
 }
 
+/// Minimal [Instrumentation] that hands out fixed trace/span ids, so tests can
+/// assert the shelf handler surfaces them as `x-genkit-*` headers.
+class _FakeInstrumentation implements Instrumentation {
+  final String traceId;
+  final String spanId;
+
+  _FakeInstrumentation({required this.traceId, required this.spanId});
+
+  @override
+  Future<O> runInNewSpan<O>(
+    SpanMetadata metadata,
+    Future<O> Function([SpanContext? span]) next,
+  ) {
+    return next(_FakeSpanContext(traceId, spanId));
+  }
+}
+
+class _FakeSpanContext implements SpanContext {
+  @override
+  final String traceId;
+  @override
+  final String spanId;
+
+  _FakeSpanContext(this.traceId, this.spanId);
+
+  @override
+  void setMetadata(Map<String, Object?> metadata) {}
+}
+
 void main() {
   late Genkit ai;
   HttpServer? server;
@@ -46,6 +78,7 @@ void main() {
 
   tearDown(() async {
     await server?.close(force: true);
+    resetInstrumentation();
   });
 
   test('Unary flow', () async {
@@ -507,6 +540,74 @@ void main() {
       lessThan(80),
       reason: 'First chunk should arrive quickly',
     );
+  });
+
+  test(
+    'Streaming flow surfaces trace/span headers when instrumented',
+    () async {
+      configureInstrumentation(
+        _FakeInstrumentation(traceId: 'trace-abc', spanId: 'span-xyz'),
+      );
+
+      final streamFlow = ai.defineFlow(
+        name: 'streamTraced',
+        fn: (input, ctx) async {
+          ctx.sendChunk('Chunk 1');
+          return 'Done';
+        },
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
+
+      server = await startFlowServer(flows: [streamFlow], port: 0);
+      port = server!.port;
+
+      final client = http.Client();
+      final request = http.Request(
+        'POST',
+        Uri.parse('http://localhost:$port/streamTraced?stream=true'),
+      );
+      request.headers['Content-Type'] = 'application/json';
+      request.body = '{"data": "start"}';
+
+      final response = await client.send(request);
+      // Drain the stream so the server can complete cleanly.
+      await response.stream.drain<void>();
+
+      expect(response.headers['x-genkit-trace-id'], 'trace-abc');
+      expect(response.headers['x-genkit-span-id'], 'span-xyz');
+    },
+  );
+
+  test('Streaming flow omits trace headers when uninstrumented', () async {
+    final streamFlow = ai.defineFlow(
+      name: 'streamUntraced',
+      fn: (input, ctx) async {
+        ctx.sendChunk('Chunk 1');
+        return 'Done';
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
+    );
+
+    server = await startFlowServer(flows: [streamFlow], port: 0);
+    port = server!.port;
+
+    final client = http.Client();
+    final request = http.Request(
+      'POST',
+      Uri.parse('http://localhost:$port/streamUntraced?stream=true'),
+    );
+    request.headers['Content-Type'] = 'application/json';
+    request.body = '{"data": "start"}';
+
+    final response = await client.send(request);
+    await response.stream.drain<void>();
+
+    expect(response.headers.containsKey('x-genkit-trace-id'), isFalse);
+    expect(response.headers.containsKey('x-genkit-span-id'), isFalse);
   });
 
   test('Remote model', () async {
