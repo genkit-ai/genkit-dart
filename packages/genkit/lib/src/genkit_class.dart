@@ -168,35 +168,6 @@ final class Genkit extends GenkitAI {
     return flow;
   }
 
-  /// Defines a bi-directional Genkit flow.
-  Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({
-    required String name,
-    required BidiActionFn<Input, Output, Chunk, Init> fn,
-    SchemanticType<Input>? inputSchema,
-    SchemanticType<Output>? outputSchema,
-    SchemanticType<Chunk>? streamSchema,
-    SchemanticType<Init>? initSchema,
-  }) {
-    final flow = Flow(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi flow $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
-      },
-      inputSchema: inputSchema,
-      outputSchema: outputSchema,
-      streamSchema: streamSchema,
-      initSchema: initSchema,
-    );
-    registry.register(flow);
-    return flow;
-  }
-
   /// Defines an AI tool (function) that can be invoked by a model.
   Tool<Input, Output> defineTool<Input, Output>({
     required String name,
