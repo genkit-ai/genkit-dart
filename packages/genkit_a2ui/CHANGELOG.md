@@ -1,3 +1,11 @@
+## 0.3.0-rc.1
+
+### Breaking Changes
+
+ - graceful `failed` responses (model + tool errors) + rerunnable failed snapshots (#413)
+ - add cancellation support for action calls and generate API (#397)
+
+
 ## 0.2.2
 
  - updated internal dependencies.

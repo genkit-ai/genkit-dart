@@ -1,3 +1,15 @@
+## 0.7.0-rc.1
+
+### Breaking Changes
+
+ - move agent APIs behind experimental imports (#450)
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - async sub-agents and task continuation for agents middleware (#417)
+
+
 ## 0.6.1
 
  - updated internal dependencies.

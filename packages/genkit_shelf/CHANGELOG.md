@@ -1,3 +1,10 @@
+## 0.2.0-rc.1
+
+### Breaking Changes
+
+ - introduce pluggable instrumentation provider system (#348)
+
+
 ## 0.1.13
 
  - updated internal dependencies.

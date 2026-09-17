@@ -1,3 +1,25 @@
+## 0.17.0-rc.1
+
+### Breaking Changes
+
+ - move agent APIs behind experimental imports (#450)
+ - run agent send() over the streaming transport (#457)
+ - close DAP feature gaps (traces, metadata, registry, reflection) (#432)
+ - introduce pluggable instrumentation provider system (#348)
+ - graceful `failed` responses (model + tool errors) + rerunnable failed snapshots (#413)
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - tag ai.run and agent runTurn spans with action type (#445)
+ - support metadataOnly snapshot reads (#416)
+ - `aborting` snapshot status + rerunnable aborted snapshots (Go parity) (#411)
+
+### Fixes
+
+ - read genkit dev-mode config from dart-defines on io (#442)
+
+
 ## 0.16.1
 
 ### Features

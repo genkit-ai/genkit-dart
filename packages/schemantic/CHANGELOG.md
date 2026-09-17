@@ -1,3 +1,7 @@
+## 0.2.3-rc.1
+
+ - updated internal dependencies.
+
 ## 0.2.2
 
 ### Fixes

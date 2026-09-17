@@ -1,3 +1,25 @@
+## 0.5.0-rc.1
+
+### Breaking Changes
+
+ - send json_object for schemaless JSON output (#415)
+ - curated model catalog and typed refs (#422)
+ - graceful `failed` responses (model + tool errors) + rerunnable failed snapshots (#413)
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - ship embedders with a curated per-model catalog (#429)
+
+### Fixes
+
+ - do not require network or an API key at startup (#414)
+
+### Other Changes
+
+ - cover the OpenAI-compatible path with a fake host (#419)
+
+
 ## 0.4.1
 
  - updated internal dependencies.

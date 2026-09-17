@@ -1,3 +1,10 @@
+## 0.3.2-rc.1
+
+### Features
+
+ - curate and discover Gemma models (#438)
+
+
 ## 0.3.1
 
  - updated internal dependencies.
