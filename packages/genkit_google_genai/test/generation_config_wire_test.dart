@@ -196,6 +196,19 @@ void main() {
       expect(config['responseJsonSchema'], _schema);
     });
 
+    test('seed in config reaches the wire', () async {
+      final config = await _generationConfigOnTheWire(config: {'seed': 42});
+      expect(config['seed'], 42);
+    });
+
+    test('TTS model seed in config reaches the wire', () async {
+      final config = await _generationConfigOnTheWire(
+        model: 'gemini-2.5-flash-preview-tts',
+        config: {'seed': 42},
+      );
+      expect(config['seed'], 42);
+    });
+
     test('full Genkit generate with outputSchema sends schema and '
         'application/json', () async {
       final captured = <Map<String, dynamic>>[];
