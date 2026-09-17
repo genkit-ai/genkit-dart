@@ -25,7 +25,7 @@ List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
       .whereType<Map>()
       .where((modelMap) {
         final name = modelMap['name'] as String?;
-        return name != null && name.contains('embedding');
+        return name != null && google.isEmbedderModelName(name);
       })
       .map((modelMap) {
         final modelName = (modelMap['name'] as String).split('/').last;
