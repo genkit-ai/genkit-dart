@@ -1096,16 +1096,6 @@ final class _InProcessTransport extends AgentTransport {
   }
 
   @override
-  Future<AgentOutput>? run(
-    AgentInput input,
-    AgentInit init, {
-    CancellationToken? cancel,
-    Map<String, dynamic>? context,
-  }) {
-    return _startBidi(input, init, context: context, cancel: cancel).onResult;
-  }
-
-  @override
   Future<SessionSnapshot?> getSnapshot({
     String? snapshotId,
     String? sessionId,
