@@ -84,7 +84,7 @@ base class WorkspaceFile {
     if (value == null) {
       _json.remove('children');
     } else {
-      _json['children'] = value.toList();
+      _json['children'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -151,7 +151,7 @@ base class ListWorkspaceFilesOutput {
   }
 
   set files(List<WorkspaceFile> value) {
-    _json['files'] = value.toList();
+    _json['files'] = value.map((e) => e.toJson()).toList();
   }
 
   @override

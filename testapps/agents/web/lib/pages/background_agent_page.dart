@@ -18,6 +18,12 @@
 /// via `chat.detach(...)`, which returns immediately with a snapshotId. The
 /// page then polls the task status (pending → completed/failed/aborted/expired)
 /// and renders the final report. An "Abort" button cancels the running task.
+///
+/// The agent researches the report one section at a time (each a
+/// `research_section` tool round), so an abort lands mid-loop. The aborted
+/// snapshot preserves the sections researched so far (its intermediate
+/// last-good state), and "Continue" resumes from that snapshot via
+/// `chat(snapshotId: ...).detach(...)` instead of restarting from scratch.
 library;
 
 import 'package:genkit/client.dart';
@@ -43,6 +49,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
   String _status = '';
   String? _snapshotId;
   String _report = '';
+  List<String> _sections = const [];
   String? _error;
   int _polls = 0;
   int _formKey = 0;
@@ -55,6 +62,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
       _running = true;
       _status = 'pending';
       _report = '';
+      _sections = const [];
       _error = null;
       _polls = 0;
       _snapshotId = null;
@@ -62,37 +70,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
 
     try {
       final task = await _agent.chat().detach(text: topic);
-      setState(() {
-        _task = task;
-        _snapshotId = task.snapshotId;
-      });
-
-      await for (final snap in task.poll(
-        interval: const Duration(milliseconds: 1500),
-      )) {
-        setState(() {
-          _polls++;
-          _status = snap.status?.value ?? 'pending';
-          final messages = snap.messages;
-
-          if (messages.isNotEmpty) {
-            _report = messages.last.content
-                .map((part) => part.text ?? '')
-                .join();
-          }
-        });
-      }
-
-      // The poll stream completed without producing a report — the worker
-      // likely stopped heartbeating.
-      if (mounted && _report.isEmpty && _status == 'pending') {
-        setState(() {
-          _status = 'expired';
-          _error =
-              'The background worker stopped responding before producing a '
-              'report.';
-        });
-      }
+      await _pollTask(task);
     } catch (e) {
       setState(() {
         _status = 'failed';
@@ -101,6 +79,102 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
     } finally {
       setState(() => _running = false);
     }
+  }
+
+  /// Resumes a previously aborted run from its snapshot. The aborted snapshot
+  /// carries the sections researched before the abort, so the agent continues
+  /// from there rather than starting over.
+  Future<void> _continue() async {
+    final id = _snapshotId;
+    if (id == null || _running) return;
+    setState(() {
+      _running = true;
+      _status = 'pending';
+      _error = null;
+      _polls = 0;
+    });
+
+    try {
+      final task = await _agent
+          .chat(snapshotId: id)
+          .detach(
+            text:
+                'Continue the research from where you left off: research any '
+                'remaining sections, then write the final report.',
+          );
+      await _pollTask(task);
+    } catch (e) {
+      setState(() {
+        _status = 'failed';
+        _error = '$e';
+      });
+    } finally {
+      setState(() => _running = false);
+    }
+  }
+
+  /// Polls [task] to a terminal state, projecting each snapshot's message
+  /// history into a live section checklist plus the final report text.
+  Future<void> _pollTask(DetachedTask task) async {
+    setState(() {
+      _task = task;
+      _snapshotId = task.snapshotId;
+    });
+
+    await for (final snap in task.poll(
+      interval: const Duration(milliseconds: 1500),
+    )) {
+      setState(() {
+        _polls++;
+        _status = snap.status?.value ?? 'pending';
+        _sections = _researchedSections(snap.messages);
+        _report = _finalReport(snap.messages);
+        // A continue turn reserves a fresh snapshot id; track it so a
+        // subsequent abort/continue targets the latest one.
+        _snapshotId = snap.snapshotId;
+      });
+    }
+
+    // The poll stream completed without producing a report — the worker likely
+    // stopped heartbeating.
+    if (mounted && _report.isEmpty && _status == 'pending') {
+      setState(() {
+        _status = 'expired';
+        _error =
+            'The background worker stopped responding before producing a '
+            'report.';
+      });
+    }
+  }
+
+  /// Names of the sections researched so far, in order, from `research_section`
+  /// tool requests in the model turns.
+  List<String> _researchedSections(List<Message> messages) {
+    final sections = <String>[];
+    for (final message in messages) {
+      if (message.role != Role.model) continue;
+      for (final part in message.content) {
+        final req = part.toolRequest;
+        if (req?.name != 'research_section') continue;
+        final input = req!.input;
+        final section = input is Map ? input['section']?.toString() : null;
+        if (section != null && section.isNotEmpty) sections.add(section);
+      }
+    }
+    return sections;
+  }
+
+  /// The final markdown report: the last model message that is plain text (no
+  /// tool requests). Empty until the agent finishes researching and writes it.
+  String _finalReport(List<Message> messages) {
+    for (final message in messages.reversed) {
+      if (message.role != Role.model) continue;
+      final hasToolRequest = message.content.any((p) => p.toolRequest != null);
+      if (hasToolRequest) continue;
+      final text = message.content.map((p) => p.text ?? '').join();
+      if (text.trim().isNotEmpty) return text;
+    }
+    return '';
   }
 
   Future<void> _abort() async {
@@ -117,6 +191,7 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
       _status = '';
       _snapshotId = null;
       _report = '';
+      _sections = const [];
       _error = null;
       _polls = 0;
       _task = null;
@@ -147,8 +222,9 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
           ]),
           span(classes: 'chat-desc', [
             .text(
-              'Submit a research topic; the server processes it in the '
-              'background and the page polls until done.',
+              'Submit a research topic; the server researches it section by '
+              'section in the background and the page polls until done. Abort '
+              'mid-run, then continue from where it stopped.',
             ),
           ]),
         ]),
@@ -202,22 +278,51 @@ class _BackgroundAgentPageState extends State<BackgroundAgentPage> {
           h3([.text('Working…')]),
           span(classes: 'background-status-detail', [
             .text(
-              'The server is generating your report. This page polls for '
-              'status updates every couple of seconds.',
+              'The server is researching your report section by section. This '
+              'page polls for status updates every couple of seconds.',
             ),
           ]),
         ]),
+      if (_sections.isNotEmpty) _sectionChecklist(),
       if (_error != null) p(classes: 'background-error', [.text(_error!)]),
       if (_report.isNotEmpty)
         div(classes: 'background-report', [markdownBlock(_report)]),
-      if (_isTerminal)
-        div(classes: 'background-form', [
-          button(
-            [.text(_status == 'completed' ? '📄 New Report' : '🔄 Try Again')],
-            classes: 'btn btn-send',
-            onClick: _reset,
-          ),
-        ]),
+      if (_isTerminal) _terminalActions(),
+    ]);
+  }
+
+  /// A live checklist of researched sections, so the intermediate progress an
+  /// aborted snapshot preserves is visible.
+  Component _sectionChecklist() {
+    final aborted = _status == 'aborted';
+    return div(classes: 'background-sections', [
+      h4([
+        .text(
+          aborted
+              ? 'Sections researched before abort (${_sections.length})'
+              : 'Sections researched (${_sections.length})',
+        ),
+      ]),
+      ul(classes: 'background-section-list', [
+        for (final section in _sections) li([.text('✅ $section')]),
+      ]),
+    ]);
+  }
+
+  Component _terminalActions() {
+    final canContinue = _status == 'aborted' && _snapshotId != null;
+    return div(classes: 'background-form', [
+      if (canContinue)
+        button(
+          [.text('▶️ Continue from where it stopped')],
+          classes: 'btn btn-send',
+          onClick: _continue,
+        ),
+      button(
+        [.text(_status == 'completed' ? '📄 New Report' : '🔄 Start Over')],
+        classes: canContinue ? 'btn btn-secondary' : 'btn btn-send',
+        onClick: _reset,
+      ),
     ]);
   }
 

@@ -118,7 +118,7 @@ base class TaskState {
   }
 
   set tasks(List<TaskItem> value) {
-    _json['tasks'] = value.toList();
+    _json['tasks'] = value.map((e) => e.toJson()).toList();
   }
 
   int get nextId {

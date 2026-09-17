@@ -166,7 +166,7 @@ base class GetAttractionsOutput {
   }
 
   set attractions(List<Attraction> value) {
-    _json['attractions'] = value.toList();
+    _json['attractions'] = value.map((e) => e.toJson()).toList();
   }
 
   @override
@@ -406,7 +406,7 @@ base class GetFlightInfoOutput {
   }
 
   set flights(List<Flight> value) {
-    _json['flights'] = value.toList();
+    _json['flights'] = value.map((e) => e.toJson()).toList();
   }
 
   @override

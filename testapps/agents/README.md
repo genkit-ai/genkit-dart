@@ -48,7 +48,7 @@ testapps/agents/
 | Weather (Stateless) | `weatherAgentStateless` | client-managed state (round-tripped) |
 | Banking (Interrupt) | `bankingAgent` | restartable tool with a conditional approval interrupt + resume |
 | Workspace Builder | `workspaceAgent` | artifact production, streamed `artifact` chunks |
-| Background (Detach) | `backgroundAgent` | `detach` + status polling + abort |
+| Background (Detach) | `backgroundAgent` | `detach` + status polling + abort; abort preserves intermediate state and Continue resumes from it |
 | Branching (Variants) | `branchingAgent` | fork a conversation from a snapshot |
 | Task Tracker | `taskAgent` | custom session state, live `customPatch` chunks |
 | Research | `researchAgent` | multi-step `defineCustomAgent`, live status |

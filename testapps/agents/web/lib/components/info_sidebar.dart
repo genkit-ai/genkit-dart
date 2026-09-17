@@ -251,17 +251,41 @@ Component backgroundSidebar() => infoSidebar([
       code([.text('snapshotId')]),
       ' immediately.',
     ]),
-    _li(['The LLM request continues running in the background on the server.']),
+    _li([
+      'The agent researches the report one section at a time (a ',
+      code([.text('research_section')]),
+      ' tool round each) in the background.',
+    ]),
     _li([
       'Client polls the ',
       code([.text('/state')]),
-      ' endpoint with the snapshotId every couple of seconds.',
+      ' endpoint with the snapshotId every couple of seconds, rendering the '
+          'sections researched so far.',
     ]),
     _li([
       'When ',
       code([.text('status')]),
       ' becomes terminal, the report is extracted from the '
           "snapshot's message history.",
+    ]),
+  ]),
+  h4([.text('Abort & Continue')]),
+  ul([
+    _li([
+      'Aborting mid-run settles the snapshot as ',
+      code([.text('aborted')]),
+      ' but records the ',
+      strong([.text('intermediate last-good state')]),
+      ' — every section finished before the abort.',
+    ]),
+    _li([
+      'Only the in-flight (cancelled) section is dropped, so the history stays '
+          'a clean resume point.',
+    ]),
+    _li([
+      'Continue resumes from the aborted snapshot with ',
+      code([.text('chat(snapshotId: ...).detach(...)')]),
+      ', so the agent picks up the remaining sections instead of restarting.',
     ]),
   ]),
   h4([.text('Status Values')]),
@@ -304,6 +328,12 @@ await for (final snap in task.poll(
   // snap.status, snap.messages
 }
 
-// Abort
-await task.abort();'''),
+// Abort mid-run
+await task.abort();
+
+// Continue from the aborted snapshot's
+// preserved (intermediate) state
+final resumed = await agent
+    .chat(snapshotId: task.snapshotId)
+    .detach(text: 'Continue...');'''),
 ]);
