@@ -1,8 +1,4 @@
-## 0.1.14-rc.2
-
- - updated internal dependencies.
-
-## 0.1.14-rc.1
+## 0.1.14
 
  - updated internal dependencies.
 

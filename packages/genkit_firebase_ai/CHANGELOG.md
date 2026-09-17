@@ -1,13 +1,9 @@
-## 0.2.2-rc.2
+## 0.2.2
 
 ### Breaking Changes
 
  - move live/bidi model surface to experimental (#461)
 
-
-## 0.2.2-rc.1
-
- - updated internal dependencies.
 
 ## 0.2.1
 

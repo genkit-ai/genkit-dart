@@ -1,10 +1,6 @@
-## 0.1.3-rc.1
+## 0.1.3
 
  - updated internal dependencies.
-
-## 0.1.3-wip
-
- - Widen analyzer version constraint to '<15.0.0'.
 
 ## 0.1.2
 

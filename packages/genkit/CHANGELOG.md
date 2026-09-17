@@ -1,14 +1,8 @@
-## 0.17.0-rc.2
+## 0.17.0
 
 ### Breaking Changes
 
  - move live/bidi model surface to experimental (#461)
-
-
-## 0.17.0-rc.1
-
-### Breaking Changes
-
  - move agent APIs behind experimental imports (#450)
  - run agent send() over the streaming transport (#457)
  - close DAP feature gaps (traces, metadata, registry, reflection) (#432)
