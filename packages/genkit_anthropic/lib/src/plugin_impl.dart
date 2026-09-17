@@ -31,6 +31,13 @@ final _logger = Logger('genkit_anthropic');
 /// entry.
 final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
 
+/// Anthropic returns 529 when the API is overloaded.
+const _overloadedStatusCode = 529;
+
+StatusCodes _statusForHttpCode(int code) => code == _overloadedStatusCode
+    ? StatusCodes.UNAVAILABLE
+    : StatusCodes.fromHttpStatus(code);
+
 /// Core Genkit plugin implementation for Anthropic Claude models.
 ///
 /// Automatically discovers available models from the Anthropic API and
@@ -197,7 +204,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
           StatusCodes? status;
           String? details;
           if (e is sdk.ApiException) {
-            status = StatusCodes.fromHttpStatus(e.statusCode);
+            status = _statusForHttpCode(e.statusCode);
             details = e.message;
           }
           throw GenkitException(
