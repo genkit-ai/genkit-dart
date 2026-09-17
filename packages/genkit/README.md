@@ -667,7 +667,7 @@ any MINOR release.
 They live behind dedicated imports so opting in is explicit:
 
 ```dart
-import 'package:genkit/experimental.dart';        // agents, sessions, snapshots
+import 'package:genkit/experimental.dart';        // agents, sessions, snapshots, live/bidi models
 import 'package:genkit/experimental_client.dart'; // browser-safe agent client
 import 'package:genkit/experimental_io.dart';     // dart:io extras (FileSessionStore)
 ```
@@ -685,8 +685,10 @@ final agent = ai.defineAgent(name: 'weather', prompt: 'You are a weather bot.');
 Experimental members are also annotated with `@experimental`, so the analyzer
 flags their use if you want a second signal beyond the import.
 
-**Currently experimental:** the agent stack (agents, sessions, snapshots) and
-the `agents()` sub-agent delegation middleware in `package:genkit_middleware`.
+**Currently experimental:** the agent stack (agents, sessions, snapshots), the
+`agents()` sub-agent delegation middleware in `package:genkit_middleware`, and
+the bidi surface (`generateBidi`, `defineBidiModel`, `BidiModel`,
+`defineBidiFlow`).
 
 **Stable surface** (covered by SemVer): `package:genkit/genkit.dart`,
 `client.dart`, `io.dart`, `lite.dart`, `plugin.dart`, and `telemetry.dart`.

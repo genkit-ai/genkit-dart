@@ -54,7 +54,7 @@ import 'utils.dart' as utils;
 /// [definePrompt], and [defineResource].
 ///
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
-/// ([generate], [generateStream], [generateBidi], [embed], [embedMany], [run]).
+/// ([generate], [generateStream], [embed], [embedMany], [run]).
 ///
 /// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
 /// environment or as a `--dart-define`, initializing [Genkit] also starts a
@@ -158,35 +158,6 @@ final class Genkit extends GenkitAI {
           throw ArgumentError('Flow "$name" requires a non-null input.');
         }
         return fn(input as Input, context);
-      },
-      inputSchema: inputSchema,
-      outputSchema: outputSchema,
-      streamSchema: streamSchema,
-      initSchema: initSchema,
-    );
-    registry.register(flow);
-    return flow;
-  }
-
-  /// Defines a bi-directional Genkit flow.
-  Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({
-    required String name,
-    required BidiActionFn<Input, Output, Chunk, Init> fn,
-    SchemanticType<Input>? inputSchema,
-    SchemanticType<Output>? outputSchema,
-    SchemanticType<Chunk>? streamSchema,
-    SchemanticType<Init>? initSchema,
-  }) {
-    final flow = Flow(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi flow $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
       },
       inputSchema: inputSchema,
       outputSchema: outputSchema,
@@ -459,33 +430,6 @@ final class Genkit extends GenkitAI {
       name: name,
       fn: (input, context) {
         return fn(input!, context);
-      },
-    );
-    registry.register(model);
-    return model;
-  }
-
-  /// Defines a bi-directional AI model interface.
-  BidiModel defineBidiModel({
-    required String name,
-    required BidiActionFn<
-      ModelRequest,
-      ModelResponse,
-      ModelResponseChunk,
-      ModelRequest
-    >
-    fn,
-  }) {
-    final model = BidiModel(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi model $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
       },
     );
     registry.register(model);

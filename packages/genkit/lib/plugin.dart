@@ -34,8 +34,11 @@ export 'package:genkit/src/ai/generate_middleware.dart'
 export 'package:genkit/src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
 export 'package:genkit/src/ai/interrupt.dart' show ToolInterruptException;
+// BidiModel / bidiModelRef live in the experimental surface
+// (`package:genkit/experimental.dart`); plugin authors implementing live
+// (bidi) models import that alongside this library.
 export 'package:genkit/src/ai/model.dart'
-    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
+    show Model, ModelRef, modelMetadata, modelRef;
 export 'package:genkit/src/ai/tool.dart'
     show
         Tool,

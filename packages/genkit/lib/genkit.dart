@@ -31,7 +31,6 @@ export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 
 export 'src/ai/formatters/types.dart';
-export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
@@ -45,8 +44,9 @@ export 'src/ai/generate_types.dart'
 export 'src/ai/interrupt.dart' show ToolInterruptException;
 export 'src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
-export 'src/ai/model.dart'
-    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
+// BidiModel / bidiModelRef live in the experimental surface
+// (`package:genkit/experimental.dart`) alongside generateBidi.
+export 'src/ai/model.dart' show Model, ModelRef, modelMetadata, modelRef;
 export 'src/ai/prompt.dart'
     show
         ExecutablePrompt,
