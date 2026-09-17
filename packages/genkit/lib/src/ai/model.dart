@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
@@ -116,6 +117,8 @@ ActionMetadata modelMetadata(
   );
 }
 
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 BidiModelRef<CustomOptions> bidiModelRef<CustomOptions>(
   String name, {
   SchemanticType<CustomOptions>? customOptions,
@@ -123,6 +126,8 @@ BidiModelRef<CustomOptions> bidiModelRef<CustomOptions>(
   return _BidiModelRef<CustomOptions>(name, customOptions);
 }
 
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 abstract class BidiModelRef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get customOptions;
@@ -137,6 +142,8 @@ class _BidiModelRef<CustomOptions> implements BidiModelRef<CustomOptions> {
   _BidiModelRef(this.name, this.customOptions);
 }
 
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 class BidiModel<CustomOptions>
     extends
         Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
