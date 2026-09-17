@@ -43,10 +43,11 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,
   ]) async {
+    final injected = httpClient;
     return GenerativeLanguageBaseClient(
       baseUrl: 'https://generativelanguage.googleapis.com/',
-      client: httpClient != null
-          ? NonClosingClient(httpClient!)
+      client: injected != null
+          ? NonClosingClient(injected)
           : httpClientFromApiKey(requestApiKey ?? apiKey),
     );
   }
