@@ -61,21 +61,10 @@ Model remoteModel({
         return await remoteAction(input: request, headers: resolvedHeaders);
       },
     )
-    ..metadata.addAll(
-      modelMetadata(
-        name,
-        modelInfo:
-            modelInfo ??
-            ModelInfo(
-              supports: {
-                'multiturn': true,
-                'media': true,
-                'tools': true,
-                'toolChoice': true,
-                'systemRole': true,
-                'constrained': true,
-              },
-            ),
-      ).metadata,
-    );
+    // No local fallback: a caller that omits [modelInfo] gets `modelMetadata`'s
+    // undeclared-model defaults, which withhold `constrained` so the remote
+    // model is simulated for rather than sent a schema it never claimed to
+    // honour. The remote endpoint is a model action, so its own generate loop
+    // — and any fallback in it — never runs for this call.
+    ..metadata.addAll(modelMetadata(name, modelInfo: modelInfo).metadata);
 }

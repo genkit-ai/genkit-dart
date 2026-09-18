@@ -28,6 +28,7 @@ import 'formatters/formatters.dart';
 import 'generate_middleware.dart';
 import 'generate_types.dart';
 import 'interrupt.dart';
+import 'middleware/simulate_constrained_generation.dart';
 import 'model.dart';
 import 'tool.dart';
 import 'tool_resolution.dart';
@@ -119,6 +120,17 @@ void _assertValidToolNames(Iterable<Tool> tools) {
 /// Model providers can extend this class to provide their own configuration
 /// options.
 abstract class GenerateConfig {}
+
+/// [model]'s declared `supports.constrained`, or null when it declares none.
+///
+/// The same value the reflection API serialises for the Dev UI. Whether it
+/// means simulation is [needsConstrainedSimulation]'s call, made against the
+/// request that actually reaches the middleware rather than this one.
+Object? _declaredConstrained(Model model) {
+  final modelMeta = model.metadata['model'];
+  final supports = modelMeta is Map ? modelMeta['supports'] : null;
+  return supports is Map ? supports['constrained'] : null;
+}
 
 ({List<GenerateMiddleware> middleware, Registry registry}) _resolveMiddleware(
   Registry registry,
@@ -548,7 +560,19 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  final composedModel = resolvedMiddleware.reversed.fold(
+  // Appended rather than prepended, so it is the last hop before the model:
+  // caller middleware observes the request the caller actually made, schema
+  // and all, and only the plugin sees the stripped one. Always installed, and
+  // it decides for itself once it sees the request — middleware ahead of it
+  // can add the schema or the tools the decision turns on.
+  final modelMiddleware = [
+    ...resolvedMiddleware,
+    SimulateConstrainedGenerationMiddleware(
+      constrained: _declaredConstrained(model),
+    ),
+  ];
+
+  final composedModel = modelMiddleware.reversed.fold(
     coreModel,
     (next, mw) =>
         (r, c) => mw.model(r, c, next),

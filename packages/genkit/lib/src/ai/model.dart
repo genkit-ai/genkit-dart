@@ -84,6 +84,29 @@ class Model<CustomOptions>
   }
 }
 
+/// Capability metadata for a model that supplied none.
+///
+/// The chat capabilities are assumed because a model registered through a
+/// plugin that says nothing is overwhelmingly a chat model, and the cost of
+/// assuming wrong is a request the provider rejects on its own terms.
+///
+/// `constrained` is deliberately absent rather than `true`. It is the one
+/// entry `generate` acts on: a model that does not claim native constrained
+/// generation has it simulated for it instead (see
+/// `middleware/simulate_constrained_generation.dart`). Claiming it here would
+/// opt every undeclared model out of that fallback on the strength of a
+/// default nobody wrote, which is the failure the fallback exists to prevent.
+ModelInfo _unclaimedModelInfo(String name) => ModelInfo(
+  label: name,
+  supports: const {
+    'multiturn': true,
+    'media': true,
+    'tools': true,
+    'toolChoice': true,
+    'systemRole': true,
+  },
+);
+
 ActionMetadata modelMetadata(
   String name, {
   ModelInfo? modelInfo,
@@ -97,19 +120,7 @@ ActionMetadata modelMetadata(
       'label': name,
       'description': name,
       'model': {
-        ...(modelInfo ??
-                ModelInfo(
-                  label: name,
-                  supports: {
-                    'multiturn': true,
-                    'media': true,
-                    'tools': true,
-                    'toolChoice': true,
-                    'systemRole': true,
-                    'constrained': true,
-                  },
-                ))
-            .toJson(),
+        ...(modelInfo ?? _unclaimedModelInfo(name)).toJson(),
         if (customOptions != null)
           'customOptions': toJsonSchema(type: customOptions, useRefs: false),
       },
