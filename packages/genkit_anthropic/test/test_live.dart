@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_anthropic/genkit_anthropic.dart';
+import 'package:genkit_anthropic/src/known_models.dart';
 import 'package:genkit_anthropic/src/plugin_impl.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -96,6 +97,52 @@ void main() {
       expect(response.output!.name, 'John Doe');
       expect(response.output!.age, 30);
     });
+
+    // Any real model absent from [KnownClaudeModel] works here; it is swapped
+    // freely as Anthropic's catalog moves. The test asserts that premise
+    // rather than trusting it, because a name that quietly became curated
+    // would leave this exercising the native path and still passing.
+    const uncuratedModel = 'claude-3-5-haiku-latest';
+
+    test('simulates constrained generation for an uncurated model', () async {
+      expect(
+        knownClaudeModelFor(uncuratedModel),
+        isNull,
+        reason: '$uncuratedModel is curated now; pick another name',
+      );
+      expect(
+        plugin!.modelInfoFor(uncuratedModel).supports,
+        isNot(contains('constrained')),
+        reason: 'the fallback claims constrained support; nothing to simulate',
+      );
+
+      // No native schema reaches Anthropic: core strips it and puts the shape
+      // in the prompt, and the plugin's forced `return_output` tool is
+      // unreachable without `output.schema`. So this is the injected
+      // instructions and nothing else.
+      final response = await ai.generate(
+        model: anthropic.model(uncuratedModel),
+        prompt: 'Generate a person named John Doe, age 30',
+        outputSchema: Person.$schema,
+      );
+
+      expect(response.output, isNotNull);
+      expect(response.output!.name, 'John Doe');
+      expect(response.output!.age, 30);
+    }, timeout: Timeout(Duration(minutes: 2)));
+
+    test('streams simulated constrained generation', () async {
+      final response = ai.generateStream(
+        model: anthropic.model(uncuratedModel),
+        prompt: 'Generate a person named Jane Doe, age 25',
+        outputSchema: Person.$schema,
+      );
+
+      final finalResponse = await response.onResult;
+      expect(finalResponse.output, isNotNull);
+      expect(finalResponse.output!.name, 'Jane Doe');
+      expect(finalResponse.output!.age, 25);
+    }, timeout: Timeout(Duration(minutes: 2)));
 
     test('should stream structured output', () async {
       final response = ai.generateStream(
