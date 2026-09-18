@@ -39,6 +39,15 @@ void main() {
   // Check if API key is available
   final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
 
+  // Without this the suite still runs, and every call comes back as an empty
+  // `failed` response rather than an error - `generate` resolves model
+  // failures instead of throwing - so the whole file fails on unrelated
+  // assertions that say nothing about the missing key.
+  if (apiKey == null) {
+    print('Skipping live tests: ANTHROPIC_API_KEY is not set');
+    return;
+  }
+
   group('Anthropic Integration', () {
     late Genkit ai;
     AnthropicPluginImpl? plugin;
@@ -98,20 +107,43 @@ void main() {
       expect(response.output!.age, 30);
     });
 
-    // Any real model absent from [KnownClaudeModel] works here; it is swapped
-    // freely as Anthropic's catalog moves. The test asserts that premise
-    // rather than trusting it, because a name that quietly became curated
-    // would leave this exercising the native path and still passing.
-    const uncuratedModel = 'claude-3-5-haiku-latest';
+    // Discovered rather than hard-coded. This needs a model Anthropic still
+    // serves that is absent from [KnownClaudeModel], and a literal satisfies
+    // only the second half - names retire, and the test then fails on a 404
+    // that says nothing about constrained generation. Asking the catalog
+    // keeps both halves true as it moves.
+    String? uncuratedModel;
+    var searchedCatalog = false;
+
+    /// The cheapest live model that declares no native constrained generation,
+    /// or null when every model Anthropic serves is curated here.
+    Future<String?> findUncuratedModel() async {
+      if (searchedCatalog) return uncuratedModel;
+      searchedCatalog = true;
+
+      final names = (await plugin!.list())
+          .where((a) => a.actionType == ActionType.model)
+          .map((a) => a.name.split('/').last)
+          .where((name) => knownClaudeModelFor(name) == null)
+          .toList();
+
+      // Haiku first purely to keep the bill down; any of them exercises the
+      // same path.
+      names.sort((a, b) {
+        int rank(String n) => n.contains('haiku') ? 0 : 1;
+        return rank(a).compareTo(rank(b));
+      });
+      return uncuratedModel = names.firstOrNull;
+    }
 
     test('simulates constrained generation for an uncurated model', () async {
+      final model = await findUncuratedModel();
+      if (model == null) {
+        markTestSkipped('every live Anthropic model is curated here');
+        return;
+      }
       expect(
-        knownClaudeModelFor(uncuratedModel),
-        isNull,
-        reason: '$uncuratedModel is curated now; pick another name',
-      );
-      expect(
-        plugin!.modelInfoFor(uncuratedModel).supports,
+        plugin!.modelInfoFor(model).supports,
         isNot(contains('constrained')),
         reason: 'the fallback claims constrained support; nothing to simulate',
       );
@@ -121,25 +153,47 @@ void main() {
       // unreachable without `output.schema`. So this is the injected
       // instructions and nothing else.
       final response = await ai.generate(
-        model: anthropic.model(uncuratedModel),
+        model: anthropic.model(model),
         prompt: 'Generate a person named John Doe, age 30',
         outputSchema: Person.$schema,
       );
 
-      expect(response.output, isNotNull);
+      // The raw text is the only diagnostic worth having here: a null output
+      // means the model answered something `extractJson` could not read, and
+      // the difference between prose, a fenced block and an empty turn is the
+      // whole question.
+      expect(
+        response.output,
+        isNotNull,
+        reason:
+            'no parseable output. finishReason=${response.finishReason}, '
+            'error=${response.error}, text="${response.text}"',
+      );
       expect(response.output!.name, 'John Doe');
       expect(response.output!.age, 30);
     }, timeout: Timeout(Duration(minutes: 2)));
 
     test('streams simulated constrained generation', () async {
+      final model = await findUncuratedModel();
+      if (model == null) {
+        markTestSkipped('every live Anthropic model is curated here');
+        return;
+      }
+
       final response = ai.generateStream(
-        model: anthropic.model(uncuratedModel),
+        model: anthropic.model(model),
         prompt: 'Generate a person named Jane Doe, age 25',
         outputSchema: Person.$schema,
       );
 
       final finalResponse = await response.onResult;
-      expect(finalResponse.output, isNotNull);
+      expect(
+        finalResponse.output,
+        isNotNull,
+        reason:
+            'no parseable output. finishReason=${finalResponse.finishReason}, '
+            'error=${finalResponse.error}, text="${finalResponse.text}"',
+      );
       expect(finalResponse.output!.name, 'Jane Doe');
       expect(finalResponse.output!.age, 25);
     }, timeout: Timeout(Duration(minutes: 2)));
