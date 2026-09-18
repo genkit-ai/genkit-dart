@@ -89,23 +89,15 @@ ToolDefinition toToolDefinition(Tool tool) {
 /// options.
 abstract class GenerateConfig {}
 
-/// Whether [model] needs constrained generation simulated for [request].
+/// [model]'s declared `supports.constrained`, or null when it declares none.
 ///
-/// Reads `supports.constrained` off the resolved action's metadata, the same
-/// value the reflection API serialises for the Dev UI. A model that declares
-/// nothing is treated as having no native support, matching JS: the claim has
-/// to be made to be believed, since the cost of wrongly simulating is a longer
-/// prompt while the cost of wrongly not simulating is a provider rejection.
-bool _needsConstrainedSimulation(Model model, ModelRequest request) {
-  if (request.output?.constrained != true || request.output?.schema == null) {
-    return false;
-  }
+/// The same value the reflection API serialises for the Dev UI. Whether it
+/// means simulation is [needsConstrainedSimulation]'s call, made against the
+/// request that actually reaches the middleware rather than this one.
+Object? _declaredConstrained(Model model) {
   final modelMeta = model.metadata['model'];
   final supports = modelMeta is Map ? modelMeta['supports'] : null;
-  return needsConstrainedSimulation(
-    supports is Map ? supports['constrained'] : null,
-    hasTools: request.tools?.isNotEmpty ?? false,
-  );
+  return supports is Map ? supports['constrained'] : null;
 }
 
 ({List<GenerateMiddleware> middleware, Registry registry}) _resolveMiddleware(
@@ -534,11 +526,14 @@ Future<GenerateResponseHelper> _runGenerateLoop(
 
   // Appended rather than prepended, so it is the last hop before the model:
   // caller middleware observes the request the caller actually made, schema
-  // and all, and only the plugin sees the stripped one.
+  // and all, and only the plugin sees the stripped one. Always installed, and
+  // it decides for itself once it sees the request — middleware ahead of it
+  // can add the schema or the tools the decision turns on.
   final modelMiddleware = [
     ...resolvedMiddleware,
-    if (_needsConstrainedSimulation(model, request))
-      SimulateConstrainedGenerationMiddleware(),
+    SimulateConstrainedGenerationMiddleware(
+      constrained: _declaredConstrained(model),
+    ),
   ];
 
   final composedModel = modelMiddleware.reversed.fold(

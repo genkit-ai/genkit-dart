@@ -26,11 +26,17 @@ import 'utils.dart';
 // `constrained` is load-bearing since #433: `generate` simulates constrained
 // generation for any model that does not claim it, injecting the schema as
 // prompt instructions and clearing `output.schema` before this plugin sees the
-// request. So a legacy tier reaching `buildOpenAIResponseFormat` with no schema
-// gets `json_object` rather than the `json_schema` its snapshot would reject,
-// and a current model keeps the native path. The rest of `supports` remains
-// descriptive — it changes what the Dev UI and `listActions` report, not what
-// the generate path does.
+// request. So a `*LegacySupports` tier reaching `buildOpenAIResponseFormat`
+// with no schema gets `json_object` rather than the `json_schema` its snapshot
+// would reject, and a current model keeps the native path.
+//
+// `textOnlyNoJsonSupports` is not helped by this: those snapshots reject
+// `response_format` itself, and #415 deliberately sends `json_object` to every
+// host for a schemaless JSON request. Withholding it for them is a question
+// about that decision, not this one.
+//
+// The rest of `supports` remains descriptive — it changes what the Dev UI and
+// `listActions` report, not what the generate path does.
 // See https://developers.openai.com/api/docs/guides/structured-outputs.
 
 // A const map literal rejects duplicate keys, so the shared entries cannot be

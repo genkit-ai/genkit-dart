@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart';
 import 'package:genkit/src/ai/middleware/simulate_constrained_generation.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -115,8 +116,17 @@ void main() {
       expect(needsConstrainedSimulation('no-tools', hasTools: true), isTrue);
     });
 
-    test('an unrecognised value is treated as a claim of support', () {
-      expect(needsConstrainedSimulation('sometimes', hasTools: false), isFalse);
+    test("JS's 'all' is a claim of support", () {
+      expect(needsConstrainedSimulation('all', hasTools: false), isFalse);
+      expect(needsConstrainedSimulation('all', hasTools: true), isFalse);
+    });
+
+    test('an unrecognised value is simulated for', () {
+      // Only a recognised claim counts as one. Reading a typo as support
+      // earns a provider rejection; reading it as a gap costs a longer
+      // prompt.
+      expect(needsConstrainedSimulation('sometimes', hasTools: false), isTrue);
+      expect(needsConstrainedSimulation('noTools', hasTools: false), isTrue);
     });
   });
 
@@ -220,6 +230,81 @@ void main() {
       expect(outputInstructionOf(captured), isNotNull);
       expect(captured.output?.schema, isNull);
       expect(captured.output?.format, 'json');
+    });
+  });
+
+  group('middleware added by caller middleware', () {
+    test('a schema added on the way down is still simulated for', () async {
+      genkit = Genkit(
+        plugins: [
+          _MiddlewarePlugin([
+            defineMiddleware(
+              name: 'lateSchema',
+              create: (c, ctx) => _LateSchemaMiddleware(),
+            ),
+          ]),
+        ],
+      );
+      defineCapturingModel('lateSchemaModel');
+
+      // The decision is made against the request the middleware receives, not
+      // the one `generate` first built, so a caller middleware that turns an
+      // unconstrained request into a constrained one is not skipped.
+      await genkit.generate(
+        model: modelRef('lateSchemaModel'),
+        prompt: 'Describe a person.',
+        use: [middlewareRef(name: 'lateSchema')],
+      );
+
+      expect(captured.output?.schema, isNull);
+      expect(outputInstructionOf(captured), contains('"name"'));
+    });
+  });
+
+  group('instructions the middleware cannot place', () {
+    test("a caller's own instructions do not suppress the schema", () async {
+      defineCapturingModel('customInstructions');
+
+      await genkit.generate(
+        model: modelRef('customInstructions'),
+        prompt: 'Describe a person.',
+        outputSchema: Person.$schema,
+        outputInstructions: 'Answer tersely.',
+      );
+
+      // `injectInstructions` no-ops once any output part exists, so routing
+      // through it stripped the schema and injected nothing: the model was
+      // left with the caller's wording and no description of the shape.
+      final texts = captured.messages
+          .expand((m) => m.content)
+          .where((p) => p.isText)
+          .map((p) => p.text!)
+          .join('\n');
+      expect(texts, contains('Answer tersely.'));
+      expect(texts, contains('"name"'));
+      expect(captured.output?.schema, isNull);
+    });
+
+    test('a request with nowhere to put them is left alone', () async {
+      defineCapturingModel('noTarget');
+
+      await genkit.generate(
+        model: modelRef('noTarget'),
+        messages: [
+          Message(
+            role: Role.model,
+            content: [TextPart(text: 'prior')],
+          ),
+        ],
+        outputSchema: Person.$schema,
+      );
+
+      // Instructions attach to the last system or user message, and there is
+      // neither. Stripping the schema here would leave the model with nothing
+      // at all, so the native request goes through untouched instead.
+      expect(captured.output?.schema, isNotNull);
+      expect(captured.output?.constrained, isTrue);
+      expect(outputInstructionOf(captured), isNull);
     });
   });
 
@@ -410,4 +495,50 @@ void main() {
       expect(response.output?.name, 'Ada');
     });
   });
+}
+
+/// Turns an unconstrained request into a constrained one on the way down, the
+/// way a structured-output kit would.
+class _LateSchemaMiddleware extends GenerateMiddleware {
+  @override
+  Future<ModelResponse> model(
+    ModelRequest request,
+    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    Future<ModelResponse> Function(
+      ModelRequest request,
+      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    )
+    next,
+  ) {
+    return next(
+      ModelRequest(
+        messages: request.messages,
+        config: request.config,
+        output: OutputConfig(
+          constrained: true,
+          format: 'json',
+          contentType: 'application/json',
+          schema: {
+            'type': 'object',
+            'properties': {
+              'name': {'type': 'string'},
+            },
+          },
+        ),
+      ),
+      ctx,
+    );
+  }
+}
+
+class _MiddlewarePlugin extends GenkitPlugin {
+  @override
+  String name = 'mw-plugin';
+
+  final List<GenerateMiddlewareDef> _middleware;
+
+  _MiddlewarePlugin(this._middleware);
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => _middleware;
 }

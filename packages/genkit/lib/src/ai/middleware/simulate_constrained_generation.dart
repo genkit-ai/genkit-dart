@@ -15,8 +15,8 @@
 import 'dart:convert';
 
 import '../../core/action.dart';
+import '../../schema_extensions.dart';
 import '../../types.dart';
-import '../formatters/formatters.dart';
 import '../generate_middleware.dart';
 
 /// Renders [schema] as the instructions a model is given in place of native
@@ -56,7 +56,12 @@ String simulatedConstrainedInstructions(Map<String, dynamic> schema) {
 /// Parsing is unaffected: `generate` parses the response against the format
 /// it resolved before middleware ran, so the caller still gets typed output.
 class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware {
-  SimulateConstrainedGenerationMiddleware();
+  /// The model's declared `supports.constrained`, checked against the request
+  /// as it arrives here rather than as `generate` first built it — middleware
+  /// ahead of this one can add tools or an output schema on the way down.
+  final Object? constrained;
+
+  SimulateConstrainedGenerationMiddleware({required this.constrained});
 
   @override
   Future<ModelResponse> model(
@@ -73,13 +78,24 @@ class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware {
     if (output?.constrained != true || schema == null) {
       return next(request, ctx);
     }
+    if (!needsConstrainedSimulation(
+      constrained,
+      hasTools: request.tools?.isNotEmpty ?? false,
+    )) {
+      return next(request, ctx);
+    }
 
-    // `injectInstructions` is a no-op when the conversation already carries an
-    // output instruction part, so a resumed turn does not accumulate copies.
-    final messages = injectInstructions(
-      request.messages,
-      simulatedConstrainedInstructions(schema),
-    );
+    final instructions = simulatedConstrainedInstructions(schema);
+    final messages = _withInstructions(request.messages, instructions);
+    if (messages == null) {
+      // Nowhere to put the instructions, so simulating would strip the schema
+      // and replace it with nothing — the model would be left with no
+      // description of the shape at all, which is worse than the native
+      // request this exists to avoid. Pass it through untouched instead and
+      // let the provider answer for a request the model did not claim to
+      // support.
+      return next(request, ctx);
+    }
 
     return next(
       ModelRequest(
@@ -99,18 +115,62 @@ class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware {
   }
 }
 
+/// Returns [messages] with [instructions] appended to the last system or user
+/// message, or unchanged when they are already present.
+///
+/// Deliberately not `injectInstructions`, which returns the list untouched
+/// whenever *any* output-purpose part exists. That guard cannot tell the
+/// instructions this middleware injected on an earlier turn from instructions
+/// the caller wrote themselves: the first must not be duplicated, the second
+/// does not describe the schema and must not suppress it. Matching on the
+/// rendered text distinguishes them, so a caller's own `outputInstructions`
+/// now sit alongside the schema rather than silently replacing it.
+///
+/// Returns null when there is no system or user message to append to, which
+/// the caller reads as "cannot simulate".
+List<Message>? _withInstructions(List<Message> messages, String instructions) {
+  bool carriesInstructions(Message m) =>
+      m.content.any((p) => p.isText && p.text == instructions);
+  if (messages.any(carriesInstructions)) return messages;
+
+  var targetIndex = messages.lastIndexWhere((m) => m.role == Role.system);
+  if (targetIndex < 0) {
+    targetIndex = messages.lastIndexWhere((m) => m.role == Role.user);
+  }
+  if (targetIndex < 0) return null;
+
+  final target = messages[targetIndex];
+  return [
+    ...messages.sublist(0, targetIndex),
+    Message(
+      role: target.role,
+      content: [
+        ...target.content,
+        TextPart(text: instructions, metadata: {'purpose': 'output'}),
+      ],
+      metadata: target.metadata,
+    ),
+    ...messages.sublist(targetIndex + 1),
+  ];
+}
+
 /// Whether a model declaring [constrained] under `supports` needs
 /// [SimulateConstrainedGenerationMiddleware] for a request carrying [hasTools].
 ///
-/// Mirrors JS (`js/ai/src/model.ts`): an absent value means the model makes no
-/// claim, which is read as no native support rather than as support. The
+/// Mirrors JS (`js/ai/src/model.ts`), whose value space is `true`, `'all'`,
+/// `'none'` and `'no-tools'`: an absent value means the model makes no claim,
+/// which is read as no native support rather than as support. The
 /// `'no-tools'` case describes models whose native constrained generation is
 /// mutually exclusive with tool calling, so it simulates only when the request
 /// actually carries tools.
+///
+/// Anything outside that space simulates. Only a recognised claim counts as
+/// one, so a typo like `'noTools'` costs a longer prompt rather than the
+/// provider rejection that reading it as support would earn.
 bool needsConstrainedSimulation(Object? constrained, {required bool hasTools}) {
   return switch (constrained) {
-    null || false || 'none' => true,
+    true || 'all' => false,
     'no-tools' => hasTools,
-    _ => false,
+    _ => true,
   };
 }

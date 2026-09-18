@@ -336,6 +336,11 @@ void main() {
       ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
+        // Claims native constrained generation, so the simulation fallback
+        // stays out of the way and this tests `applyFormat` alone. Without the
+        // claim the middleware appends the schema alongside these manual
+        // instructions, which is its own test.
+        info: ModelInfo(supports: {'constrained': true}),
         fn: (req, ctx) async {
           capturedRequest = req;
           return ModelResponse(
