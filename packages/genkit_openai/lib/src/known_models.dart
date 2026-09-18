@@ -23,10 +23,14 @@ import 'utils.dart';
 // them advertise no constrained generation. That is the only difference
 // between the `*Supports` presets and their `*LegacySupports` counterparts.
 //
-// Descriptive, not load-bearing: nothing in `package:genkit` reads `supports`,
-// so this changes what the Dev UI and `listActions` report, not what the
-// generate path does. The plugin sends `response_format` off the request's own
-// output config either way.
+// `constrained` is load-bearing since #433: `generate` simulates constrained
+// generation for any model that does not claim it, injecting the schema as
+// prompt instructions and clearing `output.schema` before this plugin sees the
+// request. So a legacy tier reaching `buildOpenAIResponseFormat` with no schema
+// gets `json_object` rather than the `json_schema` its snapshot would reject,
+// and a current model keeps the native path. The rest of `supports` remains
+// descriptive — it changes what the Dev UI and `listActions` report, not what
+// the generate path does.
 // See https://developers.openai.com/api/docs/guides/structured-outputs.
 
 // A const map literal rejects duplicate keys, so the shared entries cannot be
