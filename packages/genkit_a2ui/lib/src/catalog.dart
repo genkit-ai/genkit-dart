@@ -44,9 +44,6 @@ const String a2uiCatalogValueType = 'a2ui-catalog';
 /// Resolves to the bundled [basicCatalog].
 const String defaultCatalogId = 'basic';
 
-/// The literal placeholder the model is told to use for surface ids.
-const String surfaceIdPlaceholder = 'SURFACE_ID';
-
 /// The set of icon names the basic catalog's `Icon` component supports. Names
 /// outside this list render as literal text (the renderer degrades gracefully),
 /// so the prompt lists them to steer the model toward valid names. Note the
@@ -412,7 +409,7 @@ String _renderStyleTips(Set<String> has) {
     );
   }
   if (has.contains('Button')) {
-    tips.add('- Give primary buttons `variant: "primary"`.');
+    tips.add('- Give primary buttons the "primary" variant.');
   }
   return tips.isNotEmpty
       ? '\n\nMake it look good, not bland:\n${tips.join('\n')}'
@@ -429,18 +426,13 @@ String _renderExample(A2uiCatalog catalog, Set<String> has) {
 
 
 Example (a small weather card):
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${catalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "Card", "child": "body" },
-    { "id": "body", "component": "Column", "children": ["title", "temp"] },
-    { "id": "title", "component": "Text", "text": "Weather in Tokyo", "variant": "h3" },
-    { "id": "temp", "component": "Text", "text": { "path": "/temp" } }
-  ] } },
-  { "updateDataModel": { "surfaceId": "SURFACE_ID", "path": "/temp", "value": "18\u00b0C" } }
-]
-```''';
+<a2ui>
+\$/temp = "18\u00b0C"
+root = Card(body)
+body = Column([title, temp])
+title = Text("Weather in Tokyo", "h3")
+temp = Text(\$/temp)
+</a2ui>''';
   }
   // Minimal fallback: root uses whatever the catalog's first component is.
   final rootComponent = catalog.components.isNotEmpty
@@ -450,14 +442,9 @@ Example (a small weather card):
 
 
 Example (a minimal surface):
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${catalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "$rootComponent" }
-  ] } }
-]
-```''';
+<a2ui>
+root = $rootComponent()
+</a2ui>''';
 }
 
 /// The component's schema `description`, as a trailing prompt fragment.
@@ -503,50 +490,73 @@ String renderCatalogInstructions(A2uiCatalog catalog) {
 
 - Forms: input components ($inputList) do NOT send their values automatically.
   To capture what the user entered you MUST do BOTH of these:
-  1. Bind each input's `value` to a data-model path, e.g.
-     `{ "component": "TextField", "label": "Email", "value": { "path": "/email" } }`.
+  1. Bind each input's value argument to a data-model path, e.g.
+     `emailField = TextField("Email", \$/email)`.
      Typing updates the data model at that path.
-  2. On the submit `Button`, echo those same paths in
-     `action.event.context` so their current values are sent back to you, e.g.
-     `"context": { "email": { "path": "/email" }, "name": { "path": "/name" } }`.
-  Without the `{ path }` bindings and the button `context`, the action arrives
-  with an empty `context` and the entered values are lost.'''
+  2. On the submit Button, echo those same paths in the Event context, e.g.
+     `submit = Button(submitLabel, "primary", Event("submit", {email: \$/email}))`.
+  Without the \$ bindings and the button's Event context, the action arrives
+  with an empty context and the entered values are lost.'''
       : '';
 
-  return '''# Rendering UI with A2UI
+  return '''# Rendering UI with A2UI Express
 
 You can render rich, interactive UI (not just text) by emitting an A2UI surface.
 When a result is better *shown* than *told* (weather, lists, forms, comparisons,
 confirmations, anything visual or interactive), render a UI surface.
 
-To render UI, output a single fenced code block tagged `a2ui` containing a JSON
-array of A2UI envelope messages. You may still write normal prose before it.
+To render UI, output the interface using A2UI Express. You MUST surround the
+entire Express block with the sentinel tags `<a2ui>` and `</a2ui>`. You may
+still write normal prose before it. The host compiles your Express output into
+the correct protocol messages automatically.
 
 Rules:
-- The UI is an ADJACENCY LIST: a flat array of components. Build the tree using
-  string `id` references, NOT nested objects. Exactly one component MUST have
-  `id: "root"`.
-- Every component has a `component` (type name) and an `id`. Container
-  components reference their children by id via a `children` array; single-child
-  wrappers reference one `child` id.
-- Values can be literals, or a data-model binding `{ "path": "/somePath" }`.
-- Use `createSurface` first (with `catalogId`), then `updateComponents` to add
-  the component list, then optionally `updateDataModel` to set data. You may
-  combine them in one array, in order.
-- Interactive components fire an `action` with an event `name`; that name is
-  sent back to you when the user interacts, so choose meaningful names.$formsSection
-- When a user interacts with a surface (e.g. presses a button) and you respond
-  with updated UI, RE-RENDER THE WHOLE SURFACE: start again with
-  `createSurface` followed by `updateComponents`. Do not emit a bare
-  `updateDataModel`/`updateComponents` expecting a previous surface to still
-  exist.$styleSection
+1. Every statement assigns a component to a variable. Components may also be
+   nested inline inside a parent's argument list:
+     header = ComponentA("Hello", "h3")
+     root = ComponentB([header, ComponentA("inline is fine too")])
+   Variable names must start with a letter or underscore and contain only
+   letters, digits and underscores.
+2. The tree MUST have a single entry point assigned to the variable `root`.
+   Containers reference their children by variable name, never by copying the
+   child's definition.
+3. Arguments are POSITIONAL, in the order shown in the signatures below. Do not
+   write property names unless you use the keyword form (`variant="h3"`). To
+   skip an optional argument in the middle, pass `_`. Trailing optional
+   arguments may simply be omitted.
+4. Primitives: strings use `"` or `"""` (escapes: \\n, \\t, \\\\, \\"); raw strings
+   are prefixed with `r` (e.g. `r"^[0-9]+\$"`); numbers are plain (42, 3.14);
+   booleans are true/false; null is null.
+5. Lists use square brackets: [child1, child2]. Maps use braces with literal
+   keys: {title: "Overview"}.
+6. Data bindings prefix a data-model path with `\$`: absolute paths look like
+   `\$/user/firstName`, and inside a list template a relative path looks like
+   `\$firstName`.
+7. Populate the data model by assigning to an absolute path:
+   `\$/title = "Enable notifications"`. Values may be primitives, arrays or maps.
+8. Interactive components take an action built with the reserved `Event`
+   helper: `Event("refresh")` or `Event("save", {email: \$/email})`. The event
+   name is sent back to you when the user interacts, so choose meaningful
+   names.
+9. For a list generated from data, use the reserved `_template` helper and
+   define the item component separately:
+     itemList = ComponentB(_template(\$/forecast, item))
+     item = ComponentA(\$day)
+10. Validation rules are prefixed with `?`, e.g. `?required` or
+    `?regex(r"^[0-9]{5}\$", "Must be 5 digits")`. Group several in a list:
+    [?required, ?email].
+11. Arguments marked `(static)` in the signatures below MUST be inline literals;
+    they cannot take a `\$` data binding.$formsSection
+12. When a user interacts with a surface (e.g. presses a button) and you respond
+    with updated UI, RE-RENDER THE WHOLE SURFACE: emit a complete block with a
+    `root` again. Do not emit a fragment expecting a previous surface to still
+    exist.$styleSection
 
 The catalogId to use is:
 "${catalog.id}"
 
-Available components:
+Available components (use these exact positional signatures):
 $componentDocs$exampleSection
 
-Do not explain the JSON; just render the block. Use "SURFACE_ID" literally as a
-placeholder for the surface id - the system replaces it with a real id.''';
+Do not explain the Express code; just emit the block.''';
 }

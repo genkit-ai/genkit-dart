@@ -45,8 +45,9 @@ void main() {
       }
     });
 
-    test('tells the model to use the SURFACE_ID placeholder', () {
-      expect(text, contains('SURFACE_ID'));
+    test('tells the model to use the Express sentinel tags', () {
+      expect(text, contains('<a2ui>'));
+      expect(text, contains('</a2ui>'));
     });
 
     test('lists the basic icon allow-list', () {
@@ -92,7 +93,7 @@ void main() {
     });
 
     test('builds the example from a component the catalog provides', () {
-      expect(text, contains('"component": "Widget"'));
+      expect(text, contains('root = Widget()'));
     });
 
     test('still documents the custom component and catalog id', () {
@@ -109,7 +110,7 @@ void main() {
         final text = renderCatalogInstructions(empty);
         expect(text, contains('Rendering UI with A2UI'));
         // Falls back to a default root component name.
-        expect(text, contains('"component": "Text"'));
+        expect(text, contains('root = Text()'));
       },
     );
   });

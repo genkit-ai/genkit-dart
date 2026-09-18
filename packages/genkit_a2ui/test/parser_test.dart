@@ -52,16 +52,10 @@ List<String> captureWarnings(void Function() fn) {
   return (prose: prose, batches: batches);
 }
 
-final sampleBlock =
-    '''
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${basicCatalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "Text", "text": "hi" }
-  ] } }
-]
-```
+const sampleBlock = '''
+<a2ui>
+root = Text("hi")
+</a2ui>
 ''';
 
 void main() {
@@ -125,12 +119,11 @@ void main() {
         catalog: basicCatalog,
         surfaceId: fixedId,
       );
-      final r1 = parser.push('hello ```a2');
-      expect(r1.prose, isNot(contains('```a2')));
-      final result = collect(parser, [
-        'ui\n[{"createSurface":{"surfaceId":"SURFACE_ID","catalogId":"'
-            '${basicCatalog.id}"}}]\n```\n',
-      ]);
+      // The opening tag can be split across chunks, so a partial match must be
+      // held back rather than streamed out as prose.
+      final r1 = parser.push('hello <a2');
+      expect(r1.prose, isNot(contains('<a2')));
+      final result = collect(parser, ['ui>\nroot = Text("hi")\n</a2ui>\n']);
       expect(result.batches.length, 1);
     });
 
@@ -151,11 +144,9 @@ void main() {
         validate: A2uiValidateMode.strict,
       );
       final bad = '''
-```a2ui
-[{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-  { "id": "root", "component": "NotAThing" }
-] } }]
-```
+<a2ui>
+root = NotAThing()
+</a2ui>
 ''';
       expect(
         () => collect(parser, [bad]),
@@ -176,11 +167,9 @@ void main() {
         validate: A2uiValidateMode.strict,
       );
       final bad = '''
-```a2ui
-[{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-  { "id": "x", "component": "Text", "text": "hi" }
-] } }]
-```
+<a2ui>
+x = Text("hi")
+</a2ui>
 ''';
       expect(
         () => collect(parser, [bad]),
@@ -194,13 +183,13 @@ void main() {
       );
     });
 
-    test('validate:off does not throw on bad JSON', () {
+    test('validate:off does not throw on malformed Express', () {
       final parser = A2uiStreamParser(
         catalog: basicCatalog,
         surfaceId: fixedId,
         validate: A2uiValidateMode.off,
       );
-      final result = collect(parser, ['```a2ui\n{not json}\n```\n']);
+      final result = collect(parser, ['<a2ui>\nroot = Text(((\n</a2ui>\n']);
       expect(result.batches.length, 0);
     });
 
@@ -211,11 +200,9 @@ void main() {
         validate: A2uiValidateMode.warn,
       );
       final bad = '''
-```a2ui
-[{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-  { "id": "root", "component": "NotAThing" }
-] } }]
-```
+<a2ui>
+root = NotAThing()
+</a2ui>
 ''';
       final warnings = captureWarnings(() {
         final result = collect(parser, [bad]);
@@ -224,17 +211,17 @@ void main() {
       expect(warnings.any((w) => w.contains('not in catalog')), isTrue);
     });
 
-    test('validate:warn drops bad JSON without throwing', () {
+    test('validate:warn drops malformed Express without throwing', () {
       final parser = A2uiStreamParser(
         catalog: basicCatalog,
         surfaceId: fixedId,
         validate: A2uiValidateMode.warn,
       );
       final warnings = captureWarnings(() {
-        final result = collect(parser, ['```a2ui\n{not json}\n```\n']);
+        final result = collect(parser, ['<a2ui>\nroot = Text(((\n</a2ui>\n']);
         expect(result.batches.length, 0);
       });
-      expect(warnings.any((w) => w.contains('JSON')), isTrue);
+      expect(warnings.any((w) => w.contains('Express')), isTrue);
     });
 
     test('prepends a createSurface when a block only has updates', () {
@@ -243,11 +230,9 @@ void main() {
         surfaceId: fixedId,
       );
       final updateOnly = '''
-```a2ui
-[{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-  { "id": "root", "component": "Text", "text": "refreshed" }
-] } }]
-```
+<a2ui>
+root = Text("refreshed")
+</a2ui>
 ''';
       final result = collect(parser, [updateOnly]);
       expect(result.batches.length, 1);
@@ -271,91 +256,51 @@ void main() {
       expect(createCount, 1);
     });
 
-    test('does not synthesize a createSurface for an incremental update to an '
-        'explicit existing surface', () {
-      // A block whose only envelope targets a real, pre-existing surface id
-      // (one the model learned from a prior turn) is a genuine incremental
-      // update: the parser must NOT prepend a createSurface (which would reset
-      // the surface and make the client drop the update as "surface not
-      // found").
+    test('targets an explicit existing surface rather than a fresh id', () {
+      // A block naming a real, pre-existing surface id (one the model learned
+      // from a prior turn) must keep it, rather than being retargeted at the
+      // freshly-minted id - otherwise the client drops the update as "surface
+      // not found".
       final parser = A2uiStreamParser(
         catalog: basicCatalog,
         surfaceId: fixedId,
       );
       final incremental = '''
-```a2ui
-[{ "updateComponents": { "surfaceId": "existing-surface", "components": [
-  { "id": "root", "component": "Text", "text": "patched" }
-] } }]
-```
+<a2ui>
+surface("existing-surface")
+root = Text("patched")
+</a2ui>
 ''';
       final result = collect(parser, [incremental]);
-      expect(result.batches.length, 1);
-      expect(result.batches[0].length, 1, reason: 'no synthesized create');
-      final update = result.batches[0][0];
-      expect(update['updateComponents'], isNotNull);
+      final update = result.batches.single.firstWhere(
+        (e) => e['updateComponents'] != null,
+      );
       expect(
         (update['updateComponents'] as Map)['surfaceId'],
         'existing-surface',
       );
     });
 
-    test('allows a rootless incremental update to an explicit existing surface '
-        '(no root required)', () {
-      // The "must contain root" rule is a full-render protocol rule, not a
-      // catalog check. An incremental patch of an existing surface may omit
-      // root, even under strict.
+    test('keeps markdown backticks inside a Text value intact', () {
+      // Text "may use inline Markdown", so a value can legitimately contain a
+      // ``` fence. The Express sentinel tags make this a non-issue (unlike the
+      // Markdown fence they replaced, which had to be line-anchored to avoid
+      // truncating the block here).
       final parser = A2uiStreamParser(
         catalog: basicCatalog,
         surfaceId: fixedId,
-        validate: A2uiValidateMode.strict,
       );
-      final incremental = '''
-```a2ui
-[{ "updateComponents": { "surfaceId": "existing-surface", "components": [
-  { "id": "subtitle", "component": "Text", "text": "patched" }
-] } }]
-```
-''';
-      final result = collect(parser, [incremental]);
-      expect(result.batches.length, 1);
-      expect(result.batches[0].length, 1);
-      expect(result.batches[0][0]['updateComponents'], isNotNull);
+      final result = collect(parser, [
+        '<a2ui>\n',
+        'root = Text("Run ```npm test``` to check.")\n',
+        '</a2ui>\n',
+      ]);
+      expect(result.batches.length, 1, reason: 'block should not truncate');
+      final update = result.batches[0][1];
+      final components =
+          (update['updateComponents'] as Map)['components'] as List;
+      expect((components[0] as Map)['text'], contains('npm test'));
     });
-
-    test(
-      'does not treat a code fence inside a Text markdown value as the closing '
-      'fence',
-      () {
-        // Text "may use inline Markdown", so a Text value can legitimately
-        // contain a ``` fence. The closing-fence match must be anchored to line
-        // start so this does not truncate the JSON block.
-        final parser = A2uiStreamParser(
-          catalog: basicCatalog,
-          surfaceId: fixedId,
-        );
-        final withFenceInText = [
-          '```a2ui\n',
-          '[\n',
-          '  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "'
-              '${basicCatalog.id}" } },\n',
-          '  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": ['
-              '\n',
-          '    { "id": "root", "component": "Text", "text": "Run ```npm '
-              'test``` to check." }\n',
-          '  ] } }\n',
-          ']\n',
-          '```\n',
-        ].join();
-        final result = collect(parser, [withFenceInText]);
-        expect(result.batches.length, 1, reason: 'block should not truncate');
-        expect(result.batches[0].length, 2);
-        final update = result.batches[0][1];
-        final components =
-            (update['updateComponents'] as Map)['components'] as List;
-        expect((components[0] as Map)['text'], contains('npm test'));
-      },
-    );
 
     test('handles two separate blocks in one turn', () {
       final parser = A2uiStreamParser(
@@ -390,37 +335,16 @@ void main() {
       expect((segments[2] as ProseSegment).prose, contains('outro'));
     });
 
-    test('preserves open-ended top-level envelope keys', () {
+    test('stamps the protocol version on every envelope', () {
+      // Open-ended top-level keys still survive normalization (only `version`
+      // is stamped), but Express gives the model no way to author them, so the
+      // reachable behaviour is the version stamp itself.
       final parser = A2uiStreamParser(
         catalog: basicCatalog,
         surfaceId: fixedId,
       );
-      // The A2UI spec is open-ended: future/unknown top-level keys alongside a
-      // known envelope variant must survive normalization (only `version` is
-      // stamped), for parity with the other SDKs.
-      final block =
-          '''
-```a2ui
-[
-  {
-    "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${basicCatalog.id}" },
-    "traceId": "abc-123",
-    "extra": { "nested": true }
-  },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "Text", "text": "hi" }
-  ] } }
-]
-```
-''';
-      final result = collect(parser, [block]);
-      expect(result.batches.length, 1);
-      final createEnv = result.batches[0].firstWhere(
-        (e) => e['createSurface'] != null,
-      );
-      expect(createEnv['traceId'], 'abc-123');
-      expect(createEnv['extra'], {'nested': true});
-      expect(createEnv['version'], isNotNull);
+      final result = collect(parser, [sampleBlock]);
+      expect(result.batches.single.every((e) => e['version'] != null), isTrue);
     });
   });
 }
