@@ -251,5 +251,34 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('declares no constrained support unless the caller says so', () {
+      final remoteModel = ai.defineRemoteModel(
+        name: 'undeclared-remote-model',
+        url: remoteUrl,
+        httpClient: mockClient,
+      );
+
+      // The remote endpoint is a model action, so its own generate loop never
+      // runs for this call and no fallback of its own applies. Claiming
+      // constrained support here would send a schema the remote never said it
+      // honours and skip the local simulation.
+      final supports =
+          (remoteModel.metadata['model'] as Map<String, dynamic>)['supports']
+              as Map<String, dynamic>;
+      expect(supports.containsKey('constrained'), isFalse);
+
+      final declared = ai.defineRemoteModel(
+        name: 'declared-remote-model',
+        url: remoteUrl,
+        httpClient: mockClient,
+        modelInfo: ModelInfo(supports: {'constrained': true}),
+      );
+      expect(
+        ((declared.metadata['model'] as Map<String, dynamic>)['supports']
+            as Map<String, dynamic>)['constrained'],
+        isTrue,
+      );
+    });
   });
 }
