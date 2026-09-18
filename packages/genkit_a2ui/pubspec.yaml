@@ -20,6 +20,8 @@ environment:
   sdk: ^3.12.0
 
 dependencies:
+  a2ui_agent: ^0.0.1-wip004
+  a2ui_core: ^0.2.2
   genkit: ^1.0.1
   logging: ^1.3.0
   schemantic: ^1.0.0

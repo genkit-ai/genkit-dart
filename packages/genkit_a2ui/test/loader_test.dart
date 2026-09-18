@@ -15,17 +15,18 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:a2ui_agent/a2ui_agent.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:test/test.dart';
 
-final custom = const A2uiCatalog(
+final custom = A2uiCatalog.of(
   id: 'my-catalog',
   components: [
-    A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Widget',
       description: 'A widget.',
-      props: 'label: string.',
+      params: [const A2uiParam.dynamicValue('label')],
     ),
   ],
 );
@@ -97,8 +98,40 @@ void main() {
           file: file.path,
         );
         expect(result.components.length, 1);
-        expect(result.components.first.name, 'Widget');
+        expect(result.components['Widget'], isNotNull);
       });
+
+      test(
+        'loads the README example catalog and compiles against it',
+        () async {
+          // Pull the JSON block out of the README so the docs cannot drift.
+          final readme = File('README.md').readAsStringSync();
+          final json = RegExp(
+            r'### Option A[\s\S]*?```json\n([\s\S]*?)```',
+          ).firstMatch(readme)!.group(1)!;
+          final file = File('${dir.path}/my-catalog.json');
+          await file.writeAsString(json);
+
+          final result = await loadCatalog(
+            genkit,
+            id: 'my-catalog',
+            file: file.path,
+          );
+          final messages = const ExpressFormatFactory()
+              .createFormat([result.toCore()])
+              .createParser()
+              .compile('root = Banner("Disk almost full", "warning")');
+          final update = messages.last.toJson()['updateComponents'] as Map;
+          expect(update['components'], [
+            {
+              'id': 'root',
+              'component': 'Banner',
+              'title': 'Disk almost full',
+              'severity': 'warning',
+            },
+          ]);
+        },
+      );
 
       test('throws on a missing file', () async {
         await expectLater(

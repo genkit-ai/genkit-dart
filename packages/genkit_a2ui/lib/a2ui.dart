@@ -30,6 +30,8 @@ export 'src/catalog.dart'
     show
         A2uiCatalog,
         A2uiCatalogComponent,
+        A2uiCatalogFunction,
+        A2uiParam,
         a2uiCatalogValueType,
         basicCatalog,
         basicIconNames,

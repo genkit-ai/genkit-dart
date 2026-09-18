@@ -20,7 +20,7 @@
 /// inline, or load it from a JSON file.
 ///
 /// The `file` variant uses `dart:io`, so it is server-only (it is exported from
-/// the main `package:genkit_a2ui/a2ui.dart` entry, not the client entry).
+/// the main `package:genkit_a2ui/a2ui.dart` entry).
 library;
 
 import 'dart:convert';
@@ -56,10 +56,7 @@ Future<A2uiCatalog> loadCatalog(
 
   // Register under the requested id. Keep the catalog's own `id` (used as the
   // `catalogId` on surfaces) intact if present; otherwise default it to the id.
-  final registered = A2uiCatalog(
-    id: resolved.id.isNotEmpty ? resolved.id : id,
-    components: resolved.components,
-  );
+  final registered = resolved.id.isNotEmpty ? resolved : resolved.withId(id);
   ai.registry.registerValue(a2uiCatalogValueType, id, registered);
   return registered;
 }
@@ -80,9 +77,12 @@ Future<A2uiCatalog> _readCatalogFile(String file) async {
       'loadCatalog(): catalog file "$file" is not valid JSON: $e',
     );
   }
-  if (json is! Map || json['components'] is! List) {
+  // The spec's `catalog.json` keys `components` by name, so this accepts a
+  // published catalog file unmodified.
+  if (json is! Map || json['components'] is! Map) {
     throw StateError(
-      'loadCatalog(): catalog file "$file" must have a "components" array.',
+      'loadCatalog(): catalog file "$file" must have a "components" object '
+      'keyed by component name (the A2UI catalog.json shape).',
     );
   }
   return A2uiCatalog.fromJson(json.cast<String, dynamic>());

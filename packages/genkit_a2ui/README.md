@@ -297,37 +297,43 @@ register it with `loadCatalog`, and reference it by id.
 
 ### Catalog format
 
-An A2UI catalog describes the components the model is allowed to emit:
+Catalogs use the A2UI specification's
+[`catalog.json`](https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json)
+format, so a published catalog loads unmodified:
 
-- `id`: A globally unique URI identifying the catalog (used as `catalogId` on
-  `createSurface`).
-- `components`: An array of components, where each has:
-  - `name`: The component type name, matching the renderer type (for example
-    `CustomCard`, `Text`).
-  - `description`: A clear, one-line summary of what the component is and when to
-    use it.
-  - `props`: A compact, model-facing text description of its properties (kept as
-    a simple, human-readable string to minimize system prompt token usage).
+- `catalogId`: A globally unique URI identifying the catalog (used as
+  `catalogId` on `createSurface`).
+- `components`: An object keyed by component name, where each value is the
+  component's JSON Schema. The schema's `description` and property
+  descriptions are what the model sees.
+- `functions` (optional): Client functions (validation checks, formatters),
+  keyed by name.
+
+Property order matters: A2UI Express is positional, so the model writes
+`Banner("Disk almost full", "warning")` and the order of a component's
+properties decides which argument is which.
 
 ### Option A: load from a JSON file
 
-Create a JSON file (for example `./my-catalog.json`) following this format:
+Create a JSON file (for example `./my-catalog.json`):
 
 ```json
 {
-  "id": "https://my-app.org/catalogs/custom.json",
-  "components": [
-    {
-      "name": "Banner",
+  "catalogId": "https://my-app.org/catalogs/custom.json",
+  "components": {
+    "Banner": {
+      "type": "object",
       "description": "Displays a prominent alert banner at the top of a section.",
-      "props": "title: string (required); severity?: info|warning|error."
-    },
-    {
-      "name": "Text",
-      "description": "Displays a plain or inline-markdown text run.",
-      "props": "text: string (required); variant?: body|caption."
+      "properties": {
+        "component": { "const": "Banner" },
+        "title": {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+        },
+        "severity": { "type": "string", "enum": ["info", "warning", "error"] }
+      },
+      "required": ["component", "title"]
     }
-  ]
+  }
 }
 ```
 
@@ -346,23 +352,28 @@ await loadCatalog(
 
 ### Option B: in-memory definition
 
-You can construct and register an `A2uiCatalog` directly in pure Dart:
+`A2uiCatalogComponent.simple` builds the same schema from a parameter list, so
+you do not have to write JSON Schema by hand. Extend the bundled basic catalog
+to keep its standard components:
 
 ```dart
 import 'package:genkit_a2ui/a2ui.dart';
 
-final myCatalog = A2uiCatalog(
+final myCatalog = basicCatalog.extend(
   id: 'https://my-app.org/catalogs/custom.json',
   components: [
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Banner',
       description: 'Displays a prominent alert banner at the top of a section.',
-      props: 'title: string (required); severity?: info|warning|error.',
-    ),
-    const A2uiCatalogComponent(
-      name: 'Text',
-      description: 'Displays a plain or inline-markdown text run.',
-      props: 'text: string (required); variant?: body|caption.',
+      params: [
+        // A literal or a data binding (`$/path`).
+        const A2uiParam.dynamicValue('title', required: true),
+        // A literal only, restricted to these values.
+        const A2uiParam.string(
+          'severity',
+          enumValues: ['info', 'warning', 'error'],
+        ),
+      ],
     ),
   ],
 );
@@ -373,6 +384,11 @@ await loadCatalog(
   catalog: myCatalog,
 );
 ```
+
+The other parameter kinds are `A2uiParam.number`, `A2uiParam.boolean`,
+`A2uiParam.child` (one child component id), `A2uiParam.children` (a list of
+child ids) and `A2uiParam.action` (an event fired on interaction). Pass
+`checkable: true` for inputs that accept validation checks.
 
 ### Using a registered catalog
 
