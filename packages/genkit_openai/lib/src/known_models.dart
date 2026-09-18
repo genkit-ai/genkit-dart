@@ -33,7 +33,7 @@ import 'utils.dart';
 // `textOnlyNoJsonSupports` is not helped by this: those snapshots reject
 // `response_format` itself, and #415 deliberately sends `json_object` to every
 // host for a schemaless JSON request. Withholding it for them is a question
-// about that decision, not this one.
+// about that decision, not this one — see #462.
 //
 // The rest of `supports` remains descriptive — it changes what the Dev UI and
 // `listActions` report, not what the generate path does.
