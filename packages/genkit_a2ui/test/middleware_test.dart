@@ -100,13 +100,13 @@ void main() {
       await loadCatalog(
         genkit,
         id: 'my-catalog',
-        catalog: const A2uiCatalog(
+        catalog: A2uiCatalog.of(
           id: 'my-catalog',
           components: [
-            A2uiCatalogComponent(
+            A2uiCatalogComponent.simple(
               name: 'Widget',
               description: 'A widget.',
-              props: 'label: string.',
+              params: [const A2uiParam.dynamicValue('label')],
             ),
           ],
         ),
@@ -123,7 +123,7 @@ void main() {
 
       final sys = seen!.messages.firstWhere((m) => m.role == Role.system);
       final joined = sys.content.map((p) => p.text ?? '').join();
-      expect(joined, contains('Widget: A widget.'));
+      expect(joined, contains('Widget(label?) A widget.'));
       expect(joined, contains('my-catalog'));
     });
 

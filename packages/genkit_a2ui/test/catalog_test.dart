@@ -19,8 +19,12 @@ void main() {
   group('basicCatalog', () {
     test('has a stable id and uniquely-named components', () {
       expect(basicCatalog.id, isNotEmpty);
-      final names = basicCatalog.components.map((c) => c.name).toList();
-      expect(names.toSet().length, names.length);
+      // Keying by name makes duplicates impossible; assert the map is populated
+      // and that each entry agrees with its key.
+      expect(basicCatalog.components, isNotEmpty);
+      basicCatalog.components.forEach((key, component) {
+        expect(component.name, key);
+      });
     });
   });
 
@@ -32,10 +36,10 @@ void main() {
     });
 
     test('lists every catalog component name', () {
-      for (final c in basicCatalog.components) {
+      for (final c in basicCatalog.components.values) {
         expect(
           text,
-          contains('- ${c.name}:'),
+          contains('- ${c.name}('),
           reason: 'expected instructions to document component ${c.name}',
         );
       }
@@ -53,13 +57,13 @@ void main() {
   group('renderCatalogInstructions with a custom catalog', () {
     // A catalog with none of the components the styling guidance / example
     // hardcode (Card, Column, Text, Button, inputs, ...).
-    final custom = const A2uiCatalog(
+    final custom = A2uiCatalog.of(
       id: 'my-catalog',
       components: [
-        A2uiCatalogComponent(
+        A2uiCatalogComponent.simple(
           name: 'Widget',
           description: 'A widget.',
-          props: 'label: string.',
+          params: [const A2uiParam.dynamicValue('label')],
         ),
       ],
     );
@@ -92,7 +96,7 @@ void main() {
     });
 
     test('still documents the custom component and catalog id', () {
-      expect(text, contains('- Widget: A widget.'));
+      expect(text, contains('- Widget(label?) A widget.'));
       expect(text, contains('my-catalog'));
     });
   });
@@ -101,7 +105,7 @@ void main() {
     test(
       'renders without throwing and without a components-driven example',
       () {
-        final empty = const A2uiCatalog(id: 'empty', components: []);
+        const empty = A2uiCatalog(id: 'empty', components: {});
         final text = renderCatalogInstructions(empty);
         expect(text, contains('Rendering UI with A2UI'));
         // Falls back to a default root component name.

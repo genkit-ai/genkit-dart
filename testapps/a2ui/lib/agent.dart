@@ -65,23 +65,39 @@ final Genkit ai = Genkit(plugins: [googleAI(), A2uiPlugin(), RetryPlugin()]);
 /// Because the middleware validates emitted surfaces against this catalog (see
 /// `a2ui(validate: 'strict')` below), the model can only reference components
 /// listed here - so `Gauge` is both advertised to the model and enforced.
-final A2uiCatalog weatherCatalog = A2uiCatalog(
+final A2uiCatalog weatherCatalog = basicCatalog.extend(
+  // Reuse everything the bundled basic catalog offers, plus one component of
+  // our own. `A2uiCatalogComponent.simple` emits the spec's catalog.json schema
+  // shape, so this catalog stays portable to any other A2UI host.
+  //
+  // Parameter *order* is the Express positional argument order the model is
+  // prompted with, so keep the most important values first.
   id: weatherCatalogId,
   components: [
-    // Reuse everything the bundled basic catalog offers...
-    ...basicCatalog.components,
-    // ...plus one component of our own. The description and `props` line are
-    // what the model sees; keep them concise and concrete.
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Gauge',
       description:
           'A circular gauge that visualizes a single numeric value within a '
           'range (e.g. temperature or humidity). Prefer this over plain text '
           'for a headline metric.',
-      props:
-          'value: number or { path } binding (required); min?: number '
-          '(default 0); max?: number (default 100); label?: string; unit?: '
-          'string (e.g. "°C" or "%").',
+      params: [
+        const A2uiParam.dynamicValue(
+          'value',
+          required: true,
+          description: 'The value to display.',
+          ref: 'DynamicNumber',
+        ),
+        const A2uiParam.number('min', description: 'Range minimum, default 0.'),
+        const A2uiParam.number(
+          'max',
+          description: 'Range maximum, default 100.',
+        ),
+        const A2uiParam.string('label', description: 'Label under the gauge.'),
+        const A2uiParam.string(
+          'unit',
+          description: 'Unit suffix, e.g. "°C" or "%".',
+        ),
+      ],
     ),
   ],
 );
