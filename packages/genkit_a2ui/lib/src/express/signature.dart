@@ -65,6 +65,15 @@ class A2uiParam {
   /// The `common_types.json` definition a binding-capable param refs.
   final String bindingRef;
 
+  /// Whether this slot holds component *id(s)* rather than a value, as
+  /// `Card.child` and `Column.children` do.
+  ///
+  /// The distinction is invisible in the compiled JSON (an id and a label are
+  /// both strings), so it has to come from the schema. Without it a literal
+  /// like `Button("Refresh", ...)` compiles to `"child": "Refresh"` and the
+  /// renderer fails looking up a widget with that id.
+  final bool isComponentRef;
+
   /// Creates an [A2uiParam]. Prefer the named constructors below when authoring
   /// a catalog; this one is what the schema crawler produces when reading one.
   const A2uiParam(
@@ -76,6 +85,7 @@ class A2uiParam {
     this.jsonType,
     this.binding = false,
     this.bindingRef = 'DynamicString',
+    this.isComponentRef = false,
   });
 
   /// A param accepting either a literal string or a `$/path` binding. This is
@@ -135,6 +145,9 @@ class A2uiParam {
        );
 
   /// A reference to one child component by id (`Card.child`).
+  ///
+  /// Emitted as a `ComponentId` `$ref` so the crawler reads it back as an id
+  /// slot, matching the published catalogs.
   const A2uiParam.child(
     String name, {
     String? description,
@@ -144,10 +157,13 @@ class A2uiParam {
          description: description,
          required: required,
          static: true,
-         jsonType: 'string',
+         binding: true,
+         bindingRef: 'ComponentId',
+         isComponentRef: true,
        );
 
-  /// A reference to a list of child components by id (`Column.children`).
+  /// A reference to a list of child components by id (`Column.children`), or a
+  /// `_template(...)` binding that generates them from a data list.
   const A2uiParam.children(
     String name, {
     String? description,
@@ -158,6 +174,7 @@ class A2uiParam {
          required: required,
          binding: true,
          bindingRef: 'ChildList',
+         isComponentRef: true,
        );
 }
 
@@ -181,13 +198,21 @@ class A2uiSignature {
   }
 
   /// Renders the one-line signature shown to the model, e.g.
-  /// `Button(child (static), variant? (static), action (static))`.
+  /// `Button(child (id), variant? (static), action (static))`.
+  ///
+  /// `(id)` wins over `(static)` for component-reference slots. Both are
+  /// literal-only, but `(id)` is the stronger constraint and the one models get
+  /// wrong, so it is what the marker should say.
   String render() {
     final args = params
         .map((p) {
           final optional = p.required ? '' : '?';
-          final static = p.static ? ' (static)' : '';
-          return '${p.name}$optional$static';
+          final marker = p.isComponentRef
+              ? ' (id)'
+              : p.static
+              ? ' (static)'
+              : '';
+          return '${p.name}$optional$marker';
         })
         .join(', ');
     return '$name($args)';

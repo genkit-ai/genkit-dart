@@ -130,6 +130,7 @@ A2uiParam _paramFor(String name, Map<String, dynamic> schema, bool isRequired) {
     // A property is `(static)` exactly when it cannot hold a binding.
     static: !allowsDataBinding(schema),
     enumValues: _enumOf(schema),
+    isComponentRef: isComponentReference(schema),
   );
 }
 

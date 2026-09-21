@@ -42,14 +42,14 @@ void main() {
       // `name` is a oneOf including a DataBinding branch, so despite the
       // enum it accepts `$/path` and is not `(static)`.
       'Icon': 'Icon(name)',
-      'Card': 'Card(child (static))',
+      'Card': 'Card(child (id))',
       'Divider': 'Divider(axis? (static))',
       'Image': 'Image(url, description?, fit? (static), variant? (static))',
-      'Row': 'Row(children, justify? (static), align? (static))',
-      'Column': 'Column(children, justify? (static), align? (static))',
-      'List': 'List(children, direction? (static), align? (static))',
+      'Row': 'Row(children (id), justify? (static), align? (static))',
+      'Column': 'Column(children (id), justify? (static), align? (static))',
+      'List': 'List(children (id), direction? (static), align? (static))',
       'Button':
-          'Button(child (static), variant? (static), action (static), '
+          'Button(child (id), variant? (static), action (static), '
           'checks? (static))',
       'CheckBox': 'CheckBox(label, value, checks? (static))',
     };
@@ -107,6 +107,33 @@ void main() {
       );
     });
 
+    test('component-reference slots are flagged', () {
+      // `child`/`children` hold component ids, not values. The compiled JSON
+      // cannot tell the two apart (both are strings), so this has to come from
+      // the schema.
+      expect(
+        catalog.components['Card']!.signature['child']!.isComponentRef,
+        isTrue,
+      );
+      expect(
+        catalog.components['Button']!.signature['child']!.isComponentRef,
+        isTrue,
+      );
+      expect(
+        catalog.components['Column']!.signature['children']!.isComponentRef,
+        isTrue,
+      );
+      // Ordinary value slots are not.
+      expect(
+        catalog.components['Text']!.signature['text']!.isComponentRef,
+        isFalse,
+      );
+      expect(
+        catalog.components['Text']!.signature['variant']!.isComponentRef,
+        isFalse,
+      );
+    });
+
     test('descriptions carry through for the prompt', () {
       expect(
         catalog.components['Image']!.signature['url']!.description,
@@ -151,6 +178,21 @@ void main() {
       );
       expect(gauge.signature['value']!.static, isFalse);
       expect(gauge.signature['unit']!.description, 'e.g. "°C".');
+    });
+
+    test('.child() and .children() produce id slots the crawler sees', () {
+      // Authored catalogs must participate in the id-slot check, which means
+      // emitting the same ComponentId/ChildList refs the published ones use.
+      final custom = A2uiCatalogComponent.simple(
+        name: 'Panel',
+        params: [
+          const A2uiParam.child('body', required: true),
+          const A2uiParam.children('extras'),
+        ],
+      );
+      expect(custom.signature['body']!.isComponentRef, isTrue);
+      expect(custom.signature['extras']!.isComponentRef, isTrue);
+      expect(custom.signature.render(), 'Panel(body (id), extras? (id))');
     });
 
     test('checkable adds the trailing checks param', () {
