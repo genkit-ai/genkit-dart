@@ -55,17 +55,13 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    final service = await getApiClient();
     try {
+      final service = await getApiClient();
       final gcl.ListModelsResponse modelsResponse;
       try {
         modelsResponse = await service.listModels(pageSize: 1000);
-      } catch (e, stack) {
-        // Any discovery failure (network, auth, quota) degrades to the curated
-        // catalog rather than rethrowing; a misconfigured key still fails
-        // loudly at generate time.
-        logger.warning('Failed to list models: $e', e, stack);
-        return curatedModelMetadata().toList();
+      } finally {
+        service.client.close();
       }
       final discoveredNames = <String>{};
       final models = (modelsResponse.models ?? [])
@@ -111,11 +107,8 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           .toList();
       return [...models, ...curated, ...embedders];
     } catch (e, stack) {
-      if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
-      throw handleException(e, stack);
-    } finally {
-      service.client.close();
+      return curatedModelMetadata().toList();
     }
   }
 
