@@ -26,6 +26,7 @@ import '../types.dart';
 import 'ast.dart';
 import 'errors.dart';
 import 'parser.dart';
+import 'signature.dart';
 
 /// Reserved call names that are commands rather than components.
 const _surfaceCall = 'surface';
@@ -247,10 +248,16 @@ class _Compiler {
         checks.addAll(arg is ExprArray ? arg.items : [arg]);
         continue;
       }
-      if (index < params.length) {
-        pairs.add((params[index].name, arg));
-        index++;
+      if (index >= params.length) {
+        throw ExpressCompileError(
+          'too many positional arguments for component "${node.name}" '
+          '(it takes at most ${params.length}: '
+          '${params.map((p) => p.name).join(', ')}).',
+          node.line,
+        );
       }
+      pairs.add((params[index].name, arg));
+      index++;
     }
 
     for (final entry in node.named.entries) {
@@ -296,11 +303,18 @@ class _Compiler {
     }
 
     // Checks default to validating this component's own `value` binding.
+    // Save and restore rather than clearing: a check argument may hold an
+    // inline component, which re-enters this method and would otherwise leave
+    // the remaining checks without their target.
+    final enclosingValuePath = _activeValuePath;
     _activeValuePath = valuePath;
-    if (checks.isNotEmpty) {
-      result['checks'] = checks.map((c) => _value(c, scope)).toList();
+    try {
+      if (checks.isNotEmpty) {
+        result['checks'] = checks.map((c) => _value(c, scope)).toList();
+      }
+    } finally {
+      _activeValuePath = enclosingValuePath;
     }
-    _activeValuePath = null;
 
     return result;
   }
@@ -402,17 +416,10 @@ class _Compiler {
     // A catalog client function, e.g. `formatString(...)` or `openUrl(...)`.
     final function = _catalog.functions[node.name];
     if (function != null) {
-      final params = function.signature.params;
-      final args = <String, dynamic>{};
-      for (var i = 0; i < node.positional.length && i < params.length; i++) {
-        final arg = node.positional[i];
-        if (arg is ExprSkip) continue;
-        args[params[i].name] = _value(arg, scope);
-      }
-      for (final entry in node.named.entries) {
-        args[entry.key] = _value(entry.value, scope);
-      }
-      return {'call': node.name, 'args': args};
+      return {
+        'call': node.name,
+        'args': _functionArgs(node, function.signature.params, scope),
+      };
     }
 
     throw ExpressCompileError.unknownComponent(
@@ -422,13 +429,72 @@ class _Compiler {
     );
   }
 
+  /// Maps a client function call's arguments onto its declared parameters,
+  /// with the same strictness as components: no overflow, no unknown names, no
+  /// duplicates. `_` skips a positional slot.
+  Map<String, dynamic> _functionArgs(
+    ExprCall node,
+    List<A2uiParam> params,
+    _Scope scope,
+  ) {
+    final args = <String, dynamic>{};
+    final seen = <String>{};
+    var index = 0;
+
+    for (final arg in node.positional) {
+      if (index >= params.length) {
+        throw ExpressCompileError(
+          'too many positional arguments for function "${node.name}" '
+          '(it takes at most ${params.length}: '
+          '${params.map((p) => p.name).join(', ')}).',
+          node.line,
+        );
+      }
+      final name = params[index].name;
+      index++;
+      if (arg is ExprSkip) continue;
+      args[name] = _value(arg, scope);
+      seen.add(name);
+    }
+
+    for (final entry in node.named.entries) {
+      final name = entry.key;
+      if (!params.any((p) => p.name == name)) {
+        throw ExpressCompileError(
+          'function "${node.name}" has no parameter "$name" '
+          '(expected one of: ${params.map((p) => p.name).join(', ')}).',
+          node.line,
+        );
+      }
+      if (!seen.add(name)) {
+        throw ExpressCompileError(
+          'parameter "$name" of function "${node.name}" was given twice.',
+          node.line,
+        );
+      }
+      args[name] = _value(entry.value, scope);
+    }
+
+    return args;
+  }
+
   /// Compiles a `?check` into its client function call.
   ///
   /// When the check's first parameter is `value` and the model supplied no
   /// path, it defaults to the enclosing component's `value` binding, so
   /// `?required` on a bound TextField needs no argument.
   Map<String, dynamic> _check(ExprCheck node, _Scope scope) {
-    final params = _catalog.functions[node.name]?.signature.params ?? const [];
+    // A check is a catalog function; an unknown name is a typo (`?requried`)
+    // that would otherwise compile to a rule the renderer silently ignores.
+    final function = _catalog.functions[node.name];
+    if (function == null) {
+      throw ExpressCompileError(
+        'unknown check "?${node.name}" in catalog "${_catalog.id}".',
+        node.line,
+      );
+    }
+
+    final params = function.signature.params;
     final args = <String, dynamic>{};
     final explicit = node.args;
     var offset = 0;
@@ -443,7 +509,13 @@ class _Compiler {
 
     for (var i = 0; i < explicit.length; i++) {
       final index = i + offset;
-      if (index >= params.length) break;
+      if (index >= params.length) {
+        throw ExpressCompileError(
+          'too many arguments for check "?${node.name}" '
+          '(it takes at most ${params.length - offset}).',
+          node.line,
+        );
+      }
       final arg = explicit[i];
       if (arg is ExprSkip) continue;
       args[params[index].name] = _value(arg, scope);

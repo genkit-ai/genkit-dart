@@ -192,6 +192,62 @@ title = Text("Weather", "h3")
         throwsA(isA<ExpressCompileError>()),
       );
     });
+
+    test('throws on more positional arguments than the signature takes', () {
+      // Silently dropping them hides a real mistake: the model believes it set
+      // something that never reaches the surface.
+      expect(
+        () => compile('root = Text("a", "h3", "EXTRA")'),
+        throwsA(
+          isA<ExpressCompileError>().having(
+            (e) => e.message,
+            'message',
+            contains('too many positional arguments'),
+          ),
+        ),
+      );
+    });
+  });
+
+  group('client function argument validation', () {
+    test('rejects an unknown named argument', () {
+      expect(
+        () => compile('root = Text(formatString(nonsense="x"))'),
+        throwsA(
+          isA<ExpressCompileError>().having(
+            (e) => e.message,
+            'message',
+            contains('has no parameter'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects an argument supplied twice', () {
+      expect(
+        () => compile('root = Text(formatString("a", value="b"))'),
+        throwsA(
+          isA<ExpressCompileError>().having(
+            (e) => e.message,
+            'message',
+            contains('given twice'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects too many positional arguments', () {
+      expect(
+        () => compile('root = Text(formatString("a", "b", "c"))'),
+        throwsA(
+          isA<ExpressCompileError>().having(
+            (e) => e.message,
+            'message',
+            contains('too many positional arguments'),
+          ),
+        ),
+      );
+    });
   });
 
   group('data binding', () {
@@ -279,6 +335,49 @@ label = Text("Save")
       expect(check['call'], 'regex');
       expect((check['args'] as Map)['pattern'], r'^[0-9]{5}$');
       expect((check['args'] as Map)['value'], {'path': '/zip'});
+    });
+
+    test('rejects a misspelled check name', () {
+      // `?requried` would otherwise compile to a rule no renderer implements,
+      // silently dropping the validation the model intended.
+      expect(
+        () => compile(r'root = TextField("E", $/e, _, [?requried])'),
+        throwsA(
+          isA<ExpressCompileError>().having(
+            (e) => e.message,
+            'message',
+            contains('unknown check'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects too many check arguments', () {
+      expect(
+        () => compile(r'root = TextField("E", $/e, _, [?required("a", "b")])'),
+        throwsA(
+          isA<ExpressCompileError>().having(
+            (e) => e.message,
+            'message',
+            contains('too many arguments'),
+          ),
+        ),
+      );
+    });
+
+    test('an inline component in one check does not strip the next check of '
+        'its value binding', () {
+      // Compiling an inline component re-enters the component compiler, which
+      // owns `_activeValuePath`. If that state were cleared rather than
+      // restored, `?required` here would lose its target.
+      final envelopes = compile(r'''
+root = TextField("E", $/e, _, [?regex(Card(Text("x"))), ?required])
+''');
+      final checks = byId(envelopes, 'root')['checks'] as List;
+      expect(checks, hasLength(2));
+      expect((checks[1] as Map)['args'], {
+        'value': {'path': '/e'},
+      });
     });
   });
 
