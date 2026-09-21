@@ -112,12 +112,9 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
             final modelMap = m as Map<String, dynamic>;
             final modelName = (modelMap['name'] as String).split('/').last;
             discoveredNames.add(modelName);
-            final isTts = modelName.contains('-tts');
             return modelMetadata(
               '$name/$modelName',
-              customOptions: isTts
-                  ? GeminiTtsOptions.$schema
-                  : GeminiOptions.$schema,
+              customOptions: GeminiModelFamily.of(modelName).customOptions,
               modelInfo: modelInfoFor(modelName),
             );
           })

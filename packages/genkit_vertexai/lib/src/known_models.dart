@@ -17,16 +17,18 @@ import 'package:genkit_google_genai/common.dart';
 
 /// Gemini models the Vertex AI plugin curates capability metadata for.
 ///
-/// A subset of [KnownGeminiModel]. Any other model name still resolves
-/// dynamically with the common fallback metadata; these entries only give the
-/// listed models accurate per-model `supports` and keep them in listings even
-/// when model discovery omits them.
-const vertexAiKnownGeminiModels = <KnownGeminiModel>[
-  KnownGeminiModel.gemini35Flash,
-  KnownGeminiModel.gemini31FlashLite,
-  KnownGeminiModel.gemini31FlashImage,
-  KnownGeminiModel.gemini3ProImage,
-];
+/// The text and image subset of [KnownGeminiModel]. Vertex AI serves
+/// text-to-speech under IDs of its own (`gemini-2.5-flash-tts` rather than
+/// `gemini-2.5-flash-preview-tts`), so the Gemini API's TTS entries stay out;
+/// those names still get the TTS profile through `modelInfoFor`. Any other
+/// model name still resolves dynamically with the common fallback metadata;
+/// these entries only give the listed models accurate per-model `supports`
+/// and keep them in listings even when model discovery omits them.
+final vertexAiKnownGeminiModels = List<KnownGeminiModel>.unmodifiable(
+  KnownGeminiModel.values.where(
+    (model) => model.family != GeminiModelFamily.tts,
+  ),
+);
 
 /// Curated capability metadata for the Vertex AI plugin, keyed by bare model
 /// name. Derived from [vertexAiKnownGeminiModels].

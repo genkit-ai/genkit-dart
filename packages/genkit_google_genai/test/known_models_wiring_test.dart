@@ -46,12 +46,12 @@ void main() {
   group('known model resolution', () {
     for (final model in KnownGeminiModel.values) {
       test('${model.id} resolves with curated metadata', () {
-        final action = plugin().resolve(.model, model.id);
+        final action = plugin().resolve(.model, model.id) as Model;
 
-        expect(action, isNotNull);
-        final info = modelInfoOf(action!);
+        expect(action.customOptions, same(model.family.customOptions));
+        final info = modelInfoOf(action);
         expect(info['label'], model.label);
-        expect(info['stage'], 'stable');
+        expect(info['stage'], model.stage);
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
           model.info.supports,
@@ -67,6 +67,24 @@ void main() {
       expect(info['supports'], commonModelInfo.supports);
       expect(info.containsKey('stage'), isFalse);
       expect(info['label'], 'googleai/gemini-unknown-model');
+    });
+
+    test('un-curated -tts name resolves with the TTS profile', () {
+      final action =
+          plugin().resolve(.model, 'gemini-future-preview-tts') as Model;
+
+      expect(action.customOptions, same(GeminiTtsOptions.$schema));
+      final info = modelInfoOf(action);
+      expect(info['supports'], {
+        'multiturn': false,
+        'media': false,
+        'tools': false,
+        'toolChoice': false,
+        'systemRole': false,
+        'constrained': false,
+        'output': ['media'],
+      });
+      expect(info.containsKey('stage'), isFalse);
     });
   });
 
@@ -90,6 +108,24 @@ void main() {
           .cast<String, dynamic>();
       expect(info['label'], 'Gemini 3.5 Flash');
       expect(info['stage'], 'stable');
+    });
+
+    test('gives a discovered un-curated -tts model the TTS profile', () async {
+      final client = ListingClient(
+        modelsResponse:
+            '{"models": [{"name": "models/gemini-future-preview-tts"}]}',
+      );
+      final actions = await plugin(client: client).list();
+      final discovered = actions.firstWhere(
+        (a) => a.name == 'googleai/gemini-future-preview-tts',
+      );
+
+      final info = (discovered.metadata['model'] as Map)
+          .cast<String, dynamic>();
+      expect(info['supports'], geminiTtsSupports);
+      expect(info.containsKey('stage'), isFalse);
+      final options = (info['customOptions'] as Map).cast<String, dynamic>();
+      expect(options['properties'], contains('speechConfig'));
     });
 
     test('appends curated models missing from discovery', () async {
@@ -237,36 +273,49 @@ void main() {
   });
 
   group('GoogleAiModels', () {
-    test('refs point at the curated action names', () {
-      expect(
-        GoogleAiModels.gemini35Flash.name,
-        'googleai/${KnownGeminiModel.gemini35Flash.id}',
-      );
-      expect(
-        GoogleAiModels.gemini31FlashLite.name,
-        'googleai/${KnownGeminiModel.gemini31FlashLite.id}',
-      );
-      expect(
-        GoogleAiModels.gemini31FlashImage.name,
-        'googleai/${KnownGeminiModel.gemini31FlashImage.id}',
-      );
-      expect(
-        GoogleAiModels.gemini3ProImage.name,
-        'googleai/${KnownGeminiModel.gemini3ProImage.id}',
-      );
-    });
+    final refs = <KnownGeminiModel, ModelRef<dynamic>>{
+      KnownGeminiModel.gemini25Pro: GoogleAiModels.gemini25Pro,
+      KnownGeminiModel.gemini25Flash: GoogleAiModels.gemini25Flash,
+      KnownGeminiModel.gemini25FlashLite: GoogleAiModels.gemini25FlashLite,
+      KnownGeminiModel.gemini31ProPreview: GoogleAiModels.gemini31ProPreview,
+      KnownGeminiModel.gemini3FlashPreview: GoogleAiModels.gemini3FlashPreview,
+      KnownGeminiModel.gemini37Flash: GoogleAiModels.gemini37Flash,
+      KnownGeminiModel.gemini36Flash: GoogleAiModels.gemini36Flash,
+      KnownGeminiModel.gemini35Flash: GoogleAiModels.gemini35Flash,
+      KnownGeminiModel.gemini35FlashLite: GoogleAiModels.gemini35FlashLite,
+      KnownGeminiModel.gemini31FlashLite: GoogleAiModels.gemini31FlashLite,
+      KnownGeminiModel.gemini25FlashImage: GoogleAiModels.gemini25FlashImage,
+      KnownGeminiModel.gemini31FlashImage: GoogleAiModels.gemini31FlashImage,
+      KnownGeminiModel.gemini31FlashLiteImage:
+          GoogleAiModels.gemini31FlashLiteImage,
+      KnownGeminiModel.gemini3ProImage: GoogleAiModels.gemini3ProImage,
+      KnownGeminiModel.gemini25FlashPreviewTts:
+          GoogleAiModels.gemini25FlashPreviewTts,
+      KnownGeminiModel.gemini25ProPreviewTts:
+          GoogleAiModels.gemini25ProPreviewTts,
+      KnownGeminiModel.gemini31FlashTtsPreview:
+          GoogleAiModels.gemini31FlashTtsPreview,
+    };
 
     test('every curated Gemini model has a typed ref', () {
-      final refNames = {
-        GoogleAiModels.gemini35Flash.name,
-        GoogleAiModels.gemini31FlashLite.name,
-        GoogleAiModels.gemini31FlashImage.name,
-        GoogleAiModels.gemini3ProImage.name,
-      };
+      expect(refs.keys, unorderedEquals(KnownGeminiModel.values));
+    });
 
-      expect(refNames, {
-        for (final model in KnownGeminiModel.values) 'googleai/${model.id}',
+    for (final MapEntry(key: model, value: ref) in refs.entries) {
+      test('${model.id} ref points at the curated action name', () {
+        expect(ref.name, 'googleai/${model.id}');
       });
+
+      test('${model.id} ref carries the options of its family', () {
+        expect(ref.customOptions, same(model.family.customOptions));
+      });
+    }
+
+    test('geminiTts builds a TTS ref for any name', () {
+      final ref = googleAI.geminiTts('gemini-future-preview-tts');
+
+      expect(ref.name, 'googleai/gemini-future-preview-tts');
+      expect(ref.customOptions, same(GeminiTtsOptions.$schema));
     });
   });
 }

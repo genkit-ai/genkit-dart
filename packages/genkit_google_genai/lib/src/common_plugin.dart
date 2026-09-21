@@ -22,6 +22,7 @@ import 'package:schemantic/schemantic.dart';
 import 'aggregation.dart';
 import 'api_client.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'known_models.dart';
 import 'model.dart';
 
 final logger = Logger('genkit_google_genai');
@@ -37,6 +38,9 @@ final commonModelInfo = ModelInfo(
   },
 );
 
+/// Fallback metadata for an un-curated `-tts` model name.
+final commonTtsModelInfo = ModelInfo(supports: geminiTtsSupports);
+
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
@@ -48,10 +52,17 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// capabilities for known models.
   Map<String, ModelInfo> get knownModels => const {};
 
-  /// Returns the capability metadata for [modelName], falling back to
-  /// [commonModelInfo] for names not in [knownModels].
+  /// Returns the capability metadata for [modelName].
+  ///
+  /// Names not in [knownModels] fall back to the profile of their
+  /// [GeminiModelFamily]: [commonTtsModelInfo] for `-tts` names and
+  /// [commonModelInfo] for everything else.
   ModelInfo modelInfoFor(String modelName) =>
-      knownModels[modelName] ?? commonModelInfo;
+      knownModels[modelName] ??
+      switch (GeminiModelFamily.of(modelName)) {
+        .tts => commonTtsModelInfo,
+        .text || .image => commonModelInfo,
+      };
 
   /// Returns action metadata for every [knownModels] entry whose bare name is
   /// not in [discoveredNames], so a curated model stays listed when model
@@ -63,9 +74,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         .map(
           (entry) => modelMetadata(
             '$name/${entry.key}',
-            customOptions: entry.key.contains('-tts')
-                ? GeminiTtsOptions.$schema
-                : GeminiOptions.$schema,
+            customOptions: GeminiModelFamily.of(entry.key).customOptions,
             modelInfo: entry.value,
           ),
         );
@@ -232,10 +241,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return createEmbedder(name);
     }
     if (actionType == .model) {
-      if (name.contains('-tts')) {
-        return createModel(name, GeminiTtsOptions.$schema);
-      }
-      return createModel(name, GeminiOptions.$schema);
+      return createModel(name, GeminiModelFamily.of(name).customOptions);
     }
     return null;
   }

@@ -38,7 +38,7 @@ void main() {
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
         expect(info['label'], model.label);
-        expect(info['stage'], 'stable');
+        expect(info['stage'], model.stage);
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
           model.info.supports,
@@ -57,6 +57,23 @@ void main() {
       expect(info['label'], 'vertexai/gemini-unknown-model');
     });
 
+    test('un-curated Vertex -tts name resolves with the TTS profile', () {
+      final action = plugin().resolve(.model, 'gemini-2.5-flash-tts') as Model;
+
+      expect(action.customOptions, same(GeminiTtsOptions.$schema));
+      final info = modelInfoOf(action);
+      expect(info['supports'], {
+        'multiturn': false,
+        'media': false,
+        'tools': false,
+        'toolChoice': false,
+        'systemRole': false,
+        'constrained': false,
+        'output': ['media'],
+      });
+      expect(info.containsKey('stage'), isFalse);
+    });
+
     test('gemma is uncurated on Vertex and takes the Gemini path', () {
       final action = plugin().resolve(.model, 'gemma-4-31b-it') as Model;
 
@@ -68,7 +85,42 @@ void main() {
     });
   });
 
+  group('vertexAiKnownGeminiModels', () {
+    test('curates the text and image set and leaves TTS out', () {
+      expect(
+        vertexAiKnownGeminiModels,
+        KnownGeminiModel.values.where(
+          (model) => model.family != GeminiModelFamily.tts,
+        ),
+      );
+      expect(vertexAiKnownGeminiModels, isNotEmpty);
+      expect(
+        vertexAiKnownModels.keys.where((id) => id.contains('-tts')),
+        isEmpty,
+      );
+    });
+  });
+
   group('list', () {
+    test('gives a discovered Vertex -tts model the TTS profile', () async {
+      final client = MockHttpClient(
+        publisherModelsResponse:
+            '{"publisherModels": ['
+            '{"name": "publishers/google/models/gemini-2.5-flash-tts"}]}',
+      );
+      final actions = await plugin(client: client).list();
+      final discovered = actions.firstWhere(
+        (a) => a.name == 'vertexai/gemini-2.5-flash-tts',
+      );
+
+      final info = (discovered.metadata['model'] as Map)
+          .cast<String, dynamic>();
+      expect(info['supports'], geminiTtsSupports);
+      expect(info.containsKey('stage'), isFalse);
+      final options = (info['customOptions'] as Map).cast<String, dynamic>();
+      expect(options['properties'], contains('speechConfig'));
+    });
+
     test('includes curated models missing from discovery', () async {
       final actions = await plugin().list();
       final names = actions.map((a) => a.name).toList();
