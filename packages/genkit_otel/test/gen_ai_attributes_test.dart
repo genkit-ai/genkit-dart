@@ -124,4 +124,36 @@ void main() {
       expect(asStringList(null), isNull);
     });
   });
+
+  group('parseContentCapturingMode', () {
+    test('maps known tokens (case-insensitive)', () {
+      expect(
+        parseContentCapturingMode('NO_CONTENT'),
+        ContentCapturingMode.noContent,
+      );
+      expect(
+        parseContentCapturingMode('span_only'),
+        ContentCapturingMode.spanOnly,
+      );
+      expect(
+        parseContentCapturingMode('Event_Only'),
+        ContentCapturingMode.eventOnly,
+      );
+      expect(
+        parseContentCapturingMode('  SPAN_AND_EVENT  '),
+        ContentCapturingMode.spanAndEvent,
+      );
+    });
+
+    test('null/empty -> noContent', () {
+      expect(parseContentCapturingMode(null), ContentCapturingMode.noContent);
+      expect(parseContentCapturingMode(''), ContentCapturingMode.noContent);
+      expect(parseContentCapturingMode('   '), ContentCapturingMode.noContent);
+    });
+
+    test('unknown -> null', () {
+      expect(parseContentCapturingMode('true'), isNull);
+      expect(parseContentCapturingMode('bogus'), isNull);
+    });
+  });
 }

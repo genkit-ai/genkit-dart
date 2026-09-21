@@ -203,10 +203,9 @@ void main() {
     expect(attr(span, GenAiAttr.inputMessages), isNull);
   });
 
-  test('captures content on the span in span mode', () async {
+  test('spanOnly captures content on the span and emits no event', () async {
     final instr = GenAiInstrumentation(
-      captureContent: true,
-      contentMode: GenAiContentMode.span,
+      contentCapturingMode: ContentCapturingMode.spanOnly,
     );
     await runModel(
       instr,
@@ -232,10 +231,20 @@ void main() {
     expect(input as String, contains('hello'));
     expect(attr(span, GenAiAttr.systemInstructions), contains('Be nice'));
     expect(attr(span, GenAiAttr.outputMessages), contains('ok'));
+
+    await harness.flushLogs();
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isEmpty,
+    );
   });
 
-  test('emits an operation.details event in event mode', () async {
-    final instr = GenAiInstrumentation(captureContent: true);
+  test('eventOnly emits the event and sets no span content', () async {
+    final instr = GenAiInstrumentation(
+      contentCapturingMode: ContentCapturingMode.eventOnly,
+    );
     await runModel(
       instr,
       'googleai/gemini-flash-latest',
@@ -259,6 +268,35 @@ void main() {
     // The content event must NOT put content on the span.
     final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
     expect(attr(span, GenAiAttr.inputMessages), isNull);
+  });
+
+  test('spanAndEvent writes both span attrs and the event', () async {
+    final instr = GenAiInstrumentation(
+      contentCapturingMode: ContentCapturingMode.spanAndEvent,
+    );
+    await runModel(
+      instr,
+      'googleai/gemini-flash-latest',
+      modelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+      ),
+      ([span]) async => modelResponse(),
+    );
+    await harness.flushLogs();
+
+    final span = harness.spans.findSpanByName('chat gemini-flash-latest')!;
+    expect(attr(span, GenAiAttr.inputMessages), contains('hello'));
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isNotEmpty,
+    );
   });
 
   test('nests spans (flow -> model) into one trace', () async {
@@ -319,14 +357,12 @@ void main() {
     expect(attr(span, GenkitAttr.actionName), 'googleai/gemini-flash-latest');
   });
 
-  test('captures tool arguments/result under content capture', () async {
-    // Span mode: content lands directly on the span.
-    final spanMode = GenAiInstrumentation(
+  test('spanOnly captures tool arguments/result on the span', () async {
+    final instr = GenAiInstrumentation(
       emitToolSpans: true,
-      captureContent: true,
-      contentMode: GenAiContentMode.span,
+      contentCapturingMode: ContentCapturingMode.spanOnly,
     );
-    await spanMode.runInNewSpan(
+    await instr.runInNewSpan(
       SpanMetadata(
         name: 'weather',
         actionType: ActionType.tool.value,
@@ -340,6 +376,69 @@ void main() {
       contains('Paris'),
     );
     expect(attr(span, GenAiAttr.toolCallResult) as String, contains('sunny'));
+
+    await harness.flushLogs();
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isEmpty,
+    );
+  });
+
+  test('eventOnly emits tool content as an event, not on the span', () async {
+    final instr = GenAiInstrumentation(
+      emitToolSpans: true,
+      contentCapturingMode: ContentCapturingMode.eventOnly,
+    );
+    await instr.runInNewSpan(
+      SpanMetadata(
+        name: 'weather',
+        actionType: ActionType.tool.value,
+        input: {'city': 'Paris'},
+      ),
+      ([span]) async => 'sunny',
+    );
+    await harness.flushLogs();
+
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isNotEmpty,
+    );
+    final span = harness.spans.findSpanByName('execute_tool weather')!;
+    expect(attr(span, GenAiAttr.toolCallArguments), isNull);
+    expect(attr(span, GenAiAttr.toolCallResult), isNull);
+  });
+
+  test('spanAndEvent records tool content on both span and event', () async {
+    final instr = GenAiInstrumentation(
+      emitToolSpans: true,
+      contentCapturingMode: ContentCapturingMode.spanAndEvent,
+    );
+    await instr.runInNewSpan(
+      SpanMetadata(
+        name: 'weather',
+        actionType: ActionType.tool.value,
+        input: {'city': 'Paris'},
+      ),
+      ([span]) async => 'sunny',
+    );
+    await harness.flushLogs();
+
+    final span = harness.spans.findSpanByName('execute_tool weather')!;
+    expect(
+      attr(span, GenAiAttr.toolCallArguments) as String,
+      contains('Paris'),
+    );
+    expect(attr(span, GenAiAttr.toolCallResult) as String, contains('sunny'));
+    expect(
+      harness.logs.records.where(
+        (r) => r.eventName == genAiOperationDetailsEvent,
+      ),
+      isNotEmpty,
+    );
   });
 
   test('does not capture tool content without content capture', () async {
@@ -418,8 +517,7 @@ void main() {
     'captures legacy candidates[0].message when top-level is absent',
     () async {
       final instr = GenAiInstrumentation(
-        captureContent: true,
-        contentMode: GenAiContentMode.span,
+        contentCapturingMode: ContentCapturingMode.spanOnly,
       );
       final legacy = ModelResponse.fromJson({
         'finishReason': 'stop',
