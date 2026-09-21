@@ -120,7 +120,10 @@ List<String> _components(List<Object?> components, A2uiCatalog catalog) {
       rendered.add(
         param.name == 'checks'
             ? _checks(component[param.name])
-            : _value(component[param.name], param.name),
+            : _value(
+                component[param.name],
+                isComponentRef: param.isComponentRef,
+              ),
       );
     }
 
@@ -144,17 +147,17 @@ List<String> _components(List<Object?> components, A2uiCatalog catalog) {
 /// the compiler injects from the component's own `value`, keeping the common
 /// `[?required]` form compact.
 String _checks(Object? checks) {
-  if (checks is! List) return _value(checks, null);
+  if (checks is! List) return _value(checks);
 
   final rules = <String>[];
   for (final raw in checks) {
     if (raw is! Map) {
-      rules.add(_value(raw, null));
+      rules.add(_value(raw));
       continue;
     }
     final call = raw['call'];
     if (call is! String) {
-      rules.add(_value(raw, null));
+      rules.add(_value(raw));
       continue;
     }
     final args = raw['args'];
@@ -164,9 +167,7 @@ String _checks(Object? checks) {
           if (entry.key != 'value') entry.value,
     ];
     rules.add(
-      rest.isEmpty
-          ? '?$call'
-          : '?$call(${rest.map((v) => _value(v, null)).join(', ')})',
+      rest.isEmpty ? '?$call' : '?$call(${rest.map(_value).join(', ')})',
     );
   }
   return '[${rules.join(', ')}]';
@@ -185,7 +186,7 @@ List<String> _dataModel(Map<Object?, Object?> update) {
       }
       return;
     }
-    lines.add('\$$path = ${_value(node, null)}');
+    lines.add('\$$path = ${_value(node)}');
   }
 
   walk(update['value'], prefix);
@@ -193,17 +194,21 @@ List<String> _dataModel(Map<Object?, Object?> update) {
 }
 
 /// Renders one compiled JSON value back into Express syntax.
-String _value(Object? value, String? property) {
+///
+/// [isComponentRef] comes from the catalog schema rather than the property
+/// name, so a custom component whose child slot is named something other than
+/// `child` round-trips correctly.
+String _value(Object? value, {bool isComponentRef = false}) {
   if (value == null) return 'null';
   if (value is bool || value is num) return '$value';
   if (value is String) {
     // A string in a component-reference slot is an id, so it is emitted as a
     // bare variable rather than a quoted literal.
-    return _isReferenceProperty(property) ? value : _string(value);
+    return isComponentRef ? value : _string(value);
   }
 
   if (value is List) {
-    return '[${value.map((v) => _value(v, property)).join(', ')}]';
+    return '[${value.map((v) => _value(v, isComponentRef: isComponentRef)).join(', ')}]';
   }
 
   if (value is Map) {
@@ -225,7 +230,7 @@ String _value(Object? value, String? property) {
       final name = _string('${event['name'] ?? ''}');
       final context = event['context'];
       if (context is Map && context.isNotEmpty) {
-        return 'Event($name, ${_value(context, null)})';
+        return 'Event($name, ${_value(context)})';
       }
       return 'Event($name)';
     }
@@ -238,7 +243,7 @@ String _value(Object? value, String? property) {
       final args = map['args'];
       if (args is Map && args.isNotEmpty) {
         final rendered = args.entries
-            .map((e) => '${e.key}=${_value(e.value, null)}')
+            .map((e) => '${e.key}=${_value(e.value)}')
             .join(', ');
         return '$call($rendered)';
       }
@@ -246,24 +251,13 @@ String _value(Object? value, String? property) {
     }
 
     final entries = map.entries
-        .map((e) => '${e.key}: ${_value(e.value, null)}')
+        .map((e) => '${e.key}: ${_value(e.value)}')
         .join(', ');
     return '{$entries}';
   }
 
   return _string('$value');
 }
-
-/// Property names whose string values are component ids rather than literals.
-/// Matched by name because the decompiler works from the value shape, where an
-/// id and a plain string are indistinguishable.
-bool _isReferenceProperty(String? property) => const {
-  'child',
-  'children',
-  'trigger',
-  'content',
-  'componentId',
-}.contains(property);
 
 /// Picks the cleanest literal form for [value], mirroring the reference.
 String _string(String value) {

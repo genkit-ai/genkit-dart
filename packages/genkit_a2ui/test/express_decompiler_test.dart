@@ -100,6 +100,30 @@ row = Text($label)
       );
     });
 
+    test('a custom component whose child slot is not named "child"', () {
+      // Reference slots are identified from the schema, not by property name,
+      // so a bespoke naming still round-trips.
+      final custom = basicCatalog.extend(
+        id: 'custom',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Panel',
+            params: [const A2uiParam.child('body', required: true)],
+          ),
+        ],
+      );
+      final original = compileExpress(
+        'root = Panel(inner)\ninner = Text("hi")',
+        catalog: custom,
+        surfaceId: 's1',
+      );
+      final source = decompileExpress(original, catalog: custom);
+      // `inner` must come back as a bare id, not a quoted string.
+      expect(source, contains('root = Panel(inner)'));
+      final again = compileExpress(source, catalog: custom, surfaceId: 's1');
+      expect(jsonEncode(again), jsonEncode(original));
+    });
+
     test('a surface targeting a non-default catalog', () {
       // The catalogId must survive, or the surface silently recompiles against
       // the wrong catalog.
