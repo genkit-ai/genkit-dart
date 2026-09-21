@@ -107,8 +107,12 @@ class ParseResult {
 /// Incremental A2UI extractor. Create one per model turn, [push] text deltas as
 /// they arrive, and [flush] at the end to drain any trailing block.
 class A2uiStreamParser {
-  /// Catalog used to validate component references.
-  final A2uiCatalog? catalog;
+  /// Catalog the block is compiled and validated against.
+  ///
+  /// Required: Express is positional, so mapping arguments onto properties is
+  /// impossible without it. This is a configuration concern rather than
+  /// something [validate] can soften.
+  final A2uiCatalog catalog;
 
   /// How to finalize/validate envelopes.
   final A2uiValidateMode validate;
@@ -128,7 +132,7 @@ class A2uiStreamParser {
   /// Creates an [A2uiStreamParser].
   A2uiStreamParser({
     required this.surfaceId,
-    this.catalog,
+    required this.catalog,
     this.validate = A2uiValidateMode.strict,
     this.version = a2uiVersion,
   });
@@ -255,14 +259,6 @@ class A2uiStreamParser {
 
     final text = raw.trim();
     if (text.isEmpty) return null;
-
-    // Compile the Express source into envelopes. A catalog is required to map
-    // positional arguments onto properties, so a parser built without one
-    // cannot interpret a block at all.
-    final catalog = this.catalog;
-    if (catalog == null) {
-      return _reject('a catalog is required to compile an A2UI Express block.');
-    }
 
     List<A2uiEnvelope> compiled;
     try {
@@ -425,8 +421,6 @@ class A2uiStreamParser {
   /// level in [_finalizeBlock] (an incremental update to an existing surface may
   /// legitimately patch a subtree without re-declaring `root`).
   String? _validateComponents(Object? components) {
-    final catalog = this.catalog;
-    if (catalog == null) return null;
     if (components is! List) {
       return 'updateComponents.components must be an array.';
     }

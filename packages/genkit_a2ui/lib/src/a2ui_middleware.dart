@@ -32,6 +32,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:genkit/plugin.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
@@ -42,6 +43,25 @@ import 'part.dart';
 import 'types.dart';
 
 part 'a2ui_middleware.g.dart';
+
+final _logger = Logger('genkit_a2ui.middleware');
+
+/// The surface id an envelope targets, whichever variant it is.
+String? _envelopeSurfaceIdOf(A2uiEnvelope e) {
+  for (final key in const [
+    'createSurface',
+    'updateComponents',
+    'updateDataModel',
+    'deleteSurface',
+  ]) {
+    final payload = e[key];
+    if (payload is Map) {
+      final id = payload['surfaceId'];
+      if (id is String) return id;
+    }
+  }
+  return null;
+}
 
 /// Configuration for the [a2ui] middleware.
 @Schema()
@@ -496,7 +516,26 @@ String _summarizeA2uiPart(
     // surface. Keeping the real ids lets the model correlate a replayed action
     // (`[UI action ... on surface <id>]`) with the surface it targeted - which
     // matters when several surfaces are on screen at once.
-    out.add(decompileExpressBlock(pendingSurface, catalog: catalog));
+    //
+    // Rendering is defensive (unknown shapes are skipped), but history may hold
+    // surfaces built against a catalog that has since changed. A throw here
+    // would be unrecoverable, since every later turn replays the same history,
+    // so degrade to a short summary instead of failing the session. Emitting
+    // JSON as a fallback would be worse than dropping detail: it teaches the
+    // model a second output format.
+    try {
+      out.add(decompileExpressBlock(pendingSurface, catalog: catalog));
+    } catch (e) {
+      _logger.warning(
+        'failed to render a replayed surface as Express, summarizing '
+        'instead: $e',
+      );
+      final ids = pendingSurface
+          .map(_envelopeSurfaceIdOf)
+          .whereType<String>()
+          .toSet();
+      out.add('[UI surface ${ids.join(', ')} rendered earlier in this turn]');
+    }
     pendingSurface.clear();
   }
 

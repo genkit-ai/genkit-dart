@@ -335,6 +335,24 @@ root = Text("patched")
       expect((segments[2] as ProseSegment).prose, contains('outro'));
     });
 
+    test('rejects a block naming a component outside the catalog', () {
+      // The catalog is a constructor requirement rather than something
+      // `validate` can soften: Express is positional, so without it there is
+      // no way to map arguments onto properties at all.
+      final parser = A2uiStreamParser(
+        catalog: const A2uiCatalog(id: 'empty', components: {}),
+        surfaceId: fixedId,
+        validate: A2uiValidateMode.warn,
+      );
+      final warnings = captureWarnings(() {
+        final result = collect(parser, [
+          '<a2ui>\nroot = Text("hi")\n</a2ui>\n',
+        ]);
+        expect(result.batches, isEmpty);
+      });
+      expect(warnings.any((w) => w.contains('not in catalog')), isTrue);
+    });
+
     test('stamps the protocol version on every envelope', () {
       // Open-ended top-level keys still survive normalization (only `version`
       // is stamped), but Express gives the model no way to author them, so the
