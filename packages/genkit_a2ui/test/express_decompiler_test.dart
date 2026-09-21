@@ -88,6 +88,32 @@ row = Text($label)
 ''');
     });
 
+    test('client function calls with arguments', () {
+      // Arguments must come back as `name=value` keyword args. Braces would
+      // recompile as a single map literal in the first positional slot.
+      expectRoundTrip(r'root = Text(formatString("Hi ${/name}!"))');
+    });
+
+    test('checks with arguments', () {
+      expectRoundTrip(
+        r'root = TextField("Zip", $/zip, _, [?regex(r"^[0-9]{5}$")])',
+      );
+    });
+
+    test('a surface targeting a non-default catalog', () {
+      // The catalogId must survive, or the surface silently recompiles against
+      // the wrong catalog.
+      final original = compile('''
+surface("s9", "https://example.com/custom.json")
+root = Text("x")
+''');
+      final recompiled = compile(decompile(original));
+      expect(
+        (recompiled.first['createSurface'] as Map)['catalogId'],
+        'https://example.com/custom.json',
+      );
+    });
+
     test('the spec notification card', () {
       expectRoundTrip(r'''
 root = Card(main_column)
@@ -183,6 +209,25 @@ root = Text("x")
     test('uses triple quotes for embedded quotes', () {
       final source = decompile(compile(r'root = Text("say \"hi\" now")'));
       expect(source, contains('"""say "hi" now"""'));
+    });
+
+    test('escapes carriage returns rather than emitting them literally', () {
+      // A literal CR in the output would be silently rewritten by any
+      // line-ending normalization in transit.
+      final envelopes = <A2uiEnvelope>[
+        {
+          'version': 'v0.9',
+          'updateComponents': {
+            'surfaceId': 's1',
+            'components': [
+              {'id': 'root', 'component': 'Text', 'text': 'a\r\nb'},
+            ],
+          },
+        },
+      ];
+      final source = decompile(envelopes);
+      expect(source, isNot(contains('\r')));
+      expect(source, contains(r'\r'));
     });
 
     test('escapes newlines when triple quoting does not apply', () {

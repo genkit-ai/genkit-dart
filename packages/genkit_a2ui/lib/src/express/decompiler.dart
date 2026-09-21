@@ -45,7 +45,17 @@ String decompileExpress(
     final create = envelope['createSurface'];
     if (create is Map) {
       final surfaceId = create['surfaceId'];
-      if (surfaceId is String) lines.add('surface(${_string(surfaceId)})');
+      final catalogId = create['catalogId'];
+      if (surfaceId is String) {
+        // Only emit the catalog when it differs from the active one; otherwise
+        // it is redundant and the surface would recompile against the same id
+        // anyway.
+        lines.add(
+          catalogId is String && catalogId != catalog.id
+              ? 'surface(${_string(surfaceId)}, ${_string(catalogId)})'
+              : 'surface(${_string(surfaceId)})',
+        );
+      }
       continue;
     }
 
@@ -101,10 +111,16 @@ List<String> _components(List<Object?> components, A2uiCatalog catalog) {
     // slots were supplied.
     final rendered = <String?>[];
     for (final param in signature.params) {
+      if (!component.containsKey(param.name)) {
+        rendered.add(null);
+        continue;
+      }
+      // `checks` is a list of validation rules, which Express writes with the
+      // `?name(...)` sigil rather than as ordinary calls.
       rendered.add(
-        component.containsKey(param.name)
-            ? _value(component[param.name], param.name)
-            : null,
+        param.name == 'checks'
+            ? _checks(component[param.name])
+            : _value(component[param.name], param.name),
       );
     }
 
@@ -120,6 +136,40 @@ List<String> _components(List<Object?> components, A2uiCatalog catalog) {
   }
 
   return lines;
+}
+
+/// Renders a `checks` list, writing each rule with its `?` sigil.
+///
+/// The check's `value` argument is dropped when it merely repeats the binding
+/// the compiler injects from the component's own `value`, keeping the common
+/// `[?required]` form compact.
+String _checks(Object? checks) {
+  if (checks is! List) return _value(checks, null);
+
+  final rules = <String>[];
+  for (final raw in checks) {
+    if (raw is! Map) {
+      rules.add(_value(raw, null));
+      continue;
+    }
+    final call = raw['call'];
+    if (call is! String) {
+      rules.add(_value(raw, null));
+      continue;
+    }
+    final args = raw['args'];
+    final rest = <Object?>[
+      if (args is Map)
+        for (final entry in args.entries)
+          if (entry.key != 'value') entry.value,
+    ];
+    rules.add(
+      rest.isEmpty
+          ? '?$call'
+          : '?$call(${rest.map((v) => _value(v, null)).join(', ')})',
+    );
+  }
+  return '[${rules.join(', ')}]';
 }
 
 /// Renders a `dataModel` back into `$/path = value` assignments, one per leaf.
@@ -180,15 +230,17 @@ String _value(Object? value, String? property) {
       return 'Event($name)';
     }
 
-    // A client function or check: {call, args}.
+    // A client function or check: {call, args}. Rendered with `name=value`
+    // keyword arguments; wrapping them in braces would instead parse back as a
+    // single map literal in the first positional slot.
     final call = map['call'];
     if (call is String) {
       final args = map['args'];
       if (args is Map && args.isNotEmpty) {
         final rendered = args.entries
-            .map((e) => '${e.key}: ${_value(e.value, null)}')
+            .map((e) => '${e.key}=${_value(e.value, null)}')
             .join(', ');
-        return '$call({$rendered})';
+        return '$call($rendered)';
       }
       return '$call()';
     }
@@ -222,7 +274,13 @@ String _string(String value) {
 
   // Triple quotes carry embedded quotes and newlines without escaping, as long
   // as the value neither contains nor ends with the delimiter.
+  //
+  // A literal CR is excluded deliberately: it would sit unescaped in the
+  // output, where any line-ending normalization in transit (a diff tool, an
+  // editor, git's autocrlf) would silently rewrite it. Those values take the
+  // escaped single-quoted form below instead, where CR survives as `\r`.
   if ((hasQuote || hasNewline) &&
+      !value.contains('\r') &&
       !value.contains('"""') &&
       !value.endsWith('"')) {
     if (hasBackslash && !hasTab) return 'r"""$value"""';
