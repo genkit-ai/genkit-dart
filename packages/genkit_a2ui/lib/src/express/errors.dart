@@ -63,6 +63,25 @@ class ExpressCompileError implements Exception {
     line,
   );
 
+  /// A component-id slot was handed a string literal.
+  ///
+  /// The single most common Express mistake: `Button("Refresh", ...)` reads
+  /// naturally but compiles to `"child": "Refresh"`, and the renderer then
+  /// fails looking up a widget with that id. The message spells out the fix
+  /// because it is also what gets shown to the model on a repair attempt.
+  factory ExpressCompileError.literalInIdSlot(
+    String component,
+    String property,
+    String literal, [
+    int? line,
+  ]) => ExpressCompileError(
+    'property "$property" of component "$component" expects a component id, '
+    'not the literal "$literal". Define a component and reference it by '
+    'variable, e.g. `label = Text("$literal")` then '
+    '`$component(label, ...)`.',
+    line,
+  );
+
   /// The block defined no `root` variable, so there is no tree to render.
   factory ExpressCompileError.undefinedRoot([int? line]) =>
       const ExpressCompileError(

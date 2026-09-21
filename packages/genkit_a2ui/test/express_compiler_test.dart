@@ -209,6 +209,80 @@ title = Text("Weather", "h3")
     });
   });
 
+  group('component-id slots', () {
+    test('rejects a string literal where a child id belongs', () {
+      // The bug this guards: `Button("Refresh", ...)` compiled to
+      // `"child": "Refresh"` and the renderer threw
+      // `Widget with id: Refresh not found`.
+      expect(
+        () => compile('root = Button("Refresh", "primary", Event("go"))'),
+        throwsA(
+          isA<ExpressCompileError>()
+              .having((e) => e.message, 'names the slot', contains('"child"'))
+              .having(
+                (e) => e.message,
+                'shows the fix',
+                contains('label = Text("Refresh")'),
+              ),
+        ),
+      );
+    });
+
+    test('rejects literals inside a children array', () {
+      expect(
+        () => compile('root = Column(["a", "b"])'),
+        throwsA(isA<ExpressCompileError>()),
+      );
+    });
+
+    test('accepts a variable reference', () {
+      final envelopes = compile('''
+label = Text("Refresh")
+root = Button(label, "primary", Event("go"))
+''');
+      expect(byId(envelopes, 'root')['child'], 'label');
+    });
+
+    test('accepts an inline component, hoisting it to an id', () {
+      final envelopes = compile(
+        'root = Button(Text("Refresh"), _, Event("go"))',
+      );
+      final child = byId(envelopes, 'root')['child'] as String;
+      expect(byId(envelopes, child)['text'], 'Refresh');
+    });
+
+    test('accepts a _template binding in a children slot', () {
+      final envelopes = compile(r'''
+root = List(_template($/items, row))
+row = Text($label)
+''');
+      expect(byId(envelopes, 'root')['children'], {
+        'path': '/items',
+        'componentId': 'row',
+      });
+    });
+
+    test('still allows literals in ordinary value slots', () {
+      expect(byId(compile('root = Text("plain")'), 'root')['text'], 'plain');
+    });
+
+    test('compiles the surface from the bug report', () {
+      // Same shape as the failing turn, with the Button corrected.
+      final envelopes = compile(r'''
+$/london/temp = 28
+header = Text("City Weather Comparison", "h2")
+refreshLabel = Text("Refresh")
+refreshBtn = Button(refreshLabel, "primary", Event("refresh"))
+topRow = Row([header, refreshBtn], "spaceBetween", "center")
+londonGauge = Text($/london/temp)
+cardLondon = Card(londonGauge)
+root = Column([topRow, cardLondon], "start", "stretch")
+''');
+      expect(byId(envelopes, 'refreshBtn')['child'], 'refreshLabel');
+      expect(byId(envelopes, 'cardLondon')['child'], 'londonGauge');
+    });
+  });
+
   group('client function argument validation', () {
     test('rejects an unknown named argument', () {
       expect(

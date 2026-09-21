@@ -289,6 +289,14 @@ class _Compiler {
       // on the right parameter.
       if (arg is ExprSkip) continue;
 
+      // An id slot needs a reference, not a value. Checked on the AST rather
+      // than the compiled result, where an id and a label are both plain
+      // strings: `ExprVar` resolves to an id, `ExprCall` hoists to one, and a
+      // literal is the mistake.
+      if (param.isComponentRef) {
+        _rejectLiteralIds(node.name, name, arg);
+      }
+
       final compiled = _value(arg, scope);
       if (param.static && _containsBinding(compiled)) {
         throw ExpressCompileError.forbiddenBinding(node.name, name, node.line);
@@ -317,6 +325,33 @@ class _Compiler {
     }
 
     return result;
+  }
+
+  /// Throws when a component-id slot is given a string literal, directly or
+  /// inside a children array. Everything else a slot may hold - a variable, an
+  /// inline component, a `_template(...)`, a data binding - is left alone.
+  static void _rejectLiteralIds(
+    String component,
+    String property,
+    ExprNode arg,
+  ) {
+    if (arg is ExprLiteral) {
+      final value = arg.value;
+      if (value is String) {
+        throw ExpressCompileError.literalInIdSlot(
+          component,
+          property,
+          value,
+          arg.line,
+        );
+      }
+      return;
+    }
+    if (arg is ExprArray) {
+      for (final item in arg.items) {
+        _rejectLiteralIds(component, property, item);
+      }
+    }
   }
 
   static bool _isCheck(ExprNode node) =>
