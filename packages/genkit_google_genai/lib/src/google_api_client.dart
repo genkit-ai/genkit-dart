@@ -81,12 +81,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           .map((model) {
             final bareName = model.name!.split('/').last;
             discoveredNames.add(bareName);
-            final isTts = bareName.contains('-tts');
             return modelMetadata(
               '$name/$bareName',
-              customOptions: isTts
-                  ? GeminiTtsOptions.$schema
-                  : GeminiOptions.$schema,
+              customOptions: GeminiModelFamily.of(bareName).customOptions,
               modelInfo: modelInfoFor(bareName),
             );
           })
