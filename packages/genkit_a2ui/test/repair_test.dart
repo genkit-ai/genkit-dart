@@ -156,6 +156,55 @@ root = Sparkline([1, 2])
       expect(prompts, hasLength(1), reason: 'configuration error, no repair');
     });
 
+    test('repairs a duplicated block only once', () async {
+      // Repaired sources are keyed by block text, so one attempt already covers
+      // every copy; a second call would buy nothing.
+      const twice = '''First:
+<a2ui>
+root = Button("Refresh", "primary", Event("refresh"))
+</a2ui>
+Second:
+<a2ui>
+root = Button("Refresh", "primary", Event("refresh"))
+</a2ui>
+''';
+      defineModel('m', twice, goodRepair);
+      final res = await genkit.generate(
+        model: modelRef('m'),
+        prompt: 'weather',
+        use: [a2ui()],
+      );
+
+      expect(prompts, hasLength(2), reason: 'one turn plus ONE repair');
+      // Both copies are fixed by the single repair.
+      final roots = envelopesOf(res)
+          .where((e) => e['updateComponents'] != null)
+          .expand(
+            (e) => ((e['updateComponents'] as Map)['components'] as List)
+                .cast<Map<String, dynamic>>(),
+          )
+          .where((c) => c['id'] == 'root');
+      expect(roots, hasLength(2));
+      expect(roots.every((c) => c['child'] == 'refreshLabel'), isTrue);
+    });
+
+    test('accepts a repair whose tags differ in case', () async {
+      // The streaming parser matches tags case-insensitively; discarding a
+      // valid repair over `<A2UI>` would waste the call.
+      const shouty = '''<A2UI>
+refreshLabel = Text("Refresh")
+root = Button(refreshLabel, "primary", Event("refresh"))
+</A2UI>''';
+      defineModel('m', badTurn, shouty);
+      final res = await genkit.generate(
+        model: modelRef('m'),
+        prompt: 'weather',
+        use: [a2ui()],
+      );
+
+      expect(envelopesOf(res), isNotEmpty);
+    });
+
     test('a valid turn costs no extra call', () async {
       const good = '''All set:
 <a2ui>

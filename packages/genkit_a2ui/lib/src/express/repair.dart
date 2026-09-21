@@ -89,9 +89,13 @@ List<A2uiCatalogComponent> _mentionedComponents(
 /// Extracts the Express source from a repair reply, tolerating a model that
 /// omits the sentinel tags or wraps the block in a Markdown fence.
 String? extractRepairedBlock(String reply) {
-  final open = reply.indexOf('<a2ui>');
+  // Matched case-insensitively, like the streaming parser's tags: a model that
+  // answers with `<A2UI>` has still produced a usable repair, and discarding it
+  // over casing would waste the call.
+  final lower = reply.toLowerCase();
+  final open = lower.indexOf('<a2ui>');
   if (open >= 0) {
-    final close = reply.indexOf('</a2ui>', open);
+    final close = lower.indexOf('</a2ui>', open);
     if (close > open) {
       return reply.substring(open + '<a2ui>'.length, close).trim();
     }

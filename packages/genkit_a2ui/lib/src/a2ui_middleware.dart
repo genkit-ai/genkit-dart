@@ -471,8 +471,15 @@ class A2uiMiddleware extends GenerateMiddleware {
     Future<String> Function(String prompt) ask,
   ) async {
     final repairs = <String, String>{};
+    // A turn can carry the same broken block more than once, and the repaired
+    // sources are keyed by block text, so one attempt covers every copy.
+    // Tracked separately from `repairs` to also suppress retries of a block
+    // whose repair failed.
+    final attempted = <String>{};
 
     for (final block in failed) {
+      if (!attempted.add(block.source)) continue;
+
       if (!block.isModelFixable) {
         _logger.info(
           'skipping repair, not fixable by rewriting: ${block.error}',
