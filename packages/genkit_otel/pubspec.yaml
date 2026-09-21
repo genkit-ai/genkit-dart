@@ -11,7 +11,7 @@ environment:
 dependencies:
   dartastic_opentelemetry: ^0.11.0
   dartastic_opentelemetry_api: ^0.11.0
-  genkit: ^0.16.1
+  genkit: ^0.17.0
   logging: ^1.3.0
 
 dev_dependencies:
