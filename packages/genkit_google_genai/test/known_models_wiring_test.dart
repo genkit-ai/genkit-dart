@@ -20,6 +20,19 @@ import 'package:test/test.dart';
 
 import 'test_harness.dart';
 
+/// Stands in for a plugin whose API key cannot be resolved.
+class _UnconfiguredPlugin extends GoogleGenAiPluginImpl {
+  @override
+  Future<GenerativeLanguageBaseClient> getApiClient([
+    String? requestApiKey,
+  ]) async {
+    throw GenkitException(
+      'apiKey must be set to an API key',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+}
+
 void main() {
   GoogleGenAiPluginImpl plugin({ListingClient? client}) =>
       GoogleGenAiPluginImpl(
@@ -163,6 +176,19 @@ void main() {
       expect(info['label'], 'Gemini 3.5 Flash');
       expect(info['stage'], 'stable');
     });
+
+    test(
+      'falls back to the curated catalog when the client cannot be built',
+      () async {
+        final actions = await _UnconfiguredPlugin().list();
+        final names = actions.map((a) => a.name).toList();
+
+        for (final model in KnownGeminiModel.values) {
+          expect(names, contains('googleai/${model.id}'));
+        }
+        expect(names.where((n) => n.contains('embedding')), isEmpty);
+      },
+    );
   });
 
   group('injected client lifecycle', () {

@@ -110,5 +110,44 @@ void main() {
       expect(info['label'], 'Gemini 3.5 Flash');
       expect(info['stage'], 'stable');
     });
+
+    test('falls back to the curated catalog when discovery fails', () async {
+      final client = MockHttpClient(
+        publisherModelsStatus: 500,
+        publisherModelsResponse:
+            '{"error": {"message": "boom", "status": "INTERNAL"}}',
+      );
+      final actions = await plugin(client: client).list();
+      final names = actions.map((a) => a.name).toList();
+
+      for (final model in vertexAiKnownGeminiModels) {
+        expect(names, contains('vertexai/${model.id}'));
+      }
+      expect(names.where((n) => n.contains('embedding')), isEmpty);
+      final curated = actions.firstWhere(
+        (a) => a.name == 'vertexai/gemini-3.5-flash',
+      );
+      final info = (curated.metadata['model'] as Map).cast<String, dynamic>();
+      expect(info['label'], 'Gemini 3.5 Flash');
+      expect(info['stage'], 'stable');
+    });
+
+    test(
+      'falls back to the curated catalog when the project id is invalid',
+      () async {
+        final client = MockHttpClient();
+        final actions = await VertexAiPluginImpl(
+          projectId: 'not a valid project id',
+          location: 'us-central1',
+          authClient: client,
+        ).list();
+        final names = actions.map((a) => a.name).toList();
+
+        expect(client.requestUrls, isEmpty);
+        for (final model in vertexAiKnownGeminiModels) {
+          expect(names, contains('vertexai/${model.id}'));
+        }
+      },
+    );
   });
 }

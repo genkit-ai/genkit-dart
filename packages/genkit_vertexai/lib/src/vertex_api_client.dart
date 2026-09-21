@@ -89,11 +89,16 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    final service = await getApiClient();
     try {
-      final res = await service.listPublisherModels(
-        projectId: _getResolvedProjectId,
-      );
+      final service = await getApiClient();
+      final Map<String, dynamic> res;
+      try {
+        res = await service.listPublisherModels(
+          projectId: _getResolvedProjectId,
+        );
+      } finally {
+        service.client.close();
+      }
       final publisherModels = (res['publisherModels'] as List?) ?? [];
 
       final discoveredNames = <String>{};
@@ -127,11 +132,8 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
       return [...models, ...curated, ...embedders];
     } catch (e, stack) {
-      if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
-      throw handleException(e, stack);
-    } finally {
-      service.client.close();
+      return curatedModelMetadata().toList();
     }
   }
 
