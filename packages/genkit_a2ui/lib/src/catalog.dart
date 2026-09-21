@@ -422,6 +422,18 @@ String _renderStyleTips(Set<String> has) {
 /// example never references unknown components.
 String _renderExample(A2uiCatalog catalog, Set<String> has) {
   if (has.contains('Card') && has.contains('Column') && has.contains('Text')) {
+    // Include a Button when the catalog has one: its `child` is an id slot,
+    // the easiest thing to get wrong, so the example shows the label defined
+    // as its own component rather than inlined as a string.
+    final button = has.contains('Button')
+        ? '''
+refreshLabel = Text("Refresh")
+refreshBtn = Button(refreshLabel, "primary", Event("refresh"))
+'''
+        : '';
+    final children = has.contains('Button')
+        ? '[title, temp, refreshBtn]'
+        : '[title, temp]';
     return '''
 
 
@@ -429,10 +441,10 @@ Example (a small weather card):
 <a2ui>
 \$/temp = "18\u00b0C"
 root = Card(body)
-body = Column([title, temp])
+body = Column($children)
 title = Text("Weather in Tokyo", "h3")
 temp = Text(\$/temp)
-</a2ui>''';
+$button</a2ui>''';
   }
   // Minimal fallback: root uses whatever the catalog's first component is.
   final rootComponent = catalog.components.isNotEmpty
@@ -546,8 +558,15 @@ Rules:
     `?regex(r"^[0-9]{5}\$", "Must be 5 digits")`. Group several in a list:
     [?required, ?email].
 11. Arguments marked `(static)` in the signatures below MUST be inline literals;
-    they cannot take a `\$` data binding.$formsSection
-12. When a user interacts with a surface (e.g. presses a button) and you respond
+    they cannot take a `\$` data binding.
+12. Arguments marked `(id)` hold the NAME OF ANOTHER COMPONENT, never a piece
+    of text. Define that component on its own line and pass its variable name.
+    For a labelled button, the label is a separate component:
+      okLabel = ComponentA("OK")
+      okButton = ComponentC(okLabel, _, Event("ok"))
+    Passing a string there (`ComponentC("OK", ...)`) is an error: the renderer
+    would look for a component named "OK" and fail.$formsSection
+13. When a user interacts with a surface (e.g. presses a button) and you respond
     with updated UI, RE-RENDER THE WHOLE SURFACE: emit a complete block with a
     `root` again. Do not emit a fragment expecting a previous surface to still
     exist.$styleSection
