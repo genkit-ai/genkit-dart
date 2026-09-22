@@ -438,9 +438,11 @@ pair makes sense. The set of levels itself is fixed by `openai_dart`, which
 models the parameter as an enum: a level OpenAI ships after this release needs
 an SDK bump to reach. What the plugin does check is the model:
 sending an effort to one that does not reason is rejected before the request
-goes out, naming the model rather than the parameter. Behind a custom `baseUrl`
-that check is skipped, since the catalog describes OpenAI's models and not that
-host's.
+goes out, naming the model rather than the parameter. Behind a `baseUrl` on
+another host that check is skipped, since the catalog describes OpenAI's models
+and not that host's, and a model you registered through `models:` is left to
+the API to judge - declaring it says more about what it accepts than the
+catalog does.
 
 `verbosity` is a separate GPT-5-family knob, controlling how much the model says
 rather than how hard it thinks.

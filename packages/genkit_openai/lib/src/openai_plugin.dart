@@ -64,6 +64,23 @@ class OpenAIPlugin extends GenkitPlugin {
   /// Additional models to register beyond those discovered from the API.
   final List<CustomModelDefinition> customModels;
 
+  /// Whether this instance talks to OpenAI's own API.
+  ///
+  /// `baseUrl == null` is the default spelling of it, but not the only one:
+  /// naming `https://api.openai.com/v1` explicitly - as a caller pinning the
+  /// URL, or running two instances side by side, reasonably might - dials the
+  /// same host, and used to mean "compat backend", withholding the curated
+  /// catalog and skipping the plugin's own checks.
+  ///
+  /// Only the host is compared. A path, a port or a trailing slash does not
+  /// change who answers; Azure's `*.openai.azure.com` is a different API and
+  /// is deliberately not matched.
+  bool get _isOpenAIHost {
+    if (baseUrl == null) return true;
+    final uri = Uri.tryParse(baseUrl!);
+    return uri != null && uri.host == 'api.openai.com';
+  }
+
   /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
 
@@ -263,7 +280,7 @@ class OpenAIPlugin extends GenkitPlugin {
     // models are always listed - they need no discovery to be valid.
     //
     // The curated catalog is an OpenAI catalog, so it is withheld once a
-    // baseUrl points somewhere else: a Groq or DeepSeek backend listing
+    // baseUrl points at another host: a Groq or DeepSeek backend listing
     // `groq/gpt-5.5` and `groq/o3` offers the Dev UI a page of models that
     // host will 404 on. Compat backends are left with whatever `GET /models`
     // reports plus their own `models:`, and - as ever - resolve() still serves
@@ -293,7 +310,7 @@ class OpenAIPlugin extends GenkitPlugin {
 
     final ids = <String>{
       ...discovered,
-      if (baseUrl == null) ...knownChatModels,
+      if (_isOpenAIHost) ...knownChatModels,
       ...customModels.map((m) => m.name),
     };
 
@@ -301,7 +318,7 @@ class OpenAIPlugin extends GenkitPlugin {
     // there is any, plus the curated catalog when the host is OpenAI itself.
     final embedderIds = <String>{
       ...discoveredEmbedders,
-      if (baseUrl == null) ...knownEmbedderModels,
+      if (_isOpenAIHost) ...knownEmbedderModels,
     };
 
     // The curated speech ids are withheld from a compat host for the same
@@ -379,11 +396,11 @@ class OpenAIPlugin extends GenkitPlugin {
   /// invite image parts it rejects — but not OpenAI's deployment details. See
   /// `compatModelInfo` in `known_models.dart`.
   ModelInfo _infoFor(String modelName) =>
-      baseUrl == null ? modelInfoFor(modelName) : compatModelInfo(modelName);
+      _isOpenAIHost ? modelInfoFor(modelName) : compatModelInfo(modelName);
 
   /// Embedder metadata for [embedderName] on this plugin instance, split the
   /// same way [_infoFor] splits a model's.
-  Map<String, dynamic> _embedderInfoFor(String embedderName) => baseUrl == null
+  Map<String, dynamic> _embedderInfoFor(String embedderName) => _isOpenAIHost
       ? embedderInfoFor(embedderName)
       : compatEmbedderInfo(embedderName);
 
@@ -478,7 +495,7 @@ class OpenAIPlugin extends GenkitPlugin {
         }
 
         final options = embed.parseEmbedderOptions(req.options);
-        if (baseUrl == null) {
+        if (_isOpenAIHost) {
           // Only OpenAI's own host is held to the catalog. Advertising a
           // vector length that turns out wrong costs a bad number in the Dev
           // UI; refusing a request the backend would have served costs the
@@ -543,7 +560,12 @@ class OpenAIPlugin extends GenkitPlugin {
         // [modelName] - is the model that will answer, and the model the
         // catalog has to be asked about.
         final wireModel = options.version ?? modelName;
-        if (baseUrl == null) {
+        // Levels first, model second. `gpt-4o` with `'extreme'` has two
+        // things wrong with it, and the level is the one the caller can fix
+        // without knowing the catalog - so it is the one to name.
+        final reasoningEffort = chat.toReasoningEffort(options.reasoningEffort);
+        final verbosity = chat.toVerbosity(options.verbosity);
+        if (_isOpenAIHost) {
           // Same rule the embedders follow: the catalog describes OpenAI's
           // models, so it only judges requests bound for OpenAI's own host.
           _requireReasoningSupport(wireModel, options.reasoningEffort);
@@ -584,8 +606,8 @@ class OpenAIPlugin extends GenkitPlugin {
               schema: modelRequest.output?.schema,
               jsonMode: options.jsonMode,
             ),
-            reasoningEffort: chat.toReasoningEffort(options.reasoningEffort),
-            verbosity: chat.toVerbosity(options.verbosity),
+            reasoningEffort: reasoningEffort,
+            verbosity: verbosity,
           );
           if (ctx.streamingRequested) {
             return await _handleStreaming(client, request, ctx);
@@ -650,11 +672,18 @@ class OpenAIPlugin extends GenkitPlugin {
   /// than which models reason. Left to the API rather than guessed at.
   void _requireReasoningSupport(String modelName, String? reasoningEffort) {
     if (reasoningEffort == null) return;
+    // A caller who registered the model said more about it than the catalog
+    // can: `models:` is how a name is corrected or extended, so a declared
+    // model is left to the API to judge, as an uncurated one is.
+    if (customModels.any((m) => m.name == modelName)) return;
     final curated = knownOpenAIModelFor(modelName);
     if (curated == null || curated.reasons) return;
 
     throw GenkitException(
-      '${curated.id} does not accept reasoningEffort; it is not a reasoning '
+      // The name that will be on the wire, not the curated alias it resolved
+      // through: a `version` of `gpt-4o-2024-11-20` is what the caller set
+      // and what OpenAI will answer for.
+      '$modelName does not accept reasoningEffort; it is not a reasoning '
       'model.',
       status: StatusCodes.INVALID_ARGUMENT,
     );
@@ -683,6 +712,7 @@ class OpenAIPlugin extends GenkitPlugin {
         final reasoningDelta = GenkitConverter.reasoningTextOf(
           delta?.reasoningContent,
           delta?.reasoning,
+          delta?.reasoningDetails,
         );
         if (reasoningDelta != null) {
           ctx.sendChunk(

@@ -246,7 +246,11 @@ abstract final class GenkitConverter {
     final parts = <Part>[];
 
     // Reasoning comes before the answer it produced, so it leads the content.
-    final reasoning = reasoningTextOf(msg.reasoningContent, msg.reasoning);
+    final reasoning = reasoningTextOf(
+      msg.reasoningContent,
+      msg.reasoning,
+      msg.reasoningDetails,
+    );
     if (reasoning != null) {
       parts.add(ReasoningPart(reasoning: reasoning));
     }
@@ -284,20 +288,47 @@ abstract final class GenkitConverter {
 
   /// The reasoning text carried by an assistant message or a stream delta.
   ///
-  /// Two spellings reach this plugin and neither is OpenAI's: `reasoning` is
-  /// what OpenRouter emits, `reasoning_content` what DeepSeek R1 and vLLM do.
-  /// OpenAI's own models never return their chain of thought on the chat API
-  /// at all - they bill it as reasoning tokens and keep it - so this is
-  /// entirely a compatible-backend path.
+  /// Three spellings reach this plugin and none is OpenAI's: `reasoning` is
+  /// what OpenRouter emits, `reasoning_content` what DeepSeek R1 and vLLM do,
+  /// and `reasoning_details` is OpenRouter's structured form, which some of
+  /// its upstreams send *instead* of the flat field. OpenAI's own models never
+  /// return their chain of thought on the chat API at all - they bill it as
+  /// reasoning tokens and keep it - so this is entirely a compatible-backend
+  /// path.
   ///
-  /// Both are read because a gateway in front of several providers passes
-  /// through whichever its upstream used. When both are present they are the
-  /// same text under two names, so the first wins rather than being joined.
-  static String? reasoningTextOf(String? reasoningContent, String? reasoning) {
-    for (final candidate in [reasoningContent, reasoning]) {
+  /// All are read because a gateway in front of several providers passes
+  /// through whichever its upstream used. When more than one is present they
+  /// are the same text under different names, so the first wins rather than
+  /// being joined; the flat fields come first because they need no assembly.
+  static String? reasoningTextOf(
+    String? reasoningContent,
+    String? reasoning, [
+    List<sdk.ReasoningDetail>? reasoningDetails,
+  ]) {
+    for (final candidate in [
+      reasoningContent,
+      reasoning,
+      _reasoningDetailsText(reasoningDetails),
+    ]) {
       if (candidate != null && candidate.isNotEmpty) return candidate;
     }
     return null;
+  }
+
+  /// The readable text in a `reasoning_details` list.
+  ///
+  /// Entries arrive in order and each holds one slice, so these are joined
+  /// rather than picked between. `reasoning.encrypted` entries are skipped:
+  /// their payload is base64 the provider alone can open, and a `ReasoningPart`
+  /// is meant to be read.
+  static String? _reasoningDetailsText(List<sdk.ReasoningDetail>? details) {
+    if (details == null || details.isEmpty) return null;
+    final text = details
+        .where((d) => !d.isEncrypted)
+        .map((d) => d.text ?? d.summary ?? '')
+        .where((t) => t.isNotEmpty)
+        .join();
+    return text.isEmpty ? null : text;
   }
 
   /// Map OpenAI finish reason to Genkit FinishReason

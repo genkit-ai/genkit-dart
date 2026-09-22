@@ -292,6 +292,25 @@ void main() {
       expect(info.containsKey('versions'), isFalse);
     });
 
+    test('OpenAI\'s own baseUrl keeps them', () async {
+      // Both spellings dial the same host, so naming it explicitly is not a
+      // compat backend and must not cost the curated catalog.
+      final metadata = await pluginListing([
+        'gpt-4o',
+      ], baseUrl: 'https://api.openai.com/v1').list();
+      final info = modelMetadataOf(
+        metadata.firstWhere((m) => m.name == 'openai/gpt-4o'),
+      );
+
+      expect(info['label'], isNotNull);
+      expect(info['stage'], isNotNull);
+      expect(info.containsKey('versions'), isTrue);
+      expect(
+        modelNames(metadata),
+        containsAll(knownChatModels.map((id) => 'openai/$id')),
+      );
+    });
+
     test('an uncurated name on a compat backend takes the defaults', () async {
       final metadata = await pluginListing([
         'llama-3.3-70b-versatile',

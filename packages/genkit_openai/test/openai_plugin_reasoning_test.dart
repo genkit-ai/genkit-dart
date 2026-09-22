@@ -26,6 +26,7 @@ MockClient reasoningClient(
   List<Map<String, dynamic>> capturedBodies, {
   String? reasoningContent,
   String? reasoning,
+  List<Map<String, dynamic>>? reasoningDetails,
   List<String>? sseFrames,
 }) {
   return MockClient((request) async {
@@ -59,6 +60,7 @@ MockClient reasoningClient(
               'content': 'the answer',
               'reasoning_content': ?reasoningContent,
               'reasoning': ?reasoning,
+              'reasoning_details': ?reasoningDetails,
             },
             'finish_reason': 'stop',
           },
@@ -91,9 +93,20 @@ String? reasoningOf(GenerateResponseHelper<dynamic> response) => response
     .firstWhere((p) => p.isReasoning, orElse: () => TextPart(text: ''))
     .reasoning;
 
-Genkit genkitWith(http.Client client, {String? baseUrl}) {
+Genkit genkitWith(
+  http.Client client, {
+  String? baseUrl,
+  List<CustomModelDefinition> models = const [],
+}) {
   final ai = Genkit(
-    plugins: [openAI(apiKey: 'test-key', baseUrl: baseUrl, httpClient: client)],
+    plugins: [
+      openAI(
+        apiKey: 'test-key',
+        baseUrl: baseUrl,
+        httpClient: client,
+        models: models,
+      ),
+    ],
   );
   addTearDown(ai.shutdown);
   return ai;
@@ -240,6 +253,76 @@ void main() {
       expect(captured.single['reasoning_effort'], 'high');
     });
 
+    test('a registered model outranks the catalog', () async {
+      // `models:` is how a name is corrected, so declaring `gpt-4o` says more
+      // about what it accepts here than the curated entry does.
+      final captured = <Map<String, dynamic>>[];
+      await genkitWith(
+        reasoningClient(captured),
+        models: [
+          CustomModelDefinition(
+            name: 'gpt-4o',
+            info: ModelInfo(label: 'A reasoning gpt-4o'),
+          ),
+        ],
+      ).generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'high'),
+      );
+
+      expect(captured.single['reasoning_effort'], 'high');
+    });
+
+    test('the level is judged before the model', () async {
+      // Both halves are wrong here. The level is the half a caller can fix
+      // without knowing which models reason, so it is the one named.
+      await expectLater(
+        genkitWith(reasoningClient([])).generate(
+          model: OpenAIModels.gpt4o,
+          prompt: 'hi',
+          config: OpenAIChatOptions(reasoningEffort: 'extreme'),
+        ),
+        completion(
+          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'Known levels'),
+        ),
+      );
+    });
+
+    test('a dated snapshot is named as the caller spelled it', () async {
+      // The curated alias is how the catalog was consulted, not what the
+      // caller set or what OpenAI will answer for.
+      await expectLater(
+        genkitWith(reasoningClient([])).generate(
+          model: OpenAIModels.gpt4o,
+          prompt: 'hi',
+          config: OpenAIChatOptions(
+            version: 'gpt-4o-2024-11-20',
+            reasoningEffort: 'high',
+          ),
+        ),
+        completion(
+          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o-2024-11-20'),
+        ),
+      );
+    });
+
+    test('OpenAI\'s own URL is OpenAI, not a compat host', () async {
+      // Both spellings dial the same host, so naming it explicitly must not
+      // switch the catalog off.
+      await expectLater(
+        genkitWith(
+          reasoningClient([]),
+          baseUrl: 'https://api.openai.com/v1',
+        ).generate(
+          model: OpenAIModels.gpt4o,
+          prompt: 'hi',
+          config: OpenAIChatOptions(reasoningEffort: 'high'),
+        ),
+        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+      );
+    });
+
     test('an unknown level is the caller\'s mistake', () async {
       await expectLater(
         genkitWith(reasoningClient([])).generate(
@@ -288,6 +371,38 @@ void main() {
 
       expect(response.message!.content.any((p) => p.isReasoning), isFalse);
     });
+
+    test('reasoning_details is read when it is all a gateway sends', () async {
+      final response = await genkitWith(
+        reasoningClient(
+          [],
+          reasoningDetails: [
+            {'type': 'reasoning.text', 'text': 'first, '},
+            {'type': 'reasoning.text', 'text': 'then second'},
+          ],
+        ),
+      ).generate(model: openAI.model('o4-mini'), prompt: 'think');
+
+      // Entries are slices of one trace, so they are joined, not picked
+      // between.
+      expect(reasoningOf(response), 'first, then second');
+    });
+
+    test('encrypted reasoning details are skipped', () async {
+      final response = await genkitWith(
+        reasoningClient(
+          [],
+          reasoningDetails: [
+            {'type': 'reasoning.encrypted', 'data': 'AQIDBA=='},
+            {'type': 'reasoning.summary', 'summary': 'weighed both options'},
+          ],
+        ),
+      ).generate(model: openAI.model('o4-mini'), prompt: 'think');
+
+      // A ReasoningPart is meant to be read, and the payload is base64 only
+      // the provider can open.
+      expect(reasoningOf(response), 'weighed both options');
+    });
   });
 
   group('reasoning while streaming', () {
@@ -335,6 +450,56 @@ void main() {
       expect(chunks.last.first.isText, isTrue);
       expect(reasoningOf(response), 'first thought');
       expect(response.text, 'the answer');
+    });
+
+    test('a reasoning_details delta streams too', () async {
+      final frames = [
+        jsonEncode({
+          'id': 'c',
+          'object': 'chat.completion.chunk',
+          'created': 0,
+          'model': 'openrouter/some-reasoner',
+          'choices': [
+            {
+              'index': 0,
+              'delta': {
+                'reasoning_details': [
+                  {'type': 'reasoning.text', 'text': 'thinking aloud'},
+                ],
+              },
+            },
+          ],
+        }),
+        jsonEncode({
+          'id': 'c',
+          'object': 'chat.completion.chunk',
+          'created': 0,
+          'model': 'openrouter/some-reasoner',
+          'choices': [
+            {
+              'index': 0,
+              'delta': {'content': 'the answer'},
+              'finish_reason': 'stop',
+            },
+          ],
+        }),
+      ];
+
+      final chunks = <List<Part>>[];
+      final stream =
+          genkitWith(
+            reasoningClient([], sseFrames: frames),
+            baseUrl: 'https://openrouter.ai/api/v1',
+          ).generateStream(
+            model: openAI.model('openrouter/some-reasoner'),
+            prompt: 'hi',
+          );
+      await for (final chunk in stream) {
+        chunks.add(chunk.content);
+      }
+
+      expect(chunks.first.first.isReasoning, isTrue);
+      expect(chunks.first.first.reasoning, 'thinking aloud');
     });
   });
 }
