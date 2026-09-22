@@ -127,15 +127,6 @@ bool supportsTranslation(String modelId) {
   return modelId.toLowerCase().contains('whisper');
 }
 
-/// Returns true when [info] declares audio input.
-///
-/// The input-side mirror of `declaresMediaOutput`: a caller registering a
-/// transcription model on an OpenAI-compatible provider whose name is not
-/// `*whisper*` or `*transcribe*` says so with `supports: {'media': true}`.
-bool declaresMediaInput(ModelInfo? info) {
-  return info?.supports?['media'] == true;
-}
-
 /// Capability metadata for a transcription model.
 ModelInfo transcriptionModelInfo(String modelId) {
   return ModelInfo(

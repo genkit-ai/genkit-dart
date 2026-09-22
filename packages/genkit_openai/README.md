@@ -347,7 +347,10 @@ print(response.text); // 'The quick brown fox jumps over the lazy dog.'
 `whisper-1`, `gpt-4o-transcribe` and `gpt-4o-mini-transcribe` are supported.
 Set `responseFormat: 'srt'` or `'vtt'` to get subtitle markup instead of a
 plain transcript, and `'verbose_json'` (with `timestampGranularities`) for
-timing metadata.
+timing metadata. `response.text` is the transcript either way; the decoded
+response — segments, timestamps, logprobs — is on `response.raw`. Ask for
+`outputFormat: 'json'` and the JSON object comes through whole instead, so
+`response.output` parses.
 
 `whisper-1` can also translate: `translate: true` routes the request to
 OpenAI's translation endpoint, which returns English text for audio in any
@@ -361,15 +364,20 @@ final response = await ai.generate(
 );
 ```
 
-As with speech models, a compatible provider whose transcription model is not
-named `*whisper*` or `*transcribe*` can declare audio input when registering it:
+A compatible provider whose transcription model is not named `*whisper*` or
+`*transcribe*` names the API it is served by:
 
 ```dart
 CustomModelDefinition(
   name: 'earbox-1',
-  info: ModelInfo(supports: {'media': true}),
+  kind: OpenAIModelKind.transcription,
 )
 ```
+
+`kind` and not `info`: `supports: {'media': true}` describes a vision chat
+model just as well as a transcription one, so it cannot be the signal. Speech
+models are the exception — `output: ['media']` says the model returns audio and
+nothing else — and are still recognised from `info` as well as by name.
 
 ## Embeddings
 

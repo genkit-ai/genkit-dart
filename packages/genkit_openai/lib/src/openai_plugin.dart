@@ -121,11 +121,11 @@ class OpenAIPlugin extends GenkitPlugin {
       // A custom speech or transcription model has to be routed here as well
       // as in resolve(): the registry prefers an eager registration, so a name
       // registered as chat would never reach resolve() to be corrected.
-      if (speech.isSpeechModel(model.name) ||
-          speech.declaresMediaOutput(model.info))
+      if (_kindOf(model.name, info: model.info, declared: model.kind) ==
+          OpenAIModelKind.speech)
         _createSpeechModel(model.name, model.info)
-      else if (transcription.isTranscriptionModel(model.name) ||
-          transcription.declaresMediaInput(model.info))
+      else if (_kindOf(model.name, info: model.info, declared: model.kind) ==
+          OpenAIModelKind.transcription)
         _createTranscriptionModel(model.name, model.info)
       else
         _createModel(model.name, model.info),
@@ -276,8 +276,8 @@ class OpenAIPlugin extends GenkitPlugin {
     final customSpeech = customModels
         .where(
           (m) =>
-              speech.isSpeechModel(m.name) ||
-              speech.declaresMediaOutput(m.info),
+              _kindOf(m.name, info: m.info, declared: m.kind) ==
+              OpenAIModelKind.speech,
         )
         .map((m) => m.name)
         .toSet();
@@ -285,8 +285,8 @@ class OpenAIPlugin extends GenkitPlugin {
     final customTranscription = customModels
         .where(
           (m) =>
-              transcription.isTranscriptionModel(m.name) ||
-              transcription.declaresMediaInput(m.info),
+              _kindOf(m.name, info: m.info, declared: m.kind) ==
+              OpenAIModelKind.transcription,
         )
         .map((m) => m.name)
         .toSet();
@@ -390,15 +390,13 @@ class OpenAIPlugin extends GenkitPlugin {
   @override
   Action? resolve(ActionType actionType, String name) {
     if (actionType == .model) {
-      final info = _customModelInfo(name);
-      if (speech.isSpeechModel(name) || speech.declaresMediaOutput(info)) {
-        return _createSpeechModel(name, info);
-      }
-      if (transcription.isTranscriptionModel(name) ||
-          transcription.declaresMediaInput(info)) {
-        return _createTranscriptionModel(name, info);
-      }
-      return _createModel(name, info);
+      final declared = _customModelFor(name);
+      final info = declared?.info;
+      return switch (_kindOf(name, info: info, declared: declared?.kind)) {
+        OpenAIModelKind.speech => _createSpeechModel(name, info),
+        OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
+        OpenAIModelKind.chat => _createModel(name, info),
+      };
     }
     if (actionType == .embedder) {
       return _createEmbedder(name);
@@ -406,14 +404,38 @@ class OpenAIPlugin extends GenkitPlugin {
     return null;
   }
 
-  /// Metadata for [modelName] if the caller registered it as a custom model.
-  ModelInfo? _customModelInfo(String modelName) {
+  /// The caller's declaration for [modelName], if they registered one.
+  CustomModelDefinition? _customModelFor(String modelName) {
     for (final model in customModels) {
       if (model.name == modelName) {
-        return model.info;
+        return model;
       }
     }
     return null;
+  }
+
+  /// Which API serves [modelName].
+  ///
+  /// A [declared] kind wins: it is the caller naming the API outright, which
+  /// is the only thing that can classify a compatible provider's model whose
+  /// name follows no OpenAI convention. Capability metadata cannot stand in
+  /// for it on the input side - `supports: {'media': true}` describes a vision
+  /// chat model as readily as a transcription one - so only the output side,
+  /// where `output: ['media']` says "this returns audio and nothing else",
+  /// still classifies by [info].
+  OpenAIModelKind _kindOf(
+    String modelName, {
+    ModelInfo? info,
+    OpenAIModelKind? declared,
+  }) {
+    if (declared != null) return declared;
+    if (speech.isSpeechModel(modelName) || speech.declaresMediaOutput(info)) {
+      return OpenAIModelKind.speech;
+    }
+    if (transcription.isTranscriptionModel(modelName)) {
+      return OpenAIModelKind.transcription;
+    }
+    return OpenAIModelKind.chat;
   }
 
   ActionMetadata<dynamic, dynamic, dynamic, dynamic> _speechModelMetadata(
@@ -839,10 +861,11 @@ class OpenAIPlugin extends GenkitPlugin {
 
         try {
           final endpoint = translate
-              ? '/audio/translations'
-              : '/audio/transcriptions';
-          final url = Uri.parse(
-            '${resolvedConfig.baseUrl ?? _defaultBaseUrl}$endpoint',
+              ? 'audio/translations'
+              : 'audio/transcriptions';
+          final url = _audioEndpointUri(
+            resolvedConfig.baseUrl ?? _defaultBaseUrl,
+            endpoint,
           );
 
           final request = http.MultipartRequest('POST', url)
@@ -902,12 +925,28 @@ class OpenAIPlugin extends GenkitPlugin {
             );
           }
 
+          final decoded = _decodedTranscript(response.body, format);
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
               role: Role.model,
-              content: [TextPart(text: _transcriptText(response.body, format))],
+              content: [
+                TextPart(
+                  text: _transcriptText(
+                    response.body,
+                    format,
+                    decoded,
+                    wantsJson: modelRequest.output?.format == 'json',
+                  ),
+                ),
+              ],
             ),
+            // Timestamps, segments and logprobs only exist here. The text
+            // part carries the transcript; `raw` is where a caller reaches for
+            // everything `verbose_json` and `include` were asked for. `text`,
+            // `srt` and `vtt` have nothing beyond the transcript, and `raw`
+            // takes an object, so they leave it unset.
+            raw: decoded is Map<String, dynamic> ? decoded : null,
           );
         } catch (e, stackTrace) {
           if (e is GenkitException) {
@@ -999,19 +1038,56 @@ class OpenAIPlugin extends GenkitPlugin {
         : transcription.defaultTranscriptionResponseFormat;
   }
 
-  /// Pulls the transcript out of a response body.
+  /// The transcript response decoded, or null when it is not JSON.
   ///
-  /// `json` and `verbose_json` wrap it in an object; `text`, `srt` and `vtt`
-  /// are already the transcript.
-  String _transcriptText(String body, String format) {
-    if (format != 'json' && format != 'verbose_json') {
-      return body;
+  /// `text`, `srt` and `vtt` are transcripts, not documents; a `json` or
+  /// `verbose_json` body that will not parse is left to the caller to see
+  /// verbatim rather than failing the request.
+  Object? _decodedTranscript(String body, String format) {
+    if (format != 'json' && format != 'verbose_json') return null;
+    try {
+      return jsonDecode(body);
+    } on FormatException {
+      return null;
     }
-    final decoded = jsonDecode(body);
+  }
+
+  /// The text a transcription answers with.
+  ///
+  /// The transcript itself by default: a caller asking a transcription model
+  /// for audio wants the words, not `{"text": "the words"}`. When the request
+  /// asked for `json` output, the object goes through whole instead, so that
+  /// Genkit's own parsing has something to parse and `response.output` is not
+  /// silently null. Everything either way is also on [ModelResponse.raw].
+  String _transcriptText(
+    String body,
+    String format,
+    Object? decoded, {
+    required bool wantsJson,
+  }) {
+    if (decoded == null) return body;
+    if (wantsJson) return body;
     if (decoded is Map && decoded['text'] is String) {
       return decoded['text'] as String;
     }
     return body;
+  }
+
+  /// The URI of an audio [endpoint] under [baseUrl].
+  ///
+  /// Built by extending the base URL's path segments rather than by joining
+  /// strings: a base URL carrying a query (`/v1?api-version=...`, as Azure's
+  /// does) would otherwise end up with `/audio/transcriptions` inside the
+  /// query value, and a trailing slash would produce a doubled separator some
+  /// hosts reject.
+  Uri _audioEndpointUri(String baseUrl, String endpoint) {
+    final base = Uri.parse(baseUrl);
+    return base.replace(
+      pathSegments: [
+        ...base.pathSegments.where((s) => s.isNotEmpty),
+        ...endpoint.split('/'),
+      ],
+    );
   }
 }
 

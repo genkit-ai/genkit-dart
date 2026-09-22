@@ -19,7 +19,6 @@ import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/transcription.dart'
     show
         audioFilenameFor,
-        declaresMediaInput,
         isTranscriptionModel,
         supportsTranslation,
         transcriptionModelInfo;
@@ -30,6 +29,7 @@ import 'package:test/test.dart';
 /// One captured multipart upload.
 class CapturedUpload {
   CapturedUpload({
+    required this.uri,
     required this.path,
     required this.fields,
     required this.repeated,
@@ -39,6 +39,9 @@ class CapturedUpload {
   });
 
   final String path;
+
+  /// The full URL the upload went to, query and all.
+  final Uri uri;
 
   /// HTTP headers the plugin put on the upload.
   final Map<String, String> headers;
@@ -94,6 +97,7 @@ CapturedUpload parseMultipart(http.Request request) {
   }
 
   return CapturedUpload(
+    uri: request.url,
     path: request.url.path,
     fields: fields,
     repeated: repeated,
@@ -131,6 +135,25 @@ MockClient transcriptionWireClient(
         request.url.path.endsWith('/audio/translations')) {
       captured.add(parseMultipart(request));
       return http.Response(body, status);
+    }
+    if (request.url.path.endsWith('/chat/completions')) {
+      return http.Response(
+        jsonEncode({
+          'id': 'chatcmpl-test',
+          'object': 'chat.completion',
+          'created': 0,
+          'model': 'gpt-4o',
+          'choices': [
+            {
+              'index': 0,
+              'message': {'role': 'assistant', 'content': 'a chat answer'},
+              'finish_reason': 'stop',
+            },
+          ],
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
     }
     return http.Response('not found', 404);
   });
@@ -196,16 +219,6 @@ void main() {
     test('only whisper can translate', () {
       expect(supportsTranslation('whisper-1'), isTrue);
       expect(supportsTranslation('gpt-4o-transcribe'), isFalse);
-    });
-
-    test('declaresMediaInput reads the supports map', () {
-      expect(declaresMediaInput(ModelInfo(supports: {'media': true})), isTrue);
-      expect(
-        declaresMediaInput(ModelInfo(supports: {'media': false})),
-        isFalse,
-      );
-      expect(declaresMediaInput(ModelInfo()), isFalse);
-      expect(declaresMediaInput(null), isFalse);
     });
 
     test('advertises media input and text output', () {
@@ -672,7 +685,7 @@ void main() {
     });
 
     test(
-      'a custom model declaring media input is routed to transcription',
+      'a custom model declaring its kind is routed to transcription',
       () async {
         final captured = <CapturedUpload>[];
         final ai = Genkit(
@@ -685,7 +698,7 @@ void main() {
               models: [
                 CustomModelDefinition(
                   name: 'earbox-1',
-                  info: ModelInfo(supports: {'media': true}),
+                  kind: OpenAIModelKind.transcription,
                 ),
               ],
             ),
@@ -712,6 +725,169 @@ void main() {
       final supports = (info['supports'] as Map).cast<String, dynamic>();
       expect(supports['output'], ['media']);
       expect(supports['media'], isFalse);
+
+      await ai.shutdown();
+    });
+
+    test('a vision chat model registered as such stays chat', () async {
+      // `supports: {'media': true}` describes a model that takes images as
+      // readily as one that takes audio, so it must not route anything.
+      final captured = <CapturedUpload>[];
+      final ai = Genkit(
+        plugins: [
+          openAI(
+            apiKey: 'test-key',
+            httpClient: transcriptionWireClient(captured),
+            models: [
+              CustomModelDefinition(
+                name: 'gpt-4o',
+                info: ModelInfo(
+                  label: 'GPT-4o',
+                  supports: {'media': true, 'multiturn': true},
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final response = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'a plain text prompt',
+      );
+
+      expect(response.text, 'a chat answer');
+      expect(captured, isEmpty, reason: 'nothing went to /audio');
+
+      await ai.shutdown();
+    });
+  });
+
+  group('transcription endpoint URL', () {
+    test('a base URL carrying a query keeps it', () async {
+      // Azure spells its endpoint this way. Joining strings would bury
+      // `/audio/transcriptions` inside the query value.
+      final captured = <CapturedUpload>[];
+      final ai = Genkit(
+        plugins: [
+          openAI(
+            name: 'azureish',
+            apiKey: 'test-key',
+            baseUrl: 'https://host.test/v1?api-version=2024-06-01',
+            httpClient: transcriptionWireClient(captured),
+            models: [
+              CustomModelDefinition(
+                name: 'earbox-1',
+                kind: OpenAIModelKind.transcription,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await ai.generate(
+        model: openAI.transcriptionModel('earbox-1', namespace: 'azureish'),
+        promptParts: [audioPart()],
+      );
+
+      final uri = captured.single.uri;
+      expect(uri.path, '/v1/audio/transcriptions');
+      expect(uri.queryParameters['api-version'], '2024-06-01');
+
+      await ai.shutdown();
+    });
+
+    test('a trailing slash does not double the separator', () async {
+      final captured = <CapturedUpload>[];
+      final ai = Genkit(
+        plugins: [
+          openAI(
+            name: 'slashy',
+            apiKey: 'test-key',
+            baseUrl: 'https://host.test/v1/',
+            httpClient: transcriptionWireClient(captured),
+            models: [
+              CustomModelDefinition(
+                name: 'earbox-1',
+                kind: OpenAIModelKind.transcription,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await ai.generate(
+        model: openAI.transcriptionModel('earbox-1', namespace: 'slashy'),
+        promptParts: [audioPart()],
+      );
+
+      expect(captured.single.uri.path, '/v1/audio/transcriptions');
+
+      await ai.shutdown();
+    });
+  });
+
+  group('transcription response payload', () {
+    test('verbose_json keeps its timestamps on raw', () async {
+      final captured = <CapturedUpload>[];
+      final ai = transcriptionGenkit(
+        captured,
+        body: jsonEncode({
+          'text': 'The quick brown fox.',
+          'duration': 1.5,
+          'segments': [
+            {'id': 0, 'start': 0.0, 'end': 1.5, 'text': 'The quick brown fox.'},
+          ],
+        }),
+      );
+
+      final response = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [audioPart()],
+        config: OpenAITranscriptionOptions(
+          responseFormat: 'verbose_json',
+          timestampGranularities: ['segment'],
+        ),
+      );
+
+      // The transcript is still the text; everything the caller paid for the
+      // verbose format to get is on `raw`.
+      expect(response.text, 'The quick brown fox.');
+      expect(response.raw?['duration'], 1.5);
+      final segments = (response.raw?['segments'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(segments.single['end'], 1.5);
+
+      await ai.shutdown();
+    });
+
+    test('an explicit json output format keeps the object', () async {
+      final captured = <CapturedUpload>[];
+      final ai = transcriptionGenkit(captured);
+
+      final response = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [audioPart()],
+        outputFormat: 'json',
+      );
+
+      // Unwrapping to the bare transcript here leaves Genkit reporting
+      // success with a null `output`.
+      expect(response.output, {'text': 'The quick brown fox.'});
+
+      await ai.shutdown();
+    });
+
+    test('the default text case is still the bare transcript', () async {
+      final captured = <CapturedUpload>[];
+      final ai = transcriptionGenkit(captured);
+
+      final response = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [audioPart()],
+      );
+
+      expect(response.text, 'The quick brown fox.');
 
       await ai.shutdown();
     });
