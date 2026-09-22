@@ -595,13 +595,9 @@ class OpenAIPlugin extends GenkitPlugin {
         final wireModel = options.version ?? modelName;
         // Levels first, model second. `gpt-4o` with `'extreme'` has two
         // things wrong with it, and the level is the one the caller can fix
-        // without knowing the catalog - so it is the one to name.
-        //
-        // Which levels exist is a property of the dialect, like the token
-        // field and the response-format vocabulary, so it is checked wherever
-        // the request is bound. Whether a given model reasons is a catalog
-        // question, and a catalog only describes its own host.
-        _requireReasoningEffortLevel(options.reasoningEffort);
+        // without knowing the catalog - so it is the one to name. Which levels
+        // a host has is left to the host: DeepSeek maps the ones it lacks onto
+        // its own rather than refusing them.
         final reasoningEffort = chat.toReasoningEffort(options.reasoningEffort);
         final verbosity = chat.toVerbosity(options.verbosity);
         if (_ownHost) {
@@ -742,25 +738,6 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 
-  /// Rejects a `reasoningEffort` the host has no such level for.
-  ///
-  /// The vocabulary is not shared: `medium` is ordinary on OpenAI and a 400 on
-  /// DeepSeek, while the option's schema advertises whatever `openai_dart`
-  /// models. A provider that names its own set is held to it; one that names
-  /// none takes the whole vocabulary, since guessing on a host's behalf would
-  /// refuse a level it may well accept.
-  void _requireReasoningEffortLevel(String? reasoningEffort) {
-    if (reasoningEffort == null) return;
-    final accepted = provider.reasoningEfforts;
-    if (accepted == null || accepted.contains(reasoningEffort)) return;
-
-    throw GenkitException(
-      '$_pluginName does not accept reasoningEffort "$reasoningEffort". '
-      'Accepted levels: ${accepted.join(', ')}.',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-
   /// Rejects a `reasoningEffort` aimed at a model that does not reason.
   ///
   /// OpenAI answers one with `Unsupported parameter: 'reasoning_effort'`,
@@ -778,6 +755,10 @@ class OpenAIPlugin extends GenkitPlugin {
   /// than which models reason. Left to the API rather than guessed at.
   void _requireReasoningModel(String modelName, String? reasoningEffort) {
     if (reasoningEffort == null) return;
+    // `none` asks for no thinking, which a model that does not think is
+    // already doing. Refusing it would make the alias that means exactly that
+    // - DeepSeek's `deepseek-chat` - impossible to ask for explicitly.
+    if (reasoningEffort == 'none') return;
     // A caller who registered the model said more about it than the catalog
     // can: `models:` is how a name is corrected or extended, so a declared
     // model is left to the API to judge, as an uncurated one is.

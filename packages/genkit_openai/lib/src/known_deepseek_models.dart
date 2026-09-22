@@ -76,11 +76,17 @@ enum KnownDeepSeekModel {
   ),
 
   /// The former chat alias, now `deepseek-flash` with thinking off.
+  ///
+  /// `deprecated` rather than `legacy`: DeepSeek retired both aliases on
+  /// 2026-07-24 and the reference now lists only `deepseek-flash` and
+  /// `deepseek-v4-pro`. Curated anyway, so that code written against the name
+  /// gets the right capabilities and a stage that says what happened, rather
+  /// than the dynamic defaults.
   deepseekChat(
     'deepseek-chat',
     'DeepSeek Chat',
     deepSeekVisionSupports,
-    stage: OpenAIModelStage.legacy,
+    stage: OpenAIModelStage.deprecated,
   ),
 
   /// The former reasoning alias, now `deepseek-flash` with thinking on.
@@ -88,7 +94,7 @@ enum KnownDeepSeekModel {
     'deepseek-reasoner',
     'DeepSeek Reasoner',
     deepSeekVisionSupports,
-    stage: OpenAIModelStage.legacy,
+    stage: OpenAIModelStage.deprecated,
     thinks: true,
   );
 

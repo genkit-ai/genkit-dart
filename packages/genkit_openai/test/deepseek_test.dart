@@ -153,14 +153,18 @@ void main() {
       }
     });
 
-    test('the retired names are curated as legacy, not dropped', () {
-      // Announced for discontinuation 2026-07-24. Code written against them
-      // must keep resolving with honest capabilities.
+    test('the retired names are curated as deprecated, not dropped', () {
+      // Retired 2026-07-24, and the reference lists neither any more, so by
+      // this catalog's own vocabulary they are `deprecated` rather than
+      // `legacy`. Still curated: code written against them keeps resolving
+      // with honest capabilities and a stage that says what happened. Not
+      // listed, since offering a name the host no longer serves is what the
+      // stage exists to prevent.
       for (final id in ['deepseek-chat', 'deepseek-reasoner']) {
         final model = knownDeepSeekModelFor(id);
         expect(model, isNotNull, reason: id);
-        expect(model!.stage, OpenAIModelStage.legacy, reason: id);
-        expect(knownDeepSeekChatModels, contains(id));
+        expect(model!.stage, OpenAIModelStage.deprecated, reason: id);
+        expect(knownDeepSeekChatModels, isNot(contains(id)), reason: id);
       }
     });
 
@@ -188,9 +192,15 @@ void main() {
     });
 
     test('typed refs cover the catalog', () {
+      // Every curated entry, including the retired aliases: they are still
+      // resolvable, they are only kept out of the listing.
       expect(
         DeepSeekModels.all.map((r) => r.name).toSet(),
+        KnownDeepSeekModel.values.map((m) => 'deepseek/${m.id}').toSet(),
+      );
+      expect(
         knownDeepSeekChatModels.map((id) => 'deepseek/$id').toSet(),
+        everyElement(isIn(DeepSeekModels.all.map((r) => r.name))),
       );
       expect(DeepSeekModels.deepseekFlash.name, 'deepseek/deepseek-flash');
     });
@@ -213,12 +223,43 @@ void main() {
     });
 
     test('reads DEEPSEEK_API_KEY, and says so when it is missing', () async {
-      final plugin = OpenAIPlugin(
-        provider: deepSeekProvider,
-        configVar: (name) => name == 'DEEPSEEK_API_KEY' ? 'from-env' : null,
-        httpClient: recordingClient([]),
+      // The key has to reach the wire, not merely be read: asserting the
+      // plugin's name here would pass with any env var spelling, since the
+      // name comes from the provider's namespace rather than from configVar.
+      final requests = <http.Request>[];
+      final fromEnv = Genkit(
+        plugins: [
+          OpenAIPlugin(
+            provider: deepSeekProvider,
+            configVar: (name) => name == 'DEEPSEEK_API_KEY' ? 'from-env' : null,
+            httpClient: recordingClient(requests),
+          ),
+        ],
       );
-      expect(plugin.name, 'deepseek');
+      addTearDown(fromEnv.shutdown);
+
+      await fromEnv.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+
+      expect(requests.single.headers['authorization'], 'Bearer from-env');
+
+      // And nothing else answers for it: OPENAI_API_KEY set, DEEPSEEK_API_KEY
+      // not, is a keyless plugin.
+      final wrongVar = Genkit(
+        plugins: [
+          OpenAIPlugin(
+            provider: deepSeekProvider,
+            configVar: (name) => name == 'OPENAI_API_KEY' ? 'openai-env' : null,
+            httpClient: recordingClient([]),
+          ),
+        ],
+      );
+      addTearDown(wrongVar.shutdown);
+
+      final wrong = await wrongVar.generate(
+        model: DeepSeekModels.deepseekFlash,
+        prompt: 'hi',
+      );
+      expect(wrong.finishReason, FinishReason.failed);
 
       final keyless = Genkit(
         plugins: [
@@ -388,40 +429,34 @@ void main() {
       expect(assistant, isNot(contains('reasoning_content')));
     });
 
-    test('rejects a level DeepSeek does not have', () async {
-      // `medium` is ordinary on OpenAI and a 400 on DeepSeek; the shared
-      // options schema advertises the union of both vocabularies.
+    test('sends a level DeepSeek has no native setting for', () async {
+      // The reference maps them rather than refusing them: `minimal` runs as
+      // `low`, `medium` and `xhigh` as `high`. Refusing here would fail a
+      // request the host would have served.
+      final requests = <http.Request>[];
       final ai = Genkit(
-        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient([]))],
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
       );
       addTearDown(ai.shutdown);
 
-      await expectLater(
-        ai.generate(
+      for (final effort in ['minimal', 'medium', 'xhigh']) {
+        requests.clear();
+        await ai.generate(
           model: DeepSeekModels.deepseekFlash,
           prompt: 'hi',
-          config: OpenAIChatOptions(reasoningEffort: 'medium'),
-        ),
-        completion(
-          isA<GenerateResponse>()
-              .having(
-                (r) => r.finishReason,
-                'finishReason',
-                FinishReason.failed,
-              )
-              .having(
-                (r) => r.error?.message ?? '',
-                'error',
-                allOf(contains('medium'), contains('none, low, high, max')),
-              ),
-        ),
-      );
+          config: OpenAIChatOptions(reasoningEffort: effort),
+        );
+
+        final body = chatBodyOf(requests);
+        expect(body['reasoning_effort'], effort);
+        expect(body['thinking'], {'type': 'enabled'});
+      }
     });
 
-    test('nests the effort where DeepSeek reads it', () async {
-      // OpenAI takes reasoning_effort at the top level; DeepSeek nests it
-      // inside `thinking` and ignores a top-level one, so a caller asking for
-      // `low` would silently get the default `high`.
+    test('sends the effort and the thinking toggle together', () async {
+      // The vendor's own OpenAI-format samples pass `reasoning_effort` at the
+      // top level alongside the `thinking` object, so both go out: the effort
+      // where every host reads it, the toggle to say which mode it applies to.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -437,11 +472,8 @@ void main() {
         );
 
         final body = chatBodyOf(requests);
-        expect(body['thinking'], {
-          'type': 'enabled',
-          'reasoning_effort': effort,
-        });
-        expect(body, isNot(contains('reasoning_effort')));
+        expect(body['reasoning_effort'], effort);
+        expect(body['thinking'], {'type': 'enabled'});
       }
     });
 
@@ -458,7 +490,10 @@ void main() {
         config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
 
-      expect(chatBodyOf(requests)['thinking'], {'type': 'disabled'});
+      final body = chatBodyOf(requests);
+      expect(body['thinking'], {'type': 'disabled'});
+      // Nothing to spend an effort on once thinking is off.
+      expect(body, isNot(contains('reasoning_effort')));
     });
 
     test('says nothing about thinking when nothing was asked', () async {
@@ -492,7 +527,8 @@ void main() {
       await stream.drain<void>();
 
       final body = chatBodyOf(requests);
-      expect(body['thinking'], {'type': 'enabled', 'reasoning_effort': 'max'});
+      expect(body['reasoning_effort'], 'max');
+      expect(body['thinking'], {'type': 'enabled'});
       expect(body['stream'], isTrue);
     });
 
@@ -512,6 +548,25 @@ void main() {
       final body = chatBodyOf(requests);
       expect(body['reasoning_effort'], 'medium');
       expect(body, isNot(contains('thinking')));
+    });
+
+    test('the non-thinking alias still takes none', () async {
+      // `none` is what that alias means, so asking for it explicitly cannot
+      // be the one thing it refuses.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      final response = await ai.generate(
+        model: DeepSeekModels.deepseekChat,
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'none'),
+      );
+
+      expect(response.finishReason, isNot(FinishReason.failed));
+      expect(chatBodyOf(requests)['thinking'], {'type': 'disabled'});
     });
 
     test('the non-thinking alias refuses an effort', () async {
@@ -560,8 +615,8 @@ void main() {
 
       expect(response.text, 'thought it through');
       final body = server.chatRequestBodies.single;
-      expect(body['thinking'], {'type': 'enabled', 'reasoning_effort': 'high'});
-      expect(body, isNot(contains('reasoning_effort')));
+      expect(body['reasoning_effort'], 'high');
+      expect(body['thinking'], {'type': 'enabled'});
       expect(body['max_tokens'], 64);
       // The rewritten request must still carry a usable content-length; a
       // stale one from the original would truncate the body.

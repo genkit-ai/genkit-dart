@@ -58,13 +58,6 @@ final class OpenAIProvider {
   /// is not curated and so has no claim to check.
   final bool? Function(String model) reasonsFor;
 
-  /// The reasoning levels the host accepts, or `null` when it takes the whole
-  /// vocabulary `openai_dart` models.
-  ///
-  /// DeepSeek's set is a strict subset of OpenAI's, so a level that is
-  /// perfectly valid on one host is a 400 on the other.
-  final Set<String>? reasoningEfforts;
-
   /// Whether the host needs previous turns' reasoning replayed on a request
   /// that carries tools.
   ///
@@ -127,7 +120,6 @@ final class OpenAIProvider {
     this.embedderIds = const [],
     this.speechIds = const [],
     this.transcriptionIds = const [],
-    this.reasoningEfforts,
     this.replaysReasoning = false,
     this.rewriteChatBody,
     this.usesLegacyMaxTokens = false,
@@ -152,9 +144,9 @@ final openAIProvider = OpenAIProvider(
   transcriptionIds: knownTranscriptionModels,
 );
 
-/// DeepSeek, which speaks the same protocol with three differences the plugin
-/// has to know about: the key it reads, the token-limit field, and the absence
-/// of `json_schema`.
+/// DeepSeek, which speaks the same protocol with a few differences the plugin
+/// has to know about: the key it reads, the token-limit field, the absence of
+/// `json_schema`, and the `thinking` object that carries its mode.
 final deepSeekProvider = OpenAIProvider(
   defaultNamespace: defaultDeepSeekNamespace,
   defaultBaseUrl: 'https://api.deepseek.com',
@@ -163,21 +155,22 @@ final deepSeekProvider = OpenAIProvider(
       compat ? compatDeepSeekModelInfo(model) : deepSeekModelInfoFor(model),
   catalogIds: knownDeepSeekChatModels,
   reasonsFor: (model) => knownDeepSeekModelFor(model)?.thinks,
-  // No `medium`, `minimal` or `xhigh`.
-  // https://api-docs.deepseek.com/api/create-chat-completion
-  reasoningEfforts: const {'none', 'low', 'high', 'max'},
   replaysReasoning: true,
   rewriteChatBody: deepSeekChatBody,
   usesLegacyMaxTokens: true,
   supportsJsonSchema: false,
 );
 
-/// Moves `reasoning_effort` into the `thinking` object DeepSeek reads.
+/// Adds the `thinking` object DeepSeek derives its mode from.
 ///
-/// OpenAI takes `reasoning_effort` at the top level; DeepSeek nests it, and
-/// derives the thinking toggle from it — `none` disables thinking, every other
-/// level enables it. A top-level `reasoning_effort` is simply not read there,
-/// so a caller who asked for `low` would silently get the default `high`.
+/// DeepSeek reads `reasoning_effort` where OpenAI does, at the top level, and
+/// separately takes a `thinking` object that turns thinking on or off. The
+/// vendor's own OpenAI-format samples send both, so both go out: the effort
+/// stays where it was, and the toggle says which mode it applies to.
+///
+/// `none` is the exception in shape rather than in meaning. It is how a caller
+/// asks for no thinking at all, which is what `thinking: {type: disabled}`
+/// says; the effort itself is dropped, since there is no effort to spend.
 ///
 /// Sends nothing when no effort was asked for: thinking is on by default for
 /// the models that support it, and saying so explicitly would only risk
@@ -188,11 +181,16 @@ Map<String, dynamic> deepSeekChatBody(Map<String, dynamic> body) {
   final effort = body['reasoning_effort'];
   if (effort == null) return body;
 
+  if (effort == 'none') {
+    return {
+      for (final entry in body.entries)
+        if (entry.key != 'reasoning_effort') entry.key: entry.value,
+      'thinking': const {'type': 'disabled'},
+    };
+  }
+
   return {
-    for (final entry in body.entries)
-      if (entry.key != 'reasoning_effort') entry.key: entry.value,
-    'thinking': effort == 'none'
-        ? {'type': 'disabled'}
-        : {'type': 'enabled', 'reasoning_effort': effort},
+    ...body,
+    'thinking': const {'type': 'enabled'},
   };
 }
