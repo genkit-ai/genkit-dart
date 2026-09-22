@@ -80,7 +80,10 @@ void main() {
       expect(info.containsKey('stage'), isFalse);
     });
 
-    test('fallback metadata does not claim constrained generation', () {
+    test('fallback metadata withholds constrained generation', () {
+      // The native path is the forced `return_output` tool
+      // (plugin_impl.dart:252-262), and not every Claude name accepts a forced
+      // `tool_choice`. An uncurated name makes no claim, so core simulates.
       final action = plugin().resolve(.model, 'claude-unknown-model');
 
       final supports = (modelInfoOf(action!)['supports'] as Map)
@@ -194,7 +197,7 @@ void main() {
           'systemRole': true,
           if (model.structuredOutputs) ...{
             'output': ['text', 'json'],
-            'constrained': true,
+            'constrained': 'no-tools',
           } else
             'output': ['text'],
         });

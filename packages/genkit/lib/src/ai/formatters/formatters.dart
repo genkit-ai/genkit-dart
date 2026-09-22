@@ -170,8 +170,10 @@ List<Message> injectInstructions(List<Message> messages, String? instructions) {
 
   final newPart = TextPart(text: instructions, metadata: {'purpose': 'output'});
 
-  // Find last user message or system message
-  var targetIndex = messages.lastIndexWhere((m) => m.role == Role.system);
+  // First system message, else last user message, as JS does. First, not
+  // last: a provider that folds the conversation's system messages into one
+  // field can keep only the first, and instructions on a later one are lost.
+  var targetIndex = messages.indexWhere((m) => m.role == Role.system);
   if (targetIndex < 0) {
     targetIndex = messages.lastIndexWhere((m) => m.role == Role.user);
   }

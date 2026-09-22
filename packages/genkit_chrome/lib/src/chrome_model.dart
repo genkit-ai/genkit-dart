@@ -16,21 +16,28 @@ import 'dart:js_interop';
 import 'package:genkit/genkit.dart';
 import 'chrome_interop.dart';
 
+/// Capabilities of Chrome's built-in Gemini Nano.
+///
+/// No `constrained`: the Prompt API takes a plain prompt and returns prose, and
+/// this plugin ignores `output` entirely. Withholding the claim is what makes
+/// core simulate constrained generation for it — the schema goes into the
+/// prompt as instructions and the response is parsed client-side, which is the
+/// only structured output this model can give.
+final chromeModelInfo = ModelInfo(
+  supports: {
+    'multiturn': true,
+    'media': false,
+    'tools': false,
+    'systemRole': true,
+  },
+);
+
 class ChromeModel extends Model<LanguageModelOptions> {
   ChromeModel({
     super.name = 'chrome/gemini-nano',
     LanguageModelOptions? options,
   }) : super(
-         metadata: {
-           'model': ModelInfo(
-             supports: {
-               'multiturn': true,
-               'media': false,
-               'tools': false,
-               'systemRole': true,
-             },
-           ).toJson(),
-         },
+         metadata: {'model': chromeModelInfo.toJson()},
          fn: (req, ctx) => _processRequest(req, ctx, options),
        );
 

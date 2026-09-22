@@ -35,6 +35,30 @@ part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
+/// Capabilities every model this plugin serves has.
+///
+/// The plugin serves Gemini through the Firebase AI SDK and resolves any model
+/// name on demand, so there is no per-model catalog to key this off; these are
+/// the Gemini family's capabilities, matching `genkit_google_genai`'s
+/// `commonModelInfo`.
+///
+/// `constrained` has to be claimed. A model that does not claim it has
+/// constrained generation simulated for it by core, which injects the schema
+/// as prompt instructions and strips `output.schema` before this plugin sees
+/// the request — so an undeclared Gemini model would never reach
+/// [toGeminiSettings] with a schema and would lose the native `responseSchema`
+/// it is perfectly capable of honouring.
+final firebaseAiModelInfo = ModelInfo(
+  supports: {
+    'multiturn': true,
+    'media': true,
+    'tools': true,
+    'toolChoice': true,
+    'systemRole': true,
+    'constrained': true,
+  },
+);
+
 @Schema()
 abstract class $GeminiOptions {
   List<String>? get stopSequences;
@@ -199,6 +223,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   Model _createModel(String modelName) {
     return Model(
       name: 'firebaseai/$modelName',
+      metadata: {'model': firebaseAiModelInfo.toJson()},
       fn: (req, ctx) async {
         final isJsonMode =
             req!.output?.format == 'json' ||
@@ -214,6 +239,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             options,
             req.output?.schema,
             isJsonMode,
+            constrained: req.output?.constrained ?? false,
           ),
           tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
           toolConfig: toGeminiToolConfig(options.functionCallingConfig),
@@ -723,12 +749,28 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
   }
 }
 
+/// Maps Genkit's request onto Firebase AI's generation config.
+///
+/// [outputSchema] only becomes a native `responseSchema` on a constrained JSON
+/// request, matching `genkit_google_genai`. A caller asking for a schema
+/// without constraint wants it enforced by nothing rather than by Gemini
+/// specifically - core does not inject textual instructions for it either
+/// (`jsonFormatter` sets `defaultInstructions: false`, and the simulated-path
+/// middleware only acts when `constrained: true`), so honouring that choice
+/// here means the model sees no description of the shape at all, native or
+/// textual, unless the caller supplied their own. Gemini only honours
+/// `responseSchema` alongside an `application/json` response mime type, so
+/// the JSON-mode half of the condition is the provider's rule, not a
+/// preference.
+/// `options.responseSchema` is unaffected — that is an explicit config the
+/// caller wrote, not an output-format inference.
 @visibleForTesting
 fai.GenerationConfig toGeminiSettings(
   GeminiOptions options,
   Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
   return fai.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences ?? [],
@@ -739,7 +781,7 @@ fai.GenerationConfig toGeminiSettings(
     responseMimeType: isJsonMode
         ? 'application/json'
         : (options.responseMimeType ?? ''),
-    responseSchema: outputSchema != null
+    responseSchema: constrained && isJsonMode && outputSchema != null
         ? toGeminiSchema(outputSchema)
         : (options.responseSchema != null
               ? toGeminiSchema(options.responseSchema!)
