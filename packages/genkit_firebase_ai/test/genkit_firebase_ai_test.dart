@@ -204,6 +204,15 @@ void main() {
     });
   });
 
+  group('Model Info', () {
+    test('firebaseAiModelInfo claims native constrained generation', () {
+      // Pins the flag `_createModel` sends to core, so an undeclared model
+      // doesn't silently lose native `responseSchema` support - see
+      // `toGeminiSettings withholds the output schema when unconstrained`.
+      expect(firebaseAiModelInfo.supports?['constrained'], isTrue);
+    });
+  });
+
   group('Configuration Mapping', () {
     test('toGeminiSettings maps options', () {
       final options = GeminiOptions(
@@ -214,8 +223,7 @@ void main() {
         topP: 0.9,
         responseMimeType: 'text/plain',
       );
-      final jsonSchema = {'type': 'string'};
-      final settings = toGeminiSettings(options, jsonSchema, false);
+      final settings = toGeminiSettings(options, null, false);
 
       expect(settings.temperature, 0.7);
       expect(settings.candidateCount, 2);
@@ -223,13 +231,41 @@ void main() {
       expect(settings.topK, 10);
       expect(settings.topP, 0.9);
       expect(settings.responseMimeType, 'text/plain');
-      expect(settings.responseSchema, isNotNull);
     });
 
     test('toGeminiSettings overrides mimeType for JSON mode', () {
       final options = GeminiOptions(temperature: 0.5);
       final settings = toGeminiSettings(options, null, true);
       expect(settings.responseMimeType, 'application/json');
+    });
+
+    test('toGeminiSettings sends the output schema on a constrained JSON '
+        'request', () {
+      final settings = toGeminiSettings(
+        GeminiOptions(),
+        {'type': 'string'},
+        true,
+        constrained: true,
+      );
+      expect(settings.responseMimeType, 'application/json');
+      expect(settings.responseSchema, isNotNull);
+    });
+
+    test('toGeminiSettings withholds the output schema when unconstrained', () {
+      final settings = toGeminiSettings(GeminiOptions(), {
+        'type': 'string',
+      }, true);
+      expect(settings.responseMimeType, 'application/json');
+      expect(settings.responseSchema, isNull);
+    });
+
+    test('toGeminiSettings keeps an explicitly configured responseSchema', () {
+      final settings = toGeminiSettings(
+        GeminiOptions(responseSchema: {'type': 'string'}),
+        null,
+        false,
+      );
+      expect(settings.responseSchema, isNotNull);
     });
 
     test('toGeminiToolConfig maps to AUTO by default', () {

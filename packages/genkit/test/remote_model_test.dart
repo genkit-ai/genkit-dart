@@ -251,5 +251,99 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('declares no constrained support unless the caller says so', () {
+      final remoteModel = ai.defineRemoteModel(
+        name: 'undeclared-remote-model',
+        url: remoteUrl,
+        httpClient: mockClient,
+      );
+
+      // The remote endpoint is a model action, so its own generate loop never
+      // runs for this call and no fallback of its own applies. Claiming
+      // constrained support here would send a schema the remote never said it
+      // honours and skip the local simulation.
+      final supports =
+          (remoteModel.metadata['model'] as Map<String, dynamic>)['supports']
+              as Map<String, dynamic>;
+      expect(supports.containsKey('constrained'), isFalse);
+
+      final declared = ai.defineRemoteModel(
+        name: 'declared-remote-model',
+        url: remoteUrl,
+        httpClient: mockClient,
+        modelInfo: ModelInfo(supports: {'constrained': true}),
+      );
+      expect(
+        ((declared.metadata['model'] as Map<String, dynamic>)['supports']
+            as Map<String, dynamic>)['constrained'],
+        isTrue,
+      );
+    });
+
+    test('a declared constrained claim reaches the remote intact', () async {
+      // `defineRemoteModel` fills `metadata` by cascade, after the Model is
+      // constructed, so the claim has to be read when the model is called
+      // rather than captured while it is being built.
+      ai.defineRemoteModel(
+        name: 'constrained-remote-model',
+        url: remoteUrl,
+        httpClient: mockClient,
+        modelInfo: ModelInfo(supports: {'constrained': true}),
+      );
+
+      String? sentBody;
+      when(
+        mockClient.post(
+          Uri.parse(remoteUrl),
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer((invocation) async {
+        sentBody = invocation.namedArguments[#body] as String;
+        return http.Response(
+          jsonEncode({
+            'result': ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: '{"foo": "bar"}')],
+              ),
+            ).toJson(),
+          }),
+          200,
+        );
+      });
+
+      final generateAction = await ai.registry.lookupAction(.util, 'generate');
+      await generateAction!(
+        GenerateActionOptions(
+          model: 'constrained-remote-model',
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'describe something')],
+            ),
+          ],
+          output: GenerateActionOutputConfig(
+            format: 'json',
+            constrained: true,
+            jsonSchema: {
+              'type': 'object',
+              'properties': {
+                'foo': {'type': 'string'},
+              },
+            },
+          ),
+        ),
+      );
+
+      final sent = jsonDecode(sentBody!) as Map<String, dynamic>;
+      final data = sent['data'] as Map<String, dynamic>;
+      final output = data['output'] as Map<String, dynamic>;
+      expect(output['constrained'], isTrue);
+      expect(output['schema'], isNotNull);
+      expect(sentBody, isNot(contains('conform to the following')));
+    });
   });
 }

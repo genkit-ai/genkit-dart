@@ -29,6 +29,14 @@ final _logger = Logger('genkit_anthropic');
 
 /// Fallback capabilities for Claude models resolved by name without a curated
 /// entry.
+///
+/// Claims [baseClaudeSupports], not [structuredClaudeSupports]: the structured
+/// output this plugin sends today is the forced `return_output` tool below
+/// (`:252-262`), and not every Claude name accepts a forced `tool_choice` -
+/// `claude-fable-5-1`, for one, answers `tool_choice` `type: "tool"` with a
+/// 400. Curation is the only signal this plugin has for which names do, so an
+/// uncurated name withholds the claim and core simulates instead: a longer
+/// prompt rather than a rejection.
 final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
 
 /// Anthropic returns 529 when the API is overloaded.
@@ -269,7 +277,17 @@ class AnthropicPluginImpl extends GenkitPlugin {
       toolChoice = sdk.ToolChoice.tool(toolName);
     }
 
-    if (req.toolChoice != null) {
+    // The forced `return_output` tool is the whole mechanism behind the
+    // `constrained` claim, so it outranks the caller's `toolChoice` - but only
+    // for a request that asked to be constrained. There, core routed the
+    // schema here because the model claims native support, and honouring a
+    // `none` would leave the model neither the tool nor the instructions core
+    // stripped. With `constrained: false` the caller opted out of that
+    // mechanism and nothing was stripped, so their `toolChoice` is theirs to
+    // keep; the tool is still offered, just not forced.
+    final constrainedNatively =
+        req.output?.schema != null && req.output?.constrained == true;
+    if (req.toolChoice != null && !constrainedNatively) {
       toolChoice = switch (req.toolChoice) {
         'auto' => sdk.ToolChoice.auto(),
         'any' => sdk.ToolChoice.any(),

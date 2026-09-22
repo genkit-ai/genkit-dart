@@ -26,18 +26,34 @@ const _claudeSupportsCore = <String, dynamic>{
 
 /// Capabilities every Claude model has: multiturn chat, vision (media input),
 /// tool calling with tool choice, a system role, and text output.
+///
+/// The tier for a name this plugin cannot vouch for: no curated member sits
+/// here today, but it is what `commonModelInfo` hands an uncurated model, and
+/// where a curated model that cannot take a forced `tool_choice` would go.
 const baseClaudeSupports = <String, dynamic>{
   ..._claudeSupportsCore,
   'output': ['text'],
 };
 
-/// [baseClaudeSupports] plus JSON output and native constrained generation.
+/// [baseClaudeSupports] plus JSON output and constrained generation.
 ///
-/// Only models on Anthropic's Structured Outputs list may claim `constrained`.
+/// "Native" here is the forced `return_output` tool
+/// (`plugin_impl.dart:252-262`), not Anthropic's own Structured Outputs
+/// feature - genkit_anthropic does not use that API yet (#402). Claimed only
+/// for curated names: a forced `tool_choice` is not accepted by every Claude
+/// model, so `commonModelInfo` keeps the uncurated fallback on
+/// [baseClaudeSupports] and lets core simulate.
+///
+/// `'no-tools'` rather than `true`, because the trick pins `tool_choice` to
+/// `return_output`, and a request that also carries the caller's own tools
+/// can then never reach them - the tool loop would silently never fire. So
+/// the native path is claimed only for a request with no tools of its own;
+/// with tools, core simulates and the schema arrives as prompt instructions,
+/// leaving `tool_choice` free.
 const structuredClaudeSupports = <String, dynamic>{
   ..._claudeSupportsCore,
   'output': ['text', 'json'],
-  'constrained': true,
+  'constrained': 'no-tools',
 };
 
 /// Claude models the Anthropic plugin curates capability metadata for.
