@@ -123,11 +123,31 @@ final person = response.output; // Typed Person object
 print('Name: ${person.name}, Age: ${person.age}');
 ```
 
-Models on Anthropic's Structured Outputs list are sent the schema natively, so
-structured output composes with extended thinking. Other models fall back to a
-tool the model is forced to call; that fallback cannot be combined with manual
-thinking, and the plugin reports an `INVALID_ARGUMENT` error rather than letting
-the API reject the request.
+How the schema travels depends on the API surface, because the feature does:
+
+- On the **beta** surface, a model on Anthropic's Structured Outputs list is
+  sent the schema natively, as `output_config.format`. Nothing is added to the
+  request and no `tool_choice` is pinned, so structured output composes with
+  extended thinking and with your own tools. Those models advertise
+  `constrained: true`.
+- On the **stable** surface, that field does not exist, so the schema travels
+  as a tool the model is forced to call. Pinning `tool_choice` makes your own
+  tools unreachable, so those models advertise `constrained: 'no-tools'` and
+  Genkit puts the schema in the prompt instead whenever a request carries
+  tools. The forced tool also cannot be combined with manual thinking; the
+  plugin reports an `INVALID_ARGUMENT` error rather than letting the API
+  reject the request.
+- A model the plugin does not curate advertises neither, on either surface:
+  the Structured Outputs list is per-model, and not every Claude accepts a
+  forced `tool_choice`. Genkit simulates instead, putting the schema in the
+  prompt, which works everywhere.
+
+The advertised claim follows the plugin's own `apiVersion`, since that is what
+Genkit reads when deciding whether to simulate. Overriding `apiVersion` on a
+single request is still fine — a request that asks for beta may be simulated
+where the native path would have served it, which costs a longer prompt — but
+overriding it to `'stable'` for a structured request that also carries tools is
+refused, because neither mechanism can serve it.
 
 ### Stable and beta APIs
 
