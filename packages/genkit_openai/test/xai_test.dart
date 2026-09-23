@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
+
+import 'recording_client.dart';
 
 part 'xai_test.g.dart';
 
@@ -30,54 +29,6 @@ part 'xai_test.g.dart';
 abstract class $CityQuery {
   String get city;
 }
-
-MockClient recordingClient(
-  List<http.Request> requests, {
-  List<String> modelIds = const [],
-}) {
-  return MockClient((request) async {
-    requests.add(request);
-    if (request.url.path.endsWith('/models')) {
-      return http.Response(
-        jsonEncode({
-          'object': 'list',
-          'data': [
-            for (final id in modelIds)
-              {'id': id, 'object': 'model', 'created': 0, 'owned_by': 'xai'},
-          ],
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    return http.Response(
-      jsonEncode({
-        'id': 'chatcmpl-test',
-        'object': 'chat.completion',
-        'created': 0,
-        'model': 'grok-4.6',
-        'choices': [
-          {
-            'index': 0,
-            'message': {'role': 'assistant', 'content': 'ok'},
-            'finish_reason': 'stop',
-          },
-        ],
-      }),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  });
-}
-
-Map<String, dynamic> chatBodyOf(List<http.Request> requests) =>
-    (jsonDecode(
-              requests
-                  .firstWhere((r) => r.url.path.endsWith('/chat/completions'))
-                  .body,
-            )
-            as Map)
-        .cast<String, dynamic>();
 
 void main() {
   group('catalog', () {

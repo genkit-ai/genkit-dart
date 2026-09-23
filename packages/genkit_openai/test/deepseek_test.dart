@@ -19,11 +19,11 @@ import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 import 'fake_openai_server.dart';
+import 'recording_client.dart';
 
 part 'deepseek_test.g.dart';
 
@@ -32,80 +32,6 @@ part 'deepseek_test.g.dart';
 abstract class $JsonOut {
   String get name;
 }
-
-/// Records every request the plugin sends and answers with a canned reply.
-MockClient recordingClient(
-  List<http.Request> requests, {
-  List<String> modelIds = const [],
-}) {
-  return MockClient((request) async {
-    requests.add(request);
-    if (request.url.path.endsWith('/models')) {
-      return http.Response(
-        jsonEncode({
-          'object': 'list',
-          'data': [
-            for (final id in modelIds)
-              {'id': id, 'object': 'model', 'created': 0, 'owned_by': 'x'},
-          ],
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    return http.Response(
-      jsonEncode({
-        'id': 'chatcmpl-test',
-        'object': 'chat.completion',
-        'created': 0,
-        'model': 'deepseek-flash',
-        'choices': [
-          {
-            'index': 0,
-            'message': {'role': 'assistant', 'content': 'ok'},
-            'finish_reason': 'stop',
-          },
-        ],
-      }),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  });
-}
-
-/// Answers a streaming chat request with a single SSE frame.
-MockClient streamingClient(List<http.Request> requests) {
-  return MockClient((request) async {
-    requests.add(request);
-    final frame = jsonEncode({
-      'id': 'c',
-      'object': 'chat.completion.chunk',
-      'created': 0,
-      'model': 'deepseek-flash',
-      'choices': [
-        {
-          'index': 0,
-          'delta': {'content': 'ok'},
-          'finish_reason': 'stop',
-        },
-      ],
-    });
-    return http.Response(
-      'data: $frame\n\ndata: [DONE]\n\n',
-      200,
-      headers: {'content-type': 'text/event-stream'},
-    );
-  });
-}
-
-Map<String, dynamic> chatBodyOf(List<http.Request> requests) =>
-    (jsonDecode(
-              requests
-                  .firstWhere((r) => r.url.path.endsWith('/chat/completions'))
-                  .body,
-            )
-            as Map)
-        .cast<String, dynamic>();
 
 String? noEnv(String name) => null;
 
