@@ -27,9 +27,10 @@ const _claudeSupportsCore = <String, dynamic>{
 /// Capabilities every Claude model has: multiturn chat, vision (media input),
 /// tool calling with tool choice, a system role, and text output.
 ///
-/// The tier for a name this plugin cannot vouch for: no curated member sits
-/// here today, but it is what `commonModelInfo` hands an uncurated model, and
-/// where a curated model that cannot take a forced `tool_choice` would go.
+/// The tier for a name this plugin cannot vouch for, which is what
+/// `commonModelInfo` hands an uncurated model. Curation is the claim: a name
+/// in [KnownClaudeModel] is one this plugin has checked can take the schema,
+/// one way or the other, so no curated model sits here.
 const baseClaudeSupports = <String, dynamic>{
   ..._claudeSupportsCore,
   'output': ['text'],
@@ -73,8 +74,10 @@ const nativeStructuredClaudeSupports = <String, dynamic>{
 /// Claude models the Anthropic plugin curates capability metadata for.
 ///
 /// Each value pairs a bare model [id] (no plugin prefix) with a display
-/// [label]; [info] picks the capability tier via [structuredOutputs]. Other
-/// model names still resolve dynamically via the plugin's `commonModelInfo`
+/// [label]. Membership is itself the capability claim: a curated name is one
+/// this plugin has checked is on Anthropic's Structured Outputs list, so
+/// [infoFor] only has to pick the tier the surface can serve. Other model
+/// names still resolve dynamically via the plugin's `commonModelInfo`
 /// fallback, so this enum only enriches the names listed here.
 enum KnownClaudeModel {
   fable5('claude-fable-5', 'Claude Fable 5', ClaudeThinkingMode.adaptive),
@@ -96,14 +99,7 @@ enum KnownClaudeModel {
   ),
   haiku45('claude-haiku-4-5', 'Claude Haiku 4.5', ClaudeThinkingMode.enabled);
 
-  // The base tier currently has no curated member.
-  const KnownClaudeModel(
-    this.id,
-    this.label,
-    this.defaultThinkingMode, {
-    // ignore: unused_element_parameter
-    this.structuredOutputs = true,
-  });
+  const KnownClaudeModel(this.id, this.label, this.defaultThinkingMode);
 
   /// Bare model name (no plugin prefix).
   final String id;
@@ -115,27 +111,18 @@ enum KnownClaudeModel {
   /// does not select a mode explicitly.
   final ClaudeThinkingMode defaultThinkingMode;
 
-  /// Whether the model is on Anthropic's Structured Outputs list and may
-  /// claim native constrained generation and JSON output.
-  final bool structuredOutputs;
-
   /// Capability metadata registered for this model on the stable surface.
   ModelInfo get info => infoFor(beta: false);
 
   /// Capability metadata registered for this model on the given API surface.
   ///
   /// The mechanism decides the claim, and the mechanism depends on the
-  /// surface: `output_config.format` exists only on beta, so only there can a
-  /// model on Anthropic's Structured Outputs list claim `constrained: true`.
-  /// On stable the same model is served by the forced tool, which is
-  /// `'no-tools'`.
+  /// surface: `output_config.format` exists only on beta, so only there is the
+  /// claim `constrained: true`. On stable the same model is served by the
+  /// forced tool, which is `'no-tools'`.
   ModelInfo infoFor({required bool beta}) => ModelInfo(
     label: label,
-    supports: switch ((structuredOutputs, beta)) {
-      (false, _) => baseClaudeSupports,
-      (true, false) => structuredClaudeSupports,
-      (true, true) => nativeStructuredClaudeSupports,
-    },
+    supports: beta ? nativeStructuredClaudeSupports : structuredClaudeSupports,
     stage: 'stable',
   );
 }

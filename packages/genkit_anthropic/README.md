@@ -125,8 +125,8 @@ print('Name: ${person.name}, Age: ${person.age}');
 
 How the schema travels depends on the API surface, because the feature does:
 
-- On the **beta** surface, a model on Anthropic's Structured Outputs list is
-  sent the schema natively, as `output_config.format`. Nothing is added to the
+- On the **beta** surface, a curated model is sent the schema natively, as
+  `output_config.format`. Nothing is added to the
   request and no `tool_choice` is pinned, so structured output composes with
   extended thinking and with your own tools. Those models advertise
   `constrained: true`.
@@ -137,9 +137,10 @@ How the schema travels depends on the API surface, because the feature does:
   tools. The forced tool also cannot be combined with manual thinking; the
   plugin reports an `INVALID_ARGUMENT` error rather than letting the API
   reject the request.
-- A model the plugin does not curate advertises neither, on either surface:
-  the Structured Outputs list is per-model, and not every Claude accepts a
-  forced `tool_choice`. Genkit simulates instead, putting the schema in the
+- A model the plugin does not curate advertises neither, on either surface.
+  Curation is the claim: Anthropic's Structured Outputs list is per-model, and
+  not every Claude accepts a forced `tool_choice`, so an unchecked name gets
+  no promise either way. Genkit simulates instead, putting the schema in the
   prompt, which works everywhere.
 
 The advertised claim follows the plugin's own `apiVersion`, since that is what

@@ -195,19 +195,21 @@ void main() {
           'tools': true,
           'toolChoice': true,
           'systemRole': true,
-          if (model.structuredOutputs) ...{
-            'output': ['text', 'json'],
-            'constrained': 'no-tools',
-          } else
-            'output': ['text'],
+          'output': ['text', 'json'],
+          'constrained': 'no-tools',
         });
       }
     });
 
-    test('every curated model is on the structured tier', () {
+    test('curation is the claim: every curated model takes a schema', () {
+      // There is no third tier to fall into. A name this plugin cannot vouch
+      // for is not curated, and gets `commonModelInfo` instead.
       for (final model in KnownClaudeModel.values) {
-        expect(model.structuredOutputs, isTrue, reason: model.id);
-        expect(model.info.supports, structuredClaudeSupports);
+        expect(model.infoFor(beta: false).supports, structuredClaudeSupports);
+        expect(
+          model.infoFor(beta: true).supports,
+          nativeStructuredClaudeSupports,
+        );
       }
     });
 

@@ -812,12 +812,12 @@ sdk.ThinkingConfig? _mapThinkingConfig(
 ///
 /// Two conditions, and both are load-bearing. The feature is beta-gated
 /// (`structured-outputs-2025-11-13`), so a stable request has no such field to
-/// put it in. And it is a per-model list, which only a curated entry can speak
-/// for: an uncurated name gets no claim either way, which is why
-/// `commonModelInfo` withholds `constrained` and lets core simulate rather
-/// than betting the request on a guess.
+/// put it in. And it is a per-model list, which only curation speaks for: an
+/// uncurated name gets no claim either way, which is why `commonModelInfo`
+/// withholds `constrained` and lets core simulate rather than betting the
+/// request on a guess.
 bool _supportsNativeStructuredOutput(String modelName, {required bool beta}) =>
-    beta && (knownClaudeModelFor(modelName)?.structuredOutputs ?? false);
+    beta && knownClaudeModelFor(modelName) != null;
 
 /// Rejects a request the forced `return_output` tool cannot serve.
 ///
