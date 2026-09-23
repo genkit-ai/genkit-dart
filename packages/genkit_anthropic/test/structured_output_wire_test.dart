@@ -400,6 +400,108 @@ void main() {
       });
     });
 
+    test('a dictionary field keeps its value schema', () async {
+      // `additionalProperties` holds a schema for a `Map<String, T>` field -
+      // which is what schemantic emits for one - so closing the object must
+      // not overwrite it. It did, and Anthropic then constrained the model to
+      // return `{}` for every map-valued field.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        apiVersion: 'beta',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'labels': {
+              'type': 'object',
+              'additionalProperties': {'type': 'string'},
+            },
+            'plain': {
+              'type': 'object',
+              'properties': {
+                'a': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      final properties = sent['properties'] as Map;
+      expect((properties['labels'] as Map)['additionalProperties'], {
+        'type': 'string',
+      });
+      // A plain object is still closed.
+      expect((properties['plain'] as Map)['additionalProperties'], false);
+      expect(sent['additionalProperties'], false);
+    });
+
+    test('an explicit additionalProperties: true survives', () async {
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        apiVersion: 'beta',
+        outputSchema: {
+          'type': 'object',
+          'additionalProperties': true,
+          'properties': {
+            'a': {'type': 'string'},
+          },
+        },
+      );
+
+      final sent =
+          ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
+      expect(sent['additionalProperties'], true);
+    });
+
+    test('replacing the betas takes the native path away', () async {
+      // `betas` replaces the curated list rather than adding to it, so opting
+      // into some other beta by name drops `structured-outputs`. Sending
+      // `output_config.format` without it is a 400, so the schema falls back
+      // to the tool.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        apiVersion: 'beta',
+        betas: ['some-new-beta-2026-01-01'],
+        outputSchema: schema,
+      );
+
+      expect(body, isNot(contains('output_config')));
+      expect(body['tool_choice'], {'type': 'tool', 'name': 'return_output'});
+    });
+
+    test('pinning a newer structured-outputs revision still goes native', () {
+      return expectLater(
+        requestOnTheWire(
+          model: 'claude-sonnet-4-5',
+          apiVersion: 'beta',
+          betas: ['structured-outputs-2027-01-01'],
+          outputSchema: schema,
+        ).then((body) => (body['output_config'] as Map)['format']),
+        completion(isNotNull),
+      );
+    });
+
+    test('an unconstrained request is not constrained natively', () async {
+      // `constrained: false` is the caller opting out of the mechanism, not
+      // asking for a different one - and `output_config.format` is every bit
+      // as binding as the forced tool.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        apiVersion: 'beta',
+        outputSchema: schema,
+        constrained: false,
+      );
+
+      expect(body, isNot(contains('output_config')));
+      // The tool is offered, as it is on the stable surface, but not pinned.
+      final toolNames = (body['tools'] as List)
+          .map((t) => (t as Map)['name'])
+          .toList();
+      expect(toolNames, contains('return_output'));
+      expect(body, isNot(contains('tool_choice')));
+    });
+
     test('an unrecognised apiVersion is rejected, not read as stable', () {
       // Silently downgrading 'Beta' to stable would drop the header and the
       // features that depend on it, with nothing to point at.

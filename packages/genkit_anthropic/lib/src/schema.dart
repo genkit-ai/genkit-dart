@@ -122,8 +122,12 @@ Map<String, dynamic> toAnthropicSchema(Map<String, dynamic> schema) {
       (out.containsKey('properties') || out.containsKey('required'))) {
     out['type'] = 'object';
   }
+  // Closed unless the schema already said otherwise. Never over the caller's
+  // own value: `additionalProperties` holds a *schema* for a dictionary field,
+  // which is what schemantic emits for a `Map<String, T>`, and overwriting it
+  // with `false` would constrain the model to return `{}` for that field.
   if (_isObjectType(out['type'])) {
-    out['additionalProperties'] = false;
+    out.putIfAbsent('additionalProperties', () => false);
   }
   return out;
 }

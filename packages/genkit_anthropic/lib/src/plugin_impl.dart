@@ -258,18 +258,24 @@ class AnthropicPluginImpl extends GenkitPlugin {
           final beta = options.apiVersion == null
               ? _betaByDefault
               : _isBeta(options.apiVersion);
-          final createRequest = _buildCreateRequest(
-            req,
-            modelName,
-            options,
-            beta: beta,
-          );
           // Empty on the stable surface, which suppresses the header entirely.
           // `betas: []` is an explicit "send none", distinct from omitting
           // the field, which takes the defaults.
           final betas = beta
               ? (options.betas ?? defaultAnthropicBetas)
               : const <String>[];
+          final createRequest = _buildCreateRequest(
+            req,
+            modelName,
+            options,
+            // The header is what unlocks `output_config.format`, and `betas`
+            // replaces the curated list rather than adding to it - so a caller
+            // opting into some other beta by name takes this one away, and the
+            // schema has to travel by tool instead. Reading the resolved list
+            // rather than the surface keeps the request and its header from
+            // disagreeing.
+            nativeOutput: betas.any(_isStructuredOutputsBeta),
+          );
 
           if (ctx.streamingRequested) {
             final stream = requestClient.messages.createStream(
@@ -327,7 +333,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
     ModelRequest req,
     String modelName,
     AnthropicOptions options, {
-    required bool beta,
+    required bool nativeOutput,
   }) {
     final systemMessage = req.messages
         .where((m) => m.role == Role.system)
@@ -356,7 +362,12 @@ class AnthropicPluginImpl extends GenkitPlugin {
     if (req.output?.schema != null) {
       final schema = Map<String, dynamic>.from(req.output!.schema!);
 
-      if (_supportsNativeStructuredOutput(modelName, beta: beta)) {
+      // Native output is a constraint, so it is claimed only by a request
+      // that asked to be constrained - the same rule the forced tool follows
+      // below, and for the same reason: `constrained: false` is the caller
+      // opting out of the mechanism, not asking for a different one.
+      if (req.output?.constrained == true &&
+          _supportsNativeStructuredOutput(modelName, native: nativeOutput)) {
         // Native structured output needs no forced tool, so it composes with
         // manual thinking - unlike the fallback below. The schema goes over
         // as-authored; adding a `type` here would collide with a `$ref` root.
@@ -816,8 +827,17 @@ sdk.ThinkingConfig? _mapThinkingConfig(
 /// uncurated name gets no claim either way, which is why `commonModelInfo`
 /// withholds `constrained` and lets core simulate rather than betting the
 /// request on a guess.
-bool _supportsNativeStructuredOutput(String modelName, {required bool beta}) =>
-    beta && knownClaudeModelFor(modelName) != null;
+bool _supportsNativeStructuredOutput(
+  String modelName, {
+  required bool native,
+}) => native && knownClaudeModelFor(modelName) != null;
+
+/// Whether [beta] is the beta that unlocks `output_config.format`.
+///
+/// Matched by prefix: the name carries a date, and a caller pinning a newer
+/// revision of the same feature is still asking for the feature.
+bool _isStructuredOutputsBeta(String beta) =>
+    beta.startsWith('structured-outputs');
 
 /// Rejects a request the forced `return_output` tool cannot serve.
 ///
@@ -840,10 +860,11 @@ void _assertForcedOutputToolAllowed(
 ) {
   if (req.tools?.isNotEmpty ?? false) {
     throw GenkitException(
-      'Structured output with tools needs the beta API for "$modelName": the '
-      'stable surface serves the schema with a forced tool call, which the '
-      "request's own tools could then never reach. Drop the request's "
-      'apiVersion override, or ask for structured output without tools.',
+      'Structured output with tools needs the beta API for "$modelName": '
+      'without it the schema travels as a forced tool call, which the '
+      "request's own tools could then never reach. Set apiVersion to 'beta' "
+      '(keeping the structured-outputs beta), or ask for structured output '
+      'without tools.',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
