@@ -435,10 +435,15 @@ final response = await ai.generate(
 The key comes from `DEEPSEEK_API_KEY` when it is not passed explicitly.
 `KnownDeepSeekModel` carries the catalog: `deepseek-flash` (1M context, image
 input, thinking on by default) and `deepseek-v4-pro` (text only).
-`deepseek-chat` and `deepseek-reasoner` are curated as deprecated — DeepSeek
-retired them on 2026-07-24, and while they were served they selected the
-non-thinking and thinking modes of Flash — so code written against them keeps
-resolving with honest capabilities while the Dev UI stops offering them.
+`deepseek-chat` and `deepseek-reasoner` are curated as legacy — DeepSeek
+announced their discontinuation for 2026-07-24 but still serves both, routing
+them to the non-thinking and thinking modes of Flash — so they stay listed,
+with honest capabilities, until the names stop answering.
+
+No entry claims whether a model thinks. On DeepSeek that is a request-time
+mode rather than a property of the name: `deepseek-chat` is Flash with
+thinking off by default, and it still honours a `reasoningEffort` that asks
+for it. Nothing is refused locally on that basis.
 
 Three things differ on the wire, and the plugin handles each:
 

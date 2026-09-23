@@ -153,18 +153,16 @@ void main() {
       }
     });
 
-    test('the retired names are curated as deprecated, not dropped', () {
-      // Retired 2026-07-24, and the reference lists neither any more, so by
-      // this catalog's own vocabulary they are `deprecated` rather than
-      // `legacy`. Still curated: code written against them keeps resolving
-      // with honest capabilities and a stage that says what happened. Not
-      // listed, since offering a name the host no longer serves is what the
-      // stage exists to prevent.
+    test('the announced names are legacy, and still listed', () {
+      // Discontinuation announced for 2026-07-24, but both still answer,
+      // routed to Flash. `legacy` is exactly that state - served, with a
+      // shutdown announced - so they stay in the listing until the names stop
+      // answering.
       for (final id in ['deepseek-chat', 'deepseek-reasoner']) {
         final model = knownDeepSeekModelFor(id);
         expect(model, isNotNull, reason: id);
-        expect(model!.stage, OpenAIModelStage.deprecated, reason: id);
-        expect(knownDeepSeekChatModels, isNot(contains(id)), reason: id);
+        expect(model!.stage, OpenAIModelStage.legacy, reason: id);
+        expect(knownDeepSeekChatModels, contains(id), reason: id);
       }
     });
 
@@ -550,9 +548,7 @@ void main() {
       expect(body, isNot(contains('thinking')));
     });
 
-    test('the non-thinking alias still takes none', () async {
-      // `none` is what that alias means, so asking for it explicitly cannot
-      // be the one thing it refuses.
+    test('the non-thinking alias takes none', () async {
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -569,9 +565,14 @@ void main() {
       expect(chatBodyOf(requests)['thinking'], {'type': 'disabled'});
     });
 
-    test('the non-thinking alias refuses an effort', () async {
+    test('the non-thinking alias takes an effort too', () async {
+      // Thinking is a request-time mode on DeepSeek, not a property of the
+      // name: `deepseek-chat` is Flash with thinking off by default, and it
+      // answers `high` with reasoning tokens. Refusing locally would fail a
+      // request the host serves.
+      final requests = <http.Request>[];
       final ai = Genkit(
-        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient([]))],
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
       );
       addTearDown(ai.shutdown);
 
@@ -581,13 +582,10 @@ void main() {
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
 
-      expect(response.finishReason, FinishReason.failed);
-      expect(response.error?.message, contains('deepseek-chat'));
-      expect(
-        response.error?.message,
-        isNot(contains('not a reasoning model')),
-        reason: 'the legacy aliases do reason; the effort is just not settable',
-      );
+      expect(response.finishReason, isNot(FinishReason.failed));
+      final body = chatBodyOf(requests);
+      expect(body['reasoning_effort'], 'high');
+      expect(body['thinking'], {'type': 'enabled'});
     });
   });
 

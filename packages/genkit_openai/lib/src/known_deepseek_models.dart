@@ -51,9 +51,13 @@ const deepSeekTextSupports = <String, dynamic>{..._chatCore, 'media': false};
 /// DeepSeek renames aggressively. `deepseek-chat` and `deepseek-reasoner` were
 /// the whole lineup for two years, were announced for discontinuation on
 /// 2026-07-24, and now select the non-thinking and thinking modes of
-/// `deepseek-flash`. They are curated as [OpenAIModelStage.legacy] rather than
-/// dropped, so code written against them keeps resolving with honest
-/// capabilities while the Dev UI stops offering them.
+/// `deepseek-flash`. Both still answer, so they are curated as
+/// [OpenAIModelStage.legacy] - listed, with the shutdown announced - rather
+/// than dropped or marked `deprecated`.
+///
+/// No entry says whether a model thinks. On DeepSeek that is a request-time
+/// mode, not a property of the name: `deepseek-chat` is Flash with thinking
+/// off by default, and it still honours a `reasoningEffort` asking for it.
 ///
 /// Catalog: https://api-docs.deepseek.com/quick_start/pricing
 enum KnownDeepSeekModel {
@@ -62,31 +66,25 @@ enum KnownDeepSeekModel {
     'deepseek-flash',
     'DeepSeek Flash',
     deepSeekVisionSupports,
-    // Both older spellings are routed to V4.1 Flash by DeepSeek itself.
+    // Both older spellings are temporarily routed to V4.1 Flash by DeepSeek
+    // itself, so they are legacy names for this model rather than models.
     snapshots: ['deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'],
-    thinks: true,
   ),
 
   /// DeepSeek-V4-Pro-0813. No image input.
-  deepseekV4Pro(
-    'deepseek-v4-pro',
-    'DeepSeek V4 Pro',
-    deepSeekTextSupports,
-    thinks: true,
-  ),
+  deepseekV4Pro('deepseek-v4-pro', 'DeepSeek V4 Pro', deepSeekTextSupports),
 
   /// The former chat alias, now `deepseek-flash` with thinking off.
   ///
-  /// `deprecated` rather than `legacy`: DeepSeek retired both aliases on
-  /// 2026-07-24 and the reference now lists only `deepseek-flash` and
-  /// `deepseek-v4-pro`. Curated anyway, so that code written against the name
-  /// gets the right capabilities and a stage that says what happened, rather
-  /// than the dynamic defaults.
+  /// `legacy`, not `deprecated`: DeepSeek announced the discontinuation but
+  /// still serves the name, routing it to Flash. That is what `legacy` means
+  /// here - served, with a shutdown announced - so it stays in the listing
+  /// until the name actually stops answering.
   deepseekChat(
     'deepseek-chat',
     'DeepSeek Chat',
     deepSeekVisionSupports,
-    stage: OpenAIModelStage.deprecated,
+    stage: OpenAIModelStage.legacy,
   ),
 
   /// The former reasoning alias, now `deepseek-flash` with thinking on.
@@ -94,8 +92,7 @@ enum KnownDeepSeekModel {
     'deepseek-reasoner',
     'DeepSeek Reasoner',
     deepSeekVisionSupports,
-    stage: OpenAIModelStage.deprecated,
-    thinks: true,
+    stage: OpenAIModelStage.legacy,
   );
 
   const KnownDeepSeekModel(
@@ -104,7 +101,6 @@ enum KnownDeepSeekModel {
     this.supports, {
     this.snapshots = const [],
     this.stage = OpenAIModelStage.stable,
-    this.thinks = false,
   });
 
   /// Bare model name (no plugin prefix).
@@ -121,14 +117,6 @@ enum KnownDeepSeekModel {
 
   /// Lifecycle stage, in the same vocabulary the OpenAI catalog uses.
   final OpenAIModelStage stage;
-
-  /// Whether the model thinks before answering, and so returns
-  /// `reasoning_content` alongside its reply.
-  ///
-  /// Thinking is on by default for the models that support it — unlike
-  /// OpenAI, where it is opt-in — so this says what to expect back rather than
-  /// what may be asked for.
-  final bool thinks;
 
   /// Every name that resolves to this model.
   List<String> get versions => [id, ...snapshots];

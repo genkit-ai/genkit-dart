@@ -154,7 +154,12 @@ final deepSeekProvider = OpenAIProvider(
   infoFor: (model, {required compat}) =>
       compat ? compatDeepSeekModelInfo(model) : deepSeekModelInfoFor(model),
   catalogIds: knownDeepSeekChatModels,
-  reasonsFor: (model) => knownDeepSeekModelFor(model)?.thinks,
+  // No claim, ever. Thinking is a request-time mode on DeepSeek rather than a
+  // model property: `deepseek-chat` is the non-thinking *default* of
+  // `deepseek-flash`, and it answers a `reasoning_effort` of `high` with
+  // reasoning tokens all the same. Whether a level applies is the host's call,
+  // as it already is for a compat backend.
+  reasonsFor: (_) => null,
   replaysReasoning: true,
   rewriteChatBody: deepSeekChatBody,
   usesLegacyMaxTokens: true,
