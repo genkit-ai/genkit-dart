@@ -24,6 +24,7 @@ import 'package:schemantic/schemantic.dart';
 
 import 'known_models.dart';
 import 'model.dart';
+import 'schema.dart';
 
 final _logger = Logger('genkit_anthropic');
 
@@ -64,24 +65,20 @@ const defaultAnthropicBetas = <String>[
   'structured-outputs-2025-11-13',
 ];
 
-/// Resolves whether a request runs against the beta API surface.
+/// Whether [apiVersion] selects the beta API surface.
 ///
-/// The request's own `apiVersion` wins, then the plugin default, else stable.
-///
-/// Throws on anything but `'beta'` or `'stable'`. Silently reading `'Beta'`
-/// as stable would drop the beta header and the features that depend on it,
-/// with nothing to point at.
-@visibleForTesting
-bool resolveBetaEnabled(String? requestApiVersion, String? pluginApiVersion) {
-  final selected = requestApiVersion ?? pluginApiVersion;
-  if (selected == null) return false;
-  if (selected != 'beta' && selected != 'stable') {
+/// Throws on anything but `'beta'`, `'stable'` or null. Silently reading
+/// `'Beta'` as stable would drop the beta header and the features that depend
+/// on it, with nothing to point at.
+bool _isBeta(String? apiVersion) {
+  if (apiVersion == null) return false;
+  if (apiVersion != 'beta' && apiVersion != 'stable') {
     throw GenkitException(
-      'Invalid apiVersion "$selected". Expected "beta" or "stable".',
+      'Invalid apiVersion "$apiVersion". Expected "beta" or "stable".',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
-  return selected == 'beta';
+  return apiVersion == 'beta';
 }
 
 /// Core Genkit plugin implementation for Anthropic Claude models.
@@ -110,6 +107,13 @@ class AnthropicPluginImpl extends GenkitPlugin {
 
   sdk.AnthropicClient? _client;
 
+  /// Whether this plugin's requests default to the beta API surface.
+  ///
+  /// Resolved once, so an unusable [apiVersion] fails at construction rather
+  /// than on the first request - and so the capability claim and the request
+  /// cannot disagree about which surface this is.
+  final bool _betaByDefault;
+
   /// Creates an [AnthropicPluginImpl].
   AnthropicPluginImpl({
     this.apiKey,
@@ -117,16 +121,21 @@ class AnthropicPluginImpl extends GenkitPlugin {
     this.baseUrl,
     this.httpClient,
     this.apiVersion,
-  });
+  }) : _betaByDefault = _isBeta(apiVersion);
 
   @override
   String get name => 'anthropic';
 
-  /// Curated per-model capability metadata, keyed by bare model name.
+  /// Bare names of the models this plugin curates.
+  ///
+  /// Ids only: what each one claims depends on the API surface, so the
+  /// metadata comes from [modelInfoFor] rather than from a map that would
+  /// have to be rebuilt per surface - and could silently disagree with what
+  /// [resolve] registers.
   ///
   /// Names absent here still resolve; they fall back to [commonModelInfo].
-  final Map<String, ModelInfo> knownModels = UnmodifiableMapView(
-    knownClaudeModels,
+  final List<String> knownModelIds = UnmodifiableListView(
+    KnownClaudeModel.values.map((m) => m.id),
   );
 
   /// Strips a trailing dated-snapshot suffix (e.g.
@@ -134,12 +143,9 @@ class AnthropicPluginImpl extends GenkitPlugin {
   /// by the models endpoint map onto the curated aliases.
   static String _aliasOf(String modelName) => claudeModelAlias(modelName);
 
-  /// Whether this plugin's requests default to the beta API surface.
-  bool get _betaByDefault => apiVersion == 'beta';
-
   /// Returns the capability metadata for [modelName], matching by exact name
   /// first and then by dated-snapshot alias, falling back to [commonModelInfo]
-  /// for names not in [knownModels].
+  /// for names not in [knownModelIds].
   ///
   /// The claim follows the surface this plugin defaults to, because the
   /// mechanism does: on beta a curated model is served by
@@ -201,7 +207,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
       // on the surface this plugin defaults to, and a listing that disagreed
       // with what `resolve` registers would have the Dev UI describing a
       // model the plugin does not serve.
-      final curated = knownModels.keys
+      final curated = knownModelIds
           .where((name) => !coveredAliases.contains(name))
           .map((name) => _curatedMetadata(name, modelInfoFor(name)));
 
@@ -212,7 +218,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
       // when discovery is unavailable (e.g. offline).
       _logger.warning('Failed to list Anthropic models: $e', e, s);
       return [
-        for (final name in knownModels.keys)
+        for (final name in knownModelIds)
           _curatedMetadata(name, modelInfoFor(name)),
       ];
     }
@@ -248,7 +254,10 @@ class AnthropicPluginImpl extends GenkitPlugin {
             : client;
 
         try {
-          final beta = resolveBetaEnabled(options.apiVersion, apiVersion);
+          // The request's own surface wins; the plugin's is the default.
+          final beta = options.apiVersion == null
+              ? _betaByDefault
+              : _isBeta(options.apiVersion);
           final createRequest = _buildCreateRequest(
             req,
             modelName,
@@ -351,7 +360,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
         // Native structured output needs no forced tool, so it composes with
         // manual thinking - unlike the fallback below. The schema goes over
         // as-authored; adding a `type` here would collide with a `$ref` root.
-        outputFormat = sdk.JsonOutputFormat(schema: _toAnthropicSchema(schema));
+        outputFormat = sdk.JsonOutputFormat(schema: toAnthropicSchema(schema));
       } else {
         // Outside beta there is no `output_config.format`, so the schema is
         // served by a tool the model is forced to call.
@@ -363,7 +372,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
         // not apply.
         final pinsOutputTool = req.output?.constrained == true;
         if (pinsOutputTool) {
-          _assertToolOutputAllowed(req, modelName, options);
+          _assertForcedOutputToolAllowed(req, modelName, options);
         }
         // Anthropic's tool input schemas must declare an object type.
         if (!schema.containsKey('type')) {
@@ -810,138 +819,25 @@ sdk.ThinkingConfig? _mapThinkingConfig(
 bool _supportsNativeStructuredOutput(String modelName, {required bool beta}) =>
     beta && (knownClaudeModelFor(modelName)?.structuredOutputs ?? false);
 
-/// Keywords whose value is a single nested schema.
-const _schemaValuedKeywords = {
-  'items',
-  'additionalItems',
-  'contains',
-  'not',
-  'if',
-  'then',
-  'else',
-  'propertyNames',
-};
-
-/// Keywords whose value is a list of schemas.
-const _schemaListKeywords = {'allOf', 'anyOf', 'oneOf', 'prefixItems'};
-
-/// Keywords whose value maps names to schemas.
-const _schemaMapKeywords = {
-  'properties',
-  r'$defs',
-  'definitions',
-  'patternProperties',
-};
-
-/// Validation keywords Anthropic's structured-output schema rejects.
+/// Rejects a request the forced `return_output` tool cannot serve.
 ///
-/// `output_config.format` validates the schema strictly and 400s on these -
-/// "For 'integer' type, properties maximum, minimum are not supported". The
-/// tool fallback never validated, which is why they rode through unnoticed.
-/// Genkit's own generator emits them from `@IntegerField(minimum:)` and
-/// friends, so ordinary annotated types hit this.
+/// Two things it cannot share the wire with, both because it pins
+/// `tool_choice`:
 ///
-/// Dropped rather than translated: they constrain values, and losing them
-/// costs a validation the model was never guaranteed to honour anyway.
-const _unsupportedValidationKeywords = {
-  'minimum',
-  'maximum',
-  'exclusiveMinimum',
-  'exclusiveMaximum',
-  'multipleOf',
-  'minLength',
-  'maxLength',
-  'pattern',
-  'minItems',
-  'maxItems',
-  'uniqueItems',
-  'minProperties',
-  'maxProperties',
-};
-
-/// Whether [type] denotes an object, including the nullable `["object",
-/// "null"]` spelling schemantic emits for an optional object field.
-bool _isObjectType(Object? type) =>
-    type == 'object' || (type is List && type.contains('object'));
-
-/// Rewrites a Genkit JSON schema into the shape Anthropic accepts.
+/// - the caller's own tools, which the model could then never choose. Core
+///   keeps them away by simulating for a model claiming `'no-tools'`, so this
+///   only fires for a request that talked its way here by overriding
+///   `apiVersion` to stable after core read the beta claim;
+/// - extended thinking, which Anthropic rejects alongside a forced tool
+///   outright.
 ///
-/// Anthropic rejects `$schema`, rejects the validation keywords above, and
-/// requires `additionalProperties: false` on every object, including ones
-/// nested under `$defs`.
-///
-/// Recursion follows JSON Schema structure rather than descending into every
-/// map it meets. A `properties` map is not itself a schema - descending into
-/// it applied the object inference and the closed marker to the map of field
-/// names, which corrupted any schema with a field called `type`, `properties`
-/// or `required`.
-Map<String, dynamic> _toAnthropicSchema(Map<String, dynamic> schema) {
-  final out = <String, dynamic>{};
-  for (final entry in schema.entries) {
-    final key = entry.key;
-    final value = entry.value;
-    if (key == r'$schema') continue;
-    if (_unsupportedValidationKeywords.contains(key)) continue;
-
-    if (_schemaMapKeywords.contains(key) && value is Map) {
-      out[key] = {
-        for (final field in value.entries)
-          field.key.toString(): _asSchema(field.value),
-      };
-    } else if (_schemaListKeywords.contains(key) && value is List) {
-      out[key] = value.map(_asSchema).toList();
-    } else if (_schemaValuedKeywords.contains(key)) {
-      // `items` may be a list of schemas in older drafts.
-      out[key] = value is List
-          ? value.map(_asSchema).toList()
-          : _asSchema(value);
-    } else if (key == 'additionalProperties' && value is Map) {
-      out[key] = _asSchema(value);
-    } else {
-      out[key] = value;
-    }
-  }
-  // A `$ref` node may not carry sibling constraints; Anthropic rejects the
-  // combination outright. Named Genkit schemas arrive as a bare `$ref` plus
-  // `$defs`, and the recursion above has already closed the definitions.
-  if (out.containsKey(r'$ref')) return out;
-
-  // A hand-written schema may describe an object through its keywords alone.
-  // Anthropic needs the type spelled out before it will accept the closed
-  // marker below, so infer it the way the tool fallback does.
-  if (!out.containsKey('type') &&
-      (out.containsKey('properties') || out.containsKey('required'))) {
-    out['type'] = 'object';
-  }
-  if (_isObjectType(out['type'])) {
-    out['additionalProperties'] = false;
-  }
-  return out;
-}
-
-/// Normalises [value] when it is a schema, and leaves anything else alone.
-Object? _asSchema(Object? value) => switch (value) {
-  final Map<String, dynamic> map => _toAnthropicSchema(map),
-  final Map map => _toAnthropicSchema(map.cast<String, dynamic>()),
-  _ => value,
-};
-
-/// Guards the tool-based structured-output fallback against manual thinking.
-///
-/// The fallback forces `tool_choice`, which Anthropic rejects when extended
-/// thinking is on. Native structured output has no such conflict, so the fix is
-/// to move to a model that supports it rather than to drop thinking.
-void _assertToolOutputAllowed(
+/// Both are reported here rather than left to the API, which answers with a
+/// message that names neither the model nor the way out.
+void _assertForcedOutputToolAllowed(
   ModelRequest req,
   String modelName,
   AnthropicOptions options,
 ) {
-  // Core keeps the caller's tools away from this path by simulating for a
-  // model that claims `'no-tools'` - unless the request talked its way here by
-  // overriding `apiVersion` to stable, after core read a `constrained: true`
-  // claim that only holds on beta. Forcing `return_output` then would leave
-  // the caller's tools on the wire and unreachable, and the tool loop would
-  // silently never fire.
   if (req.tools?.isNotEmpty ?? false) {
     throw GenkitException(
       'Structured output with tools needs the beta API for "$modelName": the '
@@ -954,15 +850,15 @@ void _assertToolOutputAllowed(
 
   final thinking = options.thinking;
   if (thinking == null) return;
-  // Resolve through the same path the wire uses, so a bare ThinkingConfig()
+  // Resolved through the same path the wire uses, so a bare ThinkingConfig()
   // that defaults to manual on a 4.5-era model is caught too.
   if (_resolveThinkingType(thinking, modelName) != 'enabled') return;
 
   throw GenkitException(
     'Structured output with manual thinking is not supported for '
     '"$modelName": it needs a forced tool call, which Anthropic rejects '
-    'alongside extended thinking. Use a model with native structured output '
-    'support, or set thinking.type to "adaptive" or "disabled".',
+    'alongside extended thinking. Use the beta API, where the schema travels '
+    'natively, or set thinking.type to "adaptive" or "disabled".',
     status: StatusCodes.INVALID_ARGUMENT,
   );
 }

@@ -156,14 +156,3 @@ final _knownClaudeModelsById = <String, KnownClaudeModel>{
 /// Returns the curated model matching [modelName], including dated snapshots.
 KnownClaudeModel? knownClaudeModelFor(String modelName) =>
     _knownClaudeModelsById[claudeModelAlias(modelName)];
-
-/// Curated capability metadata for known Claude models, keyed by bare model
-/// name (no plugin prefix).
-///
-/// Derived from [KnownClaudeModel]; other model names still resolve dynamically
-/// with the shared `commonModelInfo` fallback. This map only enriches known
-/// names with a typed label and stable stage, and ensures they appear in
-/// listings even when the Anthropic models endpoint omits them.
-final knownClaudeModels = <String, ModelInfo>{
-  for (final model in KnownClaudeModel.values) model.id: model.info,
-};

@@ -267,10 +267,10 @@ void main() {
     });
   });
 
-  group('knownClaudeModels', () {
-    test('curates exactly the supported model catalog', () {
+  group('the curated catalog', () {
+    test('curates exactly the supported model list', () {
       expect(
-        knownClaudeModels.keys,
+        AnthropicPluginImpl(apiKey: 'k').knownModelIds,
         unorderedEquals([
           'claude-fable-5',
           'claude-opus-5',
@@ -286,13 +286,14 @@ void main() {
       );
     });
 
-    test('is derived from the enum, keyed by bare model id', () {
+    test('is the enum, by bare model id', () {
+      final plugin = AnthropicPluginImpl(apiKey: 'k');
       expect(
-        knownClaudeModels.keys,
+        plugin.knownModelIds,
         unorderedEquals([for (final m in KnownClaudeModel.values) m.id]),
       );
       for (final model in KnownClaudeModel.values) {
-        expect(knownClaudeModels[model.id]!.label, model.label);
+        expect(plugin.modelInfoFor(model.id).label, model.label);
       }
     });
   });
