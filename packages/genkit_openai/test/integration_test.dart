@@ -490,6 +490,89 @@ void main() {
 
       await ai.shutdown();
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('generates speech with gpt-4o-mini-tts', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final response = await ai.generate(
+        model: openAI.speechModel('gpt-4o-mini-tts'),
+        prompt: 'Genkit is an amazing AI framework.',
+        config: OpenAISpeechOptions(
+          voice: 'sage',
+          instructions: 'Speak in a calm, warm tone.',
+        ),
+      );
+
+      final media = response.media;
+      expect(media, isNotNull);
+      expect(media!.contentType, 'audio/mpeg');
+      expect(media.url, startsWith('data:audio/mpeg;base64,'));
+
+      final bytes = base64Decode(media.url.split(',').last);
+      expect(bytes, isNotEmpty);
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('gpt-4o-mini-tts honours speed', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // The OpenAPI spec gives `speed` a 0.25-4.0 range with no model
+      // restriction, and faster speech is shorter audio - so the same words at
+      // 2x should come back smaller than at 1x.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      Future<int> bytesAt(double? speed) async {
+        final response = await ai.generate(
+          model: openAI.speechModel('gpt-4o-mini-tts'),
+          prompt: 'Genkit Dart now speaks, at whatever pace you ask for.',
+          config: OpenAISpeechOptions(voice: 'sage', speed: speed),
+        );
+        return base64Decode(response.media!.url.split(',').last).length;
+      }
+
+      expect(await bytesAt(2.0), lessThan(await bytesAt(1.0)));
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('responseFormat wav returns real WAV bytes', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      // contentType is derived from the requested format rather than from the
+      // response, so this checks the bytes really are what we label them.
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final response = await ai.generate(
+        model: openAI.speechModel('tts-1'),
+        prompt: 'Genkit Dart now speaks.',
+        config: OpenAISpeechOptions(
+          voice: 'nova',
+          responseFormat: 'wav',
+          speed: 1.1,
+        ),
+      );
+
+      final media = response.media;
+      expect(media, isNotNull);
+      expect(media!.contentType, 'audio/wav');
+
+      final bytes = base64Decode(media.url.split(',').last);
+      expect(bytes.length, greaterThan(12));
+      // RIFF....WAVE container magic.
+      expect(String.fromCharCodes(bytes.sublist(0, 4)), 'RIFF');
+      expect(String.fromCharCodes(bytes.sublist(8, 12)), 'WAVE');
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
   });
 }
 
