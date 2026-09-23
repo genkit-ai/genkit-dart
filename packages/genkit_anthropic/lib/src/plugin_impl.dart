@@ -391,7 +391,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
     // tool nor the instructions core stripped. Nothing is forced on the native
     // path or for an unconstrained request, and then the caller's choice
     // stands.
-    if (req.toolChoice != null && toolChoice == null) {      toolChoice = switch (req.toolChoice) {
+    if (req.toolChoice != null && toolChoice == null) {
+      toolChoice = switch (req.toolChoice) {
         'auto' => sdk.ToolChoice.auto(),
         'any' => sdk.ToolChoice.any(),
         'none' => sdk.ToolChoice.none(),

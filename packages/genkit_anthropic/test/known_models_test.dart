@@ -217,10 +217,7 @@ void main() {
       // falls away. This is the narrowing #453 left to this change.
       final model = KnownClaudeModel.sonnet45;
 
-      expect(
-        model.infoFor(beta: false).supports!['constrained'],
-        'no-tools',
-      );
+      expect(model.infoFor(beta: false).supports!['constrained'], 'no-tools');
       expect(model.infoFor(beta: true).supports!['constrained'], isTrue);
       expect(model.info.supports, model.infoFor(beta: false).supports);
     });
