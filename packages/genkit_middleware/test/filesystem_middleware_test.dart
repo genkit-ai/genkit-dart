@@ -52,6 +52,24 @@ void main() {
       expect(list.any((i) => i.path == 'subdir' && i.isDirectory), isTrue);
     });
 
+    test('list_files accepts a non-canonical root path as the sandbox root', () async {
+      await File(p.join(tempDir.path, 'file1.txt')).create();
+      final nested = Directory(p.join(tempDir.path, 'inner'))
+        ..createSync();
+      await File(p.join(nested.path, 'inner.txt')).create();
+
+      // `inner/../` canonicalizes to tempDir. Comparing the raw string
+      // against canonicalize(join(root, '')) used to throw Access denied.
+      final mw = FilesystemMiddleware(p.join(tempDir.path, 'inner', '..'));
+      final listTool = mw.tools.firstWhere((t) => t.name == 'list_files');
+
+      final result = await listTool.runRaw({'dirPath': ''});
+      final list = result.result as List<ListFileOutputItem>;
+
+      expect(list.any((i) => i.path == 'file1.txt' && !i.isDirectory), isTrue);
+      expect(list.any((i) => i.path == 'inner' && i.isDirectory), isTrue);
+    });
+
     test('should read file content and inject message', () async {
       final file = File(p.join(tempDir.path, 'test.txt'));
       await file.writeAsString('hello world');
@@ -218,6 +236,45 @@ void main() {
         ),
       );
     });
+
+    test('rejects a symlink that points outside the sandbox', () async {
+      final outside = await Directory.systemTemp.createTemp('genkit_fs_out');
+      addTearDown(() async {
+        if (await outside.exists()) {
+          await outside.delete(recursive: true);
+        }
+      });
+      await File(p.join(outside.path, 'secret.txt')).writeAsString('leak');
+      await Link(p.join(tempDir.path, 'escape')).create(outside.path);
+
+      final mw = FilesystemMiddleware(tempDir.path);
+      final readTool = mw.tools.firstWhere((t) => t.name == 'read_file');
+
+      expect(
+        () => readTool.runRaw({'filePath': p.join('escape', 'secret.txt')}),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Access denied'),
+          ),
+        ),
+      );
+    }, skip: Platform.isWindows ? 'requires unix-style symlinks' : null);
+
+    test('follows a symlink that stays inside the sandbox', () async {
+      final nested = Directory(p.join(tempDir.path, 'nested'))..createSync();
+      await File(p.join(nested.path, 'ok.txt')).writeAsString('safe');
+      await Link(p.join(tempDir.path, 'alias')).create(nested.path);
+
+      final mw = FilesystemMiddleware(tempDir.path);
+      final readTool = mw.tools.firstWhere((t) => t.name == 'read_file');
+      final result = await readTool.runRaw({
+        'filePath': p.join('alias', 'ok.txt'),
+      });
+
+      expect(result.result, contains('read successfully'));
+    }, skip: Platform.isWindows ? 'requires unix-style symlinks' : null);
 
     test('should write file', () async {
       final mw = FilesystemMiddleware(tempDir.path);
