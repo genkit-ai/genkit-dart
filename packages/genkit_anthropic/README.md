@@ -123,37 +123,36 @@ final person = response.output; // Typed Person object
 print('Name: ${person.name}, Age: ${person.age}');
 ```
 
-How the schema travels depends on the API surface, because the feature does:
+A curated model is sent the schema natively, as `output_config.format`, on
+either API surface — Anthropic serves the field on stable too, and its docs no
+longer require a beta header for it. Nothing is added to the request and no
+`tool_choice` is pinned, so structured output composes with extended thinking
+and with your own tools. Those models advertise `constrained: true`.
 
-- On the **beta** surface, a curated model is sent the schema natively, as
-  `output_config.format`. Nothing is added to the
-  request and no `tool_choice` is pinned, so structured output composes with
-  extended thinking and with your own tools. Those models advertise
-  `constrained: true`.
-- On the **stable** surface, that field does not exist, so the schema travels
-  as a tool the model is forced to call. Pinning `tool_choice` makes your own
-  tools unreachable, so those models advertise `constrained: 'no-tools'` and
-  Genkit puts the schema in the prompt instead whenever a request carries
-  tools. The forced tool also cannot be combined with manual thinking; the
-  plugin reports an `INVALID_ARGUMENT` error rather than letting the API
-  reject the request.
-- A model the plugin does not curate advertises neither, on either surface.
-  Curation is the claim: Anthropic's Structured Outputs list is per-model, and
-  not every Claude accepts a forced `tool_choice`, so an unchecked name gets
-  no promise either way. Genkit simulates instead, putting the schema in the
-  prompt, which works everywhere.
+A model the plugin does not curate advertises nothing, since whether a model
+is on Anthropic's Structured Outputs list is per-model and this plugin has only
+checked the names it curates. Genkit simulates for those instead, putting the
+schema in the prompt, which works everywhere.
 
-The advertised claim follows the plugin's own `apiVersion`, since that is what
-Genkit reads when deciding whether to simulate. Overriding `apiVersion` on a
-single request is still fine — a request that asks for beta may be simulated
-where the native path would have served it, which costs a longer prompt — but
-overriding it to `'stable'` for a structured request that also carries tools is
-refused, because neither mechanism can serve it.
+Two things Anthropic's schema validator will not accept, which the plugin
+rewrites rather than forwarding:
+
+- `additionalProperties` may only be `false`. A `Map<String, T>` field — which
+  schemantic emits as `additionalProperties: {…}` — therefore loses its value
+  schema, and the map is constrained to the properties named alongside it. If
+  you need an open map natively, model it as a string field and parse it
+  yourself.
+- `oneOf` is rejected, so it is rewritten to `anyOf`. `SchemanticType.nullable()`
+  emits `oneOf`, which would otherwise make every optional field a 400.
+
+Validation keywords (`minimum`, `maxLength`, `pattern`, …) are stripped, since
+the validator rejects them on a constrained schema.
 
 ### Stable and beta APIs
 
 Requests go to Anthropic's stable API by default. Set `apiVersion` to `'beta'`
-to reach beta-gated features, either for a single request or for every request:
+to reach beta-gated features, either for a single request or for every request.
+Structured output is not one of them — it is served on both surfaces:
 
 ```dart
 // Per request.

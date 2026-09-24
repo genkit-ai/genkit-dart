@@ -34,6 +34,15 @@ const _schemaValuedKeywords = {
 /// Keywords whose value is a list of schemas.
 const _schemaListKeywords = {'allOf', 'anyOf', 'oneOf', 'prefixItems'};
 
+/// Keywords Anthropic rejects by name, and the one it takes instead.
+///
+/// `oneOf` answers "Schema type 'oneOf' is not supported" while `anyOf` with
+/// the same branches is accepted. `SchemanticType.nullable()` emits `oneOf`,
+/// so an optional field would otherwise 400. The two differ only in whether
+/// more than one branch may match, which a generator emitting a nullable union
+/// does not rely on.
+const _renamedKeywords = {'oneOf': 'anyOf'};
+
 /// Keywords whose value maps names to schemas.
 const _schemaMapKeywords = {
   'properties',
@@ -91,23 +100,28 @@ Map<String, dynamic> toAnthropicSchema(Map<String, dynamic> schema) {
     final value = entry.value;
     if (key == r'$schema') continue;
     if (_unsupportedValidationKeywords.contains(key)) continue;
+    final outKey = _renamedKeywords[key] ?? key;
 
     if (_schemaMapKeywords.contains(key) && value is Map) {
-      out[key] = {
+      out[outKey] = {
         for (final field in value.entries)
           field.key.toString(): _asSchema(field.value),
       };
     } else if (_schemaListKeywords.contains(key) && value is List) {
-      out[key] = value.map(_asSchema).toList();
+      out[outKey] = value.map(_asSchema).toList();
     } else if (_schemaValuedKeywords.contains(key)) {
       // `items` may be a list of schemas in older drafts.
-      out[key] = value is List
+      out[outKey] = value is List
           ? value.map(_asSchema).toList()
           : _asSchema(value);
-    } else if (key == 'additionalProperties' && value is Map) {
-      out[key] = _asSchema(value);
+    } else if (key == 'additionalProperties') {
+      // Dropped, and re-set to `false` below. Anthropic takes no other value:
+      // a schema, `true` and `{"type": "string"}` all answer "For 'object'
+      // type, 'additionalProperties: object' is not supported. Please set
+      // 'additionalProperties' to false". JS does the same.
+      continue;
     } else {
-      out[key] = value;
+      out[outKey] = value;
     }
   }
   // A `$ref` node may not carry sibling constraints; Anthropic rejects the
@@ -122,12 +136,14 @@ Map<String, dynamic> toAnthropicSchema(Map<String, dynamic> schema) {
       (out.containsKey('properties') || out.containsKey('required'))) {
     out['type'] = 'object';
   }
-  // Closed unless the schema already said otherwise. Never over the caller's
-  // own value: `additionalProperties` holds a *schema* for a dictionary field,
-  // which is what schemantic emits for a `Map<String, T>`, and overwriting it
-  // with `false` would constrain the model to return `{}` for that field.
+  // Closed, always. `false` is the only value Anthropic's validator accepts,
+  // so a dictionary field - `Map<String, T>`, which schemantic emits as
+  // `additionalProperties: {...}` - cannot be expressed natively at all: its
+  // value schema is dropped and the map is constrained to the properties named
+  // here, which for an open map is none. Sending the value schema instead is
+  // not an option; it is a 400. See the README note on `Map` fields.
   if (_isObjectType(out['type'])) {
-    out.putIfAbsent('additionalProperties', () => false);
+    out['additionalProperties'] = false;
   }
   return out;
 }

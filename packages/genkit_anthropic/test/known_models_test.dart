@@ -184,7 +184,7 @@ void main() {
   });
 
   group('KnownClaudeModel', () {
-    test('info carries the label, stable stage, and tiered supports', () {
+    test('info carries the label, stable stage and supports', () {
       for (final model in KnownClaudeModel.values) {
         final info = model.info;
         expect(info.label, model.label);
@@ -196,53 +196,38 @@ void main() {
           'toolChoice': true,
           'systemRole': true,
           'output': ['text', 'json'],
-          'constrained': 'no-tools',
+          'constrained': true,
         });
       }
     });
 
     test('curation is the claim: every curated model takes a schema', () {
-      // There is no third tier to fall into. A name this plugin cannot vouch
+      // There is no second tier to fall into. A name this plugin cannot vouch
       // for is not curated, and gets `commonModelInfo` instead.
       for (final model in KnownClaudeModel.values) {
-        expect(model.infoFor(beta: false).supports, structuredClaudeSupports);
+        expect(model.info.supports, structuredClaudeSupports);
+      }
+    });
+
+    test('the claim does not depend on the API surface', () {
+      // `output_config.format` is served on stable as well as beta, so the
+      // mechanism is the same either way - and it pins no `tool_choice`, which
+      // is why the claim is `true` rather than `'no-tools'`.
+      for (final version in [null, 'stable', 'beta']) {
         expect(
-          model.infoFor(beta: true).supports,
-          nativeStructuredClaudeSupports,
+          AnthropicPluginImpl(
+            apiKey: 'k',
+            apiVersion: version,
+          ).modelInfoFor('claude-sonnet-4-5').supports!['constrained'],
+          isTrue,
+          reason: version ?? 'default',
         );
       }
     });
 
-    test('the claim follows the surface, and so the mechanism', () {
-      // Beta serves the schema as `output_config.format`, which pins no
-      // tool_choice, so the `'no-tools'` qualifier the forced tool needed
-      // falls away. This is the narrowing #453 left to this change.
-      final model = KnownClaudeModel.sonnet45;
-
-      expect(model.infoFor(beta: false).supports!['constrained'], 'no-tools');
-      expect(model.infoFor(beta: true).supports!['constrained'], isTrue);
-      expect(model.info.supports, model.infoFor(beta: false).supports);
-    });
-
-    test('a plugin on beta claims the native tier', () {
-      expect(
-        AnthropicPluginImpl(
-          apiKey: 'k',
-          apiVersion: 'beta',
-        ).modelInfoFor('claude-sonnet-4-5').supports!['constrained'],
-        isTrue,
-      );
-      expect(
-        AnthropicPluginImpl(
-          apiKey: 'k',
-        ).modelInfoFor('claude-sonnet-4-5').supports!['constrained'],
-        'no-tools',
-      );
-    });
-
     test('an uncurated name claims nothing on either surface', () {
-      // Neither mechanism can be vouched for: the Structured Outputs list is
-      // per-model, and a forced tool_choice is not accepted by every Claude.
+      // Whether a model is on Anthropic's Structured Outputs list is
+      // per-model, and this plugin has only checked the names it curates.
       for (final version in [null, 'beta']) {
         final info = AnthropicPluginImpl(
           apiKey: 'k',

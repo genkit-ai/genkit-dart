@@ -50,8 +50,10 @@ StatusCodes _statusForHttpCode(int code) => code == _overloadedStatusCode
 /// Beta features requested when a request resolves to the beta API surface.
 ///
 /// Sent as the `anthropic-beta` header. Limited to the features this plugin
-/// actually exposes - `effort` via [AnthropicOutputConfig], and structured
-/// outputs via an output schema.
+/// actually exposes, which is `effort` via [AnthropicOutputConfig]. Structured
+/// output is not among them: `output_config.format` is served on the stable
+/// surface, and `structured-outputs-2025-11-13` is accepted only for a
+/// transition period, so naming it would be a 400 waiting to happen.
 ///
 /// Deliberately shorter than the Genkit JS default list, which also carries
 /// `files-api-2025-04-14` and `task-budgets-2026-03-13`. This plugin never
@@ -60,10 +62,7 @@ StatusCodes _statusForHttpCode(int code) => code == _overloadedStatusCode
 /// name kept past its retirement fails every `apiVersion: 'beta'` request
 /// until the next release. A caller who needs one can pass it explicitly
 /// through `AnthropicOptions.betas`, which replaces this list.
-const defaultAnthropicBetas = <String>[
-  'effort-2025-11-24',
-  'structured-outputs-2025-11-13',
-];
+const defaultAnthropicBetas = <String>['effort-2025-11-24'];
 
 /// Whether [apiVersion] selects the beta API surface.
 ///
@@ -162,7 +161,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
     final curated =
         knownClaudeModelFor(modelName) ??
         knownClaudeModelFor(_aliasOf(modelName));
-    return curated?.infoFor(beta: _betaByDefault) ?? commonModelInfo;
+    return curated?.info ?? commonModelInfo;
   }
 
   sdk.AnthropicClient get client {
@@ -264,18 +263,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
           final betas = beta
               ? (options.betas ?? defaultAnthropicBetas)
               : const <String>[];
-          final createRequest = _buildCreateRequest(
-            req,
-            modelName,
-            options,
-            // The header is what unlocks `output_config.format`, and `betas`
-            // replaces the curated list rather than adding to it - so a caller
-            // opting into some other beta by name takes this one away, and the
-            // schema has to travel by tool instead. Reading the resolved list
-            // rather than the surface keeps the request and its header from
-            // disagreeing.
-            nativeOutput: betas.any(_isStructuredOutputsBeta),
-          );
+          final createRequest = _buildCreateRequest(req, modelName, options);
 
           if (ctx.streamingRequested) {
             final stream = requestClient.messages.createStream(
@@ -332,9 +320,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
   sdk.MessageCreateRequest _buildCreateRequest(
     ModelRequest req,
     String modelName,
-    AnthropicOptions options, {
-    required bool nativeOutput,
-  }) {
+    AnthropicOptions options,
+  ) {
     final systemMessage = req.messages
         .where((m) => m.role == Role.system)
         .firstOrNull;
@@ -359,59 +346,27 @@ class AnthropicPluginImpl extends GenkitPlugin {
     sdk.ToolChoice? toolChoice;
     sdk.JsonOutputFormat? outputFormat;
 
-    if (req.output?.schema != null) {
-      final schema = Map<String, dynamic>.from(req.output!.schema!);
-
-      // Native output is a constraint, so it is claimed only by a request
-      // that asked to be constrained - the same rule the forced tool follows
-      // below, and for the same reason: `constrained: false` is the caller
-      // opting out of the mechanism, not asking for a different one.
-      if (req.output?.constrained == true &&
-          _supportsNativeStructuredOutput(modelName, native: nativeOutput)) {
-        // Native structured output needs no forced tool, so it composes with
-        // manual thinking - unlike the fallback below. The schema goes over
-        // as-authored; adding a `type` here would collide with a `$ref` root.
-        outputFormat = sdk.JsonOutputFormat(schema: toAnthropicSchema(schema));
-      } else {
-        // Outside beta there is no `output_config.format`, so the schema is
-        // served by a tool the model is forced to call.
-        //
-        // Forced only for a request that asked to be constrained: with
-        // `constrained: false` the caller opted out of the mechanism and core
-        // stripped nothing, so the tool is offered rather than pinned - and
-        // the two restrictions below, which are restrictions on pinning, do
-        // not apply.
-        final pinsOutputTool = req.output?.constrained == true;
-        if (pinsOutputTool) {
-          _assertForcedOutputToolAllowed(req, modelName, options);
-        }
-        // Anthropic's tool input schemas must declare an object type.
-        if (!schema.containsKey('type')) {
-          schema['type'] = 'object';
-        }
-        const toolName = 'return_output';
-        tools.add(
-          sdk.ToolDefinition.custom(
-            sdk.Tool(
-              name: toolName,
-              description: 'Return the structured output.',
-              inputSchema: sdk.InputSchema.fromJson(schema),
-            ),
-          ),
-        );
-        if (pinsOutputTool) {
-          toolChoice = sdk.ToolChoice.tool(toolName);
-        }
-      }
+    // `output_config.format` on either surface: the field is served on stable
+    // too, and Anthropic's own docs say the beta header is no longer required
+    // for it. Nothing is forced and no tool is added, so the schema composes
+    // with manual thinking and with the caller's own tools - both of which the
+    // `return_output` tool this replaced could not do.
+    //
+    // Claimed only by a request that asked to be constrained: `constrained:
+    // false` is the caller opting out of the mechanism, and
+    // `output_config.format` binds just as hard as the forced tool did.
+    if (req.output?.schema != null && req.output?.constrained == true) {
+      outputFormat = sdk.JsonOutputFormat(
+        // The schema goes over as-authored, beyond the rewriting Anthropic's
+        // validator demands; adding a `type` here would collide with a `$ref`
+        // root.
+        schema: toAnthropicSchema(
+          Map<String, dynamic>.from(req.output!.schema!),
+        ),
+      );
     }
 
-    // The forced `return_output` tool is the whole mechanism behind the
-    // `constrained` claim on the fallback path, so it outranks the caller's
-    // `toolChoice`: honouring a `none` there would leave the model neither the
-    // tool nor the instructions core stripped. Nothing is forced on the native
-    // path or for an unconstrained request, and then the caller's choice
-    // stands.
-    if (req.toolChoice != null && toolChoice == null) {
+    if (req.toolChoice != null) {
       toolChoice = switch (req.toolChoice) {
         'auto' => sdk.ToolChoice.auto(),
         'any' => sdk.ToolChoice.any(),
@@ -817,71 +772,6 @@ sdk.ThinkingConfig? _mapThinkingConfig(
       status: StatusCodes.INVALID_ARGUMENT,
     ),
   };
-}
-
-/// Whether the schema can travel as `output_config.format` for this request.
-///
-/// Two conditions, and both are load-bearing. The feature is beta-gated
-/// (`structured-outputs-2025-11-13`), so a stable request has no such field to
-/// put it in. And it is a per-model list, which only curation speaks for: an
-/// uncurated name gets no claim either way, which is why `commonModelInfo`
-/// withholds `constrained` and lets core simulate rather than betting the
-/// request on a guess.
-bool _supportsNativeStructuredOutput(
-  String modelName, {
-  required bool native,
-}) => native && knownClaudeModelFor(modelName) != null;
-
-/// Whether [beta] is the beta that unlocks `output_config.format`.
-///
-/// Matched by prefix: the name carries a date, and a caller pinning a newer
-/// revision of the same feature is still asking for the feature.
-bool _isStructuredOutputsBeta(String beta) =>
-    beta.startsWith('structured-outputs');
-
-/// Rejects a request the forced `return_output` tool cannot serve.
-///
-/// Two things it cannot share the wire with, both because it pins
-/// `tool_choice`:
-///
-/// - the caller's own tools, which the model could then never choose. Core
-///   keeps them away by simulating for a model claiming `'no-tools'`, so this
-///   only fires for a request that talked its way here by overriding
-///   `apiVersion` to stable after core read the beta claim;
-/// - extended thinking, which Anthropic rejects alongside a forced tool
-///   outright.
-///
-/// Both are reported here rather than left to the API, which answers with a
-/// message that names neither the model nor the way out.
-void _assertForcedOutputToolAllowed(
-  ModelRequest req,
-  String modelName,
-  AnthropicOptions options,
-) {
-  if (req.tools?.isNotEmpty ?? false) {
-    throw GenkitException(
-      'Structured output with tools needs the beta API for "$modelName": '
-      'without it the schema travels as a forced tool call, which the '
-      "request's own tools could then never reach. Set apiVersion to 'beta' "
-      '(keeping the structured-outputs beta), or ask for structured output '
-      'without tools.',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
-  }
-
-  final thinking = options.thinking;
-  if (thinking == null) return;
-  // Resolved through the same path the wire uses, so a bare ThinkingConfig()
-  // that defaults to manual on a 4.5-era model is caught too.
-  if (_resolveThinkingType(thinking, modelName) != 'enabled') return;
-
-  throw GenkitException(
-    'Structured output with manual thinking is not supported for '
-    '"$modelName": it needs a forced tool call, which Anthropic rejects '
-    'alongside extended thinking. Use the beta API, where the schema travels '
-    'natively, or set thinking.type to "adaptive" or "disabled".',
-    status: StatusCodes.INVALID_ARGUMENT,
-  );
 }
 
 sdk.OutputConfig? _mapOutputConfig(

@@ -36,36 +36,19 @@ const baseClaudeSupports = <String, dynamic>{
   'output': ['text'],
 };
 
-/// [baseClaudeSupports] plus JSON output and constrained generation, served by
-/// the forced `return_output` tool.
+/// [baseClaudeSupports] plus JSON output and constrained generation.
 ///
-/// The tier for the stable API surface, where Anthropic's own Structured
-/// Outputs feature is not available and the schema has to travel as a tool the
-/// model is forced to call. Claimed only for curated names: a forced
-/// `tool_choice` is not accepted by every Claude model, so `commonModelInfo`
-/// keeps the uncurated fallback on [baseClaudeSupports] and lets core
-/// simulate.
+/// The schema travels as `output_config.format` - Anthropic's own Structured
+/// Outputs feature, served on the stable surface as well as beta. It pins no
+/// `tool_choice` and adds no tool, so it composes with extended thinking and
+/// leaves the caller's own tools reachable; hence `true` rather than the
+/// `'no-tools'` a forced `return_output` tool would have needed.
 ///
-/// `'no-tools'` rather than `true`, because the trick pins `tool_choice` to
-/// `return_output`, and a request that also carries the caller's own tools
-/// can then never reach them - the tool loop would silently never fire. So
-/// the native path is claimed only for a request with no tools of its own;
-/// with tools, core simulates and the schema arrives as prompt instructions,
-/// leaving `tool_choice` free.
+/// Claimed for curated names only: whether a model is on Anthropic's
+/// Structured Outputs list is per-model, and `commonModelInfo` keeps an
+/// uncurated name on [baseClaudeSupports] so core simulates instead of
+/// guessing.
 const structuredClaudeSupports = <String, dynamic>{
-  ..._claudeSupportsCore,
-  'output': ['text', 'json'],
-  'constrained': 'no-tools',
-};
-
-/// [structuredClaudeSupports] with the constraint claimed unconditionally.
-///
-/// The tier for the beta surface, where the schema goes over as
-/// `output_config.format` - Anthropic's own Structured Outputs feature. That
-/// path pins no `tool_choice` and adds no tool, so the caller's own tools stay
-/// reachable and the claim needs no `'no-tools'` qualifier: this is the
-/// narrowing the forced-tool tier was always standing in for.
-const nativeStructuredClaudeSupports = <String, dynamic>{
   ..._claudeSupportsCore,
   'output': ['text', 'json'],
   'constrained': true,
@@ -75,9 +58,8 @@ const nativeStructuredClaudeSupports = <String, dynamic>{
 ///
 /// Each value pairs a bare model [id] (no plugin prefix) with a display
 /// [label]. Membership is itself the capability claim: a curated name is one
-/// this plugin has checked is on Anthropic's Structured Outputs list, so
-/// [infoFor] only has to pick the tier the surface can serve. Other model
-/// names still resolve dynamically via the plugin's `commonModelInfo`
+/// this plugin has checked is on Anthropic's Structured Outputs list. Other
+/// model names still resolve dynamically via the plugin's `commonModelInfo`
 /// fallback, so this enum only enriches the names listed here.
 enum KnownClaudeModel {
   fable5('claude-fable-5', 'Claude Fable 5', ClaudeThinkingMode.adaptive),
@@ -111,18 +93,13 @@ enum KnownClaudeModel {
   /// does not select a mode explicitly.
   final ClaudeThinkingMode defaultThinkingMode;
 
-  /// Capability metadata registered for this model on the stable surface.
-  ModelInfo get info => infoFor(beta: false);
-
-  /// Capability metadata registered for this model on the given API surface.
+  /// Capability metadata registered for this model.
   ///
-  /// The mechanism decides the claim, and the mechanism depends on the
-  /// surface: `output_config.format` exists only on beta, so only there is the
-  /// claim `constrained: true`. On stable the same model is served by the
-  /// forced tool, which is `'no-tools'`.
-  ModelInfo infoFor({required bool beta}) => ModelInfo(
+  /// One tier, not one per surface: `output_config.format` is served on both,
+  /// so the claim does not depend on which one a request names.
+  ModelInfo get info => ModelInfo(
     label: label,
-    supports: beta ? nativeStructuredClaudeSupports : structuredClaudeSupports,
+    supports: structuredClaudeSupports,
     stage: 'stable',
   );
 }

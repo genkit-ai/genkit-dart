@@ -94,44 +94,34 @@ Future<Map<String, dynamic>> _wireBodyFor({
 
 void main() {
   group('a constrained request carrying tools', () {
-    test('leaves the caller tools callable', () async {
+    test('sends the schema natively and leaves the tools callable', () async {
       final body = await _wireBodyFor(
         model: 'claude-sonnet-4-5',
         tools: ['lookup'],
       );
 
-      // Forcing `return_output` here would make the caller's tool
-      // unreachable: Claude can only answer with the one tool it is pinned
-      // to, so the tool loop never fires and `lookup` is dead weight on the
-      // wire. The schema has to come through the prompt instead.
-      final toolChoice = body['tool_choice'] as Map<String, dynamic>?;
-      expect(
-        toolChoice?['name'],
-        isNot('return_output'),
-        reason: 'the caller tool can never be chosen',
-      );
+      // `output_config.format` adds no tool and pins no choice, so the
+      // caller's tool is reachable and the tool loop can fire - which the
+      // forced `return_output` tool this replaced made impossible.
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body, isNot(contains('tool_choice')));
 
       final toolNames = (body['tools'] as List)
           .map((t) => (t as Map)['name'])
           .toList();
-      expect(toolNames, contains('lookup'));
-      expect(toolNames, isNot(contains('return_output')));
-
-      // The shape still has to reach the model somehow.
-      expect(
-        jsonEncode(body['messages']),
-        contains('conform to the following'),
-      );
+      expect(toolNames, ['lookup']);
     });
 
-    test('still forces the output tool when no tool is offered', () async {
+    test('sends the schema with no tools at all', () async {
       final body = await _wireBodyFor(model: 'claude-sonnet-4-5', tools: []);
 
-      // Nothing competes with it here, so the native path is the better one.
-      expect(body['tool_choice'], containsPair('name', 'return_output'));
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body, isNot(contains('tools')));
+      expect(body, isNot(contains('tool_choice')));
     });
 
-    test('an unconstrained request keeps the caller toolChoice', () async {
+    test('an unconstrained request sends no schema and keeps the '
+        'toolChoice', () async {
       final body = await _wireBodyFor(
         model: 'claude-sonnet-4-5',
         tools: ['lookup'],
@@ -139,27 +129,24 @@ void main() {
         constrained: false,
       );
 
-      // Opting out of constrained output opts out of the mechanism behind it,
-      // and core stripped nothing, so there is no reason to overrule the
-      // caller. `return_output` is still offered, just not forced.
+      // Opting out of constrained output opts out of the mechanism, and
+      // nothing was stripped, so the caller's choice stands.
+      expect(body, isNot(contains('output_config')));
       expect(body['tool_choice'], containsPair('name', 'lookup'));
-
-      final toolNames = (body['tools'] as List)
-          .map((t) => (t as Map)['name'])
-          .toList();
-      expect(toolNames, containsAll(['lookup', 'return_output']));
     });
 
-    test('a caller toolChoice does not unpin the output tool', () async {
+    test('a toolChoice with no tools is dropped', () async {
+      // Anthropic rejects a choice with nothing to choose from - "tool_choice.
+      // any may only be specified while providing tools" - and an output
+      // schema no longer contributes a tool for one to refer to.
       final body = await _wireBodyFor(
         model: 'claude-sonnet-4-5',
         tools: [],
-        toolChoice: 'none',
+        toolChoice: 'any',
       );
 
-      // Core does not simulate for a tool-free request, so `none` here would
-      // leave the model neither the forced tool nor any instructions.
-      expect(body['tool_choice'], containsPair('name', 'return_output'));
+      expect(body, isNot(contains('tools')));
+      expect(body, isNot(contains('tool_choice')));
     });
   });
 }

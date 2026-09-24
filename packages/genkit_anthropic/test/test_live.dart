@@ -169,16 +169,16 @@ void main() {
         expect(finalResponse.output!.age, 25);
       });
 
-      test('generates structured output natively over the beta API', () async {
-        // The native `output_config.format` path: no forced tool, so the
-        // schema composes with manual thinking, which the fallback cannot do -
-        // Anthropic rejects a forced tool_choice alongside extended thinking.
+      test('composes structured output with manual thinking', () async {
+        // On the default surface, and with no beta header: this is what says
+        // `output_config.format` needs neither. The forced `return_output`
+        // tool it replaced could not do this at all - Anthropic rejects a
+        // pinned tool_choice alongside extended thinking.
         final response = await ai.generate(
           model: anthropic.model('claude-sonnet-4-5'),
           prompt: 'Generate a person named John Doe, age 30',
           outputSchema: Person.$schema,
           config: AnthropicOptions(
-            apiVersion: 'beta',
             thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
           ),
         );
@@ -188,7 +188,34 @@ void main() {
         expect(response.output!.age, 30);
       }, timeout: Timeout(Duration(minutes: 2)));
 
-      test('streams native structured output over the beta API', () async {
+      test('composes structured output with the caller\'s tools', () async {
+        // The other thing the forced tool made impossible: pinning
+        // `tool_choice` to `return_output` left the caller's tools
+        // unreachable, so core had to simulate whenever a request carried any.
+        // An object input schema: Anthropic rejects anything else with
+        // "tools.0.custom.input_schema.type: Input should be 'object'".
+        final tool = ai.defineTool(
+          name: 'ageOf',
+          description: 'Returns the age of a person by name',
+          inputSchema: CalculatorInput.$schema,
+          outputSchema: .integer(),
+          fn: (CalculatorInput input, _) async => .response(30),
+        );
+
+        final response = await ai.generate(
+          model: anthropic.model('claude-sonnet-4-5'),
+          prompt: 'Look up the age of John Doe with the tool, then return him.',
+          tools: [tool],
+          outputSchema: Person.$schema,
+        );
+
+        expect(response.output, isNotNull);
+        expect(response.output!.name, contains('John'));
+        expect(response.output!.age, 30);
+      }, timeout: Timeout(Duration(minutes: 2)));
+
+      test('still serves structured output on the beta surface', () async {
+        // The field is served on both, so naming beta must not change it.
         final response = ai.generateStream(
           model: anthropic.model('claude-sonnet-4-5'),
           prompt: 'Generate a person named Jane Doe, age 25',

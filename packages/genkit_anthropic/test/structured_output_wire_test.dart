@@ -24,10 +24,9 @@ import 'wire_harness.dart';
 
 void main() {
   group('structured output on the wire', () {
-    // `output_config.format` is beta-gated, so every native-path case asks
-    // for the beta surface. Stable serves the same schema through the forced
-    // `return_output` tool, and an uncurated name reaches neither: it claims
-    // nothing, so core simulates and the schema never arrives here at all.
+    // `output_config.format` is served on either surface, so these run on the
+    // default one. An uncurated name never arrives here at all: it claims no
+    // constrained support, so core simulates and strips the schema first.
     final schema = <String, dynamic>{
       r'$schema': 'https://json-schema.org/draft/2020-12/schema',
       'type': 'object',
@@ -45,7 +44,6 @@ void main() {
     test('a capable model sends a native json_schema format', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: schema,
       );
 
@@ -59,7 +57,6 @@ void main() {
     test('normalization strips \$schema and closes nested objects', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: schema,
       );
 
@@ -72,24 +69,9 @@ void main() {
       expect(pet['additionalProperties'], false);
     });
 
-    test('the stable surface falls back to the forced tool', () async {
-      // Outside beta there is no `output_config.format` to put the schema in,
-      // so it travels as a tool the model is forced to call.
-      final body = await requestOnTheWire(
-        model: 'claude-sonnet-4-5',
-        outputSchema: schema,
-      );
-
-      expect(body, isNot(contains('output_config')));
-      final tool = (body['tools'] as List).single as Map<String, dynamic>;
-      expect(tool['name'], 'return_output');
-      expect(body['tool_choice'], {'type': 'tool', 'name': 'return_output'});
-    });
-
     test('native structured output composes with manual thinking', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: schema,
         thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
       );
@@ -98,47 +80,9 @@ void main() {
       expect((body['output_config'] as Map)['format'], isNotNull);
     });
 
-    test('the fallback rejects manual thinking rather than the wire '
-        'doing it', () async {
-      // The forced tool choice is what Anthropic refuses alongside extended
-      // thinking, so the stable path says so before spending the request.
-      await expectLater(
-        requestOnTheWire(
-          model: 'claude-sonnet-4-5',
-          outputSchema: schema,
-          thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
-              .having((e) => e.message, 'message', contains('manual thinking')),
-        ),
-      );
-    });
-
-    test('the fallback refuses a request that also carries tools', () async {
-      // Only reachable by overriding apiVersion to stable after core read the
-      // beta claim; forcing `return_output` would strand the caller's tools.
-      await expectLater(
-        requestOnTheWire(
-          model: 'claude-sonnet-4-5',
-          pluginApiVersion: 'beta',
-          apiVersion: 'stable',
-          outputSchema: schema,
-          tools: ['lookup'],
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
-              .having((e) => e.message, 'message', contains('beta API')),
-        ),
-      );
-    });
-
     test('a dated snapshot of a capable model still goes native', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5-20250929',
-        apiVersion: 'beta',
         outputSchema: schema,
       );
       expect((body['output_config'] as Map)['format'], isNotNull);
@@ -148,7 +92,6 @@ void main() {
     test('normalization recurses through schema lists', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           'type': 'object',
           'properties': {
@@ -191,7 +134,6 @@ void main() {
       // be added to the root - only to the definitions it points at.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           r'$ref': '#/\$defs/Person',
           r'$defs': {
@@ -218,7 +160,6 @@ void main() {
     test('an untyped object schema is inferred and closed', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           'properties': {
             'name': {'type': 'string'},
@@ -249,7 +190,6 @@ void main() {
       // $ref guard exists to prevent.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           r'$ref': '#/\$defs/Person',
           'properties': {
@@ -270,7 +210,6 @@ void main() {
     test('a \$ref root passes through without sibling constraints', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           r'$ref': '#/\$defs/Person',
           r'$defs': {
@@ -294,7 +233,6 @@ void main() {
       //   set to false
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           'type': 'object',
           'properties': {
@@ -321,7 +259,6 @@ void main() {
       // marker as though the field names were keywords.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           'type': 'object',
           'properties': {
@@ -346,7 +283,6 @@ void main() {
     test('a \$defs map is not treated as a schema node', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           r'$ref': '#/\$defs/Person',
           r'$defs': {
@@ -374,7 +310,6 @@ void main() {
       // from @IntegerField(minimum:), so ordinary annotated types hit it.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           'type': 'object',
           'properties': {
@@ -400,14 +335,15 @@ void main() {
       });
     });
 
-    test('a dictionary field keeps its value schema', () async {
-      // `additionalProperties` holds a schema for a `Map<String, T>` field -
-      // which is what schemantic emits for one - so closing the object must
-      // not overwrite it. It did, and Anthropic then constrained the model to
-      // return `{}` for every map-valued field.
+    test('a dictionary field is closed, like every other object', () async {
+      // Anthropic takes no other value: a schema, `true` and
+      // `{"type": "string"}` all answer "For 'object' type,
+      // 'additionalProperties: object' is not supported. Please set
+      // 'additionalProperties' to false". So a `Map<String, T>` field - which
+      // schemantic emits as `additionalProperties: {...}` - loses its value
+      // schema rather than 400ing, and JS does the same.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           'type': 'object',
           'properties': {
@@ -415,12 +351,7 @@ void main() {
               'type': 'object',
               'additionalProperties': {'type': 'string'},
             },
-            'plain': {
-              'type': 'object',
-              'properties': {
-                'a': {'type': 'string'},
-              },
-            },
+            'open': {'type': 'object', 'additionalProperties': true},
           },
         },
       );
@@ -428,78 +359,52 @@ void main() {
       final sent =
           ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
       final properties = sent['properties'] as Map;
-      expect((properties['labels'] as Map)['additionalProperties'], {
-        'type': 'string',
-      });
-      // A plain object is still closed.
-      expect((properties['plain'] as Map)['additionalProperties'], false);
+      expect((properties['labels'] as Map)['additionalProperties'], false);
+      expect((properties['open'] as Map)['additionalProperties'], false);
       expect(sent['additionalProperties'], false);
     });
 
-    test('an explicit additionalProperties: true survives', () async {
+    test('oneOf is rewritten to anyOf', () async {
+      // `oneOf` answers "Schema type 'oneOf' is not supported" while `anyOf`
+      // with the same branches is accepted, and `SchemanticType.nullable()`
+      // emits `oneOf`, so an optional field would otherwise 400.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: {
           'type': 'object',
-          'additionalProperties': true,
           'properties': {
-            'a': {'type': 'string'},
+            'maybe': {
+              'oneOf': [
+                {'type': 'string'},
+                {'type': 'null'},
+              ],
+            },
           },
         },
       );
 
       final sent =
           ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
-      expect(sent['additionalProperties'], true);
-    });
-
-    test('replacing the betas takes the native path away', () async {
-      // `betas` replaces the curated list rather than adding to it, so opting
-      // into some other beta by name drops `structured-outputs`. Sending
-      // `output_config.format` without it is a 400, so the schema falls back
-      // to the tool.
-      final body = await requestOnTheWire(
-        model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
-        betas: ['some-new-beta-2026-01-01'],
-        outputSchema: schema,
-      );
-
-      expect(body, isNot(contains('output_config')));
-      expect(body['tool_choice'], {'type': 'tool', 'name': 'return_output'});
-    });
-
-    test('pinning a newer structured-outputs revision still goes native', () {
-      return expectLater(
-        requestOnTheWire(
-          model: 'claude-sonnet-4-5',
-          apiVersion: 'beta',
-          betas: ['structured-outputs-2027-01-01'],
-          outputSchema: schema,
-        ).then((body) => (body['output_config'] as Map)['format']),
-        completion(isNotNull),
-      );
+      final maybe = (sent['properties'] as Map)['maybe'] as Map;
+      expect(maybe.containsKey('oneOf'), isFalse);
+      expect(maybe['anyOf'], [
+        {'type': 'string'},
+        {'type': 'null'},
+      ]);
     });
 
     test('an unconstrained request is not constrained natively', () async {
       // `constrained: false` is the caller opting out of the mechanism, not
-      // asking for a different one - and `output_config.format` is every bit
-      // as binding as the forced tool.
+      // asking for a different one - and `output_config.format` binds.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: schema,
         constrained: false,
       );
 
       expect(body, isNot(contains('output_config')));
-      // The tool is offered, as it is on the stable surface, but not pinned.
-      final toolNames = (body['tools'] as List)
-          .map((t) => (t as Map)['name'])
-          .toList();
-      expect(toolNames, contains('return_output'));
-      expect(body, isNot(contains('tool_choice')));
+      // And nothing stands in for it: there is no tool to add any more.
+      expect(body, isNot(contains('tools')));
     });
 
     test('an unrecognised apiVersion is rejected, not read as stable', () {
@@ -534,7 +439,6 @@ void main() {
     test('effort and a native format ride in the same output_config', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        apiVersion: 'beta',
         outputSchema: schema,
         outputConfig: AnthropicOutputConfig(effort: 'low'),
       );
