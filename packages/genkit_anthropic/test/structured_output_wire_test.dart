@@ -393,6 +393,80 @@ void main() {
       ]);
     });
 
+    test('an empty sub-schema travels in the prompt instead', () async {
+      // `$Schema.any()` - what a `dynamic` or `Object?` field compiles to - is
+      // `{}`, and the validator answers "Empty schema ({}) that accepts any
+      // JSON value is not supported. Please specify a concrete type." The
+      // request still goes out, with the shape in the system prompt.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'name': {'type': 'string'},
+            'extra': <String, dynamic>{},
+          },
+        },
+      );
+
+      expect(body, isNot(contains('output_config')));
+      expect(body['system'].toString(), contains('conform to the following'));
+      expect(body['system'].toString(), contains('"name"'));
+    });
+
+    test('an empty schema nested in a list keyword is found too', () async {
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'either': {
+              'anyOf': [
+                {'type': 'string'},
+                <String, dynamic>{},
+              ],
+            },
+          },
+        },
+      );
+
+      expect(body, isNot(contains('output_config')));
+    });
+
+    test('the prompt fallback keeps the caller\'s own system prompt', () async {
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        messages: [
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'you are terse')],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+        outputSchema: {
+          'type': 'object',
+          'properties': {'extra': <String, dynamic>{}},
+        },
+      );
+
+      final system = body['system'].toString();
+      expect(system, contains('you are terse'));
+      expect(system, contains('conform to the following'));
+    });
+
+    test('an ordinary schema still goes native', () async {
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: schema,
+      );
+
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body, isNot(contains('system')));
+    });
+
     test('an unconstrained request is not constrained natively', () async {
       // `constrained: false` is the caller opting out of the mechanism, not
       // asking for a different one - and `output_config.format` binds.

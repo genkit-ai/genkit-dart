@@ -30,6 +30,12 @@ abstract class $Person {
 }
 
 @Schema()
+abstract class $Record {
+  String get name;
+  dynamic get extra;
+}
+
+@Schema()
 abstract class $CalculatorInput {
   int get a;
   int get b;
@@ -227,6 +233,24 @@ void main() {
         expect(finalResponse.output, isNotNull);
         expect(finalResponse.output!.name, 'Jane Doe');
         expect(finalResponse.output!.age, 25);
+      }, timeout: Timeout(Duration(minutes: 2)));
+
+      test('a dynamic field survives, as the value it is', () async {
+        // `{}` cannot be sent as a constraint, so the schema goes in the
+        // prompt. The point of that choice over a concrete rewrite: `extra`
+        // comes back as an object, not as a string of JSON.
+        final response = await ai.generate(
+          model: anthropic.model('claude-sonnet-4-5'),
+          prompt:
+              'Return a record named Ada whose extra is the nested object '
+              '{"city": "London"}.',
+          outputSchema: Record.$schema,
+        );
+
+        expect(response.output, isNotNull);
+        expect(response.output!.name, contains('Ada'));
+        expect(response.output!.extra, isA<Map<String, dynamic>>());
+        expect((response.output!.extra as Map)['city'], 'London');
       }, timeout: Timeout(Duration(minutes: 2)));
 
       test('should use tools', () async {

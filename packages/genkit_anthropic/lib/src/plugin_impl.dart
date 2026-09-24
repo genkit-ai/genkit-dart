@@ -326,7 +326,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
         .where((m) => m.role == Role.system)
         .firstOrNull;
 
-    final system = systemMessage != null
+    var system = systemMessage != null
         ? convertSystemMessage(systemMessage)
         : null;
 
@@ -355,15 +355,26 @@ class AnthropicPluginImpl extends GenkitPlugin {
     // Claimed only by a request that asked to be constrained: `constrained:
     // false` is the caller opting out of the mechanism, and
     // `output_config.format` binds just as hard as the forced tool did.
+    String? schemaInPrompt;
     if (req.output?.schema != null && req.output?.constrained == true) {
-      outputFormat = sdk.JsonOutputFormat(
+      final authored = Map<String, dynamic>.from(req.output!.schema!);
+      if (isNativelyExpressible(authored)) {
         // The schema goes over as-authored, beyond the rewriting Anthropic's
         // validator demands; adding a `type` here would collide with a `$ref`
         // root.
-        schema: toAnthropicSchema(
-          Map<String, dynamic>.from(req.output!.schema!),
-        ),
-      );
+        outputFormat = sdk.JsonOutputFormat(
+          schema: toAnthropicSchema(authored),
+        );
+      } else {
+        // A schema the validator will not take - an empty `{}` somewhere,
+        // which is what a `dynamic` field compiles to. The request still goes
+        // out; the shape travels in the prompt instead, as it would have had
+        // this model never claimed native support. Unconstrained, but a
+        // `dynamic` field then comes back as the value it is rather than as a
+        // string of JSON, which is what the concrete rewrites Anthropic does
+        // accept would have produced.
+        schemaInPrompt = schemaInstructions(authored);
+      }
     }
 
     if (req.toolChoice != null) {
@@ -372,6 +383,21 @@ class AnthropicPluginImpl extends GenkitPlugin {
         'any' => sdk.ToolChoice.any(),
         'none' => sdk.ToolChoice.none(),
         final name => sdk.ToolChoice.tool(name!),
+      };
+    }
+
+    if (schemaInPrompt != null) {
+      // Appended to the caller's own system prompt rather than replacing it,
+      // and last, so it is the most recent thing the model read.
+      system = switch (system) {
+        null => sdk.SystemPrompt.text(schemaInPrompt),
+        sdk.TextSystemPrompt(:final text) => sdk.SystemPrompt.text(
+          '$text\n\n$schemaInPrompt',
+        ),
+        sdk.BlocksSystemPrompt(:final blocks) => sdk.SystemPrompt.blocks([
+          ...blocks,
+          sdk.SystemTextBlock(text: schemaInPrompt),
+        ]),
       };
     }
 

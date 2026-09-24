@@ -19,6 +19,8 @@
 /// request, model or client in sight.
 library;
 
+import 'dart:convert';
+
 /// Keywords whose value is a single nested schema.
 const _schemaValuedKeywords = {
   'items',
@@ -154,3 +156,52 @@ Object? _asSchema(Object? value) => switch (value) {
   final Map map => toAnthropicSchema(map.cast<String, dynamic>()),
   _ => value,
 };
+
+/// Whether Anthropic's structured-output validator can express [schema].
+///
+/// It rejects an empty schema outright - "Empty schema ({}) that accepts any
+/// JSON value is not supported. Please specify a concrete type." - and
+/// schemantic emits exactly that for a `dynamic` or `Object?` field, via
+/// `$Schema.any()`.
+///
+/// There is no faithful rewrite. A union of every concrete type is accepted,
+/// but its object branch has to carry `additionalProperties: false`, and the
+/// model then answers an object value as a *string* of JSON rather than an
+/// object - checked against the live API. Silently changing a field's type is
+/// worse than not constraining it, so a schema this returns false for is sent
+/// through the prompt instead.
+bool isNativelyExpressible(Map<String, dynamic> schema) =>
+    !_hasEmptySchema(schema);
+
+bool _hasEmptySchema(Object? node) {
+  if (node is! Map) return false;
+  final map = node.cast<String, dynamic>();
+  // The root of a schema document is never "empty" by accident: `{}` as a
+  // whole document means the same thing as `{}` in a property position.
+  if (map.isEmpty) return true;
+  for (final entry in map.entries) {
+    final key = entry.key;
+    final value = entry.value;
+    if (_schemaMapKeywords.contains(key) && value is Map) {
+      if (value.values.any(_hasEmptySchema)) return true;
+    } else if (_schemaListKeywords.contains(key) && value is List) {
+      if (value.any(_hasEmptySchema)) return true;
+    } else if (_schemaValuedKeywords.contains(key)) {
+      if (value is List) {
+        if (value.any(_hasEmptySchema)) return true;
+      } else if (_hasEmptySchema(value)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/// The schema, rendered for a prompt, when it cannot travel as a constraint.
+///
+/// Mirrors what core's own simulated constrained generation writes, so a model
+/// that falls back to this reads the same thing it would have read had it
+/// never claimed native support.
+String schemaInstructions(Map<String, dynamic> schema) =>
+    'Output should be in JSON format and conform to the following schema:\n\n'
+    '```\n${const JsonEncoder.withIndent('  ').convert(schema)}\n```\n';
