@@ -22,13 +22,17 @@ import 'package:http/testing.dart';
 /// A plugin whose generateContent calls are captured rather than sent.
 ///
 /// Every request body the plugin puts on the wire is appended to [captured]
-/// and answered with a canned single-candidate response whose text is the
-/// JSON scalar `"ok"`, so it also parses as JSON-format output.
+/// and answered with [response] if given, otherwise a canned single-candidate
+/// response whose text is the JSON scalar `"ok"`, so it also parses as
+/// JSON-format output.
 class WirePlugin extends GoogleGenAiPluginImpl {
-  WirePlugin(this.captured) : super(apiKey: 'test-key');
+  WirePlugin(this.captured, {this.response}) : super(apiKey: 'test-key');
 
   /// Request bodies seen so far, oldest first.
   final List<Map<String, dynamic>> captured;
+
+  /// Raw `GenerateContentResponse` JSON returned for every request.
+  final Map<String, dynamic>? response;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
@@ -39,19 +43,22 @@ class WirePlugin extends GoogleGenAiPluginImpl {
       client: MockClient((request) async {
         captured.add((jsonDecode(request.body) as Map).cast<String, dynamic>());
         return http.Response(
-          jsonEncode({
-            'candidates': [
-              {
-                'content': {
-                  'role': 'model',
-                  'parts': [
-                    {'text': '"ok"'},
+          jsonEncode(
+            response ??
+                {
+                  'candidates': [
+                    {
+                      'content': {
+                        'role': 'model',
+                        'parts': [
+                          {'text': '"ok"'},
+                        ],
+                      },
+                      'finishReason': 'STOP',
+                    },
                   ],
                 },
-                'finishReason': 'STOP',
-              },
-            ],
-          }),
+          ),
           200,
           headers: {'content-type': 'application/json'},
         );

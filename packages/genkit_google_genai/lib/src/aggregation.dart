@@ -67,6 +67,9 @@ class _CandidateState {
     if (chunk.finishReason != null) {
       finalFinishReason = chunk.finishReason;
     }
+    if (chunk.finishMessage != null) {
+      finalFinishMessage = chunk.finishMessage;
+    }
     if (chunk.safetyRatings != null && chunk.safetyRatings!.isNotEmpty) {
       safetyRatings.addAll(chunk.safetyRatings!);
     }
@@ -108,6 +111,7 @@ class _CandidateState {
     return gcl.Candidate(
       index: index,
       finishReason: finalFinishReason,
+      finishMessage: finalFinishMessage,
       safetyRatings: safetyRatings,
       citationMetadata: citationMetadata,
       groundingMetadata: groundingMetadata,
