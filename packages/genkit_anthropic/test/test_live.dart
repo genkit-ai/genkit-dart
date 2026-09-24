@@ -36,6 +36,12 @@ abstract class $Record {
 }
 
 @Schema()
+abstract class $Scorecard {
+  String get name;
+  Map<String, int> get scores;
+}
+
+@Schema()
 abstract class $CalculatorInput {
   int get a;
   int get b;
@@ -251,6 +257,21 @@ void main() {
         expect(response.output!.name, contains('Ada'));
         expect(response.output!.extra, isA<Map<String, dynamic>>());
         expect((response.output!.extra as Map)['city'], 'London');
+      }, timeout: Timeout(Duration(minutes: 2)));
+
+      test('a map field comes back populated', () async {
+        // `additionalProperties` may only be `false` natively, which would
+        // close the map and leave the model able to answer only `{}`. The
+        // prompt fallback is what keeps the entries.
+        final response = await ai.generate(
+          model: anthropic.model('claude-sonnet-4-5'),
+          prompt: 'Return a scorecard for Ada with scores maths=90, art=70.',
+          outputSchema: Scorecard.$schema,
+        );
+
+        expect(response.output, isNotNull);
+        expect(response.output!.scores, isNotEmpty);
+        expect(response.output!.scores['maths'], 90);
       }, timeout: Timeout(Duration(minutes: 2)));
 
       test('should use tools', () async {

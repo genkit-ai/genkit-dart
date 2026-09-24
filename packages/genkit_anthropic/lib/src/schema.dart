@@ -157,23 +157,31 @@ Object? _asSchema(Object? value) => switch (value) {
   _ => value,
 };
 
-/// Whether Anthropic's structured-output validator can express [schema].
+/// Whether Anthropic's structured-output validator can express [schema]
+/// without changing what it means.
 ///
-/// It rejects an empty schema outright - "Empty schema ({}) that accepts any
-/// JSON value is not supported. Please specify a concrete type." - and
-/// schemantic emits exactly that for a `dynamic` or `Object?` field, via
-/// `$Schema.any()`.
+/// Two shapes it cannot, both of which schemantic emits routinely:
 ///
-/// There is no faithful rewrite. A union of every concrete type is accepted,
-/// but its object branch has to carry `additionalProperties: false`, and the
-/// model then answers an object value as a *string* of JSON rather than an
-/// object - checked against the live API. Silently changing a field's type is
+/// - an empty schema, which it rejects outright - "Empty schema ({}) that
+///   accepts any JSON value is not supported. Please specify a concrete type."
+///   `$Schema.any()`, and so a `dynamic` or `Object?` field, is exactly that;
+/// - an open map. `additionalProperties` may only be `false` here, so a
+///   `Map<String, T>` field - which schemantic emits as
+///   `additionalProperties: {...}` - would be closed to an object with no
+///   properties at all, and the model answers `{}`. Checked live.
+///
+/// Neither has a faithful rewrite. A union of every concrete type is accepted
+/// in place of `{}`, but its object branch must carry
+/// `additionalProperties: false`, and the model then answers an object value
+/// as a *string* of JSON. Silently changing or dropping a field's value is
 /// worse than not constraining it, so a schema this returns false for is sent
-/// through the prompt instead.
+/// through the prompt instead - unenforced, but intact, which is what the
+/// forced `return_output` tool did before it (`input_schema` was never
+/// `strict`, so these fields were not API-enforced there either).
 bool isNativelyExpressible(Map<String, dynamic> schema) =>
-    !_hasEmptySchema(schema);
+    !_isBeyondTheValidator(schema);
 
-bool _hasEmptySchema(Object? node) {
+bool _isBeyondTheValidator(Object? node) {
   if (node is! Map) return false;
   final map = node.cast<String, dynamic>();
   // The root of a schema document is never "empty" by accident: `{}` as a
@@ -182,14 +190,17 @@ bool _hasEmptySchema(Object? node) {
   for (final entry in map.entries) {
     final key = entry.key;
     final value = entry.value;
+    // `false` is the only value the validator takes, so anything else - a
+    // value schema, or `true` - is an open map it would quietly close.
+    if (key == 'additionalProperties' && value != false) return true;
     if (_schemaMapKeywords.contains(key) && value is Map) {
-      if (value.values.any(_hasEmptySchema)) return true;
+      if (value.values.any(_isBeyondTheValidator)) return true;
     } else if (_schemaListKeywords.contains(key) && value is List) {
-      if (value.any(_hasEmptySchema)) return true;
+      if (value.any(_isBeyondTheValidator)) return true;
     } else if (_schemaValuedKeywords.contains(key)) {
       if (value is List) {
-        if (value.any(_hasEmptySchema)) return true;
-      } else if (_hasEmptySchema(value)) {
+        if (value.any(_isBeyondTheValidator)) return true;
+      } else if (_isBeyondTheValidator(value)) {
         return true;
       }
     }

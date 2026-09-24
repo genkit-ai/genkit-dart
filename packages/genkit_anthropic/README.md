@@ -137,16 +137,25 @@ schema in the prompt, which works everywhere.
 Two things Anthropic's schema validator will not accept, which the plugin
 rewrites rather than forwarding:
 
-- `additionalProperties` may only be `false`. A `Map<String, T>` field — which
-  schemantic emits as `additionalProperties: {…}` — therefore loses its value
-  schema, and the map is constrained to the properties named alongside it. If
-  you need an open map natively, model it as a string field and parse it
-  yourself.
 - `oneOf` is rejected, so it is rewritten to `anyOf`. `SchemanticType.nullable()`
   emits `oneOf`, which would otherwise make every optional field a 400.
 
 Validation keywords (`minimum`, `maxLength`, `pattern`, …) are stripped, since
 the validator rejects them on a constrained schema.
+
+Two shapes cannot be constrained at all, and the plugin puts the schema in the
+prompt for those requests rather than sending a constraint that would change
+what the schema means:
+
+- a `dynamic` or `Object?` field, which compiles to an empty schema. Anthropic
+  rejects it outright, and every concrete stand-in it does accept turns an
+  object value into a string of JSON.
+- a `Map<String, T>` field. `additionalProperties` may only be `false`, which
+  would close the map and leave the model able to answer only `{}`.
+
+Those requests still go out and still return the right shape; they are simply
+not enforced by the API — which is also true of the forced tool this replaced,
+whose `input_schema` was never `strict`.
 
 ### Stable and beta APIs
 

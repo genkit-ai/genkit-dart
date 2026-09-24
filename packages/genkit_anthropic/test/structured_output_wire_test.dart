@@ -335,32 +335,44 @@ void main() {
       });
     });
 
-    test('a dictionary field is closed, like every other object', () async {
-      // Anthropic takes no other value: a schema, `true` and
-      // `{"type": "string"}` all answer "For 'object' type,
-      // 'additionalProperties: object' is not supported. Please set
-      // 'additionalProperties' to false". So a `Map<String, T>` field - which
-      // schemantic emits as `additionalProperties: {...}` - loses its value
-      // schema rather than 400ing, and JS does the same.
+    test('a dictionary field travels in the prompt', () async {
+      // `additionalProperties` may only be `false` here, so an open map would
+      // be closed to an object with no properties and the model would answer
+      // `{}` - the value dropped, silently. The schema goes in the prompt
+      // instead, where the map survives.
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         outputSchema: {
           'type': 'object',
           'properties': {
-            'labels': {
+            'scores': {
               'type': 'object',
-              'additionalProperties': {'type': 'string'},
+              'additionalProperties': {'type': 'integer'},
             },
-            'open': {'type': 'object', 'additionalProperties': true},
+          },
+        },
+      );
+
+      expect(body, isNot(contains('output_config')));
+      expect(body['system'].toString(), contains('additionalProperties'));
+    });
+
+    test('an explicitly closed object still goes native', () async {
+      // `additionalProperties: false` is what the validator wants, so a schema
+      // that already says it is expressible as it stands.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'additionalProperties': false,
+          'properties': {
+            'a': {'type': 'string'},
           },
         },
       );
 
       final sent =
           ((body['output_config'] as Map)['format'] as Map)['schema'] as Map;
-      final properties = sent['properties'] as Map;
-      expect((properties['labels'] as Map)['additionalProperties'], false);
-      expect((properties['open'] as Map)['additionalProperties'], false);
       expect(sent['additionalProperties'], false);
     });
 
