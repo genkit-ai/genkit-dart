@@ -53,6 +53,7 @@ abstract class $GeminiOptions {
   double? get frequencyPenalty;
   int? get seed;
 
+  $ImageConfig? get imageConfig;
   $SpeechConfig? get speechConfig;
 }
 
@@ -162,6 +163,32 @@ abstract class $GeminiTtsOptions {
   int? get seed;
 
   $SpeechConfig? get speechConfig;
+}
+
+@Schema()
+abstract class $ImageConfig {
+  @StringField(
+    enumValues: [
+      '1:1',
+      '1:4',
+      '1:8',
+      '2:3',
+      '3:2',
+      '3:4',
+      '4:1',
+      '4:3',
+      '4:5',
+      '5:4',
+      '8:1',
+      '9:16',
+      '16:9',
+      '21:9',
+    ],
+  )
+  String? get aspectRatio;
+
+  @StringField(enumValues: ['1K', '2K', '4K'])
+  String? get imageSize;
 }
 
 @Schema(description: 'Speech generation config')
