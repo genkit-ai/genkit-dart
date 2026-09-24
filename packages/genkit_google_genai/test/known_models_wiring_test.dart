@@ -165,6 +165,51 @@ void main() {
     });
   });
 
+  group('injected client lifecycle', () {
+    test('list does not close the injected client', () async {
+      final client = ListingClient();
+
+      await plugin(client: client).list();
+
+      expect(client.closed, isFalse);
+    });
+
+    test('generate does not close the injected client', () async {
+      final client = ListingClient();
+      final model = plugin(client: client).resolve(.model, 'gemini-2.0-flash')!;
+
+      await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+        ),
+      );
+
+      expect(client.closed, isFalse);
+    });
+
+    test('embedder does not close the injected client', () async {
+      final client = ListingClient();
+      final embedder =
+          plugin(client: client).resolve(.embedder, 'text-embedding-004')!
+              as Action<EmbedRequest, EmbedResponse, void, void>;
+
+      await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+          ],
+        ),
+      );
+
+      expect(client.closed, isFalse);
+    });
+  });
+
   group('GoogleAiModels', () {
     test('refs point at the curated action names', () {
       expect(
