@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/plugin.dart';
+import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/src/common_plugin.dart';
 import 'package:genkit_google_genai/src/generated/generativelanguage.dart'
     as gcl;
 import 'package:test/test.dart';
+
+import 'test_harness.dart';
 
 gcl.Candidate _candidate(String? finishReason) => gcl.Candidate(
   index: 0,
@@ -27,22 +29,48 @@ gcl.Candidate _candidate(String? finishReason) => gcl.Candidate(
   ),
 );
 
+/// A content-less candidate, the shape Gemini uses for blocked turns.
+Map<String, dynamic> _blockedResponse(String finishReason) => {
+  'candidates': [
+    {
+      'index': 0,
+      'finishReason': finishReason,
+      'finishMessage': 'blocked by policy',
+    },
+  ],
+};
+
 void main() {
   group('fromGeminiCandidate finish reason mapping', () {
-    // Mirrors the Go plugin's translateCandidate switch.
+    // Union of the Gemini discovery doc, the Gemini and Vertex protos, the
+    // Gen AI SDKs and the Firebase SDKs; no single list is complete.
     final cases = <String, FinishReason>{
+      '': FinishReason.unknown,
+      'FINISH_REASON_UNSPECIFIED': FinishReason.unknown,
       'STOP': FinishReason.stop,
       'MAX_TOKENS': FinishReason.length,
       'SAFETY': FinishReason.blocked,
       'RECITATION': FinishReason.blocked,
+      'LANGUAGE': FinishReason.blocked,
+      'BLOCKLIST': FinishReason.blocked,
       'PROHIBITED_CONTENT': FinishReason.blocked,
+      'SPII': FinishReason.blocked,
       'IMAGE_SAFETY': FinishReason.blocked,
-      'OTHER': FinishReason.other,
+      'IMAGE_PROHIBITED_CONTENT': FinishReason.blocked,
+      'IMAGE_RECITATION': FinishReason.blocked,
+      'MODEL_ARMOR': FinishReason.blocked,
+      'ESCALATION': FinishReason.blocked,
+      'PUP_LIMITED_DISABLED': FinishReason.blocked,
       'MALFORMED_FUNCTION_CALL': FinishReason.other,
       'UNEXPECTED_TOOL_CALL': FinishReason.other,
+      'TOO_MANY_TOOL_CALLS': FinishReason.other,
+      'NO_IMAGE': FinishReason.other,
+      'IMAGE_OTHER': FinishReason.other,
+      'MALFORMED_RESPONSE': FinishReason.other,
       'MISSING_THOUGHT_SIGNATURE': FinishReason.other,
-      'FINISH_REASON_UNSPECIFIED': FinishReason.unknown,
-      'SOME_FUTURE_REASON': FinishReason.unknown,
+      'OTHER': FinishReason.other,
+      // Unrecognized reasons are abnormal so output parsing is skipped.
+      'SOME_FUTURE_REASON': FinishReason.other,
     };
 
     cases.forEach((raw, expected) {
@@ -69,5 +97,46 @@ void main() {
         expect(reason.value, FinishReason.stop.value);
       },
     );
+  });
+
+  group('model action', () {
+    test(
+      'surfaces finishMessage on a content-less blocked candidate',
+      () async {
+        final plugin = WirePlugin([], response: _blockedResponse('SAFETY'));
+        final model = plugin.resolve(.model, 'gemini-flash-latest') as Model;
+        final response = await model(
+          ModelRequest(
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hello')],
+              ),
+            ],
+          ),
+        );
+        expect(response.finishReason, FinishReason.blocked);
+        expect(response.finishMessage, 'blocked by policy');
+        expect(response.message?.content, isEmpty);
+      },
+    );
+
+    test('JSON output on a blocked turn skips parsing instead of reporting a '
+        'schema error', () async {
+      final ai = Genkit(
+        plugins: [WirePlugin([], response: _blockedResponse('ESCALATION'))],
+        promptDir: null,
+        isDevEnv: false,
+      );
+      addTearDown(ai.shutdown);
+      final response = await ai.generate(
+        model: modelRef('googleai/gemini-flash-latest'),
+        prompt: 'give me json',
+        outputSchema: .string(),
+      );
+      expect(response.finishReason, FinishReason.blocked);
+      expect(response.finishMessage, 'blocked by policy');
+      expect(response.error, isNull);
+    });
   });
 }

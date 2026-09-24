@@ -166,11 +166,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                 'No candidates returned from generative stream. Block reason: $blockReason',
               );
             }
-            final (message, finishReason) = fromGeminiCandidate(
-              aggregated.candidates!.first,
-            );
+            final candidate = aggregated.candidates!.first;
+            final (message, finishReason) = fromGeminiCandidate(candidate);
             return ModelResponse(
               finishReason: finishReason,
+              finishMessage: candidate.finishMessage,
               message: message,
               raw: aggregated.toJson(),
               usage: extractUsage(aggregated.usageMetadata),
@@ -186,11 +186,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                 'No candidates returned from generateContent. Block reason: $blockReason',
               );
             }
-            final (message, finishReason) = fromGeminiCandidate(
-              response.candidates!.first,
-            );
+            final candidate = response.candidates!.first;
+            final (message, finishReason) = fromGeminiCandidate(candidate);
             return ModelResponse(
               finishReason: finishReason,
+              finishMessage: candidate.finishMessage,
               message: message,
               raw: response?.toJson(),
               usage: extractUsage(response.usageMetadata),
@@ -265,12 +265,15 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   return (message, _toFinishReason(candidate.finishReason));
 }
 
-/// Maps a Gemini finish reason onto Genkit's vocabulary. An absent or
-/// `FINISH_REASON_UNSPECIFIED` reason becomes [FinishReason.unknown] (a
-/// result-carrying reason), never the non-canonical `unspecified`: a truncated
-/// turn that names no reason still carries whatever text it produced.
-/// Unrecognized future reasons also fall to `unknown` rather than leaking the
-/// raw enum string.
+/// Maps a Gemini finish reason onto Genkit's vocabulary.
+///
+/// No published list is complete: the discovery doc, protos, Gen AI SDKs and
+/// Firebase SDKs each lag the live API differently, so this is the union of
+/// all of them. A missing or `FINISH_REASON_UNSPECIFIED` reason maps to
+/// [FinishReason.unknown], so a turn that names no reason still returns its
+/// text. Any other unrecognized reason maps to [FinishReason.other]: new
+/// values tend to be blocks or failures, and `other` is abnormal, so output
+/// parsing is skipped and `finishMessage` explains why.
 FinishReason _toFinishReason(String? raw) {
   switch (raw) {
     case null:
@@ -290,6 +293,11 @@ FinishReason _toFinishReason(String? raw) {
     case 'IMAGE_SAFETY':
     case 'IMAGE_PROHIBITED_CONTENT':
     case 'IMAGE_RECITATION':
+    // Vertex only; reaches here via genkit_vertexai.
+    case 'MODEL_ARMOR':
+    // Only listed in the Gemini discovery doc so far.
+    case 'ESCALATION':
+    case 'PUP_LIMITED_DISABLED':
       return FinishReason.blocked;
     case 'MALFORMED_FUNCTION_CALL':
     case 'UNEXPECTED_TOOL_CALL':
@@ -303,7 +311,8 @@ FinishReason _toFinishReason(String? raw) {
     case 'OTHER':
       return FinishReason.other;
     default:
-      return FinishReason.unknown;
+      // Deliberately differs from Go/JS, which return `unknown` here.
+      return FinishReason.other;
   }
 }
 
