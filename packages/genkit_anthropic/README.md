@@ -122,3 +122,65 @@ final response = await ai.generate(
 final person = response.output; // Typed Person object
 print('Name: ${person.name}, Age: ${person.age}');
 ```
+
+A curated model is sent the schema natively, as `output_config.format`, on
+either API surface — Anthropic serves the field on stable too, and its docs no
+longer require a beta header for it. Nothing is added to the request and no
+`tool_choice` is pinned, so structured output composes with extended thinking
+and with your own tools. Those models advertise `constrained: true`.
+
+A model the plugin does not curate advertises nothing, since whether a model
+is on Anthropic's Structured Outputs list is per-model and this plugin has only
+checked the names it curates. Genkit simulates for those instead, putting the
+schema in the prompt, which works everywhere.
+
+Two things Anthropic's schema validator will not accept, which the plugin
+rewrites rather than forwarding:
+
+- `oneOf` is rejected, so it is rewritten to `anyOf`. `SchemanticType.nullable()`
+  emits `oneOf`, which would otherwise make every optional field a 400.
+
+Validation keywords (`minimum`, `maxLength`, `pattern`, …) are stripped, since
+the validator rejects them on a constrained schema.
+
+Two shapes cannot be constrained at all, and the plugin puts the schema in the
+prompt for those requests rather than sending a constraint that would change
+what the schema means:
+
+- a `dynamic` or `Object?` field, which compiles to an empty schema. Anthropic
+  rejects it outright, and every concrete stand-in it does accept turns an
+  object value into a string of JSON.
+- a `Map<String, T>` field. `additionalProperties` may only be `false`, which
+  would close the map and leave the model able to answer only `{}`.
+
+Those requests still go out and still return the right shape; they are simply
+not enforced by the API — which is also true of the forced tool this replaced,
+whose `input_schema` was never `strict`.
+
+### Stable and beta APIs
+
+Requests go to Anthropic's stable API by default. Set `apiVersion` to `'beta'`
+to reach beta-gated features, either for a single request or for every request.
+Structured output is not one of them — it is served on both surfaces:
+
+```dart
+// Per request.
+final response = await ai.generate(
+  model: anthropic.model('claude-sonnet-4-5'),
+  prompt: 'Hello',
+  config: AnthropicOptions(apiVersion: 'beta'),
+);
+
+// Or as the plugin-wide default; a request's own apiVersion still wins.
+final ai = Genkit(plugins: [anthropic(apiVersion: 'beta')]);
+```
+
+Beta requests send a curated `anthropic-beta` feature list. To opt into a beta
+the plugin does not know about yet, set `betas` to replace that list:
+
+```dart
+config: AnthropicOptions(
+  apiVersion: 'beta',
+  betas: ['some-new-beta-2026-01-01'],
+),
+```

@@ -12,68 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit_anthropic/genkit_anthropic.dart';
-import 'package:genkit_anthropic/src/plugin_impl.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
-Future<Map<String, dynamic>> _requestOnTheWire({
-  required String model,
-  ThinkingConfig? thinking,
-  AnthropicOutputConfig? outputConfig,
-  List<Message>? messages,
-}) async {
-  Map<String, dynamic>? captured;
-  final client = MockClient((request) async {
-    if (request.url.path != '/v1/messages') {
-      return http.Response('not found', 404);
-    }
-    captured = (jsonDecode(request.body) as Map).cast<String, dynamic>();
-    return http.Response(
-      jsonEncode({
-        'id': 'msg_test',
-        'type': 'message',
-        'role': 'assistant',
-        'model': model,
-        'content': [
-          {'type': 'text', 'text': 'ok'},
-        ],
-        'stop_reason': 'end_turn',
-        'stop_sequence': null,
-        'usage': {'input_tokens': 1, 'output_tokens': 1},
-      }),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  });
-  final plugin = AnthropicPluginImpl(apiKey: 'test-key', httpClient: client);
-  addTearDown(plugin.close);
-  final action = plugin.resolve(.model, model) as Model;
+import 'wire_harness.dart';
 
-  await action(
-    ModelRequest(
-      messages:
-          messages ??
-          [
-            Message(
-              role: Role.user,
-              content: [TextPart(text: 'hello')],
-            ),
-          ],
-      config: AnthropicOptions(
-        thinking: thinking,
-        outputConfig: outputConfig,
-      ).toJson(),
-    ),
-  );
-
-  return captured!;
-}
+/// A minimal well-formed Anthropic SSE stream, enough for the SDK accumulator.
 
 void main() {
   group('thinking config on the wire', () {
@@ -89,7 +35,7 @@ void main() {
 
     for (final model in adaptiveModels) {
       test('$model defaults to adaptive', () async {
-        final body = await _requestOnTheWire(
+        final body = await requestOnTheWire(
           model: model,
           thinking: ThinkingConfig(),
         );
@@ -98,7 +44,7 @@ void main() {
     }
 
     test('dated adaptive snapshot uses its curated alias', () async {
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-opus-4-7-20260205',
         thinking: ThinkingConfig(),
       );
@@ -106,15 +52,15 @@ void main() {
     });
 
     test('Claude 4.5 models default to manual thinking', () async {
-      final sonnet = await _requestOnTheWire(
+      final sonnet = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         thinking: ThinkingConfig(),
       );
-      final haiku = await _requestOnTheWire(
+      final haiku = await requestOnTheWire(
         model: 'claude-haiku-4-5-20251001',
         thinking: ThinkingConfig(budgetTokens: 2048),
       );
-      final opus = await _requestOnTheWire(
+      final opus = await requestOnTheWire(
         model: 'claude-opus-4-5',
         thinking: ThinkingConfig(),
       );
@@ -125,11 +71,11 @@ void main() {
     });
 
     test('explicit types override curated defaults', () async {
-      final manual = await _requestOnTheWire(
+      final manual = await requestOnTheWire(
         model: 'claude-opus-4-7',
         thinking: ThinkingConfig(type: 'enabled', budgetTokens: 2048),
       );
-      final adaptive = await _requestOnTheWire(
+      final adaptive = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         thinking: ThinkingConfig(type: 'adaptive', budgetTokens: 2048),
       );
@@ -139,7 +85,7 @@ void main() {
     });
 
     test('explicit type works for an unknown model', () async {
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-future-model',
         thinking: ThinkingConfig(type: 'disabled'),
       );
@@ -148,7 +94,7 @@ void main() {
 
     test('unknown model requires an explicit type', () async {
       await expectLater(
-        _requestOnTheWire(
+        requestOnTheWire(
           model: 'claude-future-model',
           thinking: ThinkingConfig(),
         ),
@@ -161,7 +107,7 @@ void main() {
     });
 
     test('omits thinking when no config is provided', () async {
-      final body = await _requestOnTheWire(model: 'claude-opus-4-7');
+      final body = await requestOnTheWire(model: 'claude-opus-4-7');
       expect(body, isNot(contains('thinking')));
     });
   });
@@ -169,7 +115,7 @@ void main() {
   group('output config on the wire', () {
     for (final effort in ['low', 'medium', 'high', 'xhigh', 'max']) {
       test('maps $effort effort', () async {
-        final body = await _requestOnTheWire(
+        final body = await requestOnTheWire(
           model: 'claude-sonnet-5',
           outputConfig: AnthropicOutputConfig(effort: effort),
         );
@@ -178,7 +124,7 @@ void main() {
     }
 
     test('omits output_config when no effort is provided', () async {
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-sonnet-5',
         outputConfig: AnthropicOutputConfig(),
       );
@@ -188,7 +134,7 @@ void main() {
 
   group('thinking blocks on the wire', () {
     test('replays a prior assistant turn with its thinking block', () async {
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
         messages: [
@@ -227,7 +173,7 @@ void main() {
       // Through v0.3.1 a redacted block came back as
       // `ReasoningPart(reasoning: '', metadata: {redactedThinking})`. It is a
       // CustomPart now, matching JS, but the old shape must still replay.
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         messages: [
           Message(
@@ -262,7 +208,7 @@ void main() {
       // conversation persisted then and replayed after upgrading must still
       // round-trip, or the upgrade silently drops the blocks this conversion
       // exists to preserve.
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         messages: [
           Message(
@@ -294,7 +240,7 @@ void main() {
     });
 
     test('prefers the current key when a part carries both', () async {
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         messages: [
           Message(
@@ -334,7 +280,7 @@ void main() {
       final sub = Logger.root.onRecord.listen((r) => logged.add(r.message));
       addTearDown(sub.cancel);
 
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         messages: [
           Message(
@@ -366,7 +312,7 @@ void main() {
     });
 
     test('omits an unsigned thinking block from the wire', () async {
-      final body = await _requestOnTheWire(
+      final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
         messages: [

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
 
 part of 'test_live.dart';
 
@@ -77,6 +78,135 @@ base class _PersonTypeFactory extends SchemanticType<Person> {
         .object(
           properties: {'name': $Schema.string(), 'age': $Schema.integer()},
           required: ['name', 'age'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class Record {
+  /// Creates a [Record] from a JSON map.
+  factory Record.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Record._(this._json);
+
+  Record({required String name, dynamic extra}) {
+    _json = {'name': name, 'extra': ?extra};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [Record].
+  static const SchemanticType<Record> $schema = _RecordTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  dynamic get extra {
+    return _json['extra'] as dynamic;
+  }
+
+  set extra(dynamic value) {
+    _json['extra'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [Record] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _RecordTypeFactory extends SchemanticType<Record> {
+  const _RecordTypeFactory();
+
+  @override
+  Record parse(Object? json) {
+    return Record._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Record',
+    definition: $Schema
+        .object(
+          properties: {'name': $Schema.string(), 'extra': $Schema.any()},
+          required: ['name', 'extra'],
+        )
+        .value,
+    dependencies: [],
+  );
+}
+
+base class Scorecard {
+  /// Creates a [Scorecard] from a JSON map.
+  factory Scorecard.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  Scorecard._(this._json);
+
+  Scorecard({required String name, required Map<String, int> scores}) {
+    _json = {'name': name, 'scores': scores};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [Scorecard].
+  static const SchemanticType<Scorecard> $schema = _ScorecardTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  Map<String, int> get scores {
+    return (_json['scores'] as Map).cast<String, int>();
+  }
+
+  set scores(Map<String, int> value) {
+    _json['scores'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [Scorecard] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _ScorecardTypeFactory extends SchemanticType<Scorecard> {
+  const _ScorecardTypeFactory();
+
+  @override
+  Scorecard parse(Object? json) {
+    return Scorecard._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'Scorecard',
+    definition: $Schema
+        .object(
+          properties: {
+            'name': $Schema.string(),
+            'scores': $Schema.object(additionalProperties: $Schema.integer()),
+          },
+          required: ['name', 'scores'],
         )
         .value,
     dependencies: [],

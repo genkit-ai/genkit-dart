@@ -184,7 +184,7 @@ void main() {
   });
 
   group('KnownClaudeModel', () {
-    test('info carries the label, stable stage, and tiered supports', () {
+    test('info carries the label, stable stage and supports', () {
       for (final model in KnownClaudeModel.values) {
         final info = model.info;
         expect(info.label, model.label);
@@ -195,19 +195,45 @@ void main() {
           'tools': true,
           'toolChoice': true,
           'systemRole': true,
-          if (model.structuredOutputs) ...{
-            'output': ['text', 'json'],
-            'constrained': 'no-tools',
-          } else
-            'output': ['text'],
+          'output': ['text', 'json'],
+          'constrained': true,
         });
       }
     });
 
-    test('every curated model is on the structured tier', () {
+    test('curation is the claim: every curated model takes a schema', () {
+      // There is no second tier to fall into. A name this plugin cannot vouch
+      // for is not curated, and gets `commonModelInfo` instead.
       for (final model in KnownClaudeModel.values) {
-        expect(model.structuredOutputs, isTrue, reason: model.id);
         expect(model.info.supports, structuredClaudeSupports);
+      }
+    });
+
+    test('the claim does not depend on the API surface', () {
+      // `output_config.format` is served on stable as well as beta, so the
+      // mechanism is the same either way - and it pins no `tool_choice`, which
+      // is why the claim is `true` rather than `'no-tools'`.
+      for (final version in [null, 'stable', 'beta']) {
+        expect(
+          AnthropicPluginImpl(
+            apiKey: 'k',
+            apiVersion: version,
+          ).modelInfoFor('claude-sonnet-4-5').supports!['constrained'],
+          isTrue,
+          reason: version ?? 'default',
+        );
+      }
+    });
+
+    test('an uncurated name claims nothing on either surface', () {
+      // Whether a model is on Anthropic's Structured Outputs list is
+      // per-model, and this plugin has only checked the names it curates.
+      for (final version in [null, 'beta']) {
+        final info = AnthropicPluginImpl(
+          apiKey: 'k',
+          apiVersion: version,
+        ).modelInfoFor('claude-future-model');
+        expect(info.supports!.containsKey('constrained'), isFalse);
       }
     });
 
@@ -228,10 +254,10 @@ void main() {
     });
   });
 
-  group('knownClaudeModels', () {
-    test('curates exactly the supported model catalog', () {
+  group('the curated catalog', () {
+    test('curates exactly the supported model list', () {
       expect(
-        knownClaudeModels.keys,
+        AnthropicPluginImpl(apiKey: 'k').knownModelIds,
         unorderedEquals([
           'claude-fable-5',
           'claude-opus-5',
@@ -247,13 +273,14 @@ void main() {
       );
     });
 
-    test('is derived from the enum, keyed by bare model id', () {
+    test('is the enum, by bare model id', () {
+      final plugin = AnthropicPluginImpl(apiKey: 'k');
       expect(
-        knownClaudeModels.keys,
+        plugin.knownModelIds,
         unorderedEquals([for (final m in KnownClaudeModel.values) m.id]),
       );
       for (final model in KnownClaudeModel.values) {
-        expect(knownClaudeModels[model.id]!.label, model.label);
+        expect(plugin.modelInfoFor(model.id).label, model.label);
       }
     });
   });
