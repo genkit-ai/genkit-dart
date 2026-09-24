@@ -219,6 +219,256 @@ void main() {
     expect(response.text, '{"result": "success"}');
   });
 
+  group('lite tools and interrupts', () {
+    test('runs a tool and feeds its output back to the model', () async {
+      final weather = lite.Tool(
+        name: 'weather',
+        description: 'Gets the weather.',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: (input, ctx) async => .response('sunny'),
+      );
+
+      final model = Model<void>(
+        name: 'toolModel',
+        fn: (request, context) async {
+          if (request!.messages.last.role == Role.tool) {
+            final toolResponse =
+                request.messages.last.content.first.toolResponse!;
+
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'weather is ${toolResponse.output}')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: 'weather', input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await lite.generate(
+        model: model,
+        prompt: 'what is the weather?',
+        tools: [weather],
+      );
+
+      expect(response.text, 'weather is sunny');
+    });
+
+    test('a tool returning .interrupt halts the generation loop', () async {
+      final needsApproval = lite.Tool(
+        name: 'needsApproval',
+        description: 'requires approval',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: (input, ctx) async => .interrupt({'requiresConfirmation': true}),
+      );
+
+      final model = Model<void>(
+        name: 'interruptModel',
+        fn: (request, context) async {
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: 'needsApproval', input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await lite.generate(
+        model: model,
+        prompt: 'go',
+        tools: [needsApproval],
+      );
+
+      expect(response.finishReason, FinishReason.interrupted);
+      expect(response.interrupts, hasLength(1));
+      expect(response.interrupts.first.toolRequest.name, 'needsApproval');
+      expect(response.interrupts.first.metadata?['interrupt'], {
+        'requiresConfirmation': true,
+      });
+    });
+
+    test('an Interrupt always interrupts with default metadata', () async {
+      final confirm = lite.Interrupt(
+        name: 'confirmAction',
+        description: 'Asks the user to confirm.',
+        inputSchema: .map(.string(), .dynamicSchema()),
+      );
+
+      expect(confirm.metadata['tool'], {'restartable': false});
+
+      final model = Model<void>(
+        name: 'confirmModel',
+        fn: (request, context) async {
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: 'confirmAction', input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await lite.generate(
+        model: model,
+        prompt: 'do the thing',
+        tools: [confirm],
+      );
+
+      expect(response.finishReason, FinishReason.interrupted);
+      expect(response.interrupts, hasLength(1));
+      expect(response.message!.content.first.metadata?['interrupt'], true);
+    });
+
+    test('an Interrupt attaches computed requestMetadata', () async {
+      final confirm = lite.Interrupt(
+        name: 'confirmCharge',
+        description: 'Asks the user to confirm a charge.',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        requestMetadata: (input, _) => {'amount': input['amount']},
+      );
+
+      final model = Model<void>(
+        name: 'chargeModel',
+        fn: (request, context) async {
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'confirmCharge',
+                    input: {'amount': 42},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await lite.generate(
+        model: model,
+        prompt: 'charge me',
+        tools: [confirm],
+      );
+
+      expect(response.finishReason, FinishReason.interrupted);
+      expect(response.message!.content.first.metadata?['interrupt'], {
+        'amount': 42,
+      });
+    });
+
+    test('an interrupted Interrupt can be resumed with '
+        'interruptRespond', () async {
+      final confirm = lite.Interrupt(
+        name: 'confirmAction',
+        description: 'Asks the user to confirm.',
+        inputSchema: .map(.string(), .dynamicSchema()),
+      );
+
+      var modelCallCount = 0;
+      final model = Model<void>(
+        name: 'resumeModel',
+        fn: (request, context) async {
+          modelCallCount++;
+
+          if (request!.messages.last.role == Role.tool) {
+            final toolResponse =
+                request.messages.last.content.first.toolResponse!;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'confirmed: ${toolResponse.output}')],
+              ),
+            );
+          }
+
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: 'confirmAction', input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response1 = await lite.generate(
+        model: model,
+        prompt: 'do the thing',
+        tools: [confirm],
+      );
+      expect(response1.finishReason, FinishReason.interrupted);
+      expect(response1.interrupts, hasLength(1));
+
+      final response2 = await lite.generate(
+        model: model,
+        messages: response1.messages,
+        tools: [confirm],
+        interruptRespond: [
+          lite.InterruptResponse(response1.interrupts.first, 'UserConfirmed'),
+        ],
+      );
+
+      expect(response2.finishReason, FinishReason.stop);
+      expect(response2.text, 'confirmed: UserConfirmed');
+      expect(modelCallCount, 2);
+    });
+
+    test('exports the tool fn and result types', () async {
+      // Names each type through the `lite.` prefix so that dropping an export
+      // from lite.dart breaks compilation (the unprefixed genkit.dart import
+      // would otherwise mask it).
+      Future<lite.ToolResult<String>> fn(
+        Map<String, dynamic> input,
+        lite.ToolFnArgs<Map<String, dynamic>> ctx,
+      ) async => .response('ok');
+      expect(fn, isA<lite.ToolFn<Map<String, dynamic>, String>>());
+
+      final tool = lite.Tool<Map<String, dynamic>, String>(
+        name: 'typed',
+        description: 'A typed tool.',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: fn,
+      );
+      expect(tool.name, 'typed');
+
+      final ok = lite.ToolResult<String>.response('ok');
+      final halt = lite.ToolResult<String>.interrupt({'why': 'because'});
+      expect(ok, isA<lite.ToolResponseResult<String>>());
+      expect(halt, isA<lite.ToolInterruptResult<String>>());
+    });
+  });
+
   group('remoteModel', () {
     late MockClient mockClient;
     const remoteUrl = 'http://localhost:3400/remote-model';
